@@ -1,0 +1,755 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #00A86B;
+  --color-secondary: #0F172A;
+  --color-background: #FFFFFF;
+  --color-muted: #F8FAFC;
+  --color-border: #E5E7EB;
+  --color-success: #10B981;
+
+  --font-sans: "Roboto", sans-serif;
+}
+
+@layer base {
+  body {
+    background-color: var(--color-background);
+    color: var(--color-secondary);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none !important;
+}
+.no-scrollbar {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+}
+
+/* ======================================================
+   GLASSMORPHISM DROPDOWN & DATE FILTER SYSTEM
+   Professional, industry-grade filter components
+   ====================================================== */
+
+/* ---- KEYFRAMES ---- */
+@keyframes glassSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes glassShimmer {
+  0% { transform: translateX(-100%) rotate(15deg); }
+  100% { transform: translateX(200%) rotate(15deg); }
+}
+
+@keyframes glassPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(0, 168, 107, 0.15); }
+  50% { box-shadow: 0 0 0 4px rgba(0, 168, 107, 0.08); }
+}
+
+@keyframes checkIn {
+  from {
+    transform: scale(0) rotate(-45deg);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+@keyframes badgePop {
+  0% { transform: scale(0.5); opacity: 0; }
+  60% { transform: scale(1.15); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* ---- TRIGGER BUTTON ---- */
+.glass-dropdown-trigger {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+  height: 36px;
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(248, 250, 252, 0.7));
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
+  position: relative;
+  overflow: hidden;
+}
+
+.glass-dropdown-trigger::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(0, 168, 107, 0.0), rgba(0, 168, 107, 0.0));
+  transition: background 0.3s ease;
+  pointer-events: none;
+}
+
+.glass-dropdown-trigger:hover {
+  border-color: rgba(0, 168, 107, 0.3);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(240, 253, 244, 0.6));
+  box-shadow: 0 2px 12px rgba(0, 168, 107, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04);
+  color: #0F172A;
+  transform: translateY(-1px);
+}
+
+.glass-dropdown-trigger:hover::before {
+  background: linear-gradient(135deg, rgba(0, 168, 107, 0.03), rgba(0, 168, 107, 0.06));
+}
+
+/* ---- TRIGGER PARTS ---- */
+.glass-dropdown-icon {
+  display: flex;
+  align-items: center;
+  color: #94A3B8;
+  transition: color 0.2s ease;
+}
+.glass-dropdown-trigger:hover .glass-dropdown-icon {
+  color: #00A86B;
+}
+
+.glass-dropdown-icon-svg {
+  width: 14px;
+  height: 14px;
+  color: #94A3B8;
+  transition: color 0.2s ease;
+}
+.glass-dropdown-trigger:hover .glass-dropdown-icon-svg {
+  color: #00A86B;
+}
+
+.glass-dropdown-label {
+  color: #64748B;
+  transition: color 0.2s ease;
+}
+.glass-dropdown-label.has-value {
+  color: #0F172A;
+  font-weight: 700;
+}
+
+.glass-dropdown-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9999px;
+  background: linear-gradient(135deg, #00A86B, #00C77B);
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  animation: badgePop 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 4px rgba(0, 168, 107, 0.3);
+}
+
+.glass-dropdown-chevron {
+  width: 14px;
+  height: 14px;
+  color: #94A3B8;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), color 0.2s ease;
+  flex-shrink: 0;
+}
+.glass-dropdown-chevron.rotate {
+  transform: rotate(180deg);
+  color: #00A86B;
+}
+.glass-dropdown-trigger:hover .glass-dropdown-chevron {
+  color: #64748B;
+}
+
+/* ---- DROPDOWN PANEL (GLASS) ---- */
+.glass-dropdown-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 260px;
+  max-width: 320px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: linear-gradient(
+    165deg,
+    rgba(255, 255, 255, 0.82) 0%,
+    rgba(248, 250, 252, 0.75) 40%,
+    rgba(240, 253, 244, 0.65) 100%
+  );
+  backdrop-filter: blur(24px) saturate(1.8);
+  -webkit-backdrop-filter: blur(24px) saturate(1.8);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.08),
+    0 2px 8px rgba(0, 0, 0, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  z-index: 100;
+  overflow: hidden;
+  animation: glassSlideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ---- GLASS SHIMMER OVERLAY ---- */
+.glass-shimmer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 100%;
+  pointer-events: none;
+  overflow: hidden;
+  border-radius: inherit;
+}
+.glass-shimmer::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 50%;
+  height: 200%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.15),
+    transparent
+  );
+  animation: glassShimmer 3s ease-in-out infinite;
+}
+
+/* ---- SEARCH BAR ---- */
+.glass-dropdown-search-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 10px 0;
+  padding: 0 12px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(8px);
+  transition: all 0.2s ease;
+}
+.glass-dropdown-search-wrapper:focus-within {
+  border-color: rgba(0, 168, 107, 0.4);
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 0 0 3px rgba(0, 168, 107, 0.08);
+}
+
+.glass-dropdown-search-icon {
+  width: 14px;
+  height: 14px;
+  color: #94A3B8;
+  flex-shrink: 0;
+}
+
+.glass-dropdown-search-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 12px;
+  color: #0F172A;
+  font-weight: 500;
+}
+.glass-dropdown-search-input::placeholder {
+  color: #94A3B8;
+  font-weight: 400;
+}
+
+.glass-dropdown-search-clear {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.06);
+  color: #64748B;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+.glass-dropdown-search-clear:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: #EF4444;
+}
+
+/* ---- ACTIONS ROW ---- */
+.glass-dropdown-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px 4px;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.3);
+}
+
+.glass-dropdown-action-btn {
+  font-size: 11px;
+  font-weight: 600;
+  color: #00A86B;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+.glass-dropdown-action-btn:hover {
+  background: rgba(0, 168, 107, 0.08);
+}
+.glass-dropdown-action-btn.clear {
+  color: #EF4444;
+}
+.glass-dropdown-action-btn.clear:hover {
+  background: rgba(239, 68, 68, 0.08);
+}
+
+/* ---- OPTIONS LIST ---- */
+.glass-dropdown-options {
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 6px 6px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 168, 107, 0.2) transparent;
+}
+.glass-dropdown-options::-webkit-scrollbar {
+  width: 4px;
+}
+.glass-dropdown-options::-webkit-scrollbar-track {
+  background: transparent;
+}
+.glass-dropdown-options::-webkit-scrollbar-thumb {
+  background: rgba(0, 168, 107, 0.2);
+  border-radius: 4px;
+}
+.glass-dropdown-options::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 168, 107, 0.35);
+}
+
+.glass-dropdown-empty {
+  padding: 20px 16px;
+  text-align: center;
+  font-size: 12px;
+  color: #94A3B8;
+  font-style: italic;
+}
+
+/* ---- OPTION ITEM ---- */
+.glass-dropdown-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  background: transparent;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  text-align: left;
+}
+.glass-dropdown-option:hover {
+  background: rgba(0, 168, 107, 0.06);
+}
+.glass-dropdown-option.selected {
+  background: rgba(0, 168, 107, 0.08);
+}
+.glass-dropdown-option.selected:hover {
+  background: rgba(0, 168, 107, 0.12);
+}
+
+/* ---- CUSTOM CHECKBOX ---- */
+.glass-checkbox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  border: 1.5px solid #CBD5E1;
+  background: rgba(255, 255, 255, 0.8);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
+}
+.glass-checkbox:hover {
+  border-color: #00A86B;
+}
+.glass-checkbox.checked {
+  border-color: #00A86B;
+  background: linear-gradient(135deg, #00A86B, #00C77B);
+  color: white;
+  box-shadow: 0 1px 4px rgba(0, 168, 107, 0.3);
+}
+.glass-checkbox.checked svg {
+  animation: checkIn 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-dropdown-option-icon {
+  display: flex;
+  align-items: center;
+  color: #64748B;
+}
+
+.glass-dropdown-option-label {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #334155;
+  line-height: 1.3;
+}
+.glass-dropdown-option.selected .glass-dropdown-option-label {
+  color: #0F172A;
+  font-weight: 600;
+}
+
+/* ---- FOOTER ---- */
+.glass-dropdown-footer {
+  padding: 8px 14px;
+  border-top: 1px solid rgba(226, 232, 240, 0.3);
+  font-size: 11px;
+  font-weight: 500;
+  color: #64748B;
+  text-align: center;
+  background: rgba(248, 250, 252, 0.4);
+}
+
+
+/* ============================================
+   GLASSMORPHISM DATE FILTER PANEL
+   ============================================ */
+
+.glass-date-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: linear-gradient(
+    165deg,
+    rgba(255, 255, 255, 0.85) 0%,
+    rgba(248, 250, 252, 0.78) 40%,
+    rgba(240, 253, 244, 0.68) 100%
+  );
+  backdrop-filter: blur(24px) saturate(1.8);
+  -webkit-backdrop-filter: blur(24px) saturate(1.8);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.08),
+    0 2px 8px rgba(0, 0, 0, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  z-index: 100;
+  overflow: hidden;
+  animation: glassSlideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-date-layout {
+  display: flex;
+}
+
+/* ---- Quick Ranges Sidebar ---- */
+.glass-date-sidebar {
+  width: 130px;
+  padding: 14px 10px;
+  border-right: 1px solid rgba(226, 232, 240, 0.3);
+  background: rgba(248, 250, 252, 0.3);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.glass-date-sidebar-title {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #94A3B8;
+  padding: 0 8px 8px;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.3);
+  margin-bottom: 4px;
+}
+
+.glass-date-quick-btn {
+  padding: 7px 10px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: left;
+  white-space: nowrap;
+}
+.glass-date-quick-btn:hover {
+  background: rgba(0, 168, 107, 0.08);
+  color: #00A86B;
+}
+
+/* ---- Calendar Section ---- */
+.glass-date-calendar {
+  padding: 14px 16px;
+  min-width: 280px;
+}
+
+.glass-date-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.glass-date-nav-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid rgba(226, 232, 240, 0.5);
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 8px;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.glass-date-nav-btn:hover {
+  background: rgba(0, 168, 107, 0.08);
+  border-color: rgba(0, 168, 107, 0.3);
+  color: #00A86B;
+}
+
+.glass-date-month-label {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0F172A;
+  letter-spacing: -0.01em;
+}
+
+/* ---- Weekday Headers ---- */
+.glass-date-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  margin-bottom: 4px;
+}
+
+.glass-date-weekday {
+  text-align: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: #94A3B8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 4px 0;
+}
+
+/* ---- Calendar Grid ---- */
+.glass-date-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.glass-date-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 500;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  position: relative;
+}
+.glass-date-cell.empty {
+  cursor: default;
+}
+.glass-date-cell:not(.empty):not(.disabled):hover {
+  background: rgba(0, 168, 107, 0.1);
+  color: #00A86B;
+}
+.glass-date-cell.today {
+  font-weight: 700;
+  color: #00A86B;
+}
+.glass-date-cell.today::after {
+  content: '';
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #00A86B;
+}
+.glass-date-cell.disabled {
+  color: #CBD5E1;
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+.glass-date-cell.in-range {
+  background: rgba(0, 168, 107, 0.1);
+  border-radius: 0;
+  color: #00A86B;
+}
+.glass-date-cell.range-start {
+  background: linear-gradient(135deg, #00A86B, #00C77B);
+  color: white;
+  font-weight: 700;
+  border-radius: 8px 0 0 8px;
+  box-shadow: 0 1px 4px rgba(0, 168, 107, 0.25);
+}
+.glass-date-cell.range-end {
+  background: linear-gradient(135deg, #00A86B, #00C77B);
+  color: white;
+  font-weight: 700;
+  border-radius: 0 8px 8px 0;
+  box-shadow: 0 1px 4px rgba(0, 168, 107, 0.25);
+}
+.glass-date-cell.range-start.range-end {
+  border-radius: 8px;
+}
+
+/* ---- Footer ---- */
+.glass-date-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(226, 232, 240, 0.3);
+}
+
+.glass-date-summary {
+  flex: 1;
+}
+
+.glass-date-selected-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #0F172A;
+}
+
+.glass-date-hint {
+  font-size: 11px;
+  color: #94A3B8;
+  font-style: italic;
+}
+
+.glass-date-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.glass-date-action-btn {
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+}
+.glass-date-action-btn.secondary {
+  background: rgba(226, 232, 240, 0.4);
+  color: #64748B;
+}
+.glass-date-action-btn.secondary:hover {
+  background: rgba(226, 232, 240, 0.7);
+  color: #475569;
+}
+.glass-date-action-btn.primary {
+  background: linear-gradient(135deg, #00A86B, #00C77B);
+  color: white;
+  box-shadow: 0 1px 4px rgba(0, 168, 107, 0.25);
+}
+.glass-date-action-btn.primary:hover {
+  box-shadow: 0 2px 8px rgba(0, 168, 107, 0.35);
+  transform: translateY(-1px);
+}
+.glass-date-action-btn.primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 640px) {
+  .glass-date-layout {
+    flex-direction: column;
+  }
+  .glass-date-sidebar {
+    width: 100%;
+    flex-direction: row;
+    flex-wrap: wrap;
+    border-right: none;
+    border-bottom: 1px solid rgba(226, 232, 240, 0.3);
+    padding: 10px;
+    gap: 4px;
+  }
+  .glass-date-sidebar-title {
+    width: 100%;
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 4px;
+  }
+  .glass-date-panel {
+    left: auto;
+    right: 0;
+    min-width: auto;
+    width: calc(100vw - 32px);
+    max-width: 360px;
+  }
+  .glass-dropdown-panel {
+    min-width: 220px;
+  }
+}
+
+/* ======================================================
+   ADMIN DASHBOARD GLOBAL TYPOGRAPHY & SIZE SYSTEM
+   ====================================================== */
+.admin-dashboard-layout,
+.admin-dashboard-layout *:not(.font-mono):not(code):not(pre) {
+  font-family: 'Roboto', sans-serif !important;
+}
+
+.admin-dashboard-layout input,
+.admin-dashboard-layout select,
+.admin-dashboard-layout textarea,
+.admin-dashboard-layout button {
+  font-family: 'Roboto', sans-serif !important;
+}
+
+/* ======================================================
+   DATE FIELD TYPOGRAPHY
+   ====================================================== */
+.table-date {
+  font-size: 12px !important;
+  font-weight: 400 !important;
+  color: #475569 !important;
+  font-family: 'Roboto', sans-serif !important;
+}
