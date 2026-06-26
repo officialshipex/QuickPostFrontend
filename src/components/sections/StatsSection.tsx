@@ -74,7 +74,12 @@ export function StatsSection() {
               {/* SVG Growth Chart */}
               <div className="text-[#00A86B]/80 group-hover:text-[#00A86B] transition-colors duration-300 w-full flex justify-center">
                 <svg className="w-full max-w-[140px] h-16 mb-6" viewBox="0 0 200 80" fill="none" stroke="currentColor">
-                  <path d="M10,70 L40,68 L70,55 L100,58 L130,35 L160,38 L190,12" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                  {/* Background path */}
+                  <path d="M10,70 L40,68 L70,55 L100,58 L130,35 L160,38 L190,12" stroke="#E2E8F0" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                  
+                  {/* Animated path */}
+                  <path d="M10,70 L40,68 L70,55 L100,58 L130,35 L160,38 L190,12" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="24 156" strokeDashoffset="0" className="animate-[dash_3s_linear_infinite]" />
+                  
                   <path d="M10,70 L40,68 L70,55 L100,58 L130,35 L160,38 L190,12 L190,75 L10,75 Z" fill="url(#grad_sellers)" opacity="0.06" />
                   <defs>
                     <linearGradient id="grad_sellers" x1="0" y1="0" x2="0" y2="1">
