@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
-import { Search, ChevronDown, RefreshCcw, Calendar, Check, Package, User, Truck, Banknote, Clock, Upload, Download, MoreVertical, Wallet, ArrowDownCircle, ArrowUpCircle, FileText, Plus, TrendingUp, ChevronLeft, ChevronRight, MinusCircle, Send, Eye, AlertCircle, CheckCircle2, X, CreditCard, Filter, Layers, Hash, CalendarDays, Bot } from 'lucide-react';
+import { Search, ChevronDown, RefreshCcw, Calendar, Check, Package, User, Truck, Banknote, Clock, Upload, Download, MoreVertical, Wallet, ArrowDownCircle, ArrowUpCircle, FileText, Plus, TrendingUp, ChevronLeft, ChevronRight, MinusCircle, Send, Eye, AlertCircle, CheckCircle2, X, CreditCard, Filter, Layers, Hash, CalendarDays, Bot, ArrowLeft } from 'lucide-react';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
 import { GlassSingleSelect } from '../../components/ui/GlassSingleSelect';
@@ -266,6 +266,8 @@ export function AdminWallet() {
   const [rechargeAmount, setRechargeAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('UPI');
   const [isRecharging, setIsRecharging] = useState(false);
+  const [rechargeMode, setRechargeMode] = useState<'Payment' | 'COD'>('Payment');
+  const [availableCodBalance, setAvailableCodBalance] = useState(48250);
 
   const [activeShipmentHistory, setActiveShipmentHistory] = useState<any | null>(null);
   const [activeInvoicePreview, setActiveInvoicePreview] = useState<any | null>(null);
@@ -598,6 +600,60 @@ export function AdminWallet() {
       setIsRechargeModalOpen(false);
       setRechargeAmount('');
       showToast('success', `Wallet recharged with ₹${amount.toFixed(2)} successfully!`);
+    }, 1200);
+  };
+
+  const handleCodRemittanceSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const amount = parseFloat(rechargeAmount);
+    if (isNaN(amount) || amount <= 0) {
+      showToast('error', 'Please enter a valid amount.');
+      return;
+    }
+    if (amount > availableCodBalance) {
+      showToast('error', 'Transfer amount exceeds available COD balance.');
+      return;
+    }
+    setIsRecharging(true);
+    setTimeout(() => {
+      const newTxn = {
+        id: '86543',
+        userName: 'HL ARC Studio',
+        userEmail: 'abc@gmail.com',
+        mobile: '9876543210',
+        date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
+        time: new Date().toLocaleTimeString('en-US', { hour12: false }),
+        transactionId: `COD${Math.floor(100000 + Math.random() * 900000)}`,
+        amount: amount,
+        status: 'Success',
+        paymentId: `cod_remit_${Math.random().toString(36).substring(2, 12)}`,
+        orderId: `order_${Math.random().toString(36).substring(2, 12)}`
+      };
+      setRechargeList(prev => [newTxn, ...prev]);
+      
+      const newPassbookEntry = {
+        id: '86543',
+        awb: `N/A`,
+        userName: 'HL ARC Studio',
+        userEmail: 'abc@gmail.com',
+        mobile: '9876543210',
+        date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
+        day: new Date().toLocaleDateString('en-US', { weekday: 'long' }),
+        courier: 'N/A',
+        bookedDate: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
+        category: 'Credit',
+        amount: amount,
+        balance: walletBalance + amount,
+        description: 'COD Remittance Transfer'
+      };
+      setPassbookList(prev => [newPassbookEntry, ...prev]);
+      setWalletBalance(prev => prev + amount);
+      setAvailableCodBalance(prev => prev - amount);
+      setIsRecharging(false);
+      setIsRechargeModalOpen(false);
+      setRechargeAmount('');
+      setRechargeMode('Payment');
+      showToast('success', `Successfully transferred ₹${amount.toFixed(2)} from COD Remittance!`);
     }, 1200);
   };
 
@@ -1585,68 +1641,160 @@ export function AdminWallet() {
                   onClick={() => {
                     setIsRechargeModalOpen(false);
                     setRechargeAmount('');
+                    setRechargeMode('Payment');
                   }}
                   className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition-colors"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              <form onSubmit={handleRechargeSubmit} className="p-6 space-y-5">
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Enter Amount (₹)</label>
-                  <input
-                    type="number"
-                    required
-                    placeholder="Enter amount (e.g. 1000)"
-                    value={rechargeAmount}
-                    onChange={(e) => setRechargeAmount(e.target.value)}
-                    className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] font-bold"
-                  />
-                  <div className="flex gap-2 mt-2.5">
-                    {[500, 1000, 2000, 5000].map(amt => (
-                      <button
-                        key={amt}
-                        type="button"
-                        onClick={() => setRechargeAmount(String(amt))}
-                        className="flex-1 py-1.5 rounded-lg border border-slate-200 hover:border-[#00A86B] hover:bg-[#00A86B]/5 text-xs text-slate-600 hover:text-[#00A86B] font-bold transition-all"
-                      >
-                        + ₹{amt}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+              <form onSubmit={rechargeMode === 'Payment' ? handleRechargeSubmit : handleCodRemittanceSubmit} className="p-6 space-y-5">
+                {rechargeMode === 'Payment' ? (
+                  <>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Enter Amount (₹)</label>
+                      <input
+                        type="number"
+                        required
+                        placeholder="Enter amount (e.g. 1000)"
+                        value={rechargeAmount}
+                        onChange={(e) => setRechargeAmount(e.target.value)}
+                        className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] font-bold"
+                      />
+                      <div className="flex gap-2 mt-2.5">
+                        {[500, 1000, 2000, 5000].map(amt => (
+                          <button
+                            key={amt}
+                            type="button"
+                            onClick={() => setRechargeAmount(String(amt))}
+                            className="flex-1 py-1.5 rounded-lg border border-slate-200 hover:border-[#00A86B] hover:bg-[#00A86B]/5 text-xs text-slate-600 hover:text-[#00A86B] font-bold transition-all"
+                          >
+                            + ₹{amt}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Payment Method</label>
-                  <div className="grid grid-cols-3 gap-3">
-                    {['UPI', 'Card', 'Netbanking'].map(method => (
-                      <button
-                        key={method}
-                        type="button"
-                        onClick={() => setPaymentMethod(method)}
-                        className={`py-3 rounded-xl border flex flex-col items-center gap-1.5 transition-all ${
-                          paymentMethod === method 
-                            ? 'border-[#00A86B] bg-[#00A86B]/5 text-[#00A86B] font-bold' 
-                            : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
-                        }`}
-                      >
-                        <span className="text-[11px] font-bold uppercase">{method}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Payment Method</label>
+                      <div className="grid grid-cols-3 gap-3">
+                        {['UPI', 'Card', 'Netbanking'].map(method => (
+                          <button
+                            key={method}
+                            type="button"
+                            onClick={() => setPaymentMethod(method)}
+                            className={`py-3 rounded-xl border flex flex-col items-center gap-1.5 transition-all ${
+                              paymentMethod === method 
+                                ? 'border-[#00A86B] bg-[#00A86B]/5 text-[#00A86B] font-bold' 
+                                : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                            }`}
+                          >
+                            <span className="text-[11px] font-bold uppercase">{method}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
 
-                <button
-                  type="submit"
-                  disabled={isRecharging}
-                  className="w-full h-11 rounded-xl bg-[#00A86B] text-white text-sm font-bold shadow-lg shadow-[#00A86B]/25 hover:bg-[#009B63] transition-all flex items-center justify-center disabled:opacity-55"
-                >
-                  {isRecharging ? (
-                    <span className="flex items-center gap-2">
-                      <RefreshCcw className="w-4 h-4 animate-spin" /> Processing...
-                    </span>
-                  ) : `Pay ₹${rechargeAmount ? parseFloat(rechargeAmount).toLocaleString() : '0'}`}
-                </button>
+                    <button
+                      type="submit"
+                      disabled={isRecharging}
+                      className="w-full h-11 rounded-xl bg-[#00A86B] text-white text-sm font-bold shadow-lg shadow-[#00A86B]/25 hover:bg-[#009B63] transition-all flex items-center justify-center disabled:opacity-55 cursor-pointer"
+                    >
+                      {isRecharging ? (
+                        <span className="flex items-center gap-2">
+                          <RefreshCcw className="w-4 h-4 animate-spin" /> Processing...
+                        </span>
+                      ) : `Pay ₹${rechargeAmount ? parseFloat(rechargeAmount).toLocaleString() : '0'}`}
+                    </button>
+
+                    {/* OR recharge via COD Remittance */}
+                    <div className="relative flex py-2 items-center my-1.5">
+                      <div className="flex-grow border-t border-slate-200"></div>
+                      <span className="flex-shrink mx-3 text-slate-400 text-[10px] font-bold uppercase tracking-wider">OR</span>
+                      <div className="flex-grow border-t border-slate-200"></div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setRechargeMode('COD')}
+                      className="w-full py-3 border border-[#00A86B]/30 hover:border-[#00A86B] bg-[#00A86B]/5 hover:bg-[#00A86B]/10 text-[#00A86B] text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 focus:outline-none cursor-pointer"
+                    >
+                      <Banknote className="w-4 h-4" /> Recharge via COD Remittance
+                    </button>
+                  </>
+                ) : (
+                  <div className="space-y-5 animate-fade-in text-left">
+                    {/* COD Remittance Info Card */}
+                    <div className="bg-gradient-to-br from-emerald-50 to-green-50/30 border border-emerald-100/80 rounded-2xl p-4 text-left">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wide">Available COD Payout</span>
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                      </div>
+                      <div className="text-2xl font-black text-slate-800">
+                        ₹{availableCodBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </div>
+                      <p className="text-[10px] text-slate-400 font-semibold mt-1">
+                        Transfer funds directly from your pending COD remittance.
+                      </p>
+                    </div>
+
+                    {/* Amount Input */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Amount to Transfer (₹)</label>
+                      <input
+                        type="number"
+                        required
+                        placeholder="Enter amount (e.g. 1000)"
+                        value={rechargeAmount}
+                        onChange={(e) => setRechargeAmount(e.target.value)}
+                        className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] font-bold"
+                      />
+                      <div className="flex gap-2 mt-2.5">
+                        {[500, 1000, 2000, 5000].map(amt => (
+                          <button
+                            key={amt}
+                            type="button"
+                            onClick={() => setRechargeAmount(String(amt))}
+                            className="flex-1 py-1.5 rounded-lg border border-slate-200 hover:border-[#00A86B] hover:bg-[#00A86B]/5 text-xs text-slate-600 hover:text-[#00A86B] font-bold transition-all"
+                          >
+                            + ₹{amt}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Information banner */}
+                    <div className="flex gap-2 p-3 bg-slate-50 border border-slate-100 rounded-xl">
+                      <AlertCircle className="w-4 h-4 text-[#94A3B8] shrink-0 mt-0.5" />
+                      <p className="text-[10px] text-slate-500 font-medium leading-normal">
+                        No gateway charges apply. The transferred amount will be adjusted in your next COD settlement statement.
+                      </p>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="space-y-2.5">
+                      <button
+                        type="submit"
+                        disabled={isRecharging || !rechargeAmount || parseFloat(rechargeAmount) <= 0 || parseFloat(rechargeAmount) > availableCodBalance}
+                        className="w-full h-11 rounded-xl bg-gradient-to-r from-emerald-600 to-[#00A86B] text-white text-sm font-bold shadow-lg shadow-[#00A86B]/25 hover:from-emerald-700 hover:to-[#009B63] transition-all flex items-center justify-center disabled:opacity-55 cursor-pointer"
+                      >
+                        {isRecharging ? (
+                          <span className="flex items-center gap-2">
+                            <RefreshCcw className="w-4 h-4 animate-spin" /> Processing...
+                          </span>
+                        ) : 'Confirm Transfer'}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setRechargeMode('Payment')}
+                        className="w-full py-2.5 bg-white border border-slate-200 text-slate-500 hover:text-slate-700 hover:border-slate-300 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 focus:outline-none cursor-pointer"
+                      >
+                        <ArrowLeft className="w-3.5 h-3.5" /> Back to Online Payment
+                      </button>
+                    </div>
+                  </div>
+                )}
               </form>
             </motion.div>
           </motion.div>
