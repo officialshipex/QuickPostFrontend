@@ -210,8 +210,8 @@ export function AdminKYC() {
               {isAadhaarVerified ? <Check className="w-5 h-5" /> : <CreditCard className="w-5 h-5" />}
             </div>
             <div className="text-left">
-              <h3 className={`text-xs font-bold ${step === 1 ? 'text-[#0F172A]' : 'text-slate-500'}`}>Billing Information</h3>
-              <p className="text-[10px] text-slate-400 font-medium leading-tight mt-0.5">Manage your billing details and payment methods here.</p>
+              <h3 className={`text-[14px] font-bold ${step === 1 ? 'text-[#0F172A]' : 'text-slate-500'} font-sans`}>Billing Information</h3>
+              <p className="text-xs text-slate-400 font-normal leading-tight mt-1 font-sans">Manage your billing details and payment methods here.</p>
             </div>
             {step === 2 && (
               <ChevronRight className="w-5 h-5 text-slate-400 ml-auto shrink-0" />
@@ -239,8 +239,8 @@ export function AdminKYC() {
               <FileText className="w-5 h-5" />
             </div>
             <div className="text-left">
-              <h3 className={`text-xs font-bold ${step === 2 ? 'text-[#0F172A]' : 'text-slate-500'}`}>Document Verification</h3>
-              <p className="text-[10px] text-slate-400 font-medium leading-tight mt-0.5">Verify documents quickly and securely to ensure authenticity.</p>
+              <h3 className={`text-[14px] font-bold ${step === 2 ? 'text-[#0F172A]' : 'text-slate-500'} font-sans`}>Document Verification</h3>
+              <p className="text-xs text-slate-400 font-normal leading-tight mt-1 font-sans">Verify documents quickly and securely to ensure authenticity.</p>
             </div>
           </div>
         </div>
