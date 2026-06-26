@@ -53,11 +53,6 @@ const MENU_GROUPS = [
     ]
   },
   {
-    label: 'Performance',
-    icon: FileText,
-    path: '/admin/reports'
-  },
-  {
     label: 'Orders',
     icon: ShoppingCart,
     path: '/admin/orders'
@@ -76,6 +71,11 @@ const MENU_GROUPS = [
       { name: 'Wallet', path: '/admin/wallet', icon: Wallet },
       { name: 'COD', path: '/admin/cod', icon: Banknote },
     ]
+  },
+  {
+    label: 'Reports',
+    icon: FileText,
+    path: '/admin/reports'
   },
   {
     label: 'Tools',

@@ -339,7 +339,7 @@ export function AdminNDR() {
                   </td>
                   <td className="p-3">
                     <div className="table-date mb-0.5 whitespace-nowrap">Booked On | 13 Apr 2026</div>
-                    <div className={`font-bold text-[9px] whitespace-nowrap underline decoration-dotted underline-offset-2 cursor-pointer mb-1 text-[#00A86B] decoration-[#00A86B]`}>{order.attempts} Attempted</div>
+                    <div className={`font-bold text-xs whitespace-nowrap underline decoration-dotted underline-offset-2 cursor-pointer mb-1 text-[#00A86B] decoration-[#00A86B]`}>{order.attempts} Attempted</div>
                     <button className="h-6 px-4 rounded-full bg-[#1e40af] text-white font-bold text-[9px] hover:bg-[#1e3a8a] shadow-sm whitespace-nowrap">
                       History
                     </button>
