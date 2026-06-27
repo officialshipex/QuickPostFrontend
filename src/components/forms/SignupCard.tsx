@@ -17,7 +17,11 @@ const formSchema = z.object({
 
 type FormData = z.infer<typeof formSchema>;
 
-export function SignupCard() {
+interface SignupCardProps {
+  onBack?: () => void;
+}
+
+export function SignupCard({ onBack }: SignupCardProps) {
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(formSchema)
   });
@@ -95,6 +99,21 @@ export function SignupCard() {
           Already have an account? <Link to="/login" className="text-[#00A86B] font-semibold hover:underline">Log in</Link>
         </p>
       </div>
+
+      {onBack && (
+        <div className="text-center mt-4 pt-4 border-t border-slate-100">
+          <button
+            type="button"
+            onClick={onBack}
+            className="text-xs text-slate-500 hover:text-[#00A86B] font-medium transition-colors cursor-pointer flex items-center justify-center gap-1.5 mx-auto"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+            </svg>
+            Back to Live Operations
+          </button>
+        </div>
+      )}
     </div>
   );
 }
