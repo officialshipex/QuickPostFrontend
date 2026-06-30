@@ -79,7 +79,7 @@ export function CRMCourierPartners() {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[1000px]">
             <thead>
-              <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-[10px] uppercase tracking-wider font-bold text-[#64748B]">
+              <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-xs uppercase tracking-wider font-medium text-[#64748B]">
                 <th className="p-3 pl-4">Courier</th>
                 <th className="p-3">Type</th>
                 <th className="p-3">Coverage</th>
@@ -104,7 +104,7 @@ export function CRMCourierPartners() {
                   <td className="p-3 text-[#64748B]">{c.type}</td>
                   <td className="p-3">{c.zones}</td>
                   <td className="p-3">
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${STATUS_STYLES[c.status]}`}>{c.status}</span>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${STATUS_STYLES[c.status]}`}>{c.status}</span>
                   </td>
                   <td className="p-3">
                     <div className="flex items-center gap-1.5">

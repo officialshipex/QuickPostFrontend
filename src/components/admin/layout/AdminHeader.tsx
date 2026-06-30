@@ -101,12 +101,8 @@ export function AdminHeader() {
           <img 
             src="/logo-color.png" 
             alt="QuickPost" 
-            className="h-[52px] w-auto object-contain transition-opacity group-hover:opacity-80 scale-[1.15] origin-left ml-2" 
+            className="h-16 w-auto object-contain transition-opacity group-hover:opacity-80 scale-[1.5] origin-left ml-2" 
           />
-          <div className="hidden sm:flex items-center ml-4">
-            <div className="w-[1.5px] h-6 bg-[#E2E8F0] mr-3"></div>
-            <span className="text-[15px] font-semibold text-[#475569] tracking-tight">Admin</span>
-          </div>
         </Link>
       </div>
 

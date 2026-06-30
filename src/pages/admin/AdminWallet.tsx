@@ -2,7 +2,8 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
-import { Search, ChevronDown, RefreshCcw, Calendar, Check, Package, User, Truck, Banknote, Clock, Upload, Download, MoreVertical, Wallet, ArrowDownCircle, ArrowUpCircle, FileText, Plus, TrendingUp, ChevronLeft, ChevronRight, MinusCircle, Send, Eye, AlertCircle, CheckCircle2, X, CreditCard, Filter, Layers, Hash, CalendarDays, Bot, ArrowLeft } from 'lucide-react';
+import { usePagination } from '../../hooks/usePagination';
+import { Search, ChevronDown, RefreshCcw, Calendar, Check, Package, User, Truck, Banknote, Clock, Upload, Download, MoreVertical, Wallet, ArrowDownCircle, ArrowUpCircle, FileText, Plus, TrendingUp, ChevronLeft, ChevronRight, MinusCircle, Send, Eye, AlertCircle, CheckCircle2, X, CreditCard, Filter, Layers, Hash, CalendarDays, Bot, ArrowLeft, Settings } from 'lucide-react';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
 import { GlassSingleSelect } from '../../components/ui/GlassSingleSelect';
@@ -61,7 +62,7 @@ const STATUS_BADGE_STYLES: Record<string, string> = {
 
 const getStatusBadgeClass = (status: string) => {
   const normalized = status || '';
-  return `${STATUS_BADGE_STYLES[normalized] || 'bg-blue-50 text-blue-700 border-blue-200'} px-2.5 py-0.5 rounded-full border text-[11px] font-semibold uppercase tracking-wider whitespace-nowrap shadow-sm`;
+  return `${STATUS_BADGE_STYLES[normalized] || 'bg-blue-50 text-blue-700 border-blue-200'} px-2.5 py-0.5 rounded-full border text-[10px] font-semibold uppercase tracking-wider whitespace-nowrap shadow-sm`;
 };
 
 // Mock data for Passbook
@@ -443,41 +444,41 @@ export function AdminWallet() {
     });
   }, [invoiceList, headerMobileSearch, invoiceSearchTerm, globalSearchQuery, selectedMonths, selectedYears]);
 
-  // Pagination Logic
-  const [shippingPage, setShippingPage] = useState(1);
-  const [passbookPage, setPassbookPage] = useState(1);
-  const [rechargePage, setRechargePage] = useState(1);
-  const [invoicePage, setInvoicePage] = useState(1);
-  const itemsPerPage = 10;
+  const {
+    page: shippingPage,
+    setPage: setShippingPage,
+    totalPages: totalShippingPages,
+    paginatedData: paginatedShippingData,
+    startIndex: shippingStartIndex,
+    endIndex: shippingEndIndex,
+  } = usePagination({ data: filteredShippingData, perPage: 10 });
 
-  useEffect(() => { setShippingPage(1); }, [filteredShippingData]);
-  useEffect(() => { setPassbookPage(1); }, [filteredPassbookData]);
-  useEffect(() => { setRechargePage(1); }, [filteredWalletRechargeData]);
-  useEffect(() => { setInvoicePage(1); }, [filteredInvoicesData]);
+  const {
+    page: passbookPage,
+    setPage: setPassbookPage,
+    totalPages: totalPassbookPages,
+    paginatedData: paginatedPassbookData,
+    startIndex: passbookStartIndex,
+    endIndex: passbookEndIndex,
+  } = usePagination({ data: filteredPassbookData, perPage: 10 });
 
-  const paginatedShippingData = useMemo(() => {
-    const startIndex = (shippingPage - 1) * itemsPerPage;
-    return filteredShippingData.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredShippingData, shippingPage]);
-  const totalShippingPages = Math.ceil(filteredShippingData.length / itemsPerPage);
+  const {
+    page: rechargePage,
+    setPage: setRechargePage,
+    totalPages: totalRechargePages,
+    paginatedData: paginatedRechargeData,
+    startIndex: rechargeStartIndex,
+    endIndex: rechargeEndIndex,
+  } = usePagination({ data: filteredWalletRechargeData, perPage: 10 });
 
-  const paginatedPassbookData = useMemo(() => {
-    const startIndex = (passbookPage - 1) * itemsPerPage;
-    return filteredPassbookData.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredPassbookData, passbookPage]);
-  const totalPassbookPages = Math.ceil(filteredPassbookData.length / itemsPerPage);
-
-  const paginatedRechargeData = useMemo(() => {
-    const startIndex = (rechargePage - 1) * itemsPerPage;
-    return filteredWalletRechargeData.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredWalletRechargeData, rechargePage]);
-  const totalRechargePages = Math.ceil(filteredWalletRechargeData.length / itemsPerPage);
-
-  const paginatedInvoicesData = useMemo(() => {
-    const startIndex = (invoicePage - 1) * itemsPerPage;
-    return filteredInvoicesData.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredInvoicesData, invoicePage]);
-  const totalInvoicePages = Math.ceil(filteredInvoicesData.length / itemsPerPage);
+  const {
+    page: invoicePage,
+    setPage: setInvoicePage,
+    totalPages: totalInvoicePages,
+    paginatedData: paginatedInvoicesData,
+    startIndex: invoiceStartIndex,
+    endIndex: invoiceEndIndex,
+  } = usePagination({ data: filteredInvoicesData, perPage: 10 });
 
   // Bulk Actions & Helpers
   const handleRefresh = () => {
@@ -1123,17 +1124,52 @@ export function AdminWallet() {
             <div className="flex-1 overflow-y-auto overflow-x-hidden w-full relative">
               <table className="w-full text-left border-collapse min-w-full">
                 <thead>
-                  <tr className="bg-[#E6F5F1] text-[10px] font-bold text-[#00A86B] uppercase tracking-wider">
-                    <th className="p-3 w-10">
+                  <tr className="bg-[#E6F5F1] text-xs font-medium text-[#00A86B] uppercase tracking-wider">
+                    <th className="p-3 w-10 text-left align-middle">
                       <input type="checkbox" checked={selectedOrders.length === filteredShippingData.length && filteredShippingData.length > 0} onChange={toggleAll} className="rounded border-[#00A86B] accent-[#00A86B] w-3.5 h-3.5" />
                     </th>
-                    <th className="p-3"><User className="w-3.5 h-3.5 inline mr-1"/> User Details</th>
-                    <th className="p-3"><Package className="w-3.5 h-3.5 inline mr-1"/> Order Details</th>
-                    <th className="p-3"><Truck className="w-3.5 h-3.5 inline mr-1"/> Shipping Details</th>
-                    <th className="p-3"><Banknote className="w-3.5 h-3.5 inline mr-1"/> Status</th>
-                    <th className="p-3"><Package className="w-3.5 h-3.5 inline mr-1"/> Initial Weight</th>
-                    <th className="p-3"><Package className="w-3.5 h-3.5 inline mr-1"/> Courier Weight</th>
-                    <th className="p-3 text-right"><MoreVertical className="w-3.5 h-3.5 inline"/> Actions</th>
+                    <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <User className="w-3.5 h-3.5 shrink-0" />
+                        <span>User</span>
+                      </div>
+                    </th>
+                    <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <Package className="w-3.5 h-3.5 shrink-0" />
+                        <span>Order</span>
+                      </div>
+                    </th>
+                    <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <Truck className="w-3.5 h-3.5 shrink-0" />
+                        <span>Shipment</span>
+                      </div>
+                    </th>
+                    <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <Banknote className="w-3.5 h-3.5 shrink-0" />
+                        <span>Status</span>
+                      </div>
+                    </th>
+                    <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <Package className="w-3.5 h-3.5 shrink-0" />
+                        <span>Initial Weight</span>
+                      </div>
+                    </th>
+                    <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <Package className="w-3.5 h-3.5 shrink-0" />
+                        <span>Courier Weight</span>
+                      </div>
+                    </th>
+                    <th className="p-3 text-center align-middle whitespace-nowrap">
+                      <div className="flex items-center justify-center gap-1.5">
+                        <Settings className="w-3.5 h-3.5 shrink-0" />
+                        <span>Actions</span>
+                      </div>
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="text-[11px] text-[#475569]">
@@ -1145,7 +1181,7 @@ export function AdminWallet() {
                       <td className="p-3">
                         <div className="text-xs font-semibold text-[#00A86B] cursor-pointer hover:underline">{order.id}</div>
                         <div className="text-sm font-semibold text-[#0F172A] mt-0.5">{order.userName}</div>
-                        <div className="text-[11px] text-[#94A3B8]">{order.userEmail}</div>
+                        <div className="font-sans text-xs font-normal text-[#94A3B8]">{order.userEmail}</div>
                       </td>
                       <td className="p-3">
                         <div className="text-xs font-semibold text-[#00A86B] cursor-pointer hover:underline">{order.id}</div>
@@ -1173,10 +1209,10 @@ export function AdminWallet() {
                         <div className="mt-0.5">{order.courierDimensions}</div>
                         <div className="mt-0.5">{order.courierVol}</div>
                       </td>
-                      <td className="p-3 text-right">
+                      <td className="p-3 text-center align-middle">
                         <button 
                           onClick={() => setActiveShipmentHistory(order)}
-                          className="px-3 py-1.5 rounded-full bg-[#1E3A8A] text-white text-[10px] font-bold hover:bg-[#1E3A8A]/90 transition-colors"
+                          className="px-3 py-1.5 rounded-full bg-[#1E3A8A] text-white text-[10px] font-bold hover:bg-[#1E3A8A]/90 transition-colors mx-auto inline-block"
                         >
                           History
                         </button>
@@ -1198,7 +1234,7 @@ export function AdminWallet() {
             {totalShippingPages > 0 && (
               <div className="p-4 border-t border-[#E2E8F0] flex items-center justify-between">
                 <div className="text-xs text-[#64748B]">
-                  Showing <span className="font-bold text-[#0F172A]">{(shippingPage - 1) * itemsPerPage + 1}</span> to <span className="font-bold text-[#0F172A]">{Math.min(shippingPage * itemsPerPage, filteredShippingData.length)}</span> of <span className="font-bold text-[#0F172A]">{filteredShippingData.length}</span> entries
+                  Showing <span className="font-bold text-[#0F172A]">{shippingStartIndex}</span> to <span className="font-bold text-[#0F172A]">{shippingEndIndex}</span> of <span className="font-bold text-[#0F172A]">{filteredShippingData.length}</span> entries
                 </div>
                 <div className="flex items-center gap-1">
                   <button 
@@ -1250,18 +1286,58 @@ export function AdminWallet() {
             <div className="flex-1 overflow-y-auto overflow-x-hidden w-full relative">
               <table className="w-full text-left border-collapse min-w-full">
                 <thead>
-                  <tr className="bg-[#E6F5F1] text-[10px] font-bold text-[#00A86B] uppercase tracking-wider">
-                    <th className="p-3 w-10">
+                  <tr className="bg-[#E6F5F1] text-xs font-medium text-[#00A86B] uppercase tracking-wider">
+                    <th className="p-3 w-10 text-left align-middle">
                       <input type="checkbox" checked={selectedPassbookOrders.length === filteredPassbookData.length && filteredPassbookData.length > 0} onChange={toggleAllPassbook} className="rounded border-[#00A86B] accent-[#00A86B] w-3.5 h-3.5" />
                     </th>
-                    <th className="p-3"><User className="w-3.5 h-3.5 inline mr-1"/> User Details</th>
-                    <th className="p-3"><Package className="w-3.5 h-3.5 inline mr-1"/> Order Details</th>
-                    <th className="p-3"><Truck className="w-3.5 h-3.5 inline mr-1"/> Shipping Details</th>
-                    <th className="p-3"><FileText className="w-3.5 h-3.5 inline mr-1"/> Category</th>
-                    <th className="p-3"><Banknote className="w-3.5 h-3.5 inline mr-1"/> Amount</th>
-                    <th className="p-3"><Wallet className="w-3.5 h-3.5 inline mr-1"/> Available Balance</th>
-                    <th className="p-3"><FileText className="w-3.5 h-3.5 inline mr-1"/> Description</th>
-                    <th className="p-3 text-right"><MoreVertical className="w-3.5 h-3.5 inline mr-1"/> Actions</th>
+                    <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <User className="w-3.5 h-3.5 shrink-0" />
+                        <span>User</span>
+                      </div>
+                    </th>
+                    <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <Package className="w-3.5 h-3.5 shrink-0" />
+                        <span>Order</span>
+                      </div>
+                    </th>
+                    <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <Truck className="w-3.5 h-3.5 shrink-0" />
+                        <span>Shipment</span>
+                      </div>
+                    </th>
+                    <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <FileText className="w-3.5 h-3.5 shrink-0" />
+                        <span>Category</span>
+                      </div>
+                    </th>
+                    <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <Banknote className="w-3.5 h-3.5 shrink-0" />
+                        <span>Amount</span>
+                      </div>
+                    </th>
+                    <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <Wallet className="w-3.5 h-3.5 shrink-0" />
+                        <span>Balance</span>
+                      </div>
+                    </th>
+                    <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <FileText className="w-3.5 h-3.5 shrink-0" />
+                        <span>Description</span>
+                      </div>
+                    </th>
+                    <th className="p-3 text-center align-middle whitespace-nowrap">
+                      <div className="flex items-center justify-center gap-1.5">
+                        <Settings className="w-3.5 h-3.5 shrink-0" />
+                        <span>Actions</span>
+                      </div>
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="text-[11px] text-[#475569]">
@@ -1273,7 +1349,7 @@ export function AdminWallet() {
                       <td className="p-3">
                         <div className="text-xs font-semibold text-[#00A86B] cursor-pointer hover:underline">{order.id}</div>
                         <div className="text-sm font-semibold text-[#0F172A] mt-0.5">{order.userName}</div>
-                        <div className="text-[11px] text-[#94A3B8]">{order.userEmail}</div>
+                        <div className="font-sans text-xs font-normal text-[#94A3B8]">{order.userEmail}</div>
                       </td>
                       <td className="p-3">
                         <div className="text-xs font-semibold text-[#00A86B] cursor-pointer hover:underline">{order.id}</div>
@@ -1299,10 +1375,10 @@ export function AdminWallet() {
                       <td className="p-3">
                         <div className="text-[#64748B] text-[11px]">{order.description}</div>
                       </td>
-                      <td className="p-3 text-right">
+                      <td className="p-3 text-center align-middle">
                         <button 
                           onClick={() => showToast('success', `Verification complete for record AWB: ${order.awb !== 'N/A' ? order.awb : 'N/A'}`)}
-                          className="w-7 h-7 rounded-full bg-[#E0F2FE] flex items-center justify-center text-[#0EA5E9] hover:bg-[#BAE6FD] transition-colors ml-auto"
+                          className="w-7 h-7 rounded-full bg-[#E0F2FE] flex items-center justify-center text-[#0EA5E9] hover:bg-[#BAE6FD] transition-colors mx-auto"
                         >
                           <RefreshCcw className="w-3.5 h-3.5" />
                         </button>
@@ -1324,7 +1400,7 @@ export function AdminWallet() {
             {totalPassbookPages > 0 && (
               <div className="p-4 border-t border-[#E2E8F0] flex items-center justify-between">
                 <div className="text-xs text-[#64748B]">
-                  Showing <span className="font-bold text-[#0F172A]">{(passbookPage - 1) * itemsPerPage + 1}</span> to <span className="font-bold text-[#0F172A]">{Math.min(passbookPage * itemsPerPage, filteredPassbookData.length)}</span> of <span className="font-bold text-[#0F172A]">{filteredPassbookData.length}</span> entries
+                  Showing <span className="font-bold text-[#0F172A]">{passbookStartIndex}</span> to <span className="font-bold text-[#0F172A]">{passbookEndIndex}</span> of <span className="font-bold text-[#0F172A]">{filteredPassbookData.length}</span> entries
                 </div>
                 <div className="flex items-center gap-1">
                   <button 
@@ -1374,16 +1450,46 @@ export function AdminWallet() {
             <div className="flex-1 overflow-y-auto overflow-x-hidden w-full relative">
               <table className="w-full text-left border-collapse min-w-full">
                 <thead>
-                  <tr className="bg-[#E6F5F1] text-[10px] font-bold text-[#00A86B] uppercase tracking-wider">
-                    <th className="p-3 w-10">
+                  <tr className="bg-[#E6F5F1] text-xs font-medium text-[#00A86B] uppercase tracking-wider">
+                    <th className="p-3 w-10 text-left align-middle">
                       <input type="checkbox" checked={selectedRechargeOrders.length === filteredWalletRechargeData.length && filteredWalletRechargeData.length > 0} onChange={toggleAllRecharge} className="rounded border-[#00A86B] accent-[#00A86B] w-3.5 h-3.5" />
                     </th>
-                    <th className="p-3"><User className="w-3.5 h-3.5 inline mr-1"/> User Details</th>
-                    <th className="p-3"><Calendar className="w-3.5 h-3.5 inline mr-1"/> Date</th>
-                    <th className="p-3"><FileText className="w-3.5 h-3.5 inline mr-1"/> Transaction ID</th>
-                    <th className="p-3"><Banknote className="w-3.5 h-3.5 inline mr-1"/> Amount</th>
-                    <th className="p-3"><Check className="w-3.5 h-3.5 inline mr-1"/> Status</th>
-                    <th className="p-3"><FileText className="w-3.5 h-3.5 inline mr-1"/> Description</th>
+                    <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <User className="w-3.5 h-3.5 shrink-0" />
+                        <span>User</span>
+                      </div>
+                    </th>
+                    <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <Calendar className="w-3.5 h-3.5 shrink-0" />
+                        <span>Date</span>
+                      </div>
+                    </th>
+                    <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <FileText className="w-3.5 h-3.5 shrink-0" />
+                        <span>Transaction ID</span>
+                      </div>
+                    </th>
+                    <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <Banknote className="w-3.5 h-3.5 shrink-0" />
+                        <span>Amount</span>
+                      </div>
+                    </th>
+                    <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <Check className="w-3.5 h-3.5 shrink-0" />
+                        <span>Status</span>
+                      </div>
+                    </th>
+                    <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <FileText className="w-3.5 h-3.5 shrink-0" />
+                        <span>Description</span>
+                      </div>
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="text-[11px] text-[#475569]">
@@ -1395,7 +1501,7 @@ export function AdminWallet() {
                       <td className="p-3">
                         <div className="text-xs font-semibold text-[#00A86B] cursor-pointer hover:underline">{recharge.id}</div>
                         <div className="text-sm font-semibold text-[#0F172A] mt-0.5">{recharge.userName}</div>
-                        <div className="text-[11px] text-[#94A3B8]">{recharge.userEmail}</div>
+                        <div className="font-sans text-xs font-normal text-[#94A3B8]">{recharge.userEmail}</div>
                       </td>
                       <td className="p-3">
                         <div className="table-date">{recharge.date}</div>
@@ -1433,7 +1539,7 @@ export function AdminWallet() {
             {totalRechargePages > 0 && (
               <div className="p-4 border-t border-[#E2E8F0] flex items-center justify-between">
                 <div className="text-xs text-[#64748B]">
-                  Showing <span className="font-bold text-[#0F172A]">{(rechargePage - 1) * itemsPerPage + 1}</span> to <span className="font-bold text-[#0F172A]">{Math.min(rechargePage * itemsPerPage, filteredWalletRechargeData.length)}</span> of <span className="font-bold text-[#0F172A]">{filteredWalletRechargeData.length}</span> entries
+                  Showing <span className="font-bold text-[#0F172A]">{rechargeStartIndex}</span> to <span className="font-bold text-[#0F172A]">{rechargeEndIndex}</span> of <span className="font-bold text-[#0F172A]">{filteredWalletRechargeData.length}</span> entries
                 </div>
                 <div className="flex items-center gap-1">
                   <button 
@@ -1483,18 +1589,58 @@ export function AdminWallet() {
             <div className="flex-1 overflow-y-auto overflow-x-hidden w-full relative">
               <table className="w-full text-left border-collapse min-w-full">
                 <thead>
-                  <tr className="bg-[#E6F5F1] text-[10px] font-bold text-[#00A86B] uppercase tracking-wider">
-                    <th className="p-3 w-10">
+                  <tr className="bg-[#E6F5F1] text-xs font-medium text-[#00A86B] uppercase tracking-wider">
+                    <th className="p-3 w-10 text-left align-middle">
                       <input type="checkbox" checked={selectedInvoiceOrders.length === filteredInvoicesData.length && filteredInvoicesData.length > 0} onChange={toggleAllInvoices} className="rounded border-[#00A86B] accent-[#00A86B] w-3.5 h-3.5" />
                     </th>
-                    <th className="p-3"><User className="w-3.5 h-3.5 inline mr-1"/> User Details</th>
-                    <th className="p-3"><FileText className="w-3.5 h-3.5 inline mr-1"/> Invoice Number</th>
-                    <th className="p-3"><Package className="w-3.5 h-3.5 inline mr-1"/> Shipments</th>
-                    <th className="p-3"><Banknote className="w-3.5 h-3.5 inline mr-1"/> Amount Details</th>
-                    <th className="p-3"><Calendar className="w-3.5 h-3.5 inline mr-1"/> Created On</th>
-                    <th className="p-3"><Calendar className="w-3.5 h-3.5 inline mr-1"/> Invoice Period</th>
-                    <th className="p-3"><Check className="w-3.5 h-3.5 inline mr-1"/> Status</th>
-                    <th className="p-3 text-right"><MoreVertical className="w-3.5 h-3.5 inline mr-1"/> Actions</th>
+                    <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <User className="w-3.5 h-3.5 shrink-0" />
+                        <span>User</span>
+                      </div>
+                    </th>
+                    <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <FileText className="w-3.5 h-3.5 shrink-0" />
+                        <span>Invoice No.</span>
+                      </div>
+                    </th>
+                    <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <Package className="w-3.5 h-3.5 shrink-0" />
+                        <span>Shipments</span>
+                      </div>
+                    </th>
+                    <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <Banknote className="w-3.5 h-3.5 shrink-0" />
+                        <span>Amount</span>
+                      </div>
+                    </th>
+                    <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <Calendar className="w-3.5 h-3.5 shrink-0" />
+                        <span>Created Date</span>
+                      </div>
+                    </th>
+                    <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <Calendar className="w-3.5 h-3.5 shrink-0" />
+                        <span>Period</span>
+                      </div>
+                    </th>
+                    <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <Check className="w-3.5 h-3.5 shrink-0" />
+                        <span>Status</span>
+                      </div>
+                    </th>
+                    <th className="p-3 text-center align-middle whitespace-nowrap">
+                      <div className="flex items-center justify-center gap-1.5">
+                        <Settings className="w-3.5 h-3.5 shrink-0" />
+                        <span>Actions</span>
+                      </div>
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="text-[11px] text-[#475569]">
@@ -1506,7 +1652,7 @@ export function AdminWallet() {
                       <td className="p-3">
                         <div className="text-xs font-semibold text-[#00A86B] cursor-pointer hover:underline uppercase">{invoice.id}</div>
                         <div className="text-sm font-semibold text-[#0F172A] mt-0.5">{invoice.userName}</div>
-                        <div className="text-[11px] text-[#94A3B8]">{invoice.userEmail}</div>
+                        <div className="font-sans text-xs font-normal text-[#94A3B8]">{invoice.userEmail}</div>
                       </td>
                       <td className="p-3">
                         <div className="text-xs font-semibold text-[#00A86B]">{invoice.invoiceNumber}</div>
@@ -1526,8 +1672,8 @@ export function AdminWallet() {
                       <td className="p-3">
                         <span className={getStatusBadgeClass(invoice.status)}>{invoice.status}</span>
                       </td>
-                      <td className="p-3 text-right">
-                        <div className="flex items-center justify-end gap-2">
+                      <td className="p-3 text-center align-middle">
+                        <div className="flex items-center justify-center gap-2">
                           <button 
                             onClick={() => handleDownloadInvoice(invoice)}
                             title="Download Invoice" 
@@ -1561,7 +1707,7 @@ export function AdminWallet() {
             {totalInvoicePages > 0 && (
               <div className="p-4 border-t border-[#E2E8F0] flex items-center justify-between">
                 <div className="text-xs text-[#64748B]">
-                  Showing <span className="font-bold text-[#0F172A]">{(invoicePage - 1) * itemsPerPage + 1}</span> to <span className="font-bold text-[#0F172A]">{Math.min(invoicePage * itemsPerPage, filteredInvoicesData.length)}</span> of <span className="font-bold text-[#0F172A]">{filteredInvoicesData.length}</span> entries
+                  Showing <span className="font-bold text-[#0F172A]">{invoiceStartIndex}</span> to <span className="font-bold text-[#0F172A]">{invoiceEndIndex}</span> of <span className="font-bold text-[#0F172A]">{filteredInvoicesData.length}</span> entries
                 </div>
                 <div className="flex items-center gap-1">
                   <button 

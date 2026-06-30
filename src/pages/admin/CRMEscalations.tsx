@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
+import { usePagination } from '../../hooks/usePagination';
 import { Search, AlertCircle, Clock, CheckCircle2, XCircle, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 
 const PRIORITIES = ['All', 'Critical', 'High', 'Medium', 'Low'];
@@ -42,8 +43,7 @@ export function CRMEscalations() {
   const [priority, setPriority] = useState('All');
   const [ticketStatus, setTicketStatus] = useState('All');
   const [category, setCategory] = useState('All Categories');
-  const [page, setPage] = useState(1);
-  const perPage = 10;
+  // usePagination initialization below filtered definition
 
   const filtered = MOCK_TICKETS.filter(t => {
     if (priority !== 'All' && t.priority !== priority) return false;
@@ -53,8 +53,12 @@ export function CRMEscalations() {
     return true;
   });
 
-  const totalPages = Math.ceil(filtered.length / perPage);
-  const paginated = filtered.slice((page - 1) * perPage, page * perPage);
+  const {
+    page,
+    setPage,
+    totalPages,
+    paginatedData: paginated,
+  } = usePagination({ data: filtered, perPage: 10 });
 
   const stats = [
     { label: 'Total', value: MOCK_TICKETS.length, icon: AlertCircle, color: 'text-[#0F172A]' },
@@ -115,7 +119,7 @@ export function CRMEscalations() {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[950px]">
             <thead>
-              <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-[10px] uppercase tracking-wider font-bold text-[#64748B]">
+              <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-xs uppercase tracking-wider font-medium text-[#64748B]">
                 <th className="p-3 pl-4">Ticket ID</th>
                 <th className="p-3">Seller</th>
                 <th className="p-3">AWB</th>
@@ -138,10 +142,10 @@ export function CRMEscalations() {
                   <td className="p-3">{ticket.courier}</td>
                   <td className="p-3 text-[#64748B]">{ticket.category}</td>
                   <td className="p-3">
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${PRIORITY_STYLES[ticket.priority]}`}>{ticket.priority}</span>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${PRIORITY_STYLES[ticket.priority]}`}>{ticket.priority}</span>
                   </td>
                   <td className="p-3">
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${STATUS_STYLES[ticket.status]}`}>{ticket.status}</span>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${STATUS_STYLES[ticket.status]}`}>{ticket.status}</span>
                   </td>
                   <td className="p-3">
                     <div className="flex items-center gap-1">

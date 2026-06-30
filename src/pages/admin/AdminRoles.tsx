@@ -79,7 +79,7 @@ export function AdminRoles() {
                   <td className="p-4 align-top pt-4">
                     <div className="font-bold text-[#0F172A] text-[11px]">{role.name}</div>
                     <div className="text-[#64748B] mt-1">{role.date}</div>
-                    <div className="text-[#94A3B8] mt-0.5">{role.email}</div>
+                    <div className="font-sans text-xs font-normal text-[#94A3B8] mt-0.5">{role.email}</div>
                   </td>
                   <td className="p-4 align-top pt-5">
                     <div className="text-[#64748B]">{role.role}</div>

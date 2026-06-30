@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
+import { usePagination } from '../../hooks/usePagination';
 import { 
   Search, Store, CheckCircle2, Clock, XCircle, IndianRupee, Package, 
   TrendingUp, Eye, ChevronLeft, ChevronRight, SlidersHorizontal, 
@@ -326,9 +327,6 @@ export function AdminVendors() {
   const [sortKey, setSortKey] = useState<keyof Vendor>('orders');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [selectedVendorIds, setSelectedVendorIds] = useState<string[]>([]);
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 8;
-
   // Drawer / Modals
   const [detailsVendor, setDetailsVendor] = useState<Vendor | null>(null);
   const [editVendor, setEditVendor] = useState<Vendor | null>(null);
@@ -448,13 +446,14 @@ export function AdminVendors() {
       });
   }, [vendors, activeFilter, searchQuery, scoreFilter, cityFilter, sortKey, sortOrder]);
 
-  // Paginated List
-  const paginatedVendors = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    return filteredVendors.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredVendors, currentPage]);
-
-  const totalPages = Math.ceil(filteredVendors.length / itemsPerPage);
+  const {
+    page: currentPage,
+    setPage: setCurrentPage,
+    totalPages,
+    paginatedData: paginatedVendors,
+    startIndex,
+    endIndex,
+  } = usePagination({ data: filteredVendors, perPage: 8 });
 
   // Checkbox functions
   const toggleSelectAll = () => {
@@ -1009,7 +1008,7 @@ export function AdminVendors() {
                               </span>
                             </div>
                             <div className="flex items-center gap-3 text-[10px] text-[#94A3B8] mt-1 font-medium">
-                              <span className="flex items-center gap-1"><Mail className="w-3 h-3" /> {vendor.email}</span>
+                              <span className="flex items-center gap-1 font-sans text-xs font-normal"><Mail className="w-3 h-3" /> {vendor.email}</span>
                               <span className="w-1 h-1 bg-slate-200 rounded-full" />
                               <span className="flex items-center gap-1"><Phone className="w-3 h-3" /> {vendor.phone}</span>
                             </div>
@@ -1039,7 +1038,7 @@ export function AdminVendors() {
                         {formatCurrency(vendor.revenue)}
                       </td>
                       <td className="p-4 text-center">
-                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold border ${
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold border ${
                           vendor.status === 'Approved' 
                             ? 'bg-emerald-50 text-emerald-600 border-emerald-100' 
                             : vendor.status === 'Pending Approval' 
@@ -1171,7 +1170,7 @@ export function AdminVendors() {
           {totalPages > 0 && (
             <div className="flex justify-between items-center p-4 border-t border-[#E2E8F0] bg-[#F8FAFC]">
               <span className="text-xs text-[#64748B] font-medium">
-                Showing <span className="font-bold text-[#0F172A]">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-bold text-[#0F172A]">{Math.min(currentPage * itemsPerPage, filteredVendors.length)}</span> of <span className="font-bold text-[#0F172A]">{filteredVendors.length}</span> vendors
+                Showing <span className="font-bold text-[#0F172A]">{startIndex}</span> to <span className="font-bold text-[#0F172A]">{endIndex}</span> of <span className="font-bold text-[#0F172A]">{filteredVendors.length}</span> vendors
               </span>
               <div className="flex items-center gap-1.5">
                 <button 

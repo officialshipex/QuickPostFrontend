@@ -15,6 +15,15 @@ function TablerIcon({ name, size = 16, color = 'currentColor', className = '' }:
     switch (name) {
       case 'arrow-left':
         return <path d="M5 12l14 0M5 12l6 6M5 12l6 -6" />;
+      case 'history':
+        return (
+          <>
+            <path d="M12 8l0 4l2 2" />
+            <path d="M3.05 11a9 9 0 1 1 .5 4m-.5 5v-5h5" />
+          </>
+        );
+      case 'x':
+        return <path d="M18 6l-12 12m0 -12l12 12" />;
       case 'copy':
         return (
           <>
@@ -330,6 +339,7 @@ const getShippingDetails = (status: 'placed' | 'ready' | 'transit' | 'delivered'
       return {
         pickupId: '—',
         scheduledOn: '—',
+        pickedOn: '—',
         estimatedDeliveryDate: '—',
         deliveredOn: '—',
         codStatus: 'Pending',
@@ -340,6 +350,7 @@ const getShippingDetails = (status: 'placed' | 'ready' | 'transit' | 'delivered'
       return {
         pickupId: 'PKP20485910',
         scheduledOn: '24 Jun 2026, 8:15 PM',
+        pickedOn: '—',
         estimatedDeliveryDate: '28 Jun 2026',
         deliveredOn: '—',
         codStatus: 'Pending',
@@ -350,6 +361,7 @@ const getShippingDetails = (status: 'placed' | 'ready' | 'transit' | 'delivered'
       return {
         pickupId: 'PKP93018247',
         scheduledOn: '18 Sept 2026, 3:15 PM',
+        pickedOn: '19 Sept 2026, 11:30 AM',
         estimatedDeliveryDate: '21 Sept 2026',
         deliveredOn: '21 Sept 2026, 4:50 PM',
         codStatus: 'Paid',
@@ -362,6 +374,7 @@ const getShippingDetails = (status: 'placed' | 'ready' | 'transit' | 'delivered'
       return {
         pickupId: '—',
         scheduledOn: '—',
+        pickedOn: '—',
         estimatedDeliveryDate: '—',
         deliveredOn: '—',
         codStatus: 'Cancelled',
@@ -373,6 +386,7 @@ const getShippingDetails = (status: 'placed' | 'ready' | 'transit' | 'delivered'
       return {
         pickupId: 'PKP82947291',
         scheduledOn: '18 Sept 2026, 3:15 PM',
+        pickedOn: '19 Sept 2026, 11:30 AM',
         estimatedDeliveryDate: '27 Jun 2026',
         deliveredOn: '—',
         codStatus: 'Pending',
@@ -423,6 +437,70 @@ const getNDRDetails = (status: 'placed' | 'ready' | 'transit' | 'delivered' | 'c
   }
 };
 
+const getCourierForOrder = (orderId: string) => {
+  const COURIERS = [
+    'Ekart',
+    'Delhivery',
+    'DTDC',
+    'Amazon Shipping',
+    'Shadowfax',
+    'Shiprocket',
+    'Shree Maruti',
+    'XpressBees',
+    'Lousung360'
+  ];
+  
+  let hash = 0;
+  for (let i = 0; i < orderId.length; i++) {
+    hash = orderId.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const index = Math.abs(hash) % COURIERS.length;
+  return COURIERS[index];
+};
+
+const getCourierLogo = (courierName: string) => {
+  const name = courierName.toLowerCase();
+  if (name.includes('amazon')) return '/brands/amazon.png';
+  if (name.includes('delhivery')) return '/brands/delhivery.png';
+  if (name.includes('dtdc')) return '/brands/dtdc.png';
+  if (name.includes('ekart')) return '/brands/ekart.png';
+  if (name.includes('losung') || name.includes('lousung')) return '/brands/losung.jpg';
+  if (name.includes('shadowfax')) return '/brands/shadowfax.png';
+  if (name.includes('shiprocket')) return '/brands/shiprocket.jpg';
+  if (name.includes('maruti')) return '/brands/shree_maruti.jpg';
+  if (name.includes('xpressbees')) return '/brands/xpressbees.png';
+  return '';
+};
+
+interface CourierLogoProps {
+  name: string;
+  size?: 'sm' | 'md';
+}
+
+const CourierLogo: React.FC<CourierLogoProps> = ({ name, size = 'sm' }) => {
+  const logoUrl = getCourierLogo(name);
+  const sizeClass = size === 'sm' ? 'w-12 h-12 text-[18px]' : 'w-20 h-14 text-[24px]';
+  const imgSizeClass = size === 'sm' ? 'w-12 h-12' : 'w-20 h-14';
+  const [error, setError] = useState(!logoUrl);
+
+  if (error) {
+    return (
+      <div className={`${sizeClass} flex items-center justify-center rounded bg-slate-100 border border-slate-200 text-[#94A3B8] font-bold shrink-0 uppercase shadow-sm`}>
+        {name.charAt(0)}
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={logoUrl}
+      alt={name}
+      className={`${imgSizeClass} object-contain rounded shrink-0 animate-fade-in bg-transparent`}
+      onError={() => setError(true)}
+    />
+  );
+};
+
 export function AdminOrderTracking() {
   const [searchParams] = useSearchParams();
   const orderId = searchParams.get('id') || '572294';
@@ -431,6 +509,17 @@ export function AdminOrderTracking() {
   const [copiedAwb, setCopiedAwb] = useState(false);
   const [isHeaderDropdownOpen, setIsHeaderDropdownOpen] = useState(false);
   const [chargesTab, setChargesTab] = useState<'billed' | 'dispute'>('billed');
+  const [showNdrHistory, setShowNdrHistory] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [showUpdateInfoModal, setShowUpdateInfoModal] = useState(false);
+  const [newPhoneNumber, setNewPhoneNumber] = useState('7988589102');
+
+  useEffect(() => {
+    if (toastMessage) {
+      const timer = setTimeout(() => setToastMessage(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [toastMessage]);
 
   // References for GSAP
   const containerRef = useRef<HTMLDivElement>(null);
@@ -502,6 +591,7 @@ export function AdminOrderTracking() {
   const milestones = getMilestones(orderStatus);
   const shippingDetails = getShippingDetails(orderStatus);
   const ndrDetails = getNDRDetails(orderStatus);
+  const courierName = getCourierForOrder(orderId);
 
   return (
     <AdminLayout>
@@ -1128,11 +1218,18 @@ export function AdminOrderTracking() {
                 </div>
                 <div className="flex justify-between items-center text-[13px] border-t border-[#F5F5F5] pt-3">
                   <span className="font-normal text-[#5F5E5A]">Courier Partner</span>
-                  <span className="font-semibold text-[#1A1A1A]">Ekart Surface</span>
+                  <div className="flex items-center gap-2">
+                    <CourierLogo name={courierName} size="md" />
+                    <span className="font-semibold text-[#1A1A1A]">{courierName}</span>
+                  </div>
                 </div>
                 <div className="flex justify-between items-center text-[13px] border-t border-[#F5F5F5] pt-3">
                   <span className="font-normal text-[#5F5E5A]">Scheduled On</span>
                   <span className="font-medium text-[#1A1A1A]">{shippingDetails.scheduledOn}</span>
+                </div>
+                <div className="flex justify-between items-center text-[13px] border-t border-[#F5F5F5] pt-3">
+                  <span className="font-normal text-[#5F5E5A]">Picked On</span>
+                  <span className="font-medium text-[#1A1A1A]">{shippingDetails.pickedOn}</span>
                 </div>
                 <div className="flex justify-between items-center text-[13px] border-t border-[#F5F5F5] pt-3">
                   <span className="font-normal text-[#5F5E5A]">Estimated Delivery Date</span>
@@ -1173,14 +1270,15 @@ export function AdminOrderTracking() {
               </div>
 
               {/* AWB info block */}
-              <div className="flex items-center justify-between bg-slate-50 border border-slate-100 rounded-xl p-3 mb-5">
+              <div className="flex items-center justify-between bg-slate-50 rounded-xl p-3 mb-5">
                 <div>
                   <div className="text-[9px] font-bold text-[#9FB5AB] uppercase tracking-wider">AWB Number</div>
                   <div className="text-[13px] font-bold text-[#1A1A1A] mt-0.5 tracking-wide font-mono">QP0900004821</div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="bg-[#F4F6F5] text-[#1A1A1A] text-[11px] font-semibold px-2.5 py-1 rounded-md shrink-0">
-                    Ekart Surface
+                  <span className="text-[#1A1A1A] text-[11px] font-semibold px-2.5 py-1 rounded-md shrink-0 flex items-center gap-1.5 bg-transparent">
+                    <CourierLogo name={courierName} size="sm" />
+                    {courierName}
                   </span>
                   <button 
                     onClick={handleCopyAwb}
@@ -1209,7 +1307,7 @@ export function AdminOrderTracking() {
                     <div>
                       <div className="text-[13px] font-bold text-[#1A1A1A]">Out for Delivery</div>
                       <div className="text-[11px] font-normal text-[#5F5E5A] mt-0.5">Today, 10:23 AM</div>
-                      <div className="text-[11px] font-normal text-[#9FB5AB] mt-0.5">Ekart Agent: Ravi Kumar</div>
+                      <div className="text-[11px] font-normal text-[#9FB5AB] mt-0.5">{courierName.split(' ')[0]} Agent: Ravi Kumar</div>
                       <div className="mt-1.5">
                         <span className="bg-[#E1F5EE] text-[#0F6E56] text-[10px] font-medium px-2 py-0.5 rounded">
                           Andheri, Mumbai
@@ -1298,31 +1396,36 @@ export function AdminOrderTracking() {
                     <span className="font-normal text-[#5F5E5A]">Attempt Count</span>
                     <span className="font-medium text-[#1A1A1A]">{ndrDetails.attempts}</span>
                   </div>
-                  <div className="text-[13px] border-t border-[#F5F5F5] pt-3">
-                    <span className="font-normal text-[#5F5E5A]">Last Update</span>
+                  <div className="flex items-center gap-2 text-[13px] border-t border-[#F5F5F5] pt-3 flex-wrap">
+                    <span className="font-normal text-[#5F5E5A] shrink-0">Last Update:</span>
                     <span className="font-medium text-[#1A1A1A]">{ndrDetails.lastAction}</span>
+                    <button 
+                      onClick={() => setShowNdrHistory(true)}
+                      className="text-[11px] font-bold text-[#1D9E75] hover:text-[#0F6E56] hover:underline flex items-center gap-1 shrink-0 ml-1.5 bg-[#E1F5EE] px-2 py-0.5 rounded transition-colors"
+                      title="View Full NDR History"
+                    >
+                      <TablerIcon name="history" size={11} color="#1D9E75" />
+                      <span>History</span>
+                    </button>
                   </div>
                   {ndrDetails.isActionable && (
                     <div className="border-t border-[#F5F5F5] pt-3.5 mt-2 space-y-2">
                       <button 
-                        onClick={() => alert('Re-attempt instruction submitted to Ekart!')}
-                        className="w-full bg-[#1D9E75] hover:bg-[#0F6E56] text-white text-[12px] font-bold py-2 rounded-lg transition-colors"
+                        onClick={() => setToastMessage(`Re-attempt instruction submitted to ${courierName}!`)}
+                        className="w-full bg-[#1D9E75] hover:bg-[#0F6E56] text-white text-[12px] font-bold py-2 rounded-lg transition-colors focus:outline-none"
                       >
                         Request Re-attempt
                       </button>
                       <div className="grid grid-cols-2 gap-2">
                         <button 
-                          onClick={() => alert('RTO instruction submitted to Ekart!')}
-                          className="border border-red-200 bg-red-50/50 hover:bg-red-50 text-red-700 text-[12px] font-semibold py-2 rounded-lg transition-colors"
+                          onClick={() => setToastMessage(`RTO instruction submitted to ${courierName}!`)}
+                          className="border border-red-200 bg-red-50/50 hover:bg-red-50 text-red-700 text-[12px] font-semibold py-2 rounded-lg transition-colors focus:outline-none"
                         >
                           Initiate RTO
                         </button>
                         <button 
-                          onClick={() => {
-                            const newPhone = prompt("Enter alternate phone number:", "7988589102");
-                            if (newPhone) alert(`Alternate number updated to ${newPhone}. Instructions sent to Ekart!`);
-                          }}
-                          className="border border-[#E5E5E5] hover:bg-[#F8F9FA] text-[#5F5E5A] text-[12px] font-semibold py-2 rounded-lg transition-colors"
+                          onClick={() => setShowUpdateInfoModal(true)}
+                          className="border border-[#E5E5E5] hover:bg-[#F8F9FA] text-[#5F5E5A] text-[12px] font-semibold py-2 rounded-lg transition-colors focus:outline-none"
                         >
                           Update Info
                         </button>
@@ -1340,6 +1443,122 @@ export function AdminOrderTracking() {
         </div>
 
       </div>
+      
+      {/* NDR History Modal */}
+      {showNdrHistory && (
+        <div className="fixed inset-0 bg-[#000000]/40 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl border border-[#E5E5E5] w-full max-w-md shadow-2xl overflow-hidden animate-fade-in">
+            <div className="px-5 py-4 border-b border-[#F0F0F0] flex justify-between items-center bg-slate-50">
+              <div className="flex items-center gap-2">
+                <TablerIcon name="history" size={16} color="#1D9E75" />
+                <h3 className="text-[15px] font-bold text-[#1A1A1A]">NDR Lifecycle History</h3>
+              </div>
+              <button 
+                onClick={() => setShowNdrHistory(false)}
+                className="text-[#9FB5AB] hover:text-[#1A1A1A] p-1.5 rounded-md hover:bg-slate-200 transition-colors focus:outline-none"
+              >
+                <TablerIcon name="x" size={14} />
+              </button>
+            </div>
+            <div className="p-5 max-h-[300px] overflow-y-auto pr-1 space-y-5">
+              {/* Timeline entries */}
+              <div className="relative pl-6 space-y-5 border-l-2 border-[#E1F5EE]">
+                <div className="relative">
+                  <div className="absolute -left-[31px] top-1.5 w-2 h-2 rounded-full bg-[#1D9E75] border border-white" />
+                  <div className="text-[13px] font-bold text-[#1A1A1A]">NDR Attempt #1 Failed</div>
+                  <div className="text-[11px] text-[#5F5E5A] mt-0.5">26 Jun 2026, 4:10 PM</div>
+                  <div className="text-[11px] text-[#9FB5AB] mt-0.5">Reason: Customer Unavailable (Unanswered Phone)</div>
+                </div>
+                <div className="relative">
+                  <div className="absolute -left-[31px] top-1.5 w-2 h-2 rounded-full bg-[#9FB5AB] border border-white" />
+                  <div className="text-[13px] font-semibold text-[#1A1A1A]">NDR Case Generated</div>
+                  <div className="text-[11px] text-[#5F5E5A] mt-0.5">26 Jun 2026, 2:30 PM</div>
+                  <div className="text-[11px] text-[#9FB5AB] mt-0.5">Automatically flagged by system</div>
+                </div>
+                <div className="relative">
+                  <div className="absolute -left-[31px] top-1.5 w-2 h-2 rounded-full bg-[#9FB5AB] border border-white" />
+                  <div className="text-[13px] font-semibold text-[#1A1A1A]">Out for Delivery</div>
+                  <div className="text-[11px] text-[#5F5E5A] mt-0.5">26 Jun 2026, 10:15 AM</div>
+                  <div className="text-[11px] text-[#9FB5AB] mt-0.5">Agent: Ravi Kumar ({courierName})</div>
+                </div>
+              </div>
+            </div>
+            <div className="px-5 py-3.5 bg-slate-50 border-t border-[#F0F0F0] flex justify-end">
+              <button 
+                onClick={() => setShowNdrHistory(false)}
+                className="bg-[#1D9E75] hover:bg-[#0F6E56] text-white text-[12px] font-bold py-1.5 px-4 rounded-lg transition-colors shadow-sm focus:outline-none"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Update Info Modal */}
+      {showUpdateInfoModal && (
+        <div className="fixed inset-0 bg-[#000000]/40 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl border border-[#E5E5E5] w-full max-w-sm shadow-2xl overflow-hidden animate-fade-in">
+            <div className="px-5 py-4 border-b border-[#F0F0F0] flex justify-between items-center bg-slate-50">
+              <div className="flex items-center gap-2">
+                <TablerIcon name="phone" size={16} color="#1D9E75" />
+                <h3 className="text-[15px] font-bold text-[#1A1A1A]">Update Alternate Contact</h3>
+              </div>
+              <button 
+                onClick={() => setShowUpdateInfoModal(false)}
+                className="text-[#9FB5AB] hover:text-[#1A1A1A] p-1.5 rounded-md hover:bg-slate-200 transition-colors focus:outline-none"
+              >
+                <TablerIcon name="x" size={14} />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[11px] font-semibold text-[#5F5E5A] uppercase tracking-wider">Alternate Phone Number</label>
+                <input 
+                  type="tel" 
+                  value={newPhoneNumber} 
+                  onChange={(e) => setNewPhoneNumber(e.target.value)} 
+                  className="w-full h-10 px-3.5 rounded-xl border border-[#E5E5E5] text-[13px] bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[#1D9E75]/20 focus:border-[#1D9E75] transition-all font-mono" 
+                  placeholder="Enter 10-digit mobile number"
+                />
+              </div>
+            </div>
+            <div className="px-5 py-3.5 bg-slate-50 border-t border-[#F0F0F0] flex justify-end gap-2">
+              <button 
+                onClick={() => setShowUpdateInfoModal(false)}
+                className="border border-[#E5E5E5] bg-white hover:bg-slate-50 text-[#5F5E5A] text-[12px] font-bold py-1.5 px-4 rounded-lg transition-colors focus:outline-none"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={() => {
+                  setShowUpdateInfoModal(false);
+                  setToastMessage(`Alternate number updated to ${newPhoneNumber}. Instructions sent to ${courierName}!`);
+                }}
+                className="bg-[#1D9E75] hover:bg-[#0F6E56] text-white text-[12px] font-bold py-1.5 px-4 rounded-lg transition-colors shadow-sm focus:outline-none"
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="fixed bottom-5 right-5 z-[210] bg-[#1A1A1A] text-white text-[13px] px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2.5 animate-fade-in">
+          <div className="w-5 h-5 rounded-full bg-[#1D9E75] flex items-center justify-center shrink-0">
+            <TablerIcon name="check" size={10} color="#FFFFFF" />
+          </div>
+          <span className="font-medium">{toastMessage}</span>
+          <button 
+            onClick={() => setToastMessage(null)}
+            className="text-white/50 hover:text-white ml-2 focus:outline-none"
+          >
+            <TablerIcon name="x" size={10} />
+          </button>
+        </div>
+      )}
     </AdminLayout>
   );
 }

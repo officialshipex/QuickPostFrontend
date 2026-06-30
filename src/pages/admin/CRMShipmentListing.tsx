@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
+import { usePagination } from '../../hooks/usePagination';
 import {
-  Search, Download, RefreshCw, ChevronLeft, ChevronRight,
+  Search, Download, RefreshCw, ChevronLeft, ChevronRight, ChevronDown,
   Filter, Truck, RotateCcw, CheckCircle2, AlertTriangle, Clock, Package, MoreHorizontal, MapPin, Check, History, User, Settings, Flame, X, Loader2, Zap, IndianRupee, Calendar
 } from 'lucide-react';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
@@ -12,6 +13,7 @@ const STATUS_OPTS = ['Booked', 'Picked Up', 'In Transit', 'Out for Delivery', 'D
 const CHANNEL_OPTS = ['Shopify', 'WooCommerce', 'Manual', 'API', 'Wix', 'Amazon'];
 const ORDER_TYPE_OPTS = ['Prepaid', 'COD'];
 const VENDOR_OPTS = ['Vendor A', 'Vendor B', 'Vendor C'];
+const PICKUP_ADDR_OPTS = ['Mumbai, MH', 'Delhi, DL', 'Bangalore, KA', 'Hyderabad, TS', 'Chennai, TN'];
 
 const STATUS_STYLES: Record<string, string> = {
   'Booked': 'bg-slate-50 text-slate-700 border-slate-200',
@@ -97,6 +99,12 @@ const MOCK_DATA = Array.from({ length: 45 }, (_, i) => {
     lastUpdateEvent: i % 4 === 0 ? 'Reached Facility' : i % 3 === 0 ? 'Out for Delivery' : 'In Transit',
     lastUpdateDate: i % 2 === 0 ? 'Today' : 'Yesterday',
     lastUpdateTime: `${10 + (i % 8)}:${String(15 + (i % 45)).padStart(2, '0')} ${i % 2 === 0 ? 'AM' : 'PM'}`,
+    productName: ['Money Attraction Pro...', 'Magnetic Wireless Charger', 'Ergonomic Office Chair', 'Ultra-Slim Power Bank', 'Smart Fitness Watch'][i % 5],
+    sku: ['QP-ALL-PRO', 'QP-MAG-CHG', 'QP-ERG-CHR', 'QP-PWR-BNK', 'QP-FIT-WCH'][i % 5],
+    qty: 1 + (i % 3),
+    weight: ['500g', '250g', '12.5kg', '350g', '150g'][i % 5],
+    dimensions: ['12×10×8', '10×10×5', '60×60×110', '15×8×3', '8×8×6'][i % 5],
+    volWeight: ['0.24 KG', '0.12 KG', '98.5 KG', '0.09 KG', '0.09 KG'][i % 5],
   };
 });
 
@@ -114,6 +122,16 @@ const calculateAgeingDays = (manifestDateStr: string) => {
     cur.setDate(cur.getDate() + 1);
   }
   return count;
+};
+
+const getFullProductName = (name?: string) => {
+  const n = name || 'Money Attraction Pro...';
+  if (n.includes('Money Attraction')) return 'Money Attraction Bracelet Kit Pro (2 Pcs)';
+  if (n.includes('Magnetic Wireless')) return 'Magnetic Wireless Fast Charger 15W Pad';
+  if (n.includes('Ergonomic Office')) return 'Ergonomic Office Executive Mesh Chair';
+  if (n.includes('Ultra-Slim Power')) return 'Ultra-Slim Fast Charging Power Bank 10000mAh';
+  if (n.includes('Smart Fitness')) return 'Smart Fitness AMOLED Display Health Watch';
+  return n;
 };
 
 const renderAgeing = (manifestDateStr: string) => {
@@ -157,9 +175,12 @@ export function CRMShipmentListing() {
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
   const [selectedChannels, setSelectedChannels] = useState<string[]>([]);
   const [selectedOrderTypes, setSelectedOrderTypes] = useState<string[]>([]);
+  const [selectedPickupAddrs, setSelectedPickupAddrs] = useState<string[]>([]);
   
   const [userDetails, setUserDetails] = useState('');
   const [orderId, setOrderId] = useState('');
+  const [productSpecs, setProductSpecs] = useState('');
+  const [packageSpecs, setPackageSpecs] = useState('');
   const [forwardAwb, setForwardAwb] = useState('');
   const [rtoAwb, setRtoAwb] = useState('');
 
@@ -168,6 +189,7 @@ export function CRMShipmentListing() {
   
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
   const [openActionId, setOpenActionId] = useState<string | null>(null);
+  const [showLastUpdate, setShowLastUpdate] = useState(false);
   
   const [showAgeingLegend, setShowAgeingLegend] = useState(false);
   const ageingLegendRef = useRef<HTMLTableHeaderCellElement>(null);
@@ -175,18 +197,18 @@ export function CRMShipmentListing() {
 
   // Moved tracking state to below paginated
 
-  const [page, setPage] = useState(1);
-  const perPage = 10;
-
-  const hasActiveFilters = selectedCouriers.length > 0 || selectedStatuses.length > 0 || selectedChannels.length > 0 || selectedOrderTypes.length > 0 || userDetails || orderId || forwardAwb || rtoAwb || (dateFrom && dateTo);
+  const hasActiveFilters = selectedCouriers.length > 0 || selectedStatuses.length > 0 || selectedChannels.length > 0 || selectedOrderTypes.length > 0 || selectedPickupAddrs.length > 0 || userDetails || orderId || productSpecs || packageSpecs || forwardAwb || rtoAwb || (dateFrom && dateTo);
 
   const handleClearAllFilters = () => {
     setSelectedCouriers([]);
     setSelectedStatuses([]);
     setSelectedChannels([]);
     setSelectedOrderTypes([]);
+    setSelectedPickupAddrs([]);
     setUserDetails('');
     setOrderId('');
+    setProductSpecs('');
+    setPackageSpecs('');
     setForwardAwb('');
     setRtoAwb('');
     setDateFrom('');
@@ -204,15 +226,32 @@ export function CRMShipmentListing() {
       if (selectedStatuses.length > 0 && !selectedStatuses.includes(r.status)) return false;
       if (selectedChannels.length > 0 && !selectedChannels.includes(r.channel)) return false;
       if (selectedOrderTypes.length > 0 && !selectedOrderTypes.includes(r.orderType)) return false;
+      if (selectedPickupAddrs.length > 0 && !selectedPickupAddrs.some(addr => r.pickupAddr.toLowerCase().includes(addr.toLowerCase()))) return false;
       if (userDetails && !r.companyId.toLowerCase().includes(userDetails.toLowerCase())) return false;
       if (orderId && !r.orderId.toLowerCase().includes(orderId.toLowerCase())) return false;
+      if (productSpecs && !(
+        (r.productName && r.productName.toLowerCase().includes(productSpecs.toLowerCase())) ||
+        (r.sku && r.sku.toLowerCase().includes(productSpecs.toLowerCase()))
+      )) return false;
+      if (packageSpecs && !(
+        (r.weight && r.weight.toLowerCase().includes(packageSpecs.toLowerCase())) ||
+        (r.dimensions && r.dimensions.toLowerCase().includes(packageSpecs.toLowerCase())) ||
+        (r.volWeight && r.volWeight.toLowerCase().includes(packageSpecs.toLowerCase()))
+      )) return false;
       if (forwardAwb && !r.awb.toLowerCase().includes(forwardAwb.toLowerCase())) return false;
+      if (rtoAwb && !r.awb.toLowerCase().includes(rtoAwb.toLowerCase())) return false;
       return true;
     });
-  }, [selectedCouriers, selectedStatuses, selectedChannels, selectedOrderTypes, userDetails, orderId, forwardAwb, rtoAwb]);
+  }, [selectedCouriers, selectedStatuses, selectedChannels, selectedOrderTypes, selectedPickupAddrs, userDetails, orderId, productSpecs, packageSpecs, forwardAwb, rtoAwb]);
 
-  const totalPages = Math.ceil(filtered.length / perPage);
-  const paginated = filtered.slice((page - 1) * perPage, page * perPage);
+  const {
+    page,
+    setPage,
+    totalPages,
+    paginatedData: paginated,
+    startIndex,
+    endIndex,
+  } = usePagination({ data: filtered, perPage: 10 });
 
   const toggleAll = () => setSelectedOrders(selectedOrders.length === paginated.length && paginated.length > 0 ? [] : paginated.map(o => o.awb));
   const toggleSelect = (id: string) => setSelectedOrders(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
@@ -272,6 +311,8 @@ export function CRMShipmentListing() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const totalColumns = showLastUpdate ? 12 : 11;
+
 
   return (
     <AdminLayout>
@@ -297,10 +338,64 @@ export function CRMShipmentListing() {
           </div>
 
           {/* Filters Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-x-4 gap-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3.5 items-end mt-3">
+
+            {/* User */}
+            <div className="flex flex-col gap-1.5 w-full">
+              <label className="text-[10px] font-semibold text-[#64748B] uppercase tracking-wider">User</label>
+              <div className="relative">
+                <input type="text" placeholder="Search user..." value={userDetails} onChange={e => setUserDetails(e.target.value)} className="w-full h-9 px-3 pr-8 rounded-[10px] border border-[#E2E8F0]/80 text-xs bg-gradient-to-br from-white/90 to-[#F8FAFC]/70 backdrop-blur-[8px] text-[#0F172A] placeholder:text-[#94A3B8] hover:border-[#00A86B]/30 focus:outline-none focus:ring-2 focus:ring-[#00A86B]/20 focus:border-[#00A86B] transition-all" />
+                <Search className="w-3.5 h-3.5 absolute right-2.5 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
+              </div>
+            </div>
+
+            {/* Order */}
+            <div className="flex flex-col gap-1.5 w-full">
+              <label className="text-[10px] font-semibold text-[#64748B] uppercase tracking-wider">Order</label>
+              <div className="relative">
+                <input type="text" placeholder="Search order..." value={orderId} onChange={e => setOrderId(e.target.value)} className="w-full h-9 px-3 pr-8 rounded-[10px] border border-[#E2E8F0]/80 text-xs bg-gradient-to-br from-white/90 to-[#F8FAFC]/70 backdrop-blur-[8px] text-[#0F172A] placeholder:text-[#94A3B8] hover:border-[#00A86B]/30 focus:outline-none focus:ring-2 focus:ring-[#00A86B]/20 focus:border-[#00A86B] transition-all" />
+                <Search className="w-3.5 h-3.5 absolute right-2.5 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
+              </div>
+            </div>
+
+            {/* Product */}
+            <div className="flex flex-col gap-1.5 w-full">
+              <label className="text-[10px] font-semibold text-[#64748B] uppercase tracking-wider">Product</label>
+              <div className="relative">
+                <input type="text" placeholder="Search SKU / item..." value={productSpecs} onChange={e => setProductSpecs(e.target.value)} className="w-full h-9 px-3 pr-8 rounded-[10px] border border-[#E2E8F0]/80 text-xs bg-gradient-to-br from-white/90 to-[#F8FAFC]/70 backdrop-blur-[8px] text-[#0F172A] placeholder:text-[#94A3B8] hover:border-[#00A86B]/30 focus:outline-none focus:ring-2 focus:ring-[#00A86B]/20 focus:border-[#00A86B] transition-all" />
+                <Search className="w-3.5 h-3.5 absolute right-2.5 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
+              </div>
+            </div>
+
+            {/* Package */}
+            <div className="flex flex-col gap-1.5 w-full">
+              <label className="text-[10px] font-semibold text-[#64748B] uppercase tracking-wider">Package</label>
+              <div className="relative">
+                <input type="text" placeholder="Search weight / dims..." value={packageSpecs} onChange={e => setPackageSpecs(e.target.value)} className="w-full h-9 px-3 pr-8 rounded-[10px] border border-[#E2E8F0]/80 text-xs bg-gradient-to-br from-white/90 to-[#F8FAFC]/70 backdrop-blur-[8px] text-[#0F172A] placeholder:text-[#94A3B8] hover:border-[#00A86B]/30 focus:outline-none focus:ring-2 focus:ring-[#00A86B]/20 focus:border-[#00A86B] transition-all" />
+                <Search className="w-3.5 h-3.5 absolute right-2.5 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
+              </div>
+            </div>
+
+            {/* Forward AWB */}
+            <div className="flex flex-col gap-1.5 w-full">
+              <label className="text-[10px] font-semibold text-[#64748B] uppercase tracking-wider">Forward AWB</label>
+              <div className="relative">
+                <input type="text" placeholder="Search FWD AWB..." value={forwardAwb} onChange={e => setForwardAwb(e.target.value)} className="w-full h-9 px-3 pr-8 rounded-[10px] border border-[#E2E8F0]/80 text-xs bg-gradient-to-br from-white/90 to-[#F8FAFC]/70 backdrop-blur-[8px] text-[#0F172A] placeholder:text-[#94A3B8] hover:border-[#00A86B]/30 focus:outline-none focus:ring-2 focus:ring-[#00A86B]/20 focus:border-[#00A86B] transition-all" />
+                <Search className="w-3.5 h-3.5 absolute right-2.5 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
+              </div>
+            </div>
+
+            {/* RTO AWB */}
+            <div className="flex flex-col gap-1.5 w-full">
+              <label className="text-[10px] font-semibold text-[#64748B] uppercase tracking-wider">RTO AWB</label>
+              <div className="relative">
+                <input type="text" placeholder="Search RTO AWB..." value={rtoAwb} onChange={e => setRtoAwb(e.target.value)} className="w-full h-9 px-3 pr-8 rounded-[10px] border border-[#E2E8F0]/80 text-xs bg-gradient-to-br from-white/90 to-[#F8FAFC]/70 backdrop-blur-[8px] text-[#0F172A] placeholder:text-[#94A3B8] hover:border-[#00A86B]/30 focus:outline-none focus:ring-2 focus:ring-[#00A86B]/20 focus:border-[#00A86B] transition-all" />
+                <Search className="w-3.5 h-3.5 absolute right-2.5 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
+              </div>
+            </div>
 
             {/* Date Range */}
-            <div className="flex flex-col gap-1.5">
+            <div className="flex flex-col gap-1.5 w-full">
               <label className="text-[10px] font-semibold text-[#64748B] uppercase tracking-wider">Date Range</label>
               <GlassDateFilter
                 align="left"
@@ -310,45 +405,21 @@ export function CRMShipmentListing() {
               />
             </div>
 
-            {/* User Details */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] font-semibold text-[#64748B] uppercase tracking-wider">User Details</label>
-              <div className="relative">
-                <input type="text" placeholder="Search user..." value={userDetails} onChange={e => setUserDetails(e.target.value)} className="w-full h-9 px-3 pr-8 rounded-[10px] border border-[#E2E8F0]/80 text-xs bg-gradient-to-br from-white/90 to-[#F8FAFC]/70 backdrop-blur-[8px] text-[#0F172A] placeholder:text-[#94A3B8] hover:border-[#00A86B]/30 focus:outline-none focus:ring-2 focus:ring-[#00A86B]/20 focus:border-[#00A86B] transition-all" />
-                <Search className="w-3.5 h-3.5 absolute right-2.5 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
-              </div>
+            {/* Pickup */}
+            <div className="flex flex-col gap-1.5 w-full">
+              <label className="text-[10px] font-semibold text-[#64748B] uppercase tracking-wider">Pickup</label>
+              <GlassDropdown
+                label="Pickup Address"
+                options={PICKUP_ADDR_OPTS.map(o => ({ label: o, value: o }))}
+                selected={selectedPickupAddrs}
+                onChange={setSelectedPickupAddrs}
+                placeholder="Search pickup..."
+                icon={<MapPin className="w-3.5 h-3.5" />}
+              />
             </div>
-
-            {/* Order ID */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] font-semibold text-[#64748B] uppercase tracking-wider">Order ID</label>
-              <div className="relative">
-                <input type="text" placeholder="Search order..." value={orderId} onChange={e => setOrderId(e.target.value)} className="w-full h-9 px-3 pr-8 rounded-[10px] border border-[#E2E8F0]/80 text-xs bg-gradient-to-br from-white/90 to-[#F8FAFC]/70 backdrop-blur-[8px] text-[#0F172A] placeholder:text-[#94A3B8] hover:border-[#00A86B]/30 focus:outline-none focus:ring-2 focus:ring-[#00A86B]/20 focus:border-[#00A86B] transition-all" />
-                <Search className="w-3.5 h-3.5 absolute right-2.5 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
-              </div>
-            </div>
-
-            {/* Forward AWB */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] font-semibold text-[#64748B] uppercase tracking-wider">Forward AWB</label>
-              <div className="relative">
-                <input type="text" placeholder="Search FWD AWB..." value={forwardAwb} onChange={e => setForwardAwb(e.target.value)} className="w-full h-9 px-3 pr-8 rounded-[10px] border border-[#E2E8F0]/80 text-xs bg-gradient-to-br from-white/90 to-[#F8FAFC]/70 backdrop-blur-[8px] text-[#0F172A] placeholder:text-[#94A3B8] hover:border-[#00A86B]/30 focus:outline-none focus:ring-2 focus:ring-[#00A86B]/20 focus:border-[#00A86B] transition-all" />
-                <Search className="w-3.5 h-3.5 absolute right-2.5 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
-              </div>
-            </div>
-
-            {/* RTO AWB */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] font-semibold text-[#64748B] uppercase tracking-wider">RTO AWB</label>
-              <div className="relative">
-                <input type="text" placeholder="Search RTO AWB..." value={rtoAwb} onChange={e => setRtoAwb(e.target.value)} className="w-full h-9 px-3 pr-8 rounded-[10px] border border-[#E2E8F0]/80 text-xs bg-gradient-to-br from-white/90 to-[#F8FAFC]/70 backdrop-blur-[8px] text-[#0F172A] placeholder:text-[#94A3B8] hover:border-[#00A86B]/30 focus:outline-none focus:ring-2 focus:ring-[#00A86B]/20 focus:border-[#00A86B] transition-all" />
-                <Search className="w-3.5 h-3.5 absolute right-2.5 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
-              </div>
-            </div>
-
 
             {/* Status */}
-            <div className="flex flex-col gap-1.5">
+            <div className="flex flex-col gap-1.5 w-full">
               <label className="text-[10px] font-semibold text-[#64748B] uppercase tracking-wider">Status</label>
               <GlassDropdown
                 label="All Statuses"
@@ -361,7 +432,7 @@ export function CRMShipmentListing() {
             </div>
 
             {/* Courier */}
-            <div className="flex flex-col gap-1.5">
+            <div className="flex flex-col gap-1.5 w-full">
               <label className="text-[10px] font-semibold text-[#64748B] uppercase tracking-wider">Courier</label>
               <GlassDropdown
                 label="All Couriers"
@@ -374,7 +445,7 @@ export function CRMShipmentListing() {
             </div>
 
             {/* Channel */}
-            <div className="flex flex-col gap-1.5">
+            <div className="flex flex-col gap-1.5 w-full">
               <label className="text-[10px] font-semibold text-[#64748B] uppercase tracking-wider">Channel</label>
               <GlassDropdown
                 label="All Channels"
@@ -387,7 +458,7 @@ export function CRMShipmentListing() {
             </div>
 
             {/* Order Type */}
-            <div className="flex flex-col gap-1.5">
+            <div className="flex flex-col gap-1.5 w-full">
               <label className="text-[10px] font-semibold text-[#64748B] uppercase tracking-wider">Order Type</label>
               <GlassDropdown
                 label="All Types"
@@ -398,21 +469,18 @@ export function CRMShipmentListing() {
                 icon={<Search className="w-3.5 h-3.5" />}
               />
             </div>
+          </div>
 
-            {/* ── Actions ── */}
-            <div className="flex flex-col gap-1.5 justify-end">
-              <div className="text-[10px] font-semibold text-transparent select-none uppercase tracking-wider h-3.5">Actions</div>
-              <div className="flex gap-2 w-full">
-                {hasActiveFilters && (
-                  <button onClick={handleClearAllFilters} className="h-9 flex-1 rounded-[10px] text-xs font-bold text-[#EF4444] border border-[#FEE2E2] hover:bg-[#FEF2F2] transition-colors focus:ring-2 focus:ring-[#EF4444]/20 focus:outline-none">
-                    Clear
-                  </button>
-                )}
-                <button onClick={handleApplyFilters} className="h-9 flex-1 rounded-[10px] bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm focus:ring-2 focus:ring-[#00A86B]/20 focus:outline-none">
-                  Apply
-                </button>
-              </div>
-            </div>
+          {/* ── Actions Bar ── */}
+          <div className="flex items-center justify-end gap-2.5 mt-3.5 pt-3 border-t border-[#E2E8F0]/70">
+            {hasActiveFilters && (
+              <button onClick={handleClearAllFilters} className="h-9 px-3.5 rounded-lg border border-red-200 text-red-500 text-xs font-bold hover:bg-red-50 transition-colors focus:ring-2 focus:ring-red-500/20 focus:outline-none flex items-center gap-1.5">
+                <X className="w-3.5 h-3.5" /> Clear All
+              </button>
+            )}
+            <button onClick={handleApplyFilters} className="h-9 px-5 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm focus:ring-2 focus:ring-[#00A86B]/20 focus:outline-none flex items-center justify-center gap-1.5">
+              <Check className="w-3.5 h-3.5" /> Apply
+            </button>
           </div>
         </div>
 
@@ -428,67 +496,68 @@ export function CRMShipmentListing() {
 
         {/* Table Area */}
         <div className="bg-white flex flex-col flex-1 min-h-0 overflow-hidden">
-          <div className="flex-1 overflow-y-auto overflow-x-hidden w-full relative">
-            <table className="w-full text-left border-collapse min-w-full">
-              <thead className="sticky top-0 z-40 bg-[#E6F5F1] shadow-sm">
-                <tr className="text-[10px] font-bold text-[#00A86B] uppercase tracking-wider whitespace-nowrap">
-                  <th className="px-2 py-3 w-10">
+          <div className={`flex-1 overflow-y-auto w-full relative ${showLastUpdate ? 'overflow-x-auto' : 'overflow-x-hidden'}`}>
+            <table className={`text-left border-collapse w-full ${showLastUpdate ? 'min-w-[1400px]' : 'table-fixed'}`}>
+              <colgroup>
+                <col style={{ width: '36px' }} />
+                <col style={{ width: '12%' }} />
+                <col style={{ width: '11%' }} />
+                <col style={{ width: '13%' }} />
+                <col style={{ width: '10%' }} />
+                <col style={{ width: '9%' }} />
+                <col style={{ width: '11%' }} />
+                <col style={{ width: '9%' }} />
+                <col style={{ width: '12%' }} />
+                {showLastUpdate && <col style={{ width: '180px' }} />}
+                <col style={{ width: '50px' }} />
+              </colgroup>
+              <thead className="sticky top-0 z-40 shadow-sm">
+                <tr className="bg-[#E6F5F1] text-[11px] font-medium text-[#00A86B] uppercase tracking-wider whitespace-nowrap">
+                  <th className="px-2 py-3 text-center align-middle">
                     <input type="checkbox" checked={selectedOrders.length === paginated.length && paginated.length > 0} onChange={toggleAll} className="rounded border-[#00A86B] accent-[#00A86B] w-3.5 h-3.5" />
                   </th>
-                  <th className="px-2 py-3">
-                    <div className="flex items-center gap-1.5">
+                  <th className="px-2 py-3 text-left align-middle">
+                    <div className="flex items-center gap-1">
                       <User className="w-3.5 h-3.5 shrink-0"/>
                       <span>User</span>
                     </div>
                   </th>
-                  <th className="px-2 py-3">
-                    <div className="flex items-center gap-1.5">
+                  <th className="px-2 py-3 text-left align-middle">
+                    <div className="flex items-center gap-1">
                       <Check className="w-3.5 h-3.5 shrink-0"/>
                       <span>Order</span>
                     </div>
                   </th>
-                  <th className="px-2 py-3">
-                    <div className="flex items-center gap-1.5">
+                  <th className="px-2 py-3 text-left align-middle">
+                    <div className="flex items-center gap-1">
                       <Package className="w-3.5 h-3.5 shrink-0"/>
                       <span>Product</span>
                     </div>
                   </th>
-                  <th className="px-2 py-3">
-                    <div className="flex items-center gap-1.5">
-                      <Package className="w-3.5 h-3.5 shrink-0"/>
-                      <span>Package</span>
-                    </div>
-                  </th>
-                  <th className="px-2 py-3">
-                    <div className="flex items-center gap-1.5">
+                  <th className="px-2 py-3 text-center align-middle">
+                    <div className="flex items-center justify-center gap-1">
                       <IndianRupee className="w-3.5 h-3.5 shrink-0"/>
                       <span>Payment</span>
                     </div>
                   </th>
-                  <th className="px-2 py-3">
-                    <div className="flex items-center gap-1.5">
+                  <th className="px-2 py-3 text-left align-middle">
+                    <div className="flex items-center gap-1">
                       <User className="w-3.5 h-3.5 shrink-0"/>
                       <span>Customer</span>
                     </div>
                   </th>
-                  <th className="px-2 py-3">
-                    <div className="flex items-center gap-1.5">
-                      <MapPin className="w-3.5 h-3.5 shrink-0"/>
-                      <span>Pickup</span>
-                    </div>
-                  </th>
-                  <th className="px-2 py-3">
-                    <div className="flex items-center gap-1.5">
+                  <th className="px-2 py-3 text-left align-middle">
+                    <div className="flex items-center gap-1">
                       <Truck className="w-3.5 h-3.5 shrink-0"/>
                       <span>Shipment</span>
                     </div>
                   </th>
                   <th 
                     ref={ageingLegendRef}
-                    className="px-2 py-3 relative cursor-pointer hover:bg-[#D1F0E8] transition-colors"
+                    className="px-2 py-3 text-left align-middle relative cursor-pointer hover:bg-[#D1F0E8] transition-colors"
                     onClick={() => setShowAgeingLegend(!showAgeingLegend)}
                   >
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1">
                       <Clock className="w-3.5 h-3.5 shrink-0"/>
                       <span>Ageing</span>
                     </div>
@@ -513,21 +582,30 @@ export function CRMShipmentListing() {
                       </div>
                     )}
                   </th>
-                  <th className="px-2 py-3">
-                    <div className="flex items-center gap-1.5">
+                  <th className="px-2 py-3 text-center align-middle">
+                    <div className="flex items-center justify-center gap-1">
                       <Check className="w-3.5 h-3.5 shrink-0"/>
                       <span>Status</span>
+                      <button
+                        onClick={() => setShowLastUpdate(!showLastUpdate)}
+                        className="w-5 h-5 rounded-full flex items-center justify-center hover:bg-[#D1F0E8] transition-all duration-200 shrink-0 ml-0.5"
+                        title={showLastUpdate ? 'Hide last update' : 'Show last update'}
+                      >
+                        <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-300 ease-in-out ${showLastUpdate ? 'rotate-90 text-[#009B63]' : '-rotate-90'}`} />
+                      </button>
                     </div>
                   </th>
-                  <th className="px-2 py-3">
-                    <div className="flex items-center gap-1.5">
-                      <History className="w-3.5 h-3.5 shrink-0"/>
-                      <span>Last Update</span>
-                      {autoFetchEnabled && <span title="Auto-fetch enabled"><Zap className="w-3 h-3 text-amber-500 animate-pulse" /></span>}
-                    </div>
-                  </th>
-                  <th className="px-2 py-3">
-                    <div className="flex items-center gap-1.5">
+                  {showLastUpdate && (
+                    <th className="px-3 py-3 text-left align-middle">
+                      <div className="flex items-center gap-1">
+                        <History className="w-3.5 h-3.5 shrink-0"/>
+                        <span>Last Update</span>
+                        {autoFetchEnabled && <Zap className="w-3 h-3 text-amber-500 animate-pulse" />}
+                      </div>
+                    </th>
+                  )}
+                  <th className="px-2 py-3 text-center align-middle">
+                    <div className="flex items-center justify-center gap-1">
                       <Settings className="w-3.5 h-3.5 shrink-0"/>
                       <span>Actions</span>
                     </div>
@@ -537,94 +615,100 @@ export function CRMShipmentListing() {
               <tbody className="text-[11px] text-[#475569]">
                 {paginated.map((row, idx) => (
                   <tr key={row.awb} className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors group">
-                    <td className="px-2 py-3 align-top">
+                    <td className="px-2 py-3 text-center align-middle">
                       <input type="checkbox" checked={selectedOrders.includes(row.awb)} onChange={() => toggleSelect(row.awb)} className="rounded border-gray-300 accent-[#00A86B] w-3.5 h-3.5" />
                     </td>
-                    <td className="px-2 py-3 align-top">
-                      <div className="text-xs font-semibold text-[#00A86B]">{row.companyId}</div>
-                      <div className="text-sm font-semibold text-[#0F172A] mt-0.5">{row.seller}</div>
-                      <div className="text-[11px] text-[#94A3B8]">crm@quickpost.in</div>
+                    <td className="px-2 py-3 text-left align-middle">
+                      <div className="text-xs font-semibold text-[#00A86B] truncate">{row.companyId}</div>
+                      <div className="text-sm font-semibold text-[#0F172A] mt-0.5 truncate">{row.seller}</div>
+                      <div className="font-sans text-xs font-normal text-[#94A3B8] truncate">crm@quickpost.in</div>
                     </td>
-                    <td className="px-2 py-3 align-top">
-                      <div className="text-xs font-semibold text-[#00A86B] hover:underline cursor-pointer">{row.orderId}</div>
+                    <td className="px-2 py-3 text-left align-middle">
+                      <div className="text-xs font-semibold text-[#00A86B] hover:underline cursor-pointer truncate">{row.orderId}</div>
                       <div className="table-date mt-0.5">{new Date(row.manifestDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
                       <div className="mt-1"><span className="px-2 py-0.5 rounded-full border border-blue-200 text-blue-600 font-bold text-[9px] bg-blue-50/50">{row.channel || 'API'}</span></div>
                     </td>
-                    <td className="px-2 py-3 align-top">
-                      <div className="font-semibold text-[#0F172A]">Money Attraction Pro...</div>
-                      <div className="text-[#64748B] mt-0.5">SKU: QP-ALL-PRO</div>
-                      <div className="text-[#64748B]">QTY: 1</div>
+                    <td className="px-2 py-3 text-left align-middle text-xs font-normal">
+                      <div className="relative group/prod cursor-pointer max-w-full">
+                        <div className="text-[#0F172A] truncate font-medium" title={getFullProductName(row.productName)}>
+                          {row.productName || 'Money Attraction Pro...'}
+                        </div>
+                        <div className="absolute left-0 bottom-full mb-1.5 hidden group-hover/prod:block z-50 bg-[#0F172A] text-white text-[11px] font-normal px-2.5 py-1.5 rounded shadow-xl whitespace-nowrap pointer-events-none border border-slate-700">
+                          {getFullProductName(row.productName)}
+                          <div className="absolute left-4 top-full -mt-1 border-4 border-transparent border-t-[#0F172A]" />
+                        </div>
+                      </div>
+                      <div className="text-[#64748B] mt-0.5 truncate">SKU: {row.sku || 'QP-ALL-PRO'}</div>
+                      <div className="text-[#64748B] truncate">QTY: {row.qty || 1}</div>
                     </td>
-                    <td className="px-2 py-3 align-top text-xs font-normal text-[#64748B]">
-                      <div className="text-[#0F172A] font-medium">Weight: 500g</div>
-                      <div className="mt-0.5">L*W*H: 12×10×8</div>
-                      <div className="mt-0.5">Vol. Weight: 0.24 KG</div>
-                    </td>
-                    <td className="px-2 py-3 align-top">
+                    <td className="px-2 py-3 text-center align-middle">
                       <div className="font-semibold text-[#0F172A]">{row.shipmentValue}</div>
                       <div className="mt-1"><span className="px-2 py-0.5 rounded-full border border-blue-200 text-blue-600 font-bold text-[9px] bg-blue-50/50">{row.paymentMode}</span></div>
                     </td>
-                    <td className="px-2 py-3 align-top">
-                      <div className="font-normal text-[13px] text-[#0F172A]">{row.customerName}</div>
+                    <td className="px-2 py-3 text-left align-middle">
+                      <div className="font-normal text-[13px] text-[#0F172A] truncate">{row.customerName}</div>
                       <div className="font-normal text-[13px] text-[#64748B] mt-0.5">{row.customerPhone}</div>
                     </td>
-                    <td className="px-2 py-3 align-top">
-                      <div className="text-[#0F172A] font-medium">{row.pickupAddr}</div>
-                      <div className="text-[#64748B] mt-0.5">Main Hub, warehouse</div>
+                    <td className="px-2 py-3 text-left align-middle">
+                      <div className="text-xs font-semibold text-[#00A86B] truncate">{row.courier}</div>
+                      <div className="table-date mt-0.5 truncate">Assigned On | {new Date(row.manifestDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</div>
+                      <div className="text-xs font-semibold text-[#00A86B] underline mt-0.5 hover:text-[#009B63] cursor-pointer truncate">{row.awb}</div>
                     </td>
-                    <td className="px-2 py-3 align-top">
-                      <div className="text-xs font-semibold text-[#00A86B]">{row.courier}</div>
-                      <div className="table-date mt-0.5">Assigned On | {new Date(row.manifestDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</div>
-                      <div className="text-xs font-semibold text-[#00A86B] underline mt-0.5 hover:text-[#009B63] cursor-pointer">{row.awb}</div>
-                    </td>
-                    <td className="px-2 py-3 align-top">
+                    <td className="px-2 py-3 text-left align-middle">
                       {renderAgeing(row.manifestDate)}
                     </td>
-                    <td className="px-2 py-3 align-top">
-                      <span className={`px-2.5 py-0.5 rounded-full border ${STATUS_STYLES[row.status] || 'bg-blue-50 text-blue-700 border-blue-200'} text-[11px] font-semibold uppercase tracking-wider whitespace-nowrap shadow-sm`}>
+                    <td className="px-2 py-3 text-center align-middle">
+                      <span className={`px-2.5 py-0.5 rounded-full border ${STATUS_STYLES[row.status] || 'bg-blue-50 text-blue-700 border-blue-200'} text-[10px] font-semibold uppercase tracking-wider whitespace-nowrap shadow-sm`}>
                         {row.status}
                       </span>
                     </td>
-                    <td className="px-2 py-3 align-top w-[150px] max-w-[150px]">
-                      {trackingLoading[row.awb] && !trackingData[row.awb] ? (
-                        <div className="flex items-center gap-2 text-[#94A3B8]">
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          <span className="text-[10px] font-medium">Fetching…</span>
-                        </div>
-                      ) : trackingData[row.awb] && trackingData[row.awb].length > 0 ? (
-                        <div 
-                           className="text-left px-1.5 py-1 -mx-1.5 -my-1 cursor-help group/tracking"
-                          onMouseEnter={(e) => {
-                            const latest = trackingData[row.awb][0];
-                            setHoveredTracking({
-                              id: row.awb,
-                              rect: e.currentTarget.getBoundingClientRect(),
-                              activity: latest.activity,
-                              location: latest.location,
-                              date: latest.date,
-                              time: latest.time
-                            });
-                          }}
-                          onMouseLeave={() => setHoveredTracking(null)}
-                        >
-                          <div className="flex items-center gap-1.5">
-                            <div className="w-2 h-2 rounded-full bg-[#00A86B] shrink-0" />
-                            <span className="font-semibold text-[#0F172A] text-[11px] truncate max-w-[120px]">{trackingData[row.awb][0].activity}</span>
+                    {showLastUpdate && (
+                      <td className="px-3 py-3 text-left align-middle min-w-[180px]">
+                        {trackingLoading[row.awb] && !trackingData[row.awb] ? (
+                          <div className="flex items-center gap-2 text-[#94A3B8]">
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            <span className="text-[10px] font-medium">Fetching…</span>
                           </div>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-2">
+                        ) : trackingData[row.awb] && trackingData[row.awb].length > 0 ? (
+                          <div 
+                            className="text-left px-1.5 py-1 -mx-1.5 -my-1 cursor-help group/tracking"
+                            onMouseEnter={(e) => {
+                              const latest = trackingData[row.awb][0];
+                              setHoveredTracking({
+                                id: row.awb,
+                                rect: e.currentTarget.getBoundingClientRect(),
+                                activity: latest.activity,
+                                location: latest.location,
+                                date: latest.date,
+                                time: latest.time
+                              });
+                            }}
+                            onMouseLeave={() => setHoveredTracking(null)}
+                          >
+                            <div className="flex items-center gap-1.5">
+                              <div className="w-2 h-2 rounded-full bg-[#00A86B] shrink-0 animate-pulse" />
+                              <span className="font-semibold text-[#0F172A] text-[11px] truncate max-w-[140px]">{trackingData[row.awb][0].activity}</span>
+                            </div>
+                            <div className="flex items-center gap-1 text-[10px] text-[#64748B] mt-0.5">
+                              <MapPin className="w-3 h-3 shrink-0" />
+                              <span className="truncate max-w-[140px]">{trackingData[row.awb][0].location}</span>
+                            </div>
+                            <div className="text-[10px] text-[#64748B] mt-0.5">
+                              {trackingData[row.awb][0].date} • {trackingData[row.awb][0].time}
+                            </div>
+                          </div>
+                        ) : (
                           <button
                             onClick={() => fetchTracking(row.awb, row.status, row.manifestDate, row.courier)}
                             className="text-[10px] font-bold text-[#00A86B] hover:underline flex items-center gap-1"
                           >
                             <RefreshCw className="w-3.5 h-3.5" /> Fetch
                           </button>
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-2 py-3 align-top">
-                      <div className="relative">
+                        )}
+                      </td>
+                    )}
+                    <td className="px-2 py-3 text-center align-middle">
+                      <div className="relative inline-flex justify-center">
                         <button 
                           onClick={(e) => { e.stopPropagation(); setOpenActionId(openActionId === String(idx) ? null : String(idx)); }}
                           className="w-7 h-7 rounded-full border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:bg-[#F1F5F9] relative z-10"
@@ -649,7 +733,7 @@ export function CRMShipmentListing() {
                 ))}
                 {paginated.length === 0 && (
                   <tr>
-                    <td colSpan={13} className="p-8 text-center text-[#64748B] font-medium">
+                    <td colSpan={totalColumns} className="p-8 text-center text-[#64748B] font-medium">
                       No records found matching your criteria
                     </td>
                   </tr>
@@ -662,7 +746,7 @@ export function CRMShipmentListing() {
           {totalPages > 0 && (
             <div className="p-4 border-t border-[#E2E8F0] flex items-center justify-between shrink-0">
               <div className="text-xs text-[#64748B]">
-                Showing <span className="font-bold text-[#0F172A]">{(page - 1) * perPage + 1}</span> to <span className="font-bold text-[#0F172A]">{Math.min(page * perPage, filtered.length)}</span> of <span className="font-bold text-[#0F172A]">{filtered.length}</span> entries
+                Showing <span className="font-bold text-[#0F172A]">{startIndex}</span> to <span className="font-bold text-[#0F172A]">{endIndex}</span> of <span className="font-bold text-[#0F172A]">{filtered.length}</span> entries
               </div>
               <div className="flex items-center gap-1">
                 <button 

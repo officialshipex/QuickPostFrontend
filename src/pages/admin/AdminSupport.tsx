@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
+import { usePagination } from '../../hooks/usePagination';
 import { 
   Search, RefreshCcw, User, Package, FileText, Calendar, MoreHorizontal, X, MessageSquare, ChevronDown, CheckCircle2, Tag, ArrowUpDown
 } from 'lucide-react';
@@ -264,16 +265,14 @@ export function AdminSupport() {
     return result;
   }, [activeTab, searchTerm, globalSearchQuery, selectedSubcategories, selectedStatuses, dateStart, dateEnd, selectedSort]);
 
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
-
-  useEffect(() => { setCurrentPage(1); }, [filteredTickets]);
-
-  const paginatedTickets = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    return filteredTickets.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredTickets, currentPage]);
-  const totalPages = Math.ceil(filteredTickets.length / itemsPerPage);
+  const {
+    page: currentPage,
+    setPage: setCurrentPage,
+    totalPages,
+    paginatedData: paginatedTickets,
+    startIndex,
+    endIndex,
+  } = usePagination({ data: filteredTickets, perPage: 10 });
 
   const SUBCATEGORY_OPTIONS = [
     { label: 'Issues with KYC Verification', value: 'Issues with KYC Verification' },
@@ -379,7 +378,7 @@ export function AdminSupport() {
         <div className="flex-1 overflow-y-auto overflow-x-hidden w-full relative">
           <table className="w-full text-left border-collapse min-w-full">
             <thead>
-              <tr className="bg-[#E6F5F1] text-[10px] font-bold text-[#00A86B] uppercase tracking-wider">
+              <tr className="bg-[#E6F5F1] text-xs font-medium text-[#00A86B] uppercase tracking-wider">
                 <th className="p-4"><User className="w-3.5 h-3.5 inline mr-1"/> Ticket ID</th>
                 <th className="p-4"><Package className="w-3.5 h-3.5 inline mr-1"/> AWB(s)</th>
                 <th className="p-4"><FileText className="w-3.5 h-3.5 inline mr-1"/> Subcategory</th>
@@ -400,7 +399,7 @@ export function AdminSupport() {
                     <td className="p-4 align-top pt-5 text-xs font-semibold text-[#0F172A]">{ticket.awb}</td>
                     <td className="p-4 align-top pt-5 font-medium text-[#475569] text-[11px]">{ticket.subcategory}</td>
                     <td className="p-4 align-top pt-5">
-                      <span className={`px-2.5 py-0.5 rounded-full border text-[11px] font-semibold uppercase tracking-wider whitespace-nowrap shadow-sm ${STATUS_BADGE_CLASSES[ticket.status.toUpperCase()] || 'border-blue-200 text-blue-700 bg-blue-50/50'}`}>
+                      <span className={`px-2.5 py-0.5 rounded-full border text-[10px] font-semibold uppercase tracking-wider whitespace-nowrap shadow-sm ${STATUS_BADGE_CLASSES[ticket.status.toUpperCase()] || 'border-blue-200 text-blue-700 bg-blue-50/50'}`}>
                         {ticket.status}
                       </span>
                     </td>
@@ -450,7 +449,7 @@ export function AdminSupport() {
         {totalPages > 0 && (
           <div className="p-4 border-t border-[#E2E8F0] flex items-center justify-between">
             <div className="text-xs text-[#64748B]">
-              Showing <span className="font-bold text-[#0F172A]">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-bold text-[#0F172A]">{Math.min(currentPage * itemsPerPage, filteredTickets.length)}</span> of <span className="font-bold text-[#0F172A]">{filteredTickets.length}</span> entries
+              Showing <span className="font-bold text-[#0F172A]">{startIndex}</span> to <span className="font-bold text-[#0F172A]">{endIndex}</span> of <span className="font-bold text-[#0F172A]">{filteredTickets.length}</span> entries
             </div>
             <div className="flex items-center gap-1">
               <button 

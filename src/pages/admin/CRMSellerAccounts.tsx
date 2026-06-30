@@ -101,49 +101,49 @@ export function CRMSellerAccounts() {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[900px]">
             <thead>
-              <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-[10px] uppercase tracking-wider font-bold text-[#64748B]">
-                <th className="p-3 pl-4">Seller / ID</th>
-                <th className="p-3">Contact</th>
-                <th className="p-3">City</th>
-                <th className="p-3">Plan</th>
-                <th className="p-3">KYC</th>
-                <th className="p-3">Account</th>
-                <th className="p-3">Total Orders</th>
-                <th className="p-3">Monthly Orders</th>
-                <th className="p-3">Wallet</th>
-                <th className="p-3">RM</th>
-                <th className="p-3">Joined</th>
-                <th className="p-3">Action</th>
+              <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-xs uppercase tracking-wider font-medium text-[#64748B]">
+                <th className="px-3 py-3.5 pl-4 text-left align-middle">Seller / ID</th>
+                <th className="px-3 py-3.5 text-left align-middle">Contact</th>
+                <th className="px-3 py-3.5 text-left align-middle">City</th>
+                <th className="px-3 py-3.5 text-left align-middle">Plan</th>
+                <th className="px-3 py-3.5 text-left align-middle">KYC</th>
+                <th className="px-3 py-3.5 text-left align-middle">Account</th>
+                <th className="px-3 py-3.5 text-right align-middle">Total Orders</th>
+                <th className="px-3 py-3.5 text-right align-middle">Monthly Orders</th>
+                <th className="px-3 py-3.5 text-right align-middle">Wallet</th>
+                <th className="px-3 py-3.5 text-left align-middle">RM</th>
+                <th className="px-3 py-3.5 text-left align-middle">Joined</th>
+                <th className="px-3 py-3.5 text-center align-middle">Action</th>
               </tr>
             </thead>
             <tbody className="text-xs text-[#475569]">
               {paginated.map((seller, i) => (
                 <tr key={i} className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors cursor-pointer">
-                  <td className="p-3 pl-4">
+                  <td className="px-3 py-3.5 pl-4 text-left align-middle">
                     <div className="font-semibold text-[#0F172A]">{seller.name}</div>
                     <div className="text-[10px] text-[#64748B] font-mono">{seller.id}</div>
                   </td>
-                  <td className="p-3">
-                    <div>{seller.email}</div>
+                  <td className="px-3 py-3.5 text-left align-middle">
+                    <div className="font-sans text-xs font-normal">{seller.email}</div>
                     <div className="text-[10px] text-[#64748B]">{seller.phone}</div>
                   </td>
-                  <td className="p-3">{seller.city}</td>
-                  <td className="p-3">
+                  <td className="px-3 py-3.5 text-left align-middle">{seller.city}</td>
+                  <td className="px-3 py-3.5 text-left align-middle">
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-600">{seller.plan}</span>
                   </td>
-                  <td className="p-3">
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${KYC_STATUS[seller.kycStatus]}`}>{seller.kycStatus}</span>
+                  <td className="px-3 py-3.5 text-left align-middle">
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${KYC_STATUS[seller.kycStatus]}`}>{seller.kycStatus}</span>
                   </td>
-                  <td className="p-3">
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${ACCOUNT_STATUS[seller.accountStatus]}`}>{seller.accountStatus}</span>
+                  <td className="px-3 py-3.5 text-left align-middle">
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${ACCOUNT_STATUS[seller.accountStatus]}`}>{seller.accountStatus}</span>
                   </td>
-                  <td className="p-3 font-semibold text-[#0F172A]">{seller.totalOrders.toLocaleString('en-IN')}</td>
-                  <td className="p-3">{seller.monthlyOrders}</td>
-                  <td className="p-3 font-semibold text-[#00A86B]">{seller.walletBalance}</td>
-                  <td className="p-3 text-[#64748B]">{seller.rm}</td>
-                  <td className="p-3 table-date">{seller.joinedDate}</td>
-                  <td className="p-3">
-                    <button className="p-1.5 rounded-lg hover:bg-[#00A86B]/10 text-[#64748B] hover:text-[#00A86B] transition-colors">
+                  <td className="px-3 py-3.5 text-right align-middle font-semibold text-[#0F172A]">{seller.totalOrders.toLocaleString('en-IN')}</td>
+                  <td className="px-3 py-3.5 text-right align-middle">{seller.monthlyOrders}</td>
+                  <td className="px-3 py-3.5 text-right align-middle font-semibold text-[#00A86B]">{seller.walletBalance}</td>
+                  <td className="px-3 py-3.5 text-left align-middle text-[#64748B]">{seller.rm}</td>
+                  <td className="px-3 py-3.5 text-left align-middle table-date">{seller.joinedDate}</td>
+                  <td className="px-3 py-3.5 text-center align-middle">
+                    <button className="p-1.5 rounded-lg hover:bg-[#00A86B]/10 text-[#64748B] hover:text-[#00A86B] transition-colors inline-flex justify-center">
                       <Eye className="w-4 h-4" />
                     </button>
                   </td>

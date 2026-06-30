@@ -153,59 +153,6 @@ for (let y = 2; y <= 430; y += 7) {
   }
 }
 
-const LOGOS = [
-  {
-    name: 'Myntra',
-    startX: '44%',
-    startY: '52%',
-    endX: '12%',
-    endY: '12%',
-    rotate: -12,
-    glowColor: 'rgba(255, 63, 108, 0.45)',
-    src: '/brands/myntra.svg'
-  },
-  {
-    name: 'Flipkart',
-    startX: '44%',
-    startY: '52%',
-    endX: '30%',
-    endY: '26%',
-    rotate: 8,
-    glowColor: 'rgba(40, 116, 240, 0.45)',
-    src: '/brands/flipkart.svg'
-  },
-  {
-    name: 'Amazon',
-    startX: '44%',
-    startY: '52%',
-    endX: '49%',
-    endY: '8%',
-    rotate: -6,
-    glowColor: 'rgba(255, 153, 0, 0.45)',
-    src: '/brands/amazon.svg'
-  },
-  {
-    name: 'Nykaa',
-    startX: '52%',
-    startY: '50%',
-    endX: '68%',
-    endY: '26%',
-    rotate: 10,
-    glowColor: 'rgba(252, 39, 121, 0.45)',
-    src: '/brands/nykaa.svg'
-  },
-  {
-    name: 'Meesho',
-    startX: '52%',
-    startY: '50%',
-    endX: '86%',
-    endY: '12%',
-    rotate: -10,
-    glowColor: 'rgba(244, 63, 94, 0.45)',
-    src: '/brands/meesho.svg'
-  }
-];
-
 const HUBS = [
   { name: 'Srinagar', x: 210, y: 25 },
   { name: 'Delhi NCR', x: 220, y: 70 },
@@ -236,25 +183,13 @@ function spokeLines(cx: number, cy: number, r: number, count: number) {
    ═══════════════════════════════════════════════ */
 export function LiveLogisticsConsole({ onStart }: LiveLogisticsConsoleProps) {
   const [step, setStep] = useState(0);
-  const [truckState, setTruckState] = useState<'driving' | 'scatter'>('driving');
 
   /* Auto-advance step 0 → 1 → 2. Step 2 stays (user clicks CTA). */
   useEffect(() => {
     if (step >= 2) return;
-    const ms = step === 0 ? 12000 : 7000;
+    const ms = step === 0 ? 5000 : 7000;
     const t = setTimeout(() => setStep(s => s + 1), ms);
     return () => clearTimeout(t);
-  }, [step]);
-
-  useEffect(() => {
-    if (step !== 0) return;
-    const timer = setTimeout(() => {
-      setTruckState('scatter');
-    }, 7000);
-    return () => {
-      clearTimeout(timer);
-      setTruckState('driving');
-    };
   }, [step]);
 
   /* Rear / front wheel geometry — viewBox 0 0 560 310 */
@@ -283,7 +218,7 @@ export function LiveLogisticsConsole({ onStart }: LiveLogisticsConsoleProps) {
 
                 {/* Scrolling city silhouette */}
                 <div className="absolute bottom-[80px] left-0 right-0 h-24 overflow-hidden opacity-[0.08] pointer-events-none">
-                  <svg className={`${truckState === 'driving' ? 'animate-[panCity_14s_linear_infinite]' : ''} h-full`} style={{ width: 2000 }} viewBox="0 0 2000 96" preserveAspectRatio="none">
+                  <svg className="animate-[panCity_14s_linear_infinite] h-full" style={{ width: 2000 }} viewBox="0 0 2000 96" preserveAspectRatio="none">
                     {[0, 1000].map(ox => (
                       <g key={ox}>
                         <rect x={ox + 40} y={20} width={32} height={76} fill="white" />
@@ -313,7 +248,7 @@ export function LiveLogisticsConsole({ onStart }: LiveLogisticsConsoleProps) {
                 {/* Road surface */}
                 <div className="absolute bottom-[60px] left-0 right-0 h-[2px] bg-white/25" />
                 <div className="absolute bottom-[52px] left-0 right-0 overflow-hidden h-[2px]">
-                  <div className={`${truckState === 'driving' ? 'animate-[panRoad_1.2s_linear_infinite]' : ''} flex gap-4`} style={{ width: 1200 }}>
+                  <div className="animate-[panRoad_1.2s_linear_infinite] flex gap-4" style={{ width: 1200 }}>
                     {Array.from({ length: 60 }, (_, i) => (
                       <div key={i} className="w-4 h-[2px] bg-white/35 flex-shrink-0" />
                     ))}
@@ -339,15 +274,11 @@ export function LiveLogisticsConsole({ onStart }: LiveLogisticsConsoleProps) {
                   </defs>
                   <motion.g
                     initial={{ scale: 1.25, originX: 0.5, originY: 0.85 }}
-                    animate={
-                      truckState === 'driving'
-                        ? { y: [0, -1.2, 0, -0.8, 0] }
-                        : { y: 0 }
-                    }
+                    animate={{ y: [0, -1.2, 0, -0.8, 0] }}
                     transition={{ duration: 0.5, repeat: Infinity, ease: 'easeInOut' }}
                   >
                     {/* ── REAR WHEEL ── */}
-                    <g className={truckState === 'driving' ? 'animate-[spinRear_1.2s_linear_infinite]' : ''}>
+                    <g className="animate-[spinRear_1.2s_linear_infinite]">
                       {/* Outer Tire */}
                       <circle cx={160} cy={255} r={45} stroke="white" strokeWidth="4" strokeDasharray="6 4" fill="none" />
                       {/* Inner Rim */}
@@ -362,7 +293,7 @@ export function LiveLogisticsConsole({ onStart }: LiveLogisticsConsoleProps) {
                     <circle cx={160} cy={255} r="4" fill="white" />
 
                     {/* ── FRONT WHEEL ── */}
-                    <g className={truckState === 'driving' ? 'animate-[spinFront_1.2s_linear_infinite]' : ''}>
+                    <g className="animate-[spinFront_1.2s_linear_infinite]">
                       {/* Outer Tire */}
                       <circle cx={400} cy={255} r={45} stroke="white" strokeWidth="4" strokeDasharray="6 4" fill="none" />
                       {/* Inner Rim */}
@@ -451,7 +382,7 @@ export function LiveLogisticsConsole({ onStart }: LiveLogisticsConsoleProps) {
                       y2="45"
                       stroke="white"
                       strokeWidth="2.2"
-                      animate={truckState === 'scatter' ? { y: -10, rotate: -25, originX: '135px', originY: '45px' } : { y: 0, rotate: 0 }}
+                      animate={{ y: 0, rotate: 0 }}
                       transition={{ duration: 0.8, type: 'spring', stiffness: 60 }}
                     />
 
@@ -466,7 +397,7 @@ export function LiveLogisticsConsole({ onStart }: LiveLogisticsConsoleProps) {
                       y2="40"
                       stroke="white"
                       strokeWidth="2.2"
-                      animate={truckState === 'scatter' ? { y: -10, rotate: 25, originX: '295px', originY: '40px' } : { y: 0, rotate: 0 }}
+                      animate={{ y: 0, rotate: 0 }}
                       transition={{ duration: 0.8, type: 'spring', stiffness: 60 }}
                     />
 
@@ -515,66 +446,6 @@ export function LiveLogisticsConsole({ onStart }: LiveLogisticsConsoleProps) {
 
                   </motion.g>
                 </svg>
-
-                {/* ── SCATTERED MARKETPLACE LOGOS (GLOWING STAND-ALONE BRAND LOGOS - HTML LAYER) ── */}
-                {truckState === 'scatter' && (
-                  <div className="absolute inset-0 pointer-events-none">
-                    {LOGOS.map((logo, index) => (
-                      <motion.div
-                        key={logo.name}
-                        className="absolute"
-                        initial={{
-                          left: logo.startX,
-                          top: logo.startY,
-                          scale: 0,
-                          opacity: 0,
-                          rotate: 0,
-                        }}
-                        animate={{
-                          left: logo.endX,
-                          top: logo.endY,
-                          scale: 1,
-                          opacity: 1,
-                          rotate: logo.rotate,
-                        }}
-                        transition={{
-                          type: 'spring',
-                          stiffness: 45,
-                          damping: 12,
-                          delay: index * 0.12,
-                        }}
-                        style={{
-                          width: 80,
-                          height: 80,
-                          transform: 'translate(-50%, -50%)',
-                        }}
-                      >
-                        <motion.div
-                          className="w-full h-full flex items-center justify-center"
-                          animate={{
-                            y: [0, -12, 0],
-                            rotate: [0, 2, 0],
-                          }}
-                          transition={{
-                            duration: 4,
-                            repeat: Infinity,
-                            ease: 'easeInOut',
-                            delay: index * 0.6,
-                          }}
-                          style={{
-                            filter: `drop-shadow(0px 8px 16px ${logo.glowColor})`,
-                          }}
-                        >
-                          <img
-                            src={logo.src}
-                            alt={logo.name}
-                            className="w-full h-full object-contain"
-                          />
-                        </motion.div>
-                      </motion.div>
-                    ))}
-                  </div>
-                )}
               </div>
 
               {/* Caption */}

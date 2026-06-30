@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
+import { usePagination } from '../../hooks/usePagination';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { 
   Search, RefreshCcw, User, 
@@ -158,16 +159,14 @@ export function AdminReferral() {
     });
   }, [searchTerm, globalSearchQuery, selectedMonths, selectedYears]);
 
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
-  
-  useEffect(() => { setCurrentPage(1); }, [filteredReferrals]);
-
-  const paginatedReferrals = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    return filteredReferrals.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredReferrals, currentPage]);
-  const totalPages = Math.ceil(filteredReferrals.length / itemsPerPage);
+  const {
+    page: currentPage,
+    setPage: setCurrentPage,
+    totalPages,
+    paginatedData: paginatedReferrals,
+    startIndex,
+    endIndex,
+  } = usePagination({ data: filteredReferrals, perPage: 10 });
 
   const computedStats = useMemo(() => {
     let totalOrders = 0;
@@ -278,7 +277,7 @@ export function AdminReferral() {
           <div className="flex-1 overflow-y-auto overflow-x-auto w-full relative no-scrollbar">
             <table className="w-full text-left border-collapse min-w-[1000px]">
               <thead>
-                <tr className="bg-[#E6F5F1] text-[10px] font-bold text-[#00A86B] uppercase tracking-wider">
+                <tr className="bg-[#E6F5F1] text-xs font-medium text-[#00A86B] uppercase tracking-wider">
                   <th className="p-4 w-12 text-center">
                     <input 
                       type="checkbox" 
@@ -313,13 +312,13 @@ export function AdminReferral() {
                         <div className="font-normal text-[13px] text-[#0F172A] mt-0.5">{row.name}</div>
                       </td>
                       <td className="p-4 align-top pt-4">
-                        <div className="font-normal text-[13px] text-[#475569] mb-0.5">{row.email}</div>
+                        <div className="font-sans text-xs font-normal text-[#475569] mb-0.5">{row.email}</div>
                         <div className="font-normal text-[13px] text-[#94A3B8]">{row.phone}</div>
                       </td>
-                      <td className="p-4 align-top pt-5 font-medium">{row.orders}</td>
-                      <td className="p-4 align-top pt-5 text-[#00A86B] font-bold">{row.shipping}</td>
-                      <td className="p-4 align-top pt-5 text-[#00A86B] font-bold">{row.commission}</td>
-                      <td className="p-4 align-top pt-5 table-date">{row.period}</td>
+                      <td className="p-4 align-top pt-5 font-sans text-xs font-normal text-[#475569]">{row.orders}</td>
+                      <td className="p-4 align-top pt-5 text-[#00A86B] font-sans text-xs font-normal">{row.shipping}</td>
+                      <td className="p-4 align-top pt-5 text-[#00A86B] font-sans text-xs font-normal">{row.commission}</td>
+                      <td className="p-4 align-top pt-5 font-sans text-xs font-normal text-[#64748B]">{row.period}</td>
                       <td className="p-4 align-top pt-4 text-right pr-6">
                         <button className="px-4 py-1.5 rounded-full border border-[#00A86B] text-[#00A86B] font-bold text-[10px] hover:bg-[#E6F5F1] transition-colors shadow-sm">
                           Details
@@ -342,7 +341,7 @@ export function AdminReferral() {
           {totalPages > 0 && (
             <div className="p-4 border-t border-[#E2E8F0] flex items-center justify-between">
               <div className="text-xs text-[#64748B]">
-                Showing <span className="font-bold text-[#0F172A]">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-bold text-[#0F172A]">{Math.min(currentPage * itemsPerPage, filteredReferrals.length)}</span> of <span className="font-bold text-[#0F172A]">{filteredReferrals.length}</span> entries
+                Showing <span className="font-bold text-[#0F172A]">{startIndex}</span> to <span className="font-bold text-[#0F172A]">{endIndex}</span> of <span className="font-bold text-[#0F172A]">{filteredReferrals.length}</span> entries
               </div>
               <div className="flex items-center gap-1">
                 <button 

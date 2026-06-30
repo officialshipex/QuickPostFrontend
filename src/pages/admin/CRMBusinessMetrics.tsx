@@ -90,7 +90,7 @@ export function CRMBusinessMetrics() {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-[10px] uppercase tracking-wider font-bold text-[#64748B]">
+                <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-xs uppercase tracking-wider font-medium text-[#64748B]">
                   <th className="p-3 pl-4">#</th>
                   <th className="p-3">Seller</th>
                   <th className="p-3">Orders</th>
@@ -165,7 +165,7 @@ export function CRMBusinessMetrics() {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-[10px] uppercase tracking-wider font-bold text-[#64748B]">
+              <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-xs uppercase tracking-wider font-medium text-[#64748B]">
                 <th className="p-3 pl-4">Zone</th>
                 <th className="p-3">Shipments</th>
                 <th className="p-3">Share</th>

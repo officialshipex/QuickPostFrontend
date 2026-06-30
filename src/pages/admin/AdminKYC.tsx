@@ -44,7 +44,11 @@ export function AdminKYC() {
   const [pincode, setPincode] = useState('123456');
   const [city, setCity] = useState('GURUGRAM');
   const [state, setState] = useState('HARYANA');
-  const [businessType, setBusinessType] = useState<'INDIVIDUAL' | 'COMPANY'>('INDIVIDUAL');
+  const [businessType, setBusinessType] = useState<'INDIVIDUAL' | 'COMPANY' | null>(null);
+  const [companyName, setCompanyName] = useState('QuickPost Logistics Pvt Ltd');
+  const [gstin, setGstin] = useState('06AABCQ1234A1Z5');
+  const [isGstinVerified, setIsGstinVerified] = useState(true);
+  const [isGstinLoading, setIsGstinLoading] = useState(false);
 
   // Input Fields State - Step 2
   const [aadhaarNumber, setAadhaarNumber] = useState('');
@@ -134,6 +138,14 @@ export function AdminKYC() {
 
   // Auto-fill City & State on Pincode changes
   useEffect(() => {
+    const link = document.createElement('link');
+    link.href = 'https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap';
+    link.rel = 'stylesheet';
+    document.head.appendChild(link);
+    return () => { document.head.removeChild(link); };
+  }, []);
+
+  useEffect(() => {
     if (pincode.length === 6) {
       if (pincode === '123456') {
         setCity('GURUGRAM');
@@ -156,7 +168,7 @@ export function AdminKYC() {
       setIsPanVerified(true);
       setIsPanLoading(false);
       setPanData({
-        panType: businessType === 'INDIVIDUAL' ? 'INDIVIDUAL' : 'PROPRIETORSHIP',
+        panType: businessType === 'COMPANY' ? 'PRIVATE LIMITED' : 'INDIVIDUAL',
         name: 'DINESH THARWANI'
       });
     }, 1200);
@@ -191,7 +203,33 @@ export function AdminKYC() {
 
   return (
     <AdminLayout>
-      <div className="max-w-4xl mx-auto text-[#0F172A] pb-16 font-sans">
+      <div className="max-w-4xl mx-auto text-[#0F172A] pb-16 font-sans admin-kyc-wrapper" style={{ fontFamily: "'Roboto', sans-serif" }}>
+        
+        {/* Scoped CSS overrides for Roboto, 14px headings, and 13px fields */}
+        <style dangerouslySetInnerHTML={{__html: `
+          @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
+          
+          .admin-kyc-wrapper, .admin-kyc-wrapper * {
+            font-family: 'Roboto', sans-serif !important;
+          }
+          
+          /* Headings of each card/section: 14px */
+          .admin-kyc-wrapper h3,
+          .admin-kyc-wrapper .heading-14 {
+            font-size: 14px !important;
+          }
+          
+          /* Each field (labels, inputs, textareas, selects, option descriptions, button texts): 13px */
+          .admin-kyc-wrapper label,
+          .admin-kyc-wrapper input:not(.otp-box),
+          .admin-kyc-wrapper textarea,
+          .admin-kyc-wrapper select,
+          .admin-kyc-wrapper button,
+          .admin-kyc-wrapper p:not(.subtext),
+          .admin-kyc-wrapper span:not(.heading-14) {
+            font-size: 13px !important;
+          }
+        `}} />
         
         {/* Stepper Header */}
         <div className="grid grid-cols-2 gap-4 mb-8">
@@ -211,7 +249,7 @@ export function AdminKYC() {
             </div>
             <div className="text-left">
               <h3 className={`text-[14px] font-bold ${step === 1 ? 'text-[#0F172A]' : 'text-slate-500'} font-sans`}>Billing Information</h3>
-              <p className="text-xs text-slate-400 font-normal leading-tight mt-1 font-sans">Manage your billing details and payment methods here.</p>
+              <p className="text-xs text-slate-400 font-normal leading-tight mt-1 font-sans subtext">Manage your billing details and payment methods here.</p>
             </div>
             {step === 2 && (
               <ChevronRight className="w-5 h-5 text-slate-400 ml-auto shrink-0" />
@@ -221,12 +259,12 @@ export function AdminKYC() {
           {/* Step 2 Tab Indicator */}
           <div 
             onClick={() => {
-              if (!isSubmitted && address && pincode) {
+              if (!isSubmitted && businessType && address && pincode) {
                 setStep(2);
               }
             }}
             className={`flex items-center gap-4 p-4 rounded-2xl border transition-all ${
-              address && pincode ? 'cursor-pointer' : 'cursor-not-allowed opacity-70'
+              businessType && address && pincode ? 'cursor-pointer' : 'cursor-not-allowed opacity-70'
             } ${
               step === 2 
                 ? 'bg-[#F0FDF4] border-[#00A86B]/30 shadow-sm' 
@@ -240,7 +278,7 @@ export function AdminKYC() {
             </div>
             <div className="text-left">
               <h3 className={`text-[14px] font-bold ${step === 2 ? 'text-[#0F172A]' : 'text-slate-500'} font-sans`}>Document Verification</h3>
-              <p className="text-xs text-slate-400 font-normal leading-tight mt-1 font-sans">Verify documents quickly and securely to ensure authenticity.</p>
+              <p className="text-xs text-slate-400 font-normal leading-tight mt-1 font-sans subtext">Verify documents quickly and securely to ensure authenticity.</p>
             </div>
           </div>
         </div>
@@ -256,127 +294,13 @@ export function AdminKYC() {
               transition={{ duration: 0.25 }}
             >
               {step === 1 ? (
-                /* ── STEP 1: BILLING INFORMATION ── */
+                /* ── STEP 1: BUSINESS TYPE & BILLING INFORMATION ── */
                 <div className="space-y-6">
                   
-                  {/* Mandatory Information Card */}
+                  {/* Business Type Card - VISIBLE FIRST */}
                   <div className="bg-white rounded-2xl border border-slate-100 p-6 md:p-8 shadow-sm">
                     <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-5 flex items-center gap-2">
-                      <Lock className="w-4 h-4 text-[#00A86B]" /> Mandatory Information
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                      {/* Email Field */}
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-500 mb-1.5">Email<span className="text-red-500">*</span></label>
-                        <div className="relative flex items-center">
-                          <input
-                            type="email"
-                            readOnly
-                            value={email}
-                            className="w-full h-11 pl-10 pr-24 rounded-xl border border-slate-200 text-slate-700 bg-slate-50 text-xs focus:outline-none font-bold"
-                          />
-                          <Mail className="w-4 h-4 text-slate-400 absolute left-3.5" />
-                          <span className="absolute right-3.5 flex items-center gap-1 text-[11px] font-bold text-[#00A86B] bg-[#00A86B]/5 border border-[#00A86B]/15 px-2 py-0.5 rounded-full">
-                            <Check className="w-3 h-3" /> Verified
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Phone Number Field */}
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-500 mb-1.5">Phone Number<span className="text-red-500">*</span></label>
-                        <div className="relative flex items-center">
-                          <input
-                            type="text"
-                            readOnly
-                            value={phoneNumber}
-                            className="w-full h-11 pl-10 pr-24 rounded-xl border border-slate-200 text-slate-700 bg-slate-50 text-xs focus:outline-none font-bold"
-                          />
-                          <Phone className="w-4 h-4 text-slate-400 absolute left-3.5" />
-                          <span className="absolute right-3.5 flex items-center gap-1 text-[11px] font-bold text-[#00A86B] bg-[#00A86B]/5 border border-[#00A86B]/15 px-2 py-0.5 rounded-full">
-                            <Check className="w-3 h-3" /> Verified
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Billing Details Card */}
-                  <div className="bg-white rounded-2xl border border-slate-100 p-6 md:p-8 shadow-sm">
-                    <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-5 flex items-center gap-2">
-                      <MapPin className="w-4 h-4 text-[#00A86B]" /> Billing Information
-                    </h3>
-                    
-                    <div className="space-y-4">
-                      {/* Address Textarea */}
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-500 mb-1.5">Address<span className="text-red-500">*</span></label>
-                        <textarea
-                          rows={2}
-                          required
-                          value={address}
-                          onChange={(e) => setAddress(e.target.value)}
-                          placeholder="Enter your registered billing address"
-                          className="w-full p-4 rounded-xl border border-slate-200 text-slate-800 text-xs focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B] font-medium leading-relaxed resize-none"
-                        />
-                      </div>
-
-                      {/* Pincode, City, State Grid */}
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {/* Pincode */}
-                        <div>
-                          <label className="block text-xs font-semibold text-slate-500 mb-1.5">Pincode<span className="text-red-500">*</span></label>
-                          <input
-                            type="text"
-                            required
-                            maxLength={6}
-                            placeholder="Enter 6-digit Pincode"
-                            value={pincode}
-                            onChange={(e) => setPincode(e.target.value.replace(/\D/g, ''))}
-                            className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-xs focus:outline-none focus:border-[#00A86B] font-bold"
-                          />
-                        </div>
-
-                        {/* City */}
-                        <div>
-                          <label className="block text-xs font-semibold text-slate-500 mb-1.5">City<span className="text-red-500">*</span></label>
-                          <input
-                            type="text"
-                            required
-                            readOnly
-                            value={city}
-                            placeholder="Auto-filled via Pincode"
-                            className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-700 bg-slate-50 text-xs focus:outline-none font-bold uppercase"
-                          />
-                        </div>
-
-                        {/* State */}
-                        <div>
-                          <label className="block text-xs font-semibold text-slate-500 mb-1.5">State<span className="text-red-500">*</span></label>
-                          <div className="relative flex items-center">
-                            <input
-                              type="text"
-                              required
-                              readOnly
-                              value={state}
-                              placeholder="Auto-filled via Pincode"
-                              className="w-full h-11 pl-4 pr-24 rounded-xl border border-slate-200 text-slate-700 bg-slate-50 text-xs focus:outline-none font-bold uppercase"
-                            />
-                            {city && state && (
-                              <span className="absolute right-3.5 flex items-center gap-1 text-[10px] font-bold text-[#00A86B] bg-[#00A86B]/5 border border-[#00A86B]/15 px-2 py-0.5 rounded-full select-none">
-                                <Check className="w-3 h-3" /> Submitted
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Business Type Card */}
-                  <div className="bg-white rounded-2xl border border-slate-100 p-6 md:p-8 shadow-sm">
-                    <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-5 flex items-center gap-2">
-                      <Building2 className="w-4 h-4 text-[#00A86B]" /> Business Type
+                      <Building2 className="w-4 h-4 text-[#00A86B]" /> Select Business Type <span className="text-red-500">*</span>
                     </h3>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -395,7 +319,7 @@ export function AdminKYC() {
                           }`}>
                             {businessType === 'INDIVIDUAL' && <div className="w-2 h-2 rounded-full bg-[#00A86B]" />}
                           </div>
-                          <span className="text-[14px] font-bold text-slate-800 uppercase tracking-wide font-sans">Individual</span>
+                          <span className="text-[14px] font-bold text-slate-800 uppercase tracking-wide font-sans heading-14">Individual</span>
                         </div>
                         <p className="text-xs text-slate-400 font-normal leading-relaxed font-sans">
                           A seller using online platforms without registering under the Companies Act
@@ -417,7 +341,7 @@ export function AdminKYC() {
                           }`}>
                             {businessType === 'COMPANY' && <div className="w-2 h-2 rounded-full bg-[#00A86B]" />}
                           </div>
-                          <span className="text-[14px] font-bold text-slate-800 uppercase tracking-wide font-sans">Company</span>
+                          <span className="text-[14px] font-bold text-slate-800 uppercase tracking-wide font-sans heading-14">Company</span>
                         </div>
                         <p className="text-xs text-slate-400 font-normal leading-relaxed font-sans">
                           (Registered as LLP, Private, Subsidiary, Holding, etc. under Companies Act 2013)
@@ -426,17 +350,199 @@ export function AdminKYC() {
                     </div>
                   </div>
 
-                  {/* Actions Bar */}
-                  <div className="flex justify-end pt-2">
-                    <button
-                      type="button"
-                      disabled={!address || !pincode}
-                      onClick={() => setStep(2)}
-                      className="h-11 px-6 rounded-xl bg-[#00A86B] hover:bg-[#009B63] text-white text-xs font-bold shadow-lg shadow-[#00A86B]/25 transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
-                    >
-                      Next <ArrowRight className="w-4 h-4" />
-                    </button>
-                  </div>
+                  {/* Dynamic Fields Appear After Business Type Selection */}
+                  <AnimatePresence>
+                    {businessType && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 15 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -15 }}
+                        transition={{ duration: 0.3 }}
+                        className="space-y-6"
+                      >
+                        {/* If COMPANY is selected, show Company & GST Details Card */}
+                        {businessType === 'COMPANY' && (
+                          <div className="bg-white rounded-2xl border border-slate-100 p-6 md:p-8 shadow-sm">
+                            <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-5 flex items-center gap-2">
+                              <Building className="w-4 h-4 text-[#00A86B]" /> Company Legal & GST Details
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                              <div>
+                                <label className="block text-xs font-semibold text-slate-500 mb-1.5">Legal Company Name<span className="text-red-500">*</span></label>
+                                <input
+                                  type="text"
+                                  value={companyName}
+                                  onChange={(e) => setCompanyName(e.target.value)}
+                                  placeholder="Enter Registered Company Name"
+                                  className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-xs focus:outline-none focus:border-[#00A86B] font-bold"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-semibold text-slate-500 mb-1.5">GSTIN Number<span className="text-red-500">*</span></label>
+                                <div className="relative flex items-center">
+                                  <input
+                                    type="text"
+                                    maxLength={15}
+                                    value={gstin}
+                                    onChange={(e) => setGstin(e.target.value.toUpperCase())}
+                                    disabled={isGstinVerified}
+                                    placeholder="Enter 15-digit GSTIN"
+                                    className="w-full h-11 px-4 pr-24 rounded-xl border border-slate-200 text-slate-800 text-xs focus:outline-none focus:border-[#00A86B] font-bold uppercase"
+                                  />
+                                  {!isGstinVerified ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setIsGstinLoading(true);
+                                        setTimeout(() => {
+                                          setIsGstinVerified(true);
+                                          setIsGstinLoading(false);
+                                        }, 1000);
+                                      }}
+                                      disabled={isGstinLoading || gstin.length < 15}
+                                      className="absolute right-3.5 text-xs font-bold text-[#00A86B] hover:text-[#009B63] select-none cursor-pointer focus:outline-none flex items-center gap-1.5 disabled:opacity-50"
+                                    >
+                                      {isGstinLoading ? <RefreshCcw className="w-3.5 h-3.5 animate-spin" /> : "Verify GST"}
+                                    </button>
+                                  ) : (
+                                    <span className="absolute right-3.5 flex items-center gap-1 text-[11px] font-bold text-[#00A86B] bg-[#00A86B]/5 border border-[#00A86B]/15 px-2 py-0.5 rounded-full">
+                                      <Check className="w-3 h-3" /> Verified
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Mandatory Information Card */}
+                        <div className="bg-white rounded-2xl border border-slate-100 p-6 md:p-8 shadow-sm">
+                          <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-5 flex items-center gap-2">
+                            <Lock className="w-4 h-4 text-[#00A86B]" /> Mandatory Information
+                          </h3>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            {/* Email Field */}
+                            <div>
+                              <label className="block text-xs font-semibold text-slate-500 mb-1.5">Email<span className="text-red-500">*</span></label>
+                              <div className="relative flex items-center">
+                                <input
+                                  type="email"
+                                  readOnly
+                                  value={email}
+                                  className="w-full h-11 pl-10 pr-24 rounded-xl border border-slate-200 text-slate-700 bg-slate-50 text-xs focus:outline-none font-bold"
+                                />
+                                <Mail className="w-4 h-4 text-slate-400 absolute left-3.5" />
+                                <span className="absolute right-3.5 flex items-center gap-1 text-[11px] font-bold text-[#00A86B] bg-[#00A86B]/5 border border-[#00A86B]/15 px-2 py-0.5 rounded-full">
+                                  <Check className="w-3 h-3" /> Verified
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Phone Number Field */}
+                            <div>
+                              <label className="block text-xs font-semibold text-slate-500 mb-1.5">Phone Number<span className="text-red-500">*</span></label>
+                              <div className="relative flex items-center">
+                                <input
+                                  type="text"
+                                  readOnly
+                                  value={phoneNumber}
+                                  className="w-full h-11 pl-10 pr-24 rounded-xl border border-slate-200 text-slate-700 bg-slate-50 text-xs focus:outline-none font-bold"
+                                />
+                                <Phone className="w-4 h-4 text-slate-400 absolute left-3.5" />
+                                <span className="absolute right-3.5 flex items-center gap-1 text-[11px] font-bold text-[#00A86B] bg-[#00A86B]/5 border border-[#00A86B]/15 px-2 py-0.5 rounded-full">
+                                  <Check className="w-3 h-3" /> Verified
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Billing Details Card */}
+                        <div className="bg-white rounded-2xl border border-slate-100 p-6 md:p-8 shadow-sm">
+                          <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-5 flex items-center gap-2">
+                            <MapPin className="w-4 h-4 text-[#00A86B]" /> {businessType === 'COMPANY' ? 'Registered Office / Billing Address' : 'Billing Information'}
+                          </h3>
+                          
+                          <div className="space-y-4">
+                            {/* Address Textarea */}
+                            <div>
+                              <label className="block text-xs font-semibold text-slate-500 mb-1.5">Address<span className="text-red-500">*</span></label>
+                              <textarea
+                                rows={2}
+                                required
+                                value={address}
+                                onChange={(e) => setAddress(e.target.value)}
+                                placeholder="Enter your registered billing address"
+                                className="w-full p-4 rounded-xl border border-slate-200 text-slate-800 text-xs focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B] font-medium leading-relaxed resize-none"
+                              />
+                            </div>
+
+                            {/* Pincode, City, State Grid */}
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                              {/* Pincode */}
+                              <div>
+                                <label className="block text-xs font-semibold text-slate-500 mb-1.5">Pincode<span className="text-red-500">*</span></label>
+                                <input
+                                  type="text"
+                                  required
+                                  maxLength={6}
+                                  placeholder="Enter 6-digit Pincode"
+                                  value={pincode}
+                                  onChange={(e) => setPincode(e.target.value.replace(/\D/g, ''))}
+                                  className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-xs focus:outline-none focus:border-[#00A86B] font-bold"
+                                />
+                              </div>
+
+                              {/* City */}
+                              <div>
+                                <label className="block text-xs font-semibold text-slate-500 mb-1.5">City<span className="text-red-500">*</span></label>
+                                <input
+                                  type="text"
+                                  required
+                                  readOnly
+                                  value={city}
+                                  placeholder="Auto-filled via Pincode"
+                                  className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-700 bg-slate-50 text-xs focus:outline-none font-bold uppercase"
+                                />
+                              </div>
+
+                              {/* State */}
+                              <div>
+                                <label className="block text-xs font-semibold text-slate-500 mb-1.5">State<span className="text-red-500">*</span></label>
+                                <div className="relative flex items-center">
+                                  <input
+                                    type="text"
+                                    required
+                                    readOnly
+                                    value={state}
+                                    placeholder="Auto-filled via Pincode"
+                                    className="w-full h-11 pl-4 pr-24 rounded-xl border border-slate-200 text-slate-700 bg-slate-50 text-xs focus:outline-none font-bold uppercase"
+                                  />
+                                  {city && state && (
+                                    <span className="absolute right-3.5 flex items-center gap-1 text-[10px] font-bold text-[#00A86B] bg-[#00A86B]/5 border border-[#00A86B]/15 px-2 py-0.5 rounded-full select-none">
+                                      <Check className="w-3 h-3" /> Submitted
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Actions Bar */}
+                        <div className="flex justify-end pt-2">
+                          <button
+                            type="button"
+                            disabled={!address || !pincode || (businessType === 'COMPANY' && (!companyName || !gstin))}
+                            onClick={() => setStep(2)}
+                            className="h-11 px-6 rounded-xl bg-[#00A86B] hover:bg-[#009B63] text-white text-xs font-bold shadow-lg shadow-[#00A86B]/25 transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+                          >
+                            Next <ArrowRight className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               ) : (
                 /* ── STEP 2: DOCUMENT VERIFICATION ── */
@@ -780,7 +886,7 @@ export function AdminKYC() {
                         value={value}
                         onChange={(e) => handleOtpChange(idx, e.target.value)}
                         onKeyDown={(e) => handleOtpKeyDown(idx, e)}
-                        className="w-16 h-16 rounded-xl border border-slate-200 text-center text-2xl font-bold text-[#00A86B] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B] bg-white shadow-sm"
+                        className="w-16 h-16 rounded-xl border border-slate-200 text-center text-2xl font-bold text-[#00A86B] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B] bg-white shadow-sm otp-box"
                       />
                     ))}
                   </div>

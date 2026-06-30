@@ -75,7 +75,7 @@ const STATUS_BADGE_STYLES: Record<string, string> = {
 
 const getStatusBadgeClass = (status: string) => {
   const normalized = status || '';
-  return `${STATUS_BADGE_STYLES[normalized] || 'bg-blue-50 text-blue-700 border-blue-200'} px-2.5 py-0.5 rounded-full border text-[11px] font-semibold uppercase tracking-wider whitespace-nowrap shadow-sm`;
+  return `${STATUS_BADGE_STYLES[normalized] || 'bg-blue-50 text-blue-700 border-blue-200'} px-2.5 py-0.5 rounded-full border text-[10px] font-semibold uppercase tracking-wider whitespace-nowrap shadow-sm`;
 };
 
 export function AdminCOD() {
@@ -616,15 +616,40 @@ export function AdminCOD() {
           <div className="flex-1 overflow-auto no-scrollbar relative">
             <table className="w-full text-left border-collapse min-w-[1000px]">
               <thead className="sticky top-0 z-40 bg-[#E6F5F1] shadow-sm">
-                <tr className="text-[10px] font-bold text-[#00A86B] uppercase tracking-wider">
-                  <th className="p-3 w-10">
+                <tr className="text-xs font-medium text-[#00A86B] uppercase tracking-wider">
+                  <th className="p-3 w-10 text-left align-middle">
                     <input type="checkbox" checked={selectedOrders.length === paginatedOrders.length && paginatedOrders.length > 0} onChange={toggleAll} className="rounded border-[#00A86B] accent-[#00A86B] w-3.5 h-3.5" />
                   </th>
-                  <th className="p-3 whitespace-nowrap"><User className="w-3.5 h-3.5 inline mr-1"/> User Details</th>
-                  <th className="p-3 whitespace-nowrap"><Package className="w-3.5 h-3.5 inline mr-1"/> Order Details</th>
-                  <th className="p-3 whitespace-nowrap"><Truck className="w-3.5 h-3.5 inline mr-1"/> Shipment Details</th>
-                  <th className="p-3 whitespace-nowrap"><Banknote className="w-3.5 h-3.5 inline mr-1"/> COD Amount</th>
-                  <th className="p-3 whitespace-nowrap"><Check className="w-3.5 h-3.5 inline mr-1"/> Status</th>
+                  <th className="p-3 text-left align-middle whitespace-nowrap">
+                    <div className="flex items-center gap-1.5">
+                      <User className="w-3.5 h-3.5 shrink-0" />
+                      <span>User</span>
+                    </div>
+                  </th>
+                  <th className="p-3 text-left align-middle whitespace-nowrap">
+                    <div className="flex items-center gap-1.5">
+                      <Package className="w-3.5 h-3.5 shrink-0" />
+                      <span>Order</span>
+                    </div>
+                  </th>
+                  <th className="p-3 text-left align-middle whitespace-nowrap">
+                    <div className="flex items-center gap-1.5">
+                      <Truck className="w-3.5 h-3.5 shrink-0" />
+                      <span>Shipment</span>
+                    </div>
+                  </th>
+                  <th className="p-3 text-left align-middle whitespace-nowrap">
+                    <div className="flex items-center gap-1.5">
+                      <Banknote className="w-3.5 h-3.5 shrink-0" />
+                      <span>COD Amount</span>
+                    </div>
+                  </th>
+                  <th className="p-3 text-left align-middle whitespace-nowrap">
+                    <div className="flex items-center gap-1.5">
+                      <Check className="w-3.5 h-3.5 shrink-0" />
+                      <span>Status</span>
+                    </div>
+                  </th>
                 </tr>
               </thead>
               <tbody className="text-[11px] text-[#475569]">
@@ -636,7 +661,7 @@ export function AdminCOD() {
                     <td className="p-3">
                       <div className="text-xs font-semibold text-[#00A86B] cursor-pointer hover:underline">{order.id}</div>
                       <div className="text-sm font-semibold text-[#0F172A] mt-0.5">{order.userName}</div>
-                      <div className="text-[11px] text-[#94A3B8]">{order.userEmail}</div>
+                      <div className="font-sans text-xs font-normal text-[#94A3B8]">{order.userEmail}</div>
                     </td>
                     <td className="p-3">
                       <div className="text-xs font-semibold text-[#00A86B] cursor-pointer hover:underline">{order.id}</div>
@@ -672,19 +697,64 @@ export function AdminCOD() {
           <div className="flex-1 overflow-auto no-scrollbar relative">
             <table className="w-full text-left border-collapse min-w-[1200px]">
               <thead className="sticky top-0 z-40 bg-[#E6F5F1] shadow-sm">
-                <tr className="text-[10px] font-bold text-[#00A86B] uppercase tracking-wider">
-                  <th className="p-3 w-10">
+                <tr className="text-xs font-medium text-[#00A86B] uppercase tracking-wider">
+                  <th className="p-3 w-10 text-left align-middle">
                     <input type="checkbox" checked={selectedCodOrders.length === COD_REMITTANCE_DATA.length && COD_REMITTANCE_DATA.length > 0} onChange={toggleAllCod} className="rounded border-[#00A86B] accent-[#00A86B] w-3.5 h-3.5" />
                   </th>
-                  <th className="p-3 whitespace-nowrap"><User className="w-3.5 h-3.5 inline mr-1"/> User Details</th>
-                  <th className="p-3 whitespace-nowrap"><FileText className="w-3.5 h-3.5 inline mr-1"/> Remittance ID</th>
-                  <th className="p-3 whitespace-nowrap"><FileText className="w-3.5 h-3.5 inline mr-1"/> UTR</th>
-                  <th className="p-3 whitespace-nowrap"><Banknote className="w-3.5 h-3.5 inline mr-1"/> Total COD Amount</th>
-                  <th className="p-3 whitespace-nowrap"><Banknote className="w-3.5 h-3.5 inline mr-1"/> Amount Credited to Wallet</th>
-                  <th className="p-3 whitespace-nowrap"><Banknote className="w-3.5 h-3.5 inline mr-1"/> Adjusted Amount</th>
-                  <th className="p-3 whitespace-nowrap"><Banknote className="w-3.5 h-3.5 inline mr-1"/> Early COD Charges</th>
-                  <th className="p-3 whitespace-nowrap"><Banknote className="w-3.5 h-3.5 inline mr-1"/> Remittance Amount</th>
-                  <th className="p-3 whitespace-nowrap"><Check className="w-3.5 h-3.5 inline mr-1"/> Status</th>
+                  <th className="p-3 text-left align-middle whitespace-nowrap">
+                    <div className="flex items-center gap-1.5">
+                      <User className="w-3.5 h-3.5 shrink-0" />
+                      <span>User</span>
+                    </div>
+                  </th>
+                  <th className="p-3 text-left align-middle whitespace-nowrap">
+                    <div className="flex items-center gap-1.5">
+                      <FileText className="w-3.5 h-3.5 shrink-0" />
+                      <span>Remittance ID</span>
+                    </div>
+                  </th>
+                  <th className="p-3 text-left align-middle whitespace-nowrap">
+                    <div className="flex items-center gap-1.5">
+                      <FileText className="w-3.5 h-3.5 shrink-0" />
+                      <span>UTR</span>
+                    </div>
+                  </th>
+                  <th className="p-3 text-left align-middle whitespace-nowrap">
+                    <div className="flex items-center gap-1.5">
+                      <Banknote className="w-3.5 h-3.5 shrink-0" />
+                      <span>Total COD</span>
+                    </div>
+                  </th>
+                  <th className="p-3 text-left align-middle whitespace-nowrap">
+                    <div className="flex items-center gap-1.5">
+                      <Banknote className="w-3.5 h-3.5 shrink-0" />
+                      <span>Wallet Credit</span>
+                    </div>
+                  </th>
+                  <th className="p-3 text-left align-middle whitespace-nowrap">
+                    <div className="flex items-center gap-1.5">
+                      <Banknote className="w-3.5 h-3.5 shrink-0" />
+                      <span>Adjusted</span>
+                    </div>
+                  </th>
+                  <th className="p-3 text-left align-middle whitespace-nowrap">
+                    <div className="flex items-center gap-1.5">
+                      <Banknote className="w-3.5 h-3.5 shrink-0" />
+                      <span>Early COD Fee</span>
+                    </div>
+                  </th>
+                  <th className="p-3 text-left align-middle whitespace-nowrap">
+                    <div className="flex items-center gap-1.5">
+                      <Banknote className="w-3.5 h-3.5 shrink-0" />
+                      <span>Net Remittance</span>
+                    </div>
+                  </th>
+                  <th className="p-3 text-left align-middle whitespace-nowrap">
+                    <div className="flex items-center gap-1.5">
+                      <Check className="w-3.5 h-3.5 shrink-0" />
+                      <span>Status</span>
+                    </div>
+                  </th>
                 </tr>
               </thead>
               <tbody className="text-[11px] text-[#475569]">
@@ -696,7 +766,7 @@ export function AdminCOD() {
                     <td className="p-3">
                       <div className="text-xs font-semibold text-[#00A86B] cursor-pointer hover:underline">{order.id}</div>
                       <div className="text-sm font-semibold text-[#0F172A] mt-0.5">{order.userName}</div>
-                      <div className="text-[11px] text-[#94A3B8]">{order.userEmail}</div>
+                      <div className="font-sans text-xs font-normal text-[#94A3B8]">{order.userEmail}</div>
                     </td>
                     <td className="p-3">
                       <div className="text-xs font-semibold text-[#00A86B] cursor-pointer hover:underline">{order.id}</div>
@@ -735,19 +805,64 @@ export function AdminCOD() {
           <div className="flex-1 overflow-auto no-scrollbar relative">
             <table className="w-full text-left border-collapse min-w-[1200px]">
               <thead className="sticky top-0 z-40 bg-[#E6F5F1] shadow-sm">
-                <tr className="text-[10px] font-bold text-[#00A86B] uppercase tracking-wider">
-                  <th className="p-3 w-10">
+                <tr className="text-xs font-medium text-[#00A86B] uppercase tracking-wider">
+                  <th className="p-3 w-10 text-left align-middle">
                     <input type="checkbox" checked={selectedCourierCodOrders.length === COURIER_COD_REMITTANCE_DATA.length && COURIER_COD_REMITTANCE_DATA.length > 0} onChange={toggleAllCourierCod} className="rounded border-[#00A86B] accent-[#00A86B] w-3.5 h-3.5" />
                   </th>
-                  <th className="p-3 whitespace-nowrap"><Truck className="w-3.5 h-3.5 inline mr-1"/> Courier Details</th>
-                  <th className="p-3 whitespace-nowrap"><FileText className="w-3.5 h-3.5 inline mr-1"/> Remittance ID</th>
-                  <th className="p-3 whitespace-nowrap"><FileText className="w-3.5 h-3.5 inline mr-1"/> UTR</th>
-                  <th className="p-3 whitespace-nowrap"><Banknote className="w-3.5 h-3.5 inline mr-1"/> Total COD Amount</th>
-                  <th className="p-3 whitespace-nowrap"><Banknote className="w-3.5 h-3.5 inline mr-1"/> Amount Credited to Wallet</th>
-                  <th className="p-3 whitespace-nowrap"><Banknote className="w-3.5 h-3.5 inline mr-1"/> Adjusted Amount</th>
-                  <th className="p-3 whitespace-nowrap"><Banknote className="w-3.5 h-3.5 inline mr-1"/> Early COD Charges</th>
-                  <th className="p-3 whitespace-nowrap"><Banknote className="w-3.5 h-3.5 inline mr-1"/> Remittance Amount</th>
-                  <th className="p-3 whitespace-nowrap"><Check className="w-3.5 h-3.5 inline mr-1"/> Status</th>
+                  <th className="p-3 text-left align-middle whitespace-nowrap">
+                    <div className="flex items-center gap-1.5">
+                      <Truck className="w-3.5 h-3.5 shrink-0" />
+                      <span>Courier</span>
+                    </div>
+                  </th>
+                  <th className="p-3 text-left align-middle whitespace-nowrap">
+                    <div className="flex items-center gap-1.5">
+                      <FileText className="w-3.5 h-3.5 shrink-0" />
+                      <span>Remittance ID</span>
+                    </div>
+                  </th>
+                  <th className="p-3 text-left align-middle whitespace-nowrap">
+                    <div className="flex items-center gap-1.5">
+                      <FileText className="w-3.5 h-3.5 shrink-0" />
+                      <span>UTR</span>
+                    </div>
+                  </th>
+                  <th className="p-3 text-left align-middle whitespace-nowrap">
+                    <div className="flex items-center gap-1.5">
+                      <Banknote className="w-3.5 h-3.5 shrink-0" />
+                      <span>Total COD</span>
+                    </div>
+                  </th>
+                  <th className="p-3 text-left align-middle whitespace-nowrap">
+                    <div className="flex items-center gap-1.5">
+                      <Banknote className="w-3.5 h-3.5 shrink-0" />
+                      <span>Wallet Credit</span>
+                    </div>
+                  </th>
+                  <th className="p-3 text-left align-middle whitespace-nowrap">
+                    <div className="flex items-center gap-1.5">
+                      <Banknote className="w-3.5 h-3.5 shrink-0" />
+                      <span>Adjusted</span>
+                    </div>
+                  </th>
+                  <th className="p-3 text-left align-middle whitespace-nowrap">
+                    <div className="flex items-center gap-1.5">
+                      <Banknote className="w-3.5 h-3.5 shrink-0" />
+                      <span>Early COD Fee</span>
+                    </div>
+                  </th>
+                  <th className="p-3 text-left align-middle whitespace-nowrap">
+                    <div className="flex items-center gap-1.5">
+                      <Banknote className="w-3.5 h-3.5 shrink-0" />
+                      <span>Net Remittance</span>
+                    </div>
+                  </th>
+                  <th className="p-3 text-left align-middle whitespace-nowrap">
+                    <div className="flex items-center gap-1.5">
+                      <Check className="w-3.5 h-3.5 shrink-0" />
+                      <span>Status</span>
+                    </div>
+                  </th>
                 </tr>
               </thead>
               <tbody className="text-[11px] text-[#475569]">

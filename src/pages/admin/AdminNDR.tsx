@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
-import { ChevronDown, RefreshCcw, Check, Package, User, MapPin, Truck, AlertTriangle, X, MoreHorizontal, DollarSign, IndianRupee } from 'lucide-react';
+import { usePagination } from '../../hooks/usePagination';
+import { ChevronDown, RefreshCcw, Check, Package, User, MapPin, Truck, AlertTriangle, X, MoreHorizontal, DollarSign, IndianRupee, Settings } from 'lucide-react';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
 
@@ -43,7 +44,17 @@ const STATUS_BADGE_STYLES: Record<string, string> = {
 
 const getStatusBadgeClass = (status: string) => {
   const normalized = status || '';
-  return `${STATUS_BADGE_STYLES[normalized] || 'bg-blue-50 text-blue-700 border-blue-200'} px-2.5 py-0.5 rounded-full border text-[11px] font-semibold uppercase tracking-wider whitespace-nowrap shadow-sm`;
+  return `${STATUS_BADGE_STYLES[normalized] || 'bg-blue-50 text-blue-700 border-blue-200'} px-2.5 py-0.5 rounded-full border text-[10px] font-semibold uppercase tracking-wider whitespace-nowrap shadow-sm`;
+};
+
+const getFullProductName = (name?: string) => {
+  const n = name || 'Money Attraction Pro...';
+  if (n.includes('Money Attraction')) return 'Money Attraction Bracelet Kit Pro (2 Pcs)';
+  if (n.includes('Magnetic Wireless')) return 'Magnetic Wireless Fast Charger 15W Pad';
+  if (n.includes('Ergonomic Office')) return 'Ergonomic Office Executive Mesh Chair';
+  if (n.includes('Ultra-Slim Power')) return 'Ultra-Slim Fast Charging Power Bank 10000mAh';
+  if (n.includes('Smart Fitness')) return 'Smart Fitness AMOLED Display Health Watch';
+  return n;
 };
 
 export function AdminNDR() {
@@ -74,10 +85,6 @@ export function AdminNDR() {
   const [dateStart, setDateStart] = useState('');
   const [dateEnd, setDateEnd] = useState('');
   
-  // Pagination State
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
-
   // Dropdown Options
   const PAYMENT_OPTIONS = [
     { label: 'Prepaid', value: 'Prepaid' },
@@ -136,12 +143,14 @@ export function AdminNDR() {
     });
   }, [searchTerm, globalSearchQuery, selectedPayments, selectedPickups, selectedCouriers]);
 
-  const paginatedOrders = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    return filteredOrders.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredOrders, currentPage]);
-
-  const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
+  const {
+    page: currentPage,
+    setPage: setCurrentPage,
+    totalPages,
+    paginatedData: paginatedOrders,
+    startIndex,
+    endIndex,
+  } = usePagination({ data: filteredOrders, perPage: 10 });
 
   const toggleAll = () => setSelectedOrders(selectedOrders.length === paginatedOrders.length && paginatedOrders.length > 0 ? [] : paginatedOrders.map(o => o.awb));
   const toggleSelect = (id: string) => setSelectedOrders(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
@@ -280,21 +289,71 @@ export function AdminNDR() {
         <div className="flex-1 overflow-auto no-scrollbar relative">
           <table className="w-full text-left border-collapse min-w-[1400px]">
             <thead className="sticky top-0 z-40 bg-[#E6F5F1] shadow-sm">
-              <tr className="text-[10px] font-bold text-[#00A86B] uppercase tracking-wider">
-                <th className="p-3 w-10">
+              <tr className="text-xs font-medium text-[#00A86B] uppercase tracking-wider">
+                <th className="p-3 w-10 text-left align-middle">
                   <input type="checkbox" checked={selectedOrders.length === paginatedOrders.length && paginatedOrders.length > 0} onChange={toggleAll} className="rounded border-[#00A86B] accent-[#00A86B] w-3.5 h-3.5" />
                 </th>
-                <th className="p-3 whitespace-nowrap"><User className="w-3.5 h-3.5 inline mr-1"/> User Details</th>
-                <th className="p-3 whitespace-nowrap"><Check className="w-3.5 h-3.5 inline mr-1"/> Order Details</th>
-                <th className="p-3 whitespace-nowrap"><Package className="w-3.5 h-3.5 inline mr-1"/> Product Details</th>
-                <th className="p-3 whitespace-nowrap"><IndianRupee className="w-3.5 h-3.5 inline mr-1"/> Payment</th>
-                <th className="p-3 whitespace-nowrap"><User className="w-3.5 h-3.5 inline mr-1"/> Customer Details</th>
-                <th className="p-3 whitespace-nowrap"><MapPin className="w-3.5 h-3.5 inline mr-1"/> Pickup Address</th>
-                <th className="p-3 whitespace-nowrap"><Truck className="w-3.5 h-3.5 inline mr-1"/> Shipment Details</th>
-                <th className="p-3 whitespace-nowrap"><Check className="w-3.5 h-3.5 inline mr-1"/> Status</th>
-                <th className="p-3 whitespace-nowrap"><AlertTriangle className="w-3.5 h-3.5 inline mr-1"/> NDR Details</th>
+                <th className="p-3 text-left align-middle whitespace-nowrap">
+                  <div className="flex items-center gap-1.5">
+                    <User className="w-3.5 h-3.5 shrink-0" />
+                    <span>User</span>
+                  </div>
+                </th>
+                <th className="p-3 text-left align-middle whitespace-nowrap">
+                  <div className="flex items-center gap-1.5">
+                    <Check className="w-3.5 h-3.5 shrink-0" />
+                    <span>Order</span>
+                  </div>
+                </th>
+                <th className="p-3 text-left align-middle whitespace-nowrap">
+                  <div className="flex items-center gap-1.5">
+                    <Package className="w-3.5 h-3.5 shrink-0" />
+                    <span>Product</span>
+                  </div>
+                </th>
+                <th className="p-3 text-left align-middle whitespace-nowrap">
+                  <div className="flex items-center gap-1.5">
+                    <IndianRupee className="w-3.5 h-3.5 shrink-0" />
+                    <span>Payment</span>
+                  </div>
+                </th>
+                <th className="p-3 text-left align-middle whitespace-nowrap">
+                  <div className="flex items-center gap-1.5">
+                    <User className="w-3.5 h-3.5 shrink-0" />
+                    <span>Customer</span>
+                  </div>
+                </th>
+                <th className="p-3 text-left align-middle whitespace-nowrap">
+                  <div className="flex items-center gap-1.5">
+                    <MapPin className="w-3.5 h-3.5 shrink-0" />
+                    <span>Pickup</span>
+                  </div>
+                </th>
+                <th className="p-3 text-left align-middle whitespace-nowrap">
+                  <div className="flex items-center gap-1.5">
+                    <Truck className="w-3.5 h-3.5 shrink-0" />
+                    <span>Shipment</span>
+                  </div>
+                </th>
+                <th className="p-3 text-left align-middle whitespace-nowrap">
+                  <div className="flex items-center gap-1.5">
+                    <Check className="w-3.5 h-3.5 shrink-0" />
+                    <span>Status</span>
+                  </div>
+                </th>
+                <th className="p-3 text-left align-middle whitespace-nowrap">
+                  <div className="flex items-center gap-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                    <span>NDR Reason</span>
+                  </div>
+                </th>
                 {activeTab === 'Action Required' && (
-                  <th className="p-3 whitespace-nowrap"><MoreHorizontal className="w-3.5 h-3.5 inline mr-1"/> NDR Action</th>
+                  <th className="p-3 text-left align-middle whitespace-nowrap">
+                    <div className="flex items-center gap-1.5">
+                      <Settings className="w-3.5 h-3.5 shrink-0" />
+                      <span>Actions</span>
+                    </div>
+                  </th>
                 )}
               </tr>
             </thead>
@@ -307,15 +366,23 @@ export function AdminNDR() {
                   <td className="p-3">
                     <div className="text-xs font-semibold text-[#00A86B] hover:underline cursor-pointer" onClick={() => setDrawerOrder(order)}>{order.id}</div>
                     <div className="text-sm font-semibold text-[#0F172A] mt-0.5">{order.userName}</div>
-                    <div className="text-[11px] text-[#94A3B8]">{order.userEmail}</div>
+                    <div className="font-sans text-xs font-normal text-[#94A3B8]">{order.userEmail}</div>
                   </td>
                   <td className="p-3">
                     <div className="text-xs font-semibold text-[#00A86B] hover:underline cursor-pointer" onClick={() => setDrawerOrder(order)}>{order.id}</div>
                     <div className="table-date mt-0.5">{order.date}</div>
                     <div className="mt-1"><span className="px-2 py-0.5 rounded-full border border-blue-200 text-blue-600 font-bold text-[9px] bg-blue-50/50">Custom</span></div>
                   </td>
-                  <td className="p-3">
-                    <div className="font-semibold text-[#0F172A] truncate w-[160px]">{order.productName}</div>
+                  <td className="p-3 text-xs font-normal">
+                    <div className="relative group/prod cursor-pointer inline-block max-w-[160px]">
+                      <div className="text-[#0F172A] truncate font-medium" title={getFullProductName(order.productName)}>
+                        {order.productName}
+                      </div>
+                      <div className="absolute left-0 bottom-full mb-1.5 hidden group-hover/prod:block z-50 bg-[#0F172A] text-white text-[11px] font-normal px-2.5 py-1.5 rounded shadow-xl whitespace-nowrap pointer-events-none border border-slate-700">
+                        {getFullProductName(order.productName)}
+                        <div className="absolute left-4 top-full -mt-1 border-4 border-transparent border-t-[#0F172A]" />
+                      </div>
+                    </div>
                     <div className="text-[#64748B] mt-0.5">SKU: {order.sku} | Qty: {order.qty}</div>
                   </td>
                   <td className="p-3">
@@ -368,7 +435,7 @@ export function AdminNDR() {
         {totalPages > 0 && (
           <div className="p-4 border-t border-[#E2E8F0] flex items-center justify-between">
             <div className="text-xs text-[#64748B]">
-              Showing <span className="font-bold text-[#0F172A]">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-bold text-[#0F172A]">{Math.min(currentPage * itemsPerPage, filteredOrders.length)}</span> of <span className="font-bold text-[#0F172A]">{filteredOrders.length}</span> entries
+              Showing <span className="font-bold text-[#0F172A]">{startIndex}</span> to <span className="font-bold text-[#0F172A]">{endIndex}</span> of <span className="font-bold text-[#0F172A]">{filteredOrders.length}</span> entries
             </div>
             <div className="flex items-center gap-1">
               <button 
