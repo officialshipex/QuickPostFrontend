@@ -1,18 +1,12 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { useAuth } from '../../hooks/useAuth';
+import { apiClient } from '../../services/apiClient';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
-import { Search, ChevronDown, RefreshCcw, Calendar, Check, Package, User, Truck, Banknote, Clock, Upload, Download, MoreVertical, Wallet, ArrowDownCircle, ArrowUpCircle, FileText, Plus, TrendingUp, ChevronLeft, ChevronRight, MinusCircle, Send, Eye, AlertCircle, CheckCircle2, X, CreditCard, Filter, Layers, Hash, CalendarDays, Bot, ArrowLeft } from 'lucide-react';
+import { Search, ChevronDown, RefreshCcw, Calendar, Check, Package, User, Truck, Banknote, Clock, Upload, Download, MoreVertical, Wallet, FileText, Plus, TrendingUp, Eye, AlertCircle, CheckCircle2, X, CreditCard, Filter, Layers, Hash, CalendarDays, Bot, ArrowLeft } from 'lucide-react';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
-import { GlassSingleSelect } from '../../components/ui/GlassSingleSelect';
-
-const UPB_CATEGORY_OPTIONS = [
-  { label: 'Wallet Recharge', value: 'recharge' },
-  { label: 'Cashback Received', value: 'cashbacks' },
-  { label: 'Credit Note', value: 'credit note' },
-  { label: 'Bank Withdrawal', value: 'wallet 2 bank' },
-];
 
 const MAIN_TABS = [
   { name: 'Shipping' },
@@ -21,32 +15,95 @@ const MAIN_TABS = [
   { name: 'Invoices' }
 ];
 
-// Mock data for Shipping (active tab in image)
-const SHIPPING_DATA = Array.from({ length: 15 }, (_, i) => {
-  const names = ['Dinesh Tharwani', 'Aarav Mehta', 'Ishaan Sharma', 'Pooja Patel'];
-  const emails = ['dineshtharwani@gmail.com', 'aarav.mehta@gmail.com', 'ishaan.sharma@gmail.com', 'pooja.patel@gmail.com'];
-  const mobiles = ['9876543210', '9812345678', '9988776655', '9765432109'];
-  const couriers = ['Ekart Surface', 'Delhivery'];
-  const statuses = ['Paid', 'Pending'];
+// Pagination sliding window: up to 5 pages centered on current
+const pageWindow = (curr: number, total: number): number[] => {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  let start = Math.max(2, curr - 2);
+  let end = Math.min(total - 1, curr + 2);
+  if (curr - 2 <= 2) end = Math.min(5, total - 1);
+  if (curr + 2 >= total - 1) start = Math.max(total - 4, 2);
+  const pages: number[] = [];
+  for (let i = start; i <= end; i++) pages.push(i);
+  return pages;
+};
+
+const toISOStart = (d: string) => d ? new Date(d + 'T00:00:00+05:30').toISOString() : '';
+const toISOEnd = (d: string) => d ? new Date(d + 'T23:59:59+05:30').toISOString() : '';
+
+// Data mapping helpers
+const mapShippingItem = (item: any) => {
+  const vl = item.packageDetails?.volumetricWeight?.length || 0;
+  const vw = item.packageDetails?.volumetricWeight?.width || 0;
+  const vh = item.packageDetails?.volumetricWeight?.height || 0;
+  const wd = item.weightDiscrepancy;
   return {
-    id: String(86543 + i),
-    awb: `QPSP${String(45 + i).padStart(9, '0')}`,
-    userName: names[i % names.length],
-    userEmail: emails[i % emails.length],
-    mobile: mobiles[i % mobiles.length],
-    date: `${10 + (i % 20)}th Apr 2026`,
-    day: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'][i % 5],
-    courier: couriers[i % couriers.length],
-    bookedDate: `${10 + (i % 20)} Apr 2026`,
-    statusAmount: (112.04 + i * 15.5).toFixed(2),
-    status: statuses[i % statuses.length],
-    initialWeight: 'Weight: 250g',
-    initialDimensions: 'L*W*H: 10*10*10',
-    initialVol: 'Vol. Weight: 0.20 KG',
-    courierWeight: 'Weight: 250g',
-    courierDimensions: 'L*W*H: 10*10*10',
-    courierVol: 'Vol. Weight: 0.20 KG',
+    id: String(item.orderId || item._id || ''),
+    userId: item.user?.userId || '',
+    awb: item.awb_number || '',
+    userName: item.user?.name || '',
+    userEmail: item.user?.email || '',
+    mobile: item.user?.phoneNumber || '',
+    date: item.createdAt ? new Date(item.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '',
+    paymentMethod: item.paymentMethod || 'N/A',
+    courier: item.courierServiceName || '',
+    bookedDate: item.shipmentCreatedAt ? new Date(item.shipmentCreatedAt).toLocaleDateString('en-IN') : '',
+    statusAmount: (item.totalFreightCharges || 0).toFixed(2),
+    status: item.status || 'new',
+    initialWeight: `${Number(item.packageDetails?.deadWeight || 0).toFixed(3)} Kg`,
+    initialDimensions: `L*W*H: ${vl}*${vw}*${vh} cm`,
+    initialVol: `Vol. Wt: ${(vl * vw * vh / 5000).toFixed(3)} Kg`,
+    courierWeight: wd ? `${Number(wd.chargedWeight?.applicableWeight || 0).toFixed(3)} Kg` : `${Number(item.packageDetails?.deadWeight || 0).toFixed(3)} Kg`,
+    courierDimensions: wd?.chargeDimension ? `L*W*H: ${wd.chargeDimension.length || 0}*${wd.chargeDimension.breadth || 0}*${wd.chargeDimension.height || 0} cm` : `L*W*H: ${vl}*${vw}*${vh} cm`,
+    courierVol: wd?.chargeDimension ? `Vol. Wt: ${((wd.chargeDimension.length || 0) * (wd.chargeDimension.breadth || 0) * (wd.chargeDimension.height || 0) / 5000).toFixed(3)} Kg` : `Vol. Wt: ${(vl * vw * vh / 5000).toFixed(3)} Kg`,
   };
+};
+
+const mapPassbookItem = (item: any) => ({
+  id: item.orderId || String(item._id || ''),
+  userId: item.user?.userId || '',
+  awb: item.awb_number || '',
+  userName: item.user?.name || '',
+  userEmail: item.user?.email || '',
+  mobile: item.user?.phoneNumber || '',
+  date: item.date ? new Date(item.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '',
+  time: item.date ? new Date(item.date).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }) : '',
+  paymentMethod: item.paymentMethod || '',
+  courier: item.courierServiceName || '',
+  bookedDate: item.date ? new Date(item.date).toLocaleDateString('en-IN') : '',
+  category: item.category === 'debit' ? 'Debit' : 'Credit',
+  amount: item.amount || 0,
+  balance: item.balanceAfterTransaction || 0,
+  description: item.description || '',
+  _raw: item,
+});
+
+const mapRechargeItem = (item: any) => ({
+  id: item._id || '',
+  userId: item.user?.userId || '',
+  userName: item.user?.name || '',
+  userEmail: item.user?.email || '',
+  mobile: item.user?.phoneNumber || '',
+  date: item.date ? new Date(item.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '',
+  time: item.date ? new Date(item.date).toLocaleTimeString('en-IN') : '',
+  transactionId: item.transactionId || '',
+  amount: item.amount || 0,
+  status: (item.status || '').toLowerCase() === 'success' ? 'Success' : 'Failed',
+  paymentId: item.paymentId || '',
+  orderId: item.orderId || '',
+});
+
+const mapInvoiceItem = (item: any) => ({
+  id: item._id || '',
+  userId: item.userDetails?.userId || '',
+  userName: item.userDetails?.fullname || '',
+  userEmail: item.userDetails?.email || '',
+  mobile: item.userDetails?.phoneNumber || '',
+  invoiceNumber: item.invoiceNumber || '',
+  shipments: item.totalShipments || 0,
+  amount: item.amount || 0,
+  createdOn: item.invoiceDate ? new Date(item.invoiceDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '',
+  invoicePeriod: [item.periodStart, item.periodEnd].filter(Boolean).join(' - '),
+  status: (item.status || '').toUpperCase() === 'PAID' ? 'PAID' : 'UNPAID',
 });
 
 const STATUS_BADGE_STYLES: Record<string, string> = {
@@ -54,9 +111,23 @@ const STATUS_BADGE_STYLES: Record<string, string> = {
   'PAID': 'bg-emerald-50 text-emerald-700 border-emerald-200',
   'Success': 'bg-emerald-50 text-emerald-700 border-emerald-200',
   'Credit': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  'Delivered': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  'RTO Delivered': 'bg-purple-50 text-purple-700 border-purple-200',
   'Pending': 'bg-amber-50 text-amber-700 border-amber-200',
   'PENDING': 'bg-amber-50 text-amber-700 border-amber-200',
+  'In-transit': 'bg-amber-50 text-amber-700 border-amber-200',
+  'Out for Delivery': 'bg-amber-50 text-amber-700 border-amber-200',
+  'Ready To Ship': 'bg-blue-50 text-blue-700 border-blue-200',
+  'new': 'bg-blue-50 text-blue-700 border-blue-200',
   'Debit': 'bg-rose-50 text-rose-700 border-rose-200',
+  'Failed': 'bg-rose-50 text-rose-700 border-rose-200',
+  'Cancelled': 'bg-rose-50 text-rose-700 border-rose-200',
+  'UNPAID': 'bg-rose-50 text-rose-700 border-rose-200',
+  'RTO': 'bg-orange-50 text-orange-700 border-orange-200',
+  'RTO In-transit': 'bg-orange-50 text-orange-700 border-orange-200',
+  'RTO Lost': 'bg-red-50 text-red-700 border-red-200',
+  'Lost': 'bg-red-50 text-red-700 border-red-200',
+  'Damaged': 'bg-red-50 text-red-700 border-red-200',
 };
 
 const getStatusBadgeClass = (status: string) => {
@@ -64,72 +135,11 @@ const getStatusBadgeClass = (status: string) => {
   return `${STATUS_BADGE_STYLES[normalized] || 'bg-blue-50 text-blue-700 border-blue-200'} px-2.5 py-0.5 rounded-full border text-[11px] font-semibold uppercase tracking-wider whitespace-nowrap shadow-sm`;
 };
 
-// Mock data for Passbook
-const PASSBOOK_DATA = Array.from({ length: 15 }, (_, i) => {
-  const names = ['Dinesh Tharwani', 'Aarav Mehta', 'Ishaan Sharma', 'Pooja Patel'];
-  const emails = ['dineshtharwani@gmail.com', 'aarav.mehta@gmail.com', 'ishaan.sharma@gmail.com', 'pooja.patel@gmail.com'];
-  const mobiles = ['9876543210', '9812345678', '9988776655', '9765432109'];
-  const couriers = ['Ekart Surface', 'Delhivery'];
-  return {
-    id: String(86543 + i),
-    awb: `QPSP${String(45 + i).padStart(9, '0')}`,
-    userName: names[i % names.length],
-    userEmail: emails[i % emails.length],
-    mobile: mobiles[i % mobiles.length],
-    date: `${10 + (i % 20)}th Apr 2026`,
-    day: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'][i % 5],
-    courier: couriers[i % couriers.length],
-    bookedDate: `${10 + (i % 20)} Apr 2026`,
-    category: i % 2 === 0 ? 'Debit' : 'Credit',
-    amount: 112.04 + i * 20.2,
-    balance: 71234.82 - i * 100,
-    description: i % 2 === 0 ? 'Freight Charges Applied' : 'Wallet Recharge Success',
-  };
-});
-
-// Mock data for Wallet Recharge
-const WALLET_RECHARGE_DATA = Array.from({ length: 15 }, (_, i) => {
-  const names = ['Dinesh Tharwani', 'Aarav Mehta', 'Ishaan Sharma', 'Pooja Patel'];
-  const emails = ['dineshtharwani@gmail.com', 'aarav.mehta@gmail.com', 'ishaan.sharma@gmail.com', 'pooja.patel@gmail.com'];
-  const mobiles = ['9876543210', '9812345678', '9988776655', '9765432109'];
-  return {
-    id: String(86543 + i),
-    userName: names[i % names.length],
-    userEmail: emails[i % emails.length],
-    mobile: mobiles[i % mobiles.length],
-    date: `${10 + (i % 20)}th Apr 2026`,
-    time: `12h:${10 + i}min:09sec`,
-    transactionId: `8654376543219${i}`,
-    amount: 500 + i * 200,
-    status: i % 5 === 0 ? 'Failed' : 'Success',
-    paymentId: i % 2 === 0 ? 'pay_UPIrnSh2lbEExl' : 'pay_CardrmuQJqBlZD',
-    orderId: `order_SermuQJqBlZDCO${i}`
-  };
-});
-
-// Mock data for Invoices
-const INVOICES_DATA = Array.from({ length: 15 }, (_, i) => {
-  const names = ['Dinesh Tharwani', 'Aarav Mehta', 'Ishaan Sharma', 'Pooja Patel'];
-  const emails = ['dineshtharwani@gmail.com', 'aarav.mehta@gmail.com', 'ishaan.sharma@gmail.com', 'pooja.patel@gmail.com'];
-  const mobiles = ['9876543210', '9812345678', '9988776655', '9765432109'];
-  const months = ['January', 'February', 'March', 'April'];
-  const years = ['2026', '2025'];
-  return {
-    id: String(86543 + i),
-    userName: names[i % names.length],
-    userEmail: emails[i % emails.length],
-    mobile: mobiles[i % mobiles.length],
-    invoiceNumber: `8654376543219${i}`,
-    shipments: i % 4 + 1,
-    amount: 534.54 + i * 150,
-    createdOn: `${10 + (i % 20)}th Apr 2026`,
-    invoicePeriod: `${months[i % months.length]} ${years[i % years.length]}`,
-    status: i % 4 === 0 ? 'UNPAID' : 'PAID'
-  };
-});
 
 export function AdminWallet() {
   const navigate = useNavigate();
+  const { role } = useAuth();
+  const isAdmin = role === 'admin';
   const [globalSearchQuery, setGlobalSearchQuery] = useState((window as any).__adminSearchQuery?.toLowerCase() || '');
 
   useEffect(() => {
@@ -152,13 +162,29 @@ export function AdminWallet() {
   };
 
   // Wallet Balance State
-  const [walletBalance, setWalletBalance] = useState(71234.82);
+  const [walletBalance, setWalletBalance] = useState(0);
+
+  // Server totals for pagination
+  const [shippingTotal, setShippingTotal] = useState(0);
+  const [passbookTotal, setPassbookTotal] = useState(0);
+  const [rechargeTotal, setRechargeTotal] = useState(0);
+  const [invoiceTotal, setInvoiceTotal] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Stateful Data Lists
-  const [shippingList, setShippingList] = useState(SHIPPING_DATA);
-  const [passbookList, setPassbookList] = useState(PASSBOOK_DATA);
-  const [rechargeList, setRechargeList] = useState(WALLET_RECHARGE_DATA);
-  const [invoiceList, setInvoiceList] = useState(INVOICES_DATA);
+  const [shippingList, setShippingList] = useState<any[]>([]);
+  const [passbookList, setPassbookList] = useState<any[]>([]);
+  const [rechargeList, setRechargeList] = useState<any[]>([]);
+  const [invoiceList, setInvoiceList] = useState<any[]>([]);
+
+  const [courierOptions, setCourierOptions] = useState<{ label: string; value: string }[]>([]);
+
+  // Pagination page states — declared early so fetch functions can reference setters
+  const itemsPerPage = 10;
+  const [shippingPage, setShippingPage] = useState(1);
+  const [passbookPage, setPassbookPage] = useState(1);
+  const [rechargePage, setRechargePage] = useState(1);
+  const [invoicePage, setInvoicePage] = useState(1);
 
   // Top header pickup mobile filter
   const [headerMobileSearch, setHeaderMobileSearch] = useState('');
@@ -200,20 +226,39 @@ export function AdminWallet() {
   const [invoiceDateEnd, setInvoiceDateEnd] = useState('');
   const [selectedInvoiceOrders, setSelectedInvoiceOrders] = useState<string[]>([]);
 
+  // Per-tab user search autocomplete (admin only)
+  const [shipUserQuery, setShipUserQuery] = useState('');
+  const [shipUserSuggestions, setShipUserSuggestions] = useState<any[]>([]);
+  const [shipUserMongoId, setShipUserMongoId] = useState('');
+  const [pbUserQuery, setPbUserQuery] = useState('');
+  const [pbUserSuggestions, setPbUserSuggestions] = useState<any[]>([]);
+  const [pbUserMongoId, setPbUserMongoId] = useState('');
+  const [rcUserQuery, setRcUserQuery] = useState('');
+  const [rcUserSuggestions, setRcUserSuggestions] = useState<any[]>([]);
+  const [rcUserMongoId, setRcUserMongoId] = useState('');
+  const [invUserQuery, setInvUserQuery] = useState('');
+  const [invUserSuggestions, setInvUserSuggestions] = useState<any[]>([]);
+  const [invUserMongoId, setInvUserMongoId] = useState('');
+
   // Glass Dropdown Options
   const SEARCH_TYPE_OPTIONS = [
     { label: 'AWB', value: 'AWB' },
     { label: 'Order ID', value: 'Order ID' },
   ];
-  const COURIER_OPTIONS = [
-    { label: 'Ekart Surface', value: 'Ekart Surface' },
-    { label: 'Delhivery', value: 'Delhivery' },
-    { label: 'Bluedart', value: 'Bluedart' },
-    { label: 'XpressBees', value: 'XpressBees' },
-  ];
   const SHIPPING_STATUS_OPTIONS = [
-    { label: 'Pending', value: 'Pending' },
-    { label: 'Paid', value: 'Paid' },
+    { label: 'Ready To Ship', value: 'Ready To Ship' },
+    { label: 'In-transit', value: 'In-transit' },
+    { label: 'Out for Delivery', value: 'Out for Delivery' },
+    { label: 'Delivered', value: 'Delivered' },
+    { label: 'Cancelled', value: 'Cancelled' },
+    { label: 'RTO', value: 'RTO' },
+    { label: 'RTO In-transit', value: 'RTO In-transit' },
+    { label: 'RTO Delivered', value: 'RTO Delivered' },
+    { label: 'RTO Lost', value: 'RTO Lost' },
+    { label: 'RTO Damaged', value: 'RTO Damaged' },
+    { label: 'Lost', value: 'Lost' },
+    { label: 'Damaged', value: 'Damaged' },
+    { label: 'Undelivered', value: 'Undelivered' },
   ];
   const CATEGORY_OPTIONS = [
     { label: 'Debit', value: 'Debit' },
@@ -221,9 +266,11 @@ export function AdminWallet() {
   ];
   const DESCRIPTION_OPTIONS = [
     { label: 'Freight Charges Applied', value: 'Freight Charges Applied' },
-    { label: 'Wallet Recharge Success', value: 'Wallet Recharge Success' },
-    { label: 'COD Remittance', value: 'COD Remittance' },
-    { label: 'Refund Credited', value: 'Refund Credited' },
+    { label: 'Freight Charges Received', value: 'Freight Charges Received' },
+    { label: 'Auto-accepted Weight Dispute charge', value: 'Auto-accepted Weight Dispute charge' },
+    { label: 'Weight Dispute Charges Applied', value: 'Weight Dispute Charges Applied' },
+    { label: 'COD Charges Received', value: 'COD Charges Received' },
+    { label: 'RTO Freight Charges Applied', value: 'RTO Freight Charges Applied' },
   ];
   const PAYMENT_METHOD_OPTIONS = [
     { label: 'UPI', value: 'UPI' },
@@ -267,217 +314,368 @@ export function AdminWallet() {
   const [paymentMethod, setPaymentMethod] = useState('UPI');
   const [isRecharging, setIsRecharging] = useState(false);
   const [rechargeMode, setRechargeMode] = useState<'Payment' | 'COD'>('Payment');
-  const [availableCodBalance, setAvailableCodBalance] = useState(48250);
+  const [availableCodBalance, setAvailableCodBalance] = useState(0);
 
   const [activeShipmentHistory, setActiveShipmentHistory] = useState<any | null>(null);
   const [activeInvoicePreview, setActiveInvoicePreview] = useState<any | null>(null);
 
   // Manual Balance / Update Passbook Modal States
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
-  const [modalActiveTab, setModalActiveTab] = useState('Updation');
-  const [modalSellerQuery, setModalSellerQuery] = useState('');
-  const [modalSelectedSeller, setModalSelectedSeller] = useState<{ userName: string; userEmail: string; mobile: string } | null>(null);
-  const [modalAwb, setModalAwb] = useState('');
-  const [modalOrderId, setModalOrderId] = useState('');
-  const [modalDescription, setModalDescription] = useState('Credit Note Received');
-  const [modalAmount, setModalAmount] = useState('');
-  const [modalCategory, setModalCategory] = useState('credit note'); // recharge, cashbacks, credit note, wallet 2 bank
-  const [modalMode, setModalMode] = useState<'Debit' | 'Credit'>('Credit');
 
-  const SELLER_DATABASE = useMemo(() => [
-    { userName: 'Dinesh Tharwani', userEmail: 'dineshtharwani@gmail.com', mobile: '9876543210' },
-    { userName: 'Aarav Mehta', userEmail: 'aarav.mehta@gmail.com', mobile: '9812345678' },
-    { userName: 'Ishaan Sharma', userEmail: 'ishaan.sharma@gmail.com', mobile: '9988776655' },
-    { userName: 'Pooja Patel', userEmail: 'pooja.patel@gmail.com', mobile: '9765432109' },
-    { userName: 'HL ARC Studio', userEmail: 'abc@gmail.com', mobile: '9876543210' }
-  ], []);
+  // Update Passbook 3-tab modal state
+  const [upbTab, setUpbTab] = useState<'Recharge' | 'Updation' | 'Direct Update'>('Recharge');
+  const [upbUserQuery, setUpbUserQuery] = useState('');
+  const [upbUserSuggestions, setUpbUserSuggestions] = useState<any[]>([]);
+  const [upbSelectedUserId, setUpbSelectedUserId] = useState('');
+  const [upbSelectedMongoId, setUpbSelectedMongoId] = useState('');
+  const [upbIsSubmitting, setUpbIsSubmitting] = useState(false);
+  // Recharge tab
+  const [upbPaymentId, setUpbPaymentId] = useState('');
+  const [upbRechOrderId, setUpbRechOrderId] = useState('');
+  const [upbRechAmount, setUpbRechAmount] = useState('');
+  // Updation tab
+  const [upbUpdDesc, setUpbUpdDesc] = useState('');
+  const [upbUpdAwb, setUpbUpdAwb] = useState('');
+  const [upbUpdAwbSuggestions, setUpbUpdAwbSuggestions] = useState<any[]>([]);
+  const [upbUpdOrderId, setUpbUpdOrderId] = useState('');
+  const [upbUpdAmount, setUpbUpdAmount] = useState('');
+  const [upbUpdCategory, setUpbUpdCategory] = useState('');
+  // Direct Update tab
+  const [upbDirDesc, setUpbDirDesc] = useState('');
+  const [upbDirAmount, setUpbDirAmount] = useState('');
+  const [upbDirCategory, setUpbDirCategory] = useState('');
 
-  const handleOpenUpdateModal = (order: any) => {
-    const seller = SELLER_DATABASE.find(s => s.userName === order.userName) || {
-      userName: order.userName,
-      userEmail: order.userEmail || '',
-      mobile: order.mobile || ''
-    };
-    setModalSelectedSeller(seller);
-    setModalSellerQuery(seller.userName);
-    setModalAwb(order.awb !== 'N/A' ? order.awb : '');
-    setModalOrderId(order.id !== 'N/A' ? order.id : '');
-    setModalMode(order.category === 'Debit' ? 'Debit' : 'Credit');
-    setModalAmount('');
-    setModalDescription(order.category === 'Debit' ? 'Freight Charges Balancing' : 'Credit Note Received');
-    setModalCategory('credit note');
-    setModalActiveTab('Updation');
-    setIsUpdateModalOpen(true);
-  };
-
-  const handleUpdatePassbookSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!modalSelectedSeller) {
-      showToast('error', 'Please select a seller from the suggestions.');
-      return;
-    }
-    const amountVal = parseFloat(modalAmount);
-    if (isNaN(amountVal) || amountVal <= 0) {
-      showToast('error', 'Please enter a valid amount.');
-      return;
-    }
-    const updatedBalance = modalMode === 'Credit' 
-      ? walletBalance + amountVal 
-      : walletBalance - amountVal;
-
-    const newEntry = {
-      id: modalOrderId || String(Math.floor(100000 + Math.random() * 900000)),
-      awb: modalAwb || 'N/A',
-      userName: modalSelectedSeller.userName,
-      userEmail: modalSelectedSeller.userEmail,
-      mobile: modalSelectedSeller.mobile,
-      date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
-      day: new Date().toLocaleDateString('en-US', { weekday: 'long' }),
-      courier: 'N/A',
-      bookedDate: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
-      category: modalMode,
-      amount: amountVal,
-      balance: updatedBalance,
-      description: modalDescription || (modalMode === 'Credit' ? 'Credit Note Applied' : 'Freight Charges Balancing')
-    };
-
-    setPassbookList(prev => [newEntry, ...prev]);
-    setWalletBalance(updatedBalance);
+  const closeUpdateModal = () => {
     setIsUpdateModalOpen(false);
-    showToast('success', `Passbook manual update applied for ${modalSelectedSeller.userName}!`);
+    setUpbTab('Recharge');
+    setUpbUserQuery('');
+    setUpbUserSuggestions([]);
+    setUpbSelectedUserId('');
+    setUpbSelectedMongoId('');
+    setUpbPaymentId('');
+    setUpbRechOrderId('');
+    setUpbRechAmount('');
+    setUpbUpdDesc('');
+    setUpbUpdAwb('');
+    setUpbUpdAwbSuggestions([]);
+    setUpbUpdOrderId('');
+    setUpbUpdAmount('');
+    setUpbUpdCategory('');
+    setUpbDirDesc('');
+    setUpbDirAmount('');
+    setUpbDirCategory('');
   };
+
+  const handleReverseTransaction = async (order: any) => {
+    if (!window.confirm(`Reverse this debit of ₹${order.amount.toFixed(2)} (${order.description})?`)) return;
+    try {
+      await apiClient.post('/adminBilling/reverseTransaction', { transaction: order._raw });
+      showToast('success', 'Transaction reversed successfully!');
+      fetchPassbookData(passbookPage);
+    } catch (err: any) {
+      showToast('error', err?.response?.data?.message || 'Failed to reverse transaction.');
+    }
+  };
+
+  const handleUpbRechargeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!upbSelectedUserId) { showToast('error', 'Please select a user first.'); return; }
+    setUpbIsSubmitting(true);
+    try {
+      await apiClient.post('/adminBilling/add-history', {
+        userId: upbSelectedUserId,
+        status: 'success',
+        paymentId: upbPaymentId,
+        orderId: upbRechOrderId,
+        amount: parseFloat(upbRechAmount),
+      });
+      showToast('success', 'Recharge recorded successfully!');
+      closeUpdateModal();
+      fetchPassbookData(1);
+    } catch (err: any) {
+      showToast('error', err?.response?.data?.message || 'Failed to record recharge.');
+    } finally {
+      setUpbIsSubmitting(false);
+    }
+  };
+
+  const handleUpbUpdationSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!upbSelectedUserId) { showToast('error', 'Please select a user first.'); return; }
+    setUpbIsSubmitting(true);
+    try {
+      await apiClient.post('/adminBilling/walletUpdation', {
+        userId: upbSelectedUserId,
+        description: upbUpdDesc,
+        awbNumber: upbUpdAwb,
+        orderId: upbUpdOrderId,
+        amount: parseFloat(upbUpdAmount),
+        category: upbUpdCategory,
+      });
+      showToast('success', 'Wallet transaction updated!');
+      closeUpdateModal();
+      fetchPassbookData(1);
+    } catch (err: any) {
+      showToast('error', err?.response?.data?.message || 'Failed to update wallet.');
+    } finally {
+      setUpbIsSubmitting(false);
+    }
+  };
+
+  const handleUpbDirectSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!upbSelectedMongoId) { showToast('error', 'Please select a user first.'); return; }
+    setUpbIsSubmitting(true);
+    try {
+      await apiClient.post('/adminBilling/add-passbook', {
+        userId: upbSelectedMongoId,
+        amount: parseFloat(upbDirAmount),
+        transactionType: upbDirCategory,
+        description: upbDirDesc,
+      });
+      showToast('success', 'Passbook entry added!');
+      closeUpdateModal();
+      fetchPassbookData(1);
+    } catch (err: any) {
+      showToast('error', err?.response?.data?.message || 'Failed to add entry.');
+    } finally {
+      setUpbIsSubmitting(false);
+    }
+  };
+
+  // ── API Fetch Functions ────────────────────────────────────────────────
+  const fetchWalletBalance = useCallback(async () => {
+    try {
+      const res = await apiClient.get('/recharge/getWalletBalanceAndHoldAmount');
+      if (res.data.success) setWalletBalance(res.data.balance || 0);
+    } catch (_) {}
+  }, []);
+
+  const fetchShippingData = useCallback(async (page: number) => {
+    setIsLoading(true);
+    try {
+      const params: Record<string, any> = { page, limit: itemsPerPage };
+      if (isAdmin && shipUserMongoId) params.userSearch = shipUserMongoId;
+      if (shippingDateStart) params.fromDate = toISOStart(shippingDateStart);
+      if (shippingDateEnd) params.toDate = toISOEnd(shippingDateEnd);
+      if (selectedStatuses.length === 1) params.status = selectedStatuses[0];
+      if (selectedCouriers.length > 0) params.courierServiceName = selectedCouriers.join(',');
+      if (searchTypeId) {
+        if (selectedSearchTypes.includes('AWB')) params.awbNumber = searchTypeId;
+        else params.orderId = searchTypeId;
+      }
+      const res = await apiClient.get('/adminBilling/allShipping', { params });
+      setShippingList((res.data.results || []).map(mapShippingItem));
+      setShippingTotal(res.data.total || 0);
+      if (res.data.courierServices?.length) {
+        setCourierOptions((res.data.courierServices as string[]).map(c => ({ label: c, value: c })));
+      }
+    } catch (_) {
+      showToast('error', 'Failed to load shipping data.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [searchTerm, shippingDateStart, shippingDateEnd, selectedStatuses, selectedCouriers, searchTypeId, selectedSearchTypes]);
+
+  const fetchPassbookData = useCallback(async (page: number) => {
+    setIsLoading(true);
+    try {
+      const params: Record<string, any> = { page, limit: itemsPerPage };
+      if (isAdmin && pbUserMongoId) params.userSearch = pbUserMongoId;
+      if (passbookDateStart) params.fromDate = toISOStart(passbookDateStart);
+      if (passbookDateEnd) params.toDate = toISOEnd(passbookDateEnd);
+      if (selectedCategories.length === 1) params.category = selectedCategories[0].toLowerCase();
+      if (passbookOrderId) params.orderId = passbookOrderId;
+      if (passbookAwb) params.awbNumber = passbookAwb;
+      const res = await apiClient.get('/adminBilling/allPassbook', { params });
+      setPassbookList((res.data.results || []).map(mapPassbookItem));
+      setPassbookTotal(res.data.total || 0);
+    } catch (_) {
+      showToast('error', 'Failed to load passbook data.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [passbookSearchTerm, passbookDateStart, passbookDateEnd, selectedCategories, passbookOrderId, passbookAwb]);
+
+  const fetchRechargeData = useCallback(async (page: number) => {
+    setIsLoading(true);
+    try {
+      const params: Record<string, any> = { page, limit: itemsPerPage };
+      if (isAdmin && rcUserMongoId) params.userSearch = rcUserMongoId;
+      if (rechargeDateStart) params.fromDate = toISOStart(rechargeDateStart);
+      if (rechargeDateEnd) params.toDate = toISOEnd(rechargeDateEnd);
+      if (rechargeTxnId) params.transactionId = rechargeTxnId;
+      if (selectedRechargeStatuses.length === 1) params.status = selectedRechargeStatuses[0].toLowerCase();
+      const res = await apiClient.get('/adminBilling/allTransactionHistory', { params });
+      setRechargeList((res.data.results || []).map(mapRechargeItem));
+      setRechargeTotal(res.data.total || 0);
+    } catch (_) {
+      showToast('error', 'Failed to load recharge data.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [rechargeSearchTerm, rechargeDateStart, rechargeDateEnd, rechargeTxnId, selectedRechargeStatuses]);
+
+  const fetchInvoiceData = useCallback(async (page: number) => {
+    setIsLoading(true);
+    try {
+      const params: Record<string, any> = { page, limit: itemsPerPage };
+      if (isAdmin && invUserMongoId) params.userSearch = invUserMongoId;
+      if (invoiceDateStart) params.fromDate = toISOStart(invoiceDateStart);
+      if (invoiceDateEnd) params.toDate = toISOEnd(invoiceDateEnd);
+      if (selectedMonths.length === 1) params.month = selectedMonths[0];
+      if (selectedYears.length === 1) params.year = selectedYears[0];
+      const res = await apiClient.get('/invoice/adminGetInvoices', { params });
+      setInvoiceList((res.data.invoices || []).map(mapInvoiceItem));
+      setInvoiceTotal(res.data.totalCount || 0);
+    } catch (_) {
+      showToast('error', 'Failed to load invoice data.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [invoiceSearchTerm, invoiceDateStart, invoiceDateEnd, selectedMonths, selectedYears]);
+
+  const fetchCodBalance = useCallback(async () => {
+    try {
+      const res = await apiClient.get('/cod/getCodRemitance');
+      setAvailableCodBalance(res.data.remittance || 0);
+    } catch (_) {}
+  }, []);
+
+  // On mount: fetch balance
+  useEffect(() => {
+    fetchWalletBalance();
+  }, [fetchWalletBalance]);
+
+  // On tab change: fetch first page of that tab's data
+  useEffect(() => {
+    switch (activeTab) {
+      case 'Shipping': fetchShippingData(1); setShippingPage(1); break;
+      case 'Passbook': fetchPassbookData(1); setPassbookPage(1); break;
+      case 'Wallet Recharge': fetchRechargeData(1); setRechargePage(1); break;
+      case 'Invoices': fetchInvoiceData(1); setInvoicePage(1); break;
+    }
+  }, [activeTab]);
+
+  // On page change (server-side): refetch current tab
+  useEffect(() => { if (activeTab === 'Shipping') fetchShippingData(shippingPage); }, [shippingPage]);
+  useEffect(() => { if (activeTab === 'Passbook') fetchPassbookData(passbookPage); }, [passbookPage]);
+  useEffect(() => { if (activeTab === 'Wallet Recharge') fetchRechargeData(rechargePage); }, [rechargePage]);
+  useEffect(() => { if (activeTab === 'Invoices') fetchInvoiceData(invoicePage); }, [invoicePage]);
+
+  // Fetch COD balance when recharge modal opens
+  useEffect(() => { if (isRechargeModalOpen) fetchCodBalance(); }, [isRechargeModalOpen, fetchCodBalance]);
+
+  // Update Passbook modal - user search
+  useEffect(() => {
+    if (!isUpdateModalOpen || upbUserQuery.trim().length < 2) { setUpbUserSuggestions([]); return; }
+    const timer = setTimeout(async () => {
+      try {
+        const res = await apiClient.get(`/admin/searchUser?query=${encodeURIComponent(upbUserQuery)}`);
+        setUpbUserSuggestions(res.data.users || []);
+      } catch (_) { setUpbUserSuggestions([]); }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [upbUserQuery, isUpdateModalOpen]);
+
+  // Update Passbook modal - AWB search (Updation tab)
+  useEffect(() => {
+    if (upbTab !== 'Updation' || upbUpdAwb.trim().length < 3) { setUpbUpdAwbSuggestions([]); return; }
+    const timer = setTimeout(async () => {
+      try {
+        const res = await apiClient.get(`/adminBilling/searchAwb?query=${encodeURIComponent(upbUpdAwb)}`);
+        setUpbUpdAwbSuggestions(res.data.awbs || []);
+      } catch (_) { setUpbUpdAwbSuggestions([]); }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [upbUpdAwb, upbTab]);
+
+  // Filter bar user search (admin only) — one effect per tab
+  const makeUserSearchEffect = (
+    query: string,
+    setSuggestions: (v: any[]) => void,
+  ) => {
+    if (!isAdmin || query.trim().length < 2) { setSuggestions([]); return; }
+    const timer = setTimeout(async () => {
+      try {
+        const res = await apiClient.get(`/admin/searchUser?query=${encodeURIComponent(query)}`);
+        setSuggestions(res.data.users || []);
+      } catch (_) { setSuggestions([]); }
+    }, 300);
+    return () => clearTimeout(timer);
+  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => makeUserSearchEffect(shipUserQuery, setShipUserSuggestions), [shipUserQuery, isAdmin]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => makeUserSearchEffect(pbUserQuery, setPbUserSuggestions), [pbUserQuery, isAdmin]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => makeUserSearchEffect(rcUserQuery, setRcUserSuggestions), [rcUserQuery, isAdmin]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => makeUserSearchEffect(invUserQuery, setInvUserSuggestions), [invUserQuery, isAdmin]);
+
+  // ── End API Fetch Functions ────────────────────────────────────────────
 
   // Memoized Filtered Lists
   const filteredShippingData = useMemo(() => {
     return shippingList.filter(order => {
       const matchHeader = headerMobileSearch ? order.mobile.includes(headerMobileSearch) : true;
-      const matchSearch = searchTerm ? 
-        order.userName.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        order.userEmail.toLowerCase().includes(searchTerm.toLowerCase()) : true;
       const matchGlobal = globalSearchQuery ?
-        order.userName.toLowerCase().includes(globalSearchQuery) || 
-        order.userEmail.toLowerCase().includes(globalSearchQuery) || 
+        order.userName.toLowerCase().includes(globalSearchQuery) ||
+        order.userEmail.toLowerCase().includes(globalSearchQuery) ||
         order.awb.toLowerCase().includes(globalSearchQuery) ||
         order.id.toLowerCase().includes(globalSearchQuery) : true;
-      
-      let matchTypeId = true;
-      if (searchTypeId) {
-        if (selectedSearchTypes.length === 1 && selectedSearchTypes[0] === 'AWB') {
-          matchTypeId = order.awb.toLowerCase().includes(searchTypeId.toLowerCase());
-        } else if (selectedSearchTypes.length === 1 && selectedSearchTypes[0] === 'Order ID') {
-          matchTypeId = order.id.toLowerCase().includes(searchTypeId.toLowerCase());
-        } else {
-          matchTypeId = order.awb.toLowerCase().includes(searchTypeId.toLowerCase()) || order.id.toLowerCase().includes(searchTypeId.toLowerCase());
-        }
-      }
-      
-      const matchCourier = selectedCouriers.length === 0 || selectedCouriers.includes(order.courier);
-      const matchStatus = selectedStatuses.length === 0 || selectedStatuses.includes(order.status);
-      
-      return matchHeader && matchSearch && matchGlobal && matchTypeId && matchCourier && matchStatus;
+      return matchHeader && matchGlobal;
     });
-  }, [shippingList, headerMobileSearch, searchTerm, globalSearchQuery, selectedSearchTypes, searchTypeId, selectedCouriers, selectedStatuses]);
+  }, [shippingList, headerMobileSearch, globalSearchQuery]);
 
   const filteredPassbookData = useMemo(() => {
     return passbookList.filter(order => {
       const matchHeader = headerMobileSearch ? order.mobile.includes(headerMobileSearch) : true;
-      const matchSearch = passbookSearchTerm ? 
-        order.userName.toLowerCase().includes(passbookSearchTerm.toLowerCase()) || 
-        order.userEmail.toLowerCase().includes(passbookSearchTerm.toLowerCase()) : true;
       const matchGlobal = globalSearchQuery ?
-        order.userName.toLowerCase().includes(globalSearchQuery) || 
-        order.userEmail.toLowerCase().includes(globalSearchQuery) || 
+        order.userName.toLowerCase().includes(globalSearchQuery) ||
+        order.userEmail.toLowerCase().includes(globalSearchQuery) ||
         order.awb.toLowerCase().includes(globalSearchQuery) ||
         order.id.toLowerCase().includes(globalSearchQuery) : true;
-      const matchOrderId = passbookOrderId ? order.id.includes(passbookOrderId) : true;
-      const matchAwb = passbookAwb ? order.awb.toLowerCase().includes(passbookAwb.toLowerCase()) : true;
-      const matchCategory = selectedCategories.length === 0 || selectedCategories.includes(order.category);
-      const matchDescription = selectedDescriptions.length === 0 || selectedDescriptions.includes(order.description);
-      
-      return matchHeader && matchSearch && matchGlobal && matchOrderId && matchAwb && matchCategory && matchDescription;
+      return matchHeader && matchGlobal;
     });
-  }, [passbookList, headerMobileSearch, passbookSearchTerm, globalSearchQuery, passbookOrderId, passbookAwb, selectedCategories, selectedDescriptions]);
+  }, [passbookList, headerMobileSearch, globalSearchQuery]);
 
   const filteredWalletRechargeData = useMemo(() => {
     return rechargeList.filter(recharge => {
       const matchHeader = headerMobileSearch ? recharge.mobile.includes(headerMobileSearch) : true;
-      const matchSearch = rechargeSearchTerm ? 
-        recharge.userName.toLowerCase().includes(rechargeSearchTerm.toLowerCase()) || 
-        recharge.userEmail.toLowerCase().includes(rechargeSearchTerm.toLowerCase()) : true;
       const matchGlobal = globalSearchQuery ?
-        recharge.userName.toLowerCase().includes(globalSearchQuery) || 
-        recharge.userEmail.toLowerCase().includes(globalSearchQuery) || 
+        recharge.userName.toLowerCase().includes(globalSearchQuery) ||
+        recharge.userEmail.toLowerCase().includes(globalSearchQuery) ||
         recharge.transactionId.toLowerCase().includes(globalSearchQuery) : true;
-      const matchTxnId = rechargeTxnId ? recharge.transactionId.includes(rechargeTxnId) : true;
-      
-      let matchPaymentId = true;
-      if (selectedPaymentMethods.length > 0) {
-        matchPaymentId = selectedPaymentMethods.some(method => {
-          if (method === 'UPI') return recharge.paymentId.toLowerCase().includes('upi') || recharge.paymentId.toLowerCase().startsWith('pay_s');
-          if (method === 'Card') return recharge.paymentId.toLowerCase().includes('card') || !recharge.paymentId.toLowerCase().includes('upi');
-          return true;
-        });
-      }
-      
-      const matchStatus = selectedRechargeStatuses.length === 0 || selectedRechargeStatuses.includes(recharge.status);
-      
-      return matchHeader && matchSearch && matchGlobal && matchTxnId && matchPaymentId && matchStatus;
+      return matchHeader && matchGlobal;
     });
-  }, [rechargeList, headerMobileSearch, rechargeSearchTerm, globalSearchQuery, rechargeTxnId, selectedPaymentMethods, selectedRechargeStatuses]);
+  }, [rechargeList, headerMobileSearch, globalSearchQuery]);
 
   const filteredInvoicesData = useMemo(() => {
     return invoiceList.filter(invoice => {
       const matchHeader = headerMobileSearch ? invoice.mobile.includes(headerMobileSearch) : true;
-      const matchSearch = invoiceSearchTerm ? 
-        invoice.userName.toLowerCase().includes(invoiceSearchTerm.toLowerCase()) || 
-        invoice.userEmail.toLowerCase().includes(invoiceSearchTerm.toLowerCase()) : true;
       const matchGlobal = globalSearchQuery ?
-        invoice.userName.toLowerCase().includes(globalSearchQuery) || 
-        invoice.userEmail.toLowerCase().includes(globalSearchQuery) || 
+        invoice.userName.toLowerCase().includes(globalSearchQuery) ||
+        invoice.userEmail.toLowerCase().includes(globalSearchQuery) ||
         invoice.invoiceNumber.toLowerCase().includes(globalSearchQuery) : true;
-      
-      const matchMonth = selectedMonths.length === 0 || selectedMonths.some(m => invoice.invoicePeriod.toLowerCase().includes(m.toLowerCase()));
-      const matchYear = selectedYears.length === 0 || selectedYears.some(y => invoice.invoicePeriod.toLowerCase().includes(y.toLowerCase()));
-      
-      return matchHeader && matchSearch && matchGlobal && matchMonth && matchYear;
+      return matchHeader && matchGlobal;
     });
-  }, [invoiceList, headerMobileSearch, invoiceSearchTerm, globalSearchQuery, selectedMonths, selectedYears]);
+  }, [invoiceList, headerMobileSearch, globalSearchQuery]);
 
   // Pagination Logic
-  const [shippingPage, setShippingPage] = useState(1);
-  const [passbookPage, setPassbookPage] = useState(1);
-  const [rechargePage, setRechargePage] = useState(1);
-  const [invoicePage, setInvoicePage] = useState(1);
-  const itemsPerPage = 10;
 
-  useEffect(() => { setShippingPage(1); }, [filteredShippingData]);
-  useEffect(() => { setPassbookPage(1); }, [filteredPassbookData]);
-  useEffect(() => { setRechargePage(1); }, [filteredWalletRechargeData]);
-  useEffect(() => { setInvoicePage(1); }, [filteredInvoicesData]);
+  // API already returns the current page — no client-side slicing needed
+  const paginatedShippingData = filteredShippingData;
+  const totalShippingPages = Math.max(1, Math.ceil(shippingTotal / itemsPerPage));
 
-  const paginatedShippingData = useMemo(() => {
-    const startIndex = (shippingPage - 1) * itemsPerPage;
-    return filteredShippingData.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredShippingData, shippingPage]);
-  const totalShippingPages = Math.ceil(filteredShippingData.length / itemsPerPage);
+  const paginatedPassbookData = filteredPassbookData;
+  const totalPassbookPages = Math.max(1, Math.ceil(passbookTotal / itemsPerPage));
 
-  const paginatedPassbookData = useMemo(() => {
-    const startIndex = (passbookPage - 1) * itemsPerPage;
-    return filteredPassbookData.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredPassbookData, passbookPage]);
-  const totalPassbookPages = Math.ceil(filteredPassbookData.length / itemsPerPage);
+  const paginatedRechargeData = filteredWalletRechargeData;
+  const totalRechargePages = Math.max(1, Math.ceil(rechargeTotal / itemsPerPage));
 
-  const paginatedRechargeData = useMemo(() => {
-    const startIndex = (rechargePage - 1) * itemsPerPage;
-    return filteredWalletRechargeData.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredWalletRechargeData, rechargePage]);
-  const totalRechargePages = Math.ceil(filteredWalletRechargeData.length / itemsPerPage);
-
-  const paginatedInvoicesData = useMemo(() => {
-    const startIndex = (invoicePage - 1) * itemsPerPage;
-    return filteredInvoicesData.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredInvoicesData, invoicePage]);
-  const totalInvoicePages = Math.ceil(filteredInvoicesData.length / itemsPerPage);
+  const paginatedInvoicesData = filteredInvoicesData;
+  const totalInvoicePages = Math.max(1, Math.ceil(invoiceTotal / itemsPerPage));
 
   // Bulk Actions & Helpers
   const handleRefresh = () => {
@@ -488,6 +686,10 @@ export function AdminWallet() {
     setSelectedCouriers([]);
     setSelectedStatuses([]);
     setShippingDateStart(''); setShippingDateEnd('');
+    setShipUserQuery(''); setShipUserMongoId(''); setShipUserSuggestions([]);
+    setPbUserQuery(''); setPbUserMongoId(''); setPbUserSuggestions([]);
+    setRcUserQuery(''); setRcUserMongoId(''); setRcUserSuggestions([]);
+    setInvUserQuery(''); setInvUserMongoId(''); setInvUserSuggestions([]);
     setPassbookSearchTerm('');
     setPassbookOrderId('');
     setPassbookAwb('');
@@ -508,6 +710,34 @@ export function AdminWallet() {
     setRechargePage(1);
     setInvoicePage(1);
     showToast('success', 'Wallet data refreshed successfully!');
+  };
+
+  const handleViewPassbook = (awb: string) => {
+    setPassbookAwb(awb);
+    setPassbookPage(1);
+    setActiveTab('Passbook');
+  };
+
+  const renderPaginationButtons = (curr: number, total: number, setPage: (p: number) => void) => {
+    if (total <= 1) return null;
+    const cls = (p: number) => `w-8 h-8 rounded text-xs font-medium flex items-center justify-center transition-colors ${
+      curr === p ? 'bg-[#00A86B] text-white border border-[#00A86B]' : 'border border-[#E2E8F0] text-[#475569] hover:bg-[#F8FAFC]'
+    }`;
+    if (total <= 7) {
+      return Array.from({ length: total }, (_, i) => (
+        <button key={i + 1} onClick={() => setPage(i + 1)} className={cls(i + 1)}>{i + 1}</button>
+      ));
+    }
+    const win = pageWindow(curr, total);
+    return (
+      <>
+        <button onClick={() => setPage(1)} className={cls(1)}>1</button>
+        {win[0] > 2 && <span className="px-1 text-[#94A3B8] text-xs">…</span>}
+        {win.map(p => <button key={p} onClick={() => setPage(p)} className={cls(p)}>{p}</button>)}
+        {win[win.length - 1] < total - 1 && <span className="px-1 text-[#94A3B8] text-xs">…</span>}
+        <button onClick={() => setPage(total)} className={cls(total)}>{total}</button>
+      </>
+    );
   };
 
   const handleBulkMarkPaid = () => {
@@ -720,13 +950,35 @@ export function AdminWallet() {
           <>
             {/* Filters Row */}
             <div className="p-3 border-b border-[#E2E8F0] flex flex-wrap items-center gap-2.5 bg-[#F8FAFC]/50">
-              <input 
-                type="text" 
-                placeholder="Search by name, email, o..." 
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="h-9 px-3 rounded-lg border border-[#E2E8F0] text-xs bg-white focus:outline-none w-[180px] shrink-0" 
-              />
+              {isAdmin && (
+                <div className="relative shrink-0">
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="Search user..."
+                      value={shipUserQuery}
+                      onChange={(e) => { setShipUserQuery(e.target.value); if (!e.target.value.trim()) { setShipUserMongoId(''); setShipUserSuggestions([]); } }}
+                      className="h-9 pl-8 pr-3 rounded-lg border border-[#E2E8F0] text-xs bg-white focus:outline-none w-[170px]"
+                    />
+                    <Search className="w-3.5 h-3.5 text-[#94A3B8] absolute left-2.5 top-1/2 -translate-y-1/2" />
+                    {shipUserMongoId && <CheckCircle2 className="w-3.5 h-3.5 text-[#00A86B] absolute right-2.5 top-1/2 -translate-y-1/2" />}
+                  </div>
+                  {shipUserSuggestions.length > 0 && !shipUserMongoId && (
+                    <div className="absolute left-0 top-full mt-1 bg-white border border-[#E2E8F0] rounded-xl shadow-xl z-50 w-64 max-h-52 overflow-y-auto py-1">
+                      {shipUserSuggestions.map((u: any) => (
+                        <button key={u._id} type="button" onClick={() => { setShipUserMongoId(u._id); setShipUserQuery(`${u.fullname} (${u.email})`); setShipUserSuggestions([]); }}
+                          className="w-full text-left px-3 py-2 hover:bg-[#F0FDF4] flex items-start gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="text-[11px] font-bold text-slate-800 truncate">{u.fullname}</div>
+                            <div className="text-[10px] text-slate-400 truncate">{u.email} · {u.phoneNumber}</div>
+                          </div>
+                          <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded shrink-0">{u.userId}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
               
               <GlassDropdown
                 label="Search Type"
@@ -747,7 +999,7 @@ export function AdminWallet() {
               
               <GlassDropdown
                 label="Courier Service"
-                options={COURIER_OPTIONS}
+                options={courierOptions}
                 selected={selectedCouriers}
                 onChange={setSelectedCouriers}
                 placeholder="Search courier..."
@@ -771,14 +1023,14 @@ export function AdminWallet() {
               />
               
               <button 
-                onClick={() => showToast('success', 'Shipping filters applied successfully!')}
+                onClick={() => { setShippingPage(1); fetchShippingData(1); }}
                 className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm flex items-center justify-center"
               >
                 Apply
               </button>
  
                <div className="relative shrink-0 ml-auto flex items-center gap-2">
-                 <button 
+                 <button
                    onClick={() => setIsRechargeModalOpen(true)}
                    className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm flex items-center justify-center gap-1.5"
                  >
@@ -787,7 +1039,8 @@ export function AdminWallet() {
                  <div className="relative">
                    <button
                      onClick={() => setShowShippingActionMenu(!showShippingActionMenu)}
-                     className="h-9 pl-4 pr-8 rounded-full border border-[#E2E8F0] text-xs bg-white focus:outline-none flex items-center font-bold text-[#475569] shadow-sm hover:bg-[#F8FAFC] transition-colors"
+                     disabled={selectedOrders.length === 0}
+                     className="h-9 pl-4 pr-8 rounded-full border border-[#E2E8F0] text-xs bg-white focus:outline-none flex items-center font-bold text-[#475569] shadow-sm hover:bg-[#F8FAFC] transition-colors disabled:opacity-50 disabled:cursor-not-allowed relative"
                    >
                      Action
                      <ChevronDown className="w-3.5 h-3.5 absolute right-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
@@ -825,13 +1078,31 @@ export function AdminWallet() {
           <>
             {/* Filters Row */}
             <div className="p-3 border-b border-[#E2E8F0] flex flex-wrap items-center gap-2.5 bg-[#F8FAFC]/50">
-              <input 
-                type="text" 
-                placeholder="Search by name, email, o..." 
-                value={passbookSearchTerm}
-                onChange={(e) => setPassbookSearchTerm(e.target.value)}
-                className="h-9 px-3 rounded-lg border border-[#E2E8F0] text-xs bg-white focus:outline-none w-[180px] shrink-0" 
-              />
+              {isAdmin && (
+                <div className="relative shrink-0">
+                  <div className="relative">
+                    <input type="text" placeholder="Search user..." value={pbUserQuery}
+                      onChange={(e) => { setPbUserQuery(e.target.value); if (!e.target.value.trim()) { setPbUserMongoId(''); setPbUserSuggestions([]); } }}
+                      className="h-9 pl-8 pr-3 rounded-lg border border-[#E2E8F0] text-xs bg-white focus:outline-none w-[170px]" />
+                    <Search className="w-3.5 h-3.5 text-[#94A3B8] absolute left-2.5 top-1/2 -translate-y-1/2" />
+                    {pbUserMongoId && <CheckCircle2 className="w-3.5 h-3.5 text-[#00A86B] absolute right-2.5 top-1/2 -translate-y-1/2" />}
+                  </div>
+                  {pbUserSuggestions.length > 0 && !pbUserMongoId && (
+                    <div className="absolute left-0 top-full mt-1 bg-white border border-[#E2E8F0] rounded-xl shadow-xl z-50 w-64 max-h-52 overflow-y-auto py-1">
+                      {pbUserSuggestions.map((u: any) => (
+                        <button key={u._id} type="button" onClick={() => { setPbUserMongoId(u._id); setPbUserQuery(`${u.fullname} (${u.email})`); setPbUserSuggestions([]); }}
+                          className="w-full text-left px-3 py-2 hover:bg-[#F0FDF4] flex items-start gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="text-[11px] font-bold text-slate-800 truncate">{u.fullname}</div>
+                            <div className="text-[10px] text-slate-400 truncate">{u.email} · {u.phoneNumber}</div>
+                          </div>
+                          <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded shrink-0">{u.userId}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
               
               <input 
                 type="text" 
@@ -875,14 +1146,14 @@ export function AdminWallet() {
               />
               
               <button 
-                onClick={() => showToast('success', 'Passbook filters applied successfully!')}
+                onClick={() => { setPassbookPage(1); fetchPassbookData(1); }}
                 className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm flex items-center justify-center"
               >
                 Apply
               </button>
 
                <div className="relative shrink-0 ml-auto flex items-center gap-2">
-                 <button 
+                 <button
                    onClick={() => setIsRechargeModalOpen(true)}
                    className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm flex items-center justify-center gap-1.5"
                  >
@@ -891,7 +1162,8 @@ export function AdminWallet() {
                  <div className="relative">
                    <button
                      onClick={() => setShowPassbookActionMenu(!showPassbookActionMenu)}
-                     className="h-9 pl-4 pr-8 rounded-full border border-[#E2E8F0] text-xs bg-white focus:outline-none flex items-center font-bold text-[#475569] shadow-sm hover:bg-[#F8FAFC] transition-colors"
+                     disabled={selectedPassbookOrders.length === 0}
+                     className="h-9 pl-4 pr-8 rounded-full border border-[#E2E8F0] text-xs bg-white focus:outline-none flex items-center font-bold text-[#475569] shadow-sm hover:bg-[#F8FAFC] transition-colors disabled:opacity-50 disabled:cursor-not-allowed relative"
                    >
                      Action
                      <ChevronDown className="w-3.5 h-3.5 absolute right-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
@@ -925,13 +1197,31 @@ export function AdminWallet() {
           <>
             {/* Filters Row */}
             <div className="p-3 border-b border-[#E2E8F0] flex flex-wrap items-center gap-2.5 bg-[#F8FAFC]/50">
-              <input 
-                type="text" 
-                placeholder="Search by name, email, o..." 
-                value={rechargeSearchTerm}
-                onChange={(e) => setRechargeSearchTerm(e.target.value)}
-                className="h-9 px-3 rounded-lg border border-[#E2E8F0] text-xs bg-white focus:outline-none w-[180px] shrink-0" 
-              />
+              {isAdmin && (
+                <div className="relative shrink-0">
+                  <div className="relative">
+                    <input type="text" placeholder="Search user..." value={rcUserQuery}
+                      onChange={(e) => { setRcUserQuery(e.target.value); if (!e.target.value.trim()) { setRcUserMongoId(''); setRcUserSuggestions([]); } }}
+                      className="h-9 pl-8 pr-3 rounded-lg border border-[#E2E8F0] text-xs bg-white focus:outline-none w-[170px]" />
+                    <Search className="w-3.5 h-3.5 text-[#94A3B8] absolute left-2.5 top-1/2 -translate-y-1/2" />
+                    {rcUserMongoId && <CheckCircle2 className="w-3.5 h-3.5 text-[#00A86B] absolute right-2.5 top-1/2 -translate-y-1/2" />}
+                  </div>
+                  {rcUserSuggestions.length > 0 && !rcUserMongoId && (
+                    <div className="absolute left-0 top-full mt-1 bg-white border border-[#E2E8F0] rounded-xl shadow-xl z-50 w-64 max-h-52 overflow-y-auto py-1">
+                      {rcUserSuggestions.map((u: any) => (
+                        <button key={u._id} type="button" onClick={() => { setRcUserMongoId(u._id); setRcUserQuery(`${u.fullname} (${u.email})`); setRcUserSuggestions([]); }}
+                          className="w-full text-left px-3 py-2 hover:bg-[#F0FDF4] flex items-start gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="text-[11px] font-bold text-slate-800 truncate">{u.fullname}</div>
+                            <div className="text-[10px] text-slate-400 truncate">{u.email} · {u.phoneNumber}</div>
+                          </div>
+                          <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded shrink-0">{u.userId}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
               
               <input 
                 type="text" 
@@ -967,14 +1257,14 @@ export function AdminWallet() {
               />
               
               <button 
-                onClick={() => showToast('success', 'Wallet Recharge filters applied successfully!')}
+                onClick={() => { setRechargePage(1); fetchRechargeData(1); }}
                 className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm flex items-center justify-center"
               >
                 Apply
               </button>
 
                <div className="relative shrink-0 ml-auto flex items-center gap-2">
-                 <button 
+                 <button
                    onClick={() => setIsRechargeModalOpen(true)}
                    className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm flex items-center justify-center gap-1.5"
                  >
@@ -983,7 +1273,8 @@ export function AdminWallet() {
                  <div className="relative">
                    <button
                      onClick={() => setShowRechargeActionMenu(!showRechargeActionMenu)}
-                     className="h-9 pl-4 pr-8 rounded-full border border-[#E2E8F0] text-xs bg-white focus:outline-none flex items-center font-bold text-[#475569] shadow-sm hover:bg-[#F8FAFC] transition-colors"
+                     disabled={selectedRechargeOrders.length === 0}
+                     className="h-9 pl-4 pr-8 rounded-full border border-[#E2E8F0] text-xs bg-white focus:outline-none flex items-center font-bold text-[#475569] shadow-sm hover:bg-[#F8FAFC] transition-colors disabled:opacity-50 disabled:cursor-not-allowed relative"
                    >
                      Action
                      <ChevronDown className="w-3.5 h-3.5 absolute right-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
@@ -1017,13 +1308,31 @@ export function AdminWallet() {
           <>
             {/* Filters Row */}
             <div className="p-3 border-b border-[#E2E8F0] flex flex-wrap items-center gap-2.5 bg-[#F8FAFC]/50">
-              <input 
-                type="text" 
-                placeholder="Search by name, email, o..." 
-                value={invoiceSearchTerm}
-                onChange={(e) => setInvoiceSearchTerm(e.target.value)}
-                className="h-9 px-3 rounded-lg border border-[#E2E8F0] text-xs bg-white focus:outline-none w-[180px] shrink-0" 
-              />
+              {isAdmin && (
+                <div className="relative shrink-0">
+                  <div className="relative">
+                    <input type="text" placeholder="Search user..." value={invUserQuery}
+                      onChange={(e) => { setInvUserQuery(e.target.value); if (!e.target.value.trim()) { setInvUserMongoId(''); setInvUserSuggestions([]); } }}
+                      className="h-9 pl-8 pr-3 rounded-lg border border-[#E2E8F0] text-xs bg-white focus:outline-none w-[170px]" />
+                    <Search className="w-3.5 h-3.5 text-[#94A3B8] absolute left-2.5 top-1/2 -translate-y-1/2" />
+                    {invUserMongoId && <CheckCircle2 className="w-3.5 h-3.5 text-[#00A86B] absolute right-2.5 top-1/2 -translate-y-1/2" />}
+                  </div>
+                  {invUserSuggestions.length > 0 && !invUserMongoId && (
+                    <div className="absolute left-0 top-full mt-1 bg-white border border-[#E2E8F0] rounded-xl shadow-xl z-50 w-64 max-h-52 overflow-y-auto py-1">
+                      {invUserSuggestions.map((u: any) => (
+                        <button key={u._id} type="button" onClick={() => { setInvUserMongoId(u._id); setInvUserQuery(`${u.fullname} (${u.email})`); setInvUserSuggestions([]); }}
+                          className="w-full text-left px-3 py-2 hover:bg-[#F0FDF4] flex items-start gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="text-[11px] font-bold text-slate-800 truncate">{u.fullname}</div>
+                            <div className="text-[10px] text-slate-400 truncate">{u.email} · {u.phoneNumber}</div>
+                          </div>
+                          <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded shrink-0">{u.userId}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
               
               <GlassDropdown
                 label="Month"
@@ -1051,14 +1360,14 @@ export function AdminWallet() {
               />
               
               <button 
-                onClick={() => showToast('success', 'Invoice filters applied successfully!')}
+                onClick={() => { setInvoicePage(1); fetchInvoiceData(1); }}
                 className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm flex items-center justify-center"
               >
                 Apply
               </button>
 
                <div className="relative shrink-0 ml-auto flex items-center gap-2">
-                 <button 
+                 <button
                    onClick={() => setIsRechargeModalOpen(true)}
                    className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm flex items-center justify-center gap-1.5"
                  >
@@ -1067,7 +1376,8 @@ export function AdminWallet() {
                  <div className="relative">
                    <button
                      onClick={() => setShowInvoiceActionMenu(!showInvoiceActionMenu)}
-                     className="h-9 pl-4 pr-8 rounded-full border border-[#E2E8F0] text-xs bg-white focus:outline-none flex items-center font-bold text-[#475569] shadow-sm hover:bg-[#F8FAFC] transition-colors"
+                     disabled={selectedInvoiceOrders.length === 0}
+                     className="h-9 pl-4 pr-8 rounded-full border border-[#E2E8F0] text-xs bg-white focus:outline-none flex items-center font-bold text-[#475569] shadow-sm hover:bg-[#F8FAFC] transition-colors disabled:opacity-50 disabled:cursor-not-allowed relative"
                    >
                      Action
                      <ChevronDown className="w-3.5 h-3.5 absolute right-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
@@ -1127,7 +1437,7 @@ export function AdminWallet() {
                     <th className="p-3 w-10">
                       <input type="checkbox" checked={selectedOrders.length === filteredShippingData.length && filteredShippingData.length > 0} onChange={toggleAll} className="rounded border-[#00A86B] accent-[#00A86B] w-3.5 h-3.5" />
                     </th>
-                    <th className="p-3"><User className="w-3.5 h-3.5 inline mr-1"/> User Details</th>
+                    {isAdmin && <th className="p-3"><User className="w-3.5 h-3.5 inline mr-1"/> User Details</th>}
                     <th className="p-3"><Package className="w-3.5 h-3.5 inline mr-1"/> Order Details</th>
                     <th className="p-3"><Truck className="w-3.5 h-3.5 inline mr-1"/> Shipping Details</th>
                     <th className="p-3"><Banknote className="w-3.5 h-3.5 inline mr-1"/> Status</th>
@@ -1142,20 +1452,22 @@ export function AdminWallet() {
                       <td className="p-3">
                         <input type="checkbox" checked={selectedOrders.includes(order.awb)} onChange={() => toggleSelect(order.awb)} className="rounded border-gray-300 accent-[#00A86B] w-3.5 h-3.5" />
                       </td>
-                      <td className="p-3">
-                        <div className="text-xs font-semibold text-[#00A86B] cursor-pointer hover:underline">{order.id}</div>
-                        <div className="text-sm font-semibold text-[#0F172A] mt-0.5">{order.userName}</div>
-                        <div className="text-[11px] text-[#94A3B8]">{order.userEmail}</div>
-                      </td>
+                      {isAdmin && (
+                        <td className="p-3">
+                          <div className="text-xs font-semibold text-[#00A86B] cursor-pointer hover:underline">{order.userId}</div>
+                          <div className="text-sm font-semibold text-[#0F172A] mt-0.5">{order.userName}</div>
+                          <div className="text-[11px] text-[#94A3B8]">{order.userEmail}</div>
+                        </td>
+                      )}
                       <td className="p-3">
                         <div className="text-xs font-semibold text-[#00A86B] cursor-pointer hover:underline">{order.id}</div>
                         <div className="table-date mt-0.5">{order.date}</div>
-                        <div className="table-date mt-0.5">{order.day}</div>
+                        <div className="text-[11px] text-[#475569] mt-0.5 font-medium">{order.paymentMethod}</div>
                       </td>
                       <td className="p-3">
                         <div className="text-xs font-semibold text-[#00A86B]">{order.courier}</div>
                         <div className="table-date mt-0.5">Booked On : {order.bookedDate}</div>
-                        <div className="text-xs font-semibold text-[#00A86B] underline decoration-solid underline-offset-2 mt-0.5 hover:text-[#009B63] cursor-pointer">{order.awb}</div>
+                        <div className="text-xs font-semibold text-[#00A86B] underline decoration-solid underline-offset-2 mt.0.5 hover:text-[#009B63] cursor-pointer">{order.awb}</div>
                       </td>
                       <td className="p-3">
                         <div className="font-bold text-[#0F172A] text-[11px]">₹{order.statusAmount}</div>
@@ -1174,8 +1486,8 @@ export function AdminWallet() {
                         <div className="mt-0.5">{order.courierVol}</div>
                       </td>
                       <td className="p-3 text-right">
-                        <button 
-                          onClick={() => setActiveShipmentHistory(order)}
+                        <button
+                          onClick={() => handleViewPassbook(order.awb)}
                           className="px-3 py-1.5 rounded-full bg-[#1E3A8A] text-white text-[10px] font-bold hover:bg-[#1E3A8A]/90 transition-colors"
                         >
                           History
@@ -1185,7 +1497,7 @@ export function AdminWallet() {
                   ))}
                   {paginatedShippingData.length === 0 && (
                     <tr>
-                      <td colSpan={8} className="p-8 text-center text-[#64748B] font-medium">
+                      <td colSpan={isAdmin ? 8 : 7} className="p-8 text-center text-[#64748B] font-medium">
                         No shipping records found matching your criteria.
                       </td>
                     </tr>
@@ -1195,36 +1507,26 @@ export function AdminWallet() {
             </div>
             
             {/* Shipping Pagination */}
-            {totalShippingPages > 0 && (
+            {shippingTotal > 0 && (
               <div className="p-4 border-t border-[#E2E8F0] flex items-center justify-between">
                 <div className="text-xs text-[#64748B]">
-                  Showing <span className="font-bold text-[#0F172A]">{(shippingPage - 1) * itemsPerPage + 1}</span> to <span className="font-bold text-[#0F172A]">{Math.min(shippingPage * itemsPerPage, filteredShippingData.length)}</span> of <span className="font-bold text-[#0F172A]">{filteredShippingData.length}</span> entries
+                  Showing <span className="font-bold text-[#0F172A]">{(shippingPage - 1) * itemsPerPage + 1}</span> to <span className="font-bold text-[#0F172A]">{Math.min(shippingPage * itemsPerPage, shippingTotal)}</span> of <span className="font-bold text-[#0F172A]">{shippingTotal}</span> entries
                 </div>
                 <div className="flex items-center gap-1">
-                  <button 
+                  <button
                     onClick={() => setShippingPage(p => Math.max(1, p - 1))}
                     disabled={shippingPage === 1}
                     className="px-3 py-1.5 rounded border border-[#E2E8F0] text-xs font-medium text-[#475569] hover:bg-[#F8FAFC] disabled:opacity-50"
                   >
-                    Previous
+                    ←
                   </button>
-                  {Array.from({ length: totalShippingPages }, (_, i) => (
-                    <button
-                      key={i + 1}
-                      onClick={() => setShippingPage(i + 1)}
-                      className={`w-8 h-8 rounded text-xs font-medium flex items-center justify-center transition-colors ${
-                        shippingPage === i + 1 ? 'bg-[#00A86B] text-white border border-[#00A86B]' : 'border border-[#E2E8F0] text-[#475569] hover:bg-[#F8FAFC]'
-                      }`}
-                    >
-                      {i + 1}
-                    </button>
-                  ))}
-                  <button 
+                  {renderPaginationButtons(shippingPage, totalShippingPages, setShippingPage)}
+                  <button
                     onClick={() => setShippingPage(p => Math.min(totalShippingPages, p + 1))}
                     disabled={shippingPage === totalShippingPages}
                     className="px-3 py-1.5 rounded border border-[#E2E8F0] text-xs font-medium text-[#475569] hover:bg-[#F8FAFC] disabled:opacity-50"
                   >
-                    Next
+                    →
                   </button>
                 </div>
               </div>
@@ -1254,7 +1556,8 @@ export function AdminWallet() {
                     <th className="p-3 w-10">
                       <input type="checkbox" checked={selectedPassbookOrders.length === filteredPassbookData.length && filteredPassbookData.length > 0} onChange={toggleAllPassbook} className="rounded border-[#00A86B] accent-[#00A86B] w-3.5 h-3.5" />
                     </th>
-                    <th className="p-3"><User className="w-3.5 h-3.5 inline mr-1"/> User Details</th>
+                    {isAdmin && <th className="p-3"><User className="w-3.5 h-3.5 inline mr-1"/> User Details</th>}
+                    <th className="p-3"><Calendar className="w-3.5 h-3.5 inline mr-1"/> Date / Time</th>
                     <th className="p-3"><Package className="w-3.5 h-3.5 inline mr-1"/> Order Details</th>
                     <th className="p-3"><Truck className="w-3.5 h-3.5 inline mr-1"/> Shipping Details</th>
                     <th className="p-3"><FileText className="w-3.5 h-3.5 inline mr-1"/> Category</th>
@@ -1270,15 +1573,20 @@ export function AdminWallet() {
                       <td className="p-3">
                         <input type="checkbox" checked={selectedPassbookOrders.includes(order.awb)} onChange={() => toggleSelectPassbook(order.awb)} className="rounded border-gray-300 accent-[#00A86B] w-3.5 h-3.5" />
                       </td>
+                      {isAdmin && (
+                        <td className="p-3">
+                          <div className="text-xs font-semibold text-[#00A86B] cursor-pointer hover:underline">{order.userId}</div>
+                          <div className="text-sm font-semibold text-[#0F172A] mt-0.5">{order.userName}</div>
+                          <div className="text-[11px] text-[#94A3B8]">{order.userEmail}</div>
+                        </td>
+                      )}
                       <td className="p-3">
-                        <div className="text-xs font-semibold text-[#00A86B] cursor-pointer hover:underline">{order.id}</div>
-                        <div className="text-sm font-semibold text-[#0F172A] mt-0.5">{order.userName}</div>
-                        <div className="text-[11px] text-[#94A3B8]">{order.userEmail}</div>
+                        <div className="table-date">{order.date}</div>
+                        <div className="table-date mt-0.5">{order.time}</div>
                       </td>
                       <td className="p-3">
                         <div className="text-xs font-semibold text-[#00A86B] cursor-pointer hover:underline">{order.id}</div>
-                        <div className="table-date mt-0.5">{order.date}</div>
-                        <div className="table-date mt-0.5">{order.day}</div>
+                        {order.paymentMethod && <div className="text-[11px] text-[#475569] mt-0.5 font-medium">{order.paymentMethod}</div>}
                       </td>
                       <td className="p-3">
                         <div className="text-xs font-semibold text-[#00A86B]">{order.courier}</div>
@@ -1300,18 +1608,21 @@ export function AdminWallet() {
                         <div className="text-[#64748B] text-[11px]">{order.description}</div>
                       </td>
                       <td className="p-3 text-right">
-                        <button 
-                          onClick={() => showToast('success', `Verification complete for record AWB: ${order.awb !== 'N/A' ? order.awb : 'N/A'}`)}
-                          className="w-7 h-7 rounded-full bg-[#E0F2FE] flex items-center justify-center text-[#0EA5E9] hover:bg-[#BAE6FD] transition-colors ml-auto"
-                        >
-                          <RefreshCcw className="w-3.5 h-3.5" />
-                        </button>
+                        {order.category === 'Debit' ? (
+                          <button
+                            onClick={() => handleReverseTransaction(order)}
+                            title="Reverse Transaction"
+                            className="w-7 h-7 rounded-full bg-[#FEF2F2] flex items-center justify-center text-[#EF4444] hover:bg-[#FEE2E2] transition-colors ml-auto"
+                          >
+                            <RefreshCcw className="w-3.5 h-3.5" />
+                          </button>
+                        ) : <div className="w-7 ml-auto" />}
                       </td>
                     </tr>
                   ))}
                   {paginatedPassbookData.length === 0 && (
                     <tr>
-                      <td colSpan={9} className="p-8 text-center text-[#64748B] font-medium">
+                      <td colSpan={isAdmin ? 10 : 9} className="p-8 text-center text-[#64748B] font-medium">
                         No passbook records found matching your criteria.
                       </td>
                     </tr>
@@ -1321,36 +1632,26 @@ export function AdminWallet() {
             </div>
 
             {/* Passbook Pagination */}
-            {totalPassbookPages > 0 && (
+            {passbookTotal > 0 && (
               <div className="p-4 border-t border-[#E2E8F0] flex items-center justify-between">
                 <div className="text-xs text-[#64748B]">
-                  Showing <span className="font-bold text-[#0F172A]">{(passbookPage - 1) * itemsPerPage + 1}</span> to <span className="font-bold text-[#0F172A]">{Math.min(passbookPage * itemsPerPage, filteredPassbookData.length)}</span> of <span className="font-bold text-[#0F172A]">{filteredPassbookData.length}</span> entries
+                  Showing <span className="font-bold text-[#0F172A]">{(passbookPage - 1) * itemsPerPage + 1}</span> to <span className="font-bold text-[#0F172A]">{Math.min(passbookPage * itemsPerPage, passbookTotal)}</span> of <span className="font-bold text-[#0F172A]">{passbookTotal}</span> entries
                 </div>
                 <div className="flex items-center gap-1">
-                  <button 
+                  <button
                     onClick={() => setPassbookPage(p => Math.max(1, p - 1))}
                     disabled={passbookPage === 1}
                     className="px-3 py-1.5 rounded border border-[#E2E8F0] text-xs font-medium text-[#475569] hover:bg-[#F8FAFC] disabled:opacity-50"
                   >
-                    Previous
+                    ←
                   </button>
-                  {Array.from({ length: totalPassbookPages }, (_, i) => (
-                    <button
-                      key={i + 1}
-                      onClick={() => setPassbookPage(i + 1)}
-                      className={`w-8 h-8 rounded text-xs font-medium flex items-center justify-center transition-colors ${
-                        passbookPage === i + 1 ? 'bg-[#00A86B] text-white border border-[#00A86B]' : 'border border-[#E2E8F0] text-[#475569] hover:bg-[#F8FAFC]'
-                      }`}
-                    >
-                      {i + 1}
-                    </button>
-                  ))}
-                  <button 
+                  {renderPaginationButtons(passbookPage, totalPassbookPages, setPassbookPage)}
+                  <button
                     onClick={() => setPassbookPage(p => Math.min(totalPassbookPages, p + 1))}
                     disabled={passbookPage === totalPassbookPages}
                     className="px-3 py-1.5 rounded border border-[#E2E8F0] text-xs font-medium text-[#475569] hover:bg-[#F8FAFC] disabled:opacity-50"
                   >
-                    Next
+                    →
                   </button>
                 </div>
               </div>
@@ -1378,7 +1679,7 @@ export function AdminWallet() {
                     <th className="p-3 w-10">
                       <input type="checkbox" checked={selectedRechargeOrders.length === filteredWalletRechargeData.length && filteredWalletRechargeData.length > 0} onChange={toggleAllRecharge} className="rounded border-[#00A86B] accent-[#00A86B] w-3.5 h-3.5" />
                     </th>
-                    <th className="p-3"><User className="w-3.5 h-3.5 inline mr-1"/> User Details</th>
+                    {isAdmin && <th className="p-3"><User className="w-3.5 h-3.5 inline mr-1"/> User Details</th>}
                     <th className="p-3"><Calendar className="w-3.5 h-3.5 inline mr-1"/> Date</th>
                     <th className="p-3"><FileText className="w-3.5 h-3.5 inline mr-1"/> Transaction ID</th>
                     <th className="p-3"><Banknote className="w-3.5 h-3.5 inline mr-1"/> Amount</th>
@@ -1392,11 +1693,13 @@ export function AdminWallet() {
                       <td className="p-3">
                         <input type="checkbox" checked={selectedRechargeOrders.includes(recharge.transactionId)} onChange={() => toggleSelectRecharge(recharge.transactionId)} className="rounded border-gray-300 accent-[#00A86B] w-3.5 h-3.5" />
                       </td>
-                      <td className="p-3">
-                        <div className="text-xs font-semibold text-[#00A86B] cursor-pointer hover:underline">{recharge.id}</div>
-                        <div className="text-sm font-semibold text-[#0F172A] mt-0.5">{recharge.userName}</div>
-                        <div className="text-[11px] text-[#94A3B8]">{recharge.userEmail}</div>
-                      </td>
+                      {isAdmin && (
+                        <td className="p-3">
+                          <div className="text-xs font-semibold text-[#00A86B] cursor-pointer hover:underline">{recharge.userId}</div>
+                          <div className="text-sm font-semibold text-[#0F172A] mt-0.5">{recharge.userName}</div>
+                          <div className="text-[11px] text-[#94A3B8]">{recharge.userEmail}</div>
+                        </td>
+                      )}
                       <td className="p-3">
                         <div className="table-date">{recharge.date}</div>
                         <div className="table-date mt-0.5">{recharge.time}</div>
@@ -1420,7 +1723,7 @@ export function AdminWallet() {
                   ))}
                   {paginatedRechargeData.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="p-8 text-center text-[#64748B] font-medium">
+                      <td colSpan={isAdmin ? 7 : 6} className="p-8 text-center text-[#64748B] font-medium">
                         No recharge transactions found matching your criteria.
                       </td>
                     </tr>
@@ -1430,36 +1733,26 @@ export function AdminWallet() {
             </div>
 
             {/* Recharge Pagination */}
-            {totalRechargePages > 0 && (
+            {rechargeTotal > 0 && (
               <div className="p-4 border-t border-[#E2E8F0] flex items-center justify-between">
                 <div className="text-xs text-[#64748B]">
-                  Showing <span className="font-bold text-[#0F172A]">{(rechargePage - 1) * itemsPerPage + 1}</span> to <span className="font-bold text-[#0F172A]">{Math.min(rechargePage * itemsPerPage, filteredWalletRechargeData.length)}</span> of <span className="font-bold text-[#0F172A]">{filteredWalletRechargeData.length}</span> entries
+                  Showing <span className="font-bold text-[#0F172A]">{(rechargePage - 1) * itemsPerPage + 1}</span> to <span className="font-bold text-[#0F172A]">{Math.min(rechargePage * itemsPerPage, rechargeTotal)}</span> of <span className="font-bold text-[#0F172A]">{rechargeTotal}</span> entries
                 </div>
                 <div className="flex items-center gap-1">
-                  <button 
+                  <button
                     onClick={() => setRechargePage(p => Math.max(1, p - 1))}
                     disabled={rechargePage === 1}
                     className="px-3 py-1.5 rounded border border-[#E2E8F0] text-xs font-medium text-[#475569] hover:bg-[#F8FAFC] disabled:opacity-50"
                   >
-                    Previous
+                    ←
                   </button>
-                  {Array.from({ length: totalRechargePages }, (_, i) => (
-                    <button
-                      key={i + 1}
-                      onClick={() => setRechargePage(i + 1)}
-                      className={`w-8 h-8 rounded text-xs font-medium flex items-center justify-center transition-colors ${
-                        rechargePage === i + 1 ? 'bg-[#00A86B] text-white border border-[#00A86B]' : 'border border-[#E2E8F0] text-[#475569] hover:bg-[#F8FAFC]'
-                      }`}
-                    >
-                      {i + 1}
-                    </button>
-                  ))}
-                  <button 
+                  {renderPaginationButtons(rechargePage, totalRechargePages, setRechargePage)}
+                  <button
                     onClick={() => setRechargePage(p => Math.min(totalRechargePages, p + 1))}
                     disabled={rechargePage === totalRechargePages}
                     className="px-3 py-1.5 rounded border border-[#E2E8F0] text-xs font-medium text-[#475569] hover:bg-[#F8FAFC] disabled:opacity-50"
                   >
-                    Next
+                    →
                   </button>
                 </div>
               </div>
@@ -1487,7 +1780,7 @@ export function AdminWallet() {
                     <th className="p-3 w-10">
                       <input type="checkbox" checked={selectedInvoiceOrders.length === filteredInvoicesData.length && filteredInvoicesData.length > 0} onChange={toggleAllInvoices} className="rounded border-[#00A86B] accent-[#00A86B] w-3.5 h-3.5" />
                     </th>
-                    <th className="p-3"><User className="w-3.5 h-3.5 inline mr-1"/> User Details</th>
+                    {isAdmin && <th className="p-3"><User className="w-3.5 h-3.5 inline mr-1"/> User Details</th>}
                     <th className="p-3"><FileText className="w-3.5 h-3.5 inline mr-1"/> Invoice Number</th>
                     <th className="p-3"><Package className="w-3.5 h-3.5 inline mr-1"/> Shipments</th>
                     <th className="p-3"><Banknote className="w-3.5 h-3.5 inline mr-1"/> Amount Details</th>
@@ -1503,11 +1796,13 @@ export function AdminWallet() {
                       <td className="p-3">
                         <input type="checkbox" checked={selectedInvoiceOrders.includes(invoice.invoiceNumber)} onChange={() => toggleSelectInvoice(invoice.invoiceNumber)} className="rounded border-gray-300 accent-[#00A86B] w-3.5 h-3.5" />
                       </td>
-                      <td className="p-3">
-                        <div className="text-xs font-semibold text-[#00A86B] cursor-pointer hover:underline uppercase">{invoice.id}</div>
-                        <div className="text-sm font-semibold text-[#0F172A] mt-0.5">{invoice.userName}</div>
-                        <div className="text-[11px] text-[#94A3B8]">{invoice.userEmail}</div>
-                      </td>
+                      {isAdmin && (
+                        <td className="p-3">
+                          <div className="text-xs font-semibold text-[#00A86B] cursor-pointer hover:underline uppercase">{invoice.userId}</div>
+                          <div className="text-sm font-semibold text-[#0F172A] mt-0.5">{invoice.userName}</div>
+                          <div className="text-[11px] text-[#94A3B8]">{invoice.userEmail}</div>
+                        </td>
+                      )}
                       <td className="p-3">
                         <div className="text-xs font-semibold text-[#00A86B]">{invoice.invoiceNumber}</div>
                       </td>
@@ -1548,7 +1843,7 @@ export function AdminWallet() {
                   ))}
                   {paginatedInvoicesData.length === 0 && (
                     <tr>
-                      <td colSpan={9} className="p-8 text-center text-[#64748B] font-medium">
+                      <td colSpan={isAdmin ? 9 : 8} className="p-8 text-center text-[#64748B] font-medium">
                         No invoice records found matching your criteria.
                       </td>
                     </tr>
@@ -1558,36 +1853,26 @@ export function AdminWallet() {
             </div>
 
             {/* Invoices Pagination */}
-            {totalInvoicePages > 0 && (
+            {invoiceTotal > 0 && (
               <div className="p-4 border-t border-[#E2E8F0] flex items-center justify-between">
                 <div className="text-xs text-[#64748B]">
-                  Showing <span className="font-bold text-[#0F172A]">{(invoicePage - 1) * itemsPerPage + 1}</span> to <span className="font-bold text-[#0F172A]">{Math.min(invoicePage * itemsPerPage, filteredInvoicesData.length)}</span> of <span className="font-bold text-[#0F172A]">{filteredInvoicesData.length}</span> entries
+                  Showing <span className="font-bold text-[#0F172A]">{(invoicePage - 1) * itemsPerPage + 1}</span> to <span className="font-bold text-[#0F172A]">{Math.min(invoicePage * itemsPerPage, invoiceTotal)}</span> of <span className="font-bold text-[#0F172A]">{invoiceTotal}</span> entries
                 </div>
                 <div className="flex items-center gap-1">
-                  <button 
+                  <button
                     onClick={() => setInvoicePage(p => Math.max(1, p - 1))}
                     disabled={invoicePage === 1}
                     className="px-3 py-1.5 rounded border border-[#E2E8F0] text-xs font-medium text-[#475569] hover:bg-[#F8FAFC] disabled:opacity-50"
                   >
-                    Previous
+                    ←
                   </button>
-                  {Array.from({ length: totalInvoicePages }, (_, i) => (
-                    <button
-                      key={i + 1}
-                      onClick={() => setInvoicePage(i + 1)}
-                      className={`w-8 h-8 rounded text-xs font-medium flex items-center justify-center transition-colors ${
-                        invoicePage === i + 1 ? 'bg-[#00A86B] text-white border border-[#00A86B]' : 'border border-[#E2E8F0] text-[#475569] hover:bg-[#F8FAFC]'
-                      }`}
-                    >
-                      {i + 1}
-                    </button>
-                  ))}
-                  <button 
+                  {renderPaginationButtons(invoicePage, totalInvoicePages, setInvoicePage)}
+                  <button
                     onClick={() => setInvoicePage(p => Math.min(totalInvoicePages, p + 1))}
                     disabled={invoicePage === totalInvoicePages}
                     className="px-3 py-1.5 rounded border border-[#E2E8F0] text-xs font-medium text-[#475569] hover:bg-[#F8FAFC] disabled:opacity-50"
                   >
-                    Next
+                    →
                   </button>
                 </div>
               </div>
@@ -1915,464 +2200,222 @@ export function AdminWallet() {
               </div>
 
               {/* Right Column: Forms & Tabs */}
-              <div className="flex-1 p-6 flex flex-col justify-between">
-                <div>
-                  {/* Modal Header & Tabs Navigation */}
-                  <div className="flex items-center justify-between pb-4 border-b border-[#E2E8F0]">
-                    {/* Tab Selection */}
-                    <div className="flex gap-4">
-                      {['Updation'].map((tab) => (
-                        <button
-                          key={tab}
-                          type="button"
-                          onClick={() => setModalActiveTab(tab)}
-                          className={`relative pb-2 text-[13px] font-bold transition-all ${
-                            modalActiveTab === tab ? 'text-[#00A86B]' : 'text-[#64748B] hover:text-[#0F172A]'
-                          }`}
-                        >
-                          {tab}
-                          {modalActiveTab === tab && (
-                            <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#00A86B]" />
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                    
-                    <button 
-                      onClick={() => setIsUpdateModalOpen(false)}
-                      type="button"
-                      className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition-colors"
-                    >
-                      <X className="w-5 h-5" />
-                    </button>
-                  </div>
-
-                  {/* Form Content depending on Active Tab */}
-                  <form onSubmit={handleUpdatePassbookSubmit} className="mt-6 space-y-4 text-left">
-                    {modalActiveTab === 'Updation' && (
-                      <>
-                        {/* 1. Seller Name Search with Autocomplete */}
-                        <div className="relative">
-                          <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Search by Name, Email, or Contact</label>
-                          <div className="relative">
-                            <input
-                              type="text"
-                              required
-                              placeholder="Search by Name, Email, or Contact"
-                              value={modalSellerQuery}
-                              onChange={(e) => {
-                                setModalSellerQuery(e.target.value);
-                                setModalSelectedSeller(null); // Clear selected if they edit
-                              }}
-                              className="w-full h-10 pl-9 pr-4 rounded-xl border border-slate-200 text-slate-800 text-xs focus:outline-none focus:border-[#00A86B] font-semibold"
-                            />
-                            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                          </div>
-
-                          {/* Autocomplete Suggestions Box */}
-                          {!modalSelectedSeller && modalSellerQuery.trim() !== '' && (
-                            <div className="absolute left-0 right-0 top-full mt-1.5 bg-white border border-[#E2E8F0] rounded-xl shadow-xl max-h-48 overflow-y-auto z-[120] py-1">
-                              {SELLER_DATABASE.filter(seller => 
-                                seller.userName.toLowerCase().includes(modalSellerQuery.toLowerCase()) ||
-                                seller.userEmail.toLowerCase().includes(modalSellerQuery.toLowerCase()) ||
-                                seller.mobile.includes(modalSellerQuery)
-                              ).map((seller) => (
-                                <button
-                                  key={seller.userName}
-                                  type="button"
-                                  onClick={() => {
-                                    setModalSelectedSeller(seller);
-                                    setModalSellerQuery(seller.userName);
-                                  }}
-                                  className="w-full text-left px-4 py-2 hover:bg-[#F0FDF4] transition-colors flex items-center justify-between"
-                                >
-                                  <div>
-                                    <div className="text-xs font-bold text-slate-800">{seller.userName}</div>
-                                    <div className="text-[10px] text-slate-400">{seller.userEmail}</div>
-                                  </div>
-                                  <div className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">{seller.mobile}</div>
-                                </button>
-                              ))}
-                              {SELLER_DATABASE.filter(seller => 
-                                seller.userName.toLowerCase().includes(modalSellerQuery.toLowerCase()) ||
-                                seller.userEmail.toLowerCase().includes(modalSellerQuery.toLowerCase()) ||
-                                seller.mobile.includes(modalSellerQuery)
-                              ).length === 0 && (
-                                <div className="px-4 py-2.5 text-xs text-slate-500 italic">No matches found. Try another query.</div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* 2 & 3. Category & Amount (Side-by-Side) */}
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Category</label>
-                            <GlassSingleSelect
-                              options={UPB_CATEGORY_OPTIONS}
-                              value={modalCategory}
-                              onChange={setModalCategory}
-                              placeholder="Select Category"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Amount</label>
-                            <input
-                              type="number"
-                              required
-                              placeholder="Amount"
-                              value={modalAmount}
-                              onChange={(e) => setModalAmount(e.target.value)}
-                              className="w-full h-10 px-3 rounded-xl border border-slate-200 text-slate-800 text-xs focus:outline-none focus:border-[#00A86B] font-bold"
-                            />
-                          </div>
-                        </div>
-
-                        {/* Mode Select: Debit / Credit */}
-                        <div>
-                          <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Transaction Mode</label>
-                          <div className="flex gap-3">
-                            <button
-                              type="button"
-                              onClick={() => setModalMode('Credit')}
-                              className={`flex-1 py-2.5 rounded-xl border flex items-center justify-center gap-1.5 transition-all font-bold text-xs ${
-                                modalMode === 'Credit'
-                                  ? 'border-[#00A86B] bg-[#F0FDF4] text-[#00A86B]'
-                                  : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'
-                              }`}
-                            >
-                              <ArrowUpCircle className="w-4 h-4" /> Credit
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setModalMode('Debit')}
-                              className={`flex-1 py-2.5 rounded-xl border flex items-center justify-center gap-1.5 transition-all font-bold text-xs ${
-                                modalMode === 'Debit'
-                                  ? 'border-red-500 bg-red-50 text-red-500'
-                                  : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'
-                              }`}
-                            >
-                              <ArrowDownCircle className="w-4 h-4" /> Debit
-                            </button>
-                          </div>
-                        </div>
-                      </>
-                    )}
-
-                    {modalActiveTab !== 'Updation' && (
-                      <div className="py-8 text-center text-slate-500 text-xs italic">
-                        The {modalActiveTab} layout has been routed to manual updates. Complete your details on the 'Updation' tab for manual balancing of charges.
-                      </div>
-                    )}
-
-                    {/* Action Buttons */}
-                    <div className="flex items-center gap-3 pt-4 border-t border-slate-100 mt-6">
+              <div className="flex-1 p-6 flex flex-col overflow-y-auto">
+                {/* Modal Header & Tabs Navigation */}
+                <div className="flex items-center justify-between pb-4 border-b border-[#E2E8F0] mb-4 shrink-0">
+                  <div className="flex gap-4">
+                    {(['Recharge', 'Updation', 'Direct Update'] as const).map((tab) => (
                       <button
-                        type="submit"
-                        disabled={modalActiveTab !== 'Updation'}
-                        className="flex-1 h-10 rounded-xl bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors flex items-center justify-center shadow-sm disabled:opacity-50"
-                      >
-                        Submit
-                      </button>
-                      <button
-                        onClick={() => setIsUpdateModalOpen(false)}
+                        key={tab}
                         type="button"
-                        className="flex-1 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-colors flex items-center justify-center"
+                        onClick={() => {
+                          setUpbTab(tab);
+                          setUpbUserQuery('');
+                          setUpbUserSuggestions([]);
+                          setUpbSelectedUserId('');
+                          setUpbSelectedMongoId('');
+                        }}
+                        className={`relative pb-2 text-[12px] font-bold transition-all ${
+                          upbTab === tab ? 'text-[#00A86B]' : 'text-[#64748B] hover:text-[#0F172A]'
+                        }`}
                       >
-                        Cancel
+                        {tab}
+                        {upbTab === tab && <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#00A86B]" />}
                       </button>
-                    </div>
-                  </form>
+                    ))}
+                  </div>
+                  <button onClick={closeUpdateModal} type="button" className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition-colors">
+                    <X className="w-5 h-5" />
+                  </button>
                 </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
 
-        {isUpdateModalOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4"
-          >
-            <motion.div
-              initial={{ scale: 0.95, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.95, y: 20 }}
-              className="bg-white rounded-2xl border border-slate-100 shadow-2xl max-w-4xl w-full overflow-hidden flex flex-col md:flex-row min-h-[450px]"
-            >
-              {/* Left Column: Animation */}
-              <div className="w-full md:w-[40%] bg-gradient-to-br from-[#E6F5F1] to-[#F0FDF4] p-8 flex flex-col items-center justify-center relative overflow-hidden border-r border-[#E2E8F0] select-none">
-                <div className="absolute inset-0 opacity-40 bg-[radial-gradient(#00A86B_1px,transparent_1px)] [background-size:16px_16px]"></div>
-                
-                {/* Phones & Money Animation Wrapper */}
-                <div className="relative w-64 h-64 flex items-center justify-center">
-                  
-                  {/* Left Phone (Sending) */}
-                  <motion.div 
-                    initial={{ y: 10 }}
-                    animate={{ y: -10 }}
-                    transition={{ repeat: Infinity, repeatType: "reverse", duration: 3, ease: "easeInOut" }}
-                    className="absolute left-2 bottom-8 w-24 h-40 bg-[#1E293B] rounded-2xl p-1.5 shadow-2xl border border-[#334155] z-10"
-                  >
-                    <div className="w-full h-full bg-[#0F172A] rounded-xl relative overflow-hidden flex flex-col items-center justify-between p-2">
-                      {/* Phone Speaker */}
-                      <div className="w-8 h-1 bg-[#334155] rounded-full mx-auto mb-1"></div>
-                      {/* Mini Wallet Icon inside sending phone */}
-                      <div className="w-10 h-10 rounded-full bg-[#00A86B]/20 flex items-center justify-center text-[#00A86B]">
-                        <Wallet className="w-5 h-5" />
-                      </div>
-                      {/* Micro screen line */}
-                      <div className="w-12 h-2 bg-[#00A86B]/30 rounded mx-auto"></div>
-                      <div className="w-full h-1 bg-[#1E293B] rounded"></div>
-                    </div>
-                  </motion.div>
-
-                  {/* Connecting Dotted Arch */}
-                  <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 256 256">
-                    <path 
-                      id="flight-path"
-                      d="M 60 140 Q 128 40 196 140" 
-                      fill="none" 
-                      stroke="#00A86B" 
-                      strokeWidth="2.5" 
-                      strokeDasharray="6 6"
-                      className="opacity-60"
+                {/* Shared User Search */}
+                <div className="relative mb-4 shrink-0">
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Search User</label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="Search by Name, Email, or Contact"
+                      value={upbUserQuery}
+                      onChange={(e) => {
+                        setUpbUserQuery(e.target.value);
+                        if (!e.target.value.trim()) { setUpbSelectedUserId(''); setUpbSelectedMongoId(''); }
+                      }}
+                      className="w-full h-10 pl-9 pr-4 rounded-xl border border-slate-200 text-slate-800 text-xs focus:outline-none focus:border-[#00A86B] font-semibold"
                     />
-                  </svg>
-
-                  {/* Flying Money Icons along the path */}
-                  <motion.div
-                    className="absolute w-8 h-6 bg-[#00A86B] text-white text-[10px] font-bold rounded flex items-center justify-center shadow-lg"
-                    animate={{
-                      x: [-60, 60],
-                      y: [10, -80, 10],
-                      rotate: [0, 45, 90, 135, 180, 225, 270, 315, 360],
-                    }}
-                    transition={{
-                      duration: 3,
-                      repeat: Infinity,
-                      ease: "easeInOut",
-                    }}
-                  >
-                    ₹
-                  </motion.div>
-                  
-                  <motion.div
-                    className="absolute w-8 h-6 bg-[#00A86B] text-white text-[10px] font-bold rounded flex items-center justify-center shadow-lg"
-                    animate={{
-                      x: [-60, 60],
-                      y: [10, -80, 10],
-                      rotate: [0, -45, -90, -135, -180, -225, -270, -315, -360],
-                    }}
-                    transition={{
-                      duration: 3,
-                      delay: 1.5,
-                      repeat: Infinity,
-                      ease: "easeInOut",
-                    }}
-                  >
-                    ₹
-                  </motion.div>
-
-                  {/* Right Phone (Receiving) */}
-                  <motion.div 
-                    initial={{ y: -10 }}
-                    animate={{ y: 10 }}
-                    transition={{ repeat: Infinity, repeatType: "reverse", duration: 3, ease: "easeInOut" }}
-                    className="absolute right-2 bottom-8 w-24 h-40 bg-[#1E293B] rounded-2xl p-1.5 shadow-2xl border border-[#334155] z-10"
-                  >
-                    <div className="w-full h-full bg-[#0F172A] rounded-xl relative overflow-hidden flex flex-col items-center justify-between p-2">
-                      <div className="w-8 h-1 bg-[#334155] rounded-full mx-auto mb-1"></div>
-                      <div className="w-10 h-10 rounded-full bg-[#00A86B]/20 flex items-center justify-center text-[#00A86B] animate-bounce">
-                        <TrendingUp className="w-5 h-5" />
-                      </div>
-                      <div className="w-14 h-2.5 bg-[#00A86B]/40 rounded mx-auto text-[7px] text-center text-[#00A86B] font-bold flex items-center justify-center">+ Balance</div>
-                      <div className="w-full h-1 bg-[#1E293B] rounded"></div>
-                    </div>
-                  </motion.div>
-
-                </div>
-
-                <div className="text-center mt-6 z-10">
-                  <h4 className="font-bold text-[#0F172A] text-sm">Manual Balance Updation</h4>
-                  <p className="text-[11px] text-[#64748B] mt-1 max-w-[200px] leading-relaxed">
-                    Easily adjust wallet records, credits, or charges directly to the seller's ledger.
-                  </p>
-                </div>
-              </div>
-
-              {/* Right Column: Forms & Tabs */}
-              <div className="flex-1 p-6 flex flex-col justify-between">
-                <div>
-                  {/* Modal Header & Tabs Navigation */}
-                  <div className="flex items-center justify-between pb-4 border-b border-[#E2E8F0]">
-                    {/* Tab Selection */}
-                    <div className="flex gap-4">
-                      {['Updation'].map((tab) => (
-                        <button
-                          key={tab}
-                          type="button"
-                          onClick={() => setModalActiveTab(tab)}
-                          className={`relative pb-2 text-[13px] font-bold transition-all ${
-                            modalActiveTab === tab ? 'text-[#00A86B] ' : 'text-[#64748B] hover:text-[#0F172A]'
-                          }`}
-                        >
-                          {tab}
-                          {modalActiveTab === tab && (
-                            <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#00A86B]" />
-                          )}
+                    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  </div>
+                  {upbUserSuggestions.length > 0 && !upbSelectedUserId && (
+                    <div className="absolute left-0 right-0 top-full mt-1.5 bg-white border border-[#E2E8F0] rounded-xl shadow-xl max-h-48 overflow-y-auto z-[120] py-1">
+                      {upbUserSuggestions.map((user: any) => (
+                        <button key={user._id} type="button"
+                          onClick={() => {
+                            setUpbSelectedUserId(user.userId);
+                            setUpbSelectedMongoId(user._id);
+                            setUpbUserQuery(`${user.fullname} (${user.email})`);
+                            setUpbUserSuggestions([]);
+                          }}
+                          className="w-full text-left px-4 py-2 hover:bg-[#F0FDF4] transition-colors flex items-start gap-3">
+                          <div className="flex-1">
+                            <div className="text-xs font-bold text-slate-800">{user.fullname}</div>
+                            <div className="text-[10px] text-slate-400">{user.email} · {user.phoneNumber}</div>
+                          </div>
+                          <div className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full shrink-0 mt-0.5">{user.userId}</div>
                         </button>
                       ))}
                     </div>
-                    
-                    <button 
-                      onClick={() => setIsUpdateModalOpen(false)}
-                      type="button"
-                      className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition-colors"
-                    >
-                      <X className="w-5 h-5" />
-                    </button>
-                  </div>
+                  )}
+                  {upbSelectedUserId && (
+                    <div className="mt-1.5 flex items-center gap-1.5 text-[11px] text-[#00A86B] font-semibold">
+                      <CheckCircle2 className="w-3.5 h-3.5" /> {upbUserQuery}
+                    </div>
+                  )}
+                </div>
 
-                  {/* Form Content depending on Active Tab */}
-                  <form onSubmit={handleUpdatePassbookSubmit} className="mt-6 space-y-4 text-left">
-                    {modalActiveTab === 'Updation' && (
-                      <>
-                        {/* 1. Seller Name Search with Autocomplete */}
-                        <div className="relative">
-                          <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Search by Name, Email, or Contact</label>
-                          <div className="relative">
-                            <input
-                              type="text"
-                              required
-                              placeholder="Search by Name, Email, or Contact"
-                              value={modalSellerQuery}
-                              onChange={(e) => {
-                                setModalSellerQuery(e.target.value);
-                                setModalSelectedSeller(null); // Clear selected if they edit
-                              }}
-                              className="w-full h-10 pl-9 pr-4 rounded-xl border border-slate-200 text-slate-800 text-xs focus:outline-none focus:border-[#00A86B] font-semibold"
-                            />
-                            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                          </div>
-
-                          {/* Autocomplete Suggestions Box */}
-                          {!modalSelectedSeller && modalSellerQuery.trim() !== '' && (
-                            <div className="absolute left-0 right-0 top-full mt-1.5 bg-white border border-[#E2E8F0] rounded-xl shadow-xl max-h-48 overflow-y-auto z-[120] py-1">
-                              {SELLER_DATABASE.filter(seller => 
-                                seller.userName.toLowerCase().includes(modalSellerQuery.toLowerCase()) ||
-                                seller.userEmail.toLowerCase().includes(modalSellerQuery.toLowerCase()) ||
-                                seller.mobile.includes(modalSellerQuery)
-                              ).map((seller) => (
-                                <button
-                                  key={seller.userName}
-                                  type="button"
-                                  onClick={() => {
-                                    setModalSelectedSeller(seller);
-                                    setModalSellerQuery(seller.userName);
-                                  }}
-                                  className="w-full text-left px-4 py-2 hover:bg-[#F0FDF4] transition-colors flex items-center justify-between"
-                                >
-                                  <div>
-                                    <div className="text-xs font-bold text-slate-800">{seller.userName}</div>
-                                    <div className="text-[10px] text-slate-400">{seller.userEmail}</div>
-                                  </div>
-                                  <div className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">{seller.mobile}</div>
-                                </button>
-                              ))}
-                              {SELLER_DATABASE.filter(seller => 
-                                seller.userName.toLowerCase().includes(modalSellerQuery.toLowerCase()) ||
-                                seller.userEmail.toLowerCase().includes(modalSellerQuery.toLowerCase()) ||
-                                seller.mobile.includes(modalSellerQuery)
-                              ).length === 0 && (
-                                <div className="px-4 py-2.5 text-xs text-slate-500 italic">No matches found. Try another query.</div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* 2 & 3. Category & Amount (Side-by-Side) */}
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Category</label>
-                            <GlassSingleSelect
-                              options={UPB_CATEGORY_OPTIONS}
-                              value={modalCategory}
-                              onChange={setModalCategory}
-                              placeholder="Select Category"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Amount</label>
-                            <input
-                              type="number"
-                              required
-                              placeholder="Amount"
-                              value={modalAmount}
-                              onChange={(e) => setModalAmount(e.target.value)}
-                              className="w-full h-10 px-3 rounded-xl border border-slate-200 text-slate-800 text-xs focus:outline-none focus:border-[#00A86B] font-bold"
-                            />
-                          </div>
-                        </div>
-
-                        {/* Mode Select: Debit / Credit */}
-                        <div>
-                          <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Transaction Mode</label>
-                          <div className="flex gap-3">
-                            <button
-                              type="button"
-                              onClick={() => setModalMode('Credit')}
-                              className={`flex-1 py-2.5 rounded-xl border flex items-center justify-center gap-1.5 transition-all font-bold text-xs ${
-                                modalMode === 'Credit'
-                                  ? 'border-[#00A86B] bg-[#F0FDF4] text-[#00A86B]'
-                                  : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'
-                              }`}
-                            >
-                              <ArrowUpCircle className="w-4 h-4" /> Credit
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setModalMode('Debit')}
-                              className={`flex-1 py-2.5 rounded-xl border flex items-center justify-center gap-1.5 transition-all font-bold text-xs ${
-                                modalMode === 'Debit'
-                                  ? 'border-red-500 bg-red-50 text-red-500'
-                                  : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'
-                              }`}
-                            >
-                              <ArrowDownCircle className="w-4 h-4" /> Debit
-                            </button>
-                          </div>
-                        </div>
-                      </>
-                    )}
-
-                    {modalActiveTab !== 'Updation' && (
-                      <div className="py-8 text-center text-slate-500 text-xs italic">
-                        The {modalActiveTab} layout has been routed to manual updates. Complete your details on the 'Updation' tab for manual balancing of charges.
+                {/* Recharge Tab */}
+                {upbTab === 'Recharge' && (
+                  <form onSubmit={handleUpbRechargeSubmit} className="space-y-3 flex-1 flex flex-col">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Payment ID</label>
+                        <input type="text" required value={upbPaymentId} onChange={(e) => setUpbPaymentId(e.target.value)}
+                          placeholder="Payment ID"
+                          className="w-full h-10 px-3 rounded-xl border border-slate-200 text-slate-800 text-xs focus:outline-none focus:border-[#00A86B]" />
                       </div>
-                    )}
-
-                    {/* Action Buttons */}
-                    <div className="flex items-center gap-3 pt-4 border-t border-slate-100 mt-6">
-                      <button
-                        type="submit"
-                        disabled={modalActiveTab !== 'Updation'}
-                        className="flex-1 h-10 rounded-xl bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors flex items-center justify-center shadow-sm disabled:opacity-50"
-                      >
-                        Submit
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Order ID</label>
+                        <input type="text" required value={upbRechOrderId} onChange={(e) => setUpbRechOrderId(e.target.value)}
+                          placeholder="Order ID"
+                          className="w-full h-10 px-3 rounded-xl border border-slate-200 text-slate-800 text-xs focus:outline-none focus:border-[#00A86B]" />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Amount (₹)</label>
+                      <input type="number" required value={upbRechAmount} onChange={(e) => setUpbRechAmount(e.target.value)}
+                        placeholder="Amount"
+                        className="w-full h-10 px-3 rounded-xl border border-slate-200 text-slate-800 text-xs focus:outline-none focus:border-[#00A86B] font-bold" />
+                    </div>
+                    <div className="flex items-center gap-3 pt-3 border-t border-slate-100 mt-auto">
+                      <button type="submit" disabled={upbIsSubmitting || !upbSelectedUserId}
+                        className="flex-1 h-10 rounded-xl bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors flex items-center justify-center shadow-sm disabled:opacity-50">
+                        {upbIsSubmitting ? <RefreshCcw className="w-4 h-4 animate-spin" /> : 'Submit'}
                       </button>
-                      <button
-                        onClick={() => setIsUpdateModalOpen(false)}
-                        type="button"
-                        className="flex-1 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-colors flex items-center justify-center"
-                      >
+                      <button onClick={closeUpdateModal} type="button"
+                        className="flex-1 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-colors flex items-center justify-center">
                         Cancel
                       </button>
                     </div>
                   </form>
-                </div>
+                )}
+
+                {/* Updation Tab */}
+                {upbTab === 'Updation' && (
+                  <form onSubmit={handleUpbUpdationSubmit} className="space-y-3 flex-1 flex flex-col">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Description</label>
+                      <select value={upbUpdDesc} onChange={(e) => { setUpbUpdDesc(e.target.value); setUpbUpdAwb(''); setUpbUpdOrderId(''); }} required
+                        className="w-full h-10 px-3 rounded-xl border border-slate-200 text-slate-800 text-xs focus:outline-none focus:border-[#00A86B]">
+                        <option value="">Select description</option>
+                        {['Freight Charges','COD Charges','RTO Freight Charges','Shipment Lost Liability','Shipment Damaged Liability','Weight Dispute Charges','Cashback','Credit Note','Wallet to bank','GST Charges'].map(d => (
+                          <option key={d} value={d}>{d}</option>
+                        ))}
+                      </select>
+                    </div>
+                    {upbUpdDesc && !['Cashback','Credit Note','Wallet to bank'].includes(upbUpdDesc) && (
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="relative">
+                          <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">AWB Number</label>
+                          <input type="text" value={upbUpdAwb} onChange={(e) => setUpbUpdAwb(e.target.value)} placeholder="AWB Number"
+                            className="w-full h-10 px-3 rounded-xl border border-slate-200 text-slate-800 text-xs focus:outline-none focus:border-[#00A86B]" />
+                          {upbUpdAwbSuggestions.length > 0 && (
+                            <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-[#E2E8F0] rounded-xl shadow-xl max-h-40 overflow-y-auto z-[120] py-1">
+                              {upbUpdAwbSuggestions.map((awb: any) => (
+                                <button key={awb.awbNumber} type="button"
+                                  onClick={() => { setUpbUpdAwb(awb.awbNumber); setUpbUpdOrderId(awb.orderId); setUpbUpdAwbSuggestions([]); }}
+                                  className="w-full text-left px-3 py-2 text-xs text-slate-700 hover:bg-[#F0FDF4]">
+                                  {awb.awbNumber} <span className="text-slate-400">({awb.orderId})</span>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Order ID</label>
+                          <input type="text" value={upbUpdOrderId} readOnly placeholder="Auto-filled from AWB"
+                            className="w-full h-10 px-3 rounded-xl border border-slate-200 text-slate-500 text-xs bg-slate-50 focus:outline-none" />
+                        </div>
+                      </div>
+                    )}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Amount (₹)</label>
+                        <input type="number" required value={upbUpdAmount} onChange={(e) => setUpbUpdAmount(e.target.value)} placeholder="Amount"
+                          className="w-full h-10 px-3 rounded-xl border border-slate-200 text-slate-800 text-xs focus:outline-none focus:border-[#00A86B] font-bold" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Category</label>
+                        <select value={upbUpdCategory} onChange={(e) => setUpbUpdCategory(e.target.value)} required
+                          className="w-full h-10 px-3 rounded-xl border border-slate-200 text-slate-800 text-xs focus:outline-none focus:border-[#00A86B]">
+                          <option value="">Select</option>
+                          <option value="credit">Credit</option>
+                          <option value="debit">Debit</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 pt-3 border-t border-slate-100 mt-auto">
+                      <button type="submit" disabled={upbIsSubmitting || !upbSelectedUserId}
+                        className="flex-1 h-10 rounded-xl bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors flex items-center justify-center shadow-sm disabled:opacity-50">
+                        {upbIsSubmitting ? <RefreshCcw className="w-4 h-4 animate-spin" /> : 'Submit'}
+                      </button>
+                      <button onClick={closeUpdateModal} type="button"
+                        className="flex-1 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-colors flex items-center justify-center">
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                )}
+
+                {/* Direct Update Tab */}
+                {upbTab === 'Direct Update' && (
+                  <form onSubmit={handleUpbDirectSubmit} className="space-y-3 flex-1 flex flex-col">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Description</label>
+                      <select value={upbDirDesc} onChange={(e) => setUpbDirDesc(e.target.value)} required
+                        className="w-full h-10 px-3 rounded-xl border border-slate-200 text-slate-800 text-xs focus:outline-none focus:border-[#00A86B]">
+                        <option value="">Select description</option>
+                        {['Freight Charges','COD Charges','RTO Freight Charges','Shipment Lost Liability','Shipment Damaged Liability','Weight Dispute Charges','Cashback','Credit Note','Wallet to bank','GST Charges'].map(d => (
+                          <option key={d} value={d}>{d}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Amount (₹)</label>
+                        <input type="number" required value={upbDirAmount} onChange={(e) => setUpbDirAmount(e.target.value)} placeholder="Amount"
+                          className="w-full h-10 px-3 rounded-xl border border-slate-200 text-slate-800 text-xs focus:outline-none focus:border-[#00A86B] font-bold" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Category</label>
+                        <select value={upbDirCategory} onChange={(e) => setUpbDirCategory(e.target.value)} required
+                          className="w-full h-10 px-3 rounded-xl border border-slate-200 text-slate-800 text-xs focus:outline-none focus:border-[#00A86B]">
+                          <option value="">Select</option>
+                          <option value="credit">Credit</option>
+                          <option value="debit">Debit</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 pt-3 border-t border-slate-100 mt-auto">
+                      <button type="submit" disabled={upbIsSubmitting || !upbSelectedMongoId}
+                        className="flex-1 h-10 rounded-xl bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors flex items-center justify-center shadow-sm disabled:opacity-50">
+                        {upbIsSubmitting ? <RefreshCcw className="w-4 h-4 animate-spin" /> : 'Submit'}
+                      </button>
+                      <button onClick={closeUpdateModal} type="button"
+                        className="flex-1 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-colors flex items-center justify-center">
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                )}
               </div>
             </motion.div>
           </motion.div>
@@ -2395,18 +2438,7 @@ export function AdminWallet() {
               <div className="absolute inset-0 rounded-full bg-[#00A86B] animate-ping opacity-25"></div>
               
               <button
-                onClick={() => {
-                  setModalSelectedSeller(null);
-                  setModalSellerQuery('');
-                  setModalAwb('');
-                  setModalOrderId('');
-                  setModalMode('Credit');
-                  setModalAmount('');
-                  setModalDescription('Credit Note Received');
-                  setModalCategory('credit note');
-                  setModalActiveTab('Updation');
-                  setIsUpdateModalOpen(true);
-                }}
+                onClick={() => setIsUpdateModalOpen(true)}
                 className="w-12 h-12 rounded-full bg-[#00A86B] text-white flex items-center justify-center shadow-lg hover:bg-[#009B63] transition-all hover:scale-105 relative z-10"
               >
                 <Bot className="w-6 h-6 animate-pulse" />

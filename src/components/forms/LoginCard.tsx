@@ -7,6 +7,7 @@ import { Input } from '../ui/Input';
 import { CheckCircle2, Apple, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
+import { apiClient } from '../../services/apiClient';
 
 const formSchema = z.object({
   email: z.string().min(1, 'Email is required').email('Invalid email address'),
@@ -31,34 +32,23 @@ export function LoginCard() {
     setServerError(null);
 
     try {
-      // Mock API call to POST /api/v1/auth/login
-      await new Promise((resolve, reject) => {
-        setTimeout(() => {
-          if (data.email === 'admin@quickpost.in' && data.password === 'Admin@123') {
-            resolve({ success: true, token: 'mock_admin_token', user: { email: data.email }, role: 'admin' });
-          } else if (data.email === 'demo@quickpost.in' && data.password === 'QuickPost@123') {
-            resolve({ success: true, token: 'mock_token', user: { email: data.email }, role: 'user' });
-          } else {
-            reject(new Error('Invalid credentials. Use demo@quickpost.in / QuickPost@123 or admin@quickpost.in / Admin@123'));
-          }
-        }, 1500);
+      const response = await apiClient.post('/external/login', {
+        email: data.email,
+        password: data.password,
       });
-      
+
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Login failed');
+      }
+
+      login(response.data.data);
       setStatus('success');
-      
-      const role = data.email === 'admin@quickpost.in' ? 'admin' : 'user';
-      const token = role === 'admin' ? 'mock_admin_token' : 'mock_token';
-      
-      login(token, role);
-      
-      // Simulate redirect to dashboard
-      setTimeout(() => {
-        navigate('/admin/dashboard');
-      }, 500);
-      
+      navigate('/admin/dashboard');
     } catch (err: any) {
       setStatus('error');
-      setServerError(err.message || 'An unexpected error occurred.');
+      setServerError(
+        err.response?.data?.message || err.message || 'An unexpected error occurred.'
+      );
     }
   };
 

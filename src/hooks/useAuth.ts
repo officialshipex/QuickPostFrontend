@@ -1,23 +1,27 @@
 import { useState } from 'react';
+import { getToken, setToken, removeToken, getRoleFromToken, isTokenExpired } from '../utils/session';
 
 type Role = 'admin' | 'user' | null;
 
 export function useAuth() {
   const [role, setRole] = useState<Role>(() => {
-    return (localStorage.getItem('auth_role') as Role) || null;
+    const token = getToken();
+    if (!token || isTokenExpired(token)) {
+      removeToken();
+      return null;
+    }
+    return getRoleFromToken(token);
   });
 
   const isAuthenticated = role !== null;
 
-  const login = (token: string, userRole: 'admin' | 'user') => {
-    localStorage.setItem('auth_token', token);
-    localStorage.setItem('auth_role', userRole);
-    setRole(userRole);
+  const login = (token: string) => {
+    setToken(token);
+    setRole(getRoleFromToken(token));
   };
 
   const logout = () => {
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('auth_role');
+    removeToken();
     setRole(null);
     window.location.href = '/login';
   };

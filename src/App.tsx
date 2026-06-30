@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { getToken, isTokenExpired } from './utils/session';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Home } from './pages/Home';
 import { ForgotPassword } from './pages/ForgotPassword';
@@ -31,7 +32,6 @@ import { AdminCOD } from './pages/admin/AdminCOD';
 import { AdminSettings } from './pages/admin/AdminSettings';
 import { AdminAccounts } from './pages/admin/AdminAccounts';
 import { AdminAuditLogs } from './pages/admin/AdminAuditLogs';
-import { AdminStubPage } from './pages/admin/AdminStubPage';
 import { AdminWeightDiscrepancy } from './pages/admin/AdminWeightDiscrepancy';
 import { AdminAnnouncements } from './pages/admin/AdminAnnouncements';
 import { AdminNotification } from './pages/admin/AdminNotification';
@@ -119,6 +119,12 @@ function GlobalOrderClickInterceptor() {
   return null;
 }
 
+function AuthRedirect({ children }: { children: React.ReactNode }) {
+  const token = getToken();
+  const isValid = token && !isTokenExpired(token);
+  return isValid ? <Navigate to="/admin/dashboard" replace /> : <>{children}</>;
+}
+
 const queryClient = new QueryClient();
 
 function App() {
@@ -128,8 +134,8 @@ function App() {
         <GlobalOrderClickInterceptor />
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/login" element={<AuthRedirect><Login /></AuthRedirect>} />
+          <Route path="/forgot-password" element={<AuthRedirect><ForgotPassword /></AuthRedirect>} />
           
           {/* Admin Routes */}
           <Route element={<ProtectedRoute allowedRoles={['admin', 'user']} />}>
