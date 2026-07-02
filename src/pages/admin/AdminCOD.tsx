@@ -1,11 +1,12 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { apiClient } from '../../services/apiClient';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
+import { useAuth } from '../../hooks/useAuth';
 import {
   ChevronDown, RefreshCcw, Check, User, Truck, Banknote, Clock, Upload, Download,
-  Wallet, Send, MinusCircle, FileText, AlertCircle, CheckCircle2, X, Package
+  Wallet, Send, MinusCircle, FileText, AlertCircle, CheckCircle2, X, Package, Search, Filter
 } from 'lucide-react';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
@@ -16,7 +17,7 @@ const MAIN_TABS = [
   { name: 'Courier COD Remittance' }
 ];
 
-// Data mapping helpers — field names must match exact API response keys
+// Data mapping helpers â€" field names must match exact API response keys
 const mapCodOrder = (item: any) => ({
   id: String(item._id || item.orderID || ''),
   orderID: item.orderID || '',
@@ -79,13 +80,15 @@ const getStatusBadgeClass = (status: string) => {
 };
 
 const fmtCurrency = (n: any) =>
-  `₹${(Number(n) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+  `â‚¹${(Number(n) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
 
 const toISOStart = (d: string) => d ? d + 'T00:00:00.000Z' : '';
 const toISOEnd   = (d: string) => d ? d + 'T23:59:59.999Z' : '';
 
 export function AdminCOD() {
   const navigate = useNavigate();
+  const { role } = useAuth();
+  const isAdmin = role === 'admin';
 
   // Global search from layout
   const [globalSearchQuery, setGlobalSearchQuery] = useState(
@@ -105,19 +108,25 @@ export function AdminCOD() {
     setTimeout(() => setToast(null), 3000);
   };
 
-  // ── All COD Orders state ─────────────────────────────────────────────────
+  // â"€â"€ All COD Orders state â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
   const [codOrdersList, setCodOrdersList] = useState<any[]>([]);
   const [codOrdersTotal, setCodOrdersTotal] = useState(0);
   const [codOrdersSummary, setCodOrdersSummary] = useState({ totalCODAmount: 0, paidCODAmount: 0, pendingCODAmount: 0 });
   const [currentPage, setCurrentPage] = useState(1);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [codOrderId, setCodOrderId] = useState('');
+  const [codAwb, setCodAwb] = useState('');
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
   const [selectedCouriers, setSelectedCouriers] = useState<string[]>([]);
+  const [codCourierOptions, setCodCourierOptions] = useState<{ label: string; value: string }[]>([]);
   const [dateStart, setDateStart] = useState('');
   const [dateEnd, setDateEnd] = useState('');
-  const [selectedOrders, setSelectedOrders] = useState<string[]>([]);   // stores _id/orderID
+  const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
+  // User search â€" All COD Orders (admin only)
+  const [codUserQuery, setCodUserQuery] = useState('');
+  const [codUserSuggestions, setCodUserSuggestions] = useState<any[]>([]);
+  const [codUserMongoId, setCodUserMongoId] = useState('');
 
-  // ── Seller COD Remittance state ──────────────────────────────────────────
+  // â"€â"€ Seller COD Remittance state â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
   const [sellerRemittanceList, setSellerRemittanceList] = useState<any[]>([]);
   const [sellerRemittanceTotal, setSellerRemittanceTotal] = useState(0);
   const [sellerSummary, setSellerSummary] = useState({
@@ -125,30 +134,45 @@ export function AdminCOD() {
     TotalDeductionfromCOD: 0, RemittanceInitiated: 0,
   });
   const [sellerPage, setSellerPage] = useState(1);
-  const [remittanceSearchTerm, setRemittanceSearchTerm] = useState('');
+  const [sellerRemittanceId, setSellerRemittanceId] = useState('');
   const [selectedCodStatuses, setSelectedCodStatuses] = useState<string[]>([]);
   const [codDateStart, setCodDateStart] = useState('');
   const [codDateEnd, setCodDateEnd] = useState('');
-  const [selectedCodOrders, setSelectedCodOrders] = useState<string[]>([]);  // stores remittanceId
+  const [selectedCodOrders, setSelectedCodOrders] = useState<string[]>([]);
   const [showActionMenu, setShowActionMenu] = useState(false);
+  const [bankExportLoading, setBankExportLoading] = useState(false);
+  const [showBankResponseUpload, setShowBankResponseUpload] = useState(false);
+  const [bankResponseUploading, setBankResponseUploading] = useState(false);
+  const [selectedBankFile, setSelectedBankFile] = useState<File | null>(null);
+  const bankFileInputRef = useRef<HTMLInputElement>(null);
+  // User search â€" Seller (admin only)
+  const [sellerUserQuery, setSellerUserQuery] = useState('');
+  const [sellerUserSuggestions, setSellerUserSuggestions] = useState<any[]>([]);
+  const [sellerUserMongoId, setSellerUserMongoId] = useState('');
 
   // Remittance detail modal
   const [remittanceDetailId, setRemittanceDetailId] = useState<string | null>(null);
   const [remittanceDetail, setRemittanceDetail] = useState<any>(null);
   const [remittanceDetailLoading, setRemittanceDetailLoading] = useState(false);
 
-  // ── Courier COD Remittance state ─────────────────────────────────────────
+  // â"€â"€ Courier COD Remittance state â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
   const [courierRemittanceList, setCourierRemittanceList] = useState<any[]>([]);
   const [courierRemittanceTotal, setCourierRemittanceTotal] = useState(0);
   const [courierSummary, setCourierSummary] = useState({ totalCODAmount: 0, paidCODAmount: 0, pendingCODAmount: 0 });
   const [courierPage, setCourierPage] = useState(1);
-  const [courierRemittanceSearchTerm, setCourierRemittanceSearchTerm] = useState('');
+  const [courierOrderId, setCourierOrderId] = useState('');
+  const [courierAwb, setCourierAwb] = useState('');
   const [selectedCourierCodStatuses, setSelectedCourierCodStatuses] = useState<string[]>([]);
-  const [selectedCourierUtrs, setSelectedCourierUtrs] = useState<string[]>([]);
+  const [courierCourierOptions, setCourierCourierOptions] = useState<{ label: string; value: string }[]>([]);
+  const [selectedCourierCouriers, setSelectedCourierCouriers] = useState<string[]>([]);
   const [courierCodDateStart, setCourierCodDateStart] = useState('');
   const [courierCodDateEnd, setCourierCodDateEnd] = useState('');
-  const [selectedCourierCodOrders, setSelectedCourierCodOrders] = useState<string[]>([]); // stores _id/orderID
+  const [selectedCourierCodOrders, setSelectedCourierCodOrders] = useState<string[]>([]);
   const [showCourierActionMenu, setShowCourierActionMenu] = useState(false);
+  // User search â€" Courier (admin only)
+  const [courierUserQuery, setCourierUserQuery] = useState('');
+  const [courierUserSuggestions, setCourierUserSuggestions] = useState<any[]>([]);
+  const [courierUserMongoId, setCourierUserMongoId] = useState('');
 
   const [isLoading, setIsLoading] = useState(false);
   const itemsPerPage = 20;
@@ -157,52 +181,55 @@ export function AdminCOD() {
     { label: 'Pending', value: 'Pending' },
     { label: 'Paid',    value: 'Paid'    }
   ];
-  const UTR_OPTIONS = [
-    { label: 'Pending', value: 'Pending' },
-    { label: 'Completed', value: 'Completed' }
-  ];
-  const COURIER_OPTIONS = [
-    { label: 'Ekart Surface', value: 'Ekart Surface' },
-    { label: 'Delhivery',     value: 'Delhivery'     },
-    { label: 'Bluedart',      value: 'Bluedart'      },
-  ];
 
-  // ── Fetch functions ──────────────────────────────────────────────────────
+  // â"€â"€ Fetch functions â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
   const fetchCodOrders = useCallback(async (page: number) => {
     setIsLoading(true);
     try {
       const params: Record<string, any> = { page, limit: itemsPerPage };
-      if (searchTerm) params.searchFilter = searchTerm;
-      if (dateStart)  params.startDate = toISOStart(dateStart);
-      if (dateEnd)    params.endDate   = toISOEnd(dateEnd);
-      if (selectedStatuses.length === 1)  params.statusFilter     = selectedStatuses[0];
-      if (selectedCouriers.length > 0)    params.courierProvider  = selectedCouriers.join(',');
+      if (isAdmin && codUserMongoId) { params.selectedUserId = codUserMongoId; params.userSearch = codUserMongoId; params.userId = codUserMongoId; }
+      if (codOrderId)  params.orderID    = codOrderId;
+      if (codAwb)      params.awbNumber  = codAwb;
+      if (dateStart)   params.startDate  = toISOStart(dateStart);
+      if (dateEnd)     params.endDate    = toISOEnd(dateEnd);
+      if (selectedStatuses.length === 1)  params.statusFilter    = selectedStatuses[0];
+      if (selectedCouriers.length > 0)    params.courierProvider = selectedCouriers.join(',');
       const res = await apiClient.get('/cod/CodRemittanceOrder', { params });
-      setCodOrdersList((res.data.data?.orders || []).map(mapCodOrder));
-      setCodOrdersTotal(res.data.total || 0);
+      const orders = res.data.data?.orders || [];
+      setCodOrdersList(orders.map(mapCodOrder));
+      setCodOrdersTotal(res.data.totalPages ? res.data.totalPages * itemsPerPage : (res.data.total || 0));
       setCodOrdersSummary({
         totalCODAmount:   res.data.data?.totalCODAmount   || 0,
         paidCODAmount:    res.data.data?.paidCODAmount    || 0,
         pendingCODAmount: res.data.data?.pendingCODAmount || 0,
       });
+      if (orders.length > 0) {
+        const couriers = Array.from(new Set(orders.map((o: any) => o.courierProvider).filter(Boolean))) as string[];
+        setCodCourierOptions(prev => {
+          const existing = prev.map(p => p.value);
+          const newOnes = couriers.filter(c => !existing.includes(c)).map(c => ({ label: c, value: c }));
+          return [...prev, ...newOnes];
+        });
+      }
     } catch {
       showToast('error', 'Failed to load COD orders.');
     } finally {
       setIsLoading(false);
     }
-  }, [searchTerm, dateStart, dateEnd, selectedStatuses, selectedCouriers]);
+  }, [codUserMongoId, codOrderId, codAwb, dateStart, dateEnd, selectedStatuses, selectedCouriers, isAdmin]);
 
   const fetchSellerRemittance = useCallback(async (page: number) => {
     setIsLoading(true);
     try {
       const params: Record<string, any> = { page, limit: itemsPerPage };
-      if (remittanceSearchTerm)          params.userNameFilter = remittanceSearchTerm;
-      if (codDateStart)                  params.startDate      = toISOStart(codDateStart);
-      if (codDateEnd)                    params.endDate        = toISOEnd(codDateEnd);
+      if (isAdmin && sellerUserMongoId) params.selectedUserId = sellerUserMongoId;
+      if (sellerRemittanceId)           params.remittanceIdFilter = sellerRemittanceId;
+      if (codDateStart)                 params.startDate = toISOStart(codDateStart);
+      if (codDateEnd)                   params.endDate   = toISOEnd(codDateEnd);
       if (selectedCodStatuses.length === 1) params.statusFilter = selectedCodStatuses[0];
       const res = await apiClient.get('/cod/getAdminCodRemitanceData', { params });
       setSellerRemittanceList((res.data.results || []).map(mapSellerRemittance));
-      setSellerRemittanceTotal(res.data.total || 0);
+      setSellerRemittanceTotal(res.data.totalPages ? res.data.totalPages * itemsPerPage : (res.data.total || 0));
       if (res.data.summary) {
         setSellerSummary({
           CODToBeRemitted:       res.data.summary.CODToBeRemitted       || 0,
@@ -217,30 +244,42 @@ export function AdminCOD() {
     } finally {
       setIsLoading(false);
     }
-  }, [remittanceSearchTerm, codDateStart, codDateEnd, selectedCodStatuses]);
+  }, [sellerUserMongoId, sellerRemittanceId, codDateStart, codDateEnd, selectedCodStatuses, isAdmin]);
 
   const fetchCourierRemittance = useCallback(async (page: number) => {
     setIsLoading(true);
     try {
       const params: Record<string, any> = { page, limit: itemsPerPage };
-      if (courierRemittanceSearchTerm)              params.searchFilter  = courierRemittanceSearchTerm;
-      if (courierCodDateStart)                      params.startDate     = toISOStart(courierCodDateStart);
-      if (courierCodDateEnd)                        params.endDate       = toISOEnd(courierCodDateEnd);
-      if (selectedCourierCodStatuses.length === 1)  params.statusFilter  = selectedCourierCodStatuses[0];
+      if (isAdmin && courierUserMongoId) { params.selectedUserId = courierUserMongoId; params.userSearch = courierUserMongoId; params.userId = courierUserMongoId; }
+      if (courierOrderId)  params.orderID    = courierOrderId;
+      if (courierAwb)      params.awbNumber  = courierAwb;
+      if (courierCodDateStart)                      params.startDate    = toISOStart(courierCodDateStart);
+      if (courierCodDateEnd)                        params.endDate      = toISOEnd(courierCodDateEnd);
+      if (selectedCourierCodStatuses.length === 1)  params.statusFilter = selectedCourierCodStatuses[0];
+      if (selectedCourierCouriers.length > 0)       params.courierProvider = selectedCourierCouriers.join(',');
       const res = await apiClient.get('/cod/courierCodRemittance', { params });
-      setCourierRemittanceList((res.data.data?.orders || []).map(mapCourierRemittance));
-      setCourierRemittanceTotal(res.data.total || 0);
+      const orders = res.data.data?.orders || [];
+      setCourierRemittanceList(orders.map(mapCourierRemittance));
+      setCourierRemittanceTotal(res.data.totalPages ? res.data.totalPages * itemsPerPage : (res.data.total || 0));
       setCourierSummary({
         totalCODAmount:   res.data.data?.totalCODAmount   || 0,
         paidCODAmount:    res.data.data?.paidCODAmount    || 0,
         pendingCODAmount: res.data.data?.pendingCODAmount || 0,
       });
+      if (orders.length > 0) {
+        const couriers = Array.from(new Set(orders.map((o: any) => o.courierServiceName).filter(Boolean))) as string[];
+        setCourierCourierOptions(prev => {
+          const existing = prev.map(p => p.value);
+          const newOnes = couriers.filter(c => !existing.includes(c)).map(c => ({ label: c, value: c }));
+          return [...prev, ...newOnes];
+        });
+      }
     } catch {
       showToast('error', 'Failed to load courier remittance data.');
     } finally {
       setIsLoading(false);
     }
-  }, [courierRemittanceSearchTerm, courierCodDateStart, courierCodDateEnd, selectedCourierCodStatuses]);
+  }, [courierUserMongoId, courierOrderId, courierAwb, courierCodDateStart, courierCodDateEnd, selectedCourierCodStatuses, selectedCourierCouriers, isAdmin]);
 
   // Tab change: reset page to 1 and fetch active tab
   useEffect(() => {
@@ -252,44 +291,106 @@ export function AdminCOD() {
     }
   }, [activeTab]);
 
-  const handleExportData = (type: 'seller' | 'courier', filename: string) => {
-    const list = type === 'seller' ? selectedCodOrders : selectedCourierCodOrders;
-    if (list.length === 0) {
-      showToast('error', `Please select at least one ${type} record to export.`);
-      return;
-    }
-    const content = "AWB,Total_COD,Status\nQPSP000000045,145.99,Pending";
-    const blob = new Blob([content], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
+  // User search debounce effects
+  const makeUserSearchEffect = (query: string, setSuggestions: (v: any[]) => void) => {
+    if (!isAdmin || query.trim().length < 2) { setSuggestions([]); return; }
+    const timer = setTimeout(async () => {
+      try {
+        const res = await apiClient.get(`/admin/searchUser?query=${encodeURIComponent(query)}`);
+        setSuggestions(res.data.users || []);
+      } catch { setSuggestions([]); }
+    }, 300);
+    return () => clearTimeout(timer);
+  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => makeUserSearchEffect(codUserQuery, setCodUserSuggestions), [codUserQuery, isAdmin]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => makeUserSearchEffect(sellerUserQuery, setSellerUserSuggestions), [sellerUserQuery, isAdmin]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => makeUserSearchEffect(courierUserQuery, setCourierUserSuggestions), [courierUserQuery, isAdmin]);
+
+  // Export data (All COD / Courier)
+  const handleExportCsv = (rows: any[], filename: string) => {
+    if (rows.length === 0) { showToast('error', 'Select rows to export.'); return; }
+    const keys = Object.keys(rows[0]);
+    const csv = [keys.join(','), ...rows.map(r => keys.map(k => `"${r[k] ?? ''}"`).join(','))].join('\n');
     const a = document.createElement('a');
-    a.href = url;
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
     a.download = filename;
-    document.body.appendChild(a);
     a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
-    setShowActionMenu(false);
-    setShowCourierActionMenu(false);
+    setShowActionMenu(false); setShowCourierActionMenu(false);
   };
 
-  const handleUploadResponse = (type: 'seller' | 'courier') => {
-    const list = type === 'seller' ? selectedCodOrders : selectedCourierCodOrders;
-    if (list.length === 0) {
-      showToast('error', `Please select at least one ${type} record to upload bank response.`);
-      return;
+  // Export Bank Template â€" calls /cod/exportBankTemplate with selected remittance IDs
+  const handleExportBankTemplate = async () => {
+    if (selectedCodOrders.length === 0) { showToast('error', 'Select remittances to export bank template.'); return; }
+    setBankExportLoading(true);
+    try {
+      const params = new URLSearchParams();
+      selectedCodOrders.forEach(id => params.append('selectedRemittanceIds', id));
+      const res = await apiClient.get(`/cod/exportBankTemplate?${params.toString()}`);
+      const rows = res.data.rows || [];
+      if (!rows.length) { showToast('error', 'No payable remittances to export.'); return; }
+      const HEADERS = ['Debit Account Number','Payment mode','Amount','Beneficiary Name','Beneficiary Account','Beneficiary Bank IFSC','Remarks','Beneficiary LEI'];
+      const csv = [HEADERS.join(','), ...rows.map((r: any) => HEADERS.map(h => `"${r[h] ?? ''}"`).join(','))].join('\n');
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+      a.download = `bank_payment_template_${new Date().toISOString().slice(0,10)}.csv`;
+      a.click();
+      showToast('success', `Bank template exported: ${rows.length} record(s)`);
+    } catch (err: any) {
+      showToast('error', err?.response?.data?.message || 'Failed to export bank template');
+    } finally {
+      setBankExportLoading(false); setShowActionMenu(false);
     }
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.csv, .xlsx';
-    input.onchange = (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (file) {
-        showToast('success', `Successfully uploaded ${file.name}`);
-        setShowActionMenu(false);
-        setShowCourierActionMenu(false);
-      }
+  };
+
+  // Validate + open bank response upload
+  const handleOpenBankResponseUpload = async () => {
+    if (selectedCodOrders.length === 0) { showToast('error', 'Select remittances first.'); return; }
+    try {
+      const res = await apiClient.post('/cod/validateExportedStatus', { selectedRemittanceIds: selectedCodOrders });
+      if (res.data?.success) { setShowBankResponseUpload(true); setShowActionMenu(false); }
+      else showToast('error', res.data?.message || 'Some remittances not exported yet. Export bank template first.');
+    } catch (err: any) {
+      showToast('error', err?.response?.data?.message || 'Failed to validate remittances');
+    }
+  };
+
+  // Parse and submit bank response Excel
+  const handleBankResponseSubmit = async () => {
+    if (!selectedBankFile) return;
+    setBankResponseUploading(true);
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const text = new TextDecoder().decode(e.target?.result as ArrayBuffer);
+        const lines = text.trim().split('\n');
+        const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim());
+        const rows = lines.slice(1).map(line => {
+          const vals = line.split(',').map(v => v.replace(/"/g, '').trim());
+          return Object.fromEntries(headers.map((h, i) => [h, vals[i] ?? '']));
+        });
+        const mappedRows = rows.map(r => ({
+          remarks: r['Remarks'] || '',
+          referenceNumber: r['Reference Number'] || '',
+          utrNumber: r['UTR Number'] || r['UTR'] || '',
+          beneficiaryName: r['Beneficiary Name'] || '',
+          beneficiaryAccount: r['Beneficiary Account'] || '',
+          amount: Number(r['Amount'] || 0),
+          status: r['Status'] || '',
+          reason: r['Reason of failure/return'] || '',
+        }));
+        const res = await apiClient.post('/cod/uploadBankResponse', { rows: mappedRows, selectedRemittanceIds: selectedCodOrders });
+        const { successCount = 0, skippedCount = 0, errorCount = 0 } = res.data;
+        showToast('success', `Processed: ${successCount} paid, ${skippedCount} skipped, ${errorCount} errors`);
+        setShowBankResponseUpload(false); setSelectedBankFile(null);
+        fetchSellerRemittance(sellerPage);
+      } catch (err: any) {
+        showToast('error', err?.response?.data?.message || 'Failed to process bank response');
+      } finally { setBankResponseUploading(false); }
     };
-    input.click();
+    reader.readAsArrayBuffer(selectedBankFile);
   };
 
   // Client-side global search on All COD Orders (server handles all other filters)
@@ -308,7 +409,7 @@ export function AdminCOD() {
   const totalSellerPages  = Math.max(1, Math.ceil(sellerRemittanceTotal / itemsPerPage));
   const totalCourierPages = Math.max(1, Math.ceil(courierRemittanceTotal/ itemsPerPage));
 
-  // All COD selection — keyed by _id/orderID
+  // All COD selection â€" keyed by _id/orderID
   const toggleAll    = () => setSelectedOrders(
     selectedOrders.length === paginatedOrders.length && paginatedOrders.length > 0
       ? [] : paginatedOrders.map(o => o.id)
@@ -317,7 +418,7 @@ export function AdminCOD() {
     prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
   );
 
-  // Seller selection — keyed by remittanceId
+  // Seller selection â€" keyed by remittanceId
   const toggleAllCod    = () => setSelectedCodOrders(
     selectedCodOrders.length === sellerRemittanceList.length && sellerRemittanceList.length > 0
       ? [] : sellerRemittanceList.map(o => o.awb)
@@ -326,7 +427,7 @@ export function AdminCOD() {
     prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
   );
 
-  // Courier selection — keyed by _id/orderID
+  // Courier selection â€" keyed by _id/orderID
   const toggleAllCourierCod    = () => setSelectedCourierCodOrders(
     selectedCourierCodOrders.length === courierRemittanceList.length && courierRemittanceList.length > 0
       ? [] : courierRemittanceList.map(o => o.id)
@@ -395,15 +496,15 @@ export function AdminCOD() {
       <div className="p-4 border-t border-[#E2E8F0] flex items-center justify-between shrink-0">
         <div className="text-xs text-[#64748B]">
           Showing <span className="font-bold text-[#0F172A]">{(page - 1) * itemsPerPage + 1}</span>
-          –<span className="font-bold text-[#0F172A]">{Math.min(page * itemsPerPage, totalRec)}</span>
+          â€"<span className="font-bold text-[#0F172A]">{Math.min(page * itemsPerPage, totalRec)}</span>
           {' '}of <span className="font-bold text-[#0F172A]">{totalRec}</span>
         </div>
         <div className="flex items-center gap-1">
-          <button onClick={() => go(Math.max(1, page - 1))} disabled={page === 1} className={navBtn}>←</button>
+          <button onClick={() => go(Math.max(1, page - 1))} disabled={page === 1} className={navBtn}>â†</button>
           {win[0] > 1 && (
             <>
               <button onClick={() => go(1)} className={page === 1 ? active : inactive}>1</button>
-              {win[0] > 2 && <span className="px-1 text-[#94A3B8] text-xs">…</span>}
+              {win[0] > 2 && <span className="px-1 text-[#94A3B8] text-xs">â€¦</span>}
             </>
           )}
           {win.map(p => (
@@ -411,17 +512,17 @@ export function AdminCOD() {
           ))}
           {win[win.length - 1] < total && (
             <>
-              {win[win.length - 1] < total - 1 && <span className="px-1 text-[#94A3B8] text-xs">…</span>}
+              {win[win.length - 1] < total - 1 && <span className="px-1 text-[#94A3B8] text-xs">â€¦</span>}
               <button onClick={() => go(total)} className={page === total ? active : inactive}>{total}</button>
             </>
           )}
-          <button onClick={() => go(Math.min(total, page + 1))} disabled={page === total} className={navBtn}>→</button>
+          <button onClick={() => go(Math.min(total, page + 1))} disabled={page === total} className={navBtn}>â†'</button>
         </div>
       </div>
     );
   };
 
-  // ── Shared table body cells ──────────────────────────────────────────────
+  // â"€â"€ Shared table body cells â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
   const LoadingRow = ({ cols }: { cols: number }) => (
     <tr>
       <td colSpan={cols} className="p-12 text-center">
@@ -440,7 +541,7 @@ export function AdminCOD() {
     <AdminLayout>
       <div className="flex flex-col h-[calc(100vh-72px)] -m-4 md:-m-6 bg-white">
 
-        {/* ── Header: Tab Navigation ── */}
+        {/* â"€â"€ Header: Tab Navigation â"€â"€ */}
         <div className="bg-white relative z-50 shrink-0">
           <div className="flex justify-between items-center px-6 py-2 border-b border-[#E2E8F0] overflow-x-auto no-scrollbar">
             <div className="flex gap-6 items-center shrink-0">
@@ -471,7 +572,7 @@ export function AdminCOD() {
             </button>
           </div>
 
-          {/* ── Summary Cards ── */}
+          {/* â"€â"€ Summary Cards â"€â"€ */}
           {activeTab === 'Seller COD Remittance' && (
             <>
               <div className="p-4 border-b border-[#E2E8F0] bg-[#F8FAFC]/30 flex flex-nowrap overflow-x-auto gap-4 no-scrollbar">
@@ -539,522 +640,61 @@ export function AdminCOD() {
           )}
       </div>
 
-      {/* Table Section */}
-      <div className="bg-white flex flex-col flex-1 min-h-0 overflow-hidden border-t border-[#E2E8F0]">
-        {activeTab === 'All COD Orders' && (
-          <div className="flex-1 overflow-auto no-scrollbar relative">
-            <table className="w-full text-left border-collapse min-w-[1000px]">
-              <thead className="sticky top-0 z-40 bg-[#E6F5F1] shadow-sm">
-                <tr className="text-xs font-medium text-[#00A86B] uppercase tracking-wider">
-                  <th className="p-3 w-10 text-left align-middle">
-                    <input type="checkbox" checked={selectedOrders.length === paginatedOrders.length && paginatedOrders.length > 0} onChange={toggleAll} className="rounded border-[#00A86B] accent-[#00A86B] w-3.5 h-3.5" />
-                  </th>
-                  <th className="p-3 text-left align-middle whitespace-nowrap">
-                    <div className="flex items-center gap-1.5">
-                      <User className="w-3.5 h-3.5 shrink-0" />
-                      <span>User</span>
-                    </div>
-                  </th>
-                  <th className="p-3 text-left align-middle whitespace-nowrap">
-                    <div className="flex items-center gap-1.5">
-                      <Package className="w-3.5 h-3.5 shrink-0" />
-                      <span>Order</span>
-                    </div>
-                  </th>
-                  <th className="p-3 text-left align-middle whitespace-nowrap">
-                    <div className="flex items-center gap-1.5">
-                      <Truck className="w-3.5 h-3.5 shrink-0" />
-                      <span>Shipment</span>
-                    </div>
-                  </th>
-                  <th className="p-3 text-left align-middle whitespace-nowrap">
-                    <div className="flex items-center gap-1.5">
-                      <Banknote className="w-3.5 h-3.5 shrink-0" />
-                      <span>COD Amount</span>
-                    </div>
-                  </th>
-                  <th className="p-3 text-left align-middle whitespace-nowrap">
-                    <div className="flex items-center gap-1.5">
-                      <Check className="w-3.5 h-3.5 shrink-0" />
-                      <span>Status</span>
-                    </div>
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="text-[11px] text-[#475569]">
-                {paginatedOrders.map((order) => (
-                  <tr key={order.awb} className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors group">
-                    <td className="p-3">
-                      <input type="checkbox" checked={selectedOrders.includes(order.awb)} onChange={() => toggleSelect(order.awb)} className="rounded border-gray-300 accent-[#00A86B] w-3.5 h-3.5" />
-                    </td>
-                    <td className="p-3">
-                      <div className="text-xs font-semibold text-[#00A86B] cursor-pointer hover:underline">{order.id}</div>
-                      <div className="text-sm font-semibold text-[#0F172A] mt-0.5">{order.userName}</div>
-                      <div className="font-sans text-xs font-normal text-[#94A3B8]">{order.userEmail}</div>
-                    </td>
-                    <td className="p-3">
-                      <div className="text-xs font-semibold text-[#00A86B] cursor-pointer hover:underline">{order.id}</div>
-                      <div className="table-date mt-0.5">{order.date}</div>
-                      <div className="mt-1"><span className="px-2 py-0.5 rounded-full border border-blue-200 text-blue-600 font-bold text-[9px] bg-blue-50/50">Custom</span></div>
-                    </td>
-                    <td className="p-3">
-                      <div className="text-xs font-semibold text-[#00A86B]">{order.courier}</div>
-                      <div className="table-date mt-0.5">Delivered On : {order.deliveredDate}</div>
-                      <div className="text-xs font-semibold text-[#00A86B] underline decoration-solid underline-offset-2 mt-0.5 hover:text-[#009B63] cursor-pointer">{order.awb}</div>
-                    </td>
-                    <td className="p-3">
-                      <div className="font-bold text-[#0F172A] text-[12px]">₹{order.codAmount}</div>
-                    </td>
-                    <td className="p-3">
-                      <span className={getStatusBadgeClass(order.status)}>{order.status}</span>
-                    </td>
-                  </tr>
-                ))}
-                {paginatedOrders.length === 0 && (
-                  <tr>
-                    <td colSpan={6} className="p-8 text-center text-[#64748B] font-medium">
-                      No COD orders found matching your criteria
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {activeTab === 'Seller COD Remittance' && (
-          <div className="flex-1 overflow-auto no-scrollbar relative">
-            <table className="w-full text-left border-collapse min-w-[1200px]">
-              <thead className="sticky top-0 z-40 bg-[#E6F5F1] shadow-sm">
-                <tr className="text-xs font-medium text-[#00A86B] uppercase tracking-wider">
-                  <th className="p-3 w-10 text-left align-middle">
-                    <input type="checkbox" checked={selectedCodOrders.length === sellerRemittanceList.length && sellerRemittanceList.length > 0} onChange={toggleAllCod} className="rounded border-[#00A86B] accent-[#00A86B] w-3.5 h-3.5" />
-                  </th>
-                  <th className="p-3 text-left align-middle whitespace-nowrap">
-                    <div className="flex items-center gap-1.5">
-                      <User className="w-3.5 h-3.5 shrink-0" />
-                      <span>User</span>
-                    </div>
-                  </th>
-                  <th className="p-3 text-left align-middle whitespace-nowrap">
-                    <div className="flex items-center gap-1.5">
-                      <FileText className="w-3.5 h-3.5 shrink-0" />
-                      <span>Remittance ID</span>
-                    </div>
-                  </th>
-                  <th className="p-3 text-left align-middle whitespace-nowrap">
-                    <div className="flex items-center gap-1.5">
-                      <FileText className="w-3.5 h-3.5 shrink-0" />
-                      <span>UTR</span>
-                    </div>
-                  </th>
-                  <th className="p-3 text-left align-middle whitespace-nowrap">
-                    <div className="flex items-center gap-1.5">
-                      <Banknote className="w-3.5 h-3.5 shrink-0" />
-                      <span>Total COD</span>
-                    </div>
-                  </th>
-                  <th className="p-3 text-left align-middle whitespace-nowrap">
-                    <div className="flex items-center gap-1.5">
-                      <Banknote className="w-3.5 h-3.5 shrink-0" />
-                      <span>Wallet Credit</span>
-                    </div>
-                  </th>
-                  <th className="p-3 text-left align-middle whitespace-nowrap">
-                    <div className="flex items-center gap-1.5">
-                      <Banknote className="w-3.5 h-3.5 shrink-0" />
-                      <span>Adjusted</span>
-                    </div>
-                  </th>
-                  <th className="p-3 text-left align-middle whitespace-nowrap">
-                    <div className="flex items-center gap-1.5">
-                      <Banknote className="w-3.5 h-3.5 shrink-0" />
-                      <span>Early COD Fee</span>
-                    </div>
-                  </th>
-                  <th className="p-3 text-left align-middle whitespace-nowrap">
-                    <div className="flex items-center gap-1.5">
-                      <Banknote className="w-3.5 h-3.5 shrink-0" />
-                      <span>Net Remittance</span>
-                    </div>
-                  </th>
-                  <th className="p-3 text-left align-middle whitespace-nowrap">
-                    <div className="flex items-center gap-1.5">
-                      <Check className="w-3.5 h-3.5 shrink-0" />
-                      <span>Status</span>
-                    </div>
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="text-[11px] text-[#475569]">
-                {sellerRemittanceList.map((order) => (
-                  <tr key={order.awb} className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors group">
-                    <td className="p-3">
-                      <input type="checkbox" checked={selectedCodOrders.includes(order.awb)} onChange={() => toggleSelectCod(order.awb)} className="rounded border-gray-300 accent-[#00A86B] w-3.5 h-3.5" />
-                    </td>
-                    <td className="p-3">
-                      <div className="text-xs font-semibold text-[#00A86B] cursor-pointer hover:underline">{order.id}</div>
-                      <div className="text-sm font-semibold text-[#0F172A] mt-0.5">{order.userName}</div>
-                      <div className="font-sans text-xs font-normal text-[#94A3B8]">{order.userEmail}</div>
-                    </td>
-                    <td className="p-3">
-                      <div className="text-xs font-semibold text-[#00A86B] cursor-pointer hover:underline">{order.id}</div>
-                      <div className="table-date mt-0.5">{order.date}</div>
-                      <div className="table-date mt-0.5">{order.day}</div>
-                    </td>
-                    <td className="p-3">
-                      <div className="font-bold text-[#00A86B]">{order.utr}</div>
-                    </td>
-                    <td className="p-3">
-                      <div className="font-bold text-[#0F172A] text-[11px]">₹{order.totalCodAmount}</div>
-                    </td>
-                    <td className="p-3">
-                      <div className="font-bold text-red-500 text-[11px]">₹{order.creditedAmount.toFixed(2)}</div>
-                    </td>
-                    <td className="p-3">
-                      <div className="font-bold text-[#64748B] text-[11px]">₹{order.adjustedAmount.toFixed(2)}</div>
-                    </td>
-                    <td className="p-3">
-                      <div className="font-bold text-red-500 text-[11px]">₹{order.earlyCodCharges.toFixed(2)}</div>
-                    </td>
-                    <td className="p-3">
-                      <div className="font-bold text-[#00A86B] text-[11px]">₹{order.remittanceAmount.toLocaleString('en-IN', {minimumFractionDigits: 2})}</div>
-                    </td>
-                    <td className="p-3">
-                      <span className={getStatusBadgeClass(order.status)}>{order.status}</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {activeTab === 'Courier COD Remittance' && (
-          <div className="flex-1 overflow-auto no-scrollbar relative">
-            <table className="w-full text-left border-collapse min-w-[1200px]">
-              <thead className="sticky top-0 z-40 bg-[#E6F5F1] shadow-sm">
-                <tr className="text-xs font-medium text-[#00A86B] uppercase tracking-wider">
-                  <th className="p-3 w-10 text-left align-middle">
-                    <input type="checkbox" checked={selectedCourierCodOrders.length === courierRemittanceList.length && courierRemittanceList.length > 0} onChange={toggleAllCourierCod} className="rounded border-[#00A86B] accent-[#00A86B] w-3.5 h-3.5" />
-                  </th>
-                  <th className="p-3 text-left align-middle whitespace-nowrap">
-                    <div className="flex items-center gap-1.5">
-                      <Truck className="w-3.5 h-3.5 shrink-0" />
-                      <span>Courier</span>
-                    </div>
-                  </th>
-                  <th className="p-3 text-left align-middle whitespace-nowrap">
-                    <div className="flex items-center gap-1.5">
-                      <FileText className="w-3.5 h-3.5 shrink-0" />
-                      <span>Remittance ID</span>
-                    </div>
-                  </th>
-                  <th className="p-3 text-left align-middle whitespace-nowrap">
-                    <div className="flex items-center gap-1.5">
-                      <FileText className="w-3.5 h-3.5 shrink-0" />
-                      <span>UTR</span>
-                    </div>
-                  </th>
-                  <th className="p-3 text-left align-middle whitespace-nowrap">
-                    <div className="flex items-center gap-1.5">
-                      <Banknote className="w-3.5 h-3.5 shrink-0" />
-                      <span>Total COD</span>
-                    </div>
-                  </th>
-                  <th className="p-3 text-left align-middle whitespace-nowrap">
-                    <div className="flex items-center gap-1.5">
-                      <Banknote className="w-3.5 h-3.5 shrink-0" />
-                      <span>Wallet Credit</span>
-                    </div>
-                  </th>
-                  <th className="p-3 text-left align-middle whitespace-nowrap">
-                    <div className="flex items-center gap-1.5">
-                      <Banknote className="w-3.5 h-3.5 shrink-0" />
-                      <span>Adjusted</span>
-                    </div>
-                  </th>
-                  <th className="p-3 text-left align-middle whitespace-nowrap">
-                    <div className="flex items-center gap-1.5">
-                      <Banknote className="w-3.5 h-3.5 shrink-0" />
-                      <span>Early COD Fee</span>
-                    </div>
-                  </th>
-                  <th className="p-3 text-left align-middle whitespace-nowrap">
-                    <div className="flex items-center gap-1.5">
-                      <Banknote className="w-3.5 h-3.5 shrink-0" />
-                      <span>Net Remittance</span>
-                    </div>
-                  </th>
-                  <th className="p-3 text-left align-middle whitespace-nowrap">
-                    <div className="flex items-center gap-1.5">
-                      <Check className="w-3.5 h-3.5 shrink-0" />
-                      <span>Status</span>
-                    </div>
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="text-[11px] text-[#475569]">
-                {courierRemittanceList.map((order) => (
-                  <tr key={order.awb} className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors group">
-                    <td className="p-3">
-                      <input type="checkbox" checked={selectedCourierCodOrders.includes(order.awb)} onChange={() => toggleSelectCourierCod(order.awb)} className="rounded border-gray-300 accent-[#00A86B] w-3.5 h-3.5" />
-                    </td>
-                    <td className="p-3">
-                      <div className="text-xs font-semibold text-[#0F172A]">{order.courierName}</div>
-                      <div className="text-[#94A3B8] mt-0.5 text-[11px]">{order.courierId}</div>
-                    </td>
-                    <td className="p-3">
-                      <div className="text-xs font-semibold text-[#00A86B] cursor-pointer hover:underline">{order.id}</div>
-                      <div className="table-date mt-0.5">{order.date}</div>
-                      <div className="table-date mt-0.5">{order.day}</div>
-                    </td>
-                    <td className="p-3">
-                      <div className="font-bold text-[#00A86B]">{order.utr}</div>
-                    </td>
-                    <td className="p-3">
-                      <div className="font-bold text-[#0F172A] text-[11px]">₹{order.totalCodAmount}</div>
-                    </td>
-                    <td className="p-3">
-                      <div className="font-bold text-red-500 text-[11px]">₹{order.creditedAmount.toFixed(2)}</div>
-                    </td>
-                    <td className="p-3">
-                      <div className="font-bold text-[#64748B] text-[11px]">₹{order.adjustedAmount.toFixed(2)}</div>
-                    </td>
-                    <td className="p-3">
-                      <div className="font-bold text-red-500 text-[11px]">₹{order.earlyCodCharges.toFixed(2)}</div>
-                    </td>
-                    <td className="p-3">
-                      <div className="font-bold text-[#00A86B] text-[11px]">₹{order.remittanceAmount.toLocaleString('en-IN', {minimumFractionDigits: 2})}</div>
-                    </td>
-                    <td className="p-3">
-                      <span className={getStatusBadgeClass(order.status)}>{order.status}</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {/* Pagination */}
-        {activeTab === 'All COD Orders' && totalPages > 0 && (
-          <div className="p-4 border-t border-[#E2E8F0] flex items-center justify-between">
-            <div className="text-xs text-[#64748B]">
-              Showing <span className="font-bold text-[#0F172A]">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-bold text-[#0F172A]">{Math.min(currentPage * itemsPerPage, codOrdersTotal)}</span> of <span className="font-bold text-[#0F172A]">{codOrdersTotal}</span> entries
-            </div>
-            <div className="flex items-center gap-1">
-              <button 
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-                className="px-3 py-1.5 rounded border border-[#E2E8F0] text-xs font-medium text-[#475569] hover:bg-[#F8FAFC] disabled:opacity-50"
-              >
-                Previous
-              </button>
-              {Array.from({ length: totalPages }, (_, i) => (
-                <button
-                  key={i + 1}
-                  onClick={() => setCurrentPage(i + 1)}
-                  className={`w-8 h-8 rounded text-xs font-medium flex items-center justify-center transition-colors ${
-                    currentPage === i + 1 ? 'bg-[#00A86B] text-white border border-[#00A86B]' : 'border border-[#E2E8F0] text-[#475569] hover:bg-[#F8FAFC]'
-                  }`}
-                >
-                  {i + 1}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-
-
-          {/* ── Filter Rows ── */}
-          {activeTab === 'All COD Orders' && (
-            <>
-              <div className="p-3 border-b border-[#E2E8F0] flex flex-nowrap items-center gap-2.5 bg-white overflow-x-auto no-scrollbar">
-                <input
-                  type="text"
-                  placeholder="Search by name, email, AWB, Order ID..."
-                  value={searchTerm}
-                  onChange={e => setSearchTerm(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && handleApplyFilters()}
-                  className="h-9 px-3 rounded-lg border border-[#E2E8F0] text-xs bg-white focus:outline-none w-[200px] shrink-0"
-                />
-                <GlassDropdown
-                  label="Status" options={STATUS_OPTIONS} selected={selectedStatuses}
-                  onChange={setSelectedStatuses} placeholder="Filter status..." icon={<CheckCircle2 className="w-3.5 h-3.5" />}
-                />
-                <GlassDropdown
-                  label="Courier" options={COURIER_OPTIONS} selected={selectedCouriers}
-                  onChange={setSelectedCouriers} placeholder="Filter courier..." icon={<Truck className="w-3.5 h-3.5" />}
-                />
-                <GlassDateFilter
-                  align="right" startDate={dateStart} endDate={dateEnd}
-                  onDateChange={(s, e) => { setDateStart(s); setDateEnd(e); }}
-                />
-                <button
-                  onClick={handleApplyFilters}
-                  className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm"
-                >
-                  Apply
-                </button>
-                <div className="ml-auto flex items-center gap-2 shrink-0">
-                  <button className="w-9 h-9 rounded-full border border-[#00A86B] flex items-center justify-center text-[#00A86B] hover:bg-[#00A86B]/5">
-                    <Upload className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (selectedOrders.length === 0) { showToast('error', 'Select rows to export.'); return; }
-                      showToast('success', `Exporting ${selectedOrders.length} records…`);
-                    }}
-                    className={`w-9 h-9 rounded-full border flex items-center justify-center transition-colors ${
-                      selectedOrders.length > 0
-                        ? 'border-[#00A86B] text-[#00A86B] hover:bg-[#00A86B]/5'
-                        : 'border-[#E2E8F0] text-[#CBD5E1] cursor-not-allowed'
-                    }`}
-                  >
-                    <Download className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-              {selectedOrders.length > 0 && (
-                <div className="px-4 py-2 bg-emerald-50 border-b border-emerald-100 flex items-center gap-3">
-                  <span className="text-xs font-bold text-emerald-700">{selectedOrders.length} selected</span>
-                  <button
-                    onClick={() => setSelectedOrders([])}
-                    className="text-xs text-[#64748B] hover:text-red-500 ml-2"
-                  >
-                    Clear
-                  </button>
-                </div>
-              )}
-            </>
-          )}
-
-          {activeTab === 'Seller COD Remittance' && (
-            <>
-              <div className="p-3 border-b border-[#E2E8F0] flex flex-nowrap items-center gap-2.5 bg-white overflow-x-auto no-scrollbar">
-                <input
-                  type="text"
-                  placeholder="Search by user name..."
-                  value={remittanceSearchTerm}
-                  onChange={e => setRemittanceSearchTerm(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && (setSellerPage(1), fetchSellerRemittance(1))}
-                  className="h-9 px-3 rounded-lg border border-[#E2E8F0] text-xs bg-white focus:outline-none w-[180px] shrink-0"
-                />
-                <GlassDropdown
-                  label="Status" options={STATUS_OPTIONS} selected={selectedCodStatuses}
-                  onChange={setSelectedCodStatuses} placeholder="Filter status..." icon={<CheckCircle2 className="w-3.5 h-3.5" />}
-                />
-                <GlassDateFilter
-                  align="right" startDate={codDateStart} endDate={codDateEnd}
-                  onDateChange={(s, e) => { setCodDateStart(s); setCodDateEnd(e); }}
-                />
-                <button
-                  onClick={() => { setSellerPage(1); fetchSellerRemittance(1); }}
-                  className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm"
-                >
-                  Apply
-                </button>
-
-                <div className="relative shrink-0 ml-auto">
-                  <button
-                    onClick={() => selectedCodOrders.length > 0 && setShowActionMenu(!showActionMenu)}
-                    disabled={selectedCodOrders.length === 0}
-                    className={`h-9 pl-4 pr-8 rounded-full border text-xs font-bold shadow-sm relative transition-colors ${
-                      selectedCodOrders.length > 0
-                        ? 'border-[#00A86B] text-[#00A86B] bg-white hover:bg-[#F0FDF4]'
-                        : 'border-[#E2E8F0] text-[#CBD5E1] bg-[#F8FAFC] cursor-not-allowed'
-                    }`}
-                  >
-                    Actions
-                    <ChevronDown className="w-3.5 h-3.5 absolute right-3 top-1/2 -translate-y-1/2 text-current" />
-                  </button>
-                  {showActionMenu && selectedCodOrders.length > 0 && (
-                    <div className="absolute right-0 top-full mt-2 w-[180px] bg-white rounded-xl shadow-lg border border-[#E2E8F0] py-2 z-50">
-                      <button onClick={() => { showToast('success', 'Export initiated'); setShowActionMenu(false); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A]">Export Data</button>
-                      <button onClick={() => { showToast('success', 'Bank template exported'); setShowActionMenu(false); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A]">Export Bank Template</button>
-                      <button onClick={() => { setShowActionMenu(false); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A]">Upload Bank Response</button>
-                      <div className="border-t border-[#E2E8F0] my-1" />
-                      <button onClick={() => { setShowActionMenu(false); handleTransferCOD('seller'); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#00A86B] hover:bg-[#F0FDF4]">Transfer COD</button>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {selectedCodOrders.length > 0 && (
-                <div className="px-4 py-2 bg-emerald-50 border-b border-emerald-100 flex items-center gap-3">
-                  <span className="text-xs font-bold text-emerald-700">{selectedCodOrders.length} selected</span>
-                  <button onClick={() => handleTransferCOD('seller')} className="h-7 px-3 rounded-md bg-[#00A86B] text-white text-xs font-bold shadow-sm hover:bg-[#009B63]">Transfer COD</button>
-                  <button onClick={() => setSelectedCodOrders([])} className="text-xs text-[#64748B] hover:text-red-500">Clear</button>
-                </div>
-              )}
-            </>
-          )}
-
-          {activeTab === 'Courier COD Remittance' && (
-            <>
-              <div className="p-3 border-b border-[#E2E8F0] flex flex-nowrap items-center gap-2.5 bg-white overflow-x-auto no-scrollbar">
-                <input
-                  type="text"
-                  placeholder="Search by AWB, Order ID, courier..."
-                  value={courierRemittanceSearchTerm}
-                  onChange={e => setCourierRemittanceSearchTerm(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && (setCourierPage(1), fetchCourierRemittance(1))}
-                  className="h-9 px-3 rounded-lg border border-[#E2E8F0] text-xs bg-white focus:outline-none w-[200px] shrink-0"
-                />
-                <GlassDropdown
-                  label="Status" options={STATUS_OPTIONS} selected={selectedCourierCodStatuses}
-                  onChange={setSelectedCourierCodStatuses} placeholder="Filter status..." icon={<CheckCircle2 className="w-3.5 h-3.5" />}
-                />
-                <GlassDateFilter
-                  align="right" startDate={courierCodDateStart} endDate={courierCodDateEnd}
-                  onDateChange={(s, e) => { setCourierCodDateStart(s); setCourierCodDateEnd(e); }}
-                />
-                <button
-                  onClick={() => { setCourierPage(1); fetchCourierRemittance(1); }}
-                  className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm"
-                >
-                  Apply
-                </button>
-
-                <div className="relative shrink-0 ml-auto">
-                  <button
-                    onClick={() => selectedCourierCodOrders.length > 0 && setShowCourierActionMenu(!showCourierActionMenu)}
-                    disabled={selectedCourierCodOrders.length === 0}
-                    className={`h-9 pl-4 pr-8 rounded-full border text-xs font-bold shadow-sm relative transition-colors ${
-                      selectedCourierCodOrders.length > 0
-                        ? 'border-[#00A86B] text-[#00A86B] bg-white hover:bg-[#F0FDF4]'
-                        : 'border-[#E2E8F0] text-[#CBD5E1] bg-[#F8FAFC] cursor-not-allowed'
-                    }`}
-                  >
-                    Actions
-                    <ChevronDown className="w-3.5 h-3.5 absolute right-3 top-1/2 -translate-y-1/2 text-current" />
-                  </button>
-                  {showCourierActionMenu && selectedCourierCodOrders.length > 0 && (
-                    <div className="absolute right-0 top-full mt-2 w-[180px] bg-white rounded-xl shadow-lg border border-[#E2E8F0] py-2 z-50">
-                      <button onClick={() => { showToast('success', 'Export initiated'); setShowCourierActionMenu(false); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A]">Export Data</button>
-                      <button onClick={() => { setShowCourierActionMenu(false); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A]">Upload Bank Response</button>
-                    </div>
-                  )}
-                </div>
-              </div>
-              {selectedCourierCodOrders.length > 0 && (
-                <div className="px-4 py-2 bg-emerald-50 border-b border-emerald-100 flex items-center gap-3">
-                  <span className="text-xs font-bold text-emerald-700">{selectedCourierCodOrders.length} selected</span>
-                  <button onClick={() => setSelectedCourierCodOrders([])} className="text-xs text-[#64748B] hover:text-red-500">Clear</button>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-
-        {/* ── Table Section ── */}
+        {/* â"€â"€ Table Section â"€â"€ */}
         <div className="bg-white flex flex-col flex-1 min-h-0 overflow-hidden border-t border-[#E2E8F0]">
 
           {/* All COD Orders Tab */}
           {activeTab === 'All COD Orders' && (
             <>
+              {/* Filter Bar */}
+              <div className="p-3 border-b border-[#E2E8F0] flex flex-wrap items-center gap-2.5 bg-[#F8FAFC]/50 shrink-0">
+                {isAdmin && (
+                  <div className="relative shrink-0">
+                    <div className="relative">
+                      <input type="text" placeholder="Search user..." value={codUserQuery}
+                        onChange={e => { setCodUserQuery(e.target.value); if (!e.target.value.trim()) { setCodUserMongoId(''); setCodUserSuggestions([]); } }}
+                        className="h-9 pl-8 pr-3 rounded-lg border border-[#E2E8F0] text-xs bg-white focus:outline-none w-[160px]" />
+                      <Search className="w-3.5 h-3.5 text-[#94A3B8] absolute left-2.5 top-1/2 -translate-y-1/2" />
+                      {codUserMongoId && <CheckCircle2 className="w-3.5 h-3.5 text-[#00A86B] absolute right-2.5 top-1/2 -translate-y-1/2" />}
+                    </div>
+                    {codUserSuggestions.length > 0 && !codUserMongoId && (
+                      <div className="absolute left-0 top-full mt-1 bg-white border border-[#E2E8F0] rounded-xl shadow-xl z-50 w-64 max-h-52 overflow-y-auto py-1">
+                        {codUserSuggestions.map((u: any) => (
+                          <button key={u._id} type="button" onClick={() => { setCodUserMongoId(u._id); setCodUserQuery(`${u.fullname} (${u.email})`); setCodUserSuggestions([]); }}
+                            className="w-full text-left px-3 py-2 hover:bg-[#F0FDF4] flex items-start gap-2">
+                            <div className="flex-1 min-w-0">
+                              <div className="text-[11px] font-bold text-slate-800 truncate">{u.fullname}</div>
+                              <div className="text-[10px] text-slate-400 truncate">{u.email} · {u.phoneNumber}</div>
+                            </div>
+                            <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded shrink-0">{u.userId}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+                <input type="text" placeholder="Order ID" value={codOrderId} onChange={e => setCodOrderId(e.target.value)}
+                  className="h-9 px-3 rounded-lg border border-[#E2E8F0] text-xs bg-white focus:outline-none w-[120px] shrink-0" />
+                <input type="text" placeholder="AWB Number" value={codAwb} onChange={e => setCodAwb(e.target.value)}
+                  className="h-9 px-3 rounded-lg border border-[#E2E8F0] text-xs bg-white focus:outline-none w-[130px] shrink-0" />
+                <GlassDropdown label="Status" options={STATUS_OPTIONS} selected={selectedStatuses} onChange={setSelectedStatuses} placeholder="Status..." icon={<CheckCircle2 className="w-3.5 h-3.5" />} />
+                <GlassDropdown label="Courier" options={codCourierOptions} selected={selectedCouriers} onChange={setSelectedCouriers} placeholder="Courier..." icon={<Truck className="w-3.5 h-3.5" />} />
+                <GlassDateFilter startDate={dateStart} endDate={dateEnd} onDateChange={(s, e) => { setDateStart(s); setDateEnd(e); }} />
+                <button onClick={() => { setCurrentPage(1); fetchCodOrders(1); }}
+                  className="h-9 px-4 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] shrink-0">Apply</button>
+                <div className="ml-auto flex items-center gap-2 shrink-0">
+                  <button onClick={() => { if (selectedOrders.length === 0) { showToast('error', 'Select rows to export.'); return; } const rows = codOrdersList.filter(o => selectedOrders.includes(o.id)); handleExportCsv(rows, 'cod_orders.csv'); }}
+                    className={`w-9 h-9 rounded-full border flex items-center justify-center transition-colors ${selectedOrders.length > 0 ? 'border-[#00A86B] text-[#00A86B] hover:bg-[#00A86B]/5' : 'border-[#E2E8F0] text-[#CBD5E1] cursor-not-allowed'}`}>
+                    <Download className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+              {selectedOrders.length > 0 && (
+                <div className="px-4 py-2 bg-emerald-50 border-b border-emerald-100 flex items-center gap-3 shrink-0">
+                  <span className="text-xs font-bold text-emerald-700">{selectedOrders.length} selected</span>
+                  <button onClick={() => setSelectedOrders([])} className="text-xs text-[#64748B] hover:text-red-500">Clear</button>
+                </div>
+              )}
               <div className="flex-1 overflow-y-auto overflow-x-auto no-scrollbar">
                 <table className="w-full text-left border-collapse min-w-[900px]">
                   <thead className="sticky top-0 z-30 bg-[#E6F5F1] shadow-sm">
@@ -1085,14 +725,14 @@ export function AdminCOD() {
                           <div className="text-[11px] text-[#94A3B8]">{order.userEmail}</div>
                         </td>
                         <td className="p-3">
-                          <div className="text-xs font-semibold text-[#00A86B]">{order.orderID || '—'}</div>
+                          <div className="text-xs font-semibold text-[#00A86B]">{order.orderID || 'â€"'}</div>
                         </td>
                         <td className="p-3">
                           <button
                             onClick={() => navigate('/admin/tracking', { state: { awb: order.awb } })}
                             className="text-xs font-semibold text-[#00A86B] hover:underline text-left"
                           >
-                            {order.awb || '—'}
+                            {order.awb || 'â€"'}
                           </button>
                           <div className="text-[11px] text-[#475569] mt-0.5">{order.courier}</div>
                           <div className="text-[11px] text-[#94A3B8]">Delivered On: {order.date}</div>
@@ -1115,6 +755,62 @@ export function AdminCOD() {
           {/* Seller COD Remittance Tab */}
           {activeTab === 'Seller COD Remittance' && (
             <>
+              {/* Filter Bar */}
+              <div className="p-3 border-b border-[#E2E8F0] flex flex-wrap items-center gap-2.5 bg-[#F8FAFC]/50 shrink-0">
+                {isAdmin && (
+                  <div className="relative shrink-0">
+                    <div className="relative">
+                      <input type="text" placeholder="Search user..." value={sellerUserQuery}
+                        onChange={e => { setSellerUserQuery(e.target.value); if (!e.target.value.trim()) { setSellerUserMongoId(''); setSellerUserSuggestions([]); } }}
+                        className="h-9 pl-8 pr-3 rounded-lg border border-[#E2E8F0] text-xs bg-white focus:outline-none w-[160px]" />
+                      <Search className="w-3.5 h-3.5 text-[#94A3B8] absolute left-2.5 top-1/2 -translate-y-1/2" />
+                      {sellerUserMongoId && <CheckCircle2 className="w-3.5 h-3.5 text-[#00A86B] absolute right-2.5 top-1/2 -translate-y-1/2" />}
+                    </div>
+                    {sellerUserSuggestions.length > 0 && !sellerUserMongoId && (
+                      <div className="absolute left-0 top-full mt-1 bg-white border border-[#E2E8F0] rounded-xl shadow-xl z-50 w-64 max-h-52 overflow-y-auto py-1">
+                        {sellerUserSuggestions.map((u: any) => (
+                          <button key={u._id} type="button" onClick={() => { setSellerUserMongoId(u._id); setSellerUserQuery(`${u.fullname} (${u.email})`); setSellerUserSuggestions([]); }}
+                            className="w-full text-left px-3 py-2 hover:bg-[#F0FDF4] flex items-start gap-2">
+                            <div className="flex-1 min-w-0">
+                              <div className="text-[11px] font-bold text-slate-800 truncate">{u.fullname}</div>
+                              <div className="text-[10px] text-slate-400 truncate">{u.email} · {u.phoneNumber}</div>
+                            </div>
+                            <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded shrink-0">{u.userId}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+                <input type="text" placeholder="Remittance ID" value={sellerRemittanceId} onChange={e => setSellerRemittanceId(e.target.value)}
+                  className="h-9 px-3 rounded-lg border border-[#E2E8F0] text-xs bg-white focus:outline-none w-[140px] shrink-0" />
+                <GlassDropdown label="Status" options={STATUS_OPTIONS} selected={selectedCodStatuses} onChange={setSelectedCodStatuses} placeholder="Status..." icon={<CheckCircle2 className="w-3.5 h-3.5" />} />
+                <GlassDateFilter startDate={codDateStart} endDate={codDateEnd} onDateChange={(s, e) => { setCodDateStart(s); setCodDateEnd(e); }} />
+                <button onClick={() => { setSellerPage(1); fetchSellerRemittance(1); }}
+                  className="h-9 px-4 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] shrink-0">Apply</button>
+                <div className="relative shrink-0 ml-auto">
+                  <button onClick={() => selectedCodOrders.length > 0 && setShowActionMenu(!showActionMenu)} disabled={selectedCodOrders.length === 0}
+                    className={`h-9 pl-4 pr-8 rounded-full border text-xs font-bold relative transition-colors ${selectedCodOrders.length > 0 ? 'border-[#00A86B] text-[#00A86B] bg-white hover:bg-[#F0FDF4]' : 'border-[#E2E8F0] text-[#CBD5E1] bg-[#F8FAFC] cursor-not-allowed'}`}>
+                    Actions <ChevronDown className="w-3.5 h-3.5 absolute right-3 top-1/2 -translate-y-1/2" />
+                  </button>
+                  {showActionMenu && selectedCodOrders.length > 0 && (
+                    <div className="absolute right-0 top-full mt-2 w-[200px] bg-white rounded-xl shadow-lg border border-[#E2E8F0] py-2 z-50">
+                      <button onClick={() => { const rows = sellerRemittanceList.filter(r => selectedCodOrders.includes(r.awb)); handleExportCsv(rows, 'seller_remittances.csv'); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A] flex items-center gap-2"><Download className="w-4 h-4 text-[#00A86B]" />Export Data</button>
+                      <button onClick={handleExportBankTemplate} disabled={bankExportLoading} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A] flex items-center gap-2"><FileText className="w-4 h-4 text-blue-500" />{bankExportLoading ? 'Generating…' : 'Export Bank Template'}</button>
+                      <button onClick={handleOpenBankResponseUpload} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A] flex items-center gap-2"><Upload className="w-4 h-4 text-orange-500" />Upload Bank Response</button>
+                      <div className="border-t border-[#E2E8F0] my-1" />
+                      <button onClick={() => { setShowActionMenu(false); handleTransferCOD('seller'); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#00A86B] hover:bg-[#F0FDF4] flex items-center gap-2"><Send className="w-4 h-4" />Transfer COD</button>
+                    </div>
+                  )}
+                </div>
+              </div>
+              {selectedCodOrders.length > 0 && (
+                <div className="px-4 py-2 bg-emerald-50 border-b border-emerald-100 flex items-center gap-3 shrink-0">
+                  <span className="text-xs font-bold text-emerald-700">{selectedCodOrders.length} selected</span>
+                  <button onClick={() => handleTransferCOD('seller')} className="h-7 px-3 rounded-md bg-[#00A86B] text-white text-xs font-bold shadow-sm hover:bg-[#009B63]">Transfer COD</button>
+                  <button onClick={() => setSelectedCodOrders([])} className="text-xs text-[#64748B] hover:text-red-500">Clear</button>
+                </div>
+              )}
               <div className="flex-1 overflow-y-auto overflow-x-auto no-scrollbar">
                 <table className="w-full text-left border-collapse min-w-[1200px]">
                   <thead className="sticky top-0 z-30 bg-[#E6F5F1] shadow-sm">
@@ -1179,6 +875,60 @@ export function AdminCOD() {
           {/* Courier COD Remittance Tab */}
           {activeTab === 'Courier COD Remittance' && (
             <>
+              {/* Filter Bar */}
+              <div className="p-3 border-b border-[#E2E8F0] flex flex-wrap items-center gap-2.5 bg-[#F8FAFC]/50 shrink-0">
+                {isAdmin && (
+                  <div className="relative shrink-0">
+                    <div className="relative">
+                      <input type="text" placeholder="Search user..." value={courierUserQuery}
+                        onChange={e => { setCourierUserQuery(e.target.value); if (!e.target.value.trim()) { setCourierUserMongoId(''); setCourierUserSuggestions([]); } }}
+                        className="h-9 pl-8 pr-3 rounded-lg border border-[#E2E8F0] text-xs bg-white focus:outline-none w-[160px]" />
+                      <Search className="w-3.5 h-3.5 text-[#94A3B8] absolute left-2.5 top-1/2 -translate-y-1/2" />
+                      {courierUserMongoId && <CheckCircle2 className="w-3.5 h-3.5 text-[#00A86B] absolute right-2.5 top-1/2 -translate-y-1/2" />}
+                    </div>
+                    {courierUserSuggestions.length > 0 && !courierUserMongoId && (
+                      <div className="absolute left-0 top-full mt-1 bg-white border border-[#E2E8F0] rounded-xl shadow-xl z-50 w-64 max-h-52 overflow-y-auto py-1">
+                        {courierUserSuggestions.map((u: any) => (
+                          <button key={u._id} type="button" onClick={() => { setCourierUserMongoId(u._id); setCourierUserQuery(`${u.fullname} (${u.email})`); setCourierUserSuggestions([]); }}
+                            className="w-full text-left px-3 py-2 hover:bg-[#F0FDF4] flex items-start gap-2">
+                            <div className="flex-1 min-w-0">
+                              <div className="text-[11px] font-bold text-slate-800 truncate">{u.fullname}</div>
+                              <div className="text-[10px] text-slate-400 truncate">{u.email} · {u.phoneNumber}</div>
+                            </div>
+                            <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded shrink-0">{u.userId}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+                <input type="text" placeholder="Order ID" value={courierOrderId} onChange={e => setCourierOrderId(e.target.value)}
+                  className="h-9 px-3 rounded-lg border border-[#E2E8F0] text-xs bg-white focus:outline-none w-[120px] shrink-0" />
+                <input type="text" placeholder="AWB Number" value={courierAwb} onChange={e => setCourierAwb(e.target.value)}
+                  className="h-9 px-3 rounded-lg border border-[#E2E8F0] text-xs bg-white focus:outline-none w-[130px] shrink-0" />
+                <GlassDropdown label="Status" options={STATUS_OPTIONS} selected={selectedCourierCodStatuses} onChange={setSelectedCourierCodStatuses} placeholder="Status..." icon={<CheckCircle2 className="w-3.5 h-3.5" />} />
+                <GlassDropdown label="Courier" options={courierCourierOptions} selected={selectedCourierCouriers} onChange={setSelectedCourierCouriers} placeholder="Courier..." icon={<Truck className="w-3.5 h-3.5" />} />
+                <GlassDateFilter startDate={courierCodDateStart} endDate={courierCodDateEnd} onDateChange={(s, e) => { setCourierCodDateStart(s); setCourierCodDateEnd(e); }} />
+                <button onClick={() => { setCourierPage(1); fetchCourierRemittance(1); }}
+                  className="h-9 px-4 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] shrink-0">Apply</button>
+                <div className="relative shrink-0 ml-auto">
+                  <button onClick={() => selectedCourierCodOrders.length > 0 && setShowCourierActionMenu(!showCourierActionMenu)} disabled={selectedCourierCodOrders.length === 0}
+                    className={`h-9 pl-4 pr-8 rounded-full border text-xs font-bold relative transition-colors ${selectedCourierCodOrders.length > 0 ? 'border-[#00A86B] text-[#00A86B] bg-white hover:bg-[#F0FDF4]' : 'border-[#E2E8F0] text-[#CBD5E1] bg-[#F8FAFC] cursor-not-allowed'}`}>
+                    Actions <ChevronDown className="w-3.5 h-3.5 absolute right-3 top-1/2 -translate-y-1/2" />
+                  </button>
+                  {showCourierActionMenu && selectedCourierCodOrders.length > 0 && (
+                    <div className="absolute right-0 top-full mt-2 w-[180px] bg-white rounded-xl shadow-lg border border-[#E2E8F0] py-2 z-50">
+                      <button onClick={() => { const rows = courierRemittanceList.filter(r => selectedCourierCodOrders.includes(r.id)); handleExportCsv(rows, 'courier_cod.csv'); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A] flex items-center gap-2"><Download className="w-4 h-4 text-[#00A86B]" />Export Data</button>
+                    </div>
+                  )}
+                </div>
+              </div>
+              {selectedCourierCodOrders.length > 0 && (
+                <div className="px-4 py-2 bg-emerald-50 border-b border-emerald-100 flex items-center gap-3 shrink-0">
+                  <span className="text-xs font-bold text-emerald-700">{selectedCourierCodOrders.length} selected</span>
+                  <button onClick={() => setSelectedCourierCodOrders([])} className="text-xs text-[#64748B] hover:text-red-500">Clear</button>
+                </div>
+              )}
               <div className="flex-1 overflow-y-auto overflow-x-auto no-scrollbar">
                 <table className="w-full text-left border-collapse min-w-[900px]">
                   <thead className="sticky top-0 z-30 bg-[#E6F5F1] shadow-sm">
@@ -1209,14 +959,14 @@ export function AdminCOD() {
                           <div className="text-[11px] text-[#94A3B8]">{order.userEmail}</div>
                         </td>
                         <td className="p-3">
-                          <div className="text-xs font-semibold text-[#00A86B]">{order.orderID || '—'}</div>
+                          <div className="text-xs font-semibold text-[#00A86B]">{order.orderID || 'â€"'}</div>
                         </td>
                         <td className="p-3">
                           <button
                             onClick={() => navigate('/admin/tracking', { state: { awb: order.awb } })}
                             className="text-xs font-semibold text-[#00A86B] hover:underline text-left"
                           >
-                            {order.awb || '—'}
+                            {order.awb || 'â€"'}
                           </button>
                           <div className="text-[11px] text-[#475569] mt-0.5">{order.courierName}</div>
                           <div className="text-[11px] text-[#94A3B8]">Delivered On: {order.date}</div>
@@ -1237,6 +987,65 @@ export function AdminCOD() {
           )}
         </div>
       </div>
+
+      {/* ── Bank Response Upload Modal ── */}
+      <AnimatePresence>
+        {showBankResponseUpload && (
+          <motion.div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200] p-4"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            onClick={() => { setShowBankResponseUpload(false); setSelectedBankFile(null); }}>
+            <motion.div className="bg-white rounded-2xl shadow-2xl w-full max-w-[420px] p-5 relative"
+              initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+              onClick={e => e.stopPropagation()}>
+              <button onClick={() => { setShowBankResponseUpload(false); setSelectedBankFile(null); }} className="absolute top-4 right-4 text-[#94A3B8] hover:text-red-500">
+                <X className="w-5 h-5" />
+              </button>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-green-50 rounded-xl border border-green-100"><Upload className="w-6 h-6 text-[#00A86B]" /></div>
+                <div>
+                  <h2 className="text-[14px] font-bold text-[#0F172A]">Upload Bank Response</h2>
+                  <p className="text-[11px] text-[#64748B]">Upload the CSV/Excel file received from the bank</p>
+                </div>
+              </div>
+              <div className="bg-[#F8FAFC] border border-dashed border-[#E2E8F0] rounded-xl p-5 text-center mb-4">
+                {selectedBankFile ? (
+                  <div className="flex flex-col items-center gap-2">
+                    <CheckCircle2 className="w-8 h-8 text-[#00A86B]" />
+                    <p className="text-[12px] font-bold text-[#0F172A] break-all">{selectedBankFile.name}</p>
+                    <p className="text-[11px] text-[#94A3B8]">{(selectedBankFile.size / 1024).toFixed(1)} KB</p>
+                    <div className="flex gap-2 mt-1">
+                      <button onClick={() => setSelectedBankFile(null)} className="px-3 py-1.5 border border-[#E2E8F0] rounded-lg text-[11px] font-bold text-[#64748B] hover:bg-[#F8FAFC]">Remove</button>
+                      <button onClick={handleBankResponseSubmit} disabled={bankResponseUploading}
+                        className="px-4 py-1.5 bg-[#00A86B] text-white rounded-lg text-[11px] font-bold hover:bg-[#009B63] flex items-center gap-1.5">
+                        {bankResponseUploading ? <><span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" /> Processing…</> : 'Confirm & Submit'}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <Upload className="w-8 h-8 text-[#94A3B8] mx-auto mb-2" />
+                    <p className="text-[12px] font-bold text-[#475569] mb-1">Select Bank Response File</p>
+                    <p className="text-[11px] text-[#94A3B8] mb-3">Expected: Beneficiary Account, UTR Number, Status, Amount</p>
+                    <input ref={bankFileInputRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" id="bankRespFile"
+                      onChange={e => { const f = e.target.files?.[0]; if (f) setSelectedBankFile(f); }} />
+                    <label htmlFor="bankRespFile" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-[11px] font-bold cursor-pointer bg-[#00A86B] text-white hover:bg-[#009B63]">
+                      <Upload className="w-4 h-4" /> Choose File
+                    </label>
+                  </div>
+                )}
+              </div>
+              <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 text-[11px] text-blue-700">
+                <p className="font-bold mb-1">How it works:</p>
+                <ul className="list-disc list-inside space-y-0.5">
+                  <li>Only rows with <strong>Status = "Successful"</strong> are processed.</li>
+                  <li>Matched by <strong>Beneficiary Account + Amount</strong>.</li>
+                  <li>Matched items are automatically marked as <strong>Paid</strong>.</li>
+                </ul>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── Remittance Detail Modal (Seller tab) ── */}
       <AnimatePresence>
@@ -1339,7 +1148,7 @@ export function AdminCOD() {
         )}
       </AnimatePresence>
 
-      {/* ── Toast ── */}
+      {/* â"€â"€ Toast â"€â"€ */}
       <AnimatePresence>
         {toast && (
           <motion.div
