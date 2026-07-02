@@ -101,12 +101,8 @@ export function AdminHeader() {
           <img 
             src="/logo-color.png" 
             alt="QuickPost" 
-            className="h-[52px] w-auto object-contain transition-opacity group-hover:opacity-80 scale-[1.15] origin-left ml-2" 
+            className="h-16 w-auto object-contain transition-opacity group-hover:opacity-80 scale-[1.5] origin-left ml-2" 
           />
-          <div className="hidden sm:flex items-center ml-4">
-            <div className="w-[1.5px] h-6 bg-[#E2E8F0] mr-3"></div>
-            <span className="text-[15px] font-semibold text-[#475569] tracking-tight">Admin</span>
-          </div>
         </Link>
       </div>
 
@@ -475,22 +471,25 @@ export function AdminHeader() {
           </AnimatePresence>
         </div>
       </div>
-      <AnimatePresence>
-        {toast && (
-          <motion.div
-            initial={{ opacity: 0, y: 50, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 50, scale: 0.95 }}
-            transition={{ duration: 0.2 }}
-            className="fixed bottom-6 right-6 z-[100] bg-[#1E293B] text-white px-5 py-3.5 rounded-xl shadow-2xl flex items-center gap-3 border border-white/10 min-w-[280px]"
-          >
-            <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
-              <Check className="w-4 h-4 text-[#34D399]" />
-            </div>
-            <p className="text-[13px] font-medium pr-4">{toast}</p>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {typeof document !== 'undefined' && createPortal(
+        <AnimatePresence>
+          {toast && (
+            <motion.div
+              initial={{ opacity: 0, y: 50, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 50, scale: 0.95 }}
+              transition={{ duration: 0.2 }}
+              className="fixed bottom-6 right-6 z-[250] bg-[#1E293B] text-white px-5 py-3.5 rounded-xl shadow-2xl flex items-center gap-3 border border-white/10 min-w-[280px]"
+            >
+              <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
+                <Check className="w-4 h-4 text-[#34D399]" />
+              </div>
+              <p className="text-[13px] font-medium pr-4">{toast}</p>
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
 
       {/* Recharge Wallet Modal */}
       {typeof document !== 'undefined' && createPortal(

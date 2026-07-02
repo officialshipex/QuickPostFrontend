@@ -172,7 +172,7 @@ export function AdminAccounts() {
                           </div>
                           <div>
                             <div className="text-[#0F172A] font-semibold text-[14px] leading-tight">{admin.name}</div>
-                            <div className="text-[10px] text-[#94A3B8] font-medium mt-0.5">{admin.email}</div>
+                            <div className="font-sans text-xs font-normal text-[#94A3B8] mt-0.5">{admin.email}</div>
                           </div>
                         </div>
                       </td>
@@ -183,7 +183,7 @@ export function AdminAccounts() {
                         </div>
                       </td>
                       <td className="p-4">
-                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${admin.status === 'Active' ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-500'}`}>{admin.status}</span>
+                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-semibold ${admin.status === 'Active' ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-500'}`}>{admin.status}</span>
                       </td>
                       <td className="p-4 text-[#64748B]">{admin.lastLogin}</td>
                       <td className="p-4">

@@ -89,10 +89,10 @@ export function Navbar() {
             <img
               src={isScrolled ? '/logo-color.png' : '/logo-white.png'}
               alt="QuickPost"
-              className={`object-contain transition-all duration-300 ${isScrolled ? '' : 'qp-logo-white'}`}
+              className={`object-contain transition-all duration-300 scale-[1.5] origin-left ml-2 ${isScrolled ? '' : 'qp-logo-white'}`}
               style={{
                 height: '64px',
-                width: '64px',
+                width: 'auto',
                 objectFit: 'contain',
               }}
             />

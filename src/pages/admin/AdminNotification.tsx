@@ -388,7 +388,7 @@ export function AdminNotification() {
                       <td className="p-4 font-semibold text-[#0F172A]">{item.id}</td>
                       <td className="p-4">
                         <div className="font-bold text-[#0F172A]">{item.recipient}</div>
-                        <div className="text-[11px] text-[#94A3B8] font-semibold">{item.email}</div>
+                        <div className="font-sans text-xs font-normal text-[#94A3B8]">{item.email}</div>
                       </td>
                       <td className="p-4">
                         <div className="flex items-center gap-1.5 font-semibold text-xs text-[#0F172A]">

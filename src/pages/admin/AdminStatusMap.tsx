@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
+import { usePagination } from '../../hooks/usePagination';
 import { 
   Search, RefreshCcw, Upload, Download, 
   Briefcase, User, Target, ArrowUpCircle, FileText, Box,
@@ -71,9 +72,6 @@ export function AdminStatusMap() {
   const [selectedPartners, setSelectedPartners] = useState<string[]>([]);
   const [selectedProcesses, setSelectedProcesses] = useState<string[]>([]);
   const [selectedSyStatuses, setSelectedSyStatuses] = useState<string[]>([]);
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 8;
-
   // Modals & States
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editRule, setEditRule] = useState<StatusMapRule | null>(null);
@@ -143,13 +141,14 @@ export function AdminStatusMap() {
     });
   }, [rules, selectedPartners, selectedProcesses, selectedSyStatuses, searchQuery, globalSearchQuery]);
 
-  // Paginated Mappings
-  const paginatedRules = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    return filteredRules.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredRules, currentPage]);
-
-  const totalPages = Math.ceil(filteredRules.length / itemsPerPage);
+  const {
+    page: currentPage,
+    setPage: setCurrentPage,
+    totalPages,
+    paginatedData: paginatedRules,
+    startIndex,
+    endIndex,
+  } = usePagination({ data: filteredRules, perPage: 8 });
 
   // Form Validation
   const validateForm = (data: typeof newRule) => {
@@ -441,7 +440,7 @@ export function AdminStatusMap() {
                     </div>
                   </td>
                   <td className="p-4">
-                    <span className={`px-3 py-1 rounded text-[11px] font-bold border whitespace-nowrap inline-block ${
+                    <span className={`px-3 py-1 rounded text-[10px] font-semibold border whitespace-nowrap inline-block ${
                       row.syStatus === 'Delivered' 
                         ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
                         : row.syStatus === 'In Transit' 
@@ -502,7 +501,7 @@ export function AdminStatusMap() {
         {totalPages > 0 && (
           <div className="flex justify-between items-center p-4 border-t border-[#E2E8F0] bg-[#F8FAFC]">
             <span className="text-xs text-[#64748B] font-medium">
-              Showing <span className="font-bold text-[#0F172A]">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-bold text-[#0F172A]">{Math.min(currentPage * itemsPerPage, filteredRules.length)}</span> of <span className="font-bold text-[#0F172A]">{filteredRules.length}</span> mapping rules
+              Showing <span className="font-bold text-[#0F172A]">{startIndex}</span> to <span className="font-bold text-[#0F172A]">{endIndex}</span> of <span className="font-bold text-[#0F172A]">{filteredRules.length}</span> mapping rules
             </span>
             
             <div className="flex items-center gap-1.5">

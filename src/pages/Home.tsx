@@ -5,6 +5,7 @@ import { HeroSection } from '../components/sections/HeroSection';
 import { TrustedBrands } from '../components/sections/TrustedBrands';
 import { Features } from '../components/sections/Features';
 import { ProfitsSection } from '../components/sections/ProfitsSection';
+import { HowItWorks } from '../components/sections/HowItWorks';
 import { ServicesPortfolioSection } from '../components/sections/ServicesPortfolioSection';
 import { StatsSection } from '../components/sections/StatsSection';
 
@@ -17,6 +18,7 @@ export function Home() {
         <TrustedBrands />
         <Features />
         <ProfitsSection />
+        <HowItWorks />
         <ServicesPortfolioSection />
         <StatsSection />
       </main>

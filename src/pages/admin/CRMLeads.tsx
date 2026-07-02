@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
+import { usePagination } from '../../hooks/usePagination';
 import { Search, UserPlus, Phone, Mail, ChevronLeft, ChevronRight, TrendingUp, Clock, CheckCircle2, XCircle } from 'lucide-react';
 
 const STAGES = ['All', 'New Lead', 'Contacted', 'Demo Scheduled', 'Proposal Sent', 'Negotiation', 'Converted', 'Lost'];
@@ -35,8 +36,7 @@ export function CRMLeads() {
   const [search, setSearch] = useState('');
   const [stage, setStage] = useState('All');
   const [source, setSource] = useState('All Sources');
-  const [page, setPage] = useState(1);
-  const perPage = 10;
+  // usePagination initialization below filtered definition
 
   const filtered = MOCK_LEADS.filter(l => {
     if (stage !== 'All' && l.stage !== stage) return false;
@@ -45,8 +45,12 @@ export function CRMLeads() {
     return true;
   });
 
-  const totalPages = Math.ceil(filtered.length / perPage);
-  const paginated = filtered.slice((page - 1) * perPage, page * perPage);
+  const {
+    page,
+    setPage,
+    totalPages,
+    paginatedData: paginated,
+  } = usePagination({ data: filtered, perPage: 10 });
 
   const funnelStats = [
     { label: 'Total Leads', value: MOCK_LEADS.length, icon: UserPlus, color: 'text-[#0F172A]' },
@@ -106,7 +110,7 @@ export function CRMLeads() {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[900px]">
             <thead>
-              <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-[10px] uppercase tracking-wider font-bold text-[#64748B]">
+              <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-xs uppercase tracking-wider font-medium text-[#64748B]">
                 <th className="p-3 pl-4">Lead / Business</th>
                 <th className="p-3">Contact</th>
                 <th className="p-3">City</th>
@@ -157,7 +161,7 @@ export function CRMLeads() {
             {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map(p => (
               <button key={p} onClick={() => setPage(p)} className={`w-8 h-8 rounded-lg text-xs font-bold ${page === p ? 'bg-[#00A86B] text-white' : 'border border-[#E2E8F0] text-[#64748B] hover:bg-white'}`}>{p}</button>
             ))}
-            <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === totalPages || totalPages === 0} className="w-8 h-8 rounded-lg border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:bg-white disabled:opacity-40"><ChevronRight className="w-4 h-4" /></button>
+            <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages || totalPages === 0} className="w-8 h-8 rounded-lg border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:bg-white disabled:opacity-40"><ChevronRight className="w-4 h-4" /></button>
           </div>
         </div>
       </div>

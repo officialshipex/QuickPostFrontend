@@ -93,7 +93,19 @@ function GlobalOrderClickInterceptor() {
           headerText.includes('phone') ||
           headerText.includes('mobile') ||
           headerText.includes('qty') ||
-          headerText.includes('page')
+          headerText.includes('page') ||
+          headerText.includes('user') ||
+          headerText.includes('seller') ||
+          headerText.includes('customer') ||
+          headerText.includes('recipient') ||
+          headerText.includes('partner') ||
+          headerText.includes('account') ||
+          headerText.includes('lead') ||
+          headerText.includes('member') ||
+          headerText.includes('admin') ||
+          headerText.includes('manager') ||
+          headerText.includes('ticket') ||
+          headerText.includes('referral')
         ) {
           return;
         }

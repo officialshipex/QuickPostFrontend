@@ -4,7 +4,7 @@ import { apiClient } from '../../services/apiClient';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
-import { Search, ChevronDown, RefreshCcw, Calendar, Check, Package, User, Truck, Banknote, Clock, Upload, Download, MoreVertical, Wallet, FileText, Plus, TrendingUp, Eye, AlertCircle, CheckCircle2, X, CreditCard, Filter, Layers, Hash, CalendarDays, Bot, ArrowLeft } from 'lucide-react';
+import { Search, ChevronDown, RefreshCcw, Calendar, Check, Package, User, Truck, Banknote, Clock, Upload, Download, MoreVertical, Wallet, ArrowDownCircle, ArrowUpCircle, FileText, Plus, TrendingUp, ChevronLeft, ChevronRight, MinusCircle, Send, Eye, AlertCircle, CheckCircle2, X, CreditCard, Filter, Layers, Hash, CalendarDays, Bot, ArrowLeft, Settings } from 'lucide-react';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
 
@@ -132,7 +132,7 @@ const STATUS_BADGE_STYLES: Record<string, string> = {
 
 const getStatusBadgeClass = (status: string) => {
   const normalized = status || '';
-  return `${STATUS_BADGE_STYLES[normalized] || 'bg-blue-50 text-blue-700 border-blue-200'} px-2.5 py-0.5 rounded-full border text-[11px] font-semibold uppercase tracking-wider whitespace-nowrap shadow-sm`;
+  return `${STATUS_BADGE_STYLES[normalized] || 'bg-blue-50 text-blue-700 border-blue-200'} px-2.5 py-0.5 rounded-full border text-[10px] font-semibold uppercase tracking-wider whitespace-nowrap shadow-sm`;
 };
 
 
@@ -1433,17 +1433,54 @@ export function AdminWallet() {
             <div className="flex-1 overflow-y-auto overflow-x-hidden w-full relative">
               <table className="w-full text-left border-collapse min-w-full">
                 <thead>
-                  <tr className="bg-[#E6F5F1] text-[10px] font-bold text-[#00A86B] uppercase tracking-wider">
-                    <th className="p-3 w-10">
+                  <tr className="bg-[#E6F5F1] text-xs font-medium text-[#00A86B] uppercase tracking-wider">
+                    <th className="p-3 w-10 text-left align-middle">
                       <input type="checkbox" checked={selectedOrders.length === filteredShippingData.length && filteredShippingData.length > 0} onChange={toggleAll} className="rounded border-[#00A86B] accent-[#00A86B] w-3.5 h-3.5" />
                     </th>
-                    {isAdmin && <th className="p-3"><User className="w-3.5 h-3.5 inline mr-1"/> User Details</th>}
-                    <th className="p-3"><Package className="w-3.5 h-3.5 inline mr-1"/> Order Details</th>
-                    <th className="p-3"><Truck className="w-3.5 h-3.5 inline mr-1"/> Shipping Details</th>
-                    <th className="p-3"><Banknote className="w-3.5 h-3.5 inline mr-1"/> Status</th>
-                    <th className="p-3"><Package className="w-3.5 h-3.5 inline mr-1"/> Initial Weight</th>
-                    <th className="p-3"><Package className="w-3.5 h-3.5 inline mr-1"/> Courier Weight</th>
-                    <th className="p-3 text-right"><MoreVertical className="w-3.5 h-3.5 inline"/> Actions</th>
+                    {isAdmin && (
+                      <th className="p-3 text-left align-middle whitespace-nowrap">
+                        <div className="flex items-center gap-1.5">
+                          <User className="w-3.5 h-3.5 shrink-0" />
+                          <span>User Details</span>
+                        </div>
+                      </th>
+                    )}
+                    <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <Package className="w-3.5 h-3.5 shrink-0" />
+                        <span>Order Details</span>
+                      </div>
+                    </th>
+                    <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <Truck className="w-3.5 h-3.5 shrink-0" />
+                        <span>Shipping Details</span>
+                      </div>
+                    </th>
+                    <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <Banknote className="w-3.5 h-3.5 shrink-0" />
+                        <span>Status</span>
+                      </div>
+                    </th>
+                    <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <Package className="w-3.5 h-3.5 shrink-0" />
+                        <span>Initial Weight</span>
+                      </div>
+                    </th>
+                    <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <Package className="w-3.5 h-3.5 shrink-0" />
+                        <span>Courier Weight</span>
+                      </div>
+                    </th>
+                    <th className="p-3 text-center align-middle whitespace-nowrap">
+                      <div className="flex items-center justify-center gap-1.5">
+                        <Settings className="w-3.5 h-3.5 shrink-0" />
+                        <span>Actions</span>
+                      </div>
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="text-[11px] text-[#475569]">
@@ -1485,10 +1522,10 @@ export function AdminWallet() {
                         <div className="mt-0.5">{order.courierDimensions}</div>
                         <div className="mt-0.5">{order.courierVol}</div>
                       </td>
-                      <td className="p-3 text-right">
-                        <button
-                          onClick={() => handleViewPassbook(order.awb)}
-                          className="px-3 py-1.5 rounded-full bg-[#1E3A8A] text-white text-[10px] font-bold hover:bg-[#1E3A8A]/90 transition-colors"
+                      <td className="p-3 text-center align-middle">
+                        <button 
+                          onClick={() => setActiveShipmentHistory(order)}
+                          className="px-3 py-1.5 rounded-full bg-[#1E3A8A] text-white text-[10px] font-bold hover:bg-[#1E3A8A]/90 transition-colors mx-auto inline-block"
                         >
                           History
                         </button>
@@ -1552,19 +1589,66 @@ export function AdminWallet() {
             <div className="flex-1 overflow-y-auto overflow-x-hidden w-full relative">
               <table className="w-full text-left border-collapse min-w-full">
                 <thead>
-                  <tr className="bg-[#E6F5F1] text-[10px] font-bold text-[#00A86B] uppercase tracking-wider">
-                    <th className="p-3 w-10">
+                  <tr className="bg-[#E6F5F1] text-xs font-medium text-[#00A86B] uppercase tracking-wider">
+                    <th className="p-3 w-10 text-left align-middle">
                       <input type="checkbox" checked={selectedPassbookOrders.length === filteredPassbookData.length && filteredPassbookData.length > 0} onChange={toggleAllPassbook} className="rounded border-[#00A86B] accent-[#00A86B] w-3.5 h-3.5" />
                     </th>
-                    {isAdmin && <th className="p-3"><User className="w-3.5 h-3.5 inline mr-1"/> User Details</th>}
-                    <th className="p-3"><Calendar className="w-3.5 h-3.5 inline mr-1"/> Date / Time</th>
-                    <th className="p-3"><Package className="w-3.5 h-3.5 inline mr-1"/> Order Details</th>
-                    <th className="p-3"><Truck className="w-3.5 h-3.5 inline mr-1"/> Shipping Details</th>
-                    <th className="p-3"><FileText className="w-3.5 h-3.5 inline mr-1"/> Category</th>
-                    <th className="p-3"><Banknote className="w-3.5 h-3.5 inline mr-1"/> Amount</th>
-                    <th className="p-3"><Wallet className="w-3.5 h-3.5 inline mr-1"/> Available Balance</th>
-                    <th className="p-3"><FileText className="w-3.5 h-3.5 inline mr-1"/> Description</th>
-                    <th className="p-3 text-right"><MoreVertical className="w-3.5 h-3.5 inline mr-1"/> Actions</th>
+                    {isAdmin && (
+                      <th className="p-3 text-left align-middle whitespace-nowrap">
+                        <div className="flex items-center gap-1.5">
+                          <User className="w-3.5 h-3.5 shrink-0" />
+                          <span>User</span>
+                        </div>
+                      </th>
+                    )}
+                    <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <Calendar className="w-3.5 h-3.5 shrink-0" />
+                        <span>Date / Time</span>
+                      </div>
+                    </th>
+                    <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <Package className="w-3.5 h-3.5 shrink-0" />
+                        <span>Order</span>
+                      </div>
+                    </th>
+                    <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <Truck className="w-3.5 h-3.5 shrink-0" />
+                        <span>Shipment</span>
+                      </div>
+                    </th>
+                    <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <FileText className="w-3.5 h-3.5 shrink-0" />
+                        <span>Category</span>
+                      </div>
+                    </th>
+                    <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <Banknote className="w-3.5 h-3.5 shrink-0" />
+                        <span>Amount</span>
+                      </div>
+                    </th>
+                    <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <Wallet className="w-3.5 h-3.5 shrink-0" />
+                        <span>Balance</span>
+                      </div>
+                    </th>
+                    <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <FileText className="w-3.5 h-3.5 shrink-0" />
+                        <span>Description</span>
+                      </div>
+                    </th>
+                    <th className="p-3 text-center align-middle whitespace-nowrap">
+                      <div className="flex items-center justify-center gap-1.5">
+                        <Settings className="w-3.5 h-3.5 shrink-0" />
+                        <span>Actions</span>
+                      </div>
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="text-[11px] text-[#475569]">
@@ -1607,16 +1691,18 @@ export function AdminWallet() {
                       <td className="p-3">
                         <div className="text-[#64748B] text-[11px]">{order.description}</div>
                       </td>
-                      <td className="p-3 text-right">
+                      <td className="p-3 text-center align-middle">
                         {order.category === 'Debit' ? (
                           <button
                             onClick={() => handleReverseTransaction(order)}
                             title="Reverse Transaction"
-                            className="w-7 h-7 rounded-full bg-[#FEF2F2] flex items-center justify-center text-[#EF4444] hover:bg-[#FEE2E2] transition-colors ml-auto"
+                            className="w-7 h-7 rounded-full bg-[#FEF2F2] flex items-center justify-center text-[#EF4444] hover:bg-[#FEE2E2] transition-colors mx-auto"
                           >
                             <RefreshCcw className="w-3.5 h-3.5" />
                           </button>
-                        ) : <div className="w-7 ml-auto" />}
+                        ) : (
+                          <div className="w-7 mx-auto" />
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -1675,16 +1761,48 @@ export function AdminWallet() {
             <div className="flex-1 overflow-y-auto overflow-x-hidden w-full relative">
               <table className="w-full text-left border-collapse min-w-full">
                 <thead>
-                  <tr className="bg-[#E6F5F1] text-[10px] font-bold text-[#00A86B] uppercase tracking-wider">
-                    <th className="p-3 w-10">
+                  <tr className="bg-[#E6F5F1] text-xs font-medium text-[#00A86B] uppercase tracking-wider">
+                    <th className="p-3 w-10 text-left align-middle">
                       <input type="checkbox" checked={selectedRechargeOrders.length === filteredWalletRechargeData.length && filteredWalletRechargeData.length > 0} onChange={toggleAllRecharge} className="rounded border-[#00A86B] accent-[#00A86B] w-3.5 h-3.5" />
                     </th>
-                    {isAdmin && <th className="p-3"><User className="w-3.5 h-3.5 inline mr-1"/> User Details</th>}
-                    <th className="p-3"><Calendar className="w-3.5 h-3.5 inline mr-1"/> Date</th>
-                    <th className="p-3"><FileText className="w-3.5 h-3.5 inline mr-1"/> Transaction ID</th>
-                    <th className="p-3"><Banknote className="w-3.5 h-3.5 inline mr-1"/> Amount</th>
-                    <th className="p-3"><Check className="w-3.5 h-3.5 inline mr-1"/> Status</th>
-                    <th className="p-3"><FileText className="w-3.5 h-3.5 inline mr-1"/> Description</th>
+                    {isAdmin && (
+                      <th className="p-3 text-left align-middle whitespace-nowrap">
+                        <div className="flex items-center gap-1.5">
+                          <User className="w-3.5 h-3.5 shrink-0" />
+                          <span>User</span>
+                        </div>
+                      </th>
+                    )}
+                    <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <Calendar className="w-3.5 h-3.5 shrink-0" />
+                        <span>Date</span>
+                      </div>
+                    </th>
+                    <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <FileText className="w-3.5 h-3.5 shrink-0" />
+                        <span>Transaction ID</span>
+                      </div>
+                    </th>
+                    <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <Banknote className="w-3.5 h-3.5 shrink-0" />
+                        <span>Amount</span>
+                      </div>
+                    </th>
+                    <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <Check className="w-3.5 h-3.5 shrink-0" />
+                        <span>Status</span>
+                      </div>
+                    </th>
+                    <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <FileText className="w-3.5 h-3.5 shrink-0" />
+                        <span>Description</span>
+                      </div>
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="text-[11px] text-[#475569]">
@@ -1776,18 +1894,60 @@ export function AdminWallet() {
             <div className="flex-1 overflow-y-auto overflow-x-hidden w-full relative">
               <table className="w-full text-left border-collapse min-w-full">
                 <thead>
-                  <tr className="bg-[#E6F5F1] text-[10px] font-bold text-[#00A86B] uppercase tracking-wider">
-                    <th className="p-3 w-10">
+                  <tr className="bg-[#E6F5F1] text-xs font-medium text-[#00A86B] uppercase tracking-wider">
+                    <th className="p-3 w-10 text-left align-middle">
                       <input type="checkbox" checked={selectedInvoiceOrders.length === filteredInvoicesData.length && filteredInvoicesData.length > 0} onChange={toggleAllInvoices} className="rounded border-[#00A86B] accent-[#00A86B] w-3.5 h-3.5" />
                     </th>
-                    {isAdmin && <th className="p-3"><User className="w-3.5 h-3.5 inline mr-1"/> User Details</th>}
-                    <th className="p-3"><FileText className="w-3.5 h-3.5 inline mr-1"/> Invoice Number</th>
-                    <th className="p-3"><Package className="w-3.5 h-3.5 inline mr-1"/> Shipments</th>
-                    <th className="p-3"><Banknote className="w-3.5 h-3.5 inline mr-1"/> Amount Details</th>
-                    <th className="p-3"><Calendar className="w-3.5 h-3.5 inline mr-1"/> Created On</th>
-                    <th className="p-3"><Calendar className="w-3.5 h-3.5 inline mr-1"/> Invoice Period</th>
-                    <th className="p-3"><Check className="w-3.5 h-3.5 inline mr-1"/> Status</th>
-                    <th className="p-3 text-right"><MoreVertical className="w-3.5 h-3.5 inline mr-1"/> Actions</th>
+                    {isAdmin && (
+                      <th className="p-3 text-left align-middle whitespace-nowrap">
+                        <div className="flex items-center gap-1.5">
+                          <User className="w-3.5 h-3.5 shrink-0" />
+                          <span>User</span>
+                        </div>
+                      </th>
+                    )}
+                    <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <FileText className="w-3.5 h-3.5 shrink-0" />
+                        <span>Invoice No.</span>
+                      </div>
+                    </th>
+                    <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <Package className="w-3.5 h-3.5 shrink-0" />
+                        <span>Shipments</span>
+                      </div>
+                    </th>
+                    <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <Banknote className="w-3.5 h-3.5 shrink-0" />
+                        <span>Amount</span>
+                      </div>
+                    </th>
+                    <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <Calendar className="w-3.5 h-3.5 shrink-0" />
+                        <span>Created Date</span>
+                      </div>
+                    </th>
+                    <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <Calendar className="w-3.5 h-3.5 shrink-0" />
+                        <span>Period</span>
+                      </div>
+                    </th>
+                    <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <Check className="w-3.5 h-3.5 shrink-0" />
+                        <span>Status</span>
+                      </div>
+                    </th>
+                    <th className="p-3 text-center align-middle whitespace-nowrap">
+                      <div className="flex items-center justify-center gap-1.5">
+                        <Settings className="w-3.5 h-3.5 shrink-0" />
+                        <span>Actions</span>
+                      </div>
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="text-[11px] text-[#475569]">
@@ -1821,8 +1981,8 @@ export function AdminWallet() {
                       <td className="p-3">
                         <span className={getStatusBadgeClass(invoice.status)}>{invoice.status}</span>
                       </td>
-                      <td className="p-3 text-right">
-                        <div className="flex items-center justify-end gap-2">
+                      <td className="p-3 text-center align-middle">
+                        <div className="flex items-center justify-center gap-2">
                           <button 
                             onClick={() => handleDownloadInvoice(invoice)}
                             title="Download Invoice" 

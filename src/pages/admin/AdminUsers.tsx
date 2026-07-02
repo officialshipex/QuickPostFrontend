@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
+import { usePagination } from '../../hooks/usePagination';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   Search, RefreshCcw, Calendar, ChevronDown, User, Users, 
@@ -19,7 +20,7 @@ const STATUS_BADGE_STYLES: Record<string, string> = {
 
 const getStatusBadgeClass = (status: string) => {
   const normalized = status || '';
-  return `${STATUS_BADGE_STYLES[normalized] || 'bg-blue-50 text-blue-700 border-blue-200'} px-2.5 py-0.5 rounded-full border text-[11px] font-semibold uppercase tracking-wider whitespace-nowrap shadow-sm`;
+  return `${STATUS_BADGE_STYLES[normalized] || 'bg-blue-50 text-blue-700 border-blue-200'} px-2.5 py-0.5 rounded-full border text-[10px] font-semibold uppercase tracking-wider whitespace-nowrap shadow-sm`;
 };
 
 const MOCK_USERS = [
@@ -88,15 +89,14 @@ export function AdminUsers() {
     return true;
   });
 
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
-  React.useEffect(() => { setCurrentPage(1); }, [filteredUsers]);
-
-  const paginatedUsers = React.useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    return filteredUsers.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredUsers, currentPage]);
-  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+  const {
+    page: currentPage,
+    setPage: setCurrentPage,
+    totalPages,
+    paginatedData: paginatedUsers,
+    startIndex,
+    endIndex,
+  } = usePagination({ data: filteredUsers, perPage: 10 });
 
   const toggleAll = () => setSelectedUsers(selectedUsers.length === filteredUsers.length ? [] : filteredUsers.map(u => u.id));
   const toggleSelect = (id: string) => setSelectedUsers(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
@@ -229,7 +229,7 @@ export function AdminUsers() {
         <div className="flex-1 overflow-auto no-scrollbar relative">
           <table className="w-full text-left border-collapse min-w-[1300px]">
             <thead className="sticky top-0 z-40 bg-[#E6F5F1] shadow-sm">
-              <tr className="text-[10px] font-bold text-[#00A86B] uppercase tracking-wider">
+              <tr className="text-xs font-medium text-[#00A86B] uppercase tracking-wider">
                 <th className="p-3 w-10">
                   <input type="checkbox" checked={selectedUsers.length === filteredUsers.length && filteredUsers.length > 0} onChange={toggleAll} className="rounded border-[#00A86B] accent-[#00A86B] w-3.5 h-3.5" />
                 </th>
@@ -253,7 +253,7 @@ export function AdminUsers() {
                   <td className="p-3 align-top pt-4">
                     <div className="text-xs font-semibold text-[#00A86B] cursor-pointer hover:underline">{user.id}</div>
                     <div className="text-sm font-semibold text-[#0F172A] mt-0.5">{user.name}</div>
-                    <div className="text-[11px] text-[#94A3B8]">{user.email}</div>
+                    <div className="font-sans text-xs font-normal text-[#94A3B8]">{user.email}</div>
                   </td>
                   <td className="p-3 align-top pt-4">
                     <div className="font-bold text-[#0F172A] text-[11px]">{user.business}</div>
@@ -312,7 +312,7 @@ export function AdminUsers() {
         {totalPages > 0 && (
           <div className="p-4 border-t border-[#E2E8F0] flex items-center justify-between bg-white relative z-20">
             <div className="text-xs text-[#64748B]">
-              Showing <span className="font-bold text-[#0F172A]">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-bold text-[#0F172A]">{Math.min(currentPage * itemsPerPage, filteredUsers.length)}</span> of <span className="font-bold text-[#0F172A]">{filteredUsers.length}</span> entries
+              Showing <span className="font-bold text-[#0F172A]">{startIndex}</span> to <span className="font-bold text-[#0F172A]">{endIndex}</span> of <span className="font-bold text-[#0F172A]">{filteredUsers.length}</span> entries
             </div>
             <div className="flex items-center gap-1">
               <button 
