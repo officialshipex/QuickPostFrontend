@@ -6,6 +6,7 @@ import { Home } from './pages/Home';
 import { ForgotPassword } from './pages/ForgotPassword';
 import { Login } from './pages/Login';
 import { ProtectedRoute } from './components/layout/ProtectedRoute';
+import { AdminUserProvider } from './context/AdminUserContext';
 
 
 
@@ -150,7 +151,7 @@ function App() {
           <Route path="/forgot-password" element={<AuthRedirect><ForgotPassword /></AuthRedirect>} />
           
           {/* Admin Routes */}
-          <Route element={<ProtectedRoute allowedRoles={['admin', 'user']} />}>
+          <Route element={<AdminUserProvider><ProtectedRoute allowedRoles={['admin', 'user']} /></AdminUserProvider>}>
             <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
             <Route path="/admin/dashboard" element={<AdminDashboard />} />
             <Route path="/admin/users" element={<AdminUsers />} />

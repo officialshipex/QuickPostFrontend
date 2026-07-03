@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Search, LogOut, Bell, User, Building2, Calendar, ChevronDown, ChevronUp, Shield, FileText, Zap, Calculator, PackagePlus, MapPin, Wallet, Check, X, ArrowLeft, Banknote } from 'lucide-react';
 import { useAuth } from '../../../hooks/useAuth';
+import { useAdminTab } from '../../../context/AdminUserContext';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export function AdminHeader() {
   const { logout } = useAuth();
+  const { isAdmin, adminTab, toggleAdminTab } = useAdminTab();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showQuickActions, setShowQuickActions] = useState(false);
@@ -460,9 +462,32 @@ export function AdminHeader() {
                 <Link to="/admin/profile" className="flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors" onClick={() => setShowProfileMenu(false)}>
                   <User className="w-4 h-4 text-[#94A3B8]" /> Profile
                 </Link>
-                
+
+                {/* Admin / User view toggle — only for admins */}
+                {isAdmin && (
+                  <>
+                    <div className="border-t border-[#E2E8F0] my-1"></div>
+                    <div className="flex items-center justify-between px-3 py-2">
+                      <div className="flex items-center gap-2 text-[#475569]">
+                        <Shield className="w-4 h-4 text-[#00A86B]" />
+                        <span className="text-[13px] font-semibold">{adminTab ? 'Admin' : 'User'}</span>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          className="sr-only peer"
+                          checked={adminTab}
+                          onChange={(e) => toggleAdminTab(e.target.checked)}
+                        />
+                        <div className="w-10 h-5 bg-gray-300 rounded-full peer peer-checked:bg-[#00A86B] transition-colors duration-300"></div>
+                        <div className="absolute left-1 top-1 bg-white w-3 h-3 rounded-full transition-transform duration-300 peer-checked:translate-x-5"></div>
+                      </label>
+                    </div>
+                  </>
+                )}
+
                 <div className="border-t border-[#E2E8F0] my-1"></div>
-                
+
                 <button onMouseDown={(e) => { e.preventDefault(); logout(); }} className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-semibold text-[#EF4444] hover:bg-[#FEF2F2] transition-colors">
                   <LogOut className="w-4 h-4 text-[#EF4444]/70" /> Sign out
                 </button>

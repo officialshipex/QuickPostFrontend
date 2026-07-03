@@ -34,8 +34,8 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   return (
     <div className="admin-dashboard-layout flex min-h-screen bg-[#F8FAFC] text-[#0F172A] selection:bg-[#00A86B]/20 selection:text-[#00A86B] text-sm">
       <AdminSidebar />
-      <div 
-        className="flex-1 flex flex-col min-w-0" 
+      <div
+        className="flex-1 flex flex-col min-w-0"
         style={{ marginLeft: 68 }}
       >
         {showHeader && <AdminHeader />}
