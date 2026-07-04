@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { usePagination } from '../../hooks/usePagination';
-import { Search, ChevronDown, RefreshCcw, Calendar, Check, Package, User, Truck, Banknote, Clock, Upload, Download, MoreVertical, Wallet, ArrowDownCircle, ArrowUpCircle, FileText, Plus, TrendingUp, ChevronLeft, ChevronRight, MinusCircle, Send, Eye, AlertCircle, CheckCircle2, X, CreditCard, Filter, Layers, Hash, CalendarDays, Bot, ArrowLeft, Settings } from 'lucide-react';
+import { Search, ChevronDown, RefreshCcw, Calendar, Check, Package, User, Truck, Banknote, Clock, Upload, Download, MoreVertical, Wallet, ArrowDownCircle, ArrowUpCircle, FileText, Plus, TrendingUp, ChevronLeft, ChevronRight, MinusCircle, Send, Eye, AlertCircle, CheckCircle2, X, CreditCard, Filter, Layers, Hash, CalendarDays, Bot, ArrowLeft, Settings, Copy } from 'lucide-react';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
 import { GlassSingleSelect } from '../../components/ui/GlassSingleSelect';
@@ -65,7 +65,7 @@ const STATUS_BADGE_STYLES: Record<string, string> = {
 
 const getStatusBadgeClass = (status: string) => {
   const normalized = status || '';
-  return `${STATUS_BADGE_STYLES[normalized] || 'bg-blue-50 text-blue-700 border-blue-200'} px-2.5 py-0.5 rounded-full border text-[10px] font-semibold uppercase tracking-wider whitespace-nowrap shadow-sm`;
+  return `${STATUS_BADGE_STYLES[normalized] || 'bg-blue-50 text-blue-700 border-blue-200'} px-2.5 py-0.5 rounded-full border text-[10px] font-semibold font-sans uppercase tracking-wider whitespace-nowrap shadow-sm`;
 };
 
 // Mock data for Passbook
@@ -163,6 +163,23 @@ export function AdminWallet() {
     setTimeout(() => setToast(null), 3000);
   };
 
+  const renderCopyable = (text: string, label: string, className: string = "text-xs font-semibold text-[#00A86B] cursor-pointer hover:underline uppercase", onTextClick?: () => void) => (
+    <div className="flex items-center gap-1.5 group/copy w-max">
+      <div className={className} onClick={(e) => { if (onTextClick) { e.stopPropagation(); onTextClick(); } }}>{text}</div>
+      <button 
+        onClick={(e) => {
+          e.stopPropagation();
+          navigator.clipboard.writeText(text);
+          showToast('success', `${label} copied!`);
+        }}
+        className="opacity-0 group-hover/copy:opacity-100 transition-opacity focus:outline-none"
+        title={`Copy ${label}`}
+      >
+        <Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" />
+      </button>
+    </div>
+  );
+
   // Wallet Balance State
   const [walletBalance, setWalletBalance] = useState(71234.82);
 
@@ -189,6 +206,13 @@ export function AdminWallet() {
   const [passbookSearchTerm, setPassbookSearchTerm] = useState('');
   const [passbookOrderId, setPassbookOrderId] = useState('');
   const [passbookAwb, setPassbookAwb] = useState('');
+
+  // Clear Passbook AWB filter when navigating away to prevent it from getting "stuck" after using History button or browser back
+  useEffect(() => {
+    if (activeTab !== 'Passbook') {
+      setPassbookAwb('');
+    }
+  }, [activeTab]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedDescriptions, setSelectedDescriptions] = useState<string[]>([]);
   const [passbookDateStart, setPassbookDateStart] = useState('');
@@ -272,6 +296,21 @@ export function AdminWallet() {
   const [showPassbookActionMenu, setShowPassbookActionMenu] = useState(false);
   const [showRechargeActionMenu, setShowRechargeActionMenu] = useState(false);
   const [showInvoiceActionMenu, setShowInvoiceActionMenu] = useState(false);
+
+  // Close action menus when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.action-dropdown-container')) {
+        setShowShippingActionMenu(false);
+        setShowPassbookActionMenu(false);
+        setShowRechargeActionMenu(false);
+        setShowInvoiceActionMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Modals States
   const [isRechargeModalOpen, setIsRechargeModalOpen] = useState(false);
@@ -785,7 +824,7 @@ export function AdminWallet() {
                  >
                    <Plus className="w-3.5 h-3.5" /> Recharge Wallet
                  </button>
-                 <div className="relative">
+                 <div className="relative action-dropdown-container">
                    <button
                      onClick={() => setShowShippingActionMenu(!showShippingActionMenu)}
                      className="glass-dropdown-trigger w-auto px-4 justify-between min-w-[100px]"
@@ -889,7 +928,7 @@ export function AdminWallet() {
                  >
                    <Plus className="w-3.5 h-3.5" /> Recharge Wallet
                  </button>
-                 <div className="relative">
+                 <div className="relative action-dropdown-container">
                    <button
                      onClick={() => setShowPassbookActionMenu(!showPassbookActionMenu)}
                      className="glass-dropdown-trigger w-auto px-4 justify-between min-w-[100px]"
@@ -981,7 +1020,7 @@ export function AdminWallet() {
                  >
                    <Plus className="w-3.5 h-3.5" /> Recharge Wallet
                  </button>
-                 <div className="relative">
+                 <div className="relative action-dropdown-container">
                    <button
                      onClick={() => setShowRechargeActionMenu(!showRechargeActionMenu)}
                      className="glass-dropdown-trigger w-auto px-4 justify-between min-w-[100px]"
@@ -1065,7 +1104,7 @@ export function AdminWallet() {
                  >
                    <Plus className="w-3.5 h-3.5" /> Recharge Wallet
                  </button>
-                 <div className="relative">
+                 <div className="relative action-dropdown-container">
                    <button
                      onClick={() => setShowInvoiceActionMenu(!showInvoiceActionMenu)}
                      className="glass-dropdown-trigger w-auto px-4 justify-between min-w-[100px]"
@@ -1108,18 +1147,6 @@ export function AdminWallet() {
             {selectedOrders.length > 0 && (
               <div className="px-4 py-2 bg-blue-50 border-b border-blue-100 flex items-center gap-3 animate-fade-in">
                 <span className="text-xs font-bold text-blue-700">{selectedOrders.length} selected</span>
-                <button 
-                  onClick={() => handleExportData('shipping', filteredShippingData.filter(o => selectedOrders.includes(o.awb)))}
-                  className="h-8 px-3 rounded-md bg-white border border-blue-200 text-xs font-bold text-blue-700 shadow-sm ml-auto hover:bg-blue-100"
-                >
-                  Export Selected
-                </button>
-                <button 
-                  onClick={handleBulkMarkPaid}
-                  className="h-8 px-3 rounded-md bg-white border border-green-200 text-xs font-bold text-green-700 shadow-sm hover:bg-green-50"
-                >
-                  Mark Paid
-                </button>
               </div>
             )}
             <div className="flex-1 overflow-y-auto overflow-x-hidden w-full relative">
@@ -1180,22 +1207,22 @@ export function AdminWallet() {
                         <input type="checkbox" checked={selectedOrders.includes(order.awb)} onChange={() => toggleSelect(order.awb)} className="rounded border-gray-300 accent-[#00A86B] w-3.5 h-3.5" />
                       </td>
                       <td className="p-3">
-                        <div className="text-xs font-semibold text-[#00A86B] cursor-pointer hover:underline">{order.id}</div>
-                        <TruncatedText text={order.userName} maxLength={20} className="text-sm font-semibold text-[#0F172A] mt-0.5 max-w-[160px]" />
-                        <TruncatedText text={order.userEmail} maxLength={25} className="font-sans text-xs font-normal text-[#94A3B8] max-w-[180px]" />
+                        {renderCopyable(order.id, 'Order ID', "text-[12px] font-semibold font-sans text-[#00A86B] cursor-pointer hover:underline uppercase", () => navigate(`/admin/order-tracking?id=${order.id}`))}
+                        <TruncatedText text={order.userName} maxLength={20} className="text-[14px] font-semibold font-sans text-[#0F172A] mt-0.5 max-w-[160px]" />
+                        <TruncatedText text={order.userEmail} maxLength={25} className="text-[12px] font-normal font-sans text-[#94A3B8] max-w-[180px]" />
                       </td>
                       <td className="p-3">
-                        <div className="text-xs font-semibold text-[#00A86B] cursor-pointer hover:underline">{order.id}</div>
+                        {renderCopyable(order.id, 'Order ID', "text-[12px] font-semibold font-sans text-[#00A86B] cursor-pointer hover:underline uppercase", () => navigate(`/admin/order-tracking?id=${order.id}`))}
                         <div className="table-date mt-0.5">{order.date}</div>
                         <div className="table-date mt-0.5">{order.day}</div>
                       </td>
                       <td className="p-3">
                         <div className="text-xs font-semibold text-[#00A86B]">{order.courier}</div>
                         <div className="table-date mt-0.5">Booked On : {order.bookedDate}</div>
-                        <div className="text-xs font-semibold text-[#00A86B] underline decoration-solid underline-offset-2 mt-0.5 hover:text-[#009B63] cursor-pointer">{order.awb}</div>
+                        {renderCopyable(order.awb, 'AWB', "text-[12px] font-semibold font-sans text-[#00A86B] underline decoration-solid underline-offset-2 mt-0.5 hover:text-[#009B63] cursor-pointer", () => navigate('/admin/tracking', { state: { awb: order.awb } }))}
                       </td>
                       <td className="p-3">
-                        <div className="font-bold text-[#0F172A] text-[11px]">₹{order.statusAmount}</div>
+                        <div className="text-[12px] font-normal font-sans text-[#0F172A]">₹{order.statusAmount}</div>
                         <span className={getStatusBadgeClass(order.status)}>
                           {order.status}
                         </span>
@@ -1212,8 +1239,11 @@ export function AdminWallet() {
                       </td>
                       <td className="p-3 text-center align-middle">
                         <button 
-                          onClick={() => setActiveShipmentHistory(order)}
-                          className="px-3 py-1.5 rounded-full bg-[#1E3A8A] text-white text-[10px] font-bold hover:bg-[#1E3A8A]/90 transition-colors mx-auto inline-block"
+                          onClick={() => {
+                            setPassbookAwb(order.awb);
+                            setActiveTab('Passbook');
+                          }}
+                          className="px-3 py-1.5 rounded-full bg-[#1E3A8A] text-white text-[10px] font-semibold font-sans hover:bg-[#1E3A8A]/90 transition-colors mx-auto inline-block"
                         >
                           History
                         </button>
@@ -1360,19 +1390,19 @@ export function AdminWallet() {
                         <input type="checkbox" checked={selectedPassbookOrders.includes(order.awb)} onChange={() => toggleSelectPassbook(order.awb)} className="rounded border-gray-300 accent-[#00A86B] w-3.5 h-3.5" />
                       </td>
                       <td className="p-3">
-                        <div className="text-xs font-semibold text-[#00A86B] cursor-pointer hover:underline">{order.id}</div>
-                        <TruncatedText text={order.userName} maxLength={20} className="text-sm font-semibold text-[#0F172A] mt-0.5 max-w-[160px]" />
-                        <TruncatedText text={order.userEmail} maxLength={25} className="font-sans text-xs font-normal text-[#94A3B8] max-w-[180px]" />
+                        {renderCopyable(order.id, 'Order ID', "text-[12px] font-semibold font-sans text-[#00A86B] cursor-pointer hover:underline uppercase", () => navigate(`/admin/order-tracking?id=${order.id}`))}
+                        <TruncatedText text={order.userName} maxLength={20} className="text-[14px] font-semibold font-sans text-[#0F172A] mt-0.5 max-w-[160px]" />
+                        <TruncatedText text={order.userEmail} maxLength={25} className="text-[12px] font-normal font-sans text-[#94A3B8] max-w-[180px]" />
                       </td>
                       <td className="p-3">
-                        <div className="text-xs font-semibold text-[#00A86B] cursor-pointer hover:underline">{order.id}</div>
+                        {renderCopyable(order.id, 'Order ID', "text-[12px] font-semibold font-sans text-[#00A86B] cursor-pointer hover:underline uppercase")}
                         <div className="table-date mt-0.5">{order.date}</div>
                         <div className="table-date mt-0.5">{order.day}</div>
                       </td>
                       <td className="p-3">
                         <div className="text-xs font-semibold text-[#00A86B]">{order.courier}</div>
-                        <div className="table-date mt-0.5">Booked On : {order.bookedDate}</div>
-                        <div className="text-xs font-semibold text-[#00A86B] underline decoration-solid underline-offset-2 mt-0.5 hover:text-[#009B63] cursor-pointer">{order.awb}</div>
+                        <div className="text-[12px] font-normal font-sans text-[#64748B] mt-0.5">Booked On : {order.bookedDate}</div>
+                        {renderCopyable(order.awb, 'AWB', "text-[12px] font-semibold font-sans text-[#00A86B] underline decoration-solid underline-offset-2 mt-0.5 hover:text-[#009B63] cursor-pointer", () => navigate('/admin/tracking', { state: { awb: order.awb } }))}
                       </td>
                       <td className="p-3">
                         <span className={getStatusBadgeClass(order.category)}>
@@ -1380,13 +1410,13 @@ export function AdminWallet() {
                         </span>
                       </td>
                       <td className="p-3">
-                        <div className={`font-bold text-[11px] ${order.category === 'Debit' ? 'text-red-500' : 'text-green-500'}`}>₹{order.amount.toFixed(2)}</div>
+                        <div className={`text-[12px] font-normal font-sans ${order.category === 'Debit' ? 'text-red-500' : 'text-green-500'}`}>₹{order.amount.toFixed(2)}</div>
                       </td>
                       <td className="p-3">
-                        <div className="font-bold text-[#64748B] text-[11px]">₹{order.balance.toFixed(2)}</div>
+                        <div className="text-[#64748B] text-[12px] font-normal font-sans">₹{order.balance.toFixed(2)}</div>
                       </td>
                       <td className="p-3">
-                        <div className="text-[#64748B] text-[11px]">{order.description}</div>
+                        <div className="text-[#64748B] text-[12px] font-normal font-sans">{order.description}</div>
                       </td>
                       <td className="p-3 text-center align-middle">
                         <button 
@@ -1525,18 +1555,18 @@ export function AdminWallet() {
                       </td>
                       <td className="p-3">
                         <div className="text-xs font-semibold text-[#00A86B] cursor-pointer hover:underline">{recharge.id}</div>
-                        <TruncatedText text={recharge.userName} maxLength={20} className="text-sm font-semibold text-[#0F172A] mt-0.5 max-w-[160px]" />
-                        <TruncatedText text={recharge.userEmail} maxLength={25} className="font-sans text-xs font-normal text-[#94A3B8] max-w-[180px]" />
+                        <TruncatedText text={recharge.userName} maxLength={20} className="text-[14px] font-semibold font-sans text-[#0F172A] mt-0.5 max-w-[160px]" />
+                        <TruncatedText text={recharge.userEmail} maxLength={25} className="text-[12px] font-normal font-sans text-[#94A3B8] max-w-[180px]" />
                       </td>
                       <td className="p-3">
                         <div className="table-date">{recharge.date}</div>
                         <div className="table-date mt-0.5">{recharge.time}</div>
                       </td>
                       <td className="p-3">
-                        <div className="text-xs font-semibold text-[#00A86B]">{recharge.transactionId}</div>
+                        <div className="text-[12px] font-semibold font-sans text-[#00A86B]">{recharge.transactionId}</div>
                       </td>
                       <td className="p-3">
-                        <div className="font-bold text-[#0F172A] text-[11px]">₹{recharge.amount.toFixed(2)}</div>
+                        <div className="text-[#0F172A] text-[12px] font-normal font-sans">₹{recharge.amount.toFixed(2)}</div>
                       </td>
                       <td className="p-3">
                         <span className={getStatusBadgeClass(recharge.status)}>
@@ -1544,8 +1574,8 @@ export function AdminWallet() {
                         </span>
                       </td>
                       <td className="p-3">
-                        <div className="font-bold text-[#0F172A]">Payment ID : {recharge.paymentId}</div>
-                        <div className="font-bold text-[#0F172A] mt-0.5">Order ID: {recharge.orderId}</div>
+                        <div className="text-[12px] text-[#0F172A] font-sans"><span className="font-medium">Payment ID : </span><span className="font-normal">{recharge.paymentId}</span></div>
+                        <div className="text-[12px] text-[#0F172A] font-sans mt-0.5"><span className="font-medium">Order ID: </span><span className="font-normal">{recharge.orderId}</span></div>
                       </td>
                     </tr>
                   ))}
@@ -1688,23 +1718,23 @@ export function AdminWallet() {
                       </td>
                       <td className="p-3">
                         <div className="text-xs font-semibold text-[#00A86B] cursor-pointer hover:underline uppercase">{invoice.id}</div>
-                        <TruncatedText text={invoice.userName} maxLength={20} className="text-sm font-semibold text-[#0F172A] mt-0.5 max-w-[160px]" />
-                        <TruncatedText text={invoice.userEmail} maxLength={25} className="font-sans text-xs font-normal text-[#94A3B8] max-w-[180px]" />
+                        <TruncatedText text={invoice.userName} maxLength={20} className="text-[14px] font-semibold font-sans text-[#0F172A] mt-0.5 max-w-[160px]" />
+                        <TruncatedText text={invoice.userEmail} maxLength={25} className="text-[12px] font-normal font-sans text-[#94A3B8] max-w-[180px]" />
                       </td>
                       <td className="p-3">
                         <div className="text-xs font-semibold text-[#00A86B]">{invoice.invoiceNumber}</div>
                       </td>
                       <td className="p-3">
-                        <div className="text-[#64748B] text-[11px]">{invoice.shipments}</div>
+                        <div className="text-[12px] font-normal font-sans text-[#64748B]">{invoice.shipments}</div>
                       </td>
                       <td className="p-3">
-                        <div className="font-bold text-[#0F172A] text-[11px]">₹{invoice.amount.toFixed(2)}</div>
+                        <div className="text-[12px] font-normal font-sans text-[#0F172A]">₹{invoice.amount.toFixed(2)}</div>
                       </td>
                       <td className="p-3">
-                        <div className="table-date">{invoice.createdOn}</div>
+                        <div className="text-[12px] font-normal font-sans text-[#64748B]">{invoice.createdOn}</div>
                       </td>
                       <td className="p-3">
-                        <div className="table-date">{invoice.invoicePeriod}</div>
+                        <div className="text-[12px] font-normal font-sans text-[#64748B]">{invoice.invoicePeriod}</div>
                       </td>
                       <td className="p-3">
                         <span className={getStatusBadgeClass(invoice.status)}>{invoice.status}</span>
@@ -2575,7 +2605,7 @@ export function AdminWallet() {
 
         {/* Floating Bot Button */}
         {activeTab === 'Passbook' && (
-          <div className="fixed bottom-6 right-6 z-40 flex items-center gap-2">
+          <div className="fixed bottom-24 right-8 z-40 flex items-center gap-2">
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
