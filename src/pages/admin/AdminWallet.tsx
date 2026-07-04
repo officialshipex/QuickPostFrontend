@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { usePagination } from '../../hooks/usePagination';
@@ -7,6 +7,9 @@ import { Search, ChevronDown, RefreshCcw, Calendar, Check, Package, User, Truck,
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
 import { GlassSingleSelect } from '../../components/ui/GlassSingleSelect';
+import { useTableLoader } from '../../hooks/useTableLoader';
+import { TableLoader } from '../../components/ui/TableLoader';
+import { TruncatedText } from '../../components/ui/TruncatedText';
 
 const UPB_CATEGORY_OPTIONS = [
   { label: 'Wallet Recharge', value: 'recharge' },
@@ -144,7 +147,15 @@ export function AdminWallet() {
     };
   }, []);
 
-  const [activeTab, setActiveTab] = useState('Shipping');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get('tab') || 'Shipping';
+  const setActiveTab = (tab: string) => {
+    const newParams = new URLSearchParams(searchParams);
+    newParams.set('tab', tab);
+    setSearchParams(newParams);
+    startLoading(600);
+  };
+  const { isLoading, startLoading } = useTableLoader(800);
   const [toast, setToast] = useState<{type: 'error' | 'success', text: string} | null>(null);
 
   const showToast = (type: 'error' | 'success', text: string) => {
@@ -451,6 +462,8 @@ export function AdminWallet() {
     paginatedData: paginatedShippingData,
     startIndex: shippingStartIndex,
     endIndex: shippingEndIndex,
+    rowsPerPage: shippingRowsPerPage,
+    setRowsPerPage: setShippingRowsPerPage,
   } = usePagination({ data: filteredShippingData, perPage: 10 });
 
   const {
@@ -460,6 +473,8 @@ export function AdminWallet() {
     paginatedData: paginatedPassbookData,
     startIndex: passbookStartIndex,
     endIndex: passbookEndIndex,
+    rowsPerPage: passbookRowsPerPage,
+    setRowsPerPage: setPassbookRowsPerPage,
   } = usePagination({ data: filteredPassbookData, perPage: 10 });
 
   const {
@@ -469,6 +484,8 @@ export function AdminWallet() {
     paginatedData: paginatedRechargeData,
     startIndex: rechargeStartIndex,
     endIndex: rechargeEndIndex,
+    rowsPerPage: rechargeRowsPerPage,
+    setRowsPerPage: setRechargeRowsPerPage,
   } = usePagination({ data: filteredWalletRechargeData, perPage: 10 });
 
   const {
@@ -478,37 +495,19 @@ export function AdminWallet() {
     paginatedData: paginatedInvoicesData,
     startIndex: invoiceStartIndex,
     endIndex: invoiceEndIndex,
+    rowsPerPage: invoiceRowsPerPage,
+    setRowsPerPage: setInvoiceRowsPerPage,
   } = usePagination({ data: filteredInvoicesData, perPage: 10 });
 
   // Bulk Actions & Helpers
   const handleRefresh = () => {
-    setHeaderMobileSearch('');
-    setSearchTerm('');
-    setSelectedSearchTypes([]);
-    setSearchTypeId('');
-    setSelectedCouriers([]);
-    setSelectedStatuses([]);
-    setShippingDateStart(''); setShippingDateEnd('');
-    setPassbookSearchTerm('');
-    setPassbookOrderId('');
-    setPassbookAwb('');
-    setSelectedCategories([]);
-    setSelectedDescriptions([]);
-    setPassbookDateStart(''); setPassbookDateEnd('');
-    setRechargeSearchTerm('');
-    setRechargeTxnId('');
-    setSelectedPaymentMethods([]);
-    setSelectedRechargeStatuses([]);
-    setRechargeDateStart(''); setRechargeDateEnd('');
-    setInvoiceSearchTerm('');
-    setSelectedMonths([]);
-    setSelectedYears([]);
-    setInvoiceDateStart(''); setInvoiceDateEnd('');
-    setShippingPage(1);
-    setPassbookPage(1);
-    setRechargePage(1);
-    setInvoicePage(1);
-    showToast('success', 'Wallet data refreshed successfully!');
+    startLoading(1000).then(() => {
+      setShippingList(SHIPPING_DATA);
+      setPassbookList(PASSBOOK_DATA);
+      setRechargeList(WALLET_RECHARGE_DATA);
+      setInvoiceList(INVOICES_DATA);
+      showToast('success', 'Wallet data refreshed successfully!');
+    });
   };
 
   const handleBulkMarkPaid = () => {
@@ -711,8 +710,9 @@ export function AdminWallet() {
             <button 
               onClick={handleRefresh}
               className="w-8 h-8 rounded-full border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC]"
+              disabled={isLoading}
             >
-              <RefreshCcw className="w-4 h-4" />
+              <RefreshCcw className={`w-4 h-4 ${isLoading ? 'animate-spin text-[#00A86B]' : ''}`} />
             </button>
           </div>
         </div>
@@ -726,7 +726,7 @@ export function AdminWallet() {
                 placeholder="Search by name, email, o..." 
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="h-9 px-3 rounded-lg border border-[#E2E8F0] text-xs bg-white focus:outline-none w-[180px] shrink-0" 
+                className="glass-search-input w-[180px] shrink-0" 
               />
               
               <GlassDropdown
@@ -743,7 +743,7 @@ export function AdminWallet() {
                 placeholder="Search Type ID" 
                 value={searchTypeId}
                 onChange={(e) => setSearchTypeId(e.target.value)}
-                className="h-9 px-3 rounded-lg border border-[#E2E8F0] text-xs bg-white focus:outline-none w-32 shrink-0" 
+                className="glass-search-input w-32 shrink-0" 
               />
               
               <GlassDropdown
@@ -773,7 +773,7 @@ export function AdminWallet() {
               
               <button 
                 onClick={() => showToast('success', 'Shipping filters applied successfully!')}
-                className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm flex items-center justify-center"
+                className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm flex items-center justify-center cursor-pointer"
               >
                 Apply
               </button>
@@ -781,14 +781,14 @@ export function AdminWallet() {
                <div className="relative shrink-0 ml-auto flex items-center gap-2">
                  <button 
                    onClick={() => setIsRechargeModalOpen(true)}
-                   className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm flex items-center justify-center gap-1.5"
+                   className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
                  >
                    <Plus className="w-3.5 h-3.5" /> Recharge Wallet
                  </button>
                  <div className="relative">
                    <button
                      onClick={() => setShowShippingActionMenu(!showShippingActionMenu)}
-                     className="h-9 pl-4 pr-8 rounded-full border border-[#E2E8F0] text-xs bg-white focus:outline-none flex items-center font-bold text-[#475569] shadow-sm hover:bg-[#F8FAFC] transition-colors"
+                     className="glass-dropdown-trigger w-auto px-4 justify-between min-w-[100px]"
                    >
                      Action
                      <ChevronDown className="w-3.5 h-3.5 absolute right-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
@@ -831,7 +831,7 @@ export function AdminWallet() {
                 placeholder="Search by name, email, o..." 
                 value={passbookSearchTerm}
                 onChange={(e) => setPassbookSearchTerm(e.target.value)}
-                className="h-9 px-3 rounded-lg border border-[#E2E8F0] text-xs bg-white focus:outline-none w-[180px] shrink-0" 
+                className="glass-search-input w-[180px] shrink-0" 
               />
               
               <input 
@@ -839,7 +839,7 @@ export function AdminWallet() {
                 placeholder="Order ID" 
                 value={passbookOrderId}
                 onChange={(e) => setPassbookOrderId(e.target.value)}
-                className="h-9 px-3 rounded-lg border border-[#E2E8F0] text-xs bg-white focus:outline-none w-32 shrink-0" 
+                className="glass-search-input w-32 shrink-0" 
               />
 
               <input 
@@ -847,7 +847,7 @@ export function AdminWallet() {
                 placeholder="AWB Number" 
                 value={passbookAwb}
                 onChange={(e) => setPassbookAwb(e.target.value)}
-                className="h-9 px-3 rounded-lg border border-[#E2E8F0] text-xs bg-white focus:outline-none w-32 shrink-0" 
+                className="glass-search-input w-32 shrink-0" 
               />
               
               <GlassDropdown
@@ -877,7 +877,7 @@ export function AdminWallet() {
               
               <button 
                 onClick={() => showToast('success', 'Passbook filters applied successfully!')}
-                className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm flex items-center justify-center"
+                className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm flex items-center justify-center cursor-pointer"
               >
                 Apply
               </button>
@@ -885,14 +885,14 @@ export function AdminWallet() {
                <div className="relative shrink-0 ml-auto flex items-center gap-2">
                  <button 
                    onClick={() => setIsRechargeModalOpen(true)}
-                   className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm flex items-center justify-center gap-1.5"
+                   className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
                  >
                    <Plus className="w-3.5 h-3.5" /> Recharge Wallet
                  </button>
                  <div className="relative">
                    <button
                      onClick={() => setShowPassbookActionMenu(!showPassbookActionMenu)}
-                     className="h-9 pl-4 pr-8 rounded-full border border-[#E2E8F0] text-xs bg-white focus:outline-none flex items-center font-bold text-[#475569] shadow-sm hover:bg-[#F8FAFC] transition-colors"
+                     className="glass-dropdown-trigger w-auto px-4 justify-between min-w-[100px]"
                    >
                      Action
                      <ChevronDown className="w-3.5 h-3.5 absolute right-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
@@ -931,7 +931,7 @@ export function AdminWallet() {
                 placeholder="Search by name, email, o..." 
                 value={rechargeSearchTerm}
                 onChange={(e) => setRechargeSearchTerm(e.target.value)}
-                className="h-9 px-3 rounded-lg border border-[#E2E8F0] text-xs bg-white focus:outline-none w-[180px] shrink-0" 
+                className="glass-search-input w-[180px] shrink-0" 
               />
               
               <input 
@@ -939,7 +939,7 @@ export function AdminWallet() {
                 placeholder="Transaction ID" 
                 value={rechargeTxnId}
                 onChange={(e) => setRechargeTxnId(e.target.value)}
-                className="h-9 px-3 rounded-lg border border-[#E2E8F0] text-xs bg-white focus:outline-none w-36 shrink-0" 
+                className="glass-search-input w-36 shrink-0" 
               />
               
               <GlassDropdown
@@ -969,7 +969,7 @@ export function AdminWallet() {
               
               <button 
                 onClick={() => showToast('success', 'Wallet Recharge filters applied successfully!')}
-                className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm flex items-center justify-center"
+                className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm flex items-center justify-center cursor-pointer"
               >
                 Apply
               </button>
@@ -977,14 +977,14 @@ export function AdminWallet() {
                <div className="relative shrink-0 ml-auto flex items-center gap-2">
                  <button 
                    onClick={() => setIsRechargeModalOpen(true)}
-                   className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm flex items-center justify-center gap-1.5"
+                   className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
                  >
                    <Plus className="w-3.5 h-3.5" /> Recharge Wallet
                  </button>
                  <div className="relative">
                    <button
                      onClick={() => setShowRechargeActionMenu(!showRechargeActionMenu)}
-                     className="h-9 pl-4 pr-8 rounded-full border border-[#E2E8F0] text-xs bg-white focus:outline-none flex items-center font-bold text-[#475569] shadow-sm hover:bg-[#F8FAFC] transition-colors"
+                     className="glass-dropdown-trigger w-auto px-4 justify-between min-w-[100px]"
                    >
                      Action
                      <ChevronDown className="w-3.5 h-3.5 absolute right-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
@@ -1023,7 +1023,7 @@ export function AdminWallet() {
                 placeholder="Search by name, email, o..." 
                 value={invoiceSearchTerm}
                 onChange={(e) => setInvoiceSearchTerm(e.target.value)}
-                className="h-9 px-3 rounded-lg border border-[#E2E8F0] text-xs bg-white focus:outline-none w-[180px] shrink-0" 
+                className="glass-search-input w-[180px] shrink-0" 
               />
               
               <GlassDropdown
@@ -1053,7 +1053,7 @@ export function AdminWallet() {
               
               <button 
                 onClick={() => showToast('success', 'Invoice filters applied successfully!')}
-                className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm flex items-center justify-center"
+                className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm flex items-center justify-center cursor-pointer"
               >
                 Apply
               </button>
@@ -1061,14 +1061,14 @@ export function AdminWallet() {
                <div className="relative shrink-0 ml-auto flex items-center gap-2">
                  <button 
                    onClick={() => setIsRechargeModalOpen(true)}
-                   className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm flex items-center justify-center gap-1.5"
+                   className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
                  >
                    <Plus className="w-3.5 h-3.5" /> Recharge Wallet
                  </button>
                  <div className="relative">
                    <button
                      onClick={() => setShowInvoiceActionMenu(!showInvoiceActionMenu)}
-                     className="h-9 pl-4 pr-8 rounded-full border border-[#E2E8F0] text-xs bg-white focus:outline-none flex items-center font-bold text-[#475569] shadow-sm hover:bg-[#F8FAFC] transition-colors"
+                     className="glass-dropdown-trigger w-auto px-4 justify-between min-w-[100px]"
                    >
                      Action
                      <ChevronDown className="w-3.5 h-3.5 absolute right-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
@@ -1100,8 +1100,9 @@ export function AdminWallet() {
         </div>
 
         {/* Table Section */}
-        <div className="bg-white flex flex-col flex-1 min-h-0 overflow-hidden border-t border-[#E2E8F0]">
-        
+        <div className="bg-white flex flex-col flex-1 min-h-0 overflow-hidden border-t border-[#E2E8F0] relative">
+        {isLoading && <TableLoader />}
+
         {activeTab === 'Shipping' && (
           <>
             {selectedOrders.length > 0 && (
@@ -1123,7 +1124,7 @@ export function AdminWallet() {
             )}
             <div className="flex-1 overflow-y-auto overflow-x-hidden w-full relative">
               <table className="w-full text-left border-collapse min-w-full">
-                <thead>
+                <thead className="sticky top-0 z-20">
                   <tr className="bg-[#E6F5F1] text-xs font-medium text-[#00A86B] uppercase tracking-wider">
                     <th className="p-3 w-10 text-left align-middle">
                       <input type="checkbox" checked={selectedOrders.length === filteredShippingData.length && filteredShippingData.length > 0} onChange={toggleAll} className="rounded border-[#00A86B] accent-[#00A86B] w-3.5 h-3.5" />
@@ -1180,8 +1181,8 @@ export function AdminWallet() {
                       </td>
                       <td className="p-3">
                         <div className="text-xs font-semibold text-[#00A86B] cursor-pointer hover:underline">{order.id}</div>
-                        <div className="text-sm font-semibold text-[#0F172A] mt-0.5">{order.userName}</div>
-                        <div className="font-sans text-xs font-normal text-[#94A3B8]">{order.userEmail}</div>
+                        <TruncatedText text={order.userName} maxLength={20} className="text-sm font-semibold text-[#0F172A] mt-0.5 max-w-[160px]" />
+                        <TruncatedText text={order.userEmail} maxLength={25} className="font-sans text-xs font-normal text-[#94A3B8] max-w-[180px]" />
                       </td>
                       <td className="p-3">
                         <div className="text-xs font-semibold text-[#00A86B] cursor-pointer hover:underline">{order.id}</div>
@@ -1233,8 +1234,20 @@ export function AdminWallet() {
             {/* Shipping Pagination */}
             {totalShippingPages > 0 && (
               <div className="p-4 border-t border-[#E2E8F0] flex items-center justify-between">
-                <div className="text-xs text-[#64748B]">
-                  Showing <span className="font-bold text-[#0F172A]">{shippingStartIndex}</span> to <span className="font-bold text-[#0F172A]">{shippingEndIndex}</span> of <span className="font-bold text-[#0F172A]">{filteredShippingData.length}</span> entries
+                <div className="flex items-center gap-4">
+                  <div className="text-xs text-[#64748B]">
+                    Showing <span className="font-bold text-[#0F172A]">{shippingStartIndex}</span> to <span className="font-bold text-[#0F172A]">{shippingEndIndex}</span> of <span className="font-bold text-[#0F172A]">{filteredShippingData.length}</span> entries
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px] text-[#94A3B8] font-semibold uppercase tracking-wider">Show</span>
+                    <select
+                      value={shippingRowsPerPage}
+                      onChange={(e) => setShippingRowsPerPage(Number(e.target.value))}
+                      className="h-8 px-2.5 rounded-lg border border-[#E2E8F0] bg-white text-xs font-bold text-[#475569] cursor-pointer appearance-none min-w-[56px] text-center shadow-sm hover:border-[#00A86B]/40 hover:shadow-[0_0_0_3px_rgba(0,168,107,0.06)] focus:outline-none focus:border-[#00A86B] focus:shadow-[0_0_0_3px_rgba(0,168,107,0.1)] transition-all duration-200 bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2394A3B8%22%20stroke-width%3D%222.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E')] bg-[length:12px] bg-[right_8px_center] bg-no-repeat pr-7"
+                    >
+                      {[10, 25, 50, 100].map(v => <option key={v} value={v}>{v}</option>)}
+                    </select>
+                  </div>
                 </div>
                 <div className="flex items-center gap-1">
                   <button 
@@ -1285,7 +1298,7 @@ export function AdminWallet() {
             )}
             <div className="flex-1 overflow-y-auto overflow-x-hidden w-full relative">
               <table className="w-full text-left border-collapse min-w-full">
-                <thead>
+                <thead className="sticky top-0 z-20">
                   <tr className="bg-[#E6F5F1] text-xs font-medium text-[#00A86B] uppercase tracking-wider">
                     <th className="p-3 w-10 text-left align-middle">
                       <input type="checkbox" checked={selectedPassbookOrders.length === filteredPassbookData.length && filteredPassbookData.length > 0} onChange={toggleAllPassbook} className="rounded border-[#00A86B] accent-[#00A86B] w-3.5 h-3.5" />
@@ -1348,8 +1361,8 @@ export function AdminWallet() {
                       </td>
                       <td className="p-3">
                         <div className="text-xs font-semibold text-[#00A86B] cursor-pointer hover:underline">{order.id}</div>
-                        <div className="text-sm font-semibold text-[#0F172A] mt-0.5">{order.userName}</div>
-                        <div className="font-sans text-xs font-normal text-[#94A3B8]">{order.userEmail}</div>
+                        <TruncatedText text={order.userName} maxLength={20} className="text-sm font-semibold text-[#0F172A] mt-0.5 max-w-[160px]" />
+                        <TruncatedText text={order.userEmail} maxLength={25} className="font-sans text-xs font-normal text-[#94A3B8] max-w-[180px]" />
                       </td>
                       <td className="p-3">
                         <div className="text-xs font-semibold text-[#00A86B] cursor-pointer hover:underline">{order.id}</div>
@@ -1399,8 +1412,20 @@ export function AdminWallet() {
             {/* Passbook Pagination */}
             {totalPassbookPages > 0 && (
               <div className="p-4 border-t border-[#E2E8F0] flex items-center justify-between">
-                <div className="text-xs text-[#64748B]">
-                  Showing <span className="font-bold text-[#0F172A]">{passbookStartIndex}</span> to <span className="font-bold text-[#0F172A]">{passbookEndIndex}</span> of <span className="font-bold text-[#0F172A]">{filteredPassbookData.length}</span> entries
+                <div className="flex items-center gap-4">
+                  <div className="text-xs text-[#64748B]">
+                    Showing <span className="font-bold text-[#0F172A]">{passbookStartIndex}</span> to <span className="font-bold text-[#0F172A]">{passbookEndIndex}</span> of <span className="font-bold text-[#0F172A]">{filteredPassbookData.length}</span> entries
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px] text-[#94A3B8] font-semibold uppercase tracking-wider">Show</span>
+                    <select
+                      value={passbookRowsPerPage}
+                      onChange={(e) => setPassbookRowsPerPage(Number(e.target.value))}
+                      className="h-8 px-2.5 rounded-lg border border-[#E2E8F0] bg-white text-xs font-bold text-[#475569] cursor-pointer appearance-none min-w-[56px] text-center shadow-sm hover:border-[#00A86B]/40 hover:shadow-[0_0_0_3px_rgba(0,168,107,0.06)] focus:outline-none focus:border-[#00A86B] focus:shadow-[0_0_0_3px_rgba(0,168,107,0.1)] transition-all duration-200 bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2394A3B8%22%20stroke-width%3D%222.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E')] bg-[length:12px] bg-[right_8px_center] bg-no-repeat pr-7"
+                    >
+                      {[10, 25, 50, 100].map(v => <option key={v} value={v}>{v}</option>)}
+                    </select>
+                  </div>
                 </div>
                 <div className="flex items-center gap-1">
                   <button 
@@ -1449,7 +1474,7 @@ export function AdminWallet() {
             )}
             <div className="flex-1 overflow-y-auto overflow-x-hidden w-full relative">
               <table className="w-full text-left border-collapse min-w-full">
-                <thead>
+                <thead className="sticky top-0 z-20">
                   <tr className="bg-[#E6F5F1] text-xs font-medium text-[#00A86B] uppercase tracking-wider">
                     <th className="p-3 w-10 text-left align-middle">
                       <input type="checkbox" checked={selectedRechargeOrders.length === filteredWalletRechargeData.length && filteredWalletRechargeData.length > 0} onChange={toggleAllRecharge} className="rounded border-[#00A86B] accent-[#00A86B] w-3.5 h-3.5" />
@@ -1500,8 +1525,8 @@ export function AdminWallet() {
                       </td>
                       <td className="p-3">
                         <div className="text-xs font-semibold text-[#00A86B] cursor-pointer hover:underline">{recharge.id}</div>
-                        <div className="text-sm font-semibold text-[#0F172A] mt-0.5">{recharge.userName}</div>
-                        <div className="font-sans text-xs font-normal text-[#94A3B8]">{recharge.userEmail}</div>
+                        <TruncatedText text={recharge.userName} maxLength={20} className="text-sm font-semibold text-[#0F172A] mt-0.5 max-w-[160px]" />
+                        <TruncatedText text={recharge.userEmail} maxLength={25} className="font-sans text-xs font-normal text-[#94A3B8] max-w-[180px]" />
                       </td>
                       <td className="p-3">
                         <div className="table-date">{recharge.date}</div>
@@ -1538,8 +1563,20 @@ export function AdminWallet() {
             {/* Recharge Pagination */}
             {totalRechargePages > 0 && (
               <div className="p-4 border-t border-[#E2E8F0] flex items-center justify-between">
-                <div className="text-xs text-[#64748B]">
-                  Showing <span className="font-bold text-[#0F172A]">{rechargeStartIndex}</span> to <span className="font-bold text-[#0F172A]">{rechargeEndIndex}</span> of <span className="font-bold text-[#0F172A]">{filteredWalletRechargeData.length}</span> entries
+                <div className="flex items-center gap-4">
+                  <div className="text-xs text-[#64748B]">
+                    Showing <span className="font-bold text-[#0F172A]">{rechargeStartIndex}</span> to <span className="font-bold text-[#0F172A]">{rechargeEndIndex}</span> of <span className="font-bold text-[#0F172A]">{filteredWalletRechargeData.length}</span> entries
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px] text-[#94A3B8] font-semibold uppercase tracking-wider">Show</span>
+                    <select
+                      value={rechargeRowsPerPage}
+                      onChange={(e) => setRechargeRowsPerPage(Number(e.target.value))}
+                      className="h-8 px-2.5 rounded-lg border border-[#E2E8F0] bg-white text-xs font-bold text-[#475569] cursor-pointer appearance-none min-w-[56px] text-center shadow-sm hover:border-[#00A86B]/40 hover:shadow-[0_0_0_3px_rgba(0,168,107,0.06)] focus:outline-none focus:border-[#00A86B] focus:shadow-[0_0_0_3px_rgba(0,168,107,0.1)] transition-all duration-200 bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2394A3B8%22%20stroke-width%3D%222.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E')] bg-[length:12px] bg-[right_8px_center] bg-no-repeat pr-7"
+                    >
+                      {[10, 25, 50, 100].map(v => <option key={v} value={v}>{v}</option>)}
+                    </select>
+                  </div>
                 </div>
                 <div className="flex items-center gap-1">
                   <button 
@@ -1588,7 +1625,7 @@ export function AdminWallet() {
             )}
             <div className="flex-1 overflow-y-auto overflow-x-hidden w-full relative">
               <table className="w-full text-left border-collapse min-w-full">
-                <thead>
+                <thead className="sticky top-0 z-20">
                   <tr className="bg-[#E6F5F1] text-xs font-medium text-[#00A86B] uppercase tracking-wider">
                     <th className="p-3 w-10 text-left align-middle">
                       <input type="checkbox" checked={selectedInvoiceOrders.length === filteredInvoicesData.length && filteredInvoicesData.length > 0} onChange={toggleAllInvoices} className="rounded border-[#00A86B] accent-[#00A86B] w-3.5 h-3.5" />
@@ -1651,8 +1688,8 @@ export function AdminWallet() {
                       </td>
                       <td className="p-3">
                         <div className="text-xs font-semibold text-[#00A86B] cursor-pointer hover:underline uppercase">{invoice.id}</div>
-                        <div className="text-sm font-semibold text-[#0F172A] mt-0.5">{invoice.userName}</div>
-                        <div className="font-sans text-xs font-normal text-[#94A3B8]">{invoice.userEmail}</div>
+                        <TruncatedText text={invoice.userName} maxLength={20} className="text-sm font-semibold text-[#0F172A] mt-0.5 max-w-[160px]" />
+                        <TruncatedText text={invoice.userEmail} maxLength={25} className="font-sans text-xs font-normal text-[#94A3B8] max-w-[180px]" />
                       </td>
                       <td className="p-3">
                         <div className="text-xs font-semibold text-[#00A86B]">{invoice.invoiceNumber}</div>
@@ -1706,8 +1743,20 @@ export function AdminWallet() {
             {/* Invoices Pagination */}
             {totalInvoicePages > 0 && (
               <div className="p-4 border-t border-[#E2E8F0] flex items-center justify-between">
-                <div className="text-xs text-[#64748B]">
-                  Showing <span className="font-bold text-[#0F172A]">{invoiceStartIndex}</span> to <span className="font-bold text-[#0F172A]">{invoiceEndIndex}</span> of <span className="font-bold text-[#0F172A]">{filteredInvoicesData.length}</span> entries
+                <div className="flex items-center gap-4">
+                  <div className="text-xs text-[#64748B]">
+                    Showing <span className="font-bold text-[#0F172A]">{invoiceStartIndex}</span> to <span className="font-bold text-[#0F172A]">{invoiceEndIndex}</span> of <span className="font-bold text-[#0F172A]">{filteredInvoicesData.length}</span> entries
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px] text-[#94A3B8] font-semibold uppercase tracking-wider">Show</span>
+                    <select
+                      value={invoiceRowsPerPage}
+                      onChange={(e) => setInvoiceRowsPerPage(Number(e.target.value))}
+                      className="h-8 px-2.5 rounded-lg border border-[#E2E8F0] bg-white text-xs font-bold text-[#475569] cursor-pointer appearance-none min-w-[56px] text-center shadow-sm hover:border-[#00A86B]/40 hover:shadow-[0_0_0_3px_rgba(0,168,107,0.06)] focus:outline-none focus:border-[#00A86B] focus:shadow-[0_0_0_3px_rgba(0,168,107,0.1)] transition-all duration-200 bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2394A3B8%22%20stroke-width%3D%222.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E')] bg-[length:12px] bg-[right_8px_center] bg-no-repeat pr-7"
+                    >
+                      {[10, 25, 50, 100].map(v => <option key={v} value={v}>{v}</option>)}
+                    </select>
+                  </div>
                 </div>
                 <div className="flex items-center gap-1">
                   <button 
@@ -2684,7 +2733,7 @@ export function AdminWallet() {
 
                 <div className="border border-slate-100 rounded-xl overflow-hidden">
                   <table className="w-full text-left text-xs border-collapse">
-                    <thead>
+                    <thead className="sticky top-0 z-20">
                       <tr className="bg-slate-50 border-b border-slate-100 text-slate-500 font-bold uppercase text-[9px] tracking-wider">
                         <th className="p-3">Description</th>
                         <th className="p-3 text-right">Shipments</th>

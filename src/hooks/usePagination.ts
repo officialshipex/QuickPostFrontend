@@ -12,23 +12,29 @@ export function usePagination<T>({
   initialPage = 1,
 }: UsePaginationOptions<T>) {
   const [page, setPage] = useState(initialPage);
+  const [rowsPerPage, setRowsPerPage] = useState(perPage);
 
   // Reset to page 1 if the dataset changes or shrinks
   useEffect(() => {
     setPage(1);
   }, [data.length]);
 
+  // Reset to page 1 when rows per page changes
+  useEffect(() => {
+    setPage(1);
+  }, [rowsPerPage]);
+
   const totalPages = useMemo(() => {
-    return Math.ceil(data.length / perPage);
-  }, [data.length, perPage]);
+    return Math.ceil(data.length / rowsPerPage);
+  }, [data.length, rowsPerPage]);
 
   const paginatedData = useMemo(() => {
-    const start = (page - 1) * perPage;
-    return data.slice(start, start + perPage);
-  }, [data, page, perPage]);
+    const start = (page - 1) * rowsPerPage;
+    return data.slice(start, start + rowsPerPage);
+  }, [data, page, rowsPerPage]);
 
-  const startIndex = data.length === 0 ? 0 : (page - 1) * perPage + 1;
-  const endIndex = Math.min(page * perPage, data.length);
+  const startIndex = data.length === 0 ? 0 : (page - 1) * rowsPerPage + 1;
+  const endIndex = Math.min(page * rowsPerPage, data.length);
 
   const nextPage = () => setPage((p) => Math.min(totalPages, p + 1));
   const prevPage = () => setPage((p) => Math.max(1, p - 1));
@@ -43,5 +49,7 @@ export function usePagination<T>({
     totalItems: data.length,
     nextPage,
     prevPage,
+    rowsPerPage,
+    setRowsPerPage,
   };
 }
