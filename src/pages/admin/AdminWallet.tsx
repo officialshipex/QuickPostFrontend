@@ -207,12 +207,6 @@ export function AdminWallet() {
   const [passbookOrderId, setPassbookOrderId] = useState('');
   const [passbookAwb, setPassbookAwb] = useState('');
 
-  // Clear Passbook AWB filter when navigating away to prevent it from getting "stuck" after using History button or browser back
-  useEffect(() => {
-    if (activeTab !== 'Passbook') {
-      setPassbookAwb('');
-    }
-  }, [activeTab]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedDescriptions, setSelectedDescriptions] = useState<string[]>([]);
   const [passbookDateStart, setPassbookDateStart] = useState('');
@@ -235,6 +229,50 @@ export function AdminWallet() {
   const [invoiceDateStart, setInvoiceDateStart] = useState('');
   const [invoiceDateEnd, setInvoiceDateEnd] = useState('');
   const [selectedInvoiceOrders, setSelectedInvoiceOrders] = useState<string[]>([]);
+
+  // Clear tab-specific filters when navigating away from them to prevent filters from persisting
+  useEffect(() => {
+    if (activeTab !== 'Shipping') {
+      setSearchTerm('');
+      setSelectedSearchTypes([]);
+      setSearchTypeId('');
+      setSelectedCouriers([]);
+      setSelectedStatuses([]);
+      setShippingDateStart('');
+      setShippingDateEnd('');
+      setSelectedOrders([]);
+    }
+    
+    if (activeTab !== 'Passbook') {
+      setPassbookSearchTerm('');
+      setPassbookOrderId('');
+      setPassbookAwb('');
+      setSelectedCategories([]);
+      setSelectedDescriptions([]);
+      setPassbookDateStart('');
+      setPassbookDateEnd('');
+      setSelectedPassbookOrders([]);
+    }
+
+    if (activeTab !== 'Recharge') {
+      setRechargeSearchTerm('');
+      setRechargeTxnId('');
+      setSelectedPaymentMethods([]);
+      setSelectedRechargeStatuses([]);
+      setRechargeDateStart('');
+      setRechargeDateEnd('');
+      setSelectedRechargeOrders([]);
+    }
+
+    if (activeTab !== 'Invoices') {
+      setInvoiceSearchTerm('');
+      setSelectedMonths([]);
+      setSelectedYears([]);
+      setInvoiceDateStart('');
+      setInvoiceDateEnd('');
+      setSelectedInvoiceOrders([]);
+    }
+  }, [activeTab]);
 
   // Glass Dropdown Options
   const SEARCH_TYPE_OPTIONS = [
@@ -1207,7 +1245,7 @@ export function AdminWallet() {
                         <input type="checkbox" checked={selectedOrders.includes(order.awb)} onChange={() => toggleSelect(order.awb)} className="rounded border-gray-300 accent-[#00A86B] w-3.5 h-3.5" />
                       </td>
                       <td className="p-3">
-                        {renderCopyable(order.id, 'Order ID', "text-[12px] font-semibold font-sans text-[#00A86B] cursor-pointer hover:underline uppercase", () => navigate(`/admin/order-tracking?id=${order.id}`))}
+                        {renderCopyable(order.id, 'User ID', "text-[12px] font-semibold font-sans text-[#00A86B] cursor-pointer hover:underline uppercase")}
                         <TruncatedText text={order.userName} maxLength={20} className="text-[14px] font-semibold font-sans text-[#0F172A] mt-0.5 max-w-[160px]" />
                         <TruncatedText text={order.userEmail} maxLength={25} className="text-[12px] font-normal font-sans text-[#94A3B8] max-w-[180px]" />
                       </td>
@@ -1390,7 +1428,7 @@ export function AdminWallet() {
                         <input type="checkbox" checked={selectedPassbookOrders.includes(order.awb)} onChange={() => toggleSelectPassbook(order.awb)} className="rounded border-gray-300 accent-[#00A86B] w-3.5 h-3.5" />
                       </td>
                       <td className="p-3">
-                        {renderCopyable(order.id, 'Order ID', "text-[12px] font-semibold font-sans text-[#00A86B] cursor-pointer hover:underline uppercase", () => navigate(`/admin/order-tracking?id=${order.id}`))}
+                        {renderCopyable(order.id, 'User ID', "text-[12px] font-semibold font-sans text-[#00A86B] cursor-pointer hover:underline uppercase")}
                         <TruncatedText text={order.userName} maxLength={20} className="text-[14px] font-semibold font-sans text-[#0F172A] mt-0.5 max-w-[160px]" />
                         <TruncatedText text={order.userEmail} maxLength={25} className="text-[12px] font-normal font-sans text-[#94A3B8] max-w-[180px]" />
                       </td>
