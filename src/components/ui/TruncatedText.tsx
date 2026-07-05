@@ -15,9 +15,9 @@ export function TruncatedText({ text, maxLength, className = '', tooltipClassNam
   const truncated = text.slice(0, maxLength) + '...';
   
   return (
-    <div className={`relative group w-max ${className}`}>
+    <div className={`relative group/tooltip w-max ${className}`}>
       <div className="truncate cursor-default">{truncated}</div>
-      <div className="absolute left-0 bottom-full mb-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible translate-y-1 group-hover:translate-y-0 transition-all duration-200 z-[60]">
+      <div className="absolute left-0 bottom-full mb-2 opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible translate-y-1 group-hover/tooltip:translate-y-0 transition-all duration-200 z-[60]">
         <div className={`bg-slate-800 text-white text-[11px] font-normal tracking-normal py-1.5 px-3 rounded-md shadow-xl whitespace-nowrap ${tooltipClassName}`}>
           {text}
         </div>

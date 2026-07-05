@@ -1,10 +1,14 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
-import { Search, ChevronDown, RefreshCcw, Calendar, Check, Package, User, Truck, Banknote, Clock, Upload, Download, Wallet, Send, MinusCircle, FileText, AlertCircle, CheckCircle2, X, MoreVertical, Filter, DollarSign } from 'lucide-react';
+import { Search, ChevronDown, RefreshCcw, Calendar, Check, Package, User, Truck, Banknote, Clock, Upload, Download, Wallet, Send, MinusCircle, FileText, AlertCircle, CheckCircle2, X, MoreVertical, Filter, DollarSign, Copy } from 'lucide-react';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
+import { TruncatedText } from '../../components/ui/TruncatedText';
+import { TableLoader } from '../../components/ui/TableLoader';
+import { useTableLoader } from '../../hooks/useTableLoader';
+import { usePagination } from '../../hooks/usePagination';
 
 const MAIN_TABS = [
   { name: 'All COD Orders' },
@@ -38,7 +42,7 @@ const COD_REMITTANCE_DATA = Array.from({ length: 15 }, (_, i) => ({
   userEmail: 'dineshtharwani@gmail.com',
   date: '13th Apr 2026',
   day: 'Wednesday',
-  utr: 'N/A',
+  utr: 'UTR987654321012345',
   totalCodAmount: 145.99,
   creditedAmount: 0.00,
   adjustedAmount: 0.00,
@@ -55,7 +59,7 @@ const COURIER_COD_REMITTANCE_DATA = Array.from({ length: 15 }, (_, i) => ({
   courierId: 'DEL-892',
   date: '13th Apr 2026',
   day: 'Wednesday',
-  utr: 'N/A',
+  utr: 'UTR987654321012345',
   totalCodAmount: 145.99,
   creditedAmount: 0.00,
   adjustedAmount: 0.00,
@@ -93,7 +97,41 @@ export function AdminCOD() {
   }, []);
 
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('All COD Orders');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab');
+  
+  const [activeTab, setActiveTab] = useState(
+    tabParam && ['All COD Orders', 'Seller COD Remittance', 'Courier COD Remittance'].includes(tabParam)
+      ? tabParam
+      : 'All COD Orders'
+  );
+
+  // Sync tab with URL
+  useEffect(() => {
+    if (activeTab) {
+      setSearchParams({ tab: activeTab }, { replace: true });
+    }
+  }, [activeTab, setSearchParams]);
+
+  // Sync URL with tab if user uses back/forward browser buttons
+  useEffect(() => {
+    if (tabParam && tabParam !== activeTab && ['All COD Orders', 'Seller COD Remittance', 'Courier COD Remittance'].includes(tabParam)) {
+      setActiveTab(tabParam);
+    }
+  }, [tabParam]);
+
+  const { isLoading, startLoading } = useTableLoader(800);
+
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    startLoading(800);
+  };
+
+  const handleRefresh = React.useCallback(() => {
+    startLoading(800);
+    // TODO: Connect backend API
+    // e.g., const response = await fetch(`/api/v1/finance/cod?status=${activeTab}`);
+  }, [activeTab, startLoading]);
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
   const [toast, setToast] = useState<{type: 'error' | 'success', text: string} | null>(null);
 
@@ -102,14 +140,71 @@ export function AdminCOD() {
     setTimeout(() => setToast(null), 3000);
   };
 
+  const renderCopyableNode = (textToCopy: string, label: string, node: React.ReactNode) => (
+    <div className="flex items-center gap-1.5 group/copy w-max">
+      {node}
+      <button 
+        onClick={(e) => {
+          e.stopPropagation();
+          navigator.clipboard.writeText(textToCopy);
+          showToast('success', `${label} copied!`);
+        }}
+        className="opacity-0 group-hover/copy:opacity-100 transition-opacity focus:outline-none"
+        title={`Copy ${label}`}
+      >
+        <Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" />
+      </button>
+    </div>
+  );
+
+  const renderCopyable = (text: string, label: string, className: string = "text-xs font-semibold text-[#00A86B] cursor-pointer hover:underline uppercase", onTextClick?: () => void) => (
+    renderCopyableNode(text, label, <div className={className} onClick={(e) => { if (onTextClick) { e.stopPropagation(); onTextClick(); } }}>{text}</div>)
+  );
+
+  const {
+    page: codPage,
+    setPage: setCodPage,
+    totalPages: totalCodPages,
+    paginatedData: paginatedCodData,
+    startIndex: codStartIndex,
+    endIndex: codEndIndex,
+    rowsPerPage: codRowsPerPage,
+    setRowsPerPage: setCodRowsPerPage,
+  } = usePagination({ data: COD_REMITTANCE_DATA, perPage: 10 });
+
+  const {
+    page: courierCodPage,
+    setPage: setCourierCodPage,
+    totalPages: totalCourierCodPages,
+    paginatedData: paginatedCourierCodData,
+    startIndex: courierCodStartIndex,
+    endIndex: courierCodEndIndex,
+    rowsPerPage: courierCodRowsPerPage,
+    setRowsPerPage: setCourierCodRowsPerPage,
+  } = usePagination({ data: COURIER_COD_REMITTANCE_DATA, perPage: 10 });
+
   // Filter States (All COD Orders)
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
   const [selectedCouriers, setSelectedCouriers] = useState<string[]>([]);
   const [dateStart, setDateStart] = useState('');
   const [dateEnd, setDateEnd] = useState('');
+  
+  const [showAllCodActionMenu, setShowAllCodActionMenu] = useState(false);
   const [showActionMenu, setShowActionMenu] = useState(false);
   
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (!(event.target as Element).closest('.action-dropdown-container')) {
+        setShowAllCodActionMenu(false);
+        setShowActionMenu(false);
+        setShowCourierActionMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   // COD Remittance Filters State
   const [remittanceSearchTerm, setRemittanceSearchTerm] = useState('');
   const [selectedUtrs, setSelectedUtrs] = useState<string[]>([]);
@@ -143,7 +238,7 @@ export function AdminCOD() {
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const toggleAllCod = () => setSelectedCodOrders(selectedCodOrders.length === COD_REMITTANCE_DATA.length && COD_REMITTANCE_DATA.length > 0 ? [] : COD_REMITTANCE_DATA.map(o => o.awb));
   const toggleSelectCod = (id: string) => setSelectedCodOrders(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
@@ -257,7 +352,7 @@ export function AdminCOD() {
               {MAIN_TABS.map((tab) => (
                 <button
                   key={tab.name}
-                  onClick={() => setActiveTab(tab.name)}
+                  onClick={() => handleTabChange(tab.name)}
                   className={`relative py-3 text-[13px] font-bold transition-colors whitespace-nowrap flex items-center gap-1.5 ${
                     activeTab === tab.name ? 'text-[#00A86B]' : 'text-[#64748B] hover:text-[#0F172A]'
                   }`}
@@ -271,8 +366,8 @@ export function AdminCOD() {
             </div>
 
             <div className="flex items-center gap-3 shrink-0 ml-4">
-              <button className="w-8 h-8 rounded-full border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC]">
-                <RefreshCcw className="w-4 h-4" />
+              <button onClick={handleRefresh} className="w-8 h-8 rounded-full border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC]">
+                <RefreshCcw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
               </button>
             </div>
           </div>
@@ -407,13 +502,13 @@ export function AdminCOD() {
         {/* Filters Row */}
         {activeTab === 'All COD Orders' && (
           <>
-            <div className="p-3 border-b border-[#E2E8F0] flex flex-nowrap items-center gap-2.5 bg-white">
+            <div className="p-3 border-b border-[#E2E8F0] flex flex-wrap items-center gap-2.5 bg-[#F8FAFC]/50">
               <input 
                 type="text" 
-                placeholder="Search by name, email, AWB, or ID..." 
+                placeholder="Search by name, email, o..." 
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="h-9 px-3 rounded-lg border border-[#E2E8F0] text-xs bg-white focus:outline-none w-[180px] shrink-0" 
+                className="glass-search-input w-[180px] shrink-0" 
               />
               
               <GlassDropdown
@@ -441,21 +536,31 @@ export function AdminCOD() {
                 onDateChange={(s, e) => { setDateStart(s); setDateEnd(e); }}
               />
               
-              <button onClick={handleApplyFilters} className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm flex items-center justify-center">
+              <button 
+                onClick={() => { handleApplyFilters(); showToast('success', 'Filters applied successfully!'); }} 
+                className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm flex items-center justify-center cursor-pointer"
+              >
                 Apply
               </button>
 
-              <button className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm flex items-center gap-1.5 justify-center">
+              <button className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm flex items-center gap-1.5 justify-center cursor-pointer">
                 <Clock className="w-3.5 h-3.5" /> Early COD
               </button>
 
-              <div className="ml-auto flex items-center gap-2 shrink-0">
-                <button className="w-9 h-9 rounded-full border border-[#00A86B] flex items-center justify-center text-[#00A86B] hover:bg-[#00A86B]/5 transition-colors bg-white shadow-sm">
-                  <Upload className="w-4 h-4" />
+              <div className="relative action-dropdown-container shrink-0 ml-auto flex items-center gap-2">
+                <button
+                  onClick={() => setShowAllCodActionMenu(!showAllCodActionMenu)}
+                  className="glass-dropdown-trigger w-auto px-4 justify-between min-w-[100px]"
+                >
+                  Action
+                  <ChevronDown className="w-3.5 h-3.5 absolute right-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
                 </button>
-                <button className="w-9 h-9 rounded-full border border-[#00A86B] flex items-center justify-center text-[#00A86B] hover:bg-[#00A86B]/5 transition-colors bg-white shadow-sm">
-                  <Download className="w-4 h-4" />
-                </button>
+                {showAllCodActionMenu && (
+                  <div className="absolute right-0 top-full mt-2 w-[180px] bg-white rounded-xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1)] border border-[#E2E8F0] py-2 z-50">
+                    <button onClick={() => { setShowAllCodActionMenu(false); handleExportData('seller', 'all_cod_data.csv'); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors cursor-pointer">Export Data</button>
+                    <button onClick={() => { setShowAllCodActionMenu(false); handleUploadResponse('seller'); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors cursor-pointer">Import Data</button>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -472,13 +577,13 @@ export function AdminCOD() {
         {activeTab === 'Seller COD Remittance' && (
           <>
             {/* Filters Row */}
-            <div className="p-3 border-b border-[#E2E8F0] flex flex-wrap items-center gap-2.5 bg-white">
+            <div className="p-3 border-b border-[#E2E8F0] flex flex-wrap items-center gap-2.5 bg-[#F8FAFC]/50">
               <input 
                 type="text" 
-                placeholder="Search by name, email, or Remittance ID..." 
+                placeholder="Search by name, email, o..." 
                 value={remittanceSearchTerm}
                 onChange={(e) => setRemittanceSearchTerm(e.target.value)}
-                className="h-9 px-3 rounded-lg border border-[#E2E8F0] text-xs bg-white focus:outline-none w-[180px] shrink-0" 
+                className="glass-search-input w-[180px] shrink-0" 
               />
               
               <GlassDropdown
@@ -506,24 +611,27 @@ export function AdminCOD() {
                 onDateChange={(s, e) => { setCodDateStart(s); setCodDateEnd(e); }}
               />
               
-              <button className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm flex items-center justify-center">
+              <button 
+                onClick={() => showToast('success', 'Filters applied successfully!')}
+                className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm flex items-center justify-center cursor-pointer"
+              >
                 Apply
               </button>
 
-              <div className="relative shrink-0 ml-auto">
+              <div className="relative action-dropdown-container shrink-0 ml-auto flex items-center gap-2">
                 <button
                   onClick={() => setShowActionMenu(!showActionMenu)}
-                  className="h-9 pl-4 pr-8 rounded-full border border-[#E2E8F0] text-xs bg-white focus:outline-none flex items-center font-bold text-[#475569] shadow-sm hover:bg-[#F8FAFC] transition-colors"
+                  className="glass-dropdown-trigger w-auto px-4 justify-between min-w-[100px]"
                 >
                   Action
                   <ChevronDown className="w-3.5 h-3.5 absolute right-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
                 </button>
                 {showActionMenu && (
                   <div className="absolute right-0 top-full mt-2 w-[180px] bg-white rounded-xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1)] border border-[#E2E8F0] py-2 z-50">
-                    <button onClick={() => handleExportData('seller', 'seller_remittance_data.csv')} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors">Export Data</button>
-                    <button onClick={() => handleExportData('seller', 'bank_template.csv')} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors">Export Bank Template</button>
-                    <button onClick={() => handleUploadResponse('seller')} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors">Upload Bank Response</button>
-                    <button onClick={() => handleTransferCOD('seller')} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#00A86B] hover:bg-[#F0FDF4] transition-colors">Transfer COD</button>
+                    <button onClick={() => { setShowActionMenu(false); handleExportData('seller', 'seller_remittance_data.csv'); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors cursor-pointer">Export Data</button>
+                    <button onClick={() => { setShowActionMenu(false); handleExportData('seller', 'bank_template.csv'); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors cursor-pointer">Export Bank Template</button>
+                    <button onClick={() => { setShowActionMenu(false); handleUploadResponse('seller'); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors cursor-pointer">Upload Bank Response</button>
+                    <button onClick={() => { setShowActionMenu(false); handleTransferCOD('seller'); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#00A86B] hover:bg-[#F0FDF4] transition-colors font-semibold cursor-pointer">Transfer COD</button>
                   </div>
                 )}
               </div>
@@ -542,13 +650,13 @@ export function AdminCOD() {
         {activeTab === 'Courier COD Remittance' && (
           <>
             {/* Filters Row */}
-            <div className="p-3 border-b border-[#E2E8F0] flex flex-wrap items-center gap-2.5 bg-white">
+            <div className="p-3 border-b border-[#E2E8F0] flex flex-wrap items-center gap-2.5 bg-[#F8FAFC]/50">
               <input 
                 type="text" 
-                placeholder="Search by courier or Remittance ID..." 
+                placeholder="Search by name, email, o..." 
                 value={courierRemittanceSearchTerm}
                 onChange={(e) => setCourierRemittanceSearchTerm(e.target.value)}
-                className="h-9 px-3 rounded-lg border border-[#E2E8F0] text-xs bg-white focus:outline-none w-[180px] shrink-0" 
+                className="glass-search-input w-[180px] shrink-0" 
               />
               
               <GlassDropdown
@@ -576,24 +684,27 @@ export function AdminCOD() {
                 onDateChange={(s, e) => { setCourierCodDateStart(s); setCourierCodDateEnd(e); }}
               />
               
-              <button className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm flex items-center justify-center">
+              <button 
+                onClick={() => showToast('success', 'Filters applied successfully!')}
+                className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm flex items-center justify-center cursor-pointer"
+              >
                 Apply
               </button>
 
-              <div className="relative shrink-0 ml-auto">
+              <div className="relative action-dropdown-container shrink-0 ml-auto flex items-center gap-2">
                 <button
                   onClick={() => setShowCourierActionMenu(!showCourierActionMenu)}
-                  className="h-9 pl-4 pr-8 rounded-full border border-[#E2E8F0] text-xs bg-white focus:outline-none flex items-center font-bold text-[#475569] shadow-sm hover:bg-[#F8FAFC] transition-colors"
+                  className="glass-dropdown-trigger w-auto px-4 justify-between min-w-[100px]"
                 >
                   Action
                   <ChevronDown className="w-3.5 h-3.5 absolute right-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
                 </button>
                 {showCourierActionMenu && (
                   <div className="absolute right-0 top-full mt-2 w-[180px] bg-white rounded-xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1)] border border-[#E2E8F0] py-2 z-50">
-                    <button onClick={() => handleExportData('courier', 'courier_remittance_data.csv')} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors">Export Data</button>
-                    <button onClick={() => handleExportData('courier', 'courier_bank_template.csv')} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors">Export Bank Template</button>
-                    <button onClick={() => handleUploadResponse('courier')} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors">Upload Bank Response</button>
-                    <button onClick={() => handleTransferCOD('courier')} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#00A86B] hover:bg-[#F0FDF4] transition-colors">Transfer COD</button>
+                    <button onClick={() => { setShowCourierActionMenu(false); handleExportData('courier', 'courier_remittance_data.csv'); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors cursor-pointer">Export Data</button>
+                    <button onClick={() => { setShowCourierActionMenu(false); handleExportData('courier', 'courier_bank_template.csv'); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors cursor-pointer">Export Bank Template</button>
+                    <button onClick={() => { setShowCourierActionMenu(false); handleUploadResponse('courier'); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors cursor-pointer">Upload Bank Response</button>
+                    <button onClick={() => { setShowCourierActionMenu(false); handleTransferCOD('courier'); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#00A86B] hover:bg-[#F0FDF4] transition-colors font-semibold cursor-pointer">Transfer COD</button>
                   </div>
                 )}
               </div>
@@ -611,7 +722,8 @@ export function AdminCOD() {
       </div>
 
       {/* Table Section */}
-      <div className="bg-white flex flex-col flex-1 min-h-0 overflow-hidden border-t border-[#E2E8F0]">
+      <div className="bg-white flex flex-col flex-1 min-h-0 overflow-hidden border-t border-[#E2E8F0] relative">
+        {isLoading && <TableLoader />}
         {activeTab === 'All COD Orders' && (
           <div className="flex-1 overflow-auto no-scrollbar relative">
             <table className="w-full text-left border-collapse min-w-[1000px]">
@@ -660,8 +772,8 @@ export function AdminCOD() {
                     </td>
                     <td className="p-3">
                       <div className="text-xs font-semibold text-[#00A86B] cursor-pointer hover:underline">{order.id}</div>
-                      <div className="text-sm font-semibold text-[#0F172A] mt-0.5">{order.userName}</div>
-                      <div className="font-sans text-xs font-normal text-[#94A3B8]">{order.userEmail}</div>
+                      <TruncatedText text={order.userName} maxLength={20} className="text-[14px] font-semibold font-sans text-[#0F172A] mt-0.5 max-w-[160px]" />
+                      <TruncatedText text={order.userEmail} maxLength={25} className="text-[12px] font-normal font-sans text-[#94A3B8] max-w-[180px]" />
                     </td>
                     <td className="p-3">
                       <div className="text-xs font-semibold text-[#00A86B] cursor-pointer hover:underline">{order.id}</div>
@@ -674,7 +786,7 @@ export function AdminCOD() {
                       <div className="text-xs font-semibold text-[#00A86B] underline decoration-solid underline-offset-2 mt-0.5 hover:text-[#009B63] cursor-pointer">{order.awb}</div>
                     </td>
                     <td className="p-3">
-                      <div className="font-bold text-[#0F172A] text-[12px]">₹{order.codAmount}</div>
+                      <div className="text-[12px] font-normal text-[#0F172A] pl-[5px]">₹{order.codAmount}</div>
                     </td>
                     <td className="p-3">
                       <span className={getStatusBadgeClass(order.status)}>{order.status}</span>
@@ -716,7 +828,7 @@ export function AdminCOD() {
                   <th className="p-3 text-left align-middle whitespace-nowrap">
                     <div className="flex items-center gap-1.5">
                       <FileText className="w-3.5 h-3.5 shrink-0" />
-                      <span>UTR</span>
+                      <span className="pl-1">UTR</span>
                     </div>
                   </th>
                   <th className="p-3 text-left align-middle whitespace-nowrap">
@@ -758,38 +870,46 @@ export function AdminCOD() {
                 </tr>
               </thead>
               <tbody className="text-[11px] text-[#475569]">
-                {COD_REMITTANCE_DATA.map((order) => (
+                {paginatedCodData.map((order) => (
                   <tr key={order.awb} className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors group">
                     <td className="p-3">
                       <input type="checkbox" checked={selectedCodOrders.includes(order.awb)} onChange={() => toggleSelectCod(order.awb)} className="rounded border-gray-300 accent-[#00A86B] w-3.5 h-3.5" />
                     </td>
                     <td className="p-3">
                       <div className="text-xs font-semibold text-[#00A86B] cursor-pointer hover:underline">{order.id}</div>
-                      <div className="text-sm font-semibold text-[#0F172A] mt-0.5">{order.userName}</div>
-                      <div className="font-sans text-xs font-normal text-[#94A3B8]">{order.userEmail}</div>
+                      <TruncatedText text={order.userName} maxLength={20} className="text-[14px] font-semibold font-sans text-[#0F172A] mt-0.5 max-w-[160px]" />
+                      <TruncatedText text={order.userEmail} maxLength={25} className="text-[12px] font-normal font-sans text-[#94A3B8] max-w-[180px]" />
                     </td>
                     <td className="p-3">
-                      <div className="text-xs font-semibold text-[#00A86B] cursor-pointer hover:underline">{order.id}</div>
-                      <div className="table-date mt-0.5">{order.date}</div>
-                      <div className="table-date mt-0.5">{order.day}</div>
+                      <div className="pl-5">
+                        {renderCopyable(order.id, 'Remittance ID', "text-xs font-semibold text-[#00A86B] cursor-pointer hover:underline uppercase")}
+                        <div className="table-date mt-0.5">{order.date}</div>
+                        <div className="table-date mt-0.5">{order.day}</div>
+                      </div>
                     </td>
                     <td className="p-3">
-                      <div className="font-bold text-[#00A86B]">{order.utr}</div>
+                      <div className="pl-[13px]">
+                        {renderCopyableNode(
+                          order.utr, 
+                          'UTR', 
+                          <TruncatedText text={order.utr} maxLength={13} className="text-[12px] font-semibold text-[#00A86B]" />
+                        )}
+                      </div>
                     </td>
                     <td className="p-3">
-                      <div className="font-bold text-[#0F172A] text-[11px]">₹{order.totalCodAmount}</div>
+                      <div className="text-[12px] font-normal text-[#0F172A] pl-5">₹{order.totalCodAmount}</div>
                     </td>
                     <td className="p-3">
-                      <div className="font-bold text-red-500 text-[11px]">₹{order.creditedAmount.toFixed(2)}</div>
+                      <div className="text-[12px] font-normal text-red-500 pl-5">₹{order.creditedAmount.toFixed(2)}</div>
                     </td>
                     <td className="p-3">
-                      <div className="font-bold text-[#64748B] text-[11px]">₹{order.adjustedAmount.toFixed(2)}</div>
+                      <div className="text-[12px] font-normal text-[#64748B] pl-5">₹{order.adjustedAmount.toFixed(2)}</div>
                     </td>
                     <td className="p-3">
-                      <div className="font-bold text-red-500 text-[11px]">₹{order.earlyCodCharges.toFixed(2)}</div>
+                      <div className="text-[12px] font-normal text-red-500 pl-5">₹{order.earlyCodCharges.toFixed(2)}</div>
                     </td>
                     <td className="p-3">
-                      <div className="font-bold text-[#00A86B] text-[11px]">₹{order.remittanceAmount.toLocaleString('en-IN', {minimumFractionDigits: 2})}</div>
+                      <div className="text-[12px] font-normal text-[#00A86B] pl-5">₹{order.remittanceAmount.toLocaleString('en-IN', {minimumFractionDigits: 2})}</div>
                     </td>
                     <td className="p-3">
                       <span className={getStatusBadgeClass(order.status)}>{order.status}</span>
@@ -824,7 +944,7 @@ export function AdminCOD() {
                   <th className="p-3 text-left align-middle whitespace-nowrap">
                     <div className="flex items-center gap-1.5">
                       <FileText className="w-3.5 h-3.5 shrink-0" />
-                      <span>UTR</span>
+                      <span className="pl-1">UTR</span>
                     </div>
                   </th>
                   <th className="p-3 text-left align-middle whitespace-nowrap">
@@ -866,37 +986,45 @@ export function AdminCOD() {
                 </tr>
               </thead>
               <tbody className="text-[11px] text-[#475569]">
-                {COURIER_COD_REMITTANCE_DATA.map((order) => (
+                {paginatedCourierCodData.map((order) => (
                   <tr key={order.awb} className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors group">
                     <td className="p-3">
                       <input type="checkbox" checked={selectedCourierCodOrders.includes(order.awb)} onChange={() => toggleSelectCourierCod(order.awb)} className="rounded border-gray-300 accent-[#00A86B] w-3.5 h-3.5" />
                     </td>
                     <td className="p-3">
-                      <div className="text-xs font-semibold text-[#0F172A]">{order.courierName}</div>
-                      <div className="text-[#94A3B8] mt-0.5 text-[11px]">{order.courierId}</div>
+                      <div className="text-[14px] font-semibold text-[#0F172A]">{order.courierName}</div>
+                      <div className="text-[12px] font-normal text-[#94A3B8] mt-0.5">{order.courierId}</div>
                     </td>
                     <td className="p-3">
-                      <div className="text-xs font-semibold text-[#00A86B] cursor-pointer hover:underline">{order.id}</div>
-                      <div className="table-date mt-0.5">{order.date}</div>
-                      <div className="table-date mt-0.5">{order.day}</div>
+                      <div className="pl-5">
+                        {renderCopyable(order.id, 'Remittance ID', "text-xs font-semibold text-[#00A86B] cursor-pointer hover:underline uppercase")}
+                        <div className="table-date mt-0.5">{order.date}</div>
+                        <div className="table-date mt-0.5">{order.day}</div>
+                      </div>
                     </td>
                     <td className="p-3">
-                      <div className="font-bold text-[#00A86B]">{order.utr}</div>
+                      <div className="pl-[13px]">
+                        {renderCopyableNode(
+                          order.utr, 
+                          'UTR', 
+                          <TruncatedText text={order.utr} maxLength={13} className="text-[12px] font-semibold text-[#00A86B]" />
+                        )}
+                      </div>
                     </td>
                     <td className="p-3">
-                      <div className="font-bold text-[#0F172A] text-[11px]">₹{order.totalCodAmount}</div>
+                      <div className="text-[12px] font-normal text-[#0F172A] pl-5">₹{order.totalCodAmount}</div>
                     </td>
                     <td className="p-3">
-                      <div className="font-bold text-red-500 text-[11px]">₹{order.creditedAmount.toFixed(2)}</div>
+                      <div className="text-[12px] font-normal text-red-500 pl-5">₹{order.creditedAmount.toFixed(2)}</div>
                     </td>
                     <td className="p-3">
-                      <div className="font-bold text-[#64748B] text-[11px]">₹{order.adjustedAmount.toFixed(2)}</div>
+                      <div className="text-[12px] font-normal text-[#64748B] pl-5">₹{order.adjustedAmount.toFixed(2)}</div>
                     </td>
                     <td className="p-3">
-                      <div className="font-bold text-red-500 text-[11px]">₹{order.earlyCodCharges.toFixed(2)}</div>
+                      <div className="text-[12px] font-normal text-red-500 pl-5">₹{order.earlyCodCharges.toFixed(2)}</div>
                     </td>
                     <td className="p-3">
-                      <div className="font-bold text-[#00A86B] text-[11px]">₹{order.remittanceAmount.toLocaleString('en-IN', {minimumFractionDigits: 2})}</div>
+                      <div className="text-[12px] font-normal text-[#00A86B] pl-5">₹{order.remittanceAmount.toLocaleString('en-IN', {minimumFractionDigits: 2})}</div>
                     </td>
                     <td className="p-3">
                       <span className={getStatusBadgeClass(order.status)}>{order.status}</span>
@@ -911,8 +1039,20 @@ export function AdminCOD() {
         {/* Pagination */}
         {activeTab === 'All COD Orders' && totalPages > 0 && (
           <div className="p-4 border-t border-[#E2E8F0] flex items-center justify-between">
-            <div className="text-xs text-[#64748B]">
-              Showing <span className="font-bold text-[#0F172A]">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-bold text-[#0F172A]">{Math.min(currentPage * itemsPerPage, filteredOrders.length)}</span> of <span className="font-bold text-[#0F172A]">{filteredOrders.length}</span> entries
+            <div className="flex items-center gap-4">
+              <div className="text-xs text-[#64748B]">
+                Showing <span className="font-bold text-[#0F172A]">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-bold text-[#0F172A]">{Math.min(currentPage * itemsPerPage, filteredOrders.length)}</span> of <span className="font-bold text-[#0F172A]">{filteredOrders.length}</span> entries
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] text-[#94A3B8] font-semibold uppercase tracking-wider">Show</span>
+                <select
+                  value={itemsPerPage}
+                  onChange={(e) => setItemsPerPage(Number(e.target.value))}
+                  className="h-8 px-2.5 rounded-lg border border-[#E2E8F0] bg-white text-xs font-bold text-[#475569] cursor-pointer appearance-none min-w-[56px] text-center shadow-sm hover:border-[#00A86B]/40 hover:shadow-[0_0_0_3px_rgba(0,168,107,0.06)] focus:outline-none focus:border-[#00A86B] focus:shadow-[0_0_0_3px_rgba(0,168,107,0.1)] transition-all duration-200 bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2394A3B8%22%20stroke-width%3D%222.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E')] bg-[length:12px] bg-[right_8px_center] bg-no-repeat pr-7"
+                >
+                  {[10, 25, 50, 100].map(v => <option key={v} value={v}>{v}</option>)}
+                </select>
+              </div>
             </div>
             <div className="flex items-center gap-1">
               <button 
@@ -936,6 +1076,102 @@ export function AdminCOD() {
               <button 
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
+                className="px-3 py-1.5 rounded border border-[#E2E8F0] text-xs font-medium text-[#475569] hover:bg-[#F8FAFC] disabled:opacity-50"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Seller COD Pagination */}
+        {activeTab === 'Seller COD Remittance' && totalCodPages > 0 && (
+          <div className="p-4 border-t border-[#E2E8F0] flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="text-xs text-[#64748B]">
+                Showing <span className="font-bold text-[#0F172A]">{codStartIndex}</span> to <span className="font-bold text-[#0F172A]">{codEndIndex}</span> of <span className="font-bold text-[#0F172A]">{COD_REMITTANCE_DATA.length}</span> entries
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] text-[#94A3B8] font-semibold uppercase tracking-wider">Show</span>
+                <select
+                  value={codRowsPerPage}
+                  onChange={(e) => setCodRowsPerPage(Number(e.target.value))}
+                  className="h-8 px-2.5 rounded-lg border border-[#E2E8F0] bg-white text-xs font-bold text-[#475569] cursor-pointer appearance-none min-w-[56px] text-center shadow-sm hover:border-[#00A86B]/40 hover:shadow-[0_0_0_3px_rgba(0,168,107,0.06)] focus:outline-none focus:border-[#00A86B] focus:shadow-[0_0_0_3px_rgba(0,168,107,0.1)] transition-all duration-200 bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2394A3B8%22%20stroke-width%3D%222.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E')] bg-[length:12px] bg-[right_8px_center] bg-no-repeat pr-7"
+                >
+                  {[10, 25, 50, 100].map(v => <option key={v} value={v}>{v}</option>)}
+                </select>
+              </div>
+            </div>
+            <div className="flex items-center gap-1">
+              <button 
+                onClick={() => setCodPage(p => Math.max(1, p - 1))}
+                disabled={codPage === 1}
+                className="px-3 py-1.5 rounded border border-[#E2E8F0] text-xs font-medium text-[#475569] hover:bg-[#F8FAFC] disabled:opacity-50"
+              >
+                Previous
+              </button>
+              {Array.from({ length: totalCodPages }, (_, i) => (
+                <button
+                  key={i + 1}
+                  onClick={() => setCodPage(i + 1)}
+                  className={`w-8 h-8 rounded text-xs font-medium flex items-center justify-center transition-colors ${
+                    codPage === i + 1 ? 'bg-[#00A86B] text-white border border-[#00A86B]' : 'border border-[#E2E8F0] text-[#475569] hover:bg-[#F8FAFC]'
+                  }`}
+                >
+                  {i + 1}
+                </button>
+              ))}
+              <button 
+                onClick={() => setCodPage(p => Math.min(totalCodPages, p + 1))}
+                disabled={codPage === totalCodPages}
+                className="px-3 py-1.5 rounded border border-[#E2E8F0] text-xs font-medium text-[#475569] hover:bg-[#F8FAFC] disabled:opacity-50"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Courier COD Pagination */}
+        {activeTab === 'Courier COD Remittance' && totalCourierCodPages > 0 && (
+          <div className="p-4 border-t border-[#E2E8F0] flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="text-xs text-[#64748B]">
+                Showing <span className="font-bold text-[#0F172A]">{courierCodStartIndex}</span> to <span className="font-bold text-[#0F172A]">{courierCodEndIndex}</span> of <span className="font-bold text-[#0F172A]">{COURIER_COD_REMITTANCE_DATA.length}</span> entries
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] text-[#94A3B8] font-semibold uppercase tracking-wider">Show</span>
+                <select
+                  value={courierCodRowsPerPage}
+                  onChange={(e) => setCourierCodRowsPerPage(Number(e.target.value))}
+                  className="h-8 px-2.5 rounded-lg border border-[#E2E8F0] bg-white text-xs font-bold text-[#475569] cursor-pointer appearance-none min-w-[56px] text-center shadow-sm hover:border-[#00A86B]/40 hover:shadow-[0_0_0_3px_rgba(0,168,107,0.06)] focus:outline-none focus:border-[#00A86B] focus:shadow-[0_0_0_3px_rgba(0,168,107,0.1)] transition-all duration-200 bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2394A3B8%22%20stroke-width%3D%222.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E')] bg-[length:12px] bg-[right_8px_center] bg-no-repeat pr-7"
+                >
+                  {[10, 25, 50, 100].map(v => <option key={v} value={v}>{v}</option>)}
+                </select>
+              </div>
+            </div>
+            <div className="flex items-center gap-1">
+              <button 
+                onClick={() => setCourierCodPage(p => Math.max(1, p - 1))}
+                disabled={courierCodPage === 1}
+                className="px-3 py-1.5 rounded border border-[#E2E8F0] text-xs font-medium text-[#475569] hover:bg-[#F8FAFC] disabled:opacity-50"
+              >
+                Previous
+              </button>
+              {Array.from({ length: totalCourierCodPages }, (_, i) => (
+                <button
+                  key={i + 1}
+                  onClick={() => setCourierCodPage(i + 1)}
+                  className={`w-8 h-8 rounded text-xs font-medium flex items-center justify-center transition-colors ${
+                    courierCodPage === i + 1 ? 'bg-[#00A86B] text-white border border-[#00A86B]' : 'border border-[#E2E8F0] text-[#475569] hover:bg-[#F8FAFC]'
+                  }`}
+                >
+                  {i + 1}
+                </button>
+              ))}
+              <button 
+                onClick={() => setCourierCodPage(p => Math.min(totalCourierCodPages, p + 1))}
+                disabled={courierCodPage === totalCourierCodPages}
                 className="px-3 py-1.5 rounded border border-[#E2E8F0] text-xs font-medium text-[#475569] hover:bg-[#F8FAFC] disabled:opacity-50"
               >
                 Next
