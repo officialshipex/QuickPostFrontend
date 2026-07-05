@@ -26,7 +26,9 @@ import {
   Mail,
   Building2,
   BarChart2,
-  RotateCcw
+  RotateCcw,
+  X,
+  ChevronRight
 } from 'lucide-react';
 
 const LOGO_URL = '/logo-white.png';
@@ -37,13 +39,6 @@ const MENU_GROUPS = [
     icon: Home,
     path: '/admin/dashboard'
   },
-  // {
-  //   label: 'Management',
-  //   icon: Briefcase,
-  //   items: [
-  //     { name: 'Vendors', path: '/admin/vendors', icon: Users },
-  //   ]
-  // },
   {
     label: 'Internal CRM',
     icon: Building2,
@@ -119,100 +114,217 @@ const MENU_GROUPS = [
   }
 ];
 
-export function AdminSidebar() {
+interface AdminSidebarProps {
+  isMobileOpen?: boolean;
+  onMobileClose?: () => void;
+}
+
+export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSidebarProps) {
   const location = useLocation();
+  const [mobileExpandedGroup, setMobileExpandedGroup] = useState<string | null>(null);
 
   const getIsGroupActive = (items?: {path: string}[]) => {
     if (!items) return false;
     return items.some(item => location.pathname.startsWith(item.path));
   };
 
+  const handleMobileNavClick = () => {
+    onMobileClose?.();
+    setMobileExpandedGroup(null);
+  };
+
   return (
-    <aside className="fixed left-0 top-0 h-screen w-[68px] bg-[#0F172A] z-[100] flex flex-col items-center py-4 border-r border-[#1E293B]">
-      
-      {/* Logo */}
-      <div className="w-full flex justify-center mb-8">
-        <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
-          <img src={LOGO_URL} alt="QP" className="w-6 object-contain" />
+    <>
+      {/* Desktop Sidebar — hidden on mobile */}
+      <aside className="hidden md:flex fixed left-0 top-0 h-screen w-[68px] bg-[#0F172A] z-[100] flex-col items-center py-4 border-r border-[#1E293B]">
+        
+        {/* Logo */}
+        <div className="w-full flex justify-center mb-8">
+          <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
+            <img src={LOGO_URL} alt="QP" className="w-6 object-contain" />
+          </div>
         </div>
-      </div>
 
-      {/* Navigation Menu */}
-      <nav className="flex-1 w-full flex flex-col gap-2 items-center px-2">
-        {MENU_GROUPS.map((group, index) => {
-          if (group.divider) {
-            return <div key={index} className="w-8 border-b border-[#1E293B] my-1 opacity-50" />;
-          }
+        {/* Navigation Menu */}
+        <nav className="flex-1 w-full flex flex-col gap-2 items-center px-2">
+          {MENU_GROUPS.map((group, index) => {
+            if (group.divider) {
+              return <div key={index} className="w-8 border-b border-[#1E293B] my-1 opacity-50" />;
+            }
 
-          const isActive = group.path 
-            ? location.pathname === group.path
-            : getIsGroupActive(group.items);
+            const isActive = group.path 
+              ? location.pathname === group.path
+              : getIsGroupActive(group.items);
 
-          const Icon = group.icon as React.ComponentType<{ className?: string; strokeWidth?: number }>;
+            const Icon = group.icon as React.ComponentType<{ className?: string; strokeWidth?: number }>;
 
-          return (
-            <div key={index} className="relative group w-full">
-              {/* Main Icon Button */}
-              {group.path ? (
-                <NavLink
-                  to={group.path}
-                  title={group.label}
-                  className={`w-full h-12 flex items-center justify-center rounded-xl transition-all duration-200
-                    ${isActive 
-                      ? 'bg-[#00A86B] text-white shadow-lg shadow-[#00A86B]/20' 
-                      : 'text-[#94A3B8] hover:bg-white/10 hover:text-white'}`}
-                >
-                  <Icon className="w-[22px] h-[22px]" strokeWidth={2} />
-                </NavLink>
-              ) : (
-                <div 
-                  className={`w-full h-12 flex items-center justify-center rounded-xl cursor-pointer transition-all duration-200
-                    ${isActive 
-                      ? 'bg-[#00A86B]/10 text-[#00A86B]' 
-                      : 'text-[#94A3B8] hover:bg-white/10 hover:text-white'}`}
-                >
-                  <Icon className="w-[22px] h-[22px]" strokeWidth={isActive ? 2.5 : 2} />
-                </div>
-              )}
+            return (
+              <div key={index} className="relative group w-full">
+                {/* Main Icon Button */}
+                {group.path ? (
+                  <NavLink
+                    to={group.path}
+                    title={group.label}
+                    className={`w-full h-12 flex items-center justify-center rounded-xl transition-all duration-200
+                      ${isActive 
+                        ? 'bg-[#00A86B] text-white shadow-lg shadow-[#00A86B]/20' 
+                        : 'text-[#94A3B8] hover:bg-white/10 hover:text-white'}`}
+                  >
+                    <Icon className="w-[22px] h-[22px]" strokeWidth={2} />
+                  </NavLink>
+                ) : (
+                  <div 
+                    className={`w-full h-12 flex items-center justify-center rounded-xl cursor-pointer transition-all duration-200
+                      ${isActive 
+                        ? 'bg-[#00A86B]/10 text-[#00A86B]' 
+                        : 'text-[#94A3B8] hover:bg-white/10 hover:text-white'}`}
+                  >
+                    <Icon className="w-[22px] h-[22px]" strokeWidth={isActive ? 2.5 : 2} />
+                  </div>
+                )}
 
-              {/* Flyout Menu Container */}
-              {group.items && group.items.length > 0 && (
-                <div className={`absolute left-full ml-2 invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-all duration-200 z-[100] ${index > MENU_GROUPS.length / 2 ? 'bottom-0' : 'top-0'}`}>
-                  <div className="bg-white rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.15)] border border-[#E2E8F0] min-w-[200px] overflow-hidden py-2">
-                    <div className="px-4 py-2 border-b border-[#E2E8F0] mb-2 flex justify-between items-center">
-                      <p className="text-[12px] font-bold text-[#64748B] uppercase tracking-wider">{group.label}</p>
-                      {group.isBeta && <span className="text-[9px] font-bold bg-[#00A86B]/10 text-[#00A86B] px-1.5 py-0.5 rounded-md">BETA</span>}
-                    </div>
-                    
-                    <div className="flex flex-col">
-                      {group.items.map((item, i) => {
-                        const isSubActive = location.pathname === item.path;
-                        return (
-                          <NavLink
-                            key={i}
-                            to={item.path}
-                            className={`flex items-center gap-3 px-4 py-2.5 transition-colors
-                              ${isSubActive 
-                                ? 'bg-[#F0FDF4] text-[#00A86B]' 
-                                : 'text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A]'}`}
-                          >
-                            <item.icon className="w-[18px] h-[18px]" strokeWidth={2} />
-                            <span className={`text-[13px] ${isSubActive ? 'font-bold' : 'font-medium'}`}>
-                              {item.name}
-                            </span>
-                          </NavLink>
-                        );
-                      })}
+                {/* Flyout Menu Container */}
+                {group.items && group.items.length > 0 && (
+                  <div className={`absolute left-full ml-2 invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-all duration-200 z-[100] ${index > MENU_GROUPS.length / 2 ? 'bottom-0' : 'top-0'}`}>
+                    <div className="bg-white rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.15)] border border-[#E2E8F0] min-w-[200px] overflow-hidden py-2">
+                      <div className="px-4 py-2 border-b border-[#E2E8F0] mb-2 flex justify-between items-center">
+                        <p className="text-[12px] font-bold text-[#64748B] uppercase tracking-wider">{group.label}</p>
+                        {group.isBeta && <span className="text-[9px] font-bold bg-[#00A86B]/10 text-[#00A86B] px-1.5 py-0.5 rounded-md">BETA</span>}
+                      </div>
+                      
+                      <div className="flex flex-col">
+                        {group.items.map((item, i) => {
+                          const isSubActive = location.pathname === item.path;
+                          return (
+                            <NavLink
+                              key={i}
+                              to={item.path}
+                              className={`flex items-center gap-3 px-4 py-2.5 transition-colors
+                                ${isSubActive 
+                                  ? 'bg-[#F0FDF4] text-[#00A86B]' 
+                                  : 'text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A]'}`}
+                            >
+                              <item.icon className="w-[18px] h-[18px]" strokeWidth={2} />
+                              <span className={`text-[13px] ${isSubActive ? 'font-bold' : 'font-medium'}`}>
+                                {item.name}
+                              </span>
+                            </NavLink>
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
+                )}
+
+              </div>
+            );
+          })}
+        </nav>
+
+      </aside>
+
+      {/* Mobile Sidebar Drawer — visible only on mobile when toggled */}
+      {isMobileOpen && (
+        <div className="md:hidden fixed inset-0 z-[200]">
+          {/* Backdrop */}
+          <div 
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={handleMobileNavClick}
+          />
+          {/* Drawer */}
+          <aside className="absolute left-0 top-0 h-full w-[280px] bg-[#0F172A] shadow-2xl flex flex-col animate-slide-in-left">
+            {/* Drawer Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-[#1E293B]">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
+                  <img src={LOGO_URL} alt="QP" className="w-5 object-contain" />
                 </div>
-              )}
-
+                <span className="text-white text-[15px] font-bold tracking-wide">QuickPost</span>
+              </div>
+              <button 
+                onClick={handleMobileNavClick}
+                className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-[#94A3B8] hover:text-white hover:bg-white/20 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
-          );
-        })}
-      </nav>
 
-    </aside>
+            {/* Mobile Navigation */}
+            <nav className="flex-1 overflow-y-auto py-3 px-3">
+              {MENU_GROUPS.map((group, index) => {
+                if (group.divider) {
+                  return <div key={index} className="border-b border-[#1E293B] my-2 mx-2 opacity-50" />;
+                }
+
+                const isActive = group.path 
+                  ? location.pathname === group.path
+                  : getIsGroupActive(group.items);
+
+                const Icon = group.icon as React.ComponentType<{ className?: string; strokeWidth?: number }>;
+
+                // Direct link
+                if (group.path) {
+                  return (
+                    <NavLink
+                      key={index}
+                      to={group.path}
+                      onClick={handleMobileNavClick}
+                      className={`flex items-center gap-3 px-3 py-3 rounded-xl mb-1 transition-all duration-200
+                        ${isActive 
+                          ? 'bg-[#00A86B] text-white shadow-lg shadow-[#00A86B]/20' 
+                          : 'text-[#94A3B8] hover:bg-white/10 hover:text-white'}`}
+                    >
+                      <Icon className="w-5 h-5" strokeWidth={2} />
+                      <span className="text-[13px] font-semibold">{group.label}</span>
+                      {group.isBeta && <span className="text-[8px] font-bold bg-[#00A86B]/20 text-[#00A86B] px-1.5 py-0.5 rounded-md ml-auto">BETA</span>}
+                    </NavLink>
+                  );
+                }
+
+                // Expandable group
+                const isExpanded = mobileExpandedGroup === group.label;
+                return (
+                  <div key={index} className="mb-1">
+                    <button
+                      onClick={() => setMobileExpandedGroup(isExpanded ? null : (group.label || null))}
+                      className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200
+                        ${isActive 
+                          ? 'bg-[#00A86B]/10 text-[#00A86B]' 
+                          : 'text-[#94A3B8] hover:bg-white/10 hover:text-white'}`}
+                    >
+                      <Icon className="w-5 h-5" strokeWidth={isActive ? 2.5 : 2} />
+                      <span className="text-[13px] font-semibold">{group.label}</span>
+                      <ChevronRight className={`w-4 h-4 ml-auto transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`} />
+                    </button>
+                    {isExpanded && group.items && (
+                      <div className="ml-4 mt-1 flex flex-col gap-0.5 border-l-2 border-[#1E293B] pl-3">
+                        {group.items.map((item, i) => {
+                          const isSubActive = location.pathname === item.path;
+                          return (
+                            <NavLink
+                              key={i}
+                              to={item.path}
+                              onClick={handleMobileNavClick}
+                              className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg transition-colors
+                                ${isSubActive 
+                                  ? 'bg-[#00A86B]/10 text-[#00A86B]' 
+                                  : 'text-[#64748B] hover:bg-white/5 hover:text-white'}`}
+                            >
+                              <item.icon className="w-4 h-4" strokeWidth={2} />
+                              <span className={`text-[12px] ${isSubActive ? 'font-bold' : 'font-medium'}`}>{item.name}</span>
+                            </NavLink>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </nav>
+          </aside>
+        </div>
+      )}
+    </>
   );
 }
+

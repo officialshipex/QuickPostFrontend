@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { usePagination } from '../../hooks/usePagination';
+import { useMobilePaginationBar } from '../../hooks/useMobilePaginationBar';
 import { Search, ChevronDown, RefreshCcw, Calendar, Check, Package, User, Truck, Banknote, Clock, Upload, Download, MoreVertical, Wallet, ArrowDownCircle, ArrowUpCircle, FileText, Plus, TrendingUp, ChevronLeft, ChevronRight, MinusCircle, Send, Eye, AlertCircle, CheckCircle2, X, CreditCard, Filter, Layers, Hash, CalendarDays, Bot, ArrowLeft, Settings, Copy } from 'lucide-react';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
@@ -163,16 +164,61 @@ export function AdminWallet() {
     setTimeout(() => setToast(null), 3000);
   };
 
+  const getCourierLogo = (courierName: string) => {
+    const name = (courierName || '').toLowerCase();
+    if (name.includes('delhivery')) return '/brands/delhivery.png';
+    if (name.includes('ekart')) return '/brands/ekart.png';
+    if (name.includes('xpressbees')) return '/brands/xpressbees.png';
+    if (name.includes('bluedart')) return '/brands/bluedart.png';
+    if (name.includes('shadowfax')) return '/brands/shadowfax.png';
+    return '/brands/delhivery.png';
+  };
+
+  const copyToClipboard = async (text: string, label: string) => {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+      showToast('success', `${label} copied!`);
+    } catch {
+      showToast('error', `Failed to copy ${label}.`);
+    }
+  };
+
+  const truncateChars = (text: string, limit: number) => text && text.length > limit ? `${text.slice(0, limit)}…` : text;
+
+  const renderTruncatedName = (name: string, limit: number = 16, className: string = "font-semibold text-[#0F172A]") => {
+    const isTruncated = !!name && name.length > limit;
+    return (
+      <span
+        className={`${className} truncate ${isTruncated ? 'active:opacity-60' : ''}`}
+        title={isTruncated ? name : undefined}
+        onClick={isTruncated ? (e) => { e.stopPropagation(); showToast('success', name); } : undefined}
+      >
+        {truncateChars(name, limit)}
+      </span>
+    );
+  };
+
   const renderCopyable = (text: string, label: string, className: string = "text-xs font-semibold text-[#00A86B] cursor-pointer hover:underline uppercase", onTextClick?: () => void) => (
     <div className="flex items-center gap-1.5 group/copy w-max">
       <div className={className} onClick={(e) => { if (onTextClick) { e.stopPropagation(); onTextClick(); } }}>{text}</div>
-      <button 
+      <button
         onClick={(e) => {
           e.stopPropagation();
-          navigator.clipboard.writeText(text);
-          showToast('success', `${label} copied!`);
+          copyToClipboard(text, label);
         }}
-        className="opacity-0 group-hover/copy:opacity-100 transition-opacity focus:outline-none"
+        className="opacity-100 md:opacity-0 md:group-hover/copy:opacity-100 transition-opacity focus:outline-none"
         title={`Copy ${label}`}
       >
         <Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" />
@@ -191,6 +237,7 @@ export function AdminWallet() {
 
   // Top header pickup mobile filter
   const [headerMobileSearch, setHeaderMobileSearch] = useState('');
+  const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
   
   // Shipping Filters State
   const [searchTerm, setSearchTerm] = useState('');
@@ -254,7 +301,7 @@ export function AdminWallet() {
       setSelectedPassbookOrders([]);
     }
 
-    if (activeTab !== 'Recharge') {
+    if (activeTab !== 'Wallet Recharge') {
       setRechargeSearchTerm('');
       setRechargeTxnId('');
       setSelectedPaymentMethods([]);
@@ -589,10 +636,52 @@ export function AdminWallet() {
 
   const handleBulkMarkPaid = () => {
     if (selectedOrders.length === 0) return;
-    setShippingList(prev => prev.map(item => 
+    setShippingList(prev => prev.map(item =>
       selectedOrders.includes(item.awb) ? { ...item, status: 'Paid' } : item
     ));
     showToast('success', `Successfully marked ${selectedOrders.length} shipments as Paid!`);
+    setSelectedOrders([]);
+  };
+
+  const requireSelection = () => {
+    if (selectedOrders.length === 0) {
+      showToast('error', 'Please select shipments using checkboxes first.');
+      return false;
+    }
+    return true;
+  };
+
+  const handleBulkShip = () => {
+    if (!requireSelection()) return;
+    showToast('success', `${selectedOrders.length} shipment(s) queued for pickup successfully!`);
+    setSelectedOrders([]);
+  };
+
+  const handleUpdatePackageDetails = () => {
+    if (!requireSelection()) return;
+    showToast('success', `Package details update requested for ${selectedOrders.length} shipment(s).`);
+  };
+
+  const handleUpdatePickupAddress = () => {
+    if (!requireSelection()) return;
+    showToast('success', `Pickup address update requested for ${selectedOrders.length} shipment(s).`);
+  };
+
+  const handleVerifyOrders = () => {
+    if (!requireSelection()) return;
+    showToast('success', `${selectedOrders.length} order(s) marked as verified!`);
+    setSelectedOrders([]);
+  };
+
+  const handleDownloadInvoices = () => {
+    if (!requireSelection()) return;
+    showToast('success', `Downloading invoices for ${selectedOrders.length} shipment(s)...`);
+  };
+
+  const handleBulkDelete = () => {
+    if (!requireSelection()) return;
+    setShippingList(prev => prev.filter(item => !selectedOrders.includes(item.awb)));
+    showToast('success', `${selectedOrders.length} shipment(s) deleted successfully!`);
     setSelectedOrders([]);
   };
 
@@ -762,11 +851,41 @@ export function AdminWallet() {
 
   return (
     <AdminLayout>
-      <div className="flex flex-col h-[calc(100vh-72px)] -m-4 md:-m-6 bg-white">
+      <div className="flex flex-col h-[calc(100vh-72px)] md:h-[calc(100vh-72px)] -m-4 md:-m-6 bg-white">
         <div className="bg-white relative z-50 shrink-0">
-          {/* Top Header Row */}
-          <div className="flex justify-between items-center px-6 py-2 border-b border-[#E2E8F0] bg-white">
-            <div className="flex gap-6 items-center shrink-0">
+          {/* Mobile Search Bar */}
+          <div className="md:hidden px-4 py-3 border-b border-[#E2E8F0]">
+            <div className="relative">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
+              <input
+                type="text"
+                placeholder={
+                  activeTab === 'Shipping' ? 'AWB/Order ID tracking' :
+                  activeTab === 'Passbook' ? 'Search by name, email, or AWB' :
+                  activeTab === 'Wallet Recharge' ? 'Search by name, email, or txn ID' :
+                  'Search by name, email, or invoice no.'
+                }
+                value={
+                  activeTab === 'Shipping' ? searchTerm :
+                  activeTab === 'Passbook' ? passbookSearchTerm :
+                  activeTab === 'Wallet Recharge' ? rechargeSearchTerm :
+                  invoiceSearchTerm
+                }
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (activeTab === 'Shipping') setSearchTerm(val);
+                  else if (activeTab === 'Passbook') setPassbookSearchTerm(val);
+                  else if (activeTab === 'Wallet Recharge') setRechargeSearchTerm(val);
+                  else setInvoiceSearchTerm(val);
+                }}
+                className="w-full h-10 pl-10 pr-4 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] text-sm text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all"
+              />
+            </div>
+          </div>
+
+          {/* Top Header Row — Tabs */}
+          <div className="flex justify-between items-center px-4 md:px-6 py-2 border-b border-[#E2E8F0] bg-white">
+            <div className="flex gap-4 md:gap-6 items-center shrink-0 overflow-x-auto no-scrollbar">
               {MAIN_TABS.map((tab) => (
                 <button
                   key={tab.name}
@@ -783,7 +902,7 @@ export function AdminWallet() {
               ))}
             </div>
 
-          <div className="flex items-center gap-3 shrink-0 ml-4">
+          <div className="hidden md:flex items-center gap-3 shrink-0 ml-4">
             <button 
               onClick={handleRefresh}
               className="w-8 h-8 rounded-full border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC]"
@@ -796,8 +915,8 @@ export function AdminWallet() {
 
         {activeTab === 'Shipping' && (
           <>
-            {/* Filters Row */}
-            <div className="p-3 border-b border-[#E2E8F0] flex flex-wrap items-center gap-2.5 bg-[#F8FAFC]/50">
+            {/* Desktop Filters Row */}
+            <div className="hidden md:flex p-3 border-b border-[#E2E8F0] flex-wrap items-center gap-2.5 bg-[#F8FAFC]/50">
               <input 
                 type="text" 
                 placeholder="Search by name, email, o..." 
@@ -896,37 +1015,124 @@ export function AdminWallet() {
                  </div>
                </div>
             </div>
+
+            {/* Mobile Filters + Action Row */}
+            <div className="md:hidden px-4 py-3 border-b border-[#E2E8F0] flex items-center justify-between bg-white">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setIsMobileFiltersOpen(true)}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#00A86B] text-white text-[12px] font-bold shadow-sm"
+                >
+                  <Filter className="w-3.5 h-3.5" /> Filters
+                </button>
+                {selectedOrders.length > 0 && (
+                  <span className="text-[11px] font-bold text-[#00A86B] bg-[#F0FDF4] border border-[#00A86B]/20 px-2.5 py-1 rounded-full">
+                    {selectedOrders.length} selected
+                  </span>
+                )}
+              </div>
+              <div className="relative action-dropdown-container">
+                <button
+                  onClick={() => setShowShippingActionMenu(!showShippingActionMenu)}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-[#E2E8F0] text-[12px] font-semibold text-[#475569] bg-white active:bg-[#F8FAFC] transition-colors"
+                >
+                  Action
+                  <ChevronDown className={`w-3.5 h-3.5 text-[#94A3B8] transition-transform duration-200 ${showShippingActionMenu ? 'rotate-180' : ''}`} />
+                </button>
+                <AnimatePresence>
+                  {showShippingActionMenu && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -6, scale: 0.97 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -6, scale: 0.97 }}
+                      transition={{ duration: 0.16, ease: 'easeOut' }}
+                      className="absolute right-0 top-full mt-2 w-[200px] bg-white rounded-xl shadow-[0_8px_28px_-6px_rgba(0,0,0,0.15)] border border-[#E2E8F0] py-1.5 z-50 origin-top-right"
+                    >
+                      <button
+                        disabled={selectedOrders.length === 0}
+                        onClick={() => { handleBulkShip(); setShowShippingActionMenu(false); }}
+                        className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                      >
+                        Bulk Ship
+                      </button>
+                      <button
+                        disabled={selectedOrders.length === 0}
+                        onClick={() => { handleUpdatePackageDetails(); setShowShippingActionMenu(false); }}
+                        className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                      >
+                        Update Package Details
+                      </button>
+                      <button
+                        disabled={selectedOrders.length === 0}
+                        onClick={() => { handleUpdatePickupAddress(); setShowShippingActionMenu(false); }}
+                        className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                      >
+                        Update Pickup Address
+                      </button>
+                      <button
+                        disabled={selectedOrders.length === 0}
+                        onClick={() => { handleVerifyOrders(); setShowShippingActionMenu(false); }}
+                        className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                      >
+                        Verify Orders
+                      </button>
+                      <button
+                        onClick={() => { handleExportData('shipping', filteredShippingData); setShowShippingActionMenu(false); }}
+                        className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors"
+                      >
+                        Export Excel
+                      </button>
+                      <button
+                        disabled={selectedOrders.length === 0}
+                        onClick={() => { handleDownloadInvoices(); setShowShippingActionMenu(false); }}
+                        className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                      >
+                        Download Invoices
+                      </button>
+                      <div className="h-px bg-[#E2E8F0] my-1" />
+                      <button
+                        disabled={selectedOrders.length === 0}
+                        onClick={() => { handleBulkDelete(); setShowShippingActionMenu(false); }}
+                        className="w-full text-left px-4 py-2.5 text-[13px] font-semibold text-red-600 hover:bg-red-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                      >
+                        Bulk Delete
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
           </>
         )}
- 
+
          {activeTab === 'Passbook' && (
           <>
-            {/* Filters Row */}
-            <div className="p-3 border-b border-[#E2E8F0] flex flex-wrap items-center gap-2.5 bg-[#F8FAFC]/50">
-              <input 
-                type="text" 
-                placeholder="Search by name, email, o..." 
+            {/* Desktop Filters Row */}
+            <div className="hidden md:flex p-3 border-b border-[#E2E8F0] flex-wrap items-center gap-2.5 bg-[#F8FAFC]/50">
+              <input
+                type="text"
+                placeholder="Search by name, email, o..."
                 value={passbookSearchTerm}
                 onChange={(e) => setPassbookSearchTerm(e.target.value)}
-                className="glass-search-input w-[180px] shrink-0" 
-              />
-              
-              <input 
-                type="text" 
-                placeholder="Order ID" 
-                value={passbookOrderId}
-                onChange={(e) => setPassbookOrderId(e.target.value)}
-                className="glass-search-input w-32 shrink-0" 
+                className="glass-search-input w-[180px] shrink-0"
               />
 
-              <input 
-                type="text" 
-                placeholder="AWB Number" 
+              <input
+                type="text"
+                placeholder="Order ID"
+                value={passbookOrderId}
+                onChange={(e) => setPassbookOrderId(e.target.value)}
+                className="glass-search-input w-32 shrink-0"
+              />
+
+              <input
+                type="text"
+                placeholder="AWB Number"
                 value={passbookAwb}
                 onChange={(e) => setPassbookAwb(e.target.value)}
-                className="glass-search-input w-32 shrink-0" 
+                className="glass-search-input w-32 shrink-0"
               />
-              
+
               <GlassDropdown
                 label="Category"
                 options={CATEGORY_OPTIONS}
@@ -951,8 +1157,8 @@ export function AdminWallet() {
                 endDate={passbookDateEnd}
                 onDateChange={(s, e) => { setPassbookDateStart(s); setPassbookDateEnd(e); }}
               />
-              
-              <button 
+
+              <button
                 onClick={() => showToast('success', 'Passbook filters applied successfully!')}
                 className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm flex items-center justify-center cursor-pointer"
               >
@@ -960,7 +1166,7 @@ export function AdminWallet() {
               </button>
 
                <div className="relative shrink-0 ml-auto flex items-center gap-2">
-                 <button 
+                 <button
                    onClick={() => setIsRechargeModalOpen(true)}
                    className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
                  >
@@ -976,13 +1182,13 @@ export function AdminWallet() {
                    </button>
                    {showPassbookActionMenu && (
                      <div className="absolute right-0 top-full mt-2 w-[180px] bg-white rounded-xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1)] border border-[#E2E8F0] py-2 z-50">
-                       <button 
+                       <button
                          onClick={() => handleExportData('passbook', filteredPassbookData)}
                          className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors"
                        >
                          Export Passbook (CSV)
                        </button>
-                       <button 
+                       <button
                          onClick={() => {
                            showToast('success', 'Passbook ledger report generated!');
                            setShowPassbookActionMenu(false);
@@ -1001,24 +1207,24 @@ export function AdminWallet() {
 
         {activeTab === 'Wallet Recharge' && (
           <>
-            {/* Filters Row */}
-            <div className="p-3 border-b border-[#E2E8F0] flex flex-wrap items-center gap-2.5 bg-[#F8FAFC]/50">
-              <input 
-                type="text" 
-                placeholder="Search by name, email, o..." 
+            {/* Desktop Filters Row */}
+            <div className="hidden md:flex p-3 border-b border-[#E2E8F0] flex-wrap items-center gap-2.5 bg-[#F8FAFC]/50">
+              <input
+                type="text"
+                placeholder="Search by name, email, o..."
                 value={rechargeSearchTerm}
                 onChange={(e) => setRechargeSearchTerm(e.target.value)}
-                className="glass-search-input w-[180px] shrink-0" 
+                className="glass-search-input w-[180px] shrink-0"
               />
-              
-              <input 
-                type="text" 
-                placeholder="Transaction ID" 
+
+              <input
+                type="text"
+                placeholder="Transaction ID"
                 value={rechargeTxnId}
                 onChange={(e) => setRechargeTxnId(e.target.value)}
-                className="glass-search-input w-36 shrink-0" 
+                className="glass-search-input w-36 shrink-0"
               />
-              
+
               <GlassDropdown
                 label="Payment Method"
                 options={PAYMENT_METHOD_OPTIONS}
@@ -1043,8 +1249,8 @@ export function AdminWallet() {
                 endDate={rechargeDateEnd}
                 onDateChange={(s, e) => { setRechargeDateStart(s); setRechargeDateEnd(e); }}
               />
-              
-              <button 
+
+              <button
                 onClick={() => showToast('success', 'Wallet Recharge filters applied successfully!')}
                 className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm flex items-center justify-center cursor-pointer"
               >
@@ -1052,7 +1258,7 @@ export function AdminWallet() {
               </button>
 
                <div className="relative shrink-0 ml-auto flex items-center gap-2">
-                 <button 
+                 <button
                    onClick={() => setIsRechargeModalOpen(true)}
                    className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
                  >
@@ -1068,13 +1274,13 @@ export function AdminWallet() {
                    </button>
                    {showRechargeActionMenu && (
                      <div className="absolute right-0 top-full mt-2 w-[180px] bg-white rounded-xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1)] border border-[#E2E8F0] py-2 z-50">
-                       <button 
+                       <button
                          onClick={() => handleExportData('recharge', filteredWalletRechargeData)}
                          className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors"
                        >
                          Export Recharge History
                        </button>
-                       <button 
+                       <button
                          onClick={() => {
                            showToast('success', 'Wallet Statement generated successfully!');
                            setShowRechargeActionMenu(false);
@@ -1088,21 +1294,74 @@ export function AdminWallet() {
                  </div>
                </div>
              </div>
+
+            {/* Mobile Filters + Action Row */}
+            <div className="md:hidden px-4 py-3 border-b border-[#E2E8F0] flex items-center justify-between bg-white">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setIsMobileFiltersOpen(true)}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#00A86B] text-white text-[12px] font-bold shadow-sm"
+                >
+                  <Filter className="w-3.5 h-3.5" /> Filters
+                </button>
+                {selectedRechargeOrders.length > 0 && (
+                  <span className="text-[11px] font-bold text-[#00A86B] bg-[#F0FDF4] border border-[#00A86B]/20 px-2.5 py-1 rounded-full">
+                    {selectedRechargeOrders.length} selected
+                  </span>
+                )}
+              </div>
+              <div className="relative action-dropdown-container">
+                <button
+                  onClick={() => setShowRechargeActionMenu(!showRechargeActionMenu)}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-[#E2E8F0] text-[12px] font-semibold text-[#475569] bg-white active:bg-[#F8FAFC] transition-colors"
+                >
+                  Action
+                  <ChevronDown className={`w-3.5 h-3.5 text-[#94A3B8] transition-transform duration-200 ${showRechargeActionMenu ? 'rotate-180' : ''}`} />
+                </button>
+                <AnimatePresence>
+                  {showRechargeActionMenu && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -6, scale: 0.97 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -6, scale: 0.97 }}
+                      transition={{ duration: 0.16, ease: 'easeOut' }}
+                      className="absolute right-0 top-full mt-2 w-[200px] bg-white rounded-xl shadow-[0_8px_28px_-6px_rgba(0,0,0,0.15)] border border-[#E2E8F0] py-1.5 z-50 origin-top-right"
+                    >
+                      <button
+                        onClick={() => { handleExportData('recharge', filteredWalletRechargeData); setShowRechargeActionMenu(false); }}
+                        className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors"
+                      >
+                        Export Recharge History
+                      </button>
+                      <button
+                        onClick={() => {
+                          showToast('success', 'Wallet Statement generated successfully!');
+                          setShowRechargeActionMenu(false);
+                        }}
+                        className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors"
+                      >
+                        Generate Statement
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
           </>
         )}
 
         {activeTab === 'Invoices' && (
           <>
-            {/* Filters Row */}
-            <div className="p-3 border-b border-[#E2E8F0] flex flex-wrap items-center gap-2.5 bg-[#F8FAFC]/50">
-              <input 
-                type="text" 
-                placeholder="Search by name, email, o..." 
+            {/* Desktop Filters Row */}
+            <div className="hidden md:flex p-3 border-b border-[#E2E8F0] flex-wrap items-center gap-2.5 bg-[#F8FAFC]/50">
+              <input
+                type="text"
+                placeholder="Search by name, email, o..."
                 value={invoiceSearchTerm}
                 onChange={(e) => setInvoiceSearchTerm(e.target.value)}
-                className="glass-search-input w-[180px] shrink-0" 
+                className="glass-search-input w-[180px] shrink-0"
               />
-              
+
               <GlassDropdown
                 label="Month"
                 options={MONTH_OPTIONS}
@@ -1127,8 +1386,8 @@ export function AdminWallet() {
                 endDate={invoiceDateEnd}
                 onDateChange={(s, e) => { setInvoiceDateStart(s); setInvoiceDateEnd(e); }}
               />
-              
-              <button 
+
+              <button
                 onClick={() => showToast('success', 'Invoice filters applied successfully!')}
                 className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm flex items-center justify-center cursor-pointer"
               >
@@ -1136,7 +1395,7 @@ export function AdminWallet() {
               </button>
 
                <div className="relative shrink-0 ml-auto flex items-center gap-2">
-                 <button 
+                 <button
                    onClick={() => setIsRechargeModalOpen(true)}
                    className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
                  >
@@ -1152,13 +1411,13 @@ export function AdminWallet() {
                    </button>
                    {showInvoiceActionMenu && (
                      <div className="absolute right-0 top-full mt-2 w-[180px] bg-white rounded-xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1)] border border-[#E2E8F0] py-2 z-50">
-                       <button 
+                       <button
                          onClick={() => handleExportData('invoice', filteredInvoicesData)}
                          className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors"
                        >
                          Export Invoice List
                        </button>
-                       <button 
+                       <button
                          onClick={() => {
                            showToast('success', 'Downloading all invoice PDFs...');
                            setShowInvoiceActionMenu(false);
@@ -1172,6 +1431,59 @@ export function AdminWallet() {
                  </div>
                </div>
              </div>
+
+            {/* Mobile Filters + Action Row */}
+            <div className="md:hidden px-4 py-3 border-b border-[#E2E8F0] flex items-center justify-between bg-white">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setIsMobileFiltersOpen(true)}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#00A86B] text-white text-[12px] font-bold shadow-sm"
+                >
+                  <Filter className="w-3.5 h-3.5" /> Filters
+                </button>
+                {selectedInvoiceOrders.length > 0 && (
+                  <span className="text-[11px] font-bold text-[#00A86B] bg-[#F0FDF4] border border-[#00A86B]/20 px-2.5 py-1 rounded-full">
+                    {selectedInvoiceOrders.length} selected
+                  </span>
+                )}
+              </div>
+              <div className="relative action-dropdown-container">
+                <button
+                  onClick={() => setShowInvoiceActionMenu(!showInvoiceActionMenu)}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-[#E2E8F0] text-[12px] font-semibold text-[#475569] bg-white active:bg-[#F8FAFC] transition-colors"
+                >
+                  Action
+                  <ChevronDown className={`w-3.5 h-3.5 text-[#94A3B8] transition-transform duration-200 ${showInvoiceActionMenu ? 'rotate-180' : ''}`} />
+                </button>
+                <AnimatePresence>
+                  {showInvoiceActionMenu && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -6, scale: 0.97 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -6, scale: 0.97 }}
+                      transition={{ duration: 0.16, ease: 'easeOut' }}
+                      className="absolute right-0 top-full mt-2 w-[200px] bg-white rounded-xl shadow-[0_8px_28px_-6px_rgba(0,0,0,0.15)] border border-[#E2E8F0] py-1.5 z-50 origin-top-right"
+                    >
+                      <button
+                        onClick={() => { handleExportData('invoice', filteredInvoicesData); setShowInvoiceActionMenu(false); }}
+                        className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors"
+                      >
+                        Export Invoice List
+                      </button>
+                      <button
+                        onClick={() => {
+                          showToast('success', 'Downloading all invoice PDFs...');
+                          setShowInvoiceActionMenu(false);
+                        }}
+                        className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors"
+                      >
+                        Download All PDF
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
           </>
         )}
         </div>
@@ -1183,11 +1495,13 @@ export function AdminWallet() {
         {activeTab === 'Shipping' && (
           <>
             {selectedOrders.length > 0 && (
-              <div className="px-4 py-2 bg-blue-50 border-b border-blue-100 flex items-center gap-3 animate-fade-in">
+              <div className="hidden md:flex px-4 py-2 bg-blue-50 border-b border-blue-100 items-center gap-3 animate-fade-in">
                 <span className="text-xs font-bold text-blue-700">{selectedOrders.length} selected</span>
               </div>
             )}
-            <div className="flex-1 overflow-y-auto overflow-x-hidden w-full relative">
+
+            {/* Desktop Table */}
+            <div className="hidden md:block flex-1 overflow-y-auto overflow-x-hidden w-full relative">
               <table className="w-full text-left border-collapse min-w-full">
                 <thead className="sticky top-0 z-20">
                   <tr className="bg-[#E6F5F1] text-xs font-medium text-[#00A86B] uppercase tracking-wider">
@@ -1299,7 +1613,8 @@ export function AdminWallet() {
               </table>
             </div>
             
-            {/* Shipping Pagination */}
+            {/* Shipping Pagination — Desktop */}
+            <div className="hidden md:block">
             {totalShippingPages > 0 && (
               <div className="p-4 border-t border-[#E2E8F0] flex items-center justify-between">
                 <div className="flex items-center gap-4">
@@ -1346,15 +1661,193 @@ export function AdminWallet() {
                 </div>
               </div>
             )}
+            </div>
+
+            {/* Mobile Card Layout */}
+            <div className="md:hidden flex-1 overflow-y-auto">
+              {paginatedShippingData.length === 0 ? (
+                <div className="p-8 text-center text-[#64748B] font-medium text-sm">
+                  No shipping records found.
+                </div>
+              ) : (
+                <div className="p-4 space-y-4 bg-[#F8FAFC]">
+                  {paginatedShippingData.map((order) => {
+                    const isPaid = order.status === 'Paid';
+                    const accent = isPaid ? '#00A86B' : '#F59E0B';
+                    return (
+                      <div key={order.awb} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
+                        {/* Ribbon Tag */}
+                        <div
+                          className="absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide"
+                          style={{ background: accent, clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}
+                        >
+                          {isPaid ? 'Paid' : 'Ready To Ship'}
+                        </div>
+
+                        <div className="pt-8 px-4 pb-4">
+                          {/* User Details Row */}
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                              <input type="checkbox" checked={selectedOrders.includes(order.awb)} onChange={() => toggleSelect(order.awb)} className="rounded border-gray-300 accent-[#00A86B] w-4 h-4" />
+                              <span className="text-[#64748B] font-medium text-[12px] font-sans">User Details</span>
+                            </div>
+                            <span className="text-[12px] font-sans inline-flex items-baseline gap-1 max-w-[180px]">
+                              {renderTruncatedName(order.userName, 16, "font-semibold text-[#0F172A] text-[12px]")}
+                              <span className="text-[#64748B] font-semibold shrink-0">({order.id})</span>
+                            </span>
+                          </div>
+
+                          {/* Courier & Order Card */}
+                          <div className="rounded-xl p-3 mb-3 bg-white" style={{ border: `1px solid ${accent}` }}>
+                            <div className="flex items-start justify-between">
+                              <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                                <div className="w-10 h-10 bg-white border border-[#E2E8F0] rounded-xl flex items-center justify-center shrink-0 overflow-hidden p-1 shadow-sm">
+                                  <img src={getCourierLogo(order.courier)} alt={order.courier} className="w-full h-full object-contain" />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <div className="text-[12px] font-normal text-[#0F172A] font-sans truncate">{order.courier} 2KG</div>
+                                  <div className="flex items-center gap-1.5 min-w-0 mt-0.5">
+                                    <span
+                                      className="text-[12px] font-semibold text-[#00A86B] font-sans truncate active:opacity-60"
+                                      title={order.awb}
+                                      onClick={(e) => { e.stopPropagation(); showToast('success', order.awb); }}
+                                    >
+                                      {order.awb}
+                                    </span>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        copyToClipboard(order.awb, 'AWB');
+                                      }}
+                                      className="shrink-0 focus:outline-none"
+                                      title="Copy AWB"
+                                    >
+                                      <Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" />
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="text-[12px] font-normal text-[#00A86B] font-sans shrink-0 ml-2">₹{order.statusAmount}</div>
+                            </div>
+                          </div>
+
+                          {/* Weight & Dimensions */}
+                          <div className="flex items-center justify-between mb-3 px-1">
+                            <span className="text-[11px] font-medium text-[#64748B] font-sans">Ent. Wt & Dim:</span>
+                            <span className="text-[12px] font-medium text-[#0F172A] font-sans">1.2 Kg | 20×15×20 cm</span>
+                          </div>
+
+                          {/* AWB / Weight / Freight Row */}
+                          <div className="flex items-start justify-between bg-[#F8FAFC] rounded-xl px-3 py-2.5 mb-3">
+                            <div className="min-w-0">
+                              <div className="text-[12px] font-normal text-[#94A3B8] uppercase tracking-wider font-sans">AWB Number</div>
+                              <div
+                                className="text-[12px] font-medium text-[#00A86B] mt-0.5 font-sans truncate active:opacity-60"
+                                title={order.awb}
+                                onClick={() => showToast('success', order.awb)}
+                              >
+                                {order.awb}
+                              </div>
+                            </div>
+                            <div className="text-center">
+                              <div className="text-[12px] font-normal text-[#94A3B8] uppercase tracking-wider font-sans">AWB Assigned Wt.</div>
+                              <div className="text-[12px] font-medium text-[#0F172A] mt-0.5 font-sans">1.200 Kg</div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-[12px] font-normal text-[#94A3B8] uppercase tracking-wider font-sans">Total Freight</div>
+                              <div className="text-[12px] font-medium text-[#0F172A] mt-0.5 font-sans">₹{order.statusAmount} <span className="inline-block w-3 h-3 rounded-full border border-[#CBD5E1] text-[8px] text-[#94A3B8] text-center leading-3">ⓘ</span></div>
+                            </div>
+                          </div>
+
+                          {/* History Button */}
+                          <button
+                            onClick={() => {
+                              setPassbookAwb(order.awb);
+                              setActiveTab('Passbook');
+                            }}
+                            className="w-full py-2.5 rounded-xl bg-[#1E3A8A] text-white text-[12px] font-medium text-center hover:bg-[#1E3A8A]/90 transition-colors font-sans"
+                          >
+                            History
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Mobile Pagination */}
+              {useMobilePaginationBar({
+                page: shippingPage,
+                setPage: setShippingPage,
+                totalPages: totalShippingPages,
+                rowsPerPage: shippingRowsPerPage,
+                setRowsPerPage: setShippingRowsPerPage,
+                startIndex: shippingStartIndex,
+                endIndex: shippingEndIndex,
+                totalItems: filteredShippingData.length,
+              })}
+            </div>
           </>
         )}
 
-
-
         {activeTab === 'Passbook' && (
           <>
+            {/* Mobile Filters Row */}
+            <div className="md:hidden px-4 py-3 border-b border-[#E2E8F0] flex items-center justify-between bg-white">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setIsMobileFiltersOpen(true)}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#00A86B] text-white text-[12px] font-bold shadow-sm"
+                >
+                  <Filter className="w-3.5 h-3.5" /> Filters
+                </button>
+                {selectedPassbookOrders.length > 0 && (
+                  <span className="text-[11px] font-bold text-[#00A86B] bg-[#F0FDF4] border border-[#00A86B]/20 px-2.5 py-1 rounded-full">
+                    {selectedPassbookOrders.length} selected
+                  </span>
+                )}
+              </div>
+              <div className="relative action-dropdown-container">
+                <button
+                  onClick={() => setShowPassbookActionMenu(!showPassbookActionMenu)}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-[#E2E8F0] text-[12px] font-semibold text-[#475569] bg-white active:bg-[#F8FAFC] transition-colors"
+                >
+                  Action
+                  <ChevronDown className={`w-3.5 h-3.5 text-[#94A3B8] transition-transform duration-200 ${showPassbookActionMenu ? 'rotate-180' : ''}`} />
+                </button>
+                <AnimatePresence>
+                  {showPassbookActionMenu && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -6, scale: 0.97 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -6, scale: 0.97 }}
+                      transition={{ duration: 0.16, ease: 'easeOut' }}
+                      className="absolute right-0 top-full mt-2 w-[200px] bg-white rounded-xl shadow-[0_8px_28px_-6px_rgba(0,0,0,0.15)] border border-[#E2E8F0] py-1.5 z-50 origin-top-right"
+                    >
+                      <button
+                        onClick={() => { handleExportData('passbook', filteredPassbookData); setShowPassbookActionMenu(false); }}
+                        className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors"
+                      >
+                        Export Passbook (CSV)
+                      </button>
+                      <button
+                        onClick={() => {
+                          showToast('success', 'Passbook ledger report generated!');
+                          setShowPassbookActionMenu(false);
+                        }}
+                        className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors"
+                      >
+                        Download Detailed Ledger
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
+
             {selectedPassbookOrders.length > 0 && (
-              <div className="px-4 py-2 bg-blue-50 border-b border-blue-100 flex items-center gap-3 animate-fade-in">
+              <div className="hidden md:flex px-4 py-2 bg-blue-50 border-b border-blue-100 items-center gap-3 animate-fade-in">
                 <span className="text-xs font-bold text-blue-700">{selectedPassbookOrders.length} selected</span>
                 <button 
                   onClick={() => handleExportData('passbook', filteredPassbookData.filter(o => selectedPassbookOrders.includes(o.awb)))}
@@ -1364,7 +1857,9 @@ export function AdminWallet() {
                 </button>
               </div>
             )}
-            <div className="flex-1 overflow-y-auto overflow-x-hidden w-full relative">
+
+            {/* Desktop Passbook Table */}
+            <div className="hidden md:block flex-1 overflow-y-auto overflow-x-hidden w-full relative">
               <table className="w-full text-left border-collapse min-w-full">
                 <thead className="sticky top-0 z-20">
                   <tr className="bg-[#E6F5F1] text-xs font-medium text-[#00A86B] uppercase tracking-wider">
@@ -1477,62 +1972,203 @@ export function AdminWallet() {
               </table>
             </div>
 
-            {/* Passbook Pagination */}
-            {totalPassbookPages > 0 && (
-              <div className="p-4 border-t border-[#E2E8F0] flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="text-xs text-[#64748B]">
-                    Showing <span className="font-bold text-[#0F172A]">{passbookStartIndex}</span> to <span className="font-bold text-[#0F172A]">{passbookEndIndex}</span> of <span className="font-bold text-[#0F172A]">{filteredPassbookData.length}</span> entries
+            {/* Desktop Passbook Pagination */}
+            <div className="hidden md:block">
+              {totalPassbookPages > 0 && (
+                <div className="p-4 border-t border-[#E2E8F0] flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="text-xs text-[#64748B]">
+                      Showing <span className="font-bold text-[#0F172A]">{passbookStartIndex}</span> to <span className="font-bold text-[#0F172A]">{passbookEndIndex}</span> of <span className="font-bold text-[#0F172A]">{filteredPassbookData.length}</span> entries
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[11px] text-[#94A3B8] font-semibold uppercase tracking-wider">Show</span>
+                      <select
+                        value={passbookRowsPerPage}
+                        onChange={(e) => setPassbookRowsPerPage(Number(e.target.value))}
+                        className="h-8 px-2.5 rounded-lg border border-[#E2E8F0] bg-white text-xs font-bold text-[#475569] cursor-pointer appearance-none min-w-[56px] text-center shadow-sm hover:border-[#00A86B]/40 hover:shadow-[0_0_0_3px_rgba(0,168,107,0.06)] focus:outline-none focus:border-[#00A86B] focus:shadow-[0_0_0_3px_rgba(0,168,107,0.1)] transition-all duration-200 bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2394A3B8%22%20stroke-width%3D%222.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E')] bg-[length:12px] bg-[right_8px_center] bg-no-repeat pr-7"
+                      >
+                        {[10, 25, 50, 100].map(v => <option key={v} value={v}>{v}</option>)}
+                      </select>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[11px] text-[#94A3B8] font-semibold uppercase tracking-wider">Show</span>
-                    <select
-                      value={passbookRowsPerPage}
-                      onChange={(e) => setPassbookRowsPerPage(Number(e.target.value))}
-                      className="h-8 px-2.5 rounded-lg border border-[#E2E8F0] bg-white text-xs font-bold text-[#475569] cursor-pointer appearance-none min-w-[56px] text-center shadow-sm hover:border-[#00A86B]/40 hover:shadow-[0_0_0_3px_rgba(0,168,107,0.06)] focus:outline-none focus:border-[#00A86B] focus:shadow-[0_0_0_3px_rgba(0,168,107,0.1)] transition-all duration-200 bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2394A3B8%22%20stroke-width%3D%222.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E')] bg-[length:12px] bg-[right_8px_center] bg-no-repeat pr-7"
+                  <div className="flex items-center gap-1">
+                    <button 
+                      onClick={() => setPassbookPage(p => Math.max(1, p - 1))}
+                      disabled={passbookPage === 1}
+                      className="px-3 py-1.5 rounded border border-[#E2E8F0] text-xs font-medium text-[#475569] hover:bg-[#F8FAFC] disabled:opacity-50"
                     >
-                      {[10, 25, 50, 100].map(v => <option key={v} value={v}>{v}</option>)}
-                    </select>
-                  </div>
-                </div>
-                <div className="flex items-center gap-1">
-                  <button 
-                    onClick={() => setPassbookPage(p => Math.max(1, p - 1))}
-                    disabled={passbookPage === 1}
-                    className="px-3 py-1.5 rounded border border-[#E2E8F0] text-xs font-medium text-[#475569] hover:bg-[#F8FAFC] disabled:opacity-50"
-                  >
-                    Previous
-                  </button>
-                  {Array.from({ length: totalPassbookPages }, (_, i) => (
-                    <button
-                      key={i + 1}
-                      onClick={() => setPassbookPage(i + 1)}
-                      className={`w-8 h-8 rounded text-xs font-medium flex items-center justify-center transition-colors ${
-                        passbookPage === i + 1 ? 'bg-[#00A86B] text-white border border-[#00A86B]' : 'border border-[#E2E8F0] text-[#475569] hover:bg-[#F8FAFC]'
-                      }`}
-                    >
-                      {i + 1}
+                      Previous
                     </button>
-                  ))}
+                    {Array.from({ length: totalPassbookPages }, (_, i) => (
+                      <button
+                        key={i + 1}
+                        onClick={() => setPassbookPage(i + 1)}
+                        className={`w-8 h-8 rounded text-xs font-medium flex items-center justify-center transition-colors ${
+                          passbookPage === i + 1 ? 'bg-[#00A86B] text-white border border-[#00A86B]' : 'border border-[#E2E8F0] text-[#475569] hover:bg-[#F8FAFC]'
+                        }`}
+                      >
+                        {i + 1}
+                      </button>
+                    ))}
+                    <button 
+                      onClick={() => setPassbookPage(p => Math.min(totalPassbookPages, p + 1))}
+                      disabled={passbookPage === totalPassbookPages}
+                      className="px-3 py-1.5 rounded border border-[#E2E8F0] text-xs font-medium text-[#475569] hover:bg-[#F8FAFC] disabled:opacity-50"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Mobile Passbook Card Layout */}
+            <div className="md:hidden flex-1 overflow-y-auto">
+              {passbookAwb && (
+                <div className="px-4 py-2.5 bg-blue-50 border-b border-blue-100 flex items-center justify-between">
+                  <span className="text-xs font-semibold text-blue-700">Filtered by AWB: <span className="font-bold">{passbookAwb}</span></span>
                   <button 
-                    onClick={() => setPassbookPage(p => Math.min(totalPassbookPages, p + 1))}
-                    disabled={passbookPage === totalPassbookPages}
-                    className="px-3 py-1.5 rounded border border-[#E2E8F0] text-xs font-medium text-[#475569] hover:bg-[#F8FAFC] disabled:opacity-50"
+                    onClick={() => setPassbookAwb('')}
+                    className="text-xs text-blue-600 hover:text-blue-800 font-bold underline"
                   >
-                    Next
+                    Clear Filter
                   </button>
                 </div>
-              </div>
-            )}
+              )}
+
+              {paginatedPassbookData.length === 0 ? (
+                <div className="p-8 text-center text-[#64748B] font-medium text-sm">
+                  No passbook records found.
+                </div>
+              ) : (
+                <div className="p-4 space-y-4 bg-[#F8FAFC]">
+                  {paginatedPassbookData.map((order) => {
+                    const isDebit = order.category === 'Debit';
+                    const accent = isDebit ? '#EF4444' : '#00A86B';
+                    return (
+                      <div key={order.awb} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
+                        {/* Ribbon Tag */}
+                        <div
+                          className="absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide"
+                          style={{ background: accent, clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}
+                        >
+                          {order.category}
+                        </div>
+
+                        <div className="pt-8 px-4 pb-4">
+                          {/* User Info */}
+                          <div className="flex justify-between items-center text-[12px] mb-3">
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={selectedPassbookOrders.includes(order.awb)}
+                                onChange={() => toggleSelectPassbook(order.awb)}
+                                className="rounded border-gray-300 accent-[#00A86B] w-4 h-4"
+                              />
+                              <span className="text-[#64748B] font-medium text-[12px] font-sans">User Details</span>
+                            </div>
+                            <span className="text-[12px] font-sans inline-flex items-baseline gap-1 max-w-[180px]">
+                              {renderTruncatedName(order.userName, 16, "font-semibold text-[#0F172A] text-[12px]")}
+                              <span className="text-[#94A3B8] font-semibold shrink-0">({order.id})</span>
+                            </span>
+                          </div>
+
+                          {/* Courier Card */}
+                          <div className="rounded-xl p-3 mb-3 bg-white" style={{ border: `1px solid ${accent}` }}>
+                            <div className="flex items-start justify-between">
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <div className="w-9 h-9 bg-white border border-[#E2E8F0] rounded-xl flex items-center justify-center shrink-0 overflow-hidden p-1 shadow-sm">
+                                  <img src={getCourierLogo(order.courier)} alt={order.courier} className="w-full h-full object-contain" />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <div className="text-[12px] font-normal text-[#0F172A] truncate font-sans">{order.courier} 2KG</div>
+                                  {order.awb !== 'N/A' && (
+                                    <div className="flex items-center gap-1.5 min-w-0 mt-0.5">
+                                      <span className="text-[12px] font-semibold text-[#00A86B] truncate font-sans">{order.awb}</span>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          copyToClipboard(order.awb, 'AWB');
+                                        }}
+                                        className="shrink-0 focus:outline-none"
+                                        title="Copy AWB"
+                                      >
+                                        <Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" />
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              <div className={`text-[12px] font-normal shrink-0 font-sans ${isDebit ? 'text-red-500' : 'text-[#00A86B]'}`}>
+                                {isDebit ? '-' : '+'} ₹{order.amount.toFixed(2)}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* AWB / Date & Time / Balance Row */}
+                          <div className="grid grid-cols-3 gap-2 items-start bg-[#F8FAFC] rounded-xl px-3 py-2.5 mb-3">
+                            <div className="min-w-0">
+                              <div className="text-[12px] font-normal text-[#94A3B8] uppercase tracking-wider font-sans">AWB Number</div>
+                              <div
+                                className="text-[12px] font-medium text-[#00A86B] mt-0.5 truncate active:opacity-60 font-sans"
+                                title={order.awb !== 'N/A' ? order.awb : undefined}
+                                onClick={() => { if (order.awb !== 'N/A') showToast('success', order.awb); }}
+                              >
+                                {order.awb !== 'N/A' ? order.awb : '—'}
+                              </div>
+                            </div>
+                            <div className="min-w-0 text-center">
+                              <div className="text-[12px] font-normal text-[#94A3B8] uppercase tracking-wider font-sans">Date & Time</div>
+                              <div className="text-[12px] font-medium text-[#0F172A] mt-0.5 truncate font-sans">{order.date}</div>
+                              <div className="text-[12px] font-medium text-[#64748B] truncate font-sans">{order.day}</div>
+                            </div>
+                            <div className="text-right min-w-0">
+                              <div className="text-[12px] font-normal text-[#94A3B8] uppercase tracking-wider font-sans">Avail. Balance</div>
+                              <div className="text-[12px] font-medium text-[#0F172A] mt-0.5 truncate font-sans">₹{order.balance.toFixed(2)}</div>
+                            </div>
+                          </div>
+
+                          {/* Description + Action */}
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-[12px] font-sans truncate">
+                              <span className="font-medium text-[#64748B]">Description: </span>
+                              <span className="font-normal text-[#0F172A]">{order.description}</span>
+                            </span>
+                            <button
+                              onClick={() => showToast('success', `Verification complete for record AWB: ${order.awb !== 'N/A' ? order.awb : 'N/A'}`)}
+                              className="w-8 h-8 rounded-full bg-[#E0F2FE] flex items-center justify-center text-[#0EA5E9] hover:bg-[#BAE6FD] transition-colors shrink-0"
+                            >
+                              <RefreshCcw className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Mobile Passbook Pagination */}
+              {useMobilePaginationBar({
+                page: passbookPage,
+                setPage: setPassbookPage,
+                totalPages: totalPassbookPages,
+                rowsPerPage: passbookRowsPerPage,
+                setRowsPerPage: setPassbookRowsPerPage,
+                startIndex: passbookStartIndex,
+                endIndex: passbookEndIndex,
+                totalItems: filteredPassbookData.length,
+              })}
+            </div>
           </>
         )}
 
         {activeTab === 'Wallet Recharge' && (
           <>
             {selectedRechargeOrders.length > 0 && (
-              <div className="px-4 py-2 bg-blue-50 border-b border-blue-100 flex items-center gap-3 animate-fade-in">
+              <div className="hidden md:flex px-4 py-2 bg-blue-50 border-b border-blue-100 items-center gap-3 animate-fade-in">
                 <span className="text-xs font-bold text-blue-700">{selectedRechargeOrders.length} selected</span>
-                <button 
+                <button
                   onClick={() => handleExportData('recharge', filteredWalletRechargeData.filter(o => selectedRechargeOrders.includes(o.transactionId)))}
                   className="h-8 px-3 rounded-md bg-white border border-blue-200 text-xs font-bold text-blue-700 shadow-sm ml-auto hover:bg-blue-100"
                 >
@@ -1540,7 +2176,9 @@ export function AdminWallet() {
                 </button>
               </div>
             )}
-            <div className="flex-1 overflow-y-auto overflow-x-hidden w-full relative">
+
+            {/* Desktop Table */}
+            <div className="hidden md:block flex-1 overflow-y-auto overflow-x-hidden w-full relative">
               <table className="w-full text-left border-collapse min-w-full">
                 <thead className="sticky top-0 z-20">
                   <tr className="bg-[#E6F5F1] text-xs font-medium text-[#00A86B] uppercase tracking-wider">
@@ -1628,62 +2266,152 @@ export function AdminWallet() {
               </table>
             </div>
 
-            {/* Recharge Pagination */}
-            {totalRechargePages > 0 && (
-              <div className="p-4 border-t border-[#E2E8F0] flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="text-xs text-[#64748B]">
-                    Showing <span className="font-bold text-[#0F172A]">{rechargeStartIndex}</span> to <span className="font-bold text-[#0F172A]">{rechargeEndIndex}</span> of <span className="font-bold text-[#0F172A]">{filteredWalletRechargeData.length}</span> entries
+            {/* Desktop Recharge Pagination */}
+            <div className="hidden md:block">
+              {totalRechargePages > 0 && (
+                <div className="p-4 border-t border-[#E2E8F0] flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="text-xs text-[#64748B]">
+                      Showing <span className="font-bold text-[#0F172A]">{rechargeStartIndex}</span> to <span className="font-bold text-[#0F172A]">{rechargeEndIndex}</span> of <span className="font-bold text-[#0F172A]">{filteredWalletRechargeData.length}</span> entries
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[11px] text-[#94A3B8] font-semibold uppercase tracking-wider">Show</span>
+                      <select
+                        value={rechargeRowsPerPage}
+                        onChange={(e) => setRechargeRowsPerPage(Number(e.target.value))}
+                        className="h-8 px-2.5 rounded-lg border border-[#E2E8F0] bg-white text-xs font-bold text-[#475569] cursor-pointer appearance-none min-w-[56px] text-center shadow-sm hover:border-[#00A86B]/40 hover:shadow-[0_0_0_3px_rgba(0,168,107,0.06)] focus:outline-none focus:border-[#00A86B] focus:shadow-[0_0_0_3px_rgba(0,168,107,0.1)] transition-all duration-200 bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2394A3B8%22%20stroke-width%3D%222.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E')] bg-[length:12px] bg-[right_8px_center] bg-no-repeat pr-7"
+                      >
+                        {[10, 25, 50, 100].map(v => <option key={v} value={v}>{v}</option>)}
+                      </select>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[11px] text-[#94A3B8] font-semibold uppercase tracking-wider">Show</span>
-                    <select
-                      value={rechargeRowsPerPage}
-                      onChange={(e) => setRechargeRowsPerPage(Number(e.target.value))}
-                      className="h-8 px-2.5 rounded-lg border border-[#E2E8F0] bg-white text-xs font-bold text-[#475569] cursor-pointer appearance-none min-w-[56px] text-center shadow-sm hover:border-[#00A86B]/40 hover:shadow-[0_0_0_3px_rgba(0,168,107,0.06)] focus:outline-none focus:border-[#00A86B] focus:shadow-[0_0_0_3px_rgba(0,168,107,0.1)] transition-all duration-200 bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2394A3B8%22%20stroke-width%3D%222.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E')] bg-[length:12px] bg-[right_8px_center] bg-no-repeat pr-7"
-                    >
-                      {[10, 25, 50, 100].map(v => <option key={v} value={v}>{v}</option>)}
-                    </select>
-                  </div>
-                </div>
-                <div className="flex items-center gap-1">
-                  <button 
-                    onClick={() => setRechargePage(p => Math.max(1, p - 1))}
-                    disabled={rechargePage === 1}
-                    className="px-3 py-1.5 rounded border border-[#E2E8F0] text-xs font-medium text-[#475569] hover:bg-[#F8FAFC] disabled:opacity-50"
-                  >
-                    Previous
-                  </button>
-                  {Array.from({ length: totalRechargePages }, (_, i) => (
+                  <div className="flex items-center gap-1">
                     <button
-                      key={i + 1}
-                      onClick={() => setRechargePage(i + 1)}
-                      className={`w-8 h-8 rounded text-xs font-medium flex items-center justify-center transition-colors ${
-                        rechargePage === i + 1 ? 'bg-[#00A86B] text-white border border-[#00A86B]' : 'border border-[#E2E8F0] text-[#475569] hover:bg-[#F8FAFC]'
-                      }`}
+                      onClick={() => setRechargePage(p => Math.max(1, p - 1))}
+                      disabled={rechargePage === 1}
+                      className="px-3 py-1.5 rounded border border-[#E2E8F0] text-xs font-medium text-[#475569] hover:bg-[#F8FAFC] disabled:opacity-50"
                     >
-                      {i + 1}
+                      Previous
                     </button>
-                  ))}
-                  <button 
-                    onClick={() => setRechargePage(p => Math.min(totalRechargePages, p + 1))}
-                    disabled={rechargePage === totalRechargePages}
-                    className="px-3 py-1.5 rounded border border-[#E2E8F0] text-xs font-medium text-[#475569] hover:bg-[#F8FAFC] disabled:opacity-50"
-                  >
-                    Next
-                  </button>
+                    {Array.from({ length: totalRechargePages }, (_, i) => (
+                      <button
+                        key={i + 1}
+                        onClick={() => setRechargePage(i + 1)}
+                        className={`w-8 h-8 rounded text-xs font-medium flex items-center justify-center transition-colors ${
+                          rechargePage === i + 1 ? 'bg-[#00A86B] text-white border border-[#00A86B]' : 'border border-[#E2E8F0] text-[#475569] hover:bg-[#F8FAFC]'
+                        }`}
+                      >
+                        {i + 1}
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => setRechargePage(p => Math.min(totalRechargePages, p + 1))}
+                      disabled={rechargePage === totalRechargePages}
+                      className="px-3 py-1.5 rounded border border-[#E2E8F0] text-xs font-medium text-[#475569] hover:bg-[#F8FAFC] disabled:opacity-50"
+                    >
+                      Next
+                    </button>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
+
+            {/* Mobile Card Layout */}
+            <div className="md:hidden flex-1 overflow-y-auto">
+              {paginatedRechargeData.length === 0 ? (
+                <div className="p-8 text-center text-[#64748B] font-medium text-sm">
+                  No recharge transactions found.
+                </div>
+              ) : (
+                <div className="p-4 space-y-4 bg-[#F8FAFC]">
+                  {paginatedRechargeData.map((recharge) => {
+                    const isSuccess = recharge.status === 'Success';
+                    const accent = isSuccess ? '#00A86B' : recharge.status === 'Failed' ? '#EF4444' : '#F59E0B';
+                    return (
+                      <div key={recharge.transactionId} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
+                        {/* Ribbon Tag */}
+                        <div
+                          className="absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide"
+                          style={{ background: accent, clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}
+                        >
+                          {recharge.status}
+                        </div>
+
+                        <div className="pt-8 px-4 pb-4">
+                          {/* User Info */}
+                          <div className="flex justify-between items-center text-[12px] mb-2.5">
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={selectedRechargeOrders.includes(recharge.transactionId)}
+                                onChange={() => toggleSelectRecharge(recharge.transactionId)}
+                                className="rounded border-gray-300 accent-[#00A86B] w-4 h-4"
+                              />
+                              <span className="text-[#64748B] font-medium text-[12px] font-sans">User Details</span>
+                            </div>
+                            <span className="text-[12px] font-sans inline-flex items-baseline gap-1 max-w-[180px]">
+                              {renderTruncatedName(recharge.userName, 16, "font-semibold text-[#0F172A] text-[12px]")}
+                              <span className="text-[#94A3B8] font-semibold shrink-0">({recharge.id})</span>
+                            </span>
+                          </div>
+
+                          {/* Created At */}
+                          <div className="text-[12px] mb-1.5 font-sans">
+                            <span className="text-[#64748B] font-medium">Created At: </span>
+                            <span className="text-[#0F172A] font-normal">{recharge.date} | {recharge.time}</span>
+                          </div>
+
+                          {/* Payment ID */}
+                          <div className="text-[12px] mb-1.5 truncate font-sans">
+                            <span className="text-[#64748B] font-medium">Payment ID: </span>
+                            <span className="text-[#0F172A] font-normal">{recharge.paymentId}</span>
+                          </div>
+
+                          {/* Order ID */}
+                          <div className="text-[12px] mb-3 truncate font-sans">
+                            <span className="text-[#64748B] font-medium">Order ID: </span>
+                            <span className="text-[#0F172A] font-normal">{recharge.orderId}</span>
+                          </div>
+
+                          {/* Transaction ID / Amount Box */}
+                          <div className="flex items-center justify-between bg-[#F8FAFC] rounded-xl px-3 py-2.5">
+                            <div className="min-w-0">
+                              <div className="text-[12px] font-normal text-[#94A3B8] uppercase tracking-wider font-sans">Transaction ID</div>
+                              <div className="text-[12px] font-semibold text-[#00A86B] mt-0.5 truncate font-sans">{recharge.transactionId}</div>
+                            </div>
+                            <div className="text-center shrink-0">
+                              <div className="text-[12px] font-normal text-[#94A3B8] uppercase tracking-wider font-sans">Amount Details</div>
+                              <div className="text-[12px] font-semibold text-[#00A86B] mt-0.5 font-sans">₹{recharge.amount.toFixed(2)}</div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Mobile Recharge Pagination */}
+              {useMobilePaginationBar({
+                page: rechargePage,
+                setPage: setRechargePage,
+                totalPages: totalRechargePages,
+                rowsPerPage: rechargeRowsPerPage,
+                setRowsPerPage: setRechargeRowsPerPage,
+                startIndex: rechargeStartIndex,
+                endIndex: rechargeEndIndex,
+                totalItems: filteredWalletRechargeData.length,
+              })}
+            </div>
           </>
         )}
 
         {activeTab === 'Invoices' && (
           <>
             {selectedInvoiceOrders.length > 0 && (
-              <div className="px-4 py-2 bg-blue-50 border-b border-blue-100 flex items-center gap-3 animate-fade-in">
+              <div className="hidden md:flex px-4 py-2 bg-blue-50 border-b border-blue-100 items-center gap-3 animate-fade-in">
                 <span className="text-xs font-bold text-blue-700">{selectedInvoiceOrders.length} selected</span>
-                <button 
+                <button
                   onClick={() => handleExportData('invoice', filteredInvoicesData.filter(o => selectedInvoiceOrders.includes(o.invoiceNumber)))}
                   className="h-8 px-3 rounded-md bg-white border border-blue-200 text-xs font-bold text-blue-700 shadow-sm ml-auto hover:bg-blue-100"
                 >
@@ -1691,7 +2419,7 @@ export function AdminWallet() {
                 </button>
               </div>
             )}
-            <div className="flex-1 overflow-y-auto overflow-x-hidden w-full relative">
+            <div className="hidden md:block flex-1 overflow-y-auto overflow-x-hidden w-full relative">
               <table className="w-full text-left border-collapse min-w-full">
                 <thead className="sticky top-0 z-20">
                   <tr className="bg-[#E6F5F1] text-xs font-medium text-[#00A86B] uppercase tracking-wider">
@@ -1808,53 +2536,177 @@ export function AdminWallet() {
               </table>
             </div>
 
-            {/* Invoices Pagination */}
-            {totalInvoicePages > 0 && (
-              <div className="p-4 border-t border-[#E2E8F0] flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="text-xs text-[#64748B]">
-                    Showing <span className="font-bold text-[#0F172A]">{invoiceStartIndex}</span> to <span className="font-bold text-[#0F172A]">{invoiceEndIndex}</span> of <span className="font-bold text-[#0F172A]">{filteredInvoicesData.length}</span> entries
+            {/* Desktop Invoices Pagination */}
+            <div className="hidden md:block">
+              {totalInvoicePages > 0 && (
+                <div className="p-4 border-t border-[#E2E8F0] flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="text-xs text-[#64748B]">
+                      Showing <span className="font-bold text-[#0F172A]">{invoiceStartIndex}</span> to <span className="font-bold text-[#0F172A]">{invoiceEndIndex}</span> of <span className="font-bold text-[#0F172A]">{filteredInvoicesData.length}</span> entries
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[11px] text-[#94A3B8] font-semibold uppercase tracking-wider">Show</span>
+                      <select
+                        value={invoiceRowsPerPage}
+                        onChange={(e) => setInvoiceRowsPerPage(Number(e.target.value))}
+                        className="h-8 px-2.5 rounded-lg border border-[#E2E8F0] bg-white text-xs font-bold text-[#475569] cursor-pointer appearance-none min-w-[56px] text-center shadow-sm hover:border-[#00A86B]/40 hover:shadow-[0_0_0_3px_rgba(0,168,107,0.06)] focus:outline-none focus:border-[#00A86B] focus:shadow-[0_0_0_3px_rgba(0,168,107,0.1)] transition-all duration-200 bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2394A3B8%22%20stroke-width%3D%222.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E')] bg-[length:12px] bg-[right_8px_center] bg-no-repeat pr-7"
+                      >
+                        {[10, 25, 50, 100].map(v => <option key={v} value={v}>{v}</option>)}
+                      </select>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[11px] text-[#94A3B8] font-semibold uppercase tracking-wider">Show</span>
-                    <select
-                      value={invoiceRowsPerPage}
-                      onChange={(e) => setInvoiceRowsPerPage(Number(e.target.value))}
-                      className="h-8 px-2.5 rounded-lg border border-[#E2E8F0] bg-white text-xs font-bold text-[#475569] cursor-pointer appearance-none min-w-[56px] text-center shadow-sm hover:border-[#00A86B]/40 hover:shadow-[0_0_0_3px_rgba(0,168,107,0.06)] focus:outline-none focus:border-[#00A86B] focus:shadow-[0_0_0_3px_rgba(0,168,107,0.1)] transition-all duration-200 bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2394A3B8%22%20stroke-width%3D%222.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E')] bg-[length:12px] bg-[right_8px_center] bg-no-repeat pr-7"
-                    >
-                      {[10, 25, 50, 100].map(v => <option key={v} value={v}>{v}</option>)}
-                    </select>
-                  </div>
-                </div>
-                <div className="flex items-center gap-1">
-                  <button 
-                    onClick={() => setInvoicePage(p => Math.max(1, p - 1))}
-                    disabled={invoicePage === 1}
-                    className="px-3 py-1.5 rounded border border-[#E2E8F0] text-xs font-medium text-[#475569] hover:bg-[#F8FAFC] disabled:opacity-50"
-                  >
-                    Previous
-                  </button>
-                  {Array.from({ length: totalInvoicePages }, (_, i) => (
+                  <div className="flex items-center gap-1">
                     <button
-                      key={i + 1}
-                      onClick={() => setInvoicePage(i + 1)}
-                      className={`w-8 h-8 rounded text-xs font-medium flex items-center justify-center transition-colors ${
-                        invoicePage === i + 1 ? 'bg-[#00A86B] text-white border border-[#00A86B]' : 'border border-[#E2E8F0] text-[#475569] hover:bg-[#F8FAFC]'
-                      }`}
+                      onClick={() => setInvoicePage(p => Math.max(1, p - 1))}
+                      disabled={invoicePage === 1}
+                      className="px-3 py-1.5 rounded border border-[#E2E8F0] text-xs font-medium text-[#475569] hover:bg-[#F8FAFC] disabled:opacity-50"
                     >
-                      {i + 1}
+                      Previous
                     </button>
-                  ))}
-                  <button 
-                    onClick={() => setInvoicePage(p => Math.min(totalInvoicePages, p + 1))}
-                    disabled={invoicePage === totalInvoicePages}
-                    className="px-3 py-1.5 rounded border border-[#E2E8F0] text-xs font-medium text-[#475569] hover:bg-[#F8FAFC] disabled:opacity-50"
-                  >
-                    Next
-                  </button>
+                    {Array.from({ length: totalInvoicePages }, (_, i) => (
+                      <button
+                        key={i + 1}
+                        onClick={() => setInvoicePage(i + 1)}
+                        className={`w-8 h-8 rounded text-xs font-medium flex items-center justify-center transition-colors ${
+                          invoicePage === i + 1 ? 'bg-[#00A86B] text-white border border-[#00A86B]' : 'border border-[#E2E8F0] text-[#475569] hover:bg-[#F8FAFC]'
+                        }`}
+                      >
+                        {i + 1}
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => setInvoicePage(p => Math.min(totalInvoicePages, p + 1))}
+                      disabled={invoicePage === totalInvoicePages}
+                      className="px-3 py-1.5 rounded border border-[#E2E8F0] text-xs font-medium text-[#475569] hover:bg-[#F8FAFC] disabled:opacity-50"
+                    >
+                      Next
+                    </button>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
+
+            {/* Mobile Card Layout */}
+            <div className="md:hidden flex-1 overflow-y-auto">
+              {paginatedInvoicesData.length === 0 ? (
+                <div className="p-8 text-center text-[#64748B] font-medium text-sm">
+                  No invoice records found.
+                </div>
+              ) : (
+                <div className="p-4 space-y-4 bg-[#F8FAFC]">
+                  {paginatedInvoicesData.map((invoice) => {
+                    const accent = invoice.status === 'PAID' ? '#00A86B' : '#EF4444';
+                    return (
+                      <div key={invoice.invoiceNumber} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
+                        {/* Ribbon Tag */}
+                        <div
+                          className="absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide"
+                          style={{ background: accent, clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}
+                        >
+                          {invoice.status === 'PAID' ? 'Paid' : 'Unpaid'}
+                        </div>
+
+                        <div className="pt-8 px-4 pb-4">
+                          {/* User Info + Actions */}
+                          <div className="flex items-center justify-between mb-3 gap-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <input
+                                type="checkbox"
+                                checked={selectedInvoiceOrders.includes(invoice.invoiceNumber)}
+                                onChange={() => toggleSelectInvoice(invoice.invoiceNumber)}
+                                className="rounded border-gray-300 accent-[#00A86B] w-4 h-4 shrink-0"
+                              />
+                              <div className="w-8 h-8 rounded-full bg-[#E6F5F1] text-[#00A86B] font-bold text-xs flex items-center justify-center shrink-0">
+                                {invoice.userName.charAt(0)}
+                              </div>
+                              <div className="min-w-0">
+                                <div
+                                  className={`text-[12px] font-normal text-[#0F172A] truncate font-sans ${invoice.userName.length > 16 ? 'active:opacity-60' : ''}`}
+                                  title={invoice.userName.length > 16 ? invoice.userName : undefined}
+                                  onClick={invoice.userName.length > 16 ? () => showToast('success', invoice.userName) : undefined}
+                                >
+                                  {truncateChars(invoice.userName, 16)}
+                                </div>
+                                <div
+                                  className={`text-[12px] font-normal text-[#94A3B8] font-sans truncate ${invoice.userEmail.length > 15 ? 'active:opacity-60' : ''}`}
+                                  title={invoice.userEmail.length > 15 ? invoice.userEmail : undefined}
+                                  onClick={invoice.userEmail.length > 15 ? () => showToast('success', invoice.userEmail) : undefined}
+                                >
+                                  {truncateChars(invoice.userEmail, 15)}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <span className="text-[12px] font-semibold text-[#00A86B] font-sans">{invoice.id}</span>
+                              <button
+                                onClick={() => handleDownloadInvoice(invoice)}
+                                title="Download Invoice"
+                                className="w-7 h-7 rounded-full bg-[#E0F2FE] flex items-center justify-center text-[#0EA5E9] hover:bg-[#BAE6FD] transition-colors"
+                              >
+                                <Download className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => setActiveInvoicePreview(invoice)}
+                                title="Preview Invoice"
+                                className="w-7 h-7 rounded-full bg-[#E0F2FE] flex items-center justify-center text-[#0EA5E9] hover:bg-[#BAE6FD] transition-colors"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Created At / Period */}
+                          <div className="flex items-center justify-between text-[12px] mb-3 font-sans">
+                            <span>
+                              <span className="text-[#64748B] font-semibold">Created At: </span>
+                              <span className="text-[#0F172A] font-normal">{invoice.createdOn}</span>
+                            </span>
+                            <span>
+                              <span className="text-[#64748B] font-semibold">Period: </span>
+                              <span className="text-[#0F172A] font-normal">{invoice.invoicePeriod}</span>
+                            </span>
+                          </div>
+
+                          {/* Invoice No / Shipments / Amount Box */}
+                          <div className="grid grid-cols-3 gap-2 items-start bg-[#F8FAFC] rounded-xl px-3 py-2.5">
+                            <div className="min-w-0">
+                              <div className="text-[12px] font-normal text-[#94A3B8] uppercase tracking-wider font-sans">Invoice No</div>
+                              <div
+                                className={`text-[12px] font-semibold text-[#00A86B] mt-0.5 font-sans truncate ${invoice.invoiceNumber.length > 20 ? 'active:opacity-60' : ''}`}
+                                title={invoice.invoiceNumber.length > 20 ? invoice.invoiceNumber : undefined}
+                                onClick={invoice.invoiceNumber.length > 20 ? () => showToast('success', invoice.invoiceNumber) : undefined}
+                              >
+                                {truncateChars(invoice.invoiceNumber, 20)}
+                              </div>
+                            </div>
+                            <div className="text-center min-w-0">
+                              <div className="text-[12px] font-normal text-[#94A3B8] uppercase tracking-wider font-sans">Shipments</div>
+                              <div className="text-[12px] font-semibold text-[#00A86B] mt-0.5 font-sans truncate">{invoice.shipments}</div>
+                            </div>
+                            <div className="text-center min-w-0">
+                              <div className="text-[12px] font-normal text-[#94A3B8] uppercase tracking-wider font-sans">Amount Details</div>
+                              <div className="text-[12px] font-semibold text-[#00A86B] mt-0.5 font-sans truncate">₹{invoice.amount.toFixed(2)}</div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Mobile Invoices Pagination */}
+              {useMobilePaginationBar({
+                page: invoicePage,
+                setPage: setInvoicePage,
+                totalPages: totalInvoicePages,
+                rowsPerPage: invoiceRowsPerPage,
+                setRowsPerPage: setInvoiceRowsPerPage,
+                startIndex: invoiceStartIndex,
+                endIndex: invoiceEndIndex,
+                totalItems: filteredInvoicesData.length,
+              })}
+            </div>
           </>
         )}
         </div>
@@ -2643,7 +3495,7 @@ export function AdminWallet() {
 
         {/* Floating Bot Button */}
         {activeTab === 'Passbook' && (
-          <div className="fixed bottom-24 right-8 z-40 flex items-center gap-2">
+          <div className="hidden md:flex fixed bottom-24 right-8 z-40 items-center gap-2">
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -2673,6 +3525,36 @@ export function AdminWallet() {
                 className="w-12 h-12 rounded-full bg-[#00A86B] text-white flex items-center justify-center shadow-lg hover:bg-[#009B63] transition-all hover:scale-105 relative z-10"
               >
                 <Bot className="w-6 h-6 animate-pulse" />
+              </button>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Floating Bot Button — Mobile (compact chat-bubble style) */}
+        {activeTab === 'Passbook' && (
+          <div className="md:hidden fixed bottom-20 right-3 z-40">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="relative"
+            >
+              <div className="absolute inset-0 rounded-full bg-[#00A86B] animate-ping opacity-25"></div>
+              <button
+                onClick={() => {
+                  setModalSelectedSeller(null);
+                  setModalSellerQuery('');
+                  setModalAwb('');
+                  setModalOrderId('');
+                  setModalMode('Credit');
+                  setModalAmount('');
+                  setModalDescription('Credit Note Received');
+                  setModalCategory('credit note');
+                  setModalActiveTab('Updation');
+                  setIsUpdateModalOpen(true);
+                }}
+                className="w-9 h-9 rounded-full bg-[#00A86B] text-white flex items-center justify-center shadow-lg active:scale-95 transition-transform relative z-10"
+              >
+                <Bot className="w-4 h-4" />
               </button>
             </motion.div>
           </div>
@@ -2841,6 +3723,371 @@ export function AdminWallet() {
                 >
                   Close
                 </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+        {isMobileFiltersOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[140] md:hidden flex items-end justify-center animate-fade-in"
+            onClick={() => setIsMobileFiltersOpen(false)}
+          >
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="bg-white rounded-t-3xl border-t border-[#E2E8F0] shadow-2xl w-full max-h-[80vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="px-6 py-4 border-b border-[#E2E8F0] flex items-center justify-between sticky top-0 bg-white z-10">
+                <h3 className="font-bold text-slate-800 text-base flex items-center gap-2">
+                  <Filter className="w-5 h-5 text-[#00A86B]" /> Filter Options
+                </h3>
+                <button 
+                  onClick={() => setIsMobileFiltersOpen(false)}
+                  className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Form Content */}
+              <div className="p-6 space-y-4">
+                {activeTab === 'Shipping' && (
+                  <>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Search Query</label>
+                      <input 
+                        type="text" 
+                        placeholder="Search name, email..." 
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]" 
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Search Type</label>
+                        <select
+                          value={selectedSearchTypes[0] || ''}
+                          onChange={(e) => setSelectedSearchTypes(e.target.value ? [e.target.value] : [])}
+                          className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
+                        >
+                          {SEARCH_TYPE_OPTIONS.map(opt => (
+                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Search Type ID</label>
+                        <input 
+                          type="text" 
+                          placeholder="Type ID..." 
+                          value={searchTypeId}
+                          onChange={(e) => setSearchTypeId(e.target.value)}
+                          className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]" 
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Courier Partner</label>
+                      <select
+                        value={selectedCouriers[0] || ''}
+                        onChange={(e) => setSelectedCouriers(e.target.value ? [e.target.value] : [])}
+                        className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
+                      >
+                        <option value="">All Couriers</option>
+                        {COURIER_OPTIONS.map(opt => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Status</label>
+                      <select
+                        value={selectedStatuses[0] || ''}
+                        onChange={(e) => setSelectedStatuses(e.target.value ? [e.target.value] : [])}
+                        className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
+                      >
+                        <option value="">All Statuses</option>
+                        {SHIPPING_STATUS_OPTIONS.map(opt => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Date Range</label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <input 
+                          type="date"
+                          value={shippingDateStart}
+                          onChange={(e) => setShippingDateStart(e.target.value)}
+                          className="h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-xs focus:outline-none focus:border-[#00A86B]"
+                        />
+                        <input 
+                          type="date"
+                          value={shippingDateEnd}
+                          onChange={(e) => setShippingDateEnd(e.target.value)}
+                          className="h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-xs focus:outline-none focus:border-[#00A86B]"
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {activeTab === 'Passbook' && (
+                  <>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Date Range</label>
+                      <GlassDateFilter
+                        className="w-full [&_.glass-dropdown-trigger]:w-full [&_.glass-dropdown-trigger]:h-11"
+                        startDate={passbookDateStart}
+                        endDate={passbookDateEnd}
+                        onDateChange={(s, e) => { setPassbookDateStart(s); setPassbookDateEnd(e); }}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Search Query</label>
+                      <input
+                        type="text"
+                        placeholder="Search by name, email, or contact..."
+                        value={passbookSearchTerm}
+                        onChange={(e) => setPassbookSearchTerm(e.target.value)}
+                        className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Order ID</label>
+                      <input
+                        type="text"
+                        placeholder="Order ID..."
+                        value={passbookOrderId}
+                        onChange={(e) => setPassbookOrderId(e.target.value)}
+                        className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">AWB Number</label>
+                      <input
+                        type="text"
+                        placeholder="AWB Number..."
+                        value={passbookAwb}
+                        onChange={(e) => setPassbookAwb(e.target.value)}
+                        className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Category</label>
+                      <select
+                        value={selectedCategories[0] || ''}
+                        onChange={(e) => setSelectedCategories(e.target.value ? [e.target.value] : [])}
+                        className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
+                      >
+                        <option value="">All Categories</option>
+                        {CATEGORY_OPTIONS.map(opt => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Description</label>
+                      <select
+                        value={selectedDescriptions[0] || ''}
+                        onChange={(e) => setSelectedDescriptions(e.target.value ? [e.target.value] : [])}
+                        className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
+                      >
+                        <option value="">All Descriptions</option>
+                        {DESCRIPTION_OPTIONS.map(opt => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </>
+                )}
+
+                {activeTab === 'Wallet Recharge' && (
+                  <>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Date Range</label>
+                      <GlassDateFilter
+                        className="w-full [&_.glass-dropdown-trigger]:w-full [&_.glass-dropdown-trigger]:h-11"
+                        startDate={rechargeDateStart}
+                        endDate={rechargeDateEnd}
+                        onDateChange={(s, e) => { setRechargeDateStart(s); setRechargeDateEnd(e); }}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Search Query</label>
+                      <input
+                        type="text"
+                        placeholder="Search by name, email, or contact..."
+                        value={rechargeSearchTerm}
+                        onChange={(e) => setRechargeSearchTerm(e.target.value)}
+                        className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Transaction ID</label>
+                      <input
+                        type="text"
+                        placeholder="Transaction ID..."
+                        value={rechargeTxnId}
+                        onChange={(e) => setRechargeTxnId(e.target.value)}
+                        className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Payment ID</label>
+                      <select
+                        value={selectedPaymentMethods[0] || ''}
+                        onChange={(e) => setSelectedPaymentMethods(e.target.value ? [e.target.value] : [])}
+                        className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
+                      >
+                        <option value="">All Payment Methods</option>
+                        {PAYMENT_METHOD_OPTIONS.map(opt => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Status</label>
+                      <select
+                        value={selectedRechargeStatuses[0] || ''}
+                        onChange={(e) => setSelectedRechargeStatuses(e.target.value ? [e.target.value] : [])}
+                        className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
+                      >
+                        <option value="">All Statuses</option>
+                        {RECHARGE_STATUS_OPTIONS.map(opt => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </>
+                )}
+
+                {activeTab === 'Invoices' && (
+                  <>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Date Range</label>
+                      <GlassDateFilter
+                        className="w-full [&_.glass-dropdown-trigger]:w-full [&_.glass-dropdown-trigger]:h-11"
+                        startDate={invoiceDateStart}
+                        endDate={invoiceDateEnd}
+                        onDateChange={(s, e) => { setInvoiceDateStart(s); setInvoiceDateEnd(e); }}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Search Query</label>
+                      <input
+                        type="text"
+                        placeholder="Search by name, email, or contact..."
+                        value={invoiceSearchTerm}
+                        onChange={(e) => setInvoiceSearchTerm(e.target.value)}
+                        className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Month</label>
+                      <select
+                        value={selectedMonths[0] || ''}
+                        onChange={(e) => setSelectedMonths(e.target.value ? [e.target.value] : [])}
+                        className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
+                      >
+                        <option value="">All Months</option>
+                        {MONTH_OPTIONS.map(opt => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Year</label>
+                      <select
+                        value={selectedYears[0] || ''}
+                        onChange={(e) => setSelectedYears(e.target.value ? [e.target.value] : [])}
+                        className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
+                      >
+                        <option value="">All Years</option>
+                        {YEAR_OPTIONS.map(opt => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </>
+                )}
+
+                {/* Footer Buttons */}
+                <div className="flex gap-3 pt-4 border-t border-[#E2E8F0] mt-6">
+                  <button
+                    onClick={() => {
+                      if (activeTab === 'Shipping') {
+                        setSearchTerm('');
+                        setSelectedSearchTypes([]);
+                        setSearchTypeId('');
+                        setSelectedCouriers([]);
+                        setSelectedStatuses([]);
+                        setShippingDateStart('');
+                        setShippingDateEnd('');
+                      } else if (activeTab === 'Passbook') {
+                        setPassbookSearchTerm('');
+                        setPassbookOrderId('');
+                        setPassbookAwb('');
+                        setSelectedCategories([]);
+                        setSelectedDescriptions([]);
+                        setPassbookDateStart('');
+                        setPassbookDateEnd('');
+                      } else if (activeTab === 'Wallet Recharge') {
+                        setRechargeSearchTerm('');
+                        setRechargeTxnId('');
+                        setSelectedPaymentMethods([]);
+                        setSelectedRechargeStatuses([]);
+                        setRechargeDateStart('');
+                        setRechargeDateEnd('');
+                      } else if (activeTab === 'Invoices') {
+                        setInvoiceSearchTerm('');
+                        setSelectedMonths([]);
+                        setSelectedYears([]);
+                        setInvoiceDateStart('');
+                        setInvoiceDateEnd('');
+                      }
+                      setIsMobileFiltersOpen(false);
+                      showToast('success', 'Filters cleared');
+                    }}
+                    className="flex-1 h-11 rounded-xl border border-[#CBD5E1] text-[#475569] text-sm font-bold hover:bg-[#F8FAFC]"
+                  >
+                    Reset All
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIsMobileFiltersOpen(false);
+                      showToast('success', 'Filters applied successfully!');
+                    }}
+                    className="flex-1 h-11 rounded-xl bg-[#00A86B] text-white text-sm font-bold hover:bg-[#009B63]"
+                  >
+                    Apply Filters
+                  </button>
+                </div>
               </div>
             </motion.div>
           </motion.div>

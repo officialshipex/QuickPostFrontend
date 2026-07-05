@@ -797,3 +797,29 @@
   color: #475569 !important;
   font-family: 'Roboto', sans-serif !important;
 }
+
+/* ======================================================
+   MOBILE SIDEBAR ANIMATION
+   ====================================================== */
+@keyframes slideInLeft {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-in-left {
+  animation: slideInLeft 0.25s ease-out;
+}
+
+/* ======================================================
+   MOBILE RESPONSIVE OVERRIDES
+   ====================================================== */
+@media (max-width: 767px) {
+  /* Remove fixed sidebar spacing on mobile */
+  .admin-dashboard-layout > div:last-child {
+    margin-left: 0 !important;
+  }
+}
