@@ -3,13 +3,18 @@ import { apiClient } from '../../services/apiClient';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
-import { useAuth } from '../../hooks/useAuth';
+import { useAdminTab } from '../../context/AdminUserContext';
 import {
   ChevronDown, RefreshCcw, Check, User, Truck, Banknote, Clock, Upload, Download,
   Wallet, Send, MinusCircle, FileText, AlertCircle, CheckCircle2, X, Package, Search, Filter
 } from 'lucide-react';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
+import { TruncatedText } from '../../components/ui/TruncatedText';
+import { TableLoader } from '../../components/ui/TableLoader';
+import { TransferCODModal } from '../../components/ui/TransferCODModal';
+import { useTableLoader } from '../../hooks/useTableLoader';
+import { usePagination } from '../../hooks/usePagination';
 
 const MAIN_TABS = [
   { name: 'All COD Orders' },
@@ -83,12 +88,12 @@ const fmtCurrency = (n: any) =>
   `â‚¹${(Number(n) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
 
 const toISOStart = (d: string) => d ? d + 'T00:00:00.000Z' : '';
-const toISOEnd   = (d: string) => d ? d + 'T23:59:59.999Z' : '';
+const toISOEnd = (d: string) => d ? d + 'T23:59:59.999Z' : '';
 
 export function AdminCOD() {
   const navigate = useNavigate();
-  const { role } = useAuth();
-  const isAdmin = role === 'admin';
+  const { isAdmin, adminTab, loadingAdminTab } = useAdminTab();
+  const isAdminView = isAdmin && adminTab;
 
   // Global search from layout
   const [globalSearchQuery, setGlobalSearchQuery] = useState(
@@ -101,61 +106,70 @@ export function AdminCOD() {
     return () => window.removeEventListener('admin-search', handler);
   }, []);
 
+
   const [activeTab, setActiveTab] = useState('All COD Orders');
-  const [toast, setToast] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
+  const handleTabChange = (tab: string) => setActiveTab(tab);
+  useEffect(() => { if (!isAdminView && activeTab !== 'All COD Orders') setActiveTab('All COD Orders'); }, [isAdminView]);
+  const handleRefresh = () => {
+    if (activeTab === 'All COD Orders') fetchCodOrders(currentPage);
+    else if (activeTab === 'Seller COD Remittance') fetchSellerRemittance(sellerPage);
+    else fetchCourierRemittance(courierPage);
+  };
+
+  const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
+  const [toast, setToast] = useState<{type: 'error' | 'success', text: string} | null>(null);
   const showToast = (type: 'error' | 'success', text: string) => {
     setToast({ type, text });
     setTimeout(() => setToast(null), 3000);
   };
 
-  // â"€â"€ All COD Orders state â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
-  const [codOrdersList, setCodOrdersList] = useState<any[]>([]);
-  const [codOrdersTotal, setCodOrdersTotal] = useState(0);
-  const [codOrdersSummary, setCodOrdersSummary] = useState({ totalCODAmount: 0, paidCODAmount: 0, pendingCODAmount: 0 });
-  const [currentPage, setCurrentPage] = useState(1);
-  const [codOrderId, setCodOrderId] = useState('');
-  const [codAwb, setCodAwb] = useState('');
-  const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
-  const [selectedCouriers, setSelectedCouriers] = useState<string[]>([]);
-  const [codCourierOptions, setCodCourierOptions] = useState<{ label: string; value: string }[]>([]);
-  const [dateStart, setDateStart] = useState('');
-  const [dateEnd, setDateEnd] = useState('');
-  const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
-  // User search â€" All COD Orders (admin only)
   const [codUserQuery, setCodUserQuery] = useState('');
   const [codUserSuggestions, setCodUserSuggestions] = useState<any[]>([]);
   const [codUserMongoId, setCodUserMongoId] = useState('');
+  const [codOrderId, setCodOrderId] = useState('');
+  const [codAwb, setCodAwb] = useState('');
+  const [codOrdersList, setCodOrdersList] = useState<any[]>([]);
+  const [codOrdersTotal, setCodOrdersTotal] = useState(0);
+  const [codSummary, setCodSummary] = useState({ totalCODAmount: 0, paidCODAmount: 0, pendingCODAmount: 0 });
+  const [dateStart, setDateStart] = useState('');
+  const [dateEnd, setDateEnd] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
+  const [selectedCouriers, setSelectedCouriers] = useState<string[]>([]);
+  const [codCourierOptions, setCodCourierOptions] = useState<{ label: string; value: string }[]>([]);
+  const [showAllCodActionMenu, setShowAllCodActionMenu] = useState(false);
+  const [showActionMenu, setShowActionMenu] = useState(false);
 
-  // â"€â"€ Seller COD Remittance state â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
-  const [sellerRemittanceList, setSellerRemittanceList] = useState<any[]>([]);
-  const [sellerRemittanceTotal, setSellerRemittanceTotal] = useState(0);
-  const [sellerSummary, setSellerSummary] = useState({
-    CODToBeRemitted: 0, LastCodRemmited: 0, TotalCODRemitted: 0,
-    TotalDeductionfromCOD: 0, RemittanceInitiated: 0,
-  });
-  const [sellerPage, setSellerPage] = useState(1);
-  const [sellerRemittanceId, setSellerRemittanceId] = useState('');
+  const [remittanceSearchTerm, setRemittanceSearchTerm] = useState('');
+  const [selectedUtrs, setSelectedUtrs] = useState<string[]>([]);
   const [selectedCodStatuses, setSelectedCodStatuses] = useState<string[]>([]);
   const [codDateStart, setCodDateStart] = useState('');
   const [codDateEnd, setCodDateEnd] = useState('');
   const [selectedCodOrders, setSelectedCodOrders] = useState<string[]>([]);
-  const [showActionMenu, setShowActionMenu] = useState(false);
   const [bankExportLoading, setBankExportLoading] = useState(false);
   const [showBankResponseUpload, setShowBankResponseUpload] = useState(false);
   const [bankResponseUploading, setBankResponseUploading] = useState(false);
   const [selectedBankFile, setSelectedBankFile] = useState<File | null>(null);
   const bankFileInputRef = useRef<HTMLInputElement>(null);
-  // User search â€" Seller (admin only)
   const [sellerUserQuery, setSellerUserQuery] = useState('');
   const [sellerUserSuggestions, setSellerUserSuggestions] = useState<any[]>([]);
   const [sellerUserMongoId, setSellerUserMongoId] = useState('');
+  const [sellerRemittanceList, setSellerRemittanceList] = useState<any[]>([]);
+  const [sellerRemittanceTotal, setSellerRemittanceTotal] = useState(0);
+  const [sellerSummary, setSellerSummary] = useState({
+    CODToBeRemitted: 0, LastCodRemmited: 0, TotalCODRemitted: 0, TotalDeductionfromCOD: 0, RemittanceInitiated: 0
+  });
+  const [sellerPage, setSellerPage] = useState(1);
+  const [sellerRemittanceId, setSellerRemittanceId] = useState('');
 
-  // Remittance detail modal
   const [remittanceDetailId, setRemittanceDetailId] = useState<string | null>(null);
   const [remittanceDetail, setRemittanceDetail] = useState<any>(null);
   const [remittanceDetailLoading, setRemittanceDetailLoading] = useState(false);
 
-  // â"€â"€ Courier COD Remittance state â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [transferUserId, setTransferUserId] = useState('');
+  const [transferIds, setTransferIds] = useState<string[]>([]);
+
   const [courierRemittanceList, setCourierRemittanceList] = useState<any[]>([]);
   const [courierRemittanceTotal, setCourierRemittanceTotal] = useState(0);
   const [courierSummary, setCourierSummary] = useState({ totalCODAmount: 0, paidCODAmount: 0, pendingCODAmount: 0 });
@@ -169,44 +183,109 @@ export function AdminCOD() {
   const [courierCodDateEnd, setCourierCodDateEnd] = useState('');
   const [selectedCourierCodOrders, setSelectedCourierCodOrders] = useState<string[]>([]);
   const [showCourierActionMenu, setShowCourierActionMenu] = useState(false);
-  // User search â€" Courier (admin only)
   const [courierUserQuery, setCourierUserQuery] = useState('');
   const [courierUserSuggestions, setCourierUserSuggestions] = useState<any[]>([]);
   const [courierUserMongoId, setCourierUserMongoId] = useState('');
 
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (!(event.target as Element).closest('.action-dropdown-container')) {
+        setShowAllCodActionMenu(false);
+        setShowActionMenu(false);
+        setShowCourierActionMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const [isLoading, setIsLoading] = useState(false);
   const itemsPerPage = 20;
+  const [currentPage, setCurrentPage] = useState(1);
 
   const STATUS_OPTIONS = [
     { label: 'Pending', value: 'Pending' },
     { label: 'Paid',    value: 'Paid'    }
   ];
 
-  // â"€â"€ Fetch functions â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+  const handleExportData = (type: 'seller' | 'courier', filename: string) => {
+    if (type === 'seller' && selectedCodOrders.length === 0) {
+      showToast('error', "Please select at least one Seller COD record to export data.");
+      return;
+    }
+    if (type === 'courier' && selectedCourierCodOrders.length === 0) {
+      showToast('error', "Please select at least one Courier COD record to export data.");
+      return;
+    }
+
+    // Simulated export logic
+    const content = "AWB,Total_COD,Status\nQPSP000000045,145.99,Pending";
+    const blob = new Blob([content], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+    setShowActionMenu(false);
+    setShowCourierActionMenu(false);
+  };
+
+  const handleUploadResponse = (type: 'seller' | 'courier') => {
+    if (type === 'seller' && selectedCodOrders.length === 0) {
+      showToast('error', "Please select at least one Seller COD record to upload bank response.");
+      return;
+    }
+    if (type === 'courier' && selectedCourierCodOrders.length === 0) {
+      showToast('error', "Please select at least one Courier COD record to upload bank response.");
+      return;
+    }
+
+    // Simulated file input trigger
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.csv, .xlsx';
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) {
+        showToast('success', `Successfully uploaded ${file.name}`);
+        setShowActionMenu(false);
+        setShowCourierActionMenu(false);
+      }
+    };
+    input.click();
+  };
+
   const fetchCodOrders = useCallback(async (page: number) => {
     setIsLoading(true);
     try {
       const params: Record<string, any> = { page, limit: itemsPerPage };
-      if (isAdmin && codUserMongoId) { params.selectedUserId = codUserMongoId; params.userSearch = codUserMongoId; params.userId = codUserMongoId; }
-      if (codOrderId)  params.orderID    = codOrderId;
-      if (codAwb)      params.awbNumber  = codAwb;
-      if (dateStart)   params.startDate  = toISOStart(dateStart);
-      if (dateEnd)     params.endDate    = toISOEnd(dateEnd);
-      if (selectedStatuses.length === 1)  params.statusFilter    = selectedStatuses[0];
-      if (selectedCouriers.length > 0)    params.courierProvider = selectedCouriers.join(',');
+      if (isAdminView && codUserMongoId) {
+        params.selectedUserId = codUserMongoId;
+        params.userSearch = codUserMongoId;
+        params.userId = codUserMongoId;
+      }
+      if (codOrderId) params.orderID = codOrderId;
+      if (codAwb) params.awbNumber = codAwb;
+      if (dateStart) params.startDate = toISOStart(dateStart);
+      if (dateEnd) params.endDate = toISOEnd(dateEnd);
+      if (selectedStatuses.length === 1) params.statusFilter = selectedStatuses[0];
+      if (selectedCouriers.length > 0) params.courierProvider = selectedCouriers.join(',');
       const res = await apiClient.get('/cod/CodRemittanceOrder', { params });
       const orders = res.data.data?.orders || [];
       setCodOrdersList(orders.map(mapCodOrder));
       setCodOrdersTotal(res.data.totalPages ? res.data.totalPages * itemsPerPage : (res.data.total || 0));
-      setCodOrdersSummary({
-        totalCODAmount:   res.data.data?.totalCODAmount   || 0,
-        paidCODAmount:    res.data.data?.paidCODAmount    || 0,
+      setCodSummary({
+        totalCODAmount: res.data.data?.totalCODAmount || 0,
+        paidCODAmount: res.data.data?.paidCODAmount || 0,
         pendingCODAmount: res.data.data?.pendingCODAmount || 0,
       });
       if (orders.length > 0) {
         const couriers = Array.from(new Set(orders.map((o: any) => o.courierProvider).filter(Boolean))) as string[];
         setCodCourierOptions(prev => {
-          const existing = prev.map(p => p.value);
+          const existing = prev.map((p: any) => p.value);
           const newOnes = couriers.filter(c => !existing.includes(c)).map(c => ({ label: c, value: c }));
           return [...prev, ...newOnes];
         });
@@ -216,27 +295,27 @@ export function AdminCOD() {
     } finally {
       setIsLoading(false);
     }
-  }, [codUserMongoId, codOrderId, codAwb, dateStart, dateEnd, selectedStatuses, selectedCouriers, isAdmin]);
+  }, [codUserMongoId, codOrderId, codAwb, dateStart, dateEnd, selectedStatuses, selectedCouriers, isAdminView]);
 
   const fetchSellerRemittance = useCallback(async (page: number) => {
     setIsLoading(true);
     try {
       const params: Record<string, any> = { page, limit: itemsPerPage };
-      if (isAdmin && sellerUserMongoId) params.selectedUserId = sellerUserMongoId;
-      if (sellerRemittanceId)           params.remittanceIdFilter = sellerRemittanceId;
-      if (codDateStart)                 params.startDate = toISOStart(codDateStart);
-      if (codDateEnd)                   params.endDate   = toISOEnd(codDateEnd);
+      if (isAdminView && sellerUserMongoId) params.selectedUserId = sellerUserMongoId;
+      if (sellerRemittanceId) params.remittanceIdFilter = sellerRemittanceId;
+      if (codDateStart) params.startDate = toISOStart(codDateStart);
+      if (codDateEnd) params.endDate = toISOEnd(codDateEnd);
       if (selectedCodStatuses.length === 1) params.statusFilter = selectedCodStatuses[0];
       const res = await apiClient.get('/cod/getAdminCodRemitanceData', { params });
       setSellerRemittanceList((res.data.results || []).map(mapSellerRemittance));
       setSellerRemittanceTotal(res.data.totalPages ? res.data.totalPages * itemsPerPage : (res.data.total || 0));
       if (res.data.summary) {
         setSellerSummary({
-          CODToBeRemitted:       res.data.summary.CODToBeRemitted       || 0,
-          LastCodRemmited:       res.data.summary.LastCODRemitted        || 0,
-          TotalCODRemitted:      res.data.summary.TotalCODRemitted       || 0,
+          CODToBeRemitted: res.data.summary.CODToBeRemitted || 0,
+          LastCodRemmited: res.data.summary.LastCODRemitted || 0,
+          TotalCODRemitted: res.data.summary.TotalCODRemitted || 0,
           TotalDeductionfromCOD: res.data.summary.TotalDeductionfromCOD || 0,
-          RemittanceInitiated:   res.data.summary.RemittanceInitiated    || 0,
+          RemittanceInitiated: res.data.summary.RemittanceInitiated || 0,
         });
       }
     } catch {
@@ -244,26 +323,26 @@ export function AdminCOD() {
     } finally {
       setIsLoading(false);
     }
-  }, [sellerUserMongoId, sellerRemittanceId, codDateStart, codDateEnd, selectedCodStatuses, isAdmin]);
+  }, [sellerUserMongoId, sellerRemittanceId, codDateStart, codDateEnd, selectedCodStatuses, isAdminView]);
 
   const fetchCourierRemittance = useCallback(async (page: number) => {
     setIsLoading(true);
     try {
       const params: Record<string, any> = { page, limit: itemsPerPage };
-      if (isAdmin && courierUserMongoId) { params.selectedUserId = courierUserMongoId; params.userSearch = courierUserMongoId; params.userId = courierUserMongoId; }
-      if (courierOrderId)  params.orderID    = courierOrderId;
-      if (courierAwb)      params.awbNumber  = courierAwb;
-      if (courierCodDateStart)                      params.startDate    = toISOStart(courierCodDateStart);
-      if (courierCodDateEnd)                        params.endDate      = toISOEnd(courierCodDateEnd);
-      if (selectedCourierCodStatuses.length === 1)  params.statusFilter = selectedCourierCodStatuses[0];
-      if (selectedCourierCouriers.length > 0)       params.courierProvider = selectedCourierCouriers.join(',');
+      if (isAdminView && courierUserMongoId) { params.selectedUserId = courierUserMongoId; params.userSearch = courierUserMongoId; params.userId = courierUserMongoId; }
+      if (courierOrderId) params.orderID = courierOrderId;
+      if (courierAwb) params.awbNumber = courierAwb;
+      if (courierCodDateStart) params.startDate = toISOStart(courierCodDateStart);
+      if (courierCodDateEnd) params.endDate = toISOEnd(courierCodDateEnd);
+      if (selectedCourierCodStatuses.length === 1) params.statusFilter = selectedCourierCodStatuses[0];
+      if (selectedCourierCouriers.length > 0) params.courierProvider = selectedCourierCouriers.join(',');
       const res = await apiClient.get('/cod/courierCodRemittance', { params });
       const orders = res.data.data?.orders || [];
       setCourierRemittanceList(orders.map(mapCourierRemittance));
       setCourierRemittanceTotal(res.data.totalPages ? res.data.totalPages * itemsPerPage : (res.data.total || 0));
       setCourierSummary({
-        totalCODAmount:   res.data.data?.totalCODAmount   || 0,
-        paidCODAmount:    res.data.data?.paidCODAmount    || 0,
+        totalCODAmount: res.data.data?.totalCODAmount || 0,
+        paidCODAmount: res.data.data?.paidCODAmount || 0,
         pendingCODAmount: res.data.data?.pendingCODAmount || 0,
       });
       if (orders.length > 0) {
@@ -279,21 +358,23 @@ export function AdminCOD() {
     } finally {
       setIsLoading(false);
     }
-  }, [courierUserMongoId, courierOrderId, courierAwb, courierCodDateStart, courierCodDateEnd, selectedCourierCodStatuses, selectedCourierCouriers, isAdmin]);
+  }, [courierUserMongoId, courierOrderId, courierAwb, courierCodDateStart, courierCodDateEnd, selectedCourierCodStatuses, selectedCourierCouriers, isAdminView]);
 
-  // Tab change: reset page to 1 and fetch active tab
+  // Tab change: reset page to 1 and fetch active tab.
+  // Guard on loadingAdminTab so we don't fetch with stale isAdminView on first render.
   useEffect(() => {
+    if (loadingAdminTab) return;
     setCurrentPage(1); setSellerPage(1); setCourierPage(1);
     switch (activeTab) {
-      case 'All COD Orders':        fetchCodOrders(1);         break;
-      case 'Seller COD Remittance': fetchSellerRemittance(1);  break;
-      case 'Courier COD Remittance':fetchCourierRemittance(1); break;
+      case 'All COD Orders': fetchCodOrders(1); break;
+      case 'Seller COD Remittance': fetchSellerRemittance(1); break;
+      case 'Courier COD Remittance': fetchCourierRemittance(1); break;
     }
-  }, [activeTab]);
+  }, [activeTab, loadingAdminTab]);
 
   // User search debounce effects
   const makeUserSearchEffect = (query: string, setSuggestions: (v: any[]) => void) => {
-    if (!isAdmin || query.trim().length < 2) { setSuggestions([]); return; }
+    if (!isAdminView || query.trim().length < 2) { setSuggestions([]); return; }
     const timer = setTimeout(async () => {
       try {
         const res = await apiClient.get(`/admin/searchUser?query=${encodeURIComponent(query)}`);
@@ -303,11 +384,11 @@ export function AdminCOD() {
     return () => clearTimeout(timer);
   };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => makeUserSearchEffect(codUserQuery, setCodUserSuggestions), [codUserQuery, isAdmin]);
+  useEffect(() => makeUserSearchEffect(codUserQuery, setCodUserSuggestions), [codUserQuery, isAdminView]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => makeUserSearchEffect(sellerUserQuery, setSellerUserSuggestions), [sellerUserQuery, isAdmin]);
+  useEffect(() => makeUserSearchEffect(sellerUserQuery, setSellerUserSuggestions), [sellerUserQuery, isAdminView]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => makeUserSearchEffect(courierUserQuery, setCourierUserSuggestions), [courierUserQuery, isAdmin]);
+  useEffect(() => makeUserSearchEffect(courierUserQuery, setCourierUserSuggestions), [courierUserQuery, isAdminView]);
 
   // Export data (All COD / Courier)
   const handleExportCsv = (rows: any[], filename: string) => {
@@ -331,11 +412,11 @@ export function AdminCOD() {
       const res = await apiClient.get(`/cod/exportBankTemplate?${params.toString()}`);
       const rows = res.data.rows || [];
       if (!rows.length) { showToast('error', 'No payable remittances to export.'); return; }
-      const HEADERS = ['Debit Account Number','Payment mode','Amount','Beneficiary Name','Beneficiary Account','Beneficiary Bank IFSC','Remarks','Beneficiary LEI'];
+      const HEADERS = ['Debit Account Number', 'Payment mode', 'Amount', 'Beneficiary Name', 'Beneficiary Account', 'Beneficiary Bank IFSC', 'Remarks', 'Beneficiary LEI'];
       const csv = [HEADERS.join(','), ...rows.map((r: any) => HEADERS.map(h => `"${r[h] ?? ''}"`).join(','))].join('\n');
       const a = document.createElement('a');
       a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
-      a.download = `bank_payment_template_${new Date().toISOString().slice(0,10)}.csv`;
+      a.download = `bank_payment_template_${new Date().toISOString().slice(0, 10)}.csv`;
       a.click();
       showToast('success', `Bank template exported: ${rows.length} record(s)`);
     } catch (err: any) {
@@ -398,19 +479,19 @@ export function AdminCOD() {
     if (!globalSearchQuery) return codOrdersList;
     const q = globalSearchQuery.toLowerCase();
     return codOrdersList.filter(o =>
-      (o.userName   || '').toLowerCase().includes(q) ||
-      (o.userEmail  || '').toLowerCase().includes(q) ||
-      (o.awb        || '').toLowerCase().includes(q) ||
-      (o.orderID    || '').toLowerCase().includes(q)
+      (o.userName || '').toLowerCase().includes(q) ||
+      (o.userEmail || '').toLowerCase().includes(q) ||
+      (o.awb || '').toLowerCase().includes(q) ||
+      (o.orderID || '').toLowerCase().includes(q)
     );
   }, [codOrdersList, globalSearchQuery]);
 
-  const totalPages        = Math.max(1, Math.ceil(codOrdersTotal        / itemsPerPage));
-  const totalSellerPages  = Math.max(1, Math.ceil(sellerRemittanceTotal / itemsPerPage));
-  const totalCourierPages = Math.max(1, Math.ceil(courierRemittanceTotal/ itemsPerPage));
+  const totalPages = Math.max(1, Math.ceil(codOrdersTotal / itemsPerPage));
+  const totalSellerPages = Math.max(1, Math.ceil(sellerRemittanceTotal / itemsPerPage));
+  const totalCourierPages = Math.max(1, Math.ceil(courierRemittanceTotal / itemsPerPage));
 
   // All COD selection â€" keyed by _id/orderID
-  const toggleAll    = () => setSelectedOrders(
+  const toggleAll = () => setSelectedOrders(
     selectedOrders.length === paginatedOrders.length && paginatedOrders.length > 0
       ? [] : paginatedOrders.map(o => o.id)
   );
@@ -419,7 +500,7 @@ export function AdminCOD() {
   );
 
   // Seller selection â€" keyed by remittanceId
-  const toggleAllCod    = () => setSelectedCodOrders(
+  const toggleAllCod = () => setSelectedCodOrders(
     selectedCodOrders.length === sellerRemittanceList.length && sellerRemittanceList.length > 0
       ? [] : sellerRemittanceList.map(o => o.awb)
   );
@@ -428,7 +509,7 @@ export function AdminCOD() {
   );
 
   // Courier selection â€" keyed by _id/orderID
-  const toggleAllCourierCod    = () => setSelectedCourierCodOrders(
+  const toggleAllCourierCod = () => setSelectedCourierCodOrders(
     selectedCourierCodOrders.length === courierRemittanceList.length && courierRemittanceList.length > 0
       ? [] : courierRemittanceList.map(o => o.id)
   );
@@ -442,10 +523,10 @@ export function AdminCOD() {
   const pageWindow = (curr: number, total: number) => {
     const half = 2;
     let start = Math.max(1, curr - half);
-    let end   = Math.min(total, curr + half);
+    let end = Math.min(total, curr + half);
     if (end - start < 4) {
-      if (start === 1) end   = Math.min(total, start + 4);
-      else             start = Math.max(1, end - 4);
+      if (start === 1) end = Math.min(total, start + 4);
+      else start = Math.max(1, end - 4);
     }
     return Array.from({ length: end - start + 1 }, (_, i) => start + i);
   };
@@ -459,7 +540,9 @@ export function AdminCOD() {
     try {
       const res = await apiClient.post('/cod/validateCODTransfer', { remittanceIds: ids });
       const userId = res.data.userId;
-      navigate(`/admin/transfer-cod?type=${type}&userId=${userId}&ids=${ids.join(',')}`);
+      setTransferUserId(userId);
+      setTransferIds(ids);
+      setShowTransferModal(true);
     } catch (err: any) {
       showToast('error', err?.response?.data?.message || 'Error validating COD transfer');
     }
@@ -488,9 +571,9 @@ export function AdminCOD() {
     if (totalRec === 0) return null;
     const win = pageWindow(page, total);
     const btnBase = 'w-8 h-8 rounded text-xs font-medium flex items-center justify-center transition-colors';
-    const active  = `${btnBase} bg-[#00A86B] text-white border border-[#00A86B]`;
+    const active = `${btnBase} bg-[#00A86B] text-white border border-[#00A86B]`;
     const inactive = `${btnBase} border border-[#E2E8F0] text-[#475569] hover:bg-[#F8FAFC]`;
-    const navBtn  = 'px-3 py-1.5 rounded border border-[#E2E8F0] text-xs font-medium text-[#475569] hover:bg-[#F8FAFC] disabled:opacity-50';
+    const navBtn = 'px-3 py-1.5 rounded border border-[#E2E8F0] text-xs font-medium text-[#475569] hover:bg-[#F8FAFC] disabled:opacity-50';
     const go = (p: number) => { setPage(p); fetchFn(p); };
     return (
       <div className="p-4 border-t border-[#E2E8F0] flex items-center justify-between shrink-0">
@@ -541,15 +624,15 @@ export function AdminCOD() {
     <AdminLayout>
       <div className="flex flex-col h-[calc(100vh-72px)] -m-4 md:-m-6 bg-white">
 
-        {/* â"€â"€ Header: Tab Navigation â"€â"€ */}
+        {/* Tab Navigation */}
         <div className="bg-white relative z-50 shrink-0">
           <div className="flex justify-between items-center px-6 py-2 border-b border-[#E2E8F0] overflow-x-auto no-scrollbar">
             <div className="flex gap-6 items-center shrink-0">
-              {MAIN_TABS.map(tab => (
+              {(isAdminView ? MAIN_TABS : MAIN_TABS.filter(t => t.name === 'All COD Orders')).map(tab => (
                 <button
                   key={tab.name}
-                  onClick={() => setActiveTab(tab.name)}
-                  className={`relative py-3 text-[13px] font-bold transition-colors whitespace-nowrap ${
+                  onClick={() => handleTabChange(tab.name)}
+                  className={`relative py-3 text-[13px] font-bold transition-colors whitespace-nowrap flex items-center gap-1.5 ${
                     activeTab === tab.name ? 'text-[#00A86B]' : 'text-[#64748B] hover:text-[#0F172A]'
                   }`}
                 >
@@ -560,432 +643,420 @@ export function AdminCOD() {
                 </button>
               ))}
             </div>
-            <button
-              onClick={() => {
-                if (activeTab === 'All COD Orders')        fetchCodOrders(currentPage);
-                if (activeTab === 'Seller COD Remittance') fetchSellerRemittance(sellerPage);
-                if (activeTab === 'Courier COD Remittance')fetchCourierRemittance(courierPage);
-              }}
-              className="w-8 h-8 rounded-full border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC]"
-            >
-              <RefreshCcw className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-3 shrink-0 ml-4">
+              <button onClick={handleRefresh} className="w-8 h-8 rounded-full border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC]">
+                <RefreshCcw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+              </button>
+            </div>
           </div>
-
-          {/* â"€â"€ Summary Cards â"€â"€ */}
           {activeTab === 'Seller COD Remittance' && (
-            <>
-              <div className="p-4 border-b border-[#E2E8F0] bg-[#F8FAFC]/30 flex flex-nowrap overflow-x-auto gap-4 no-scrollbar">
-                {[
-                  { icon: <Wallet className="w-4 h-4 text-[#3B82F6]" />, bg: 'bg-[#F0F9FF] border-[#E0F2FE]', ibg: 'bg-[#DBEAFE]', val: sellerSummary.CODToBeRemitted, label: 'COD To Be Remitted' },
-                  { icon: <Send className="w-4 h-4 text-[#A855F7]" />, bg: 'bg-[#FAF5FF] border-[#F3E8FF]', ibg: 'bg-[#F3E8FF]', val: sellerSummary.LastCodRemmited, label: 'Last COD Remitted' },
-                  { icon: <Banknote className="w-4 h-4 text-[#14B8A6]" />, bg: 'bg-[#F0FDFA] border-[#CCFBF1]', ibg: 'bg-[#CCFBF1]', val: sellerSummary.TotalCODRemitted, label: 'Total COD Remitted' },
-                  { icon: <MinusCircle className="w-4 h-4 text-[#EAB308]" />, bg: 'bg-[#FEFCE8] border-[#FEF08A]', ibg: 'bg-[#FEF08A]', val: sellerSummary.TotalDeductionfromCOD, label: 'Total Deduction' },
-                  { icon: <Clock className="w-4 h-4 text-[#8B5CF6]" />, bg: 'bg-[#F8F5FF] border-[#F3EFFF]', ibg: 'bg-[#EADDFF]', val: sellerSummary.RemittanceInitiated, label: 'Remittance Initiated' },
-                ].map((c, i) => (
-                  <div key={i} className={`flex-1 min-w-[200px] ${c.bg} rounded-xl p-3 border flex items-center gap-3`}>
-                    <div className={`w-8 h-8 rounded-full ${c.ibg} flex items-center justify-center shrink-0`}>{c.icon}</div>
-                    <div>
-                      <div className="text-[14px] font-bold text-[#0F172A]">{fmtCurrency(c.val)}</div>
-                      <div className="text-[10px] font-semibold text-[#64748B]">{c.label}</div>
-                    </div>
-                  </div>
-                ))}
+            <div className="p-4 border-b border-[#E2E8F0] bg-[#F8FAFC]/30 flex flex-nowrap overflow-x-auto gap-4 no-scrollbar">
+              <div className="flex-1 min-w-[200px] bg-[#F0F9FF] rounded-xl p-3 border border-[#E0F2FE] flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-[#DBEAFE] flex items-center justify-center shrink-0"><Wallet className="w-4 h-4 text-[#3B82F6]" /></div>
+                <div><div className="text-[14px] font-bold text-[#0F172A]">{fmtCurrency(sellerSummary.CODToBeRemitted)}</div><div className="text-[10px] font-semibold text-[#64748B]">COD To Be Remitted</div></div>
               </div>
-
-              {/* Bulk Actions Toolbar */}
-              {selectedCodOrders.length > 0 && (
-                <div className="px-4 py-2 bg-blue-50 border-b border-blue-100 flex items-center gap-3 animate-fade-in">
-                  <span className="text-xs font-bold text-blue-700">{selectedCodOrders.length} selected</span>
-                  <button className="h-8 px-3 rounded-md bg-white border border-blue-200 text-xs font-bold text-blue-700 shadow-sm ml-auto hover:bg-blue-100">Export Selected</button>
-                </div>
-              )}
-            </>
+              <div className="flex-1 min-w-[200px] bg-[#FAF5FF] rounded-xl p-3 border border-[#F3E8FF] flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-[#F3E8FF] flex items-center justify-center shrink-0"><Send className="w-4 h-4 text-[#A855F7]" /></div>
+                <div><div className="text-[14px] font-bold text-[#0F172A]">{fmtCurrency(sellerSummary.LastCodRemmited)}</div><div className="text-[10px] font-semibold text-[#64748B]">Last COD Remitted</div></div>
+              </div>
+              <div className="flex-1 min-w-[200px] bg-[#F0FDFA] rounded-xl p-3 border border-[#CCFBF1] flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-[#CCFBF1] flex items-center justify-center shrink-0"><Banknote className="w-4 h-4 text-[#14B8A6]" /></div>
+                <div><div className="text-[14px] font-bold text-[#0F172A]">{fmtCurrency(sellerSummary.TotalCODRemitted)}</div><div className="text-[10px] font-semibold text-[#64748B]">Total COD Remitted</div></div>
+              </div>
+              <div className="flex-1 min-w-[200px] bg-[#FEFCE8] rounded-xl p-3 border border-[#FEF08A] flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-[#FEF08A] flex items-center justify-center shrink-0"><MinusCircle className="w-4 h-4 text-[#EAB308]" /></div>
+                <div><div className="text-[14px] font-bold text-[#0F172A]">{fmtCurrency(sellerSummary.TotalDeductionfromCOD)}</div><div className="text-[10px] font-semibold text-[#64748B]">Total Deduction</div></div>
+              </div>
+              <div className="flex-1 min-w-[200px] bg-[#F8F5FF] rounded-xl p-3 border border-[#F3EFFF] flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-[#EADDFF] flex items-center justify-center shrink-0"><Clock className="w-4 h-4 text-[#8B5CF6]" /></div>
+                <div><div className="text-[14px] font-bold text-[#0F172A]">{fmtCurrency(sellerSummary.RemittanceInitiated)}</div><div className="text-[10px] font-semibold text-[#64748B]">Remittance Initiated</div></div>
+              </div>
+            </div>
           )}
-
           {activeTab === 'Courier COD Remittance' && (
             <div className="p-4 border-b border-[#E2E8F0] bg-[#F8FAFC]/30 flex flex-nowrap overflow-x-auto gap-4 no-scrollbar">
-              {[
-                { icon: <Banknote className="w-4 h-4 text-[#3B82F6]" />, bg: 'bg-[#F0F9FF] border-[#E0F2FE]', ibg: 'bg-[#DBEAFE]', val: courierSummary.totalCODAmount, label: 'Total COD Amount' },
-                { icon: <CheckCircle2 className="w-4 h-4 text-[#22C55E]" />, bg: 'bg-[#F0FDF4] border-[#DCFCE7]', ibg: 'bg-[#DCFCE7]', val: courierSummary.paidCODAmount, label: 'Paid COD Amount' },
-                { icon: <Clock className="w-4 h-4 text-[#EAB308]" />, bg: 'bg-[#FEFCE8] border-[#FEF08A]', ibg: 'bg-[#FEF08A]', val: courierSummary.pendingCODAmount, label: 'Pending COD Amount' },
-              ].map((c, i) => (
-                <div key={i} className={`flex-1 min-w-[200px] ${c.bg} rounded-xl p-3 border flex items-center gap-3`}>
-                  <div className={`w-8 h-8 rounded-full ${c.ibg} flex items-center justify-center shrink-0`}>{c.icon}</div>
-                  <div>
-                    <div className="text-[14px] font-bold text-[#0F172A]">{fmtCurrency(c.val)}</div>
-                    <div className="text-[10px] font-semibold text-[#64748B]">{c.label}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {activeTab === 'All COD Orders' && (
-            <div className="p-4 border-b border-[#E2E8F0] bg-[#F8FAFC]/30 flex flex-wrap gap-4">
-              {[
-                { icon: <Banknote className="w-5 h-5 text-[#0EA5E9]" />, bg: 'bg-[#F0F9FA] border-[#E6F0F2]', ibg: 'bg-[#E0F2F4]', val: codOrdersSummary.totalCODAmount, label: 'Total COD Amount' },
-                { icon: <CheckCircle2 className="w-5 h-5 text-[#22C55E]" />, bg: 'bg-[#F0FDF4] border-[#DCFCE7]', ibg: 'bg-[#DCFCE7]', val: codOrdersSummary.paidCODAmount, label: 'Paid COD Amount' },
-                { icon: <Clock className="w-5 h-5 text-[#8B5CF6]" />, bg: 'bg-[#F8F5FF] border-[#F3EFFF]', ibg: 'bg-[#EADDFF]', val: codOrdersSummary.pendingCODAmount, label: 'Pending COD Amount' },
-              ].map((c, i) => (
-                <div key={i} className={`flex-1 min-w-[250px] ${c.bg} rounded-xl p-4 border flex items-center gap-4`}>
-                  <div className={`w-10 h-10 rounded-full ${c.ibg} flex items-center justify-center shrink-0`}>{c.icon}</div>
-                  <div>
-                    <div className="text-lg font-bold text-[#0F172A]">{fmtCurrency(c.val)}</div>
-                    <div className="text-xs font-semibold text-[#64748B]">{c.label}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-      </div>
-
-        {/* â"€â"€ Table Section â"€â"€ */}
-        <div className="bg-white flex flex-col flex-1 min-h-0 overflow-hidden border-t border-[#E2E8F0]">
-
-          {/* All COD Orders Tab */}
-          {activeTab === 'All COD Orders' && (
-            <>
-              {/* Filter Bar */}
-              <div className="p-3 border-b border-[#E2E8F0] flex flex-wrap items-center gap-2.5 bg-[#F8FAFC]/50 shrink-0">
-                {isAdmin && (
-                  <div className="relative shrink-0">
-                    <div className="relative">
-                      <input type="text" placeholder="Search user..." value={codUserQuery}
-                        onChange={e => { setCodUserQuery(e.target.value); if (!e.target.value.trim()) { setCodUserMongoId(''); setCodUserSuggestions([]); } }}
-                        className="h-9 pl-8 pr-3 rounded-lg border border-[#E2E8F0] text-xs bg-white focus:outline-none w-[160px]" />
-                      <Search className="w-3.5 h-3.5 text-[#94A3B8] absolute left-2.5 top-1/2 -translate-y-1/2" />
-                      {codUserMongoId && <CheckCircle2 className="w-3.5 h-3.5 text-[#00A86B] absolute right-2.5 top-1/2 -translate-y-1/2" />}
-                    </div>
-                    {codUserSuggestions.length > 0 && !codUserMongoId && (
-                      <div className="absolute left-0 top-full mt-1 bg-white border border-[#E2E8F0] rounded-xl shadow-xl z-50 w-64 max-h-52 overflow-y-auto py-1">
-                        {codUserSuggestions.map((u: any) => (
-                          <button key={u._id} type="button" onClick={() => { setCodUserMongoId(u._id); setCodUserQuery(`${u.fullname} (${u.email})`); setCodUserSuggestions([]); }}
-                            className="w-full text-left px-3 py-2 hover:bg-[#F0FDF4] flex items-start gap-2">
-                            <div className="flex-1 min-w-0">
-                              <div className="text-[11px] font-bold text-slate-800 truncate">{u.fullname}</div>
-                              <div className="text-[10px] text-slate-400 truncate">{u.email} · {u.phoneNumber}</div>
-                            </div>
-                            <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded shrink-0">{u.userId}</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-                <input type="text" placeholder="Order ID" value={codOrderId} onChange={e => setCodOrderId(e.target.value)}
-                  className="h-9 px-3 rounded-lg border border-[#E2E8F0] text-xs bg-white focus:outline-none w-[120px] shrink-0" />
-                <input type="text" placeholder="AWB Number" value={codAwb} onChange={e => setCodAwb(e.target.value)}
-                  className="h-9 px-3 rounded-lg border border-[#E2E8F0] text-xs bg-white focus:outline-none w-[130px] shrink-0" />
-                <GlassDropdown label="Status" options={STATUS_OPTIONS} selected={selectedStatuses} onChange={setSelectedStatuses} placeholder="Status..." icon={<CheckCircle2 className="w-3.5 h-3.5" />} />
-                <GlassDropdown label="Courier" options={codCourierOptions} selected={selectedCouriers} onChange={setSelectedCouriers} placeholder="Courier..." icon={<Truck className="w-3.5 h-3.5" />} />
-                <GlassDateFilter startDate={dateStart} endDate={dateEnd} onDateChange={(s, e) => { setDateStart(s); setDateEnd(e); }} />
-                <button onClick={() => { setCurrentPage(1); fetchCodOrders(1); }}
-                  className="h-9 px-4 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] shrink-0">Apply</button>
-                <div className="ml-auto flex items-center gap-2 shrink-0">
-                  <button onClick={() => { if (selectedOrders.length === 0) { showToast('error', 'Select rows to export.'); return; } const rows = codOrdersList.filter(o => selectedOrders.includes(o.id)); handleExportCsv(rows, 'cod_orders.csv'); }}
-                    className={`w-9 h-9 rounded-full border flex items-center justify-center transition-colors ${selectedOrders.length > 0 ? 'border-[#00A86B] text-[#00A86B] hover:bg-[#00A86B]/5' : 'border-[#E2E8F0] text-[#CBD5E1] cursor-not-allowed'}`}>
-                    <Download className="w-4 h-4" />
-                  </button>
-                </div>
+              <div className="flex-1 min-w-[200px] bg-[#F0F9FF] rounded-xl p-3 border border-[#E0F2FE] flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-[#DBEAFE] flex items-center justify-center shrink-0"><Banknote className="w-4 h-4 text-[#3B82F6]" /></div>
+                <div><div className="text-[14px] font-bold text-[#0F172A]">{fmtCurrency(courierSummary.totalCODAmount)}</div><div className="text-[10px] font-semibold text-[#64748B]">Total Courier COD</div></div>
               </div>
-              {selectedOrders.length > 0 && (
-                <div className="px-4 py-2 bg-emerald-50 border-b border-emerald-100 flex items-center gap-3 shrink-0">
-                  <span className="text-xs font-bold text-emerald-700">{selectedOrders.length} selected</span>
-                  <button onClick={() => setSelectedOrders([])} className="text-xs text-[#64748B] hover:text-red-500">Clear</button>
+              <div className="flex-1 min-w-[200px] bg-[#FEFCE8] rounded-xl p-3 border border-[#FEF08A] flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-[#FEF08A] flex items-center justify-center shrink-0"><MinusCircle className="w-4 h-4 text-[#EAB308]" /></div>
+                <div><div className="text-[14px] font-bold text-[#0F172A]">{fmtCurrency(courierSummary.paidCODAmount)}</div><div className="text-[10px] font-semibold text-[#64748B]">Paid COD Amount</div></div>
+              </div>
+              <div className="flex-1 min-w-[200px] bg-[#FAF5FF] rounded-xl p-3 border border-[#F3E8FF] flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-[#F3E8FF] flex items-center justify-center shrink-0"><Send className="w-4 h-4 text-[#A855F7]" /></div>
+                <div><div className="text-[14px] font-bold text-[#0F172A]">{fmtCurrency(courierSummary.pendingCODAmount)}</div><div className="text-[10px] font-semibold text-[#64748B]">Pending COD Amount</div></div>
+              </div>
+            </div>
+          )}
+          {activeTab === 'All COD Orders' && (
+            <div className="p-4 border-b border-[#E2E8F0] bg-[#F8FAFC]/30 flex flex-nowrap overflow-x-auto gap-4 no-scrollbar">
+              <div className="flex-1 min-w-[200px] bg-[#F0F9FF] rounded-xl p-3 border border-[#E0F2FE] flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-[#DBEAFE] flex items-center justify-center shrink-0"><Banknote className="w-4 h-4 text-[#3B82F6]" /></div>
+                <div><div className="text-[14px] font-bold text-[#0F172A]">{fmtCurrency(codSummary.totalCODAmount)}</div><div className="text-[10px] font-semibold text-[#64748B]">Total COD Amount</div></div>
+              </div>
+              <div className="flex-1 min-w-[200px] bg-[#F0FDFA] rounded-xl p-3 border border-[#CCFBF1] flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-[#CCFBF1] flex items-center justify-center shrink-0"><Check className="w-4 h-4 text-[#14B8A6]" /></div>
+                <div><div className="text-[14px] font-bold text-[#0F172A]">{fmtCurrency(codSummary.paidCODAmount)}</div><div className="text-[10px] font-semibold text-[#64748B]">Paid COD Amount</div></div>
+              </div>
+              <div className="flex-1 min-w-[200px] bg-[#FEFCE8] rounded-xl p-3 border border-[#FEF08A] flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-[#FEF08A] flex items-center justify-center shrink-0"><Clock className="w-4 h-4 text-[#EAB308]" /></div>
+                <div><div className="text-[14px] font-bold text-[#0F172A]">{fmtCurrency(codSummary.pendingCODAmount)}</div><div className="text-[10px] font-semibold text-[#64748B]">Pending COD Amount</div></div>
+              </div>
+            </div>
+          )}
+        </div>
+
+      {/* â"€â"€ Table Section â"€â"€ */}
+      <div className="bg-white flex flex-col flex-1 min-h-0 overflow-hidden border-t border-[#E2E8F0] relative">
+        {isLoading && <TableLoader />}
+
+        {/* All COD Orders Tab */}
+        {activeTab === 'All COD Orders' && (
+          <>
+            {/* Filter Bar */}
+            <div className="p-3 border-b border-[#E2E8F0] flex flex-wrap items-center gap-2.5 bg-[#F8FAFC]/50 shrink-0">
+              {isAdminView && (
+                <div className="relative shrink-0">
+                  <div className="relative">
+                    <input type="text" placeholder="Search user..." value={codUserQuery}
+                      onChange={e => { setCodUserQuery(e.target.value); if (!e.target.value.trim()) { setCodUserMongoId(''); setCodUserSuggestions([]); } }}
+                      className="h-9 pl-8 pr-3 rounded-lg border border-[#E2E8F0] text-xs bg-white focus:outline-none w-[160px]" />
+                    <Search className="w-3.5 h-3.5 text-[#94A3B8] absolute left-2.5 top-1/2 -translate-y-1/2" />
+                    {codUserMongoId && <CheckCircle2 className="w-3.5 h-3.5 text-[#00A86B] absolute right-2.5 top-1/2 -translate-y-1/2" />}
+                  </div>
+                  {codUserSuggestions.length > 0 && !codUserMongoId && (
+                    <div className="absolute left-0 top-full mt-1 bg-white border border-[#E2E8F0] rounded-xl shadow-xl z-50 w-64 max-h-52 overflow-y-auto py-1">
+                      {codUserSuggestions.map((u: any) => (
+                        <button key={u._id} type="button" onClick={() => { setCodUserMongoId(u._id); setCodUserQuery(`${u.fullname} (${u.email})`); setCodUserSuggestions([]); }}
+                          className="w-full text-left px-3 py-2 hover:bg-[#F0FDF4] flex items-start gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="text-[11px] font-bold text-slate-800 truncate">{u.fullname}</div>
+                            <div className="text-[10px] text-slate-400 truncate">{u.email} · {u.phoneNumber}</div>
+                          </div>
+                          <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded shrink-0">{u.userId}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
-              <div className="flex-1 overflow-y-auto overflow-x-auto no-scrollbar">
-                <table className="w-full text-left border-collapse min-w-[900px]">
-                  <thead className="sticky top-0 z-30 bg-[#E6F5F1] shadow-sm">
-                    <tr>
-                      <th className="p-3 w-10">
-                        <input type="checkbox" checked={selectedOrders.length === paginatedOrders.length && paginatedOrders.length > 0} onChange={toggleAll} className="rounded accent-[#00A86B] w-3.5 h-3.5" />
-                      </th>
-                      <th className={thBase}><User className="w-3.5 h-3.5 inline mr-1" />User Details</th>
-                      <th className={thBase}>Order ID</th>
-                      <th className={thBase}><Truck className="w-3.5 h-3.5 inline mr-1" />Shipping Details</th>
-                      <th className={thBase}><Banknote className="w-3.5 h-3.5 inline mr-1" />COD Amount</th>
-                      <th className={thBase}><Check className="w-3.5 h-3.5 inline mr-1" />Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="text-[11px] text-[#475569]">
-                    {isLoading ? (
-                      <LoadingRow cols={6} />
-                    ) : paginatedOrders.length === 0 ? (
-                      <EmptyRow cols={6} msg="No COD orders found" />
-                    ) : paginatedOrders.map(order => (
-                      <tr key={order.id} className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors">
-                        <td className="p-3">
-                          <input type="checkbox" checked={selectedOrders.includes(order.id)} onChange={() => toggleSelect(order.id)} className="rounded accent-[#00A86B] w-3.5 h-3.5" />
-                        </td>
+              <input type="text" placeholder="Order ID" value={codOrderId} onChange={e => setCodOrderId(e.target.value)}
+                className="h-9 px-3 rounded-lg border border-[#E2E8F0] text-xs bg-white focus:outline-none w-[120px] shrink-0" />
+              <input type="text" placeholder="AWB Number" value={codAwb} onChange={e => setCodAwb(e.target.value)}
+                className="h-9 px-3 rounded-lg border border-[#E2E8F0] text-xs bg-white focus:outline-none w-[130px] shrink-0" />
+              <GlassDropdown label="Status" options={STATUS_OPTIONS} selected={selectedStatuses} onChange={setSelectedStatuses} placeholder="Status..." icon={<CheckCircle2 className="w-3.5 h-3.5" />} />
+              <GlassDropdown label="Courier" options={codCourierOptions} selected={selectedCouriers} onChange={setSelectedCouriers} placeholder="Courier..." icon={<Truck className="w-3.5 h-3.5" />} />
+              <GlassDateFilter startDate={dateStart} endDate={dateEnd} onDateChange={(s, e) => { setDateStart(s); setDateEnd(e); }} />
+              <button onClick={() => { setCurrentPage(1); fetchCodOrders(1); }}
+                className="h-9 px-4 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] shrink-0">Apply</button>
+              <div className="ml-auto flex items-center gap-2 shrink-0">
+                <button onClick={() => { if (selectedOrders.length === 0) { showToast('error', 'Select rows to export.'); return; } const rows = codOrdersList.filter(o => selectedOrders.includes(o.id)); handleExportCsv(rows, 'cod_orders.csv'); }}
+                  className={`w-9 h-9 rounded-full border flex items-center justify-center transition-colors ${selectedOrders.length > 0 ? 'border-[#00A86B] text-[#00A86B] hover:bg-[#00A86B]/5' : 'border-[#E2E8F0] text-[#CBD5E1] cursor-not-allowed'}`}>
+                  <Download className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+            {selectedOrders.length > 0 && (
+              <div className="px-4 py-2 bg-emerald-50 border-b border-emerald-100 flex items-center gap-3 shrink-0">
+                <span className="text-xs font-bold text-emerald-700">{selectedOrders.length} selected</span>
+                <button onClick={() => setSelectedOrders([])} className="text-xs text-[#64748B] hover:text-red-500">Clear</button>
+              </div>
+            )}
+            <div className="flex-1 overflow-y-auto overflow-x-auto no-scrollbar">
+              <table className="w-full text-left border-collapse min-w-[900px]">
+                <thead className="sticky top-0 z-30 bg-[#E6F5F1] shadow-sm">
+                  <tr>
+                    <th className="p-3 w-10">
+                      <input type="checkbox" checked={selectedOrders.length === paginatedOrders.length && paginatedOrders.length > 0} onChange={toggleAll} className="rounded accent-[#00A86B] w-3.5 h-3.5" />
+                    </th>
+                    {isAdminView && <th className={thBase}><User className="w-3.5 h-3.5 inline mr-1" />User Details</th>}
+                    <th className={thBase}>Order ID</th>
+                    <th className={thBase}><Truck className="w-3.5 h-3.5 inline mr-1" />Shipping Details</th>
+                    <th className={thBase}><Banknote className="w-3.5 h-3.5 inline mr-1" />COD Amount</th>
+                    <th className={thBase}><Check className="w-3.5 h-3.5 inline mr-1" />Status</th>
+                  </tr>
+                </thead>
+                <tbody className="text-[11px] text-[#475569]">
+                  {paginatedOrders.length === 0 ? (
+                    <EmptyRow cols={isAdminView ? 6 : 5} msg="No COD orders found" />
+                  ) : paginatedOrders.map(order => (
+                    <tr key={order.id} className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors">
+                      <td className="p-3">
+                        <input type="checkbox" checked={selectedOrders.includes(order.id)} onChange={() => toggleSelect(order.id)} className="rounded accent-[#00A86B] w-3.5 h-3.5" />
+                      </td>
+                      {isAdminView && (
                         <td className="p-3">
                           <div className="text-[11px] font-semibold text-[#00A86B]">{order.userId}</div>
                           <div className="text-sm font-semibold text-[#0F172A] mt-0.5">{order.userName}</div>
                           <div className="text-[11px] text-[#94A3B8]">{order.userEmail}</div>
                         </td>
-                        <td className="p-3">
-                          <div className="text-xs font-semibold text-[#00A86B]">{order.orderID || 'â€"'}</div>
-                        </td>
-                        <td className="p-3">
-                          <button
-                            onClick={() => navigate('/admin/tracking', { state: { awb: order.awb } })}
-                            className="text-xs font-semibold text-[#00A86B] hover:underline text-left"
-                          >
-                            {order.awb || 'â€"'}
-                          </button>
-                          <div className="text-[11px] text-[#475569] mt-0.5">{order.courier}</div>
-                          <div className="text-[11px] text-[#94A3B8]">Delivered On: {order.date}</div>
-                        </td>
-                        <td className="p-3">
-                          <div className="font-bold text-[#0F172A] text-[12px]">{fmtCurrency(order.codAmount)}</div>
-                        </td>
-                        <td className="p-3">
-                          <span className={getStatusBadgeClass(order.status)}>{order.status}</span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              {renderPagination(currentPage, totalPages, codOrdersTotal, setCurrentPage, fetchCodOrders)}
-            </>
-          )}
+                      )}
+                      <td className="p-3">
+                        <div className="text-xs font-semibold text-[#00A86B]">{order.orderID || 'â€"'}</div>
+                      </td>
+                      <td className="p-3">
+                        <button
+                          onClick={() => navigate('/admin/tracking', { state: { awb: order.awb } })}
+                          className="text-xs font-semibold text-[#00A86B] hover:underline text-left"
+                        >
+                          {order.awb || 'â€"'}
+                        </button>
+                        <div className="text-[11px] text-[#475569] mt-0.5">{order.courier}</div>
+                        <div className="text-[11px] text-[#94A3B8]">Delivered On: {order.date}</div>
+                      </td>
+                      <td className="p-3">
+                        <div className="font-bold text-[#0F172A] text-[12px]">{fmtCurrency(order.codAmount)}</div>
+                      </td>
+                      <td className="p-3">
+                        <span className={getStatusBadgeClass(order.status)}>{order.status}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {renderPagination(currentPage, totalPages, codOrdersTotal, setCurrentPage, fetchCodOrders)}
+          </>
+        )}
 
-          {/* Seller COD Remittance Tab */}
-          {activeTab === 'Seller COD Remittance' && (
-            <>
-              {/* Filter Bar */}
-              <div className="p-3 border-b border-[#E2E8F0] flex flex-wrap items-center gap-2.5 bg-[#F8FAFC]/50 shrink-0">
-                {isAdmin && (
-                  <div className="relative shrink-0">
-                    <div className="relative">
-                      <input type="text" placeholder="Search user..." value={sellerUserQuery}
-                        onChange={e => { setSellerUserQuery(e.target.value); if (!e.target.value.trim()) { setSellerUserMongoId(''); setSellerUserSuggestions([]); } }}
-                        className="h-9 pl-8 pr-3 rounded-lg border border-[#E2E8F0] text-xs bg-white focus:outline-none w-[160px]" />
-                      <Search className="w-3.5 h-3.5 text-[#94A3B8] absolute left-2.5 top-1/2 -translate-y-1/2" />
-                      {sellerUserMongoId && <CheckCircle2 className="w-3.5 h-3.5 text-[#00A86B] absolute right-2.5 top-1/2 -translate-y-1/2" />}
-                    </div>
-                    {sellerUserSuggestions.length > 0 && !sellerUserMongoId && (
-                      <div className="absolute left-0 top-full mt-1 bg-white border border-[#E2E8F0] rounded-xl shadow-xl z-50 w-64 max-h-52 overflow-y-auto py-1">
-                        {sellerUserSuggestions.map((u: any) => (
-                          <button key={u._id} type="button" onClick={() => { setSellerUserMongoId(u._id); setSellerUserQuery(`${u.fullname} (${u.email})`); setSellerUserSuggestions([]); }}
-                            className="w-full text-left px-3 py-2 hover:bg-[#F0FDF4] flex items-start gap-2">
-                            <div className="flex-1 min-w-0">
-                              <div className="text-[11px] font-bold text-slate-800 truncate">{u.fullname}</div>
-                              <div className="text-[10px] text-slate-400 truncate">{u.email} · {u.phoneNumber}</div>
-                            </div>
-                            <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded shrink-0">{u.userId}</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
+        {/* Seller COD Remittance Tab */}
+        {activeTab === 'Seller COD Remittance' && (
+          <>
+            {/* Filter Bar */}
+            <div className="p-3 border-b border-[#E2E8F0] flex flex-wrap items-center gap-2.5 bg-[#F8FAFC]/50 shrink-0">
+              {isAdminView && (
+                <div className="relative shrink-0">
+                  <div className="relative">
+                    <input type="text" placeholder="Search user..." value={sellerUserQuery}
+                      onChange={e => { setSellerUserQuery(e.target.value); if (!e.target.value.trim()) { setSellerUserMongoId(''); setSellerUserSuggestions([]); } }}
+                      className="h-9 pl-8 pr-3 rounded-lg border border-[#E2E8F0] text-xs bg-white focus:outline-none w-[160px]" />
+                    <Search className="w-3.5 h-3.5 text-[#94A3B8] absolute left-2.5 top-1/2 -translate-y-1/2" />
+                    {sellerUserMongoId && <CheckCircle2 className="w-3.5 h-3.5 text-[#00A86B] absolute right-2.5 top-1/2 -translate-y-1/2" />}
                   </div>
-                )}
-                <input type="text" placeholder="Remittance ID" value={sellerRemittanceId} onChange={e => setSellerRemittanceId(e.target.value)}
-                  className="h-9 px-3 rounded-lg border border-[#E2E8F0] text-xs bg-white focus:outline-none w-[140px] shrink-0" />
-                <GlassDropdown label="Status" options={STATUS_OPTIONS} selected={selectedCodStatuses} onChange={setSelectedCodStatuses} placeholder="Status..." icon={<CheckCircle2 className="w-3.5 h-3.5" />} />
-                <GlassDateFilter startDate={codDateStart} endDate={codDateEnd} onDateChange={(s, e) => { setCodDateStart(s); setCodDateEnd(e); }} />
-                <button onClick={() => { setSellerPage(1); fetchSellerRemittance(1); }}
-                  className="h-9 px-4 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] shrink-0">Apply</button>
-                <div className="relative shrink-0 ml-auto">
-                  <button onClick={() => selectedCodOrders.length > 0 && setShowActionMenu(!showActionMenu)} disabled={selectedCodOrders.length === 0}
-                    className={`h-9 pl-4 pr-8 rounded-full border text-xs font-bold relative transition-colors ${selectedCodOrders.length > 0 ? 'border-[#00A86B] text-[#00A86B] bg-white hover:bg-[#F0FDF4]' : 'border-[#E2E8F0] text-[#CBD5E1] bg-[#F8FAFC] cursor-not-allowed'}`}>
-                    Actions <ChevronDown className="w-3.5 h-3.5 absolute right-3 top-1/2 -translate-y-1/2" />
-                  </button>
-                  {showActionMenu && selectedCodOrders.length > 0 && (
-                    <div className="absolute right-0 top-full mt-2 w-[200px] bg-white rounded-xl shadow-lg border border-[#E2E8F0] py-2 z-50">
-                      <button onClick={() => { const rows = sellerRemittanceList.filter(r => selectedCodOrders.includes(r.awb)); handleExportCsv(rows, 'seller_remittances.csv'); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A] flex items-center gap-2"><Download className="w-4 h-4 text-[#00A86B]" />Export Data</button>
-                      <button onClick={handleExportBankTemplate} disabled={bankExportLoading} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A] flex items-center gap-2"><FileText className="w-4 h-4 text-blue-500" />{bankExportLoading ? 'Generating…' : 'Export Bank Template'}</button>
-                      <button onClick={handleOpenBankResponseUpload} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A] flex items-center gap-2"><Upload className="w-4 h-4 text-orange-500" />Upload Bank Response</button>
-                      <div className="border-t border-[#E2E8F0] my-1" />
-                      <button onClick={() => { setShowActionMenu(false); handleTransferCOD('seller'); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#00A86B] hover:bg-[#F0FDF4] flex items-center gap-2"><Send className="w-4 h-4" />Transfer COD</button>
+                  {sellerUserSuggestions.length > 0 && !sellerUserMongoId && (
+                    <div className="absolute left-0 top-full mt-1 bg-white border border-[#E2E8F0] rounded-xl shadow-xl z-50 w-64 max-h-52 overflow-y-auto py-1">
+                      {sellerUserSuggestions.map((u: any) => (
+                        <button key={u._id} type="button" onClick={() => { setSellerUserMongoId(u._id); setSellerUserQuery(`${u.fullname} (${u.email})`); setSellerUserSuggestions([]); }}
+                          className="w-full text-left px-3 py-2 hover:bg-[#F0FDF4] flex items-start gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="text-[11px] font-bold text-slate-800 truncate">{u.fullname}</div>
+                            <div className="text-[10px] text-slate-400 truncate">{u.email} · {u.phoneNumber}</div>
+                          </div>
+                          <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded shrink-0">{u.userId}</span>
+                        </button>
+                      ))}
                     </div>
                   )}
                 </div>
-              </div>
-              {selectedCodOrders.length > 0 && (
-                <div className="px-4 py-2 bg-emerald-50 border-b border-emerald-100 flex items-center gap-3 shrink-0">
-                  <span className="text-xs font-bold text-emerald-700">{selectedCodOrders.length} selected</span>
-                  <button onClick={() => handleTransferCOD('seller')} className="h-7 px-3 rounded-md bg-[#00A86B] text-white text-xs font-bold shadow-sm hover:bg-[#009B63]">Transfer COD</button>
-                  <button onClick={() => setSelectedCodOrders([])} className="text-xs text-[#64748B] hover:text-red-500">Clear</button>
-                </div>
               )}
-              <div className="flex-1 overflow-y-auto overflow-x-auto no-scrollbar">
-                <table className="w-full text-left border-collapse min-w-[1200px]">
-                  <thead className="sticky top-0 z-30 bg-[#E6F5F1] shadow-sm">
-                    <tr>
-                      <th className="p-3 w-10">
-                        <input type="checkbox" checked={selectedCodOrders.length === sellerRemittanceList.length && sellerRemittanceList.length > 0} onChange={toggleAllCod} className="rounded accent-[#00A86B] w-3.5 h-3.5" />
-                      </th>
-                      <th className={thBase}><User className="w-3.5 h-3.5 inline mr-1" />Date</th>
-                      <th className={thBase}><User className="w-3.5 h-3.5 inline mr-1" />User</th>
-                      <th className={thBase}><FileText className="w-3.5 h-3.5 inline mr-1" />Remittance ID</th>
-                      <th className={thBase}><FileText className="w-3.5 h-3.5 inline mr-1" />UTR</th>
-                      <th className={thBase}><Banknote className="w-3.5 h-3.5 inline mr-1" />Total COD Amount</th>
-                      <th className={thBase}><Banknote className="w-3.5 h-3.5 inline mr-1" />Credited to Wallet</th>
-                      <th className={thBase}><Banknote className="w-3.5 h-3.5 inline mr-1" />Adjusted Amount</th>
-                      <th className={thBase}><Banknote className="w-3.5 h-3.5 inline mr-1" />Early COD Charges</th>
-                      <th className={thBase}><Banknote className="w-3.5 h-3.5 inline mr-1" />Remittance Amount</th>
-                      <th className={thBase}><Check className="w-3.5 h-3.5 inline mr-1" />Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="text-[11px] text-[#475569]">
-                    {isLoading ? (
-                      <LoadingRow cols={11} />
-                    ) : sellerRemittanceList.length === 0 ? (
-                      <EmptyRow cols={11} msg="No seller remittance records found" />
-                    ) : sellerRemittanceList.map(order => (
-                      <tr key={order.id || order.awb} className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors">
-                        <td className="p-3">
-                          <input type="checkbox" checked={selectedCodOrders.includes(order.awb)} onChange={() => toggleSelectCod(order.awb)} className="rounded accent-[#00A86B] w-3.5 h-3.5" />
-                        </td>
-                        <td className="p-3 text-[#475569]">{order.date}</td>
+              <input type="text" placeholder="Remittance ID" value={sellerRemittanceId} onChange={e => setSellerRemittanceId(e.target.value)}
+                className="h-9 px-3 rounded-lg border border-[#E2E8F0] text-xs bg-white focus:outline-none w-[140px] shrink-0" />
+              <GlassDropdown label="Status" options={STATUS_OPTIONS} selected={selectedCodStatuses} onChange={setSelectedCodStatuses} placeholder="Status..." icon={<CheckCircle2 className="w-3.5 h-3.5" />} />
+              <GlassDateFilter startDate={codDateStart} endDate={codDateEnd} onDateChange={(s, e) => { setCodDateStart(s); setCodDateEnd(e); }} />
+              <button onClick={() => { setSellerPage(1); fetchSellerRemittance(1); }}
+                className="h-9 px-4 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] shrink-0">Apply</button>
+              <div className="relative shrink-0 ml-auto action-dropdown-container">
+                <button onClick={() => selectedCodOrders.length > 0 && setShowActionMenu(!showActionMenu)} disabled={selectedCodOrders.length === 0}
+                  className={`h-9 pl-4 pr-8 rounded-full border text-xs font-bold relative transition-colors ${selectedCodOrders.length > 0 ? 'border-[#00A86B] text-[#00A86B] bg-white hover:bg-[#F0FDF4]' : 'border-[#E2E8F0] text-[#CBD5E1] bg-[#F8FAFC] cursor-not-allowed'}`}>
+                  Actions <ChevronDown className="w-3.5 h-3.5 absolute right-3 top-1/2 -translate-y-1/2" />
+                </button>
+                {showActionMenu && selectedCodOrders.length > 0 && (
+                  <div className="absolute right-0 top-full mt-2 w-[200px] bg-white rounded-xl shadow-lg border border-[#E2E8F0] py-2 z-50">
+                    <button onClick={() => { const rows = sellerRemittanceList.filter(r => selectedCodOrders.includes(r.awb)); handleExportCsv(rows, 'seller_remittances.csv'); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A] flex items-center gap-2"><Download className="w-4 h-4 text-[#00A86B]" />Export Data</button>
+                    <button onClick={handleExportBankTemplate} disabled={bankExportLoading} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A] flex items-center gap-2"><FileText className="w-4 h-4 text-blue-500" />{bankExportLoading ? 'Generating…' : 'Export Bank Template'}</button>
+                    <button onClick={handleOpenBankResponseUpload} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A] flex items-center gap-2"><Upload className="w-4 h-4 text-orange-500" />Upload Bank Response</button>
+                    <div className="border-t border-[#E2E8F0] my-1" />
+                    <button onClick={() => { setShowActionMenu(false); handleTransferCOD('seller'); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#00A86B] hover:bg-[#F0FDF4] flex items-center gap-2"><Send className="w-4 h-4" />Transfer COD</button>
+                  </div>
+                )}
+              </div>
+            </div>
+            {selectedCodOrders.length > 0 && (
+              <div className="px-4 py-2 bg-emerald-50 border-b border-emerald-100 flex items-center gap-3 shrink-0">
+                <span className="text-xs font-bold text-emerald-700">{selectedCodOrders.length} selected</span>
+                <button onClick={() => handleTransferCOD('seller')} className="h-7 px-3 rounded-md bg-[#00A86B] text-white text-xs font-bold shadow-sm hover:bg-[#009B63]">Transfer COD</button>
+                <button onClick={() => setSelectedCodOrders([])} className="text-xs text-[#64748B] hover:text-red-500">Clear</button>
+              </div>
+            )}
+            <div className="flex-1 overflow-y-auto overflow-x-auto no-scrollbar">
+              <table className="w-full text-left border-collapse min-w-[1200px]">
+                <thead className="sticky top-0 z-30 bg-[#E6F5F1] shadow-sm">
+                  <tr>
+                    <th className="p-3 w-10">
+                      <input type="checkbox" checked={selectedCodOrders.length === sellerRemittanceList.length && sellerRemittanceList.length > 0} onChange={toggleAllCod} className="rounded accent-[#00A86B] w-3.5 h-3.5" />
+                    </th>
+                    <th className={thBase}><User className="w-3.5 h-3.5 inline mr-1" />Date</th>
+                    {isAdminView && <th className={thBase}><User className="w-3.5 h-3.5 inline mr-1" />User</th>}
+                    <th className={thBase}><FileText className="w-3.5 h-3.5 inline mr-1" />Remittance ID</th>
+                    <th className={thBase}><FileText className="w-3.5 h-3.5 inline mr-1" />UTR</th>
+                    <th className={thBase}><Banknote className="w-3.5 h-3.5 inline mr-1" />Total COD Amount</th>
+                    <th className={thBase}><Banknote className="w-3.5 h-3.5 inline mr-1" />Credited to Wallet</th>
+                    <th className={thBase}><Banknote className="w-3.5 h-3.5 inline mr-1" />Adjusted Amount</th>
+                    <th className={thBase}><Banknote className="w-3.5 h-3.5 inline mr-1" />Early COD Charges</th>
+                    <th className={thBase}><Banknote className="w-3.5 h-3.5 inline mr-1" />Remittance Amount</th>
+                    <th className={thBase}><Check className="w-3.5 h-3.5 inline mr-1" />Status</th>
+                  </tr>
+                </thead>
+                <tbody className="text-[11px] text-[#475569]">
+                  {sellerRemittanceList.length === 0 ? (
+                    <EmptyRow cols={isAdminView ? 11 : 10} msg="No seller remittance records found" />
+                  ) : sellerRemittanceList.map(order => (
+                    <tr key={order.id || order.awb} className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors">
+                      <td className="p-3">
+                        <input type="checkbox" checked={selectedCodOrders.includes(order.awb)} onChange={() => toggleSelectCod(order.awb)} className="rounded accent-[#00A86B] w-3.5 h-3.5" />
+                      </td>
+                      <td className="p-3 text-[#475569]">{order.date}</td>
+                      {isAdminView && (
                         <td className="p-3">
                           <div className="text-sm font-semibold text-[#0F172A]">{order.userName}</div>
                           <div className="text-[11px] text-[#94A3B8]">{order.userEmail}</div>
                         </td>
-                        <td className="p-3">
-                          <button
-                            onClick={() => openRemittanceDetail(order.awb)}
-                            className="text-xs font-semibold text-[#00A86B] hover:underline"
-                          >
-                            {order.awb}
-                          </button>
-                          <div className="text-[10px] text-[#94A3B8] mt-0.5">{order.paymentMethod}</div>
-                        </td>
-                        <td className="p-3 font-bold text-[#00A86B]">{order.utr}</td>
-                        <td className="p-3 font-bold text-[#0F172A]">{fmtCurrency(order.totalCodAmount)}</td>
-                        <td className="p-3 font-bold text-red-500">{fmtCurrency(order.creditedAmount)}</td>
-                        <td className="p-3 text-[#64748B]">{fmtCurrency(order.adjustedAmount)}</td>
-                        <td className="p-3 font-bold text-red-700">{fmtCurrency(order.earlyCodCharges)}</td>
-                        <td className="p-3 font-bold text-[#00A86B]">{fmtCurrency(order.remittanceAmount)}</td>
-                        <td className="p-3">
-                          <span className={getStatusBadgeClass(order.status)}>{order.status}</span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              {renderPagination(sellerPage, totalSellerPages, sellerRemittanceTotal, setSellerPage, fetchSellerRemittance)}
-            </>
-          )}
+                      )}
+                      <td className="p-3">
+                        <button
+                          onClick={() => openRemittanceDetail(order.awb)}
+                          className="text-xs font-semibold text-[#00A86B] hover:underline"
+                        >
+                          {order.awb}
+                        </button>
+                        <div className="text-[10px] text-[#94A3B8] mt-0.5">{order.paymentMethod}</div>
+                      </td>
+                      <td className="p-3 font-bold text-[#00A86B]">{order.utr}</td>
+                      <td className="p-3 font-bold text-[#0F172A]">{fmtCurrency(order.totalCodAmount)}</td>
+                      <td className="p-3 font-bold text-red-500">{fmtCurrency(order.creditedAmount)}</td>
+                      <td className="p-3 text-[#64748B]">{fmtCurrency(order.adjustedAmount)}</td>
+                      <td className="p-3 font-bold text-red-700">{fmtCurrency(order.earlyCodCharges)}</td>
+                      <td className="p-3 font-bold text-[#00A86B]">{fmtCurrency(order.remittanceAmount)}</td>
+                      <td className="p-3">
+                        <span className={getStatusBadgeClass(order.status)}>{order.status}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {renderPagination(sellerPage, totalSellerPages, sellerRemittanceTotal, setSellerPage, fetchSellerRemittance)}
+          </>
+        )}
 
-          {/* Courier COD Remittance Tab */}
-          {activeTab === 'Courier COD Remittance' && (
-            <>
-              {/* Filter Bar */}
-              <div className="p-3 border-b border-[#E2E8F0] flex flex-wrap items-center gap-2.5 bg-[#F8FAFC]/50 shrink-0">
-                {isAdmin && (
-                  <div className="relative shrink-0">
-                    <div className="relative">
-                      <input type="text" placeholder="Search user..." value={courierUserQuery}
-                        onChange={e => { setCourierUserQuery(e.target.value); if (!e.target.value.trim()) { setCourierUserMongoId(''); setCourierUserSuggestions([]); } }}
-                        className="h-9 pl-8 pr-3 rounded-lg border border-[#E2E8F0] text-xs bg-white focus:outline-none w-[160px]" />
-                      <Search className="w-3.5 h-3.5 text-[#94A3B8] absolute left-2.5 top-1/2 -translate-y-1/2" />
-                      {courierUserMongoId && <CheckCircle2 className="w-3.5 h-3.5 text-[#00A86B] absolute right-2.5 top-1/2 -translate-y-1/2" />}
-                    </div>
-                    {courierUserSuggestions.length > 0 && !courierUserMongoId && (
-                      <div className="absolute left-0 top-full mt-1 bg-white border border-[#E2E8F0] rounded-xl shadow-xl z-50 w-64 max-h-52 overflow-y-auto py-1">
-                        {courierUserSuggestions.map((u: any) => (
-                          <button key={u._id} type="button" onClick={() => { setCourierUserMongoId(u._id); setCourierUserQuery(`${u.fullname} (${u.email})`); setCourierUserSuggestions([]); }}
-                            className="w-full text-left px-3 py-2 hover:bg-[#F0FDF4] flex items-start gap-2">
-                            <div className="flex-1 min-w-0">
-                              <div className="text-[11px] font-bold text-slate-800 truncate">{u.fullname}</div>
-                              <div className="text-[10px] text-slate-400 truncate">{u.email} · {u.phoneNumber}</div>
-                            </div>
-                            <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded shrink-0">{u.userId}</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
+        {/* Courier COD Remittance Tab */}
+        {activeTab === 'Courier COD Remittance' && (
+          <>
+            {/* Filter Bar */}
+            <div className="p-3 border-b border-[#E2E8F0] flex flex-wrap items-center gap-2.5 bg-[#F8FAFC]/50 shrink-0">
+              {isAdminView && (
+                <div className="relative shrink-0">
+                  <div className="relative">
+                    <input type="text" placeholder="Search user..." value={courierUserQuery}
+                      onChange={e => { setCourierUserQuery(e.target.value); if (!e.target.value.trim()) { setCourierUserMongoId(''); setCourierUserSuggestions([]); } }}
+                      className="h-9 pl-8 pr-3 rounded-lg border border-[#E2E8F0] text-xs bg-white focus:outline-none w-[160px]" />
+                    <Search className="w-3.5 h-3.5 text-[#94A3B8] absolute left-2.5 top-1/2 -translate-y-1/2" />
+                    {courierUserMongoId && <CheckCircle2 className="w-3.5 h-3.5 text-[#00A86B] absolute right-2.5 top-1/2 -translate-y-1/2" />}
                   </div>
-                )}
-                <input type="text" placeholder="Order ID" value={courierOrderId} onChange={e => setCourierOrderId(e.target.value)}
-                  className="h-9 px-3 rounded-lg border border-[#E2E8F0] text-xs bg-white focus:outline-none w-[120px] shrink-0" />
-                <input type="text" placeholder="AWB Number" value={courierAwb} onChange={e => setCourierAwb(e.target.value)}
-                  className="h-9 px-3 rounded-lg border border-[#E2E8F0] text-xs bg-white focus:outline-none w-[130px] shrink-0" />
-                <GlassDropdown label="Status" options={STATUS_OPTIONS} selected={selectedCourierCodStatuses} onChange={setSelectedCourierCodStatuses} placeholder="Status..." icon={<CheckCircle2 className="w-3.5 h-3.5" />} />
-                <GlassDropdown label="Courier" options={courierCourierOptions} selected={selectedCourierCouriers} onChange={setSelectedCourierCouriers} placeholder="Courier..." icon={<Truck className="w-3.5 h-3.5" />} />
-                <GlassDateFilter startDate={courierCodDateStart} endDate={courierCodDateEnd} onDateChange={(s, e) => { setCourierCodDateStart(s); setCourierCodDateEnd(e); }} />
-                <button onClick={() => { setCourierPage(1); fetchCourierRemittance(1); }}
-                  className="h-9 px-4 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] shrink-0">Apply</button>
-                <div className="relative shrink-0 ml-auto">
-                  <button onClick={() => selectedCourierCodOrders.length > 0 && setShowCourierActionMenu(!showCourierActionMenu)} disabled={selectedCourierCodOrders.length === 0}
-                    className={`h-9 pl-4 pr-8 rounded-full border text-xs font-bold relative transition-colors ${selectedCourierCodOrders.length > 0 ? 'border-[#00A86B] text-[#00A86B] bg-white hover:bg-[#F0FDF4]' : 'border-[#E2E8F0] text-[#CBD5E1] bg-[#F8FAFC] cursor-not-allowed'}`}>
-                    Actions <ChevronDown className="w-3.5 h-3.5 absolute right-3 top-1/2 -translate-y-1/2" />
-                  </button>
-                  {showCourierActionMenu && selectedCourierCodOrders.length > 0 && (
-                    <div className="absolute right-0 top-full mt-2 w-[180px] bg-white rounded-xl shadow-lg border border-[#E2E8F0] py-2 z-50">
-                      <button onClick={() => { const rows = courierRemittanceList.filter(r => selectedCourierCodOrders.includes(r.id)); handleExportCsv(rows, 'courier_cod.csv'); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A] flex items-center gap-2"><Download className="w-4 h-4 text-[#00A86B]" />Export Data</button>
+                  {courierUserSuggestions.length > 0 && !courierUserMongoId && (
+                    <div className="absolute left-0 top-full mt-1 bg-white border border-[#E2E8F0] rounded-xl shadow-xl z-50 w-64 max-h-52 overflow-y-auto py-1">
+                      {courierUserSuggestions.map((u: any) => (
+                        <button key={u._id} type="button" onClick={() => { setCourierUserMongoId(u._id); setCourierUserQuery(`${u.fullname} (${u.email})`); setCourierUserSuggestions([]); }}
+                          className="w-full text-left px-3 py-2 hover:bg-[#F0FDF4] flex items-start gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="text-[11px] font-bold text-slate-800 truncate">{u.fullname}</div>
+                            <div className="text-[10px] text-slate-400 truncate">{u.email} · {u.phoneNumber}</div>
+                          </div>
+                          <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded shrink-0">{u.userId}</span>
+                        </button>
+                      ))}
                     </div>
                   )}
                 </div>
-              </div>
-              {selectedCourierCodOrders.length > 0 && (
-                <div className="px-4 py-2 bg-emerald-50 border-b border-emerald-100 flex items-center gap-3 shrink-0">
-                  <span className="text-xs font-bold text-emerald-700">{selectedCourierCodOrders.length} selected</span>
-                  <button onClick={() => setSelectedCourierCodOrders([])} className="text-xs text-[#64748B] hover:text-red-500">Clear</button>
-                </div>
               )}
-              <div className="flex-1 overflow-y-auto overflow-x-auto no-scrollbar">
-                <table className="w-full text-left border-collapse min-w-[900px]">
-                  <thead className="sticky top-0 z-30 bg-[#E6F5F1] shadow-sm">
-                    <tr>
-                      <th className="p-3 w-10">
-                        <input type="checkbox" checked={selectedCourierCodOrders.length === courierRemittanceList.length && courierRemittanceList.length > 0} onChange={toggleAllCourierCod} className="rounded accent-[#00A86B] w-3.5 h-3.5" />
-                      </th>
-                      <th className={thBase}><User className="w-3.5 h-3.5 inline mr-1" />User Details</th>
-                      <th className={thBase}>Order ID</th>
-                      <th className={thBase}><Truck className="w-3.5 h-3.5 inline mr-1" />Shipping Details</th>
-                      <th className={thBase}><Banknote className="w-3.5 h-3.5 inline mr-1" />COD Amount</th>
-                      <th className={thBase}><Check className="w-3.5 h-3.5 inline mr-1" />Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="text-[11px] text-[#475569]">
-                    {isLoading ? (
-                      <LoadingRow cols={6} />
-                    ) : courierRemittanceList.length === 0 ? (
-                      <EmptyRow cols={6} msg="No courier remittance records found" />
-                    ) : courierRemittanceList.map(order => (
-                      <tr key={order.id} className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors">
-                        <td className="p-3">
-                          <input type="checkbox" checked={selectedCourierCodOrders.includes(order.id)} onChange={() => toggleSelectCourierCod(order.id)} className="rounded accent-[#00A86B] w-3.5 h-3.5" />
-                        </td>
+              <input type="text" placeholder="Order ID" value={courierOrderId} onChange={e => setCourierOrderId(e.target.value)}
+                className="h-9 px-3 rounded-lg border border-[#E2E8F0] text-xs bg-white focus:outline-none w-[120px] shrink-0" />
+              <input type="text" placeholder="AWB Number" value={courierAwb} onChange={e => setCourierAwb(e.target.value)}
+                className="h-9 px-3 rounded-lg border border-[#E2E8F0] text-xs bg-white focus:outline-none w-[130px] shrink-0" />
+              <GlassDropdown label="Status" options={STATUS_OPTIONS} selected={selectedCourierCodStatuses} onChange={setSelectedCourierCodStatuses} placeholder="Status..." icon={<CheckCircle2 className="w-3.5 h-3.5" />} />
+              <GlassDropdown label="Courier" options={courierCourierOptions} selected={selectedCourierCouriers} onChange={setSelectedCourierCouriers} placeholder="Courier..." icon={<Truck className="w-3.5 h-3.5" />} />
+              <GlassDateFilter startDate={courierCodDateStart} endDate={courierCodDateEnd} onDateChange={(s, e) => { setCourierCodDateStart(s); setCourierCodDateEnd(e); }} />
+              <button onClick={() => { setCourierPage(1); fetchCourierRemittance(1); }}
+                className="h-9 px-4 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] shrink-0">Apply</button>
+              <div className="relative shrink-0 ml-auto action-dropdown-container">
+                <button onClick={() => selectedCourierCodOrders.length > 0 && setShowCourierActionMenu(!showCourierActionMenu)} disabled={selectedCourierCodOrders.length === 0}
+                  className={`h-9 pl-4 pr-8 rounded-full border text-xs font-bold relative transition-colors ${selectedCourierCodOrders.length > 0 ? 'border-[#00A86B] text-[#00A86B] bg-white hover:bg-[#F0FDF4]' : 'border-[#E2E8F0] text-[#CBD5E1] bg-[#F8FAFC] cursor-not-allowed'}`}>
+                  Actions <ChevronDown className="w-3.5 h-3.5 absolute right-3 top-1/2 -translate-y-1/2" />
+                </button>
+                {showCourierActionMenu && selectedCourierCodOrders.length > 0 && (
+                  <div className="absolute right-0 top-full mt-2 w-[180px] bg-white rounded-xl shadow-lg border border-[#E2E8F0] py-2 z-50">
+                    <button onClick={() => { const rows = courierRemittanceList.filter(r => selectedCourierCodOrders.includes(r.id)); handleExportCsv(rows, 'courier_cod.csv'); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A] flex items-center gap-2"><Download className="w-4 h-4 text-[#00A86B]" />Export Data</button>
+                    <div className="border-t border-[#E2E8F0] my-1" />
+                    <button onClick={() => { setShowCourierActionMenu(false); handleTransferCOD('courier'); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#00A86B] hover:bg-[#F0FDF4] flex items-center gap-2"><Send className="w-4 h-4" />Transfer COD</button>
+                  </div>
+                )}
+              </div>
+            </div>
+            {selectedCourierCodOrders.length > 0 && (
+              <div className="px-4 py-2 bg-emerald-50 border-b border-emerald-100 flex items-center gap-3 shrink-0">
+                <span className="text-xs font-bold text-emerald-700">{selectedCourierCodOrders.length} selected</span>
+                <button onClick={() => handleTransferCOD('courier')} className="h-7 px-3 rounded-md bg-[#00A86B] text-white text-xs font-bold shadow-sm hover:bg-[#009B63]">Transfer COD</button>
+                <button onClick={() => setSelectedCourierCodOrders([])} className="text-xs text-[#64748B] hover:text-red-500">Clear</button>
+              </div>
+            )}
+            <div className="flex-1 overflow-y-auto overflow-x-auto no-scrollbar">
+              <table className="w-full text-left border-collapse min-w-[900px]">
+                <thead className="sticky top-0 z-30 bg-[#E6F5F1] shadow-sm">
+                  <tr>
+                    <th className="p-3 w-10">
+                      <input type="checkbox" checked={selectedCourierCodOrders.length === courierRemittanceList.length && courierRemittanceList.length > 0} onChange={toggleAllCourierCod} className="rounded accent-[#00A86B] w-3.5 h-3.5" />
+                    </th>
+                    {isAdminView && <th className={thBase}><User className="w-3.5 h-3.5 inline mr-1" />User Details</th>}
+                    <th className={thBase}>Order ID</th>
+                    <th className={thBase}><Truck className="w-3.5 h-3.5 inline mr-1" />Shipping Details</th>
+                    <th className={thBase}><Banknote className="w-3.5 h-3.5 inline mr-1" />COD Amount</th>
+                    <th className={thBase}><Check className="w-3.5 h-3.5 inline mr-1" />Status</th>
+                  </tr>
+                </thead>
+                <tbody className="text-[11px] text-[#475569]">
+                  {courierRemittanceList.length === 0 ? (
+                    <EmptyRow cols={isAdminView ? 6 : 5} msg="No courier remittance records found" />
+                  ) : courierRemittanceList.map(order => (
+                    <tr key={order.id} className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors">
+                      <td className="p-3">
+                        <input type="checkbox" checked={selectedCourierCodOrders.includes(order.id)} onChange={() => toggleSelectCourierCod(order.id)} className="rounded accent-[#00A86B] w-3.5 h-3.5" />
+                      </td>
+                      {isAdminView && (
                         <td className="p-3">
                           <div className="text-[11px] font-semibold text-[#00A86B]">{order.userId}</div>
                           <div className="text-sm font-semibold text-[#0F172A] mt-0.5">{order.userName}</div>
                           <div className="text-[11px] text-[#94A3B8]">{order.userEmail}</div>
                         </td>
-                        <td className="p-3">
-                          <div className="text-xs font-semibold text-[#00A86B]">{order.orderID || 'â€"'}</div>
-                        </td>
-                        <td className="p-3">
-                          <button
-                            onClick={() => navigate('/admin/tracking', { state: { awb: order.awb } })}
-                            className="text-xs font-semibold text-[#00A86B] hover:underline text-left"
-                          >
-                            {order.awb || 'â€"'}
-                          </button>
-                          <div className="text-[11px] text-[#475569] mt-0.5">{order.courierName}</div>
-                          <div className="text-[11px] text-[#94A3B8]">Delivered On: {order.date}</div>
-                        </td>
-                        <td className="p-3">
-                          <div className="font-bold text-[#0F172A] text-[12px]">{fmtCurrency(order.codAmount)}</div>
-                        </td>
-                        <td className="p-3">
-                          <span className={getStatusBadgeClass(order.status)}>{order.status}</span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              {renderPagination(courierPage, totalCourierPages, courierRemittanceTotal, setCourierPage, fetchCourierRemittance)}
-            </>
-          )}
-        </div>
+                      )}
+                      <td className="p-3">
+                        <div className="text-xs font-semibold text-[#00A86B]">{order.orderID || 'â€"'}</div>
+                      </td>
+                      <td className="p-3">
+                        <button
+                          onClick={() => navigate('/admin/tracking', { state: { awb: order.awb } })}
+                          className="text-xs font-semibold text-[#00A86B] hover:underline text-left"
+                        >
+                          {order.awb || 'â€"'}
+                        </button>
+                        <div className="text-[11px] text-[#475569] mt-0.5">{order.courierName}</div>
+                        <div className="text-[11px] text-[#94A3B8]">Delivered On: {order.date}</div>
+                      </td>
+                      <td className="p-3">
+                        <div className="font-bold text-[#0F172A] text-[12px]">{fmtCurrency(order.codAmount)}</div>
+                      </td>
+                      <td className="p-3">
+                        <span className={getStatusBadgeClass(order.status)}>{order.status}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {renderPagination(courierPage, totalCourierPages, courierRemittanceTotal, setCourierPage, fetchCourierRemittance)}
+          </>
+        )}
+      </div>
       </div>
 
       {/* ── Bank Response Upload Modal ── */}
@@ -1148,7 +1219,21 @@ export function AdminCOD() {
         )}
       </AnimatePresence>
 
-      {/* â"€â"€ Toast â"€â"€ */}
+      {/* ── Transfer COD Modal ── */}
+      {showTransferModal && (
+        <TransferCODModal
+          userId={transferUserId}
+          selectedRemittanceIds={transferIds}
+          type={activeTab === 'Courier COD Remittance' ? 'courier' : 'seller'}
+          onClose={() => { setShowTransferModal(false); setTransferUserId(''); setTransferIds([]); }}
+          onSuccess={() => {
+            if (activeTab === 'Seller COD Remittance') fetchSellerRemittance(sellerPage);
+            else if (activeTab === 'Courier COD Remittance') fetchCourierRemittance(courierPage);
+          }}
+        />
+      )}
+
+      {/* ── Toast ── */}
       <AnimatePresence>
         {toast && (
           <motion.div

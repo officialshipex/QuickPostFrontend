@@ -46,7 +46,6 @@ import { AdminRateCard } from './pages/admin/AdminRateCard';
 import { AdminRateCalculator } from './pages/admin/AdminRateCalculator';
 import { AdminAddOrder } from './pages/admin/AdminAddOrder';
 import { AdminTracking } from './pages/admin/AdminTracking';
-import { AdminTransferCOD } from './pages/admin/AdminTransferCOD';
 import { AdminProfile } from './pages/admin/AdminProfile';
 import { AdminOrderTracking } from './pages/admin/AdminOrderTracking';
 import { AdminKYC } from './pages/admin/AdminKYC';
@@ -180,7 +179,6 @@ function App() {
             <Route path="/admin/rate-calculator" element={<AdminRateCalculator />} />
             <Route path="/admin/add-order" element={<AdminAddOrder />} />
             <Route path="/admin/tracking" element={<AdminTracking />} />
-            <Route path="/admin/transfer-cod" element={<AdminTransferCOD />} />
             <Route path="/admin/referral" element={<AdminReferral />} />
             <Route path="/admin/rate-card" element={<AdminRateCard />} />
             <Route path="/admin/order-tracking" element={<AdminOrderTracking />} />
