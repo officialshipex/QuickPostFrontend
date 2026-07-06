@@ -104,7 +104,7 @@ const downloadBlob = async (path: string, filename: string) => {
 
 // ─── Component ──────────────────────────────────────────────────────────────────
 export function AdminNDR() {
-  const { isAdmin, adminTab, currentUserId } = useAdminTab();
+  const { isAdmin, adminTab, currentUserId, loadingAdminTab } = useAdminTab();
   const isAdminView = isAdmin && adminTab;
 
   // ── Tabs ──
@@ -212,10 +212,11 @@ export function AdminNDR() {
       dateStart, dateEnd, userMongoId, globalSearchQuery, isAdminView, currentUserId]);
 
   useEffect(() => {
+    if (loadingAdminTab) return;
     setSelectedOrders([]);
     fetchOrders(page);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, page, refreshTrigger]);
+  }, [activeTab, page, refreshTrigger, loadingAdminTab]);
 
   const handleTabChange = (tab: string) => { setActiveTab(tab); setPage(1); setSelectedOrders([]); };
   const handleApplyFilters = () => { setPage(1); setRefreshTrigger(t => t + 1); };

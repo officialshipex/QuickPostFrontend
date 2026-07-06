@@ -156,7 +156,7 @@ const PAYMENT_TYPE_OPTIONS = [
 export function AdminOrders() {
   // Both isAdmin and adminTab come from the API (fresh DB read), not from JWT.
   // JWT isAdmin can be stale if the user was granted admin after their last login.
-  const { isAdmin, adminTab, currentUserId } = useAdminTab();
+  const { isAdmin, adminTab, currentUserId, loadingAdminTab } = useAdminTab();
   const isAdminView = isAdmin && adminTab;
 
   // ── Tabs ──
@@ -329,7 +329,8 @@ export function AdminOrders() {
         } catch (e) { console.error(`Label fetch failed for ${id}`, e); }
       }
 
-      const blob = new Blob([await mergedPdf.save()], { type: 'application/pdf' });
+      const saved = await mergedPdf.save();
+      const blob = new Blob([saved.buffer as ArrayBuffer], { type: 'application/pdf' });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a'); a.href = url; a.download = 'bulk-labels.pdf';
       document.body.appendChild(a); a.click(); a.remove();
@@ -355,7 +356,8 @@ export function AdminOrders() {
         } catch (e) { console.error(`Invoice fetch failed for ${id}`, e); }
       }
 
-      const blob = new Blob([await mergedPdf.save()], { type: 'application/pdf' });
+      const pdfSaved = await mergedPdf.save();
+      const blob = new Blob([pdfSaved.buffer as ArrayBuffer], { type: 'application/pdf' });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a'); a.href = url; a.download = 'bulk-invoices.pdf';
       document.body.appendChild(a); a.click(); a.remove();
@@ -368,12 +370,14 @@ export function AdminOrders() {
     catch (e) { console.error('Bulk manifest download failed', e); }
   };
 
-  // Fetch on tab/page/globalSearch change, or when filters are explicitly applied/cleared
+  // Fetch on tab/page/globalSearch change, or when filters are explicitly applied/cleared.
+  // Guard with loadingAdminTab: without this, on refresh currentUserId is '' and all data is returned.
   useEffect(() => {
+    if (loadingAdminTab) return;
     setSelectedOrders([]);
     fetchOrders(page);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, page, refreshTrigger]);
+  }, [activeTab, page, refreshTrigger, loadingAdminTab]);
 
   // Switch tab → reset to page 1
   const handleTabChange = (tab: string) => {
