@@ -65,7 +65,7 @@ export function ProfitsSection() {
   }, []);
 
   return (
-    <section id="qp-profits-section" className="py-[60px] md:py-[100px] bg-[#FAFAFA] overflow-hidden" style={{ fontFamily: 'Roboto, sans-serif' }}>
+    <section id="qp-profits-section" className="hidden md:block py-[60px] md:py-[100px] bg-[#FAFAFA] overflow-hidden" style={{ fontFamily: 'Roboto, sans-serif' }}>
       <style>{`
         .qp-accord-item {
           background: #ffffff;
@@ -185,14 +185,40 @@ export function ProfitsSection() {
             flex-direction: column-reverse;
             gap: 24px;
           }
+          .qp-image-panel {
+            position: static;
+          }
           .qp-image-wrap {
             aspect-ratio: 1.4;
+            border-radius: 18px;
           }
           .qp-heading-title {
-            font-size: clamp(30px, 7vw, 48px) !important;
+            font-size: clamp(26px, 7vw, 40px) !important;
+            min-height: 96px !important;
           }
           .qp-typing-cursor {
-            height: 28px;
+            height: 24px;
+          }
+          .qp-accord-trigger {
+            padding: 16px 18px;
+          }
+          .qp-accord-title {
+            font-size: 15px;
+          }
+          .qp-accord-body {
+            padding: 0 18px;
+          }
+          .qp-accord-item.active .qp-accord-body {
+            padding: 0 18px 18px;
+          }
+          .qp-accord-desc {
+            font-size: 13px;
+          }
+          .qp-profits-cta {
+            width: 100%;
+            text-align: center;
+            font-size: 15px;
+            padding: 14px 24px;
           }
         }
       `}</style>

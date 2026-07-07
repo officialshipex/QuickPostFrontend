@@ -50,7 +50,30 @@ export function StatsSection() {
         }
       `}</style>
 
-      <div className="container mx-auto px-6 md:px-8 max-w-6xl">
+      {/* Mobile: compact green stat banner */}
+      <div className="md:hidden container mx-auto px-6">
+        <div className="bg-[#00A86B] rounded-3xl px-6 py-8 text-center">
+          <h2 className="text-xl font-bold text-white tracking-tight leading-tight mb-6 font-sans">
+            Built for Speed. Trusted for Scale.
+          </h2>
+          <div className="grid grid-cols-3 gap-2">
+            <div>
+              <div className="text-2xl font-black text-white tracking-tight"><CountUp end={10000} suffix="+" /></div>
+              <div className="text-white/80 text-[10px] font-semibold uppercase tracking-wide font-sans mt-1">Sellers Onboarded</div>
+            </div>
+            <div>
+              <div className="text-2xl font-black text-white tracking-tight"><CountUp end={50} suffix="L+" /></div>
+              <div className="text-white/80 text-[10px] font-semibold uppercase tracking-wide font-sans mt-1">Shipments Delivered</div>
+            </div>
+            <div>
+              <div className="text-2xl font-black text-white tracking-tight"><CountUp end={25} suffix="+" /></div>
+              <div className="text-white/80 text-[10px] font-semibold uppercase tracking-wide font-sans mt-1">Courier Partners</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="hidden md:block container mx-auto px-6 md:px-8 max-w-6xl">
         {/* Section Header */}
         <div className="text-center mb-16 md:mb-20">
           <h2 className="text-3xl md:text-5xl font-black text-[#0F172A] tracking-tight leading-tight">

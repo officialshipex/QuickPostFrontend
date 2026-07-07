@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
-import { usePagination } from '../../hooks/usePagination';
+import { usePagination, DesktopPagination } from '../../hooks/usePagination';
+import { useTableLoader } from '../../hooks/useTableLoader';
+import { TableLoader } from '../../components/ui/TableLoader';
+import { TruncatedText } from '../../components/ui/TruncatedText';
 import { ChevronDown, RefreshCcw, Check, Package, User, Truck, Clock, Upload, FileText, AlertTriangle, MoreVertical, Filter, Settings } from 'lucide-react';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
@@ -91,7 +95,29 @@ export function AdminWeightDiscrepancy() {
     };
   }, []);
 
-  const [activeTab, setActiveTab] = useState('New');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get('tab') || 'New';
+  
+  const { isLoading, startLoading, stopLoading } = useTableLoader(800);
+  
+  const fetchTableData = async () => {
+    startLoading();
+    try {
+      // Simulate backend API call
+      // e.g. const data = await fetch(`/api/weight-discrepancy?tab=${activeTab}`);
+      await new Promise(resolve => setTimeout(resolve, 600));
+    } finally {
+      stopLoading();
+    }
+  };
+
+  const setActiveTab = (tab: string) => {
+    const newParams = new URLSearchParams(searchParams);
+    newParams.set('tab', tab);
+    setSearchParams(newParams);
+    fetchTableData();
+  };
+
   
   // Filters State
   const [searchTerm, setSearchTerm] = useState('');
@@ -122,6 +148,18 @@ export function AdminWeightDiscrepancy() {
   const [selectedEscalated, setSelectedEscalated] = useState<string[]>([]);
   const [showActionMenu, setShowActionMenu] = useState(false);
 
+  // Close action menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.action-dropdown-container')) {
+        setShowActionMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   let currentData = NEW_DATA;
   if (activeTab === 'All') currentData = ALL_DATA;
   else if (activeTab === 'Accepted') currentData = ACCEPTED_DATA;
@@ -139,6 +177,11 @@ export function AdminWeightDiscrepancy() {
     setDateEnd('');
   };
 
+  // Reset filters when navigating to a different tab
+  useEffect(() => {
+    handleClearFilters();
+  }, [activeTab]);
+
   const filteredData = useMemo(() => {
     return currentData.filter(item => {
       const searchLower = searchTerm.toLowerCase();
@@ -155,9 +198,23 @@ export function AdminWeightDiscrepancy() {
       const matchCourier = selectedCouriers.length === 0 || selectedCouriers.includes(item.courier);
       const matchStatus = selectedStatuses.length === 0 || selectedStatuses.includes(item.status);
       
-      return matchSearch && matchGlobal && matchCourier && matchStatus;
+      const matchSearchType = selectedSearchTypes.length === 0 || selectedSearchTypes.includes('Forward'); // Mock assuming all data is Forward for now
+      
+      let matchDate = true;
+      if (dateStart && dateEnd) {
+        // Strip out ordinal suffixes (th, st, nd, rd) to parse correctly
+        const cleanDateStr = item.uploadDate.replace(/(st|nd|rd|th)/, '');
+        const itemDate = new Date(cleanDateStr);
+        const start = new Date(dateStart);
+        const end = new Date(dateEnd);
+        start.setHours(0, 0, 0, 0);
+        end.setHours(23, 59, 59, 999);
+        matchDate = itemDate >= start && itemDate <= end;
+      }
+      
+      return matchSearch && matchGlobal && matchCourier && matchStatus && matchSearchType && matchDate;
     });
-  }, [currentData, searchTerm, globalSearchQuery, selectedCouriers, selectedStatuses]);
+  }, [currentData, searchTerm, globalSearchQuery, selectedCouriers, selectedStatuses, selectedSearchTypes, dateStart, dateEnd]);
 
   const {
     page: currentPage,
@@ -166,6 +223,9 @@ export function AdminWeightDiscrepancy() {
     paginatedData,
     startIndex,
     endIndex,
+    rowsPerPage,
+    setRowsPerPage,
+    totalItems,
   } = usePagination({ data: filteredData, perPage: 10 });
 
   useEffect(() => { setCurrentPage(1); }, [activeTab]);
@@ -203,7 +263,9 @@ export function AdminWeightDiscrepancy() {
             </div>
 
             <div className="flex items-center gap-3 shrink-0 ml-4">
-              <button className="w-8 h-8 rounded-full border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC]">
+              <button 
+                onClick={fetchTableData}
+                className="w-8 h-8 rounded-full border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC]">
                 <RefreshCcw className="w-4 h-4" />
               </button>
             </div>
@@ -256,7 +318,7 @@ export function AdminWeightDiscrepancy() {
             placeholder="Search discrepancies..." 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="h-9 px-3 rounded-lg border border-[#E2E8F0] text-xs bg-white focus:outline-none w-[180px] shrink-0" 
+            className="glass-search-input w-[180px] shrink-0" 
           />
           
           <GlassDropdown
@@ -293,24 +355,30 @@ export function AdminWeightDiscrepancy() {
             onDateChange={(s, e) => { setDateStart(s); setDateEnd(e); }}
           />
           
-          <button className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm flex items-center justify-center">
+          <button 
+            onClick={fetchTableData}
+            className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm flex items-center justify-center cursor-pointer"
+          >
             Apply
           </button>
 
           {hasActiveFilters && (
             <button
-              onClick={handleClearFilters}
-              className="h-9 px-3 shrink-0 rounded-lg border border-red-200 text-red-500 text-xs font-bold hover:bg-red-50 transition-colors"
+              onClick={() => {
+                handleClearFilters();
+                fetchTableData();
+              }}
+              className="h-9 px-3 shrink-0 rounded-lg border border-red-200 text-red-500 text-xs font-bold hover:bg-red-50 transition-colors cursor-pointer"
             >
               Clear All
             </button>
           )}
 
           <div className="relative shrink-0 ml-auto flex items-center gap-2">
-            <div className="relative">
+            <div className="relative action-dropdown-container">
               <button
                 onClick={() => setShowActionMenu(!showActionMenu)}
-                className="h-9 pl-4 pr-8 rounded-full border border-[#E2E8F0] text-xs bg-white focus:outline-none flex items-center font-bold text-[#475569] shadow-sm hover:bg-[#F8FAFC] transition-colors"
+                className="glass-dropdown-trigger w-auto px-4 justify-between min-w-[100px]"
               >
                 Action
                 <ChevronDown className="w-3.5 h-3.5 absolute right-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
@@ -322,7 +390,7 @@ export function AdminWeightDiscrepancy() {
                 </div>
               )}
             </div>
-            <button className="w-9 h-9 rounded-full bg-[#00A86B] flex items-center justify-center text-white shadow-sm hover:bg-[#009B63] transition-colors">
+            <button className="w-9 h-9 rounded-full bg-[#00A86B] flex items-center justify-center text-white shadow-sm hover:bg-[#009B63] transition-colors cursor-pointer">
               <Upload className="w-4 h-4" />
             </button>
           </div>
@@ -330,7 +398,9 @@ export function AdminWeightDiscrepancy() {
       </div>
 
       {/* Table Section */}
-      <div className="bg-white flex flex-col flex-1 min-h-0 overflow-hidden border-t border-[#E2E8F0]">
+      <div className="bg-white flex flex-col flex-1 min-h-0 overflow-hidden border-t border-[#E2E8F0] relative">
+        {isLoading && <TableLoader />}
+        
         {activeTab !== 'Escalated' && (
           <>
             <div className="flex-1 overflow-auto no-scrollbar relative">
@@ -398,8 +468,8 @@ export function AdminWeightDiscrepancy() {
                     </td>
                     <td className="p-3 align-top pt-4">
                       <div className="text-xs font-semibold text-[#00A86B] cursor-pointer hover:underline">{item.id}</div>
-                      <div className="text-sm font-semibold text-[#0F172A] mt-0.5">{item.userName}</div>
-                      <div className="font-sans text-xs font-normal text-[#94A3B8]">{item.userEmail}</div>
+                      <TruncatedText text={item.userName} maxLength={20} className="text-sm font-semibold text-[#0F172A] mt-0.5 max-w-[160px]" />
+                      <TruncatedText text={item.userEmail} maxLength={25} className="font-sans text-xs font-normal text-[#94A3B8] max-w-[180px]" />
                     </td>
                     <td className="p-3 align-top pt-4 text-xs font-normal">
                       <div className="relative group/prod cursor-pointer inline-block max-w-[170px]">
@@ -448,40 +518,16 @@ export function AdminWeightDiscrepancy() {
           </div>
 
           {/* Pagination */}
-          {totalPages > 0 && (
-            <div className="p-4 border-t border-[#E2E8F0] flex items-center justify-between">
-              <div className="text-xs text-[#64748B]">
-                Showing <span className="font-bold text-[#0F172A]">{startIndex}</span> to <span className="font-bold text-[#0F172A]">{endIndex}</span> of <span className="font-bold text-[#0F172A]">{filteredData.length}</span> entries
-              </div>
-              <div className="flex items-center gap-1">
-                <button 
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                  className="px-3 py-1.5 rounded border border-[#E2E8F0] text-xs font-medium text-[#475569] hover:bg-[#F8FAFC] disabled:opacity-50"
-                >
-                  Previous
-                </button>
-                {Array.from({ length: totalPages }, (_, i) => (
-                  <button
-                    key={i + 1}
-                    onClick={() => setCurrentPage(i + 1)}
-                    className={`w-8 h-8 rounded text-xs font-medium flex items-center justify-center transition-colors ${
-                      currentPage === i + 1 ? 'bg-[#00A86B] text-white border border-[#00A86B]' : 'border border-[#E2E8F0] text-[#475569] hover:bg-[#F8FAFC]'
-                    }`}
-                  >
-                    {i + 1}
-                  </button>
-                ))}
-                <button 
-                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages}
-                  className="px-3 py-1.5 rounded border border-[#E2E8F0] text-xs font-medium text-[#475569] hover:bg-[#F8FAFC] disabled:opacity-50"
-                >
-                  Next
-                </button>
-              </div>
-            </div>
-          )}
+          <DesktopPagination
+            page={currentPage}
+            setPage={setCurrentPage}
+            totalPages={totalPages}
+            rowsPerPage={rowsPerPage}
+            setRowsPerPage={setRowsPerPage}
+            startIndex={startIndex}
+            endIndex={endIndex}
+            totalItems={totalItems}
+          />
           </>
         )}
 
@@ -564,8 +610,8 @@ export function AdminWeightDiscrepancy() {
                     </td>
                     <td className="p-3 align-top pt-4">
                       <div className="text-xs font-semibold text-[#00A86B] cursor-pointer hover:underline">{item.id}</div>
-                      <div className="text-sm font-semibold text-[#0F172A] mt-0.5">{item.userName}</div>
-                      <div className="font-sans text-xs font-normal text-[#94A3B8]">{item.userEmail}</div>
+                      <TruncatedText text={item.userName} maxLength={20} className="text-sm font-semibold text-[#0F172A] mt-0.5 max-w-[160px]" />
+                      <TruncatedText text={item.userEmail} maxLength={25} className="font-sans text-xs font-normal text-[#94A3B8] max-w-[180px]" />
                     </td>
                     <td className="p-3 align-top pt-4 text-xs font-normal">
                       <div className="relative group/prod cursor-pointer inline-block max-w-[170px]">
@@ -623,40 +669,16 @@ export function AdminWeightDiscrepancy() {
           </div>
 
           {/* Pagination */}
-          {totalEscalatedPages > 0 && (
-            <div className="p-4 border-t border-[#E2E8F0] flex items-center justify-between">
-              <div className="text-xs text-[#64748B]">
-                Showing <span className="font-bold text-[#0F172A]">{startIndex}</span> to <span className="font-bold text-[#0F172A]">{endIndex}</span> of <span className="font-bold text-[#0F172A]">{filteredData.length}</span> entries
-              </div>
-              <div className="flex items-center gap-1">
-                <button 
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                  className="px-3 py-1.5 rounded border border-[#E2E8F0] text-xs font-medium text-[#475569] hover:bg-[#F8FAFC] disabled:opacity-50"
-                >
-                  Previous
-                </button>
-                {Array.from({ length: totalEscalatedPages }, (_, i) => (
-                  <button
-                    key={i + 1}
-                    onClick={() => setCurrentPage(i + 1)}
-                    className={`w-8 h-8 rounded text-xs font-medium flex items-center justify-center transition-colors ${
-                      currentPage === i + 1 ? 'bg-[#00A86B] text-white border border-[#00A86B]' : 'border border-[#E2E8F0] text-[#475569] hover:bg-[#F8FAFC]'
-                    }`}
-                  >
-                    {i + 1}
-                  </button>
-                ))}
-                <button 
-                  onClick={() => setCurrentPage(p => Math.min(totalEscalatedPages, p + 1))}
-                  disabled={currentPage === totalEscalatedPages}
-                  className="px-3 py-1.5 rounded border border-[#E2E8F0] text-xs font-medium text-[#475569] hover:bg-[#F8FAFC] disabled:opacity-50"
-                >
-                  Next
-                </button>
-              </div>
-            </div>
-          )}
+          <DesktopPagination
+            page={currentPage}
+            setPage={setCurrentPage}
+            totalPages={totalEscalatedPages}
+            rowsPerPage={rowsPerPage}
+            setRowsPerPage={setRowsPerPage}
+            startIndex={startIndex}
+            endIndex={endIndex}
+            totalItems={totalItems}
+          />
           </>
         )}
       </div>

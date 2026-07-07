@@ -23,11 +23,11 @@ function LogoCard({ name, logo }: { name: string; logo: string }) {
       className="
         group flex-shrink-0
         flex items-center justify-center
-        w-[158px] h-[72px]
+        w-[112px] h-[52px] sm:w-[158px] sm:h-[72px]
         bg-white
         border border-[#E8EDF4]
-        rounded-2xl
-        px-5
+        rounded-xl sm:rounded-2xl
+        px-3 sm:px-5
         shadow-[0_2px_10px_rgba(0,0,0,0.04)]
         hover:shadow-[0_6px_24px_rgba(0,0,0,0.09)]
         hover:border-[#00A86B]/35
@@ -40,7 +40,7 @@ function LogoCard({ name, logo }: { name: string; logo: string }) {
         src={logo}
         alt={name}
         className="
-          max-h-[38px] max-w-[112px]
+          max-h-[26px] max-w-[80px] sm:max-h-[38px] sm:max-w-[112px]
           w-auto object-contain
           opacity-85
           group-hover:opacity-100
@@ -54,7 +54,7 @@ function LogoCard({ name, logo }: { name: string; logo: string }) {
 export function TrustedBrands() {
   return (
     <section
-      className="relative py-20 bg-[#F8FAFC] overflow-hidden"
+      className="relative py-12 md:py-20 bg-[#F8FAFC] overflow-hidden"
       style={{ fontFamily: 'Roboto, sans-serif' }}
     >
       {/* Subtle grid texture */}
@@ -90,16 +90,16 @@ export function TrustedBrands() {
         </p>
       </motion.div>
 
-      {/* ── Dual-row marquee ── */}
-      <div className="relative w-full space-y-3.5">
+      {/* ── Dual-row marquee (resized on mobile via LogoCard's responsive classes) ── */}
+      <div className="relative w-full space-y-2.5 sm:space-y-3.5">
 
         {/* Edge fades */}
-        <div className="pointer-events-none absolute inset-y-0 left-0  w-40 bg-gradient-to-r from-[#F8FAFC] to-transparent z-10" />
-        <div className="pointer-events-none absolute inset-y-0 right-0 w-40 bg-gradient-to-l from-[#F8FAFC] to-transparent z-10" />
+        <div className="pointer-events-none absolute inset-y-0 left-0 w-16 sm:w-40 bg-gradient-to-r from-[#F8FAFC] to-transparent z-10" />
+        <div className="pointer-events-none absolute inset-y-0 right-0 w-16 sm:w-40 bg-gradient-to-l from-[#F8FAFC] to-transparent z-10" />
 
         {/* Row 1 — left */}
         <motion.div
-          className="flex gap-3.5 w-max"
+          className="flex gap-2.5 sm:gap-3.5 w-max"
           animate={{ x: ['0%', '-50%'] }}
           transition={{ x: { repeat: Infinity, repeatType: 'loop', duration: 30, ease: 'linear' } }}
         >
@@ -108,7 +108,7 @@ export function TrustedBrands() {
 
         {/* Row 2 — right */}
         <motion.div
-          className="flex gap-3.5 w-max"
+          className="flex gap-2.5 sm:gap-3.5 w-max"
           animate={{ x: ['-50%', '0%'] }}
           transition={{ x: { repeat: Infinity, repeatType: 'loop', duration: 34, ease: 'linear' } }}
         >

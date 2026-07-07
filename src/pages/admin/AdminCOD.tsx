@@ -120,18 +120,27 @@ export function AdminCOD() {
     }
   }, [tabParam]);
 
-  const { isLoading, startLoading } = useTableLoader(800);
+  const { isLoading, startLoading, stopLoading } = useTableLoader(800);
+
+  const fetchTableData = async () => {
+    startLoading();
+    try {
+      // Simulate backend API call
+      // e.g., const response = await fetch(`/api/v1/finance/cod?status=${activeTab}`);
+      await new Promise(resolve => setTimeout(resolve, 800));
+    } finally {
+      stopLoading();
+    }
+  };
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
-    startLoading(800);
+    fetchTableData();
   };
 
   const handleRefresh = React.useCallback(() => {
-    startLoading(800);
-    // TODO: Connect backend API
-    // e.g., const response = await fetch(`/api/v1/finance/cod?status=${activeTab}`);
-  }, [activeTab, startLoading]);
+    fetchTableData();
+  }, [activeTab, startLoading, stopLoading]);
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
   const [toast, setToast] = useState<{type: 'error' | 'success', text: string} | null>(null);
 

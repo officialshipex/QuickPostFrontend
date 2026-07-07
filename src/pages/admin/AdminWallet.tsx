@@ -150,13 +150,27 @@ export function AdminWallet() {
 
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') || 'Shipping';
+  
+  const { isLoading, startLoading, stopLoading } = useTableLoader(800);
+
+  const fetchTableData = async () => {
+    startLoading();
+    try {
+      // Simulate backend API call
+      // e.g. const data = await fetch(`/api/wallet?tab=${activeTab}`);
+      await new Promise(resolve => setTimeout(resolve, 600));
+    } finally {
+      stopLoading();
+    }
+  };
+
   const setActiveTab = (tab: string) => {
     const newParams = new URLSearchParams(searchParams);
     newParams.set('tab', tab);
     setSearchParams(newParams);
-    startLoading(600);
+    fetchTableData();
   };
-  const { isLoading, startLoading } = useTableLoader(800);
+
   const [toast, setToast] = useState<{type: 'error' | 'success', text: string} | null>(null);
 
   const showToast = (type: 'error' | 'success', text: string) => {
@@ -624,14 +638,13 @@ export function AdminWallet() {
   } = usePagination({ data: filteredInvoicesData, perPage: 10 });
 
   // Bulk Actions & Helpers
-  const handleRefresh = () => {
-    startLoading(1000).then(() => {
-      setShippingList(SHIPPING_DATA);
-      setPassbookList(PASSBOOK_DATA);
-      setRechargeList(WALLET_RECHARGE_DATA);
-      setInvoiceList(INVOICES_DATA);
-      showToast('success', 'Wallet data refreshed successfully!');
-    });
+  const handleRefresh = async () => {
+    await fetchTableData();
+    setShippingList(SHIPPING_DATA);
+    setPassbookList(PASSBOOK_DATA);
+    setRechargeList(WALLET_RECHARGE_DATA);
+    setInvoiceList(INVOICES_DATA);
+    showToast('success', 'Wallet data refreshed successfully!');
   };
 
   const handleBulkMarkPaid = () => {

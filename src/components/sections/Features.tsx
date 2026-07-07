@@ -211,8 +211,27 @@ export function Features() {
           </div>
         </div>
 
-        {/* NEW BENTO GRID - MAX WIDTH 1080px */}
-        <div className="bento-grid-container max-w-[1080px] mx-auto w-full flex flex-col md:grid md:grid-cols-10 gap-[16px]">
+        {/* MOBILE: Simplified feature card stack */}
+        <div className="md:hidden max-w-md mx-auto w-full space-y-4">
+          {[
+            { icon: <IconTruckDelivery className="w-6 h-6" />, iconBg: '#EFF6FF', iconColor: '#3B82F6', title: 'Multi-Courier Integration', desc: 'Choose the best courier for every order' },
+            { icon: <IconTag className="w-6 h-6" />, iconBg: '#FFF7ED', iconColor: '#F59E0B', title: 'Automated Order Processing', desc: 'Bulk ship in seconds with smart workflows' },
+            { icon: <IconMapPin className="w-6 h-6" />, iconBg: '#EFF6FF', iconColor: '#3B82F6', title: 'Real-Time Tracking', desc: 'Keep your customers informed at every step' },
+            { icon: <IconCurrencyRupee className="w-6 h-6" />, iconBg: '#F5F3FF', iconColor: '#8B5CF6', title: 'Shipping Rate Optimisation', desc: 'Cut costs with AI courier selection' },
+            { icon: <IconArrowBackUp className="w-6 h-6" />, iconBg: '#FEF2F2', iconColor: '#EF4444', title: 'Easy Returns Management', desc: 'Hassle-free reverse logistics' },
+          ].map((f, i) => (
+            <div key={i} className="bg-white border border-[#E0EDE8] rounded-2xl p-5 flex flex-col items-center text-center shadow-sm">
+              <div className="w-12 h-12 rounded-full flex items-center justify-center mb-3" style={{ background: f.iconBg, color: f.iconColor }}>
+                {f.icon}
+              </div>
+              <h3 className="text-[16px] font-bold text-[#1A1A1A] mb-1 font-sans">{f.title}</h3>
+              <p className="text-[13px] text-[#5F5E5A] font-sans">{f.desc}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* DESKTOP: NEW BENTO GRID - MAX WIDTH 1080px */}
+        <div className="bento-grid-container max-w-[1080px] mx-auto w-full hidden md:grid md:grid-cols-10 gap-[16px]">
           
           {/* Row 1 */}
           {/* CARD 1: 50% (col-span-5) - Bid Board */}

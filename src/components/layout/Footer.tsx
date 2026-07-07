@@ -50,23 +50,23 @@ export function Footer() {
       
       {/* ================= ZONE 1: CTA STRIP ================= */}
       <div className="bg-[#1D9E75] footer-zone-1 relative z-10 border-b border-white/15">
-        <div className="max-w-[1200px] mx-auto px-5 md:px-0 py-[36px] md:py-[48px] flex flex-col md:flex-row items-center">
+        <div className="max-w-[1200px] mx-auto px-5 md:px-0 py-[28px] md:py-[48px] flex flex-col md:flex-row items-center">
           {/* LEFT: 55% */}
-          <div className="w-full md:w-[55%] text-center md:text-left mb-6 md:mb-0 footer-cta-left">
-            <h2 className="text-[24px] md:text-[32px] font-bold text-white leading-[1.2] m-0">
+          <div className="w-full md:w-[55%] text-center md:text-left mb-5 md:mb-0 footer-cta-left">
+            <h2 className="text-[20px] md:text-[32px] font-bold text-white leading-[1.25] m-0">
               Start Shipping Smarter Today
             </h2>
-            <p className="text-[16px] font-normal text-white/80 mt-2 m-0">
+            <p className="text-[13px] md:text-[16px] font-normal text-white/80 mt-2 m-0">
               No setup fees. No contracts. Go live in under 10 minutes.
             </p>
           </div>
-          
+
           {/* RIGHT: 45% */}
           <div className="w-full md:w-[45%] flex flex-col items-center md:items-end footer-cta-right">
-            <button className="w-full md:w-auto bg-white text-[#1D9E75] font-bold text-[15px] px-[32px] py-[16px] rounded-[10px] border-none hover:bg-[#F0FAF5] hover:-translate-y-[2px] transition-all duration-200 ease-in-out cursor-pointer">
+            <button className="w-full md:w-auto bg-white text-[#1D9E75] font-bold text-[14px] md:text-[15px] px-[24px] md:px-[32px] py-[13px] md:py-[16px] rounded-[10px] border-none hover:bg-[#F0FAF5] hover:-translate-y-[2px] transition-all duration-200 ease-in-out cursor-pointer">
               Get Started Free &rarr;
             </button>
-            <a href="#" className="block text-[13px] font-normal text-white/75 mt-[10px] hover:underline hover:text-white text-center md:text-right">
+            <a href="#" className="block text-[12px] md:text-[13px] font-normal text-white/75 mt-[8px] hover:underline hover:text-white text-center md:text-right">
               Already have an account? Log in
             </a>
           </div>
@@ -75,25 +75,25 @@ export function Footer() {
 
       {/* ================= ZONE 2: MAIN FOOTER COLUMNS ================= */}
       <div className="bg-[#0D1F1A] footer-zone-2">
-        <div className="max-w-[1200px] mx-auto px-5 md:px-0 pt-[48px] pb-[36px] md:pt-[64px] md:pb-[48px]">
+        <div className="max-w-[1200px] mx-auto px-5 md:px-0 pt-[36px] pb-[28px] md:pt-[64px] md:pb-[48px]">
           
           {/* Grid Layout */}
-          <div className="grid grid-cols-2 md:grid-cols-[30%_1fr_1fr_1fr] gap-[32px] md:gap-[40px]">
-            
+          <div className="grid grid-cols-2 md:grid-cols-[30%_1fr_1fr_1fr] gap-x-[20px] gap-y-[28px] md:gap-[40px]">
+
             {/* COLUMN 1: BRAND */}
-            <div className="footer-col col-span-2 md:col-span-1 mb-2 md:mb-0">
-              <img 
-                src="/logo-color.png" 
-                alt="QuickPost" 
-                className="h-[32px] mb-[16px] brightness-0 invert" 
+            <div className="footer-col col-span-2 md:col-span-1 mb-2 md:mb-0 text-center md:text-left flex flex-col items-center md:items-start">
+              <img
+                src="/logo-color.png"
+                alt="QuickPost"
+                className="h-[28px] md:h-[32px] mb-[16px] brightness-0 invert"
                 onError={(e) => { e.currentTarget.style.display='none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }}
               />
               <span className="hidden text-white font-bold text-2xl mb-[16px] block tracking-tight">QuickPost</span>
-              
-              <p className="text-[14px] font-normal text-white/55 leading-[1.6] max-w-[220px] mb-[24px]">
+
+              <p className="text-[13px] md:text-[14px] font-normal text-white/55 leading-[1.6] max-w-[220px] mb-[24px]">
                 Shipping infrastructure for India's growing brands.
               </p>
-              
+
               <div className="flex flex-row gap-[10px]">
                 {[IconLinkedIn, IconInstagram, IconX, IconYouTube].map((Icon, idx) => (
                   <a key={idx} href="#" className="w-[36px] h-[36px] rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white/60 hover:bg-[#1D9E75] hover:text-white hover:border-[#1D9E75] transition-all duration-200 ease-in-out">

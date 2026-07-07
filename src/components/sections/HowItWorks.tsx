@@ -73,7 +73,7 @@ export function HowItWorks() {
   return (
     <section
       id="how-it-works"
-      className="bg-[#0C0C0C] rounded-t-[40px] sm:rounded-t-[50px] md:rounded-t-[60px] -mt-10 sm:-mt-12 md:-mt-14 relative z-20 px-5 sm:px-8 md:px-10 py-20 pb-40"
+      className="bg-[#0C0C0C] rounded-t-[40px] sm:rounded-t-[50px] md:rounded-t-[60px] -mt-10 sm:-mt-12 md:-mt-14 relative z-20 px-5 sm:px-8 md:px-10 py-14 md:py-20 pb-14 md:pb-40"
       style={{ fontFamily: "'Kanit', sans-serif" }}
     >
 
@@ -86,8 +86,8 @@ export function HowItWorks() {
         }
       `}} />
 
-      {/* Title */}
-      <div className="mb-16 md:mb-24 text-center">
+      {/* Title (desktop) */}
+      <div className="hidden md:block mb-16 md:mb-24 text-center">
         <h2 className="hero-heading font-black uppercase text-[clamp(3rem,12vw,160px)] tracking-tight leading-none">
           How it works
         </h2>
@@ -96,8 +96,57 @@ export function HowItWorks() {
         </p>
       </div>
 
-      {/* Sticky Stacking Cards */}
-      <div className="space-y-24 max-w-5xl mx-auto">
+      {/* Mobile: clean numbered-step list (no sticky-scroll, no neon badges) */}
+      <div className="md:hidden">
+        <div className="mb-10 text-center">
+          <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#00A86B]">How It Works</span>
+          <h2 className="text-white font-bold text-[26px] leading-tight mt-2 font-sans">
+            From Order to Payout, Automatically
+          </h2>
+          <p className="text-white/50 text-sm mt-2 max-w-xs mx-auto font-sans">
+            Four steps, fully automated — no manual work required.
+          </p>
+        </div>
+
+        <div className="space-y-4 max-w-md mx-auto">
+          {cards.map((card, index) => (
+            <div
+              key={index}
+              className="bg-[#141414] border border-white/10 rounded-2xl p-5"
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-8 h-8 rounded-full bg-white/10 text-white flex items-center justify-center text-[13px] font-bold shrink-0 font-sans">
+                  {index + 1}
+                </div>
+                <div className="min-w-0">
+                  <span className="text-[10px] font-semibold tracking-wide text-white/40 uppercase block font-sans">{card.category}</span>
+                  <span className="text-[15px] font-bold text-white font-sans">{card.title}</span>
+                </div>
+              </div>
+
+              <div className="w-full rounded-xl overflow-hidden aspect-video mb-4">
+                <img src={card.img} alt={card.title} className="w-full h-full object-cover" />
+              </div>
+
+              <p className="text-white/60 text-[13px] leading-relaxed mb-3 font-sans">{card.desc}</p>
+
+              <ul className="space-y-1.5">
+                {card.bullets.map((bullet, i) => (
+                  <li key={i} className="flex items-start gap-2 text-white/75">
+                    <svg className="w-3.5 h-3.5 mt-0.5 text-[#00A86B] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                    </svg>
+                    <span className="text-[12.5px] leading-snug font-sans">{bullet}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Desktop: Sticky Stacking Cards */}
+      <div className="hidden md:block space-y-24 max-w-5xl mx-auto">
         {cards.map((card, index) => {
           const targetScale = 1 - (cards.length - 1 - index) * 0.03;
 

@@ -216,7 +216,7 @@ export function ServicesPortfolioSection() {
   }, []);
 
   return (
-    <section ref={sectionRef} className="py-[60px] md:py-[100px] px-5 bg-white font-[Roboto] overflow-hidden">
+    <section ref={sectionRef} className="hidden md:block py-[60px] md:py-[100px] px-5 bg-white font-[Roboto] overflow-hidden">
       <style dangerouslySetInnerHTML={{__html: `
         @keyframes qp-sol-pulse {
           0%, 100% { box-shadow: 0 0 0 0 rgba(29,158,117,0.4); }
