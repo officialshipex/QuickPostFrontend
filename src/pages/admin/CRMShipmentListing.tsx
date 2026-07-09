@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
-import { usePagination } from '../../hooks/usePagination';
+import { usePagination, DesktopPagination } from '../../hooks/usePagination';
 import {
   Search, Download, RefreshCw, ChevronLeft, ChevronRight, ChevronDown,
   Filter, Truck, RotateCcw, CheckCircle2, AlertTriangle, Clock, Package, MoreHorizontal, MapPin, Check, History, User, Settings, Flame, X, Loader2, Zap, IndianRupee, Calendar
@@ -251,6 +251,8 @@ export function CRMShipmentListing() {
     paginatedData: paginated,
     startIndex,
     endIndex,
+    rowsPerPage,
+    setRowsPerPage,
   } = usePagination({ data: filtered, perPage: 10 });
 
   const toggleAll = () => setSelectedOrders(selectedOrders.length === paginated.length && paginated.length > 0 ? [] : paginated.map(o => o.awb));
@@ -768,46 +770,16 @@ export function CRMShipmentListing() {
 
           {/* Pagination */}
           {totalPages > 0 && (
-            <div className="p-4 border-t border-[#E2E8F0] flex items-center justify-between shrink-0">
-              <div className="text-xs text-[#64748B]">
-                Showing <span className="font-bold text-[#0F172A]">{startIndex}</span> to <span className="font-bold text-[#0F172A]">{endIndex}</span> of <span className="font-bold text-[#0F172A]">{filtered.length}</span> entries
-              </div>
-              <div className="flex items-center gap-1">
-                <button 
-                  onClick={() => setPage(p => Math.max(1, p - 1))}
-                  disabled={page === 1}
-                  className="px-3 py-1.5 rounded border border-[#E2E8F0] text-xs font-medium text-[#475569] hover:bg-[#F8FAFC] disabled:opacity-50"
-                >
-                  Previous
-                </button>
-                {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-                  // simple pagination window
-                  let start = Math.max(1, page - 2);
-                  let end = Math.min(totalPages, start + 4);
-                  if (end - start < 4) {
-                    start = Math.max(1, end - 4);
-                  }
-                  return start + i;
-                }).filter(p => p <= totalPages).map(p => (
-                  <button
-                    key={p}
-                    onClick={() => setPage(p)}
-                    className={`w-8 h-8 rounded text-xs font-medium flex items-center justify-center transition-colors ${
-                      page === p ? 'bg-[#00A86B] text-white border border-[#00A86B]' : 'border border-[#E2E8F0] text-[#475569] hover:bg-[#F8FAFC]'
-                    }`}
-                  >
-                    {p}
-                  </button>
-                ))}
-                <button 
-                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                  disabled={page === totalPages}
-                  className="px-3 py-1.5 rounded border border-[#E2E8F0] text-xs font-medium text-[#475569] hover:bg-[#F8FAFC] disabled:opacity-50"
-                >
-                  Next
-                </button>
-              </div>
-            </div>
+            <DesktopPagination
+              page={page}
+              setPage={setPage}
+              totalPages={totalPages}
+              rowsPerPage={rowsPerPage}
+              setRowsPerPage={setRowsPerPage}
+              startIndex={startIndex}
+              endIndex={endIndex}
+              totalItems={filtered.length}
+            />
           )}
         </div>
       </div>

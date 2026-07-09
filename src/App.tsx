@@ -1,10 +1,12 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { getToken, isTokenExpired } from './utils/session';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Home } from './pages/Home';
 import { ForgotPassword } from './pages/ForgotPassword';
 import { Login } from './pages/Login';
 import { ProtectedRoute } from './components/layout/ProtectedRoute';
+import { AdminUserProvider } from './context/AdminUserContext';
 
 
 
@@ -31,7 +33,6 @@ import { AdminCOD } from './pages/admin/AdminCOD';
 import { AdminSettings } from './pages/admin/AdminSettings';
 import { AdminAccounts } from './pages/admin/AdminAccounts';
 import { AdminAuditLogs } from './pages/admin/AdminAuditLogs';
-import { AdminStubPage } from './pages/admin/AdminStubPage';
 import { AdminWeightDiscrepancy } from './pages/admin/AdminWeightDiscrepancy';
 import { AdminAnnouncements } from './pages/admin/AdminAnnouncements';
 import { AdminNotification } from './pages/admin/AdminNotification';
@@ -45,7 +46,6 @@ import { AdminRateCard } from './pages/admin/AdminRateCard';
 import { AdminRateCalculator } from './pages/admin/AdminRateCalculator';
 import { AdminAddOrder } from './pages/admin/AdminAddOrder';
 import { AdminTracking } from './pages/admin/AdminTracking';
-import { AdminTransferCOD } from './pages/admin/AdminTransferCOD';
 import { AdminProfile } from './pages/admin/AdminProfile';
 import { AdminOrderTracking } from './pages/admin/AdminOrderTracking';
 import { AdminKYC } from './pages/admin/AdminKYC';
@@ -131,6 +131,12 @@ function GlobalOrderClickInterceptor() {
   return null;
 }
 
+function AuthRedirect({ children }: { children: React.ReactNode }) {
+  const token = getToken();
+  const isValid = token && !isTokenExpired(token);
+  return isValid ? <Navigate to="/admin/dashboard" replace /> : <>{children}</>;
+}
+
 const queryClient = new QueryClient();
 
 function App() {
@@ -140,11 +146,11 @@ function App() {
         <GlobalOrderClickInterceptor />
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/login" element={<AuthRedirect><Login /></AuthRedirect>} />
+          <Route path="/forgot-password" element={<AuthRedirect><ForgotPassword /></AuthRedirect>} />
           
           {/* Admin Routes */}
-          <Route element={<ProtectedRoute allowedRoles={['admin', 'user']} />}>
+          <Route element={<AdminUserProvider><ProtectedRoute allowedRoles={['admin', 'user']} /></AdminUserProvider>}>
             <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
             <Route path="/admin/dashboard" element={<AdminDashboard />} />
             <Route path="/admin/users" element={<AdminUsers />} />
@@ -156,6 +162,7 @@ function App() {
             <Route path="/admin/vendors" element={<AdminVendors />} />
             <Route path="/admin/couriers" element={<AdminCouriers />} />
             <Route path="/admin/orders" element={<AdminOrders />} />
+            <Route path="/admin/orders/:tabSlug" element={<AdminOrders />} />
             <Route path="/admin/shipments" element={<AdminShipments />} />
             <Route path="/admin/ndr" element={<AdminNDR />} />
             <Route path="/admin/cod" element={<AdminCOD />} />
@@ -173,7 +180,6 @@ function App() {
             <Route path="/admin/rate-calculator" element={<AdminRateCalculator />} />
             <Route path="/admin/add-order" element={<AdminAddOrder />} />
             <Route path="/admin/tracking" element={<AdminTracking />} />
-            <Route path="/admin/transfer-cod" element={<AdminTransferCOD />} />
             <Route path="/admin/referral" element={<AdminReferral />} />
             <Route path="/admin/rate-card" element={<AdminRateCard />} />
             <Route path="/admin/order-tracking" element={<AdminOrderTracking />} />

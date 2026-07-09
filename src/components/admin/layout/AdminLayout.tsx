@@ -31,7 +31,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     '/admin/notification',
     '/admin/kyc',
     '/admin/reports'
-  ].includes(location.pathname);
+  ].some((path) => location.pathname === path || location.pathname.startsWith(path + '/'));
 
   return (
     <div className="admin-dashboard-layout flex min-h-screen bg-[#F8FAFC] text-[#0F172A] selection:bg-[#00A86B]/20 selection:text-[#00A86B] text-sm">

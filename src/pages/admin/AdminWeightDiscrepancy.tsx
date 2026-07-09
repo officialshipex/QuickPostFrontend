@@ -1,688 +1,1044 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useState, useEffect, useCallback, useRef } from 'react';
+
+import { DesktopPagination } from '../../hooks/usePagination';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
-import { usePagination, DesktopPagination } from '../../hooks/usePagination';
-import { useTableLoader } from '../../hooks/useTableLoader';
-import { TableLoader } from '../../components/ui/TableLoader';
-import { TruncatedText } from '../../components/ui/TruncatedText';
-import { ChevronDown, RefreshCcw, Check, Package, User, Truck, Clock, Upload, FileText, AlertTriangle, MoreVertical, Filter, Settings } from 'lucide-react';
+import { apiClient } from '../../services/apiClient';
+import { useAdminTab } from '../../context/AdminUserContext';
+import {
+  ChevronDown, RefreshCcw, Check, Package, User, Truck,
+  Upload, FileText, AlertTriangle, X, Search
+} from 'lucide-react';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
 
-const MAIN_TABS = [
-  { name: 'All', count: 8 },
-  { name: 'New', count: 6 },
-  { name: 'Accepted', count: 6 },
-  { name: 'Rejected', count: 6 },
-  { name: 'Escalated', count: 6 }
-];
+// ── Date helpers ──────────────────────────────────────────────────────────────
+const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function fmtDate(iso: string) {
+  const d = new Date(iso);
+  return `${String(d.getDate()).padStart(2,'0')} ${MONTHS_SHORT[d.getMonth()]} ${d.getFullYear()}`;
+}
+function fmtTime(iso: string) {
+  const d = new Date(iso);
+  let h = d.getHours(); const m = d.getMinutes();
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')} ${ampm}`;
+}
 
-const generateData = (status: string, count: number, startId: number) => {
-  return Array.from({ length: count }, (_, i) => ({
-    id: `86543`,
-    userName: 'Dinesh Tharwani',
-    userEmail: 'dineshtharwani@gmail.com',
-    productName: 'Money Attraction Pro...',
-    sku: 'MT492J/A',
-    qty: 12,
-    uploadDate: '13th Apr 2026',
-    uploadTime: '04:34 PM',
-    courier: 'Ekart Surface',
-    bookedDate: '13 Apr 2026',
-    awb: `QPSP${String(startId + i).padStart(9, '0')}`,
-    initialAppliedWeight: '4 Kg',
-    initialWeight: '250g',
-    initialDimensions: '10*10*10',
-    initialVolWeight: '0.20 KG',
-    courierChargedWeight: '4 Kg',
-    courierDeadWeight: '250g',
-    exWeight: '2 Kg',
-    exCharges: '4 Kg',
-    amount: i === 0 ? 'Amount: 4 Kg' : 'Pending Amount: 4 Kg',
-    status: status
-  }));
+// ── Tab config ────────────────────────────────────────────────────────────────
+const MAIN_TABS = ['All', 'Pending', 'Complete', 'Dispute'] as const;
+type TabName = typeof MAIN_TABS[number];
+
+const TAB_STATUS: Record<TabName, string> = {
+  All:      '',
+  Pending:  'pending',
+  Complete: 'Accepted',
+  Dispute:  'Discrepancy Raised',
 };
 
-const getFullProductName = (name?: string) => {
-  const n = name || 'Money Attraction Pro...';
-  if (n.includes('Money Attraction')) return 'Money Attraction Bracelet Kit Pro (2 Pcs)';
-  if (n.includes('Magnetic Wireless')) return 'Magnetic Wireless Fast Charger 15W Pad';
-  if (n.includes('Ergonomic Office')) return 'Ergonomic Office Executive Mesh Chair';
-  if (n.includes('Ultra-Slim Power')) return 'Ultra-Slim Fast Charging Power Bank 10000mAh';
-  if (n.includes('Smart Fitness')) return 'Smart Fitness AMOLED Display Health Watch';
-  return n;
+// ── Status badge ──────────────────────────────────────────────────────────────
+const BADGE: Record<string, string> = {
+  pending:            'bg-blue-50 text-blue-700 border-blue-200',
+  new:                'bg-blue-50 text-blue-700 border-blue-200',
+  accepted:           'bg-emerald-50 text-emerald-700 border-emerald-200',
+  'discrepancy raised': 'bg-orange-50 text-orange-700 border-orange-200',
+  escalated:          'bg-rose-50 text-rose-700 border-rose-200',
+  declined:           'bg-red-50 text-red-700 border-red-200',
 };
+const badge = (s: string) =>
+  `${BADGE[(s || '').toLowerCase()] ?? 'bg-gray-50 text-gray-700 border-gray-200'} px-2.5 py-0.5 rounded-full border text-[10px] font-semibold uppercase tracking-wider whitespace-nowrap shadow-sm`;
 
-const STATUS_BADGE_STYLES: Record<string, string> = {
-  'New': 'bg-blue-50 text-blue-700 border-blue-200',
-  'new': 'bg-blue-50 text-blue-700 border-blue-200',
-  'Accepted': 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  'accepted': 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  'Rejected': 'bg-rose-50 text-rose-700 border-rose-200',
-  'rejected': 'bg-rose-50 text-rose-700 border-rose-200',
-  'Escalated': 'bg-orange-50 text-orange-700 border-orange-200',
-  'escalated': 'bg-orange-50 text-orange-700 border-orange-200',
-};
-
-const getStatusBadgeClass = (status: string) => {
-  const normalized = status || '';
-  return `${STATUS_BADGE_STYLES[normalized] || 'bg-blue-50 text-blue-700 border-blue-200'} px-2.5 py-0.5 rounded-full border text-[10px] font-semibold uppercase tracking-wider whitespace-nowrap shadow-sm`;
-};
-
-const ALL_DATA = [
-  ...generateData('New', 2, 45),
-  ...generateData('Accepted', 2, 65),
-  ...generateData('Rejected', 2, 85),
-  ...generateData('Escalated', 2, 105),
-];
-
-const NEW_DATA = generateData('New', 6, 45);
-const ACCEPTED_DATA = generateData('Accepted', 6, 65);
-const REJECTED_DATA = generateData('Rejected', 6, 85);
-const ESCALATED_DATA = generateData('Discrepancy Raised', 6, 55);
-
-export function AdminWeightDiscrepancy() {
-  const [globalSearchQuery, setGlobalSearchQuery] = useState((window as any).__adminSearchQuery?.toLowerCase() || '');
-
-  useEffect(() => {
-    const handleSearch = (e: Event) => {
-      setGlobalSearchQuery(((e as CustomEvent).detail || '').toLowerCase());
-    };
-    window.addEventListener('admin-search', handleSearch);
-    setGlobalSearchQuery(((window as any).__adminSearchQuery || '').toLowerCase());
-    return () => {
-      window.removeEventListener('admin-search', handleSearch);
-    };
-  }, []);
-
-  const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = searchParams.get('tab') || 'New';
-  
-  const { isLoading, startLoading, stopLoading } = useTableLoader(800);
-  
-  const fetchTableData = async () => {
-    startLoading();
+// ── Inline: Admin Accept Modal (admin accepts a raised dispute) ───────────────
+function AcceptModal({ awb, onClose, onDone }: { awb: string; onClose: () => void; onDone: () => void }) {
+  const [loading, setLoading] = useState(false);
+  const confirm = async () => {
+    if (loading) return;
+    setLoading(true);
     try {
-      // Simulate backend API call
-      // e.g. const data = await fetch(`/api/weight-discrepancy?tab=${activeTab}`);
-      await new Promise(resolve => setTimeout(resolve, 600));
-    } finally {
-      stopLoading();
-    }
+      await apiClient.post('/dispreancy/adminAcceptDiscrepancy/', { awbNumber: awb });
+      onDone();
+      onClose();
+    } catch (e: any) {
+      alert(e?.response?.data?.error || 'Accept failed');
+    } finally { setLoading(false); }
+  };
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50">
+      <div className="bg-white p-6 rounded-lg shadow-lg w-80 text-center">
+        <h2 className="text-[14px] font-semibold mb-4">Accept this dispute?</h2>
+        <p className="text-xs text-gray-500 mb-4">AWB: <strong>{awb}</strong></p>
+        <div className="flex justify-center gap-3">
+          <button onClick={confirm} disabled={loading}
+            className="px-4 py-2 bg-[#00A86B] text-white rounded-md text-sm disabled:opacity-50">
+            {loading ? 'Processing...' : 'Yes, Accept'}
+          </button>
+          <button onClick={onClose} disabled={loading} className="px-4 py-2 bg-gray-400 text-white rounded-md text-sm">Cancel</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Inline: User Accept Modal (user agrees to pay the discrepancy) ────────────
+function UserAcceptModal({ awb, onClose, onDone }: { awb: string; onClose: () => void; onDone: () => void }) {
+  const [loading, setLoading] = useState(false);
+  const confirm = async () => {
+    if (loading) return;
+    setLoading(true);
+    try {
+      await apiClient.post('/dispreancy/acceptDiscrepancy', { awb_number: awb });
+      onDone();
+      onClose();
+    } catch (e: any) {
+      alert(e?.response?.data?.message || 'Accept failed');
+    } finally { setLoading(false); }
+  };
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50">
+      <div className="bg-white p-6 rounded-lg shadow-lg w-80 text-center">
+        <h2 className="text-[14px] font-semibold mb-2">Accept Discrepancy?</h2>
+        <p className="text-xs text-gray-500 mb-4">By accepting, the extra weight charge will be debited from your wallet.<br />AWB: <strong>{awb}</strong></p>
+        <div className="flex justify-center gap-3">
+          <button onClick={confirm} disabled={loading}
+            className="px-4 py-2 bg-[#00A86B] text-white rounded-md text-sm disabled:opacity-50">
+            {loading ? 'Processing...' : 'Yes, Accept'}
+          </button>
+          <button onClick={onClose} disabled={loading} className="px-4 py-2 bg-gray-400 text-white rounded-md text-sm">Cancel</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Inline: Raise Dispute Modal (user raises a dispute on a pending discrepancy)
+function RaiseDisputeModal({ awb, onClose, onDone }: { awb: string; onClose: () => void; onDone: () => void }) {
+  const [text, setText] = useState('');
+  const [file, setFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState('');
+  const [loading, setLoading] = useState(false);
+  const submit = async () => {
+    if (loading) return;
+    setLoading(true);
+    try {
+      const fd = new FormData();
+      fd.append('awbNumber', awb);
+      fd.append('text', text);
+      if (file) fd.append('image', file);
+      await apiClient.post('/dispreancy/raiseDiscrepancies', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      onDone();
+      onClose();
+    } catch (e: any) {
+      alert(e?.response?.data?.message || 'Failed to raise dispute');
+    } finally { setLoading(false); }
+  };
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50">
+      <div className="bg-white p-6 rounded-lg shadow-lg w-[500px] relative">
+        <button onClick={onClose} className="absolute top-2 right-2 text-gray-400 hover:text-gray-700"><X size={18} /></button>
+        <h2 className="text-sm font-bold mb-1 flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-orange-500" />Raise Dispute</h2>
+        <p className="text-xs text-gray-500 mb-3">AWB: <strong>{awb}</strong> — Submit evidence for this weight discrepancy</p>
+        <label className="text-xs font-semibold text-gray-700">Remarks</label>
+        <textarea rows={4} className="w-full mt-1 mb-3 border rounded p-2 text-sm focus:outline-none focus:ring focus:ring-[#00A86B]"
+          placeholder="Describe the discrepancy details..." value={text} onChange={e => setText(e.target.value)} />
+        <label className="text-xs font-semibold text-gray-700">Evidence Image (optional)</label>
+        <label className="mt-1 flex items-center justify-between gap-2 border border-[#00A86B] text-[#00A86B] rounded-lg px-4 py-2 text-sm cursor-pointer hover:bg-green-50">
+          <span>{file ? file.name : 'Select Image'}</span>
+          <Upload className="w-4 h-4" />
+          <input type="file" accept="image/*" className="hidden"
+            onChange={e => { const f = e.target.files?.[0] || null; setFile(f); setPreview(f ? URL.createObjectURL(f) : ''); }} />
+        </label>
+        {preview && <img src={preview} alt="preview" className="mt-2 h-32 w-full object-cover rounded border" />}
+        <div className="flex justify-end gap-2 mt-4">
+          <button onClick={onClose} disabled={loading} className="px-4 py-2 bg-gray-400 text-white rounded-md text-sm">Cancel</button>
+          <button onClick={submit} disabled={loading || !text.trim()}
+            className="px-4 py-2 bg-[#00A86B] text-white rounded-md text-sm disabled:opacity-50">
+            {loading ? 'Submitting...' : 'Submit Request'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Inline: Bulk Accept Modal ─────────────────────────────────────────────────
+function BulkAcceptModal({ orderIds, label, onClose, onDone }: { orderIds: string[]; label: string; onClose: () => void; onDone: () => void }) {
+  const [loading, setLoading] = useState(false);
+  const confirm = async () => {
+    if (loading) return;
+    setLoading(true);
+    try {
+      await apiClient.post('/dispreancy/acceptAllDiscrepancies', { orderIds });
+      onDone();
+      onClose();
+    } catch (e: any) {
+      alert(e?.response?.data?.message || 'Bulk accept failed');
+    } finally { setLoading(false); }
+  };
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50">
+      <div className="bg-white p-6 rounded-lg shadow-lg w-[480px] relative">
+        <button onClick={onClose} className="absolute top-2 right-2 text-gray-400 hover:text-gray-700"><X size={18} /></button>
+        <h2 className="text-[14px] font-semibold mb-2">{label} — {orderIds.length} item{orderIds.length > 1 ? 's' : ''}</h2>
+        <p className="text-sm text-gray-500 mb-4">Are you sure you want to accept all <strong>{orderIds.length}</strong> selected item{orderIds.length > 1 ? 's' : ''}?</p>
+        <div className="flex justify-end gap-2">
+          <button onClick={onClose} disabled={loading} className="px-4 py-2 bg-gray-400 text-white rounded-md text-sm">Cancel</button>
+          <button onClick={confirm} disabled={loading}
+            className="px-4 py-2 bg-[#00A86B] text-white rounded-md text-sm disabled:opacity-50">
+            {loading ? 'Processing...' : 'Confirm'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Inline: Decline Modal ─────────────────────────────────────────────────────
+function DeclineModal({ awbNumbers, onClose, onDone }: { awbNumbers: string[]; onClose: () => void; onDone: () => void }) {
+  const [text, setText] = useState('');
+  const [loading, setLoading] = useState(false);
+  const isBulk = awbNumbers.length > 1;
+  const confirm = async () => {
+    if (loading) return;
+    setLoading(true);
+    try {
+      if (isBulk) {
+        await apiClient.post('/dispreancy/bulkDeclineDiscrepancy', { awbNumbers, text });
+      } else {
+        await apiClient.post('/dispreancy/declineDiscrepancy/', { awbNumber: awbNumbers[0], text });
+      }
+      onDone();
+      onClose();
+    } catch (e: any) {
+      alert(e?.response?.data?.message || 'Decline failed');
+    } finally { setLoading(false); }
+  };
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50">
+      <div className="bg-white p-6 rounded-lg shadow-lg w-[500px] relative">
+        <button onClick={onClose} className="absolute top-2 right-2 text-gray-400 hover:text-gray-700"><X size={18} /></button>
+        <h2 className="text-[14px] font-semibold mb-3">{isBulk ? `Declining ${awbNumbers.length} AWBs` : `Decline — ${awbNumbers[0]}`}</h2>
+        {isBulk && (
+          <div className="max-h-[100px] overflow-y-auto border rounded p-2 text-xs text-gray-600 bg-gray-50 mb-3">
+            {awbNumbers.map((a, i) => <div key={i}>{a}</div>)}
+          </div>
+        )}
+        <label className="text-xs font-semibold text-gray-700">Decline Reason</label>
+        <textarea rows={4} className="w-full mt-1 border rounded p-2 text-sm focus:outline-none focus:ring focus:ring-[#00A86B]"
+          placeholder="Enter reason..." value={text} onChange={e => setText(e.target.value)} />
+        <div className="flex justify-end gap-2 mt-3">
+          <button onClick={onClose} disabled={loading} className="px-4 py-2 bg-gray-400 text-white rounded-md text-sm">Cancel</button>
+          <button onClick={confirm} disabled={loading} className="px-4 py-2 bg-[#00A86B] text-white rounded-md text-sm disabled:opacity-50">
+            {loading ? 'Processing...' : 'Submit'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Inline: Upload Modal ──────────────────────────────────────────────────────
+function UploadModal({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
+  const [file, setFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+
+  const download = async () => {
+    setDownloading(true);
+    try {
+      const res = await apiClient.get('/dispreancy/download-excel', { responseType: 'arraybuffer' });
+      const blob = new Blob([res.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'Weight_Discrepancy_Sample_Format.xlsx';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    } catch { alert('Download failed'); }
+    finally { setDownloading(false); }
   };
 
-  const setActiveTab = (tab: string) => {
-    const newParams = new URLSearchParams(searchParams);
-    newParams.set('tab', tab);
-    setSearchParams(newParams);
-    fetchTableData();
+  const submit = async () => {
+    if (!file) { alert('Please select a file first'); return; }
+    if (uploading) return;
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      await apiClient.post('/dispreancy/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      onDone();
+      onClose();
+    } catch (e: any) {
+      alert(e?.response?.data?.error || 'Upload failed');
+    } finally { setUploading(false); }
   };
 
-  
-  // Filters State
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedSearchTypes, setSelectedSearchTypes] = useState<string[]>([]);
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50">
+      <div className="bg-white p-6 rounded-lg shadow-lg w-96 relative">
+        <button onClick={onClose} disabled={uploading} className="absolute top-2 right-2 text-gray-400 hover:text-gray-700"><X size={18} /></button>
+        <h2 className="text-sm font-bold mb-3">Upload Weight Discrepancy</h2>
+        <p className="text-xs text-gray-600 mb-3">
+          Download sample file:{' '}
+          <span onClick={!downloading ? download : undefined}
+            className={`text-[#00A86B] underline cursor-pointer ${downloading ? 'opacity-50 pointer-events-none' : ''}`}>
+            {downloading ? 'Downloading...' : 'click here'}
+          </span>
+        </p>
+        <label className="flex items-center justify-between gap-2 border border-[#00A86B] text-[#00A86B] rounded-lg px-4 py-2 text-sm cursor-pointer hover:bg-green-50">
+          <span>{file ? file.name : 'Select File'}</span>
+          <Upload className="w-4 h-4" />
+          <input type="file" className="hidden" onChange={e => setFile(e.target.files?.[0] || null)} />
+        </label>
+        <button onClick={submit} disabled={uploading || !file}
+          className="mt-3 w-full py-2 bg-[#00A86B] text-white rounded-lg text-sm font-semibold disabled:opacity-50">
+          {uploading ? 'Uploading...' : 'Submit'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Inline: Details Modal ─────────────────────────────────────────────────────
+function DetailsModal({ text, imageUrl, onClose }: { text: string; imageUrl: string; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50">
+      <div className="bg-white p-6 rounded-lg shadow-lg w-[500px] relative max-h-[80vh] overflow-y-auto">
+        <button onClick={onClose} className="absolute top-2 right-2 text-gray-400 hover:text-gray-700"><X size={18} /></button>
+        <h2 className="text-sm font-bold mb-3">Dispute Details</h2>
+        {text && <p className="text-sm text-gray-700 mb-3">{text}</p>}
+        {imageUrl && <img src={imageUrl} alt="Dispute" className="w-full rounded" />}
+        {!text && !imageUrl && <p className="text-sm text-gray-500">No details available.</p>}
+      </div>
+    </div>
+  );
+}
+
+// ── Product tooltip ───────────────────────────────────────────────────────────
+function ProductCell({ products }: { products: any[] }) {
+  const names = products.map(p => p.name).join(', ') || '—';
+  const skus = products.map(p => p.sku).join(', ') || '—';
+  const qty = products.reduce((s, p) => s + (p.quantity || 0), 0);
+  const short = (s: string, n = 18) => s.length > n ? s.slice(0, n) + '…' : s;
+  return (
+    <div className="relative text-[#475569] text-xs">
+      <div className="relative group/prod inline-block">
+        <span className="cursor-pointer border-b border-dashed border-gray-500 font-medium text-[#0F172A]" title={names}>
+          {short(names)}
+        </span>
+        <div className="absolute left-full top-0 ml-2 hidden group-hover/prod:block z-50 bg-white border border-gray-200 shadow-xl rounded p-2 w-[260px] pointer-events-auto">
+          <table className="w-full text-[10px]">
+            <thead><tr className="border-b"><th className="pb-1 text-left pr-2">Name</th><th className="pb-1 text-left pr-2">SKU</th><th className="pb-1 text-left">Qty</th></tr></thead>
+            <tbody>
+              {products.map((p, i) => (
+                <tr key={i} className="border-b last:border-0">
+                  <td className="py-0.5 pr-2">{p.name}</td>
+                  <td className="py-0.5 pr-2">{p.sku}</td>
+                  <td className="py-0.5">{p.quantity}</td>
+                </tr>
+              ))}
+              <tr className="font-semibold border-t"><td colSpan={2} className="pt-1">Total</td><td className="pt-1">{qty}</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div className="absolute left-full top-0 w-3 h-full" />
+      </div>
+      <div className="text-[#64748B]">SKU: {short(skus, 14)}</div>
+      <div className="text-[#64748B]">QTY: {qty}</div>
+    </div>
+  );
+}
+
+// ── Main Component ────────────────────────────────────────────────────────────
+export function AdminWeightDiscrepancy() {
+  const { isAdmin, adminTab, currentUserId, loadingAdminTab } = useAdminTab();
+  const isAdminView = isAdmin && adminTab;
+
+  // ── Tabs
+  const [activeTab, setActiveTab] = useState<TabName>('Pending');
+
+  // ── Data
+  const [orders, setOrders] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(20);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [counts, setCounts] = useState<Record<string, number>>({});
+  const [courierOptions, setCourierOptions] = useState<string[]>([]);
+
+  // ── Filters
+  const [searchInput, setSearchInput] = useState('');
+  const [searchBy] = useState('awbNumber');
   const [selectedCouriers, setSelectedCouriers] = useState<string[]>([]);
-  const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
   const [dateStart, setDateStart] = useState('');
   const [dateEnd, setDateEnd] = useState('');
-  const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
+  const [userMongoId, setUserMongoId] = useState('');
+  const [userSearchText, setUserSearchText] = useState('');
+  const [userResults, setUserResults] = useState<any[]>([]);
 
-  // Glass Dropdown Options
-  const SEARCH_TYPE_OPTIONS = [
-    { label: 'Forward', value: 'Forward' },
-    { label: 'RTO', value: 'RTO' },
-  ];
-  const COURIER_OPTIONS = [
-    { label: 'Ekart Surface', value: 'Ekart Surface' },
-    { label: 'Delhivery', value: 'Delhivery' },
-    { label: 'Bluedart', value: 'Bluedart' },
-    { label: 'XpressBees', value: 'XpressBees' },
-  ];
-  const STATUS_OPTIONS = [
-    { label: 'Accepted', value: 'Accepted' },
-    { label: 'Rejected', value: 'Rejected' },
-    { label: 'New', value: 'New' },
-    { label: 'Escalated', value: 'Escalated' },
-  ];
-  const [selectedEscalated, setSelectedEscalated] = useState<string[]>([]);
+  // ── Selection
+  const [selectedItems, setSelectedItems] = useState<string[]>([]);
+  const [copiedAwb, setCopiedAwb] = useState<string | null>(null);
+
+  // ── UI
   const [showActionMenu, setShowActionMenu] = useState(false);
+  const [showUpload, setShowUpload] = useState(false);
+  const [acceptModal, setAcceptModal] = useState<{ open: boolean; awb: string }>({ open: false, awb: '' });
+  const [userAcceptModal, setUserAcceptModal] = useState<{ open: boolean; awb: string }>({ open: false, awb: '' });
+  const [raiseDisputeModal, setRaiseDisputeModal] = useState<{ open: boolean; awb: string }>({ open: false, awb: '' });
+  const [declineModal, setDeclineModal] = useState<{ open: boolean; awbs: string[] }>({ open: false, awbs: [] });
+  const [bulkAcceptModal, setBulkAcceptModal] = useState<{ open: boolean; orderIds: string[]; label: string }>({ open: false, orderIds: [], label: '' });
+  const [detailsModal, setDetailsModal] = useState<{ open: boolean; text: string; imageUrl: string }>({ open: false, text: '', imageUrl: '' });
 
-  // Close action menu when clicking outside
+  const actionMenuRef = useRef<HTMLDivElement>(null);
+  const userDropRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdowns on outside click
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as HTMLElement;
-      if (!target.closest('.action-dropdown-container')) {
-        setShowActionMenu(false);
-      }
+    const h = (e: MouseEvent) => {
+      if (actionMenuRef.current && !actionMenuRef.current.contains(e.target as Node)) setShowActionMenu(false);
+      if (userDropRef.current && !userDropRef.current.contains(e.target as Node)) setUserResults([]);
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
   }, []);
 
-  let currentData = NEW_DATA;
-  if (activeTab === 'All') currentData = ALL_DATA;
-  else if (activeTab === 'Accepted') currentData = ACCEPTED_DATA;
-  else if (activeTab === 'Rejected') currentData = REJECTED_DATA;
-  else if (activeTab === 'Escalated') currentData = ESCALATED_DATA;
+  // ── Fetch summary counts
+  // Derive counts from getAllDiscrepancy (same endpoint + same user filter as the table).
+  // allDispreancy always returns global counts so we can't use it for user-filtered counts.
+  const fetchCounts = useCallback(async () => {
+    try {
+      const userParams: Record<string, any> = {};
+      if (isAdminView && userMongoId) userParams.userSearch = userMongoId;
+      else if (!isAdminView && currentUserId) userParams.userSearch = currentUserId;
 
-  const hasActiveFilters = searchTerm || selectedSearchTypes.length > 0 || selectedCouriers.length > 0 || selectedStatuses.length > 0 || (dateStart && dateEnd);
+      const statuses = [
+        { key: 'pending',             status: 'pending' },
+        { key: 'accepted',            status: 'Accepted' },
+        { key: 'discrepancy raised',  status: 'Discrepancy Raised' },
+        { key: 'escalated',           status: 'escalated' },
+      ];
 
-  const handleClearFilters = () => {
-    setSearchTerm('');
-    setSelectedSearchTypes([]);
-    setSelectedCouriers([]);
-    setSelectedStatuses([]);
-    setDateStart('');
-    setDateEnd('');
+      const results = await Promise.all(
+        statuses.map(({ status }) =>
+          apiClient.get('/dispreancy/getAllDiscrepancy', {
+            params: { ...userParams, status, limit: 1, page: 1 },
+          })
+        )
+      );
+
+      const map: Record<string, number> = {};
+      statuses.forEach(({ key }, i) => {
+        map[key] = results[i].data?.total || 0;
+      });
+      setCounts(map);
+    } catch { /* ignore */ }
+  }, [isAdminView, userMongoId, currentUserId]);
+
+  // ── Fetch discrepancies
+  const fetchDiscrepancy = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params: Record<string, any> = {
+        page,
+        limit: rowsPerPage,
+        courierService: selectedCouriers.join(','),
+        status: TAB_STATUS[activeTab],
+      };
+
+      // isAdminView user filter
+      if (isAdminView && userMongoId) params.userSearch = userMongoId;
+      else if (!isAdminView && currentUserId) params.userSearch = currentUserId;
+
+      if (dateStart) params.fromDate = new Date(dateStart).toISOString();
+      if (dateEnd) params.toDate = new Date(dateEnd).toISOString();
+      if (searchInput.trim()) params[searchBy] = searchInput.trim();
+
+      const res = await apiClient.get('/dispreancy/getAllDiscrepancy', { params });
+      setOrders(res.data?.results || []);
+      setTotal(res.data?.total || 0);
+      setTotalPages(Math.ceil((res.data?.total || 0) / rowsPerPage));
+      if (Array.isArray(res.data?.courierServices)) {
+        setCourierOptions(res.data.courierServices);
+      }
+    } catch { /* ignore */ }
+    finally { setLoading(false); }
+  }, [activeTab, page, rowsPerPage, selectedCouriers, dateStart, dateEnd, searchInput, searchBy, userMongoId, isAdminView, currentUserId]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [rowsPerPage]);
+
+  // Guard: wait for admin context to load before any fetch.
+  // Without this, on refresh currentUserId is '' and the first call returns all data.
+  useEffect(() => { if (!loadingAdminTab) fetchCounts(); }, [fetchCounts, loadingAdminTab]);
+  useEffect(() => { if (!loadingAdminTab) fetchDiscrepancy(); }, [fetchDiscrepancy, loadingAdminTab]);
+  useEffect(() => { setPage(1); setSelectedItems([]); }, [activeTab]);
+
+  // ── User search (admin only) — matches AdminOrders pattern
+  const userSearchTimeout = useRef<number | undefined>(undefined);
+  const handleUserInput = (v: string) => {
+    setUserSearchText(v);
+    if (!v.trim()) { setUserMongoId(''); setUserResults([]); return; }
+    if (userMongoId) return; // already selected, don't re-search
+    clearTimeout(userSearchTimeout.current);
+    userSearchTimeout.current = setTimeout(async () => {
+      try {
+        const res = await apiClient.get(`/admin/searchUser?query=${encodeURIComponent(v)}`);
+        setUserResults(res.data?.users || []);
+      } catch { setUserResults([]); }
+    }, 300);
+  };
+  const selectUser = (u: any) => {
+    setUserMongoId(u._id);
+    setUserSearchText(`${u.fullname} (${u.email})`);
+    setUserResults([]);
+    setPage(1);
+  };
+  const clearUserFilter = () => {
+    setUserMongoId('');
+    setUserSearchText('');
+    setUserResults([]);
+    setPage(1);
   };
 
-  // Reset filters when navigating to a different tab
-  useEffect(() => {
-    handleClearFilters();
-  }, [activeTab]);
+  // ── Selection helpers
+  const toggleAll = () =>
+    setSelectedItems(selectedItems.length === orders.length && orders.length > 0 ? [] : orders.map(o => o._id));
+  const toggleOne = (id: string) =>
+    setSelectedItems(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
-  const filteredData = useMemo(() => {
-    return currentData.filter(item => {
-      const searchLower = searchTerm.toLowerCase();
-      const matchSearch = searchTerm ? 
-        item.userName.toLowerCase().includes(searchLower) || 
-        item.userEmail.toLowerCase().includes(searchLower) ||
-        item.awb.toLowerCase().includes(searchLower) ||
-        item.id.toLowerCase().includes(searchLower) : true;
-      const matchGlobal = globalSearchQuery ?
-        item.userName.toLowerCase().includes(globalSearchQuery) || 
-        item.userEmail.toLowerCase().includes(globalSearchQuery) || 
-        item.awb.toLowerCase().includes(globalSearchQuery) ||
-        item.id.toLowerCase().includes(globalSearchQuery) : true;
-      const matchCourier = selectedCouriers.length === 0 || selectedCouriers.includes(item.courier);
-      const matchStatus = selectedStatuses.length === 0 || selectedStatuses.includes(item.status);
-      
-      const matchSearchType = selectedSearchTypes.length === 0 || selectedSearchTypes.includes('Forward'); // Mock assuming all data is Forward for now
-      
-      let matchDate = true;
-      if (dateStart && dateEnd) {
-        // Strip out ordinal suffixes (th, st, nd, rd) to parse correctly
-        const cleanDateStr = item.uploadDate.replace(/(st|nd|rd|th)/, '');
-        const itemDate = new Date(cleanDateStr);
-        const start = new Date(dateStart);
-        const end = new Date(dateEnd);
-        start.setHours(0, 0, 0, 0);
-        end.setHours(23, 59, 59, 999);
-        matchDate = itemDate >= start && itemDate <= end;
-      }
-      
-      return matchSearch && matchGlobal && matchCourier && matchStatus && matchSearchType && matchDate;
-    });
-  }, [currentData, searchTerm, globalSearchQuery, selectedCouriers, selectedStatuses, selectedSearchTypes, dateStart, dateEnd]);
+  // ── Copy AWB
+  const copyAwb = (awb: string, key: string) => {
+    navigator.clipboard.writeText(awb);
+    setCopiedAwb(key);
+    setTimeout(() => setCopiedAwb(null), 1500);
+  };
 
-  const {
-    page: currentPage,
-    setPage: setCurrentPage,
-    totalPages,
-    paginatedData,
-    startIndex,
-    endIndex,
-    rowsPerPage,
-    setRowsPerPage,
-    totalItems,
-  } = usePagination({ data: filteredData, perPage: 10 });
+  // ── Export
+  const handleExport = async () => {
+    if (selectedItems.length === 0) { alert('Select at least one row to export.'); return; }
+    try {
+      const res = await apiClient.post('/dispreancy/exportWeightDiscrepancy',
+        { disputeId: selectedItems }, { responseType: 'blob' });
+      const url = URL.createObjectURL(new Blob([res.data]));
+      const a = document.createElement('a');
+      a.href = url; a.download = 'weight_discrepancy_export.csv';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    } catch { alert('Export failed'); }
+  };
 
-  useEffect(() => { setCurrentPage(1); }, [activeTab]);
+  // ── Bulk decline (admin — Dispute tab)
+  const handleBulkDecline = () => {
+    if (selectedItems.length === 0) { alert('Select at least one row.'); return; }
+    const awbs = orders.filter(o => selectedItems.includes(o._id)).map(o => o.awbNumber);
+    setDeclineModal({ open: true, awbs });
+  };
 
-  const paginatedEscalatedData = paginatedData;
-  const totalEscalatedPages = totalPages;
+  // ── Bulk accept (admin — accepts selected raised disputes)
+  const handleBulkAccept = () => {
+    if (selectedItems.length === 0) { alert('Select at least one row.'); return; }
+    setBulkAcceptModal({ open: true, orderIds: selectedItems, label: 'Bulk Accept Disputes' });
+  };
 
-  const toggleAll = () => setSelectedOrders(selectedOrders.length === filteredData.length && filteredData.length > 0 ? [] : filteredData.map(o => o.awb));
-  const toggleSelect = (id: string) => setSelectedOrders(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  // ── Bulk accept (user — accepts selected pending discrepancies)
+  const handleUserBulkAccept = () => {
+    if (selectedItems.length === 0) { alert('Select at least one row.'); return; }
+    setBulkAcceptModal({ open: true, orderIds: selectedItems, label: 'Accept Discrepancies' });
+  };
 
-  const toggleAllEscalated = () => setSelectedEscalated(selectedEscalated.length === filteredData.length && filteredData.length > 0 ? [] : filteredData.map(o => o.awb));
-  const toggleSelectEscalated = (id: string) => setSelectedEscalated(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  // ── Clear filters
+  const clearFilters = () => {
+    setSearchInput('');
+    setSelectedCouriers([]);
+    setDateStart('');
+    setDateEnd('');
+    setUserMongoId('');
+    setUserSearchText('');
+    setPage(1);
+  };
+  const hasFilters = !!(searchInput || selectedCouriers.length || dateStart || dateEnd || userMongoId);
+
+  // ── Courier options for GlassDropdown
+  const courierDropOptions = courierOptions.map(c => ({ label: c, value: c }));
+
+  // ── Days left badge (for pending orders)
+  const daysLeft = (createdAt: string) => {
+    const days = Math.floor((Date.now() - new Date(createdAt).getTime()) / 86400000);
+    return Math.max(7 - days, 0);
+  };
+
+  // ── Pagination range
+  const startIdx = total === 0 ? 0 : (page - 1) * rowsPerPage + 1;
+  const endIdx = Math.min(page * rowsPerPage, total);
+
+  // ── Columns for non-Dispute vs Dispute tab
+  const isDisputeTab = activeTab === 'Dispute';
 
   return (
     <AdminLayout>
       <div className="flex flex-col h-[calc(100vh-72px)] -m-4 md:-m-6 bg-white">
+
+        {/* ── Tab bar ── */}
         <div className="bg-white border-b border-[#E2E8F0] relative z-50 shrink-0">
-          {/* Top Header Row */}
           <div className="flex justify-between items-center px-6 py-2 border-b border-[#E2E8F0] bg-white overflow-x-auto no-scrollbar">
             <div className="flex gap-6 items-center shrink-0">
-              {MAIN_TABS.map((tab) => (
-                <button
-                  key={tab.name}
-                  onClick={() => setActiveTab(tab.name)}
-                  className={`relative py-3 text-[13px] font-bold transition-colors whitespace-nowrap flex items-center gap-1.5 ${
-                    activeTab === tab.name ? 'text-[#00A86B]' : 'text-[#64748B] hover:text-[#0F172A]'
-                  }`}
-                >
-                  {tab.name} <span className="text-[11px] font-medium opacity-80">({tab.count})</span>
-                  {activeTab === tab.name && (
-                    <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#00A86B] rounded-t-full" />
-                  )}
-                </button>
-              ))}
+              {MAIN_TABS.map(tab => {
+                let tabCount: number | undefined;
+                if (tab === 'All') tabCount = Object.values(counts).reduce((a, b) => a + b, 0);
+                else if (tab === 'Pending') tabCount = counts['pending'];
+                else if (tab === 'Complete') tabCount = counts['accepted'];
+                else if (tab === 'Dispute') tabCount = counts['discrepancy raised'];
+                return (
+                  <button key={tab} onClick={() => setActiveTab(tab)}
+                    className={`relative py-3 text-[13px] font-bold transition-colors whitespace-nowrap flex items-center gap-1.5 ${
+                      activeTab === tab ? 'text-[#00A86B]' : 'text-[#64748B] hover:text-[#0F172A]'
+                    }`}>
+                    {tab}
+                    {tabCount !== undefined && (
+                      <span className="text-[11px] font-medium opacity-80">({tabCount})</span>
+                    )}
+                    {activeTab === tab && (
+                      <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#00A86B] rounded-t-full" />
+                    )}
+                  </button>
+                );
+              })}
             </div>
-
             <div className="flex items-center gap-3 shrink-0 ml-4">
-              <button 
-                onClick={fetchTableData}
+              <button onClick={() => { fetchDiscrepancy(); fetchCounts(); }}
                 className="w-8 h-8 rounded-full border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC]">
                 <RefreshCcw className="w-4 h-4" />
               </button>
             </div>
           </div>
 
-        {/* Summary Cards Row */}
-        <div className="p-4 border-b border-[#E2E8F0] bg-[#F8FAFC]/30 flex flex-wrap gap-4">
-          <div className="flex-1 min-w-[200px] bg-white rounded-xl p-3 border border-[#E2E8F0] flex items-center gap-3 shadow-sm">
-            <div className="w-8 h-8 rounded-full bg-[#E0F2FE] flex items-center justify-center shrink-0">
-              <Package className="w-4 h-4 text-[#0EA5E9]" />
+          {/* ── Summary cards ── */}
+          <div className="p-4 border-b border-[#E2E8F0] bg-[#F8FAFC]/30 flex flex-wrap gap-4">
+            <div className="flex-1 min-w-[180px] bg-white rounded-xl p-3 border border-[#E2E8F0] flex items-center gap-3 shadow-sm">
+              <div className="w-8 h-8 rounded-full bg-[#E0F2FE] flex items-center justify-center shrink-0">
+                <Package className="w-4 h-4 text-[#0EA5E9]" />
+              </div>
+              <div>
+                <div className="text-[18px] font-bold text-[#0F172A]">{counts['pending'] ?? 0}</div>
+                <div className="text-[10px] font-semibold text-[#64748B]">New Discrepancies</div>
+              </div>
             </div>
-            <div>
-              <div className="text-[14px] font-bold text-[#0F172A]">₹34,57,876.49</div>
-              <div className="text-[10px] font-semibold text-[#64748B]">New Discrepancies</div>
+            <div className="flex-1 min-w-[180px] bg-[#F0FDF4] rounded-xl p-3 border border-[#BBF7D0] flex items-center gap-3 shadow-sm">
+              <div className="w-8 h-8 rounded-full bg-[#BBF7D0] flex items-center justify-center shrink-0">
+                <Check className="w-4 h-4 text-[#16A34A]" />
+              </div>
+              <div>
+                <div className="text-[18px] font-bold text-[#0F172A]">{counts['accepted'] ?? 0}</div>
+                <div className="text-[10px] font-semibold text-[#64748B]">Accepted</div>
+              </div>
+            </div>
+            <div className="flex-1 min-w-[180px] bg-[#FFFBEB] rounded-xl p-3 border border-[#FDE68A] flex items-center gap-3 shadow-sm">
+              <div className="w-8 h-8 rounded-full bg-[#FDE68A] flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-4 h-4 text-[#D97706]" />
+              </div>
+              <div>
+                <div className="text-[18px] font-bold text-[#0F172A]">{counts['discrepancy raised'] ?? 0}</div>
+                <div className="text-[10px] font-semibold text-[#64748B]">Disputes</div>
+              </div>
+            </div>
+            <div className="flex-1 min-w-[180px] bg-[#FFF1F2] rounded-xl p-3 border border-[#FECDD3] flex items-center gap-3 shadow-sm">
+              <div className="w-8 h-8 rounded-full bg-[#FECDD3] flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-4 h-4 text-[#E11D48]" />
+              </div>
+              <div>
+                <div className="text-[18px] font-bold text-[#0F172A]">{counts['escalated'] ?? 0}</div>
+                <div className="text-[10px] font-semibold text-[#64748B]">Escalated</div>
+              </div>
             </div>
           </div>
-          <div className="flex-1 min-w-[200px] bg-[#FAF5FF] rounded-xl p-3 border border-[#F3E8FF] flex items-center gap-3 shadow-sm">
-            <div className="w-8 h-8 rounded-full bg-[#F3E8FF] flex items-center justify-center shrink-0">
-              <Clock className="w-4 h-4 text-[#A855F7]" />
-            </div>
-            <div>
-              <div className="text-[14px] font-bold text-[#0F172A]">₹34,57,876.49</div>
-              <div className="text-[10px] font-semibold text-[#64748B]">Accepted</div>
-            </div>
-          </div>
-          <div className="flex-1 min-w-[200px] bg-white rounded-xl p-3 border border-[#E2E8F0] flex items-center gap-3 shadow-sm">
-            <div className="w-8 h-8 rounded-full bg-[#DCFCE7] flex items-center justify-center shrink-0">
-              <AlertTriangle className="w-4 h-4 text-[#22C55E]" />
-            </div>
-            <div>
-              <div className="text-[14px] font-bold text-[#0F172A]">₹34,57,876.49</div>
-              <div className="text-[10px] font-semibold text-[#64748B]">Rejected</div>
-            </div>
-          </div>
-          <div className="flex-1 min-w-[200px] bg-[#FEFCE8] rounded-xl p-3 border border-[#FEF08A] flex items-center gap-3 shadow-sm">
-            <div className="w-8 h-8 rounded-full bg-[#FEF08A] flex items-center justify-center shrink-0">
-              <AlertTriangle className="w-4 h-4 text-[#EAB308]" />
-            </div>
-            <div>
-              <div className="text-[14px] font-bold text-[#0F172A]">₹34,57,876.49</div>
-              <div className="text-[10px] font-semibold text-[#64748B]">Escalated</div>
-            </div>
-          </div>
-        </div>
 
-        {/* Filters Row */}
-        <div className="p-3 border-b border-[#E2E8F0] flex flex-wrap items-center gap-2.5 bg-[#F8FAFC]/50 relative z-50">
-          <input 
-            type="text" 
-            placeholder="Search discrepancies..." 
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="glass-search-input w-[180px] shrink-0" 
-          />
-          
-          <GlassDropdown
-            label="Search Type"
-            options={SEARCH_TYPE_OPTIONS}
-            selected={selectedSearchTypes}
-            onChange={setSelectedSearchTypes}
-            placeholder="Search type..."
-            icon={<Filter className="w-3.5 h-3.5" />}
-          />
+          {/* ── Filter row ── */}
+          <div className="p-3 border-b border-[#E2E8F0] flex flex-wrap items-center gap-2.5 bg-[#F8FAFC]/50 relative z-50">
 
-          <GlassDropdown
-            label="Courier Service"
-            options={COURIER_OPTIONS}
-            selected={selectedCouriers}
-            onChange={setSelectedCouriers}
-            placeholder="Search courier..."
-            icon={<Truck className="w-3.5 h-3.5" />}
-          />
-
-          <GlassDropdown
-            label="Status"
-            options={STATUS_OPTIONS}
-            selected={selectedStatuses}
-            onChange={setSelectedStatuses}
-            placeholder="Search status..."
-            icon={<Check className="w-3.5 h-3.5" />}
-          />
-
-          <GlassDateFilter
-            align="right"
-            startDate={dateStart}
-            endDate={dateEnd}
-            onDateChange={(s, e) => { setDateStart(s); setDateEnd(e); }}
-          />
-          
-          <button 
-            onClick={fetchTableData}
-            className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm flex items-center justify-center cursor-pointer"
-          >
-            Apply
-          </button>
-
-          {hasActiveFilters && (
-            <button
-              onClick={() => {
-                handleClearFilters();
-                fetchTableData();
-              }}
-              className="h-9 px-3 shrink-0 rounded-lg border border-red-200 text-red-500 text-xs font-bold hover:bg-red-50 transition-colors cursor-pointer"
-            >
-              Clear All
-            </button>
-          )}
-
-          <div className="relative shrink-0 ml-auto flex items-center gap-2">
-            <div className="relative action-dropdown-container">
-              <button
-                onClick={() => setShowActionMenu(!showActionMenu)}
-                className="glass-dropdown-trigger w-auto px-4 justify-between min-w-[100px]"
-              >
-                Action
-                <ChevronDown className="w-3.5 h-3.5 absolute right-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
-              </button>
-              {showActionMenu && (
-                <div className="absolute right-0 top-full mt-2 w-[180px] bg-white rounded-xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1)] border border-[#E2E8F0] py-2 z-50">
-                  <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors">Export Excel</button>
-                  <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors">Download Report</button>
+            {/* User search (admin only) — matches AdminOrders pattern */}
+            {isAdminView && (
+              <div className="relative shrink-0" ref={userDropRef}>
+                <div className="relative">
+                  <input type="text" placeholder="Search user..."
+                    value={userSearchText}
+                    onChange={e => { handleUserInput(e.target.value); if (!e.target.value.trim()) { setUserMongoId(''); setUserResults([]); } }}
+                    className="h-9 pl-8 pr-7 rounded-lg border border-[#E2E8F0] text-xs bg-white focus:outline-none w-[170px]" />
+                  <Search className="w-3.5 h-3.5 text-[#94A3B8] absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  {userMongoId && (
+                    <button onClick={clearUserFilter}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-[#94A3B8] hover:text-red-500">
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
                 </div>
-              )}
+                {userResults.length > 0 && !userMongoId && (
+                  <div className="absolute left-0 top-full mt-1 w-[260px] bg-white border border-[#E2E8F0] rounded-xl shadow-xl z-[200] max-h-52 overflow-y-auto py-1">
+                    {userResults.map((u: any) => (
+                      <button key={u._id} type="button" onClick={() => selectUser(u)}
+                        className="w-full text-left px-3 py-2 hover:bg-[#F0FDF4] flex items-start gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="text-[11px] font-bold text-slate-800 truncate">{u.fullname}</div>
+                          <div className="text-[10px] text-slate-400 truncate">{u.email} · {u.phoneNumber}</div>
+                        </div>
+                        <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded shrink-0">{u.userId}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* AWB search */}
+            <input type="text" placeholder="Search AWB..."
+              value={searchInput} onChange={e => { setSearchInput(e.target.value); setPage(1); }}
+              className="h-9 px-3 rounded-lg border border-[#E2E8F0] text-xs bg-white focus:outline-none w-[160px] shrink-0" />
+
+            {/* Courier filter */}
+            {courierDropOptions.length > 0 && (
+              <GlassDropdown
+                label="Courier"
+                options={courierDropOptions}
+                selected={selectedCouriers}
+                onChange={v => { setSelectedCouriers(v); setPage(1); }}
+                placeholder="Search courier..."
+                icon={<Truck className="w-3.5 h-3.5" />}
+              />
+            )}
+
+            {/* Date filter */}
+            <GlassDateFilter
+              align="right"
+              startDate={dateStart}
+              endDate={dateEnd}
+              onDateChange={(s, e) => { setDateStart(s); setDateEnd(e); setPage(1); }}
+            />
+
+            {hasFilters && (
+              <button onClick={clearFilters}
+                className="h-9 px-3 shrink-0 rounded-lg border border-red-200 text-red-500 text-xs font-bold hover:bg-red-50 transition-colors">
+                Clear Filters
+              </button>
+            )}
+
+            {/* Selection count badge */}
+            {selectedItems.length > 0 && (
+              <div className="h-9 px-3 rounded-lg bg-blue-50 border border-blue-200 text-blue-700 text-xs font-bold flex items-center gap-1 shrink-0">
+                {selectedItems.length} selected
+              </div>
+            )}
+
+            <div className="ml-auto flex items-center gap-2 shrink-0">
+              {/* Actions dropdown — always openable so options are discoverable */}
+              <div className="relative" ref={actionMenuRef}>
+                <button onClick={() => setShowActionMenu(v => !v)}
+                  className="h-9 pl-4 pr-8 rounded-full border border-[#E2E8F0] text-xs bg-white flex items-center font-bold text-[#475569] shadow-sm hover:bg-[#F8FAFC] relative">
+                  Actions
+                  <ChevronDown className="w-3.5 h-3.5 absolute right-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
+                </button>
+                {showActionMenu && (
+                  <div className="absolute right-0 top-full mt-2 w-[170px] bg-white rounded-xl shadow-[0_8px_30px_-4px_rgba(0,0,0,0.15)] border border-[#E2E8F0] py-1.5 z-[200]">
+                    {/* Export — all tabs */}
+                    <button onClick={() => { handleExport(); setShowActionMenu(false); }}
+                      className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC]">
+                      Export
+                    </button>
+                    {/* Pending tab — user can bulk accept */}
+                    {activeTab === 'Pending' && !isAdminView && (
+                      <button onClick={() => { handleUserBulkAccept(); setShowActionMenu(false); }}
+                        className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#00A86B] hover:bg-green-50">
+                        Accept All
+                      </button>
+                    )}
+                    {/* Dispute tab — admin can bulk accept or bulk decline */}
+                    {isDisputeTab && isAdminView && (
+                      <button onClick={() => { handleBulkAccept(); setShowActionMenu(false); }}
+                        className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#00A86B] hover:bg-green-50">
+                        Bulk Accept
+                      </button>
+                    )}
+                    {isDisputeTab && (
+                      <button onClick={() => { handleBulkDecline(); setShowActionMenu(false); }}
+                        className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-red-500 hover:bg-red-50">
+                        Bulk Decline
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Upload button */}
+              <button onClick={() => setShowUpload(true)}
+                className="w-9 h-9 rounded-full bg-[#00A86B] flex items-center justify-center text-white shadow-sm hover:bg-[#009B63] transition-colors"
+                title="Upload discrepancy">
+                <Upload className="w-4 h-4" />
+              </button>
             </div>
-            <button className="w-9 h-9 rounded-full bg-[#00A86B] flex items-center justify-center text-white shadow-sm hover:bg-[#009B63] transition-colors cursor-pointer">
-              <Upload className="w-4 h-4" />
-            </button>
           </div>
+        </div>
+
+        {/* ── Table ── */}
+        <div className="bg-white flex flex-col flex-1 min-h-0 overflow-hidden">
+          <div className="flex-1 overflow-auto no-scrollbar relative">
+            <table className="w-full text-left border-collapse min-w-[1200px]">
+              <thead className="sticky top-0 z-40 bg-[#E6F5F1] shadow-sm">
+                <tr className="text-xs font-semibold text-[#00A86B] uppercase tracking-wider">
+                  <th className="p-3 w-10 align-middle">
+                    <input type="checkbox" className="rounded accent-[#00A86B] w-3.5 h-3.5"
+                      checked={selectedItems.length === orders.length && orders.length > 0}
+                      onChange={toggleAll} />
+                  </th>
+                  {isAdminView && (
+                    <th className="p-3 align-middle whitespace-nowrap">
+                      <div className="flex items-center gap-1.5"><User className="w-3.5 h-3.5" /><span>User</span></div>
+                    </th>
+                  )}
+                  <th className="p-3 align-middle whitespace-nowrap">
+                    <div className="flex items-center gap-1.5"><Package className="w-3.5 h-3.5" /><span>Product</span></div>
+                  </th>
+                  <th className="p-3 align-middle whitespace-nowrap">
+                    <div className="flex items-center gap-1.5"><Upload className="w-3.5 h-3.5" /><span>Upload On</span></div>
+                  </th>
+                  <th className="p-3 align-middle whitespace-nowrap">
+                    <div className="flex items-center gap-1.5"><Truck className="w-3.5 h-3.5" /><span>Shipment</span></div>
+                  </th>
+                  <th className="p-3 align-middle whitespace-nowrap">
+                    <div className="flex items-center gap-1.5"><Package className="w-3.5 h-3.5" /><span>Applied Weight</span></div>
+                  </th>
+                  <th className="p-3 align-middle whitespace-nowrap">
+                    <div className="flex items-center gap-1.5"><Package className="w-3.5 h-3.5" /><span>Charged Weight</span></div>
+                  </th>
+                  <th className="p-3 align-middle whitespace-nowrap">
+                    <div className="flex items-center gap-1.5"><FileText className="w-3.5 h-3.5" /><span>Excess Charges</span></div>
+                  </th>
+                  <th className="p-3 align-middle whitespace-nowrap">
+                    <div className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5" /><span>Status</span></div>
+                  </th>
+                  <th className="p-3 align-middle whitespace-nowrap text-center">Details</th>
+                  <th className="p-3 align-middle whitespace-nowrap text-center">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="text-[11px] text-[#475569]">
+                {loading ? (
+                  <tr>
+                    <td colSpan={isAdminView ? 11 : 10}
+                      className="text-center py-12 text-sm text-gray-400">
+                      Loading…
+                    </td>
+                  </tr>
+                ) : orders.length === 0 ? (
+                  <tr>
+                    <td colSpan={isAdminView ? 11 : 10}
+                      className="text-center py-16 text-sm text-gray-400">
+                      No discrepancies found
+                    </td>
+                  </tr>
+                ) : (
+                  orders.map((order, idx) => {
+                    const products: any[] = Array.isArray(order.productDetails) ? order.productDetails : [];
+                    const rem = daysLeft(order.createdAt);
+                    // Use adminStatus if present — it reflects the real dispute state
+                    const orderStatus = (order.adminStatus || order.status || '').toLowerCase();
+                    const isPending = orderStatus === 'pending' || orderStatus === 'new';
+                    const isDisputeRaised = orderStatus === 'discrepancy raised';
+
+                    return (
+                      <tr key={order._id} className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors">
+                        <td className="p-3 align-top pt-4 relative">
+                          {isPending && (
+                            <div className="absolute -top-2 left-1 bg-red-500 text-white text-[9px] px-1.5 py-0.5 rounded whitespace-nowrap z-10">
+                              {rem > 0 ? `${rem}d left` : 'Auto soon'}
+                            </div>
+                          )}
+                          <input type="checkbox" className="rounded accent-[#00A86B] w-3.5 h-3.5"
+                            checked={selectedItems.includes(order._id)}
+                            onChange={() => toggleOne(order._id)} />
+                        </td>
+
+                        {/* User (admin view only) */}
+                        {isAdminView && (
+                          <td className="p-3 align-top pt-4">
+                            <div className="text-xs font-semibold text-[#00A86B]">{order.user?.userId}</div>
+                            <div className="text-sm font-semibold text-[#0F172A]">{order.user?.fullname || order.user?.name}</div>
+                            <div className="text-xs text-[#94A3B8] max-w-[130px] truncate">{order.user?.email}</div>
+                            <div className="text-xs text-[#94A3B8]">{order.user?.phoneNumber}</div>
+                          </td>
+                        )}
+
+                        {/* Product */}
+                        <td className="p-3 align-top pt-4">
+                          <ProductCell products={products} />
+                        </td>
+
+                        {/* Upload On */}
+                        <td className="p-3 align-top pt-4">
+                          <div className="text-xs text-[#0F172A]">{fmtDate(order.createdAt)}</div>
+                          <div className="text-xs text-[#64748B]">{fmtTime(order.createdAt)}</div>
+                        </td>
+
+                        {/* Shipment */}
+                        <td className="p-3 align-top pt-4">
+                          <div className="text-xs font-semibold text-[#00A86B]">{order.courierServiceName}</div>
+                          <div className="flex items-center gap-1 group mt-0.5">
+                            <span className="text-xs font-semibold text-[#00A86B] underline underline-offset-2 cursor-pointer hover:text-[#009B63]">
+                              {order.awbNumber}
+                            </span>
+                            <button onClick={() => copyAwb(order.awbNumber, `awb-${idx}`)}
+                              className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-green-50 rounded text-gray-400 hover:text-[#00A86B]">
+                              {copiedAwb === `awb-${idx}` ? (
+                                <Check className="w-3 h-3 text-[#00A86B]" />
+                              ) : (
+                                <FileText className="w-3 h-3" />
+                              )}
+                            </button>
+                          </div>
+                        </td>
+
+                        {/* Applied Weight */}
+                        <td className="p-3 align-top pt-4 text-xs text-[#64748B]">
+                          <div className="font-semibold text-[#0F172A]">Applied: {order.enteredWeight?.applicableWeight} Kg</div>
+                          <div>Dead: {order.enteredWeight?.deadWeight} Kg</div>
+                          {order.enteredWeight?.volumetricWeight && (
+                            <div className="text-[10px]">
+                              Vol: {(
+                                ((order.enteredWeight.volumetricWeight.length || 0) *
+                                  (order.enteredWeight.volumetricWeight.breadth || 0) *
+                                  (order.enteredWeight.volumetricWeight.height || 0)) / 5000
+                              ).toFixed(2)} Kg
+                              ({order.enteredWeight.volumetricWeight.length}×
+                              {order.enteredWeight.volumetricWeight.breadth}×
+                              {order.enteredWeight.volumetricWeight.height} cm)
+                            </div>
+                          )}
+                        </td>
+
+                        {/* Charged Weight */}
+                        <td className="p-3 align-top pt-4 text-xs text-[#64748B]">
+                          <div className="font-semibold text-[#0F172A]">Charged: {order.chargedWeight?.applicableWeight} Kg</div>
+                          <div>Dead: {order.chargedWeight?.deadWeight} Kg</div>
+                          {order.chargedDimension?.length && (
+                            <div className="text-[10px]">
+                              Vol: {(
+                                (order.chargedDimension.length *
+                                  order.chargedDimension.breadth *
+                                  order.chargedDimension.height) / 5000
+                              ).toFixed(2)} Kg
+                              ({order.chargedDimension.length}×
+                              {order.chargedDimension.breadth}×
+                              {order.chargedDimension.height} cm)
+                            </div>
+                          )}
+                        </td>
+
+                        {/* Excess Charges */}
+                        <td className="p-3 align-top pt-4 text-xs text-[#64748B]">
+                          <div><span className="font-semibold text-[#0F172A]">Excess Wt:</span> {order.excessWeightCharges?.excessWeight || 0} Kg</div>
+                          <div><span className="font-semibold text-[#0F172A]">Excess Charges:</span> ₹{Number(order.excessWeightCharges?.excessCharges || 0).toFixed(2)}</div>
+                          <div className="text-red-500 font-semibold">Pending: ₹{Number(order.excessWeightCharges?.pendingAmount || 0).toFixed(2)}</div>
+                        </td>
+
+                        {/* Status */}
+                        <td className="p-3 align-top pt-4">
+                          <span className={badge(order.adminStatus || order.status)}>
+                            {order.adminStatus || order.status}
+                          </span>
+                        </td>
+
+                        {/* Details — always shown for dispute-raised rows */}
+                        <td className="p-3 align-top pt-4 text-center">
+                          {isDisputeRaised && (
+                            <button onClick={() => setDetailsModal({ open: true, text: order.text || '', imageUrl: order.imageUrl || '' })}
+                              className="text-[#00A86B] font-semibold text-xs hover:underline">
+                              Details
+                            </button>
+                          )}
+                        </td>
+
+                        {/* Actions */}
+                        <td className="p-3 align-top pt-4">
+                          {/* Admin: Accept / Decline raised disputes */}
+                          {isAdminView && isDisputeRaised && (
+                            <div className="flex flex-col gap-1.5 items-center">
+                              <button onClick={() => setAcceptModal({ open: true, awb: order.awbNumber })}
+                                className="w-16 px-2 py-1 rounded-lg bg-[#00A86B] text-white text-[10px] font-semibold hover:bg-[#009B63]">
+                                Accept
+                              </button>
+                              <button onClick={() => setDeclineModal({ open: true, awbs: [order.awbNumber] })}
+                                className="w-16 px-2 py-1 rounded-lg bg-red-500 text-white text-[10px] font-semibold hover:bg-red-600">
+                                Decline
+                              </button>
+                            </div>
+                          )}
+                          {/* User: Accept discrepancy or Raise Dispute */}
+                          {!isAdminView && isPending && (
+                            <div className="flex flex-col gap-1.5 items-center">
+                              <button onClick={() => setUserAcceptModal({ open: true, awb: order.awbNumber })}
+                                className="w-20 px-2 py-1 rounded-lg bg-[#00A86B] text-white text-[10px] font-semibold hover:bg-[#009B63]">
+                                Accept
+                              </button>
+                              <button onClick={() => setRaiseDisputeModal({ open: true, awb: order.awbNumber })}
+                                className="w-20 px-2 py-1 rounded-lg bg-orange-500 text-white text-[10px] font-semibold hover:bg-orange-600">
+                                Raise Dispute
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* ── Pagination ── */}
+          {totalPages > 0 && (
+            <DesktopPagination
+              page={page}
+              setPage={setPage}
+              totalPages={totalPages}
+              rowsPerPage={rowsPerPage}
+              setRowsPerPage={setRowsPerPage}
+              startIndex={startIdx}
+              endIndex={endIdx}
+              totalItems={total}
+            />
+          )}
         </div>
       </div>
 
-      {/* Table Section */}
-      <div className="bg-white flex flex-col flex-1 min-h-0 overflow-hidden border-t border-[#E2E8F0] relative">
-        {isLoading && <TableLoader />}
-        
-        {activeTab !== 'Escalated' && (
-          <>
-            <div className="flex-1 overflow-auto no-scrollbar relative">
-            <table className="w-full text-left border-collapse min-w-[1300px]">
-              <thead className="sticky top-0 z-40 bg-[#E6F5F1] shadow-sm">
-                <tr className="text-xs font-medium text-[#00A86B] uppercase tracking-wider">
-                  <th className="p-3 w-10 text-left align-middle">
-                    <input type="checkbox" checked={selectedOrders.length === filteredData.length && filteredData.length > 0} onChange={toggleAll} className="rounded border-[#00A86B] accent-[#00A86B] w-3.5 h-3.5" />
-                  </th>
-                  <th className="p-3 text-left align-middle whitespace-nowrap">
-                    <div className="flex items-center gap-1.5">
-                      <User className="w-3.5 h-3.5 shrink-0" />
-                      <span>User</span>
-                    </div>
-                  </th>
-                  <th className="p-3 text-left align-middle whitespace-nowrap">
-                    <div className="flex items-center gap-1.5">
-                      <Package className="w-3.5 h-3.5 shrink-0" />
-                      <span>Product</span>
-                    </div>
-                  </th>
-                  <th className="p-3 text-left align-middle whitespace-nowrap">
-                    <div className="flex items-center gap-1.5">
-                      <Upload className="w-3.5 h-3.5 shrink-0" />
-                      <span>Upload Date</span>
-                    </div>
-                  </th>
-                  <th className="p-3 text-left align-middle whitespace-nowrap">
-                    <div className="flex items-center gap-1.5">
-                      <Truck className="w-3.5 h-3.5 shrink-0" />
-                      <span>Shipment</span>
-                    </div>
-                  </th>
-                  <th className="p-3 text-left align-middle whitespace-nowrap">
-                    <div className="flex items-center gap-1.5">
-                      <Package className="w-3.5 h-3.5 shrink-0" />
-                      <span>Applied Weight</span>
-                    </div>
-                  </th>
-                  <th className="p-3 text-left align-middle whitespace-nowrap">
-                    <div className="flex items-center gap-1.5">
-                      <Package className="w-3.5 h-3.5 shrink-0" />
-                      <span>Charged Weight</span>
-                    </div>
-                  </th>
-                  <th className="p-3 text-left align-middle whitespace-nowrap">
-                    <div className="flex items-center gap-1.5">
-                      <FileText className="w-3.5 h-3.5 shrink-0" />
-                      <span>Excess Charges</span>
-                    </div>
-                  </th>
-                  <th className="p-3 text-left align-middle whitespace-nowrap">
-                    <div className="flex items-center gap-1.5">
-                      <Check className="w-3.5 h-3.5 shrink-0" />
-                      <span>Status</span>
-                    </div>
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="text-[11px] text-[#475569]">
-                {paginatedData.map((item) => (
-                  <tr key={item.awb} className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors group">
-                    <td className="p-3 align-top pt-4">
-                      <input type="checkbox" checked={selectedOrders.includes(item.awb)} onChange={() => toggleSelect(item.awb)} className="rounded border-gray-300 accent-[#00A86B] w-3.5 h-3.5" />
-                    </td>
-                    <td className="p-3 align-top pt-4">
-                      <div className="text-xs font-semibold text-[#00A86B] cursor-pointer hover:underline">{item.id}</div>
-                      <TruncatedText text={item.userName} maxLength={20} className="text-sm font-semibold text-[#0F172A] mt-0.5 max-w-[160px]" />
-                      <TruncatedText text={item.userEmail} maxLength={25} className="font-sans text-xs font-normal text-[#94A3B8] max-w-[180px]" />
-                    </td>
-                    <td className="p-3 align-top pt-4 text-xs font-normal">
-                      <div className="relative group/prod cursor-pointer inline-block max-w-[170px]">
-                        <div className="text-[#0F172A] truncate font-medium" title={getFullProductName(item.productName)}>
-                          {item.productName}
-                        </div>
-                        <div className="absolute left-0 bottom-full mb-1.5 hidden group-hover/prod:block z-50 bg-[#0F172A] text-white text-[11px] font-normal px-2.5 py-1.5 rounded shadow-xl whitespace-nowrap pointer-events-none border border-slate-700">
-                          {getFullProductName(item.productName)}
-                          <div className="absolute left-4 top-full -mt-1 border-4 border-transparent border-t-[#0F172A]" />
-                        </div>
-                      </div>
-                      <div className="text-[#64748B] mt-0.5">SKU: {item.sku}</div>
-                      <div className="text-[#64748B] mt-0.5">QTY: {item.qty}</div>
-                    </td>
-                    <td className="p-3 align-top pt-4">
-                      <div className="table-date">{item.uploadDate}</div>
-                      <div className="table-date mt-0.5">{item.uploadTime}</div>
-                    </td>
-                    <td className="p-3 align-top pt-4">
-                      <div className="text-xs font-semibold text-[#00A86B]">{item.courier}</div>
-                      <div className="table-date mt-0.5">Booked On : {item.bookedDate}</div>
-                      <div className="text-xs font-semibold text-[#00A86B] underline decoration-solid underline-offset-2 mt-0.5 hover:text-[#009B63] cursor-pointer">{item.awb}</div>
-                    </td>
-                    <td className="p-3 align-top pt-4 text-xs font-normal text-[#64748B]">
-                      <div className="text-[#0F172A] font-medium">Applied weight: {item.initialAppliedWeight}</div>
-                      <div className="mt-0.5">Weight: {item.initialWeight}</div>
-                      <div className="mt-0.5">L*W*H: {item.initialDimensions}</div>
-                      <div className="mt-0.5">Vol. Weight: {item.initialVolWeight}</div>
-                    </td>
-                    <td className="p-3 align-top pt-4 text-xs font-normal text-[#64748B]">
-                      <div className="text-[#0F172A] font-medium">Charged weight: {item.courierChargedWeight}</div>
-                      <div className="mt-0.5">Dead Weight: {item.courierDeadWeight}</div>
-                    </td>
-                    <td className="p-3 align-top pt-4 text-xs font-normal text-[#64748B]">
-                      <div className="text-[#0F172A] font-medium">Excess Weight: {item.exWeight}</div>
-                      <div className="mt-0.5">Excess Charges: {item.exCharges}</div>
-                      <div className="mt-0.5 font-medium text-[#EF4444]">{item.amount}</div>
-                    </td>
-                    <td className="p-3 align-top pt-4">
-                      <span className={getStatusBadgeClass(item.status)}>{item.status}</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Pagination */}
-          <DesktopPagination
-            page={currentPage}
-            setPage={setCurrentPage}
-            totalPages={totalPages}
-            rowsPerPage={rowsPerPage}
-            setRowsPerPage={setRowsPerPage}
-            startIndex={startIndex}
-            endIndex={endIndex}
-            totalItems={totalItems}
-          />
-          </>
-        )}
-
-        {activeTab === 'Escalated' && (
-          <>
-            <div className="flex-1 overflow-auto no-scrollbar relative">
-            <table className="w-full text-left border-collapse min-w-[1400px]">
-              <thead className="sticky top-0 z-40 bg-[#E6F5F1] shadow-sm">
-                <tr className="text-xs font-medium text-[#00A86B] uppercase tracking-wider">
-                  <th className="p-3 w-10 text-left align-middle">
-                    <input type="checkbox" checked={selectedEscalated.length === ESCALATED_DATA.length && ESCALATED_DATA.length > 0} onChange={toggleAllEscalated} className="rounded border-[#00A86B] accent-[#00A86B] w-3.5 h-3.5" />
-                  </th>
-                  <th className="p-3 text-left align-middle whitespace-nowrap">
-                    <div className="flex items-center gap-1.5">
-                      <User className="w-3.5 h-3.5 shrink-0" />
-                      <span>User</span>
-                    </div>
-                  </th>
-                  <th className="p-3 text-left align-middle whitespace-nowrap">
-                    <div className="flex items-center gap-1.5">
-                      <Package className="w-3.5 h-3.5 shrink-0" />
-                      <span>Product</span>
-                    </div>
-                  </th>
-                  <th className="p-3 text-left align-middle whitespace-nowrap">
-                    <div className="flex items-center gap-1.5">
-                      <Upload className="w-3.5 h-3.5 shrink-0" />
-                      <span>Upload Date</span>
-                    </div>
-                  </th>
-                  <th className="p-3 text-left align-middle whitespace-nowrap">
-                    <div className="flex items-center gap-1.5">
-                      <Truck className="w-3.5 h-3.5 shrink-0" />
-                      <span>Shipment</span>
-                    </div>
-                  </th>
-                  <th className="p-3 text-left align-middle whitespace-nowrap">
-                    <div className="flex items-center gap-1.5">
-                      <Package className="w-3.5 h-3.5 shrink-0" />
-                      <span>Applied Weight</span>
-                    </div>
-                  </th>
-                  <th className="p-3 text-left align-middle whitespace-nowrap">
-                    <div className="flex items-center gap-1.5">
-                      <Package className="w-3.5 h-3.5 shrink-0" />
-                      <span>Charged Weight</span>
-                    </div>
-                  </th>
-                  <th className="p-3 text-left align-middle whitespace-nowrap">
-                    <div className="flex items-center gap-1.5">
-                      <FileText className="w-3.5 h-3.5 shrink-0" />
-                      <span>Excess Charges</span>
-                    </div>
-                  </th>
-                  <th className="p-3 text-left align-middle whitespace-nowrap">
-                    <div className="flex items-center gap-1.5">
-                      <Check className="w-3.5 h-3.5 shrink-0" />
-                      <span>Status</span>
-                    </div>
-                  </th>
-                  <th className="p-3 text-left align-middle whitespace-nowrap">
-                    <div className="flex items-center gap-1.5">
-                      <FileText className="w-3.5 h-3.5 shrink-0" />
-                      <span>Details</span>
-                    </div>
-                  </th>
-                  <th className="p-3 text-left align-middle whitespace-nowrap">
-                    <div className="flex items-center gap-1.5">
-                      <Settings className="w-3.5 h-3.5 shrink-0" />
-                      <span>Actions</span>
-                    </div>
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="text-[11px] text-[#475569]">
-                {paginatedEscalatedData.map((item) => (
-                  <tr key={item.awb} className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors group">
-                    <td className="p-3 align-top pt-4">
-                      <input type="checkbox" checked={selectedEscalated.includes(item.awb)} onChange={() => toggleSelectEscalated(item.awb)} className="rounded border-gray-300 accent-[#00A86B] w-3.5 h-3.5" />
-                    </td>
-                    <td className="p-3 align-top pt-4">
-                      <div className="text-xs font-semibold text-[#00A86B] cursor-pointer hover:underline">{item.id}</div>
-                      <TruncatedText text={item.userName} maxLength={20} className="text-sm font-semibold text-[#0F172A] mt-0.5 max-w-[160px]" />
-                      <TruncatedText text={item.userEmail} maxLength={25} className="font-sans text-xs font-normal text-[#94A3B8] max-w-[180px]" />
-                    </td>
-                    <td className="p-3 align-top pt-4 text-xs font-normal">
-                      <div className="relative group/prod cursor-pointer inline-block max-w-[170px]">
-                        <div className="text-[#0F172A] truncate font-medium" title={getFullProductName(item.productName)}>
-                          {item.productName}
-                        </div>
-                        <div className="absolute left-0 bottom-full mb-1.5 hidden group-hover/prod:block z-50 bg-[#0F172A] text-white text-[11px] font-normal px-2.5 py-1.5 rounded shadow-xl whitespace-nowrap pointer-events-none border border-slate-700">
-                          {getFullProductName(item.productName)}
-                          <div className="absolute left-4 top-full -mt-1 border-4 border-transparent border-t-[#0F172A]" />
-                        </div>
-                      </div>
-                      <div className="text-[#64748B] mt-0.5">SKU: {item.sku}</div>
-                      <div className="text-[#64748B] mt-0.5">QTY: {item.qty}</div>
-                    </td>
-                    <td className="p-3 align-top pt-4">
-                      <div className="table-date">{item.uploadDate}</div>
-                      <div className="table-date mt-0.5">{item.uploadTime}</div>
-                    </td>
-                    <td className="p-3 align-top pt-4">
-                      <div className="text-xs font-semibold text-[#00A86B]">{item.courier}</div>
-                      <div className="table-date mt-0.5">Booked On : {item.bookedDate}</div>
-                      <div className="text-xs font-semibold text-[#00A86B] underline decoration-solid underline-offset-2 mt-0.5 hover:text-[#009B63] cursor-pointer">{item.awb}</div>
-                    </td>
-                    <td className="p-3 align-top pt-4 text-xs font-normal text-[#64748B]">
-                      <div className="text-[#0F172A] font-medium">Applied weight: {item.initialAppliedWeight}</div>
-                      <div className="mt-0.5">Weight: {item.initialWeight}</div>
-                      <div className="mt-0.5">L*W*H: {item.initialDimensions}</div>
-                      <div className="mt-0.5">Vol. Weight: {item.initialVolWeight}</div>
-                    </td>
-                    <td className="p-3 align-top pt-4 text-xs font-normal text-[#64748B]">
-                      <div className="text-[#0F172A] font-medium">Charged weight: {item.courierChargedWeight}</div>
-                      <div className="mt-0.5">Dead Weight: {item.courierDeadWeight}</div>
-                    </td>
-                    <td className="p-3 align-top pt-4 text-xs font-normal text-[#64748B]">
-                      <div className="text-[#0F172A] font-medium">Excess Weight: {item.exWeight}</div>
-                      <div className="mt-0.5">Excess Charges: {item.exCharges}</div>
-                      <div className="mt-0.5 font-medium text-[#EF4444]">{item.amount}</div>
-                    </td>
-                    <td className="p-3 align-top pt-4">
-                      <span className={getStatusBadgeClass(item.status)}>{item.status}</span>
-                    </td>
-                    <td className="p-3 align-top pt-4">
-                      <button className="text-[#00A86B] font-bold hover:underline">Details</button>
-                    </td>
-                    <td className="p-3 align-top pt-4 text-right">
-                      <div className="flex flex-col gap-1.5 justify-end items-end">
-                        <button className="px-3 py-0.5 rounded-full border border-[#00A86B] text-[#00A86B] font-bold text-[10px] hover:bg-[#00A86B]/10 transition-colors">Accepted</button>
-                        <button className="px-3 py-0.5 rounded-full border border-red-500 text-red-500 font-bold text-[10px] hover:bg-red-50 transition-colors">Decline</button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Pagination */}
-          <DesktopPagination
-            page={currentPage}
-            setPage={setCurrentPage}
-            totalPages={totalEscalatedPages}
-            rowsPerPage={rowsPerPage}
-            setRowsPerPage={setRowsPerPage}
-            startIndex={startIndex}
-            endIndex={endIndex}
-            totalItems={totalItems}
-          />
-          </>
-        )}
-      </div>
-      </div>
+      {/* ── Modals ── */}
+      {acceptModal.open && (
+        <AcceptModal awb={acceptModal.awb}
+          onClose={() => setAcceptModal({ open: false, awb: '' })}
+          onDone={() => { fetchDiscrepancy(); fetchCounts(); }} />
+      )}
+      {declineModal.open && (
+        <DeclineModal awbNumbers={declineModal.awbs}
+          onClose={() => setDeclineModal({ open: false, awbs: [] })}
+          onDone={() => { fetchDiscrepancy(); fetchCounts(); setSelectedItems([]); }} />
+      )}
+      {userAcceptModal.open && (
+        <UserAcceptModal awb={userAcceptModal.awb}
+          onClose={() => setUserAcceptModal({ open: false, awb: '' })}
+          onDone={() => { fetchDiscrepancy(); fetchCounts(); }} />
+      )}
+      {raiseDisputeModal.open && (
+        <RaiseDisputeModal awb={raiseDisputeModal.awb}
+          onClose={() => setRaiseDisputeModal({ open: false, awb: '' })}
+          onDone={() => { fetchDiscrepancy(); fetchCounts(); }} />
+      )}
+      {bulkAcceptModal.open && (
+        <BulkAcceptModal orderIds={bulkAcceptModal.orderIds} label={bulkAcceptModal.label}
+          onClose={() => setBulkAcceptModal({ open: false, orderIds: [], label: '' })}
+          onDone={() => { fetchDiscrepancy(); fetchCounts(); setSelectedItems([]); }} />
+      )}
+      {showUpload && (
+        <UploadModal onClose={() => setShowUpload(false)}
+          onDone={() => { fetchDiscrepancy(); fetchCounts(); }} />
+      )}
+      {detailsModal.open && (
+        <DetailsModal text={detailsModal.text} imageUrl={detailsModal.imageUrl}
+          onClose={() => setDetailsModal({ open: false, text: '', imageUrl: '' })} />
+      )}
     </AdminLayout>
   );
 }

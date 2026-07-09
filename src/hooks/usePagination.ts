@@ -14,6 +14,14 @@ export function usePagination<T>({
   const [page, setPage] = useState(initialPage);
   const [rowsPerPage, setRowsPerPage] = useState(perPage);
 
+  // Keep internal rowsPerPage in sync with the perPage prop — useState(perPage) only
+  // applies on first mount, so without this, callers that pass an external/controlled
+  // perPage value (e.g. a "rows per page" dropdown driven by the caller's own state)
+  // would see paginatedData stay sliced at the original page size forever.
+  useEffect(() => {
+    setRowsPerPage(perPage);
+  }, [perPage]);
+
   // Reset to page 1 if the dataset changes or shrinks
   useEffect(() => {
     setPage(1);
@@ -75,54 +83,55 @@ export function DesktopPagination({
   startIndex,
   endIndex,
   totalItems,
-  rowsPerPageOptions = [10, 25, 50, 100],
+  rowsPerPageOptions = [10, 20, 50, 100],
 }: DesktopPaginationProps) {
   if (totalPages === 0) return null;
 
+  const arrowBtnClass = 'w-8 h-8 rounded-lg border border-[#E2E8F0] flex items-center justify-center text-[#475569] hover:bg-[#F8FAFC] hover:border-[#CBD5E1] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150';
+
   return React.createElement('div', { className: 'hidden md:block' },
-    React.createElement('div', { className: 'p-4 border-t border-[#E2E8F0] flex items-center justify-between' },
-      React.createElement('div', { className: 'flex items-center gap-4' },
-        React.createElement('div', { className: 'text-xs text-[#64748B]' },
-          'Showing ',
-          React.createElement('span', { className: 'font-bold text-[#0F172A]' }, startIndex),
-          ' to ',
-          React.createElement('span', { className: 'font-bold text-[#0F172A]' }, endIndex),
-          ' of ',
-          React.createElement('span', { className: 'font-bold text-[#0F172A]' }, totalItems),
-          ' entries'
-        ),
-        React.createElement('div', { className: 'flex items-center gap-1.5' },
-          React.createElement('span', { className: 'text-[11px] text-[#94A3B8] font-semibold uppercase tracking-wider' }, 'Show'),
-          React.createElement('select', {
-            value: rowsPerPage,
-            onChange: (e: React.ChangeEvent<HTMLSelectElement>) => setRowsPerPage(Number(e.target.value)),
-            className: "h-8 px-2.5 rounded-lg border border-[#E2E8F0] bg-white text-xs font-bold text-[#475569] cursor-pointer appearance-none min-w-[56px] text-center shadow-sm hover:border-[#00A86B]/40 hover:shadow-[0_0_0_3px_rgba(0,168,107,0.06)] focus:outline-none focus:border-[#00A86B] focus:shadow-[0_0_0_3px_rgba(0,168,107,0.1)] transition-all duration-200 bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2394A3B8%22%20stroke-width%3D%222.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E')] bg-[length:12px] bg-[right_8px_center] bg-no-repeat pr-7"
-          },
-            rowsPerPageOptions.map((v) => React.createElement('option', { key: v, value: v }, v))
-          )
+    React.createElement('div', { className: 'px-5 py-3 border-t border-[#E2E8F0] flex items-center justify-between bg-white' },
+      // Left: Rows per page
+      React.createElement('div', { className: 'flex items-center gap-2' },
+        React.createElement('span', { className: 'text-[13px] text-[#64748B] font-medium select-none' }, 'Rows per page:'),
+        React.createElement('select', {
+          value: rowsPerPage,
+          onChange: (e: React.ChangeEvent<HTMLSelectElement>) => setRowsPerPage(Number(e.target.value)),
+          className: "h-8 pl-2.5 pr-7 rounded-lg border border-[#E2E8F0] bg-white text-[13px] font-semibold text-[#0F172A] cursor-pointer appearance-none min-w-[52px] text-center shadow-sm hover:border-[#CBD5E1] focus:outline-none focus:border-[#00A86B] focus:shadow-[0_0_0_2px_rgba(0,168,107,0.08)] transition-all duration-150 bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2210%22%20height%3D%2210%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2394A3B8%22%20stroke-width%3D%222.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E')] bg-[length:10px] bg-[right_8px_center] bg-no-repeat"
+        },
+          rowsPerPageOptions.map((v) => React.createElement('option', { key: v, value: v }, v))
         )
       ),
-      React.createElement('div', { className: 'flex items-center gap-1' },
+      // Right: ← Page X of Y →
+      React.createElement('div', { className: 'flex items-center gap-3' },
         React.createElement('button', {
           onClick: () => setPage((p) => Math.max(1, p - 1)),
           disabled: page === 1,
-          className: 'px-3 py-1.5 rounded border border-[#E2E8F0] text-xs font-medium text-[#475569] hover:bg-[#F8FAFC] disabled:opacity-50'
-        }, 'Previous'),
-        Array.from({ length: totalPages }, (_, i) => (
-          React.createElement('button', {
-            key: i + 1,
-            onClick: () => setPage(i + 1),
-            className: `w-8 h-8 rounded text-xs font-medium flex items-center justify-center transition-colors ${
-              page === i + 1 ? 'bg-[#00A86B] text-white border border-[#00A86B]' : 'border border-[#E2E8F0] text-[#475569] hover:bg-[#F8FAFC]'
-            }`
-          }, i + 1)
-        )),
+          className: arrowBtnClass,
+          'aria-label': 'Previous page'
+        },
+          React.createElement('svg', { width: 14, height: 14, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' },
+            React.createElement('polyline', { points: '15 18 9 12 15 6' })
+          )
+        ),
+        React.createElement('span', { className: 'text-[13px] text-[#64748B] font-medium select-none' },
+          'Page ',
+          React.createElement('span', { className: 'font-bold text-[#0F172A]' }, page),
+          ' of ',
+          React.createElement('span', { className: 'font-bold text-[#0F172A]' }, totalPages)
+        ),
         React.createElement('button', {
           onClick: () => setPage((p) => Math.min(totalPages, p + 1)),
           disabled: page === totalPages,
-          className: 'px-3 py-1.5 rounded border border-[#E2E8F0] text-xs font-medium text-[#475569] hover:bg-[#F8FAFC] disabled:opacity-50'
-        }, 'Next')
+          className: arrowBtnClass,
+          'aria-label': 'Next page'
+        },
+          React.createElement('svg', { width: 14, height: 14, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' },
+            React.createElement('polyline', { points: '9 18 15 12 9 6' })
+          )
+        )
       )
     )
   );
 }
+

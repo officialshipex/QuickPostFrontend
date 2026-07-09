@@ -1,6 +1,6 @@
 import axios from 'axios';
+import { getToken, removeToken } from '../utils/session';
 
-// Future MERN backend integration point
 export const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1',
   headers: {
@@ -8,21 +8,20 @@ export const apiClient = axios.create({
   },
 });
 
-// Mock interceptor to add token if it exists
 apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('auth_token');
+  const token = getToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
 
-// Add response interceptor for handling 401s centrally later
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      // Handle logout/refresh logic here
+    if (error.response?.status === 401 || error.response?.status === 403) {
+      removeToken();
+      window.location.href = '/login';
     }
     return Promise.reject(error);
   }

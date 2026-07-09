@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
-import { usePagination } from '../../hooks/usePagination';
+import { usePagination, DesktopPagination } from '../../hooks/usePagination';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { 
   Search, RefreshCcw, User, 
@@ -166,6 +166,8 @@ export function AdminReferral() {
     paginatedData: paginatedReferrals,
     startIndex,
     endIndex,
+    rowsPerPage,
+    setRowsPerPage,
   } = usePagination({ data: filteredReferrals, perPage: 10 });
 
   const computedStats = useMemo(() => {
@@ -339,38 +341,16 @@ export function AdminReferral() {
 
           {/* Pagination */}
           {totalPages > 0 && (
-            <div className="p-4 border-t border-[#E2E8F0] flex items-center justify-between">
-              <div className="text-xs text-[#64748B]">
-                Showing <span className="font-bold text-[#0F172A]">{startIndex}</span> to <span className="font-bold text-[#0F172A]">{endIndex}</span> of <span className="font-bold text-[#0F172A]">{filteredReferrals.length}</span> entries
-              </div>
-              <div className="flex items-center gap-1">
-                <button 
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                  className="px-3 py-1.5 rounded border border-[#E2E8F0] text-xs font-medium text-[#475569] hover:bg-[#F8FAFC] disabled:opacity-50"
-                >
-                  Previous
-                </button>
-                {Array.from({ length: totalPages }, (_, i) => (
-                  <button
-                    key={i + 1}
-                    onClick={() => setCurrentPage(i + 1)}
-                    className={`w-8 h-8 rounded text-xs font-medium flex items-center justify-center transition-colors ${
-                      currentPage === i + 1 ? 'bg-[#00A86B] text-white border border-[#00A86B]' : 'border border-[#E2E8F0] text-[#475569] hover:bg-[#F8FAFC]'
-                    }`}
-                  >
-                    {i + 1}
-                  </button>
-                ))}
-                <button 
-                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages}
-                  className="px-3 py-1.5 rounded border border-[#E2E8F0] text-xs font-medium text-[#475569] hover:bg-[#F8FAFC] disabled:opacity-50"
-                >
-                  Next
-                </button>
-              </div>
-            </div>
+            <DesktopPagination
+              page={currentPage}
+              setPage={setCurrentPage}
+              totalPages={totalPages}
+              rowsPerPage={rowsPerPage}
+              setRowsPerPage={setRowsPerPage}
+              startIndex={startIndex}
+              endIndex={endIndex}
+              totalItems={filteredReferrals.length}
+            />
           )}
         </div>
       </div>

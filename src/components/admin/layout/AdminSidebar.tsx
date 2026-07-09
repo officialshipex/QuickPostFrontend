@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
+import { useAdminTab } from '../../../context/AdminUserContext';
 import { 
   Home,
   Briefcase,
@@ -122,6 +123,11 @@ interface AdminSidebarProps {
 export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSidebarProps) {
   const location = useLocation();
   const [mobileExpandedGroup, setMobileExpandedGroup] = useState<string | null>(null);
+  const { isAdmin, adminTab } = useAdminTab();
+  const isAdminView = isAdmin && adminTab;
+
+  const filterItems = (items?: { name: string; path: string; icon: any }[]) =>
+    (items || []).filter(item => item.path !== '/admin/cod' || isAdminView);
 
   const getIsGroupActive = (items?: {path: string}[]) => {
     if (!items) return false;
@@ -152,8 +158,8 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
               return <div key={index} className="w-8 border-b border-[#1E293B] my-1 opacity-50" />;
             }
 
-            const isActive = group.path 
-              ? location.pathname === group.path
+            const isActive = group.path
+              ? location.pathname.startsWith(group.path)
               : getIsGroupActive(group.items);
 
             const Icon = group.icon as React.ComponentType<{ className?: string; strokeWidth?: number }>;
@@ -184,16 +190,16 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
                 )}
 
                 {/* Flyout Menu Container */}
-                {group.items && group.items.length > 0 && (
+                {group.items && filterItems(group.items).length > 0 && (
                   <div className={`absolute left-full ml-2 invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-all duration-200 z-[100] ${index > MENU_GROUPS.length / 2 ? 'bottom-0' : 'top-0'}`}>
                     <div className="bg-white rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.15)] border border-[#E2E8F0] min-w-[200px] overflow-hidden py-2">
                       <div className="px-4 py-2 border-b border-[#E2E8F0] mb-2 flex justify-between items-center">
                         <p className="text-[12px] font-bold text-[#64748B] uppercase tracking-wider">{group.label}</p>
                         {group.isBeta && <span className="text-[9px] font-bold bg-[#00A86B]/10 text-[#00A86B] px-1.5 py-0.5 rounded-md">BETA</span>}
                       </div>
-                      
+
                       <div className="flex flex-col">
-                        {group.items.map((item, i) => {
+                        {filterItems(group.items).map((item, i) => {
                           const isSubActive = location.pathname === item.path;
                           return (
                             <NavLink
@@ -256,8 +262,8 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
                   return <div key={index} className="border-b border-[#1E293B] my-2 mx-2 opacity-50" />;
                 }
 
-                const isActive = group.path 
-                  ? location.pathname === group.path
+                const isActive = group.path
+                  ? location.pathname.startsWith(group.path)
                   : getIsGroupActive(group.items);
 
                 const Icon = group.icon as React.ComponentType<{ className?: string; strokeWidth?: number }>;
@@ -298,7 +304,7 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
                     </button>
                     {isExpanded && group.items && (
                       <div className="ml-4 mt-1 flex flex-col gap-0.5 border-l-2 border-[#1E293B] pl-3">
-                        {group.items.map((item, i) => {
+                        {filterItems(group.items).map((item, i) => {
                           const isSubActive = location.pathname === item.path;
                           return (
                             <NavLink
