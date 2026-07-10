@@ -661,18 +661,21 @@ export function AdminWallet() {
     }
   }, [isAdminView, currentUserId, rcUserMongoId, rechargeDateStart, rechargeDateEnd, rechargeTxnId, selectedRechargeStatuses]);
 
+  const MONTH_NAME_TO_NUM: Record<string, number> = {
+    January: 1, February: 2, March: 3, April: 4, May: 5, June: 6,
+    July: 7, August: 8, September: 9, October: 10, November: 11, December: 12,
+  };
+
   const fetchInvoiceData = useCallback(async (page: number) => {
     setIsLoading(true);
     try {
       const params: Record<string, any> = { page, limit: itemsPerPage };
       if (isAdminView) {
-        if (invUserMongoId) params.userSearch = invUserMongoId;
-      } else if (currentUserId) {
-        params.userSearch = currentUserId;
+        if (invUserMongoId) params.userId = invUserMongoId;
       }
       if (invoiceDateStart) params.fromDate = toISOStart(invoiceDateStart);
       if (invoiceDateEnd) params.toDate = toISOEnd(invoiceDateEnd);
-      if (selectedMonths.length === 1) params.month = selectedMonths[0];
+      if (selectedMonths.length === 1) params.month = MONTH_NAME_TO_NUM[selectedMonths[0]] ?? selectedMonths[0];
       if (selectedYears.length === 1) params.year = selectedYears[0];
       const endpoint = isAdminView ? '/invoice/adminGetInvoices' : '/invoice/userGetInvoices';
       const res = await apiClient.get(endpoint, { params });
@@ -683,7 +686,7 @@ export function AdminWallet() {
     } finally {
       setIsLoading(false);
     }
-  }, [isAdminView, invUserMongoId, currentUserId, invoiceDateStart, invoiceDateEnd, selectedMonths, selectedYears]);
+  }, [isAdminView, invUserMongoId, invoiceDateStart, invoiceDateEnd, selectedMonths, selectedYears]);
 
   const fetchCodBalance = useCallback(async () => {
     try {
@@ -1074,16 +1077,42 @@ export function AdminWallet() {
   };
 
   const handleDownloadInvoice = (invoice: any) => {
-    const content = `INVOICE DETAIL\nInvoice No: ${invoice.invoiceNumber}\nUser: ${invoice.userName} (${invoice.userEmail})\nPeriod: ${invoice.invoicePeriod}\nAmount: INR ${invoice.amount.toFixed(2)}\nStatus: ${invoice.status}\n`;
-    const blob = new Blob([content], { type: 'text/plain;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `Invoice_${invoice.invoiceNumber}.txt`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    showToast('success', 'Invoice downloaded successfully!');
+    if (invoice.invoiceUrl) {
+      window.open(invoice.invoiceUrl, '_blank', 'noopener,noreferrer');
+      showToast('success', 'Opening invoice PDF…');
+    } else {
+      showToast('error', 'Invoice PDF not available yet.');
+    }
+  };
+
+  const handleDownloadExcel = async (invoice: any) => {
+    try {
+      const res = await apiClient.get('/invoice/export-excel', {
+        params: { invoiceNumber: invoice.invoiceNumber },
+        responseType: 'blob',
+      });
+      const url = URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Invoice_${invoice.invoiceNumber}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      showToast('success', 'Excel downloaded!');
+    } catch {
+      showToast('error', 'Failed to download Excel.');
+    }
+  };
+
+  const handleBulkDownloadPDF = () => {
+    if (selectedInvoiceOrders.length === 0) { showToast('error', 'Select at least one invoice.'); return; }
+    const urls = selectedInvoiceOrders
+      .map(num => filteredInvoicesData.find((inv: any) => inv.invoiceNumber === num)?.invoiceUrl)
+      .filter(Boolean);
+    if (urls.length === 0) { showToast('error', 'No PDF URLs available for selected invoices.'); return; }
+    urls.forEach((url: string) => window.open(url, '_blank', 'noopener,noreferrer'));
+    showToast('success', `Opening ${urls.length} invoice PDF(s)…`);
   };
 
   // Selection state helpers
@@ -1670,13 +1699,10 @@ export function AdminWallet() {
                           Export Invoice List
                         </button>
                         <button
-                          onClick={() => {
-                            showToast('success', 'Downloading all invoice PDFs...');
-                            setShowInvoiceActionMenu(false);
-                          }}
+                          onClick={() => { handleBulkDownloadPDF(); setShowInvoiceActionMenu(false); }}
                           className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors"
                         >
-                          Download All PDF
+                          Download Selected PDF
                         </button>
                       </div>
                     )}
@@ -1723,13 +1749,10 @@ export function AdminWallet() {
                           Export Invoice List
                         </button>
                         <button
-                          onClick={() => {
-                            showToast('success', 'Downloading all invoice PDFs...');
-                            setShowInvoiceActionMenu(false);
-                          }}
+                          onClick={() => { handleBulkDownloadPDF(); setShowInvoiceActionMenu(false); }}
                           className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors"
                         >
-                          Download All PDF
+                          Download Selected PDF
                         </button>
                       </motion.div>
                     )}
@@ -2684,10 +2707,17 @@ export function AdminWallet() {
                           <div className="flex items-center justify-center gap-2">
                             <button
                               onClick={() => handleDownloadInvoice(invoice)}
-                              title="Download Invoice"
+                              title="Download PDF"
                               className="w-7 h-7 rounded-full bg-[#E0F2FE] flex items-center justify-center text-[#0EA5E9] hover:bg-[#BAE6FD] transition-colors"
                             >
                               <Download className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleDownloadExcel(invoice)}
+                              title="Download Excel"
+                              className="w-7 h-7 rounded-full bg-[#F0FDF4] flex items-center justify-center text-[#00A86B] hover:bg-[#DCFCE7] transition-colors"
+                            >
+                              <FileText className="w-3.5 h-3.5" />
                             </button>
                             <button
                               onClick={() => setActiveInvoicePreview(invoice)}
@@ -2781,10 +2811,17 @@ export function AdminWallet() {
                                 <span className="text-[12px] font-semibold text-[#00A86B] font-sans">{invoice.id}</span>
                                 <button
                                   onClick={() => handleDownloadInvoice(invoice)}
-                                  title="Download Invoice"
+                                  title="Download PDF"
                                   className="w-7 h-7 rounded-full bg-[#E0F2FE] flex items-center justify-center text-[#0EA5E9] hover:bg-[#BAE6FD] transition-colors"
                                 >
                                   <Download className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={() => handleDownloadExcel(invoice)}
+                                  title="Download Excel"
+                                  className="w-7 h-7 rounded-full bg-[#F0FDF4] flex items-center justify-center text-[#00A86B] hover:bg-[#DCFCE7] transition-colors"
+                                >
+                                  <FileText className="w-3.5 h-3.5" />
                                 </button>
                                 <button
                                   onClick={() => setActiveInvoicePreview(invoice)}
