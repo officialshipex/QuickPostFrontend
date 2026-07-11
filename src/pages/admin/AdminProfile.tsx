@@ -41,8 +41,8 @@ export function AdminProfile() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const apiUser = location.state?.user;
-  // MongoDB _id for all API calls — note: apiUser._id is the ObjectId, apiUser.userId is the display ID
-  const mongoId = String(apiUser?._id || '');
+  // getAllUsers returns ObjectId as `id` (not `_id`), getUserById does the same
+  const mongoId = String(apiUser?.id || '');
 
   const buildInitialData = () => {
     if (apiUser) {
@@ -105,7 +105,8 @@ export function AdminProfile() {
   const [isKycVerified, setIsKycVerified] = useState(apiUser ? !!apiUser.kycStatus : false);
   const [apiAccess, setApiAccess] = useState(apiUser ? !!apiUser.adminApiAccess : false);
   const [holdAmount, setHoldAmount] = useState(0);
-  const [logoUrl, setLogoUrl] = useState<string | null>(apiUser?.logo || null);
+  // logo comes from getUserById (profileImage field) — not available in getAllUsers initial state
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [rates, setRates] = useState<any[]>([]);
   const [rateLoading, setRateLoading] = useState(false);
   const [notificationSettings, setNotificationSettings] = useState({
