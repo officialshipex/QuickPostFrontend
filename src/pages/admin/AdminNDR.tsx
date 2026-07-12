@@ -81,6 +81,7 @@ const mapOrder = (o: any) => {
     paymentType:   o.paymentDetails?.method || 'Prepaid',
     customerName:  o.receiverAddress?.contactName || '—',
     customerPhone: o.receiverAddress?.phoneNumber || '—',
+    customerAddress: o.receiverAddress?.address || '',
     pickupName:    o.pickupAddress?.contactName || '—',
     pickupAddress: o.pickupAddress?.address || '',
     courier:       o.courierServiceName || '—',
@@ -154,6 +155,7 @@ export function AdminNDR() {
   // ── UI state ──
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
   const [hoveredPickup,  setHoveredPickup]  = useState<{ rect: DOMRect; name: string; address: string } | null>(null);
+  const [hoveredCustomer, setHoveredCustomer] = useState<{ rect: DOMRect; name: string; address: string } | null>(null);
   const [productHoverPos, setProductHoverPos] = useState<{ id: string; top: number; left: number } | null>(null);
   const [hoveredNdrReason, setHoveredNdrReason] = useState<{ rect: DOMRect; reason: string } | null>(null);
   const [showActionMenu, setShowActionMenu] = useState(false);
@@ -613,7 +615,12 @@ export function AdminNDR() {
 
                       {/* Customer */}
                       <td className="p-3">
-                        <div className="text-[#0F172A] text-[12px] font-normal">{order.customerName}</div>
+                        <div
+                          className="text-[#0F172A] text-[12px] font-normal underline decoration-dotted underline-offset-2 hover:text-[#00A86B] cursor-help inline-block truncate max-w-[120px]"
+                          onMouseEnter={e => setHoveredCustomer({ rect: e.currentTarget.getBoundingClientRect(), name: order.customerName, address: order.customerAddress })}
+                          onMouseLeave={() => setHoveredCustomer(null)}>
+                          {order.customerName}
+                        </div>
                         <div className="text-[#64748B] text-[12px] font-normal mt-0.5">{order.customerPhone}</div>
                       </td>
 
@@ -695,6 +702,16 @@ export function AdminNDR() {
             style={{ top: hoveredPickup.rect.top - 10, left: hoveredPickup.rect.left + hoveredPickup.rect.width / 2, transform: 'translate(-50%, -100%)' }}>
             <div className="font-normal flex items-center gap-1.5 mb-1.5"><MapPin className="w-3.5 h-3.5 text-[#00A86B]" />{hoveredPickup.name}</div>
             {hoveredPickup.address && <div className="text-slate-300 font-normal leading-relaxed border-t border-white/10 pt-1.5">{hoveredPickup.address}</div>}
+            <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 border-[6px] border-transparent border-t-[#0F172A]" />
+          </div>
+        )}
+
+        {/* ── Customer Tooltip ── */}
+        {hoveredCustomer && (
+          <div className="fixed z-[9999] pointer-events-none bg-[#0F172A] text-white text-xs font-normal p-3 rounded-xl shadow-xl w-64"
+            style={{ top: hoveredCustomer.rect.top - 10, left: hoveredCustomer.rect.left + hoveredCustomer.rect.width / 2, transform: 'translate(-50%, -100%)' }}>
+            <div className="font-normal flex items-center gap-1.5 mb-1.5"><User className="w-3.5 h-3.5 text-[#00A86B]" />{hoveredCustomer.name}</div>
+            {hoveredCustomer.address && <div className="text-slate-300 font-normal leading-relaxed border-t border-white/10 pt-1.5">{hoveredCustomer.address}</div>}
             <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 border-[6px] border-transparent border-t-[#0F172A]" />
           </div>
         )}

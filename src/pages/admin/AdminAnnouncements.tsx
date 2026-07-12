@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { apiClient } from '../../services/apiClient';
 import { Plus, Megaphone, Edit2, Trash2, X, Check, Search, ChevronDown } from 'lucide-react';
+import { usePagination, DesktopPagination } from '../../hooks/usePagination';
+import { TableLoader } from '../../components/ui/TableLoader';
 
 interface AnnouncementUser {
   _id: string;
@@ -231,65 +233,87 @@ export function AdminAnnouncements() {
     !searchTerm || a.message.toLowerCase().includes(searchTerm)
   );
 
+  const {
+    page: currentPage,
+    setPage: setCurrentPage,
+    totalPages,
+    paginatedData,
+    startIndex,
+    endIndex,
+    rowsPerPage,
+    setRowsPerPage,
+  } = usePagination({ data: filtered, perPage: 20 });
+
   return (
     <AdminLayout>
-      <div className="max-w-[1400px] mx-auto pb-10">
+      <div className="flex flex-col h-[calc(100vh-72px)] -m-4 md:-m-6 bg-white">
+        <div className="bg-white relative z-50 shrink-0">
 
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-6">
-          <div>
-            <h2 className="text-xl font-bold text-[#0F172A] flex items-center gap-2">
-              <Megaphone className="w-5 h-5 text-[#00A86B]" />
-              Important Announcements
-            </h2>
-            <p className="text-xs text-[#64748B] mt-1">
-              Create and manage alerts visible to users on their dashboard.
-            </p>
+          {/* Page Header */}
+          <div className="px-6 py-4 border-b border-[#E2E8F0] bg-white flex justify-between items-center">
+            <div>
+              <h1 className="text-[28px] font-bold text-[#0F172A] tracking-tight flex items-center gap-2">
+                <Megaphone className="w-6 h-6 text-[#00A86B]" />
+                Important Announcements
+              </h1>
+              <p className="text-xs text-[#64748B] mt-1">
+                Create and manage alerts visible to users on their dashboard.
+              </p>
+            </div>
+            <button
+              onClick={openModal}
+              className="h-9 px-4 rounded-full bg-[#00A86B] text-white text-[11px] font-bold flex items-center gap-1.5 shadow-sm hover:bg-[#009B63] transition-colors cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" /> Create Announcement
+            </button>
           </div>
-          <button
-            onClick={openModal}
-            className="h-9 px-4 rounded-lg bg-[#00A86B] text-white text-xs font-semibold flex items-center gap-2 hover:bg-[#009B63] shadow-sm transition-colors"
-          >
-            <Plus className="w-4 h-4" /> Create Announcement
-          </button>
+
+          {/* Filter Row */}
+          <div className="p-4 border-b border-[#E2E8F0] flex flex-wrap gap-3 items-center bg-white">
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 text-[#94A3B8] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Search announcements..."
+                value={searchTerm}
+                onChange={(e) => { setSearchTerm(e.target.value.toLowerCase()); setCurrentPage(1); }}
+                className="glass-search-input pl-8 w-[220px] shrink-0"
+              />
+            </div>
+          </div>
         </div>
 
-        {/* Desktop Table */}
-        <div className="hidden md:block bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden mb-6">
-          <div className="overflow-x-auto no-scrollbar">
-            <table className="w-full text-left border-collapse min-w-[900px]">
-              <thead>
-                <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-[10px] uppercase tracking-wider font-bold text-[#64748B]">
-                  <th className="p-4 w-32">Created At</th>
+        {/* Table Section */}
+        <div className="bg-white flex flex-col flex-1 min-h-0 overflow-hidden border-t border-[#E2E8F0]">
+          <div className="hidden md:block flex-1 overflow-auto w-full relative">
+            {loading && <TableLoader />}
+            <table className="w-full text-left border-collapse min-w-full">
+              <thead className="sticky top-0 z-40 bg-[#E6F5F1] shadow-sm">
+                <tr className="text-[10px] font-extrabold text-[#00A86B] uppercase tracking-wider">
+                  <th className="p-4 whitespace-nowrap">Created At</th>
                   <th className="p-4">Announcement Message</th>
-                  <th className="p-4 w-40">Time Period</th>
-                  <th className="p-4 w-32">User Scope</th>
-                  <th className="p-4 w-24">Status</th>
-                  <th className="p-4 w-24 text-center">Actions</th>
+                  <th className="p-4 whitespace-nowrap">Time Period</th>
+                  <th className="p-4 whitespace-nowrap">User Scope</th>
+                  <th className="p-4 whitespace-nowrap">Status</th>
+                  <th className="p-4 whitespace-nowrap text-center">Actions</th>
                 </tr>
               </thead>
-              <tbody className="text-[13px] text-[#475569]">
-                {loading ? (
+              <tbody className="text-[12px] text-[#475569]">
+                {paginatedData.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="p-12 text-center text-[#94A3B8] font-medium">
-                      Loading announcements...
-                    </td>
-                  </tr>
-                ) : filtered.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="p-12 text-center text-[#94A3B8] font-medium">
-                      No announcements found.
+                      {loading ? '' : 'No announcements found.'}
                     </td>
                   </tr>
                 ) : (
-                  filtered.map(ann => (
+                  paginatedData.map(ann => (
                     <tr key={ann._id} className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors">
                       <td className="p-4 align-top">
-                        <div className="font-bold text-[#0F172A] text-sm">{fmtDate(ann.createdAt)}</div>
+                        <div className="font-semibold text-[#0F172A] text-[12px]">{fmtDate(ann.createdAt)}</div>
                         <div className="text-[#94A3B8] text-[11px] mt-0.5">{fmtTime(ann.createdAt)}</div>
                       </td>
                       <td className="p-4 align-top relative group">
-                        <p className="text-[#0F172A] font-medium leading-relaxed line-clamp-2 max-w-[420px]">
+                        <p className="text-[#0F172A] font-normal text-[12px] leading-relaxed line-clamp-2 max-w-[420px]">
                           {ann.message}
                         </p>
                         <div className="absolute z-50 hidden group-hover:block bg-white text-[#0F172A] text-xs p-3 rounded-xl shadow-2xl border border-[#E2E8F0] w-[340px] left-4 top-full mt-1 break-words leading-relaxed">
@@ -311,7 +335,7 @@ export function AdminAnnouncements() {
                         )}
                       </td>
                       <td className="p-4 align-top">
-                        <span className="text-sm font-semibold text-[#0F172A]">
+                        <span className="text-[12px] font-semibold text-[#0F172A]">
                           {ann.targetAudience === 'all'
                             ? 'All Users'
                             : `Selected (${ann.selectedUsers?.length || 0})`}
@@ -333,13 +357,13 @@ export function AdminAnnouncements() {
                         <div className="flex items-center justify-center gap-2">
                           <button
                             onClick={() => openEditModal(ann)}
-                            className="w-8 h-8 rounded-lg border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-colors"
+                            className="w-8 h-8 rounded-lg border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-colors cursor-pointer"
                           >
                             <Edit2 className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleDelete(ann._id)}
-                            className="w-8 h-8 rounded-lg border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors"
+                            className="w-8 h-8 rounded-lg border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors cursor-pointer"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -351,10 +375,22 @@ export function AdminAnnouncements() {
               </tbody>
             </table>
           </div>
-        </div>
+
+          {totalPages > 0 && (
+            <DesktopPagination
+              page={currentPage}
+              setPage={setCurrentPage}
+              totalPages={totalPages}
+              rowsPerPage={rowsPerPage}
+              setRowsPerPage={setRowsPerPage}
+              startIndex={startIndex}
+              endIndex={endIndex}
+              totalItems={filtered.length}
+            />
+          )}
 
         {/* Mobile Cards */}
-        <div className="md:hidden space-y-3 mb-6">
+        <div className="md:hidden space-y-3 p-4 overflow-y-auto">
           {loading ? (
             <div className="p-12 text-center text-[#94A3B8] font-medium">Loading...</div>
           ) : filtered.length === 0 ? (
@@ -399,8 +435,10 @@ export function AdminAnnouncements() {
             ))
           )}
         </div>
+        </div>
+      </div>
 
-        {/* Create / Edit Modal */}
+      {/* Create / Edit Modal */}
         {isModalOpen && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-[#0F172A]/40 backdrop-blur-sm" onClick={closeModal} />
@@ -624,7 +662,6 @@ export function AdminAnnouncements() {
           </div>
         )}
 
-      </div>
     </AdminLayout>
   );
 }

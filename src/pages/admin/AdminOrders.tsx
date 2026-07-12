@@ -149,6 +149,7 @@ const mapOrder = (o: any) => {
     paymentType:    o.paymentDetails?.method || 'Prepaid',
     customerName:   o.receiverAddress?.contactName || '—',
     customerPhone:  o.receiverAddress?.phoneNumber || '—',
+    customerAddress: o.receiverAddress?.address || '',
     pickupName:     o.pickupAddress?.contactName || '—',
     pickupAddressLine: o.pickupAddress?.address || '',
     pickupCity:     o.pickupAddress?.city || '',
@@ -262,6 +263,7 @@ export function AdminOrders() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const ageingLegendRef = useRef<any>(null);
   const [hoveredPickup,   setHoveredPickup]     = useState<{ id: string; rect: DOMRect; name: string; address: string; city: string; state: string; pinCode: string; phone: string } | null>(null);
+  const [hoveredCustomer, setHoveredCustomer]   = useState<{ rect: DOMRect; name: string; address: string } | null>(null);
 
   // ── Global search (header bar) ──
   const [globalSearchQuery, setGlobalSearchQuery] = useState((window as any).__adminSearchQuery?.toLowerCase() || '');
@@ -943,7 +945,13 @@ export function AdminOrders() {
                             <span className="px-2 py-0.5 rounded-full border border-blue-200 text-blue-600 font-semibold text-[10px] bg-blue-50/50 mt-1 inline-block">{order.paymentType}</span>
                           </td>
                           <td className="p-3">
-                            <TruncatedText text={order.customerName} maxLength={20} className="text-xs font-normal text-[#0F172A] max-w-[140px]" />
+                            <div
+                              className="text-xs font-normal text-[#0F172A] underline decoration-dotted underline-offset-2 hover:text-[#00A86B] cursor-help inline-block truncate max-w-[140px]"
+                              onMouseEnter={(e) => setHoveredCustomer({ rect: e.currentTarget.getBoundingClientRect(), name: order.customerName, address: order.customerAddress })}
+                              onMouseLeave={() => setHoveredCustomer(null)}
+                            >
+                              {order.customerName}
+                            </div>
                             <div className="text-xs font-normal text-[#64748B] mt-0.5">{order.customerPhone}</div>
                           </td>
                           <td className="p-3">
@@ -1103,6 +1111,16 @@ export function AdminOrders() {
               )}
               {hoveredPickup.phone && <div className="text-slate-400 mt-1">{hoveredPickup.phone}</div>}
             </div>
+            <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 border-[6px] border-transparent border-t-[#0F172A]" />
+          </div>
+        )}
+
+        {/* ── Customer Tooltip ── */}
+        {hoveredCustomer && (
+          <div className="fixed z-[9999] pointer-events-none bg-[#0F172A] text-white text-xs font-normal p-3 rounded-xl shadow-xl w-64"
+            style={{ top: hoveredCustomer.rect.top - 10, left: hoveredCustomer.rect.left + hoveredCustomer.rect.width / 2, transform: 'translate(-50%, -100%)' }}>
+            <div className="font-normal flex items-center gap-1.5 mb-1.5"><User className="w-3.5 h-3.5 text-[#00A86B]" />{hoveredCustomer.name}</div>
+            {hoveredCustomer.address && <div className="text-slate-300 font-normal leading-relaxed border-t border-white/10 pt-1.5">{hoveredCustomer.address}</div>}
             <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 border-[6px] border-transparent border-t-[#0F172A]" />
           </div>
         )}
