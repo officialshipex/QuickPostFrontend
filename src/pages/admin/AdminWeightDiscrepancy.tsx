@@ -1,4 +1,6 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 
 import { DesktopPagination } from '../../hooks/usePagination';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
@@ -10,12 +12,21 @@ import {
 } from 'lucide-react';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
+import { TableLoader } from '../../components/ui/TableLoader';
+import { TruncatedText } from '../../components/ui/TruncatedText';
 
 // ── Date helpers ──────────────────────────────────────────────────────────────
 const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function ordinalSuffix(n: number) {
+  if (n % 10 === 1 && n % 100 !== 11) return 'st';
+  if (n % 10 === 2 && n % 100 !== 12) return 'nd';
+  if (n % 10 === 3 && n % 100 !== 13) return 'rd';
+  return 'th';
+}
 function fmtDate(iso: string) {
   const d = new Date(iso);
-  return `${String(d.getDate()).padStart(2,'0')} ${MONTHS_SHORT[d.getMonth()]} ${d.getFullYear()}`;
+  const day = d.getDate();
+  return `${day}${ordinalSuffix(day)} ${MONTHS_SHORT[d.getMonth()]} ${d.getFullYear()}`;
 }
 function fmtTime(iso: string) {
   const d = new Date(iso);
@@ -23,6 +34,12 @@ function fmtTime(iso: string) {
   const ampm = h >= 12 ? 'PM' : 'AM';
   h = h % 12 || 12;
   return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')} ${ampm}`;
+}
+// Guards against the API returning a populated object (e.g. { name, courierServiceName }) instead of a plain string.
+function safeText(v: any): string {
+  if (typeof v === 'string') return v;
+  if (v && typeof v === 'object') return v.name || v.label || v.courierServiceName || v.code || '';
+  return v == null ? '' : String(v);
 }
 
 // ── Tab config ────────────────────────────────────────────────────────────────
@@ -35,6 +52,17 @@ const TAB_STATUS: Record<TabName, string> = {
   Complete: 'Accepted',
   Dispute:  'Discrepancy Raised',
 };
+
+// Each tab gets its own URL sub-route (/admin/weight-discrepancy/:tabSlug) so refresh, back/forward and deep links work per-status.
+const TAB_SLUG_MAP: Record<TabName, string> = {
+  All:      'all',
+  Pending:  'pending',
+  Complete: 'complete',
+  Dispute:  'dispute',
+};
+const SLUG_TO_TAB: Record<string, TabName> = Object.fromEntries(
+  Object.entries(TAB_SLUG_MAP).map(([tab, slug]) => [slug, tab])
+) as Record<string, TabName>;
 
 // ── Status badge ──────────────────────────────────────────────────────────────
 const BADGE: Record<string, string> = {
@@ -311,48 +339,33 @@ function DetailsModal({ text, imageUrl, onClose }: { text: string; imageUrl: str
   );
 }
 
-// ── Product tooltip ───────────────────────────────────────────────────────────
-function ProductCell({ products }: { products: any[] }) {
-  const names = products.map(p => p.name).join(', ') || '—';
-  const skus = products.map(p => p.sku).join(', ') || '—';
-  const qty = products.reduce((s, p) => s + (p.quantity || 0), 0);
-  const short = (s: string, n = 18) => s.length > n ? s.slice(0, n) + '…' : s;
-  return (
-    <div className="relative text-[#475569] text-xs">
-      <div className="relative group/prod inline-block">
-        <span className="cursor-pointer border-b border-dashed border-gray-500 font-medium text-[#0F172A]" title={names}>
-          {short(names)}
-        </span>
-        <div className="absolute left-full top-0 ml-2 hidden group-hover/prod:block z-50 bg-white border border-gray-200 shadow-xl rounded p-2 w-[260px] pointer-events-auto">
-          <table className="w-full text-[10px]">
-            <thead><tr className="border-b"><th className="pb-1 text-left pr-2">Name</th><th className="pb-1 text-left pr-2">SKU</th><th className="pb-1 text-left">Qty</th></tr></thead>
-            <tbody>
-              {products.map((p, i) => (
-                <tr key={i} className="border-b last:border-0">
-                  <td className="py-0.5 pr-2">{p.name}</td>
-                  <td className="py-0.5 pr-2">{p.sku}</td>
-                  <td className="py-0.5">{p.quantity}</td>
-                </tr>
-              ))}
-              <tr className="font-semibold border-t"><td colSpan={2} className="pt-1">Total</td><td className="pt-1">{qty}</td></tr>
-            </tbody>
-          </table>
-        </div>
-        <div className="absolute left-full top-0 w-3 h-full" />
-      </div>
-      <div className="text-[#64748B]">SKU: {short(skus, 14)}</div>
-      <div className="text-[#64748B]">QTY: {qty}</div>
-    </div>
-  );
-}
-
 // ── Main Component ────────────────────────────────────────────────────────────
 export function AdminWeightDiscrepancy() {
   const { isAdmin, adminTab, currentUserId, loadingAdminTab } = useAdminTab();
   const isAdminView = isAdmin && adminTab;
 
-  // ── Tabs
-  const [activeTab, setActiveTab] = useState<TabName>('Pending');
+  // ── Tabs — each tab is its own URL sub-route (/admin/weight-discrepancy/:tabSlug) ──
+  const navigate = useNavigate();
+  const { tabSlug } = useParams<{ tabSlug?: string }>();
+  const [activeTab, setActiveTab] = useState<TabName>(() => (tabSlug && SLUG_TO_TAB[tabSlug]) || 'All');
+
+  // Keep activeTab in sync with the URL (browser back/forward, direct links, refresh)
+  useEffect(() => {
+    const tabFromUrl = (tabSlug && SLUG_TO_TAB[tabSlug]) || 'All';
+    setActiveTab(prev => (prev === tabFromUrl ? prev : tabFromUrl));
+  }, [tabSlug]);
+
+  const handleTabChange = (tab: TabName) => {
+    const path = `/admin/weight-discrepancy/${TAB_SLUG_MAP[tab]}`;
+    // Keep 'All' as the anchor entry beneath every other tab, so browser Back
+    // from any non-All tab always lands on All instead of cycling through
+    // every tab previously visited.
+    if (tab !== 'All' && activeTab !== 'All') {
+      navigate(path, { replace: true });
+    } else {
+      navigate(path);
+    }
+  };
 
   // ── Data
   const [orders, setOrders] = useState<any[]>([]);
@@ -372,11 +385,23 @@ export function AdminWeightDiscrepancy() {
   const [dateEnd, setDateEnd] = useState('');
   const [userMongoId, setUserMongoId] = useState('');
   const [userSearchText, setUserSearchText] = useState('');
+
+  // ── Global search (navbar search bar) ──
+  const [globalSearchQuery, setGlobalSearchQuery] = useState((window as any).__adminSearchQuery?.toLowerCase() || '');
+  useEffect(() => {
+    const fn = (e: Event) => {
+      setGlobalSearchQuery(((e as CustomEvent).detail || '').toLowerCase());
+      setPage(1);
+    };
+    window.addEventListener('admin-search', fn);
+    return () => window.removeEventListener('admin-search', fn);
+  }, []);
   const [userResults, setUserResults] = useState<any[]>([]);
 
   // ── Selection
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [copiedAwb, setCopiedAwb] = useState<string | null>(null);
+  const [productHoverPos, setProductHoverPos] = useState<{ id: string; top: number; left: number } | null>(null);
 
   // ── UI
   const [showActionMenu, setShowActionMenu] = useState(false);
@@ -440,9 +465,9 @@ export function AdminWeightDiscrepancy() {
       const params: Record<string, any> = {
         page,
         limit: rowsPerPage,
-        courierService: selectedCouriers.join(','),
-        status: TAB_STATUS[activeTab],
       };
+      if (TAB_STATUS[activeTab]) params.status = TAB_STATUS[activeTab];
+      if (selectedCouriers.length) params.courierService = selectedCouriers.join(',');
 
       // isAdminView user filter
       if (isAdminView && userMongoId) params.userSearch = userMongoId;
@@ -451,17 +476,20 @@ export function AdminWeightDiscrepancy() {
       if (dateStart) params.fromDate = new Date(dateStart).toISOString();
       if (dateEnd) params.toDate = new Date(dateEnd).toISOString();
       if (searchInput.trim()) params[searchBy] = searchInput.trim();
+      if (globalSearchQuery) params.searchQuery = globalSearchQuery;
 
       const res = await apiClient.get('/dispreancy/getAllDiscrepancy', { params });
       setOrders(res.data?.results || []);
       setTotal(res.data?.total || 0);
       setTotalPages(Math.ceil((res.data?.total || 0) / rowsPerPage));
       if (Array.isArray(res.data?.courierServices)) {
-        setCourierOptions(res.data.courierServices);
+        setCourierOptions(res.data.courierServices.map((c: any) =>
+          typeof c === 'string' ? c : String(c?.name || c?.courierServiceName || '')
+        ).filter(Boolean));
       }
     } catch { /* ignore */ }
     finally { setLoading(false); }
-  }, [activeTab, page, rowsPerPage, selectedCouriers, dateStart, dateEnd, searchInput, searchBy, userMongoId, isAdminView, currentUserId]);
+  }, [activeTab, page, rowsPerPage, selectedCouriers, dateStart, dateEnd, searchInput, searchBy, userMongoId, isAdminView, currentUserId, globalSearchQuery]);
 
   useEffect(() => {
     setPage(1);
@@ -500,9 +528,23 @@ export function AdminWeightDiscrepancy() {
     setPage(1);
   };
 
+  // ── Client-side refinement by navbar search — guarantees the header search bar
+  // works even if the backend doesn't support the `searchQuery` param on this endpoint.
+  const filteredOrders = useMemo(() => {
+    if (!globalSearchQuery) return orders;
+    const s = (v: any) => String(v ?? '').toLowerCase();
+    return orders.filter(o =>
+      s(o.awbNumber).includes(globalSearchQuery) ||
+      s(o.courierServiceName).includes(globalSearchQuery) ||
+      s(o.user?.fullname || o.user?.name).includes(globalSearchQuery) ||
+      s(o.user?.email).includes(globalSearchQuery) ||
+      s(o.user?.userId).includes(globalSearchQuery)
+    );
+  }, [orders, globalSearchQuery]);
+
   // ── Selection helpers
   const toggleAll = () =>
-    setSelectedItems(selectedItems.length === orders.length && orders.length > 0 ? [] : orders.map(o => o._id));
+    setSelectedItems(selectedItems.length === filteredOrders.length && filteredOrders.length > 0 ? [] : filteredOrders.map(o => o._id));
   const toggleOne = (id: string) =>
     setSelectedItems(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
@@ -581,27 +623,17 @@ export function AdminWeightDiscrepancy() {
         <div className="bg-white border-b border-[#E2E8F0] relative z-50 shrink-0">
           <div className="flex justify-between items-center px-6 py-2 border-b border-[#E2E8F0] bg-white overflow-x-auto no-scrollbar">
             <div className="flex gap-6 items-center shrink-0">
-              {MAIN_TABS.map(tab => {
-                let tabCount: number | undefined;
-                if (tab === 'All') tabCount = Object.values(counts).reduce((a, b) => a + b, 0);
-                else if (tab === 'Pending') tabCount = counts['pending'];
-                else if (tab === 'Complete') tabCount = counts['accepted'];
-                else if (tab === 'Dispute') tabCount = counts['discrepancy raised'];
-                return (
-                  <button key={tab} onClick={() => setActiveTab(tab)}
-                    className={`relative py-3 text-[13px] font-bold transition-colors whitespace-nowrap flex items-center gap-1.5 ${
-                      activeTab === tab ? 'text-[#00A86B]' : 'text-[#64748B] hover:text-[#0F172A]'
-                    }`}>
-                    {tab}
-                    {tabCount !== undefined && (
-                      <span className="text-[11px] font-medium opacity-80">({tabCount})</span>
-                    )}
-                    {activeTab === tab && (
-                      <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#00A86B] rounded-t-full" />
-                    )}
-                  </button>
-                );
-              })}
+              {MAIN_TABS.map(tab => (
+                <button key={tab} onClick={() => handleTabChange(tab)}
+                  className={`relative py-3 text-[13px] font-bold transition-colors whitespace-nowrap flex items-center gap-1.5 ${
+                    activeTab === tab ? 'text-[#00A86B]' : 'text-[#64748B] hover:text-[#0F172A]'
+                  }`}>
+                  {tab}
+                  {activeTab === tab && (
+                    <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#00A86B] rounded-t-full" />
+                  )}
+                </button>
+              ))}
             </div>
             <div className="flex items-center gap-3 shrink-0 ml-4">
               <button onClick={() => { fetchDiscrepancy(); fetchCounts(); }}
@@ -661,7 +693,7 @@ export function AdminWeightDiscrepancy() {
                   <input type="text" placeholder="Search user..."
                     value={userSearchText}
                     onChange={e => { handleUserInput(e.target.value); if (!e.target.value.trim()) { setUserMongoId(''); setUserResults([]); } }}
-                    className="h-9 pl-8 pr-7 rounded-lg border border-[#E2E8F0] text-xs bg-white focus:outline-none w-[170px]" />
+                    className="glass-search-input w-[170px]" style={{ paddingLeft: '2rem', paddingRight: '1.75rem' }} />
                   <Search className="w-3.5 h-3.5 text-[#94A3B8] absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                   {userMongoId && (
                     <button onClick={clearUserFilter}
@@ -690,19 +722,17 @@ export function AdminWeightDiscrepancy() {
             {/* AWB search */}
             <input type="text" placeholder="Search AWB..."
               value={searchInput} onChange={e => { setSearchInput(e.target.value); setPage(1); }}
-              className="h-9 px-3 rounded-lg border border-[#E2E8F0] text-xs bg-white focus:outline-none w-[160px] shrink-0" />
+              className="glass-search-input w-[160px] shrink-0" />
 
             {/* Courier filter */}
-            {courierDropOptions.length > 0 && (
-              <GlassDropdown
-                label="Courier"
-                options={courierDropOptions}
-                selected={selectedCouriers}
-                onChange={v => { setSelectedCouriers(v); setPage(1); }}
-                placeholder="Search courier..."
-                icon={<Truck className="w-3.5 h-3.5" />}
-              />
-            )}
+            <GlassDropdown
+              label="Courier"
+              options={courierDropOptions}
+              selected={selectedCouriers}
+              onChange={v => { setSelectedCouriers(v); setPage(1); }}
+              placeholder="Search courier..."
+              icon={<Truck className="w-3.5 h-3.5" />}
+            />
 
             {/* Date filter */}
             <GlassDateFilter
@@ -711,6 +741,11 @@ export function AdminWeightDiscrepancy() {
               endDate={dateEnd}
               onDateChange={(s, e) => { setDateStart(s); setDateEnd(e); setPage(1); }}
             />
+
+            <button onClick={() => { setPage(1); fetchDiscrepancy(); }}
+              className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm cursor-pointer">
+              Apply
+            </button>
 
             {hasFilters && (
               <button onClick={clearFilters}
@@ -727,12 +762,12 @@ export function AdminWeightDiscrepancy() {
             )}
 
             <div className="ml-auto flex items-center gap-2 shrink-0">
-              {/* Actions dropdown — always openable so options are discoverable */}
+              {/* Actions dropdown — disabled until at least one row is selected */}
               <div className="relative" ref={actionMenuRef}>
-                <button onClick={() => setShowActionMenu(v => !v)}
-                  className="h-9 pl-4 pr-8 rounded-full border border-[#E2E8F0] text-xs bg-white flex items-center font-bold text-[#475569] shadow-sm hover:bg-[#F8FAFC] relative">
+                <button onClick={() => selectedItems.length > 0 && setShowActionMenu(v => !v)} disabled={selectedItems.length === 0}
+                  className={`h-9 pl-4 pr-8 rounded-full border text-xs font-bold relative transition-colors flex items-center ${selectedItems.length > 0 ? 'border-[#00A86B] text-[#00A86B] bg-white hover:bg-[#F0FDF4] cursor-pointer' : 'border-[#E2E8F0] text-[#CBD5E1] bg-[#F8FAFC] cursor-not-allowed'}`}>
                   Actions
-                  <ChevronDown className="w-3.5 h-3.5 absolute right-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
+                  <ChevronDown className="w-3.5 h-3.5 absolute right-3 top-1/2 -translate-y-1/2" />
                 </button>
                 {showActionMenu && (
                   <div className="absolute right-0 top-full mt-2 w-[170px] bg-white rounded-xl shadow-[0_8px_30px_-4px_rgba(0,0,0,0.15)] border border-[#E2E8F0] py-1.5 z-[200]">
@@ -776,55 +811,49 @@ export function AdminWeightDiscrepancy() {
         </div>
 
         {/* ── Table ── */}
-        <div className="bg-white flex flex-col flex-1 min-h-0 overflow-hidden">
-          <div className="flex-1 overflow-auto no-scrollbar relative">
-            <table className="w-full text-left border-collapse min-w-[1200px]">
+        <div className="bg-white flex flex-col flex-1 min-h-0 overflow-hidden border-t border-[#E2E8F0]">
+          <div className="flex-1 overflow-auto w-full relative">
+            {loading && <TableLoader />}
+            <table className="w-full text-left border-collapse min-w-full">
               <thead className="sticky top-0 z-40 bg-[#E6F5F1] shadow-sm">
                 <tr className="text-xs font-semibold text-[#00A86B] uppercase tracking-wider">
-                  <th className="p-3 w-10 align-middle">
+                  <th className="p-3 w-10">
                     <input type="checkbox" className="rounded accent-[#00A86B] w-3.5 h-3.5"
-                      checked={selectedItems.length === orders.length && orders.length > 0}
+                      checked={selectedItems.length === filteredOrders.length && filteredOrders.length > 0}
                       onChange={toggleAll} />
                   </th>
                   {isAdminView && (
-                    <th className="p-3 align-middle whitespace-nowrap">
+                    <th className="p-3 whitespace-nowrap">
                       <div className="flex items-center gap-1.5"><User className="w-3.5 h-3.5" /><span>User</span></div>
                     </th>
                   )}
-                  <th className="p-3 align-middle whitespace-nowrap">
+                  <th className="p-3 whitespace-nowrap">
                     <div className="flex items-center gap-1.5"><Package className="w-3.5 h-3.5" /><span>Product</span></div>
                   </th>
-                  <th className="p-3 align-middle whitespace-nowrap">
+                  <th className="p-3 whitespace-nowrap">
                     <div className="flex items-center gap-1.5"><Upload className="w-3.5 h-3.5" /><span>Upload On</span></div>
                   </th>
-                  <th className="p-3 align-middle whitespace-nowrap">
+                  <th className="p-3 whitespace-nowrap">
                     <div className="flex items-center gap-1.5"><Truck className="w-3.5 h-3.5" /><span>Shipment</span></div>
                   </th>
-                  <th className="p-3 align-middle whitespace-nowrap">
+                  <th className="p-3 whitespace-nowrap">
                     <div className="flex items-center gap-1.5"><Package className="w-3.5 h-3.5" /><span>Applied Weight</span></div>
                   </th>
-                  <th className="p-3 align-middle whitespace-nowrap">
+                  <th className="p-3 whitespace-nowrap">
                     <div className="flex items-center gap-1.5"><Package className="w-3.5 h-3.5" /><span>Charged Weight</span></div>
                   </th>
-                  <th className="p-3 align-middle whitespace-nowrap">
+                  <th className="p-3 whitespace-nowrap">
                     <div className="flex items-center gap-1.5"><FileText className="w-3.5 h-3.5" /><span>Excess Charges</span></div>
                   </th>
-                  <th className="p-3 align-middle whitespace-nowrap">
+                  <th className="p-3 whitespace-nowrap">
                     <div className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5" /><span>Status</span></div>
                   </th>
-                  <th className="p-3 align-middle whitespace-nowrap text-center">Details</th>
-                  <th className="p-3 align-middle whitespace-nowrap text-center">Actions</th>
+                  <th className="p-3 whitespace-nowrap text-center">Details</th>
+                  <th className="p-3 whitespace-nowrap text-center">Actions</th>
                 </tr>
               </thead>
               <tbody className="text-[11px] text-[#475569]">
-                {loading ? (
-                  <tr>
-                    <td colSpan={isAdminView ? 11 : 10}
-                      className="text-center py-12 text-sm text-gray-400">
-                      Loading…
-                    </td>
-                  </tr>
-                ) : orders.length === 0 ? (
+                {filteredOrders.length === 0 ? (
                   <tr>
                     <td colSpan={isAdminView ? 11 : 10}
                       className="text-center py-16 text-sm text-gray-400">
@@ -832,51 +861,69 @@ export function AdminWeightDiscrepancy() {
                     </td>
                   </tr>
                 ) : (
-                  orders.map((order, idx) => {
+                  filteredOrders.map((order, idx) => {
                     const products: any[] = Array.isArray(order.productDetails) ? order.productDetails : [];
                     const rem = daysLeft(order.createdAt);
                     // Use adminStatus if present — it reflects the real dispute state
-                    const orderStatus = (order.adminStatus || order.status || '').toLowerCase();
+                    const orderStatus = safeText(order.adminStatus || order.status).toLowerCase();
                     const isPending = orderStatus === 'pending' || orderStatus === 'new';
                     const isDisputeRaised = orderStatus === 'discrepancy raised';
 
                     return (
-                      <tr key={order._id} className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors">
-                        <td className="p-3 align-top pt-4 relative">
-                          {isPending && (
-                            <div className="absolute -top-2 left-1 bg-red-500 text-white text-[9px] px-1.5 py-0.5 rounded whitespace-nowrap z-10">
-                              {rem > 0 ? `${rem}d left` : 'Auto soon'}
-                            </div>
-                          )}
-                          <input type="checkbox" className="rounded accent-[#00A86B] w-3.5 h-3.5"
-                            checked={selectedItems.includes(order._id)}
-                            onChange={() => toggleOne(order._id)} />
+                      <tr key={order._id || order.awbNumber || idx} className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors">
+                        <td className="p-3">
+                          <div className="flex flex-col items-start gap-1">
+                            <input type="checkbox" className="rounded accent-[#00A86B] w-3.5 h-3.5"
+                              checked={selectedItems.includes(order._id)}
+                              onChange={() => toggleOne(order._id)} />
+                            {isPending && (
+                              <span className="bg-red-500 text-white text-[9px] px-1.5 py-0.5 rounded whitespace-nowrap">
+                                {rem > 0 ? `${rem}d left` : 'Auto soon'}
+                              </span>
+                            )}
+                          </div>
                         </td>
 
                         {/* User (admin view only) */}
                         {isAdminView && (
-                          <td className="p-3 align-top pt-4">
+                          <td className="p-3">
                             <div className="text-xs font-semibold text-[#00A86B]">{order.user?.userId}</div>
-                            <div className="text-sm font-semibold text-[#0F172A]">{order.user?.fullname || order.user?.name}</div>
-                            <div className="text-xs text-[#94A3B8] max-w-[130px] truncate">{order.user?.email}</div>
-                            <div className="text-xs text-[#94A3B8]">{order.user?.phoneNumber}</div>
+                            <TruncatedText text={order.user?.fullname || order.user?.name || ''} maxLength={20} className="text-sm font-semibold text-[#0F172A] mt-0.5 max-w-[160px]" />
+                            <TruncatedText text={order.user?.email || ''} maxLength={25} className="text-xs text-[#94A3B8] max-w-[180px]" />
                           </td>
                         )}
 
                         {/* Product */}
-                        <td className="p-3 align-top pt-4">
-                          <ProductCell products={products} />
+                        <td
+                          className="p-3"
+                          onMouseEnter={(e) => {
+                            if (products.length === 0) return;
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            setProductHoverPos({ id: order._id, top: rect.bottom + 4, left: rect.left });
+                          }}
+                          onMouseLeave={() => setProductHoverPos(prev => (prev?.id === order._id ? null : prev))}
+                        >
+                          <div className="text-xs font-normal text-[#0F172A] truncate max-w-[140px] cursor-default">
+                            {products.map(p => p.name).filter(Boolean).join(', ') || '—'}
+                          </div>
+                          <div className="text-xs font-normal text-[#64748B] mt-0.5 truncate max-w-[140px]">
+                            SKU: {products.map(p => p.sku).filter(Boolean).join(', ') || '—'}
+                          </div>
+                          <div className="text-xs font-normal text-[#64748B]">
+                            QTY: {products.reduce((s, p) => s + (p.quantity || 0), 0)}
+                          </div>
                         </td>
 
                         {/* Upload On */}
-                        <td className="p-3 align-top pt-4">
+                        <td className="p-3">
                           <div className="text-xs text-[#0F172A]">{fmtDate(order.createdAt)}</div>
                           <div className="text-xs text-[#64748B]">{fmtTime(order.createdAt)}</div>
                         </td>
 
                         {/* Shipment */}
-                        <td className="p-3 align-top pt-4">
-                          <div className="text-xs font-semibold text-[#00A86B]">{order.courierServiceName}</div>
+                        <td className="p-3">
+                          <div className="text-xs font-semibold text-[#00A86B]">{safeText(order.courierServiceName)}</div>
+                          <div className="text-xs text-[#94A3B8] mt-0.5">Booked On:</div>
                           <div className="flex items-center gap-1 group mt-0.5">
                             <span className="text-xs font-semibold text-[#00A86B] underline underline-offset-2 cursor-pointer hover:text-[#009B63]">
                               {order.awbNumber}
@@ -893,29 +940,31 @@ export function AdminWeightDiscrepancy() {
                         </td>
 
                         {/* Applied Weight */}
-                        <td className="p-3 align-top pt-4 text-xs text-[#64748B]">
-                          <div className="font-semibold text-[#0F172A]">Applied: {order.enteredWeight?.applicableWeight} Kg</div>
-                          <div>Dead: {order.enteredWeight?.deadWeight} Kg</div>
+                        <td className="p-3 text-xs font-normal text-[#64748B]">
+                          <div>Applied weight: {order.enteredWeight?.applicableWeight} Kg</div>
+                          <div className="mt-0.5">Weight: {order.enteredWeight?.deadWeight} Kg</div>
                           {order.enteredWeight?.volumetricWeight && (
-                            <div className="text-[10px]">
-                              Vol: {(
-                                ((order.enteredWeight.volumetricWeight.length || 0) *
-                                  (order.enteredWeight.volumetricWeight.breadth || 0) *
-                                  (order.enteredWeight.volumetricWeight.height || 0)) / 5000
-                              ).toFixed(2)} Kg
-                              ({order.enteredWeight.volumetricWeight.length}×
-                              {order.enteredWeight.volumetricWeight.breadth}×
-                              {order.enteredWeight.volumetricWeight.height} cm)
-                            </div>
+                            <>
+                              <div className="mt-0.5">
+                                {`L*W*H: ${order.enteredWeight.volumetricWeight.length ?? '—'}*${order.enteredWeight.volumetricWeight.breadth ?? '—'}*${order.enteredWeight.volumetricWeight.height ?? '—'}`}
+                              </div>
+                              <div className="mt-0.5">
+                                Vol. Weight: {(
+                                  ((order.enteredWeight.volumetricWeight.length || 0) *
+                                    (order.enteredWeight.volumetricWeight.breadth || 0) *
+                                    (order.enteredWeight.volumetricWeight.height || 0)) / 5000
+                                ).toFixed(2)} KG
+                              </div>
+                            </>
                           )}
                         </td>
 
                         {/* Charged Weight */}
-                        <td className="p-3 align-top pt-4 text-xs text-[#64748B]">
-                          <div className="font-semibold text-[#0F172A]">Charged: {order.chargedWeight?.applicableWeight} Kg</div>
-                          <div>Dead: {order.chargedWeight?.deadWeight} Kg</div>
+                        <td className="p-3 text-xs font-normal text-[#64748B]">
+                          <div>Charged: {order.chargedWeight?.applicableWeight} Kg</div>
+                          <div className="mt-0.5">Dead: {order.chargedWeight?.deadWeight} Kg</div>
                           {order.chargedDimension?.length && (
-                            <div className="text-[10px]">
+                            <div className="mt-0.5">
                               Vol: {(
                                 (order.chargedDimension.length *
                                   order.chargedDimension.breadth *
@@ -929,21 +978,21 @@ export function AdminWeightDiscrepancy() {
                         </td>
 
                         {/* Excess Charges */}
-                        <td className="p-3 align-top pt-4 text-xs text-[#64748B]">
-                          <div><span className="font-semibold text-[#0F172A]">Excess Wt:</span> {order.excessWeightCharges?.excessWeight || 0} Kg</div>
-                          <div><span className="font-semibold text-[#0F172A]">Excess Charges:</span> ₹{Number(order.excessWeightCharges?.excessCharges || 0).toFixed(2)}</div>
-                          <div className="text-red-500 font-semibold">Pending: ₹{Number(order.excessWeightCharges?.pendingAmount || 0).toFixed(2)}</div>
+                        <td className="p-3 text-xs font-normal text-[#64748B]">
+                          <div>Excess Wt: {order.excessWeightCharges?.excessWeight || 0} Kg</div>
+                          <div className="mt-0.5">Excess Charges: ₹{Number(order.excessWeightCharges?.excessCharges || 0).toFixed(2)}</div>
+                          <div className="mt-0.5">Pending: ₹{Number(order.excessWeightCharges?.pendingAmount || 0).toFixed(2)}</div>
                         </td>
 
                         {/* Status */}
-                        <td className="p-3 align-top pt-4">
-                          <span className={badge(order.adminStatus || order.status)}>
-                            {order.adminStatus || order.status}
+                        <td className="p-3">
+                          <span className={badge(safeText(order.adminStatus || order.status))}>
+                            {safeText(order.adminStatus || order.status)}
                           </span>
                         </td>
 
                         {/* Details — always shown for dispute-raised rows */}
-                        <td className="p-3 align-top pt-4 text-center">
+                        <td className="p-3 text-center">
                           {isDisputeRaised && (
                             <button onClick={() => setDetailsModal({ open: true, text: order.text || '', imageUrl: order.imageUrl || '' })}
                               className="text-[#00A86B] font-semibold text-xs hover:underline">
@@ -953,7 +1002,7 @@ export function AdminWeightDiscrepancy() {
                         </td>
 
                         {/* Actions */}
-                        <td className="p-3 align-top pt-4">
+                        <td className="p-3">
                           {/* Admin: Accept / Decline raised disputes */}
                           {isAdminView && isDisputeRaised && (
                             <div className="flex flex-col gap-1.5 items-center">
@@ -1004,6 +1053,50 @@ export function AdminWeightDiscrepancy() {
           )}
         </div>
       </div>
+
+      {/* ── Product line-item hover card — rendered on document.body to escape overflow-auto clipping ── */}
+      {productHoverPos && (() => {
+        const hoveredOrder = orders.find(o => o._id === productHoverPos.id);
+        const hoveredProducts: any[] = hoveredOrder && Array.isArray(hoveredOrder.productDetails) ? hoveredOrder.productDetails : [];
+        if (hoveredProducts.length === 0) return null;
+        const totalQty = hoveredProducts.reduce((s: number, p: any) => s + (p.quantity || 0), 0);
+        return createPortal(
+          <div
+            className="fixed z-[999] w-[320px] bg-white border border-[#E2E8F0] rounded-xl shadow-[0_4px_24px_-4px_rgba(0,0,0,0.15)] p-3 pointer-events-none"
+            style={{
+              top: productHoverPos.top,
+              left: Math.max(4, Math.min(productHoverPos.left, window.innerWidth - 336)),
+            }}
+          >
+            <table className="w-full text-[11px] border-collapse">
+              <thead>
+                <tr className="text-[#64748B] border-b border-[#E2E8F0]">
+                  <th className="text-left font-semibold pb-1.5 pr-2">Name</th>
+                  <th className="text-left font-semibold pb-1.5 pr-2">SKU</th>
+                  <th className="text-left font-semibold pb-1.5">Qty</th>
+                </tr>
+              </thead>
+              <tbody>
+                {hoveredProducts.map((p: any, i: number) => (
+                  <tr key={i} className="text-[#0F172A]">
+                    <td className="py-1 pr-2 break-words">{p.name}</td>
+                    <td className="py-1 pr-2 text-[#64748B] break-words">{p.sku}</td>
+                    <td className="py-1">{p.quantity}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="border-t border-[#E2E8F0] font-bold text-[#0F172A]">
+                  <td className="pt-1.5">Total</td>
+                  <td className="pt-1.5"></td>
+                  <td className="pt-1.5">{totalQty}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>,
+          document.body
+        );
+      })()}
 
       {/* ── Modals ── */}
       {acceptModal.open && (

@@ -92,6 +92,9 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
       const tabSlug = location.pathname.slice('/admin/orders/'.length);
       return ORDERS_TAB_PLACEHOLDER[tabSlug] || "Search AWB or Order ID...";
     }
+    if (location.pathname.startsWith('/admin/weight-discrepancy/')) {
+      return "Search weight discrepancies by name, email, or AWB (Press '/')";
+    }
     const path = location.pathname;
     switch (path) {
       case '/admin/users': return "Search users by name, email or role (Press '/')";
