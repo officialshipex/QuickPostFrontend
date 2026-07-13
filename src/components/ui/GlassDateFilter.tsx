@@ -177,10 +177,12 @@ export function GlassDateFilter({
   return (
     <div ref={containerRef} className={`relative ${className}`}>
       {/* Trigger */}
-      <button
+      <div
+        role="button"
+        tabIndex={0}
         onClick={() => setOpen(!open)}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpen(!open); } }}
         className="glass-dropdown-trigger group"
-        type="button"
       >
         <Calendar className="glass-dropdown-icon-svg" />
         <span className={`glass-dropdown-label ${hasRange ? 'has-value' : ''}`}>
@@ -202,7 +204,7 @@ export function GlassDateFilter({
             <X className="w-3 h-3" />
           </button>
         )}
-      </button>
+      </div>
 
       {/* Calendar Panel */}
       {open && (

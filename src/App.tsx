@@ -175,6 +175,7 @@ function App() {
             <Route path="/admin/profile" element={<AdminProfile />} />
             <Route path="/admin/company" element={<AdminSettings />} />
             <Route path="/admin/weight-discrepancy" element={<AdminWeightDiscrepancy />} />
+            <Route path="/admin/weight-discrepancy/:tabSlug" element={<AdminWeightDiscrepancy />} />
             <Route path="/admin/announcement" element={<AdminAnnouncements />} />
             <Route path="/admin/notification" element={<AdminNotification />} />
             <Route path="/admin/rate-calculator" element={<AdminRateCalculator />} />

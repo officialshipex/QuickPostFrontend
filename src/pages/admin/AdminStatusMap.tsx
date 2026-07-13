@@ -1,11 +1,12 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { apiClient } from '../../services/apiClient';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
-import { usePagination } from '../../hooks/usePagination';
+import { usePagination, DesktopPagination } from '../../hooks/usePagination';
+import { TableLoader } from '../../components/ui/TableLoader';
 import {
   Upload, Download, Briefcase,
   Plus, Edit3, Trash2, X, CheckCircle2, AlertCircle,
-  ChevronLeft, ChevronRight, ChevronDown, SlidersHorizontal,
+  ChevronDown, SlidersHorizontal,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -142,7 +143,9 @@ export function AdminStatusMap() {
     paginatedData,
     startIndex,
     endIndex,
-  } = usePagination({ data: filteredRows, perPage: 8 });
+    rowsPerPage,
+    setRowsPerPage,
+  } = usePagination({ data: filteredRows, perPage: 20 });
 
   const colSpan = 2 + rawColumns.length; // Partner + data cols + Actions
 
@@ -284,25 +287,26 @@ export function AdminStatusMap() {
                 placeholder="Search mapping rules..."
                 value={searchQuery}
                 onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-                className="h-9 px-3 rounded-lg border border-[#E2E8F0] text-xs bg-white focus:outline-none w-[180px] shrink-0"
+                className="glass-search-input w-[180px] shrink-0"
               />
 
               {/* Courier single-select dropdown */}
-              <div ref={courierRef} className="relative">
+              <div ref={courierRef} className="relative w-[180px] shrink-0">
                 <button
                   onClick={() => setIsCourierOpen(o => !o)}
-                  className="h-9 px-3 rounded-lg border border-[#E2E8F0] bg-white text-xs text-[#0F172A] flex items-center gap-2 min-w-[160px] font-semibold shadow-sm"
+                  className="glass-dropdown-trigger"
+                  type="button"
                 >
-                  <Briefcase className="w-3.5 h-3.5 text-[#00A86B]" />
-                  {selectedCourier || 'Select Courier'}
-                  <ChevronDown className={`w-3.5 h-3.5 ml-auto transition-transform ${isCourierOpen ? 'rotate-180' : ''}`} />
+                  <Briefcase className="w-3.5 h-3.5 text-[#00A86B] shrink-0" />
+                  <span className="truncate">{selectedCourier || 'Select Courier'}</span>
+                  <ChevronDown className={`w-3.5 h-3.5 ml-auto shrink-0 transition-transform ${isCourierOpen ? 'rotate-180' : ''}`} />
                 </button>
                 {isCourierOpen && (
                   <ul className="absolute z-50 mt-1 w-full bg-white border border-[#E2E8F0] rounded-lg shadow-lg max-h-52 overflow-y-auto">
                     {couriers.map(c => (
                       <li
                         key={c}
-                        onClick={() => { setSelectedCourier(c); setIsCourierOpen(false); setCurrentPage(1); setSearchQuery(''); setNewRule(prev => ({ ...prev, partner: c })); }}
+                        onClick={() => { setSelectedCourier(c); setIsCourierOpen(false); setCurrentPage(1); setSearchQuery(''); }}
                         className={`px-3 py-2 text-xs cursor-pointer hover:bg-green-50 font-semibold ${c === selectedCourier ? 'bg-[#E6F5F1] text-[#00A86B]' : 'text-[#0F172A]'}`}
                       >
                         {c}
@@ -338,7 +342,8 @@ export function AdminStatusMap() {
 
         {/* Table Section */}
         <div className="bg-white flex flex-col flex-1 min-h-0 overflow-hidden border-t border-[#E2E8F0]">
-          <div className="flex-1 overflow-auto no-scrollbar relative">
+          <div className="flex-1 overflow-auto w-full relative">
+            {loading && <TableLoader />}
             <table className="w-full text-left border-collapse min-w-[600px]">
               <thead className="sticky top-0 z-40 bg-[#E6F5F1] shadow-sm">
                 <tr className="text-[10px] font-extrabold text-[#00A86B] uppercase tracking-wider">
@@ -352,21 +357,8 @@ export function AdminStatusMap() {
                 </tr>
               </thead>
               <tbody className="text-[11px] text-[#64748B] font-semibold">
-                {loading && (
-                  <tr>
-                    <td colSpan={colSpan} className="p-10 text-center text-[#94A3B8] font-semibold">
-                      <div className="flex items-center justify-center gap-2">
-                        <svg className="w-4 h-4 animate-spin text-[#00A86B]" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-                        </svg>
-                        <span>Loading status mappings...</span>
-                      </div>
-                    </td>
-                  </tr>
-                )}
 
-                {!loading && paginatedData.map((item, idx) => (
+                {paginatedData.map((item, idx) => (
                   <tr key={idx} className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors">
                     <td className="p-4">
                       <div className="flex items-center gap-3">
@@ -381,11 +373,11 @@ export function AdminStatusMap() {
                             }}
                           />
                         </div>
-                        <span className="font-bold text-[#0F172A] text-[12px] uppercase">{selectedCourier}</span>
+                        <span className="font-semibold text-[#0F172A] text-[12px] uppercase">{selectedCourier}</span>
                       </div>
                     </td>
                     {rawColumns.map(col => (
-                      <td key={col} className="p-4 text-[#475569] text-[12px]">
+                      <td key={col} className="p-4 text-[#475569] text-[12px] font-normal">
                         {String(item[col] ?? '')}
                       </td>
                     ))}
@@ -410,7 +402,7 @@ export function AdminStatusMap() {
                   </tr>
                 ))}
 
-                {!loading && filteredRows.length === 0 && (
+                {!loading && paginatedData.length === 0 && (
                   <tr>
                     <td colSpan={colSpan} className="p-10 text-center text-[#94A3B8] font-semibold">
                       <div className="flex flex-col items-center justify-center gap-2">
@@ -424,29 +416,17 @@ export function AdminStatusMap() {
             </table>
           </div>
 
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex justify-between items-center p-4 border-t border-[#E2E8F0] bg-[#F8FAFC]">
-              <span className="text-xs text-[#64748B] font-medium">
-                Showing <span className="font-bold text-[#0F172A]">{startIndex}</span> to <span className="font-bold text-[#0F172A]">{endIndex}</span> of <span className="font-bold text-[#0F172A]">{filteredRows.length}</span> rows
-              </span>
-              <div className="flex items-center gap-1.5">
-                <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}
-                  className="w-8 h-8 rounded-lg border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:bg-white disabled:opacity-40 transition-colors cursor-pointer bg-white">
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-                {Array.from({ length: totalPages }, (_, i) => (
-                  <button key={i + 1} onClick={() => setCurrentPage(i + 1)}
-                    className={`w-8 h-8 rounded-lg text-xs font-bold transition-all cursor-pointer ${currentPage === i + 1 ? 'bg-[#00A86B] text-white shadow-xs' : 'border border-[#E2E8F0] text-[#64748B] hover:bg-white bg-white'}`}>
-                    {i + 1}
-                  </button>
-                ))}
-                <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}
-                  className="w-8 h-8 rounded-lg border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:bg-white disabled:opacity-40 transition-colors cursor-pointer bg-white">
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
+          {totalPages > 0 && (
+            <DesktopPagination
+              page={currentPage}
+              setPage={setCurrentPage}
+              totalPages={totalPages}
+              rowsPerPage={rowsPerPage}
+              setRowsPerPage={setRowsPerPage}
+              startIndex={startIndex}
+              endIndex={endIndex}
+              totalItems={filteredRows.length}
+            />
           )}
         </div>
       </div>

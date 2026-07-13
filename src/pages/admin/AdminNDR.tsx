@@ -8,7 +8,7 @@ import { useAdminTab } from '../../context/AdminUserContext';
 import {
   Search, ChevronDown, RefreshCcw, Check, IndianRupee, Package,
   User, Settings, MapPin, X, Truck,
-  MoreHorizontal, AlertTriangle
+  AlertTriangle
 } from 'lucide-react';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
@@ -81,6 +81,7 @@ const mapOrder = (o: any) => {
     paymentType:   o.paymentDetails?.method || 'Prepaid',
     customerName:  o.receiverAddress?.contactName || '—',
     customerPhone: o.receiverAddress?.phoneNumber || '—',
+    customerAddress: o.receiverAddress?.address || '',
     pickupName:    o.pickupAddress?.contactName || '—',
     pickupAddress: o.pickupAddress?.address || '',
     courier:       o.courierServiceName || '—',
@@ -153,8 +154,8 @@ export function AdminNDR() {
 
   // ── UI state ──
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
-  const [dropdownPos,    setDropdownPos]    = useState<{ id: string; top: number; left: number } | null>(null);
   const [hoveredPickup,  setHoveredPickup]  = useState<{ rect: DOMRect; name: string; address: string } | null>(null);
+  const [hoveredCustomer, setHoveredCustomer] = useState<{ rect: DOMRect; name: string; address: string } | null>(null);
   const [productHoverPos, setProductHoverPos] = useState<{ id: string; top: number; left: number } | null>(null);
   const [hoveredNdrReason, setHoveredNdrReason] = useState<{ rect: DOMRect; reason: string } | null>(null);
   const [showActionMenu, setShowActionMenu] = useState(false);
@@ -169,7 +170,11 @@ export function AdminNDR() {
   // ── Global search ──
   const [globalSearchQuery, setGlobalSearchQuery] = useState((window as any).__adminSearchQuery?.toLowerCase() || '');
   useEffect(() => {
-    const fn = (e: Event) => { setGlobalSearchQuery(((e as CustomEvent).detail || '').toLowerCase()); setPage(1); };
+    const fn = (e: Event) => {
+      setGlobalSearchQuery(((e as CustomEvent).detail || '').toLowerCase());
+      setPage(1);
+      setRefreshTrigger(t => t + 1);
+    };
     window.addEventListener('admin-search', fn);
     return () => window.removeEventListener('admin-search', fn);
   }, []);
@@ -268,6 +273,7 @@ export function AdminNDR() {
   const toggleSelect = (id: string) => setSelectedOrders(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
   const isActionRequired = activeTab === 'Action Required';
+  const showActionsColumn = activeTab === 'Action Required' || activeTab === 'Action Requested';
 
   // ── Bulk download helpers ──
   const handleBulkLabel = async (ids: string[]) => {
@@ -358,20 +364,19 @@ export function AdminNDR() {
   };
 
   // ── Per-row actions ──
-  const closeDropdown = () => setDropdownPos(null);
-  const renderRowActions = (order: any) => (
-    <>
-      <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC]"
-        onClick={() => { setHistoryModalOrder(order); closeDropdown(); }}>
-        NDR History
-      </button>
-      {isActionRequired && (
-        <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#00A86B] hover:bg-[#F0FDF4]"
-          onClick={() => { setActionModalOrder(order); closeDropdown(); }}>
-          Take Action
-        </button>
-      )}
-    </>
+  const renderHistoryButton = (order: any) => (
+    <button
+      onClick={() => setHistoryModalOrder(order)}
+      className="px-3 py-1.5 rounded-full bg-[#1E3A8A] text-white text-[10px] font-semibold hover:bg-[#1E3A8A]/90 transition-colors cursor-pointer whitespace-nowrap">
+      History
+    </button>
+  );
+  const renderTakeActionButton = (order: any) => (
+    <button
+      onClick={() => setActionModalOrder(order)}
+      className="px-3 py-1.5 rounded-full bg-[#1E3A8A] text-white text-[10px] font-semibold hover:bg-[#1E3A8A]/90 transition-colors cursor-pointer whitespace-nowrap">
+      Take Action
+    </button>
   );
 
   // ── NDR action submit ──
@@ -387,7 +392,7 @@ export function AdminNDR() {
     if (isAdminView) n++;
     n += 5; // product, payment, customer, pickup, shipment
     n += 2; // status, ndr reason
-    n++; // actions
+    if (showActionsColumn) n++; // actions
     return n;
   };
 
@@ -548,7 +553,9 @@ export function AdminNDR() {
                     <th className="p-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><Truck className="w-3.5 h-3.5 shrink-0" /><span>Shipment</span></div></th>
                     <th className="p-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 shrink-0" /><span>Status</span></div></th>
                     <th className="p-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5 shrink-0" /><span>NDR Reason</span></div></th>
-                    <th className="p-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><Settings className="w-3.5 h-3.5 shrink-0" /><span>Actions</span></div></th>
+                    {showActionsColumn && (
+                      <th className="p-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><Settings className="w-3.5 h-3.5 shrink-0" /><span>Actions</span></div></th>
+                    )}
                   </tr>
                 </thead>
                 <tbody className="text-[11px] text-[#475569]">
@@ -576,9 +583,9 @@ export function AdminNDR() {
 
                       {/* Order */}
                       <td className="p-3">
-                        <div className="text-xs font-semibold text-[#00A86B]">{order.orderId}</div>
-                        <div className="text-[10px] text-[#94A3B8] mt-0.5">{order.date}</div>
-                        <span className="px-2 py-0.5 rounded-full border border-blue-200 text-blue-600 font-bold text-[9px] bg-blue-50/50 mt-1 inline-block">
+                        <div className="text-[12px] font-semibold text-[#00A86B]">{order.orderId}</div>
+                        <div className="text-[12px] font-normal text-[#94A3B8] mt-0.5">{order.date}</div>
+                        <span className="px-2 py-0.5 rounded-full border border-blue-200 text-blue-600 font-semibold text-[10px] bg-blue-50/50 mt-1 inline-block">
                           {order.channel}
                         </span>
                       </td>
@@ -593,29 +600,34 @@ export function AdminNDR() {
                         }}
                         onMouseLeave={() => setProductHoverPos(prev => (prev?.id === order._id ? null : prev))}
                       >
-                        <div className="text-[#0F172A] font-medium truncate max-w-[140px] cursor-default">{order.productName || '—'}</div>
-                        <div className="text-[#64748B] mt-0.5 truncate max-w-[140px]">SKU: {order.sku || '—'}</div>
-                        <div className="text-[#64748B]">QTY: {order.qty}</div>
+                        <div className="text-[#0F172A] text-[12px] font-normal truncate max-w-[140px] cursor-default">{order.productName || '—'}</div>
+                        <div className="text-[#64748B] text-[12px] font-normal mt-0.5 truncate max-w-[140px]">SKU: {order.sku || '—'}</div>
+                        <div className="text-[#64748B] text-[12px] font-normal mt-0.5">QTY: {order.qty}</div>
                       </td>
 
                       {/* Payment */}
                       <td className="p-3">
-                        <div className="font-semibold text-[#0F172A]">&#8377;{Number(order.payment).toLocaleString('en-IN')}</div>
-                        <span className={`px-2 py-0.5 rounded-full border font-bold text-[9px] mt-1 inline-block ${order.paymentType === 'COD' ? 'border-orange-200 text-orange-600 bg-orange-50/50' : 'border-blue-200 text-blue-600 bg-blue-50/50'}`}>
+                        <div className="text-[12px] font-normal text-[#0F172A]">&#8377;{Number(order.payment).toLocaleString('en-IN')}</div>
+                        <span className={`px-2 py-0.5 rounded-full border font-semibold text-[10px] mt-1 inline-block ${order.paymentType === 'COD' ? 'border-orange-200 text-orange-600 bg-orange-50/50' : 'border-blue-200 text-blue-600 bg-blue-50/50'}`}>
                           {order.paymentType}
                         </span>
                       </td>
 
                       {/* Customer */}
                       <td className="p-3">
-                        <div className="text-[#0F172A]">{order.customerName}</div>
-                        <div className="text-[#64748B] mt-0.5">{order.customerPhone}</div>
+                        <div
+                          className="text-[#0F172A] text-[12px] font-normal underline decoration-dotted underline-offset-2 hover:text-[#00A86B] cursor-help inline-block truncate max-w-[120px]"
+                          onMouseEnter={e => setHoveredCustomer({ rect: e.currentTarget.getBoundingClientRect(), name: order.customerName, address: order.customerAddress })}
+                          onMouseLeave={() => setHoveredCustomer(null)}>
+                          {order.customerName}
+                        </div>
+                        <div className="text-[#64748B] text-[12px] font-normal mt-0.5">{order.customerPhone}</div>
                       </td>
 
                       {/* Pickup */}
                       <td className="p-3">
                         <div
-                          className="text-[#64748B] underline decoration-dotted underline-offset-2 hover:text-[#0F172A] cursor-help inline-block truncate max-w-[120px]"
+                          className="text-[#64748B] text-[12px] font-normal underline decoration-dotted underline-offset-2 hover:text-[#0F172A] cursor-help inline-block truncate max-w-[120px]"
                           onMouseEnter={e => setHoveredPickup({ rect: e.currentTarget.getBoundingClientRect(), name: order.pickupName, address: order.pickupAddress })}
                           onMouseLeave={() => setHoveredPickup(null)}>
                           {order.pickupName || '—'}
@@ -624,9 +636,9 @@ export function AdminNDR() {
 
                       {/* Shipment */}
                       <td className="p-3">
-                        <div className="text-xs font-semibold text-[#00A86B]">{order.courier}</div>
-                        <div className="text-[10px] text-[#94A3B8] mt-0.5">Booked | {order.bookedDate}</div>
-                        <div className="text-xs font-semibold text-[#00A86B] underline mt-0.5 hover:text-[#009B63] cursor-pointer truncate max-w-[120px]">{order.awb}</div>
+                        <div className="text-[12px] font-semibold text-[#00A86B]">{order.courier}</div>
+                        <div className="text-[12px] font-normal text-[#94A3B8] mt-0.5">Booked On | {order.bookedDate}</div>
+                        <div className="text-[12px] font-semibold text-[#00A86B] underline mt-0.5 hover:text-[#009B63] cursor-pointer truncate max-w-[120px]">{order.awb}</div>
                       </td>
 
                       {/* Status */}
@@ -637,40 +649,32 @@ export function AdminNDR() {
                       {/* NDR Reason */}
                       <td className="p-3 min-w-[130px]">
                         {order.lastNdrDate && (
-                          <div className="text-[10px] text-[#94A3B8] mb-0.5 whitespace-nowrap">
+                          <div className="text-[12px] font-normal text-[#94A3B8] mb-0.5 whitespace-nowrap">
                             {new Date(order.lastNdrDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
                           </div>
                         )}
-                        <div className="flex items-center gap-1.5">
-                          <div className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
-                          <span className="font-semibold text-[#0F172A] text-[11px]">{order.ndrAttempts} Attempted</span>
-                        </div>
-                        {order.lastNdrReason && (
-                          <div
-                            className="text-[10px] text-[#64748B] mt-0.5 truncate max-w-[120px] underline decoration-dotted underline-offset-2 hover:text-[#0F172A] cursor-help"
-                            onMouseEnter={e => setHoveredNdrReason({ rect: e.currentTarget.getBoundingClientRect(), reason: order.lastNdrReason })}
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span
+                            className={`text-[12px] font-semibold text-[#00A86B] ${order.lastNdrReason ? 'cursor-help hover:underline decoration-dotted underline-offset-2' : ''}`}
+                            onMouseEnter={e => order.lastNdrReason ? setHoveredNdrReason({ rect: e.currentTarget.getBoundingClientRect(), reason: order.lastNdrReason }) : null}
                             onMouseLeave={() => setHoveredNdrReason(null)}
                           >
-                            {order.lastNdrReason}
-                          </div>
-                        )}
+                            {order.ndrAttempts} Attempted
+                          </span>
+                        </div>
+                        <div className="mt-1.5">
+                          {renderHistoryButton(order)}
+                        </div>
                       </td>
 
                       {/* Actions */}
-                      <td className="p-3">
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={e => {
-                              e.stopPropagation();
-                              if (dropdownPos?.id === order._id) { setDropdownPos(null); return; }
-                              const rect = e.currentTarget.getBoundingClientRect();
-                              setDropdownPos({ id: order._id, top: rect.bottom + 4, left: rect.right - 176 });
-                            }}
-                            className={`w-7 h-7 rounded-full border flex items-center justify-center z-10 transition-colors relative left-[5px] ${dropdownPos?.id === order._id ? 'bg-green-100 border-[#00A86B] text-[#00A86B]' : 'border-[#E2E8F0] text-[#64748B] hover:bg-[#F1F5F9]'}`}>
-                            <MoreHorizontal className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </td>
+                      {showActionsColumn && (
+                        <td className="p-3">
+                          <div className="flex items-center gap-1.5">
+                            {renderTakeActionButton(order)}
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -702,6 +706,16 @@ export function AdminNDR() {
           </div>
         )}
 
+        {/* ── Customer Tooltip ── */}
+        {hoveredCustomer && (
+          <div className="fixed z-[9999] pointer-events-none bg-[#0F172A] text-white text-xs font-normal p-3 rounded-xl shadow-xl w-64"
+            style={{ top: hoveredCustomer.rect.top - 10, left: hoveredCustomer.rect.left + hoveredCustomer.rect.width / 2, transform: 'translate(-50%, -100%)' }}>
+            <div className="font-normal flex items-center gap-1.5 mb-1.5"><User className="w-3.5 h-3.5 text-[#00A86B]" />{hoveredCustomer.name}</div>
+            {hoveredCustomer.address && <div className="text-slate-300 font-normal leading-relaxed border-t border-white/10 pt-1.5">{hoveredCustomer.address}</div>}
+            <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 border-[6px] border-transparent border-t-[#0F172A]" />
+          </div>
+        )}
+
         {/* ── NDR Reason Tooltip ── */}
         {hoveredNdrReason && (
           <div className="fixed z-[9999] pointer-events-none bg-[#0F172A] text-white text-xs font-normal p-3 rounded-xl shadow-xl w-64"
@@ -712,19 +726,6 @@ export function AdminNDR() {
           </div>
         )}
       </div>
-
-      {/* ── Row-action dropdown portal ── */}
-      {dropdownPos && createPortal(
-        <>
-          <div className="fixed inset-0 z-[998]" onClick={() => setDropdownPos(null)} />
-          <div className="fixed z-[999] w-44 bg-white rounded-xl shadow-[0_4px_24px_-4px_rgba(0,0,0,0.15)] border border-[#E2E8F0] py-2"
-            style={{ top: dropdownPos.top, left: Math.max(4, Math.min(dropdownPos.left, window.innerWidth - 180)) }}
-            onMouseDown={e => e.stopPropagation()}>
-            {renderRowActions(orders.find(o => o._id === dropdownPos.id))}
-          </div>
-        </>,
-        document.body
-      )}
 
       {/* ── Product line-item hover card — rendered on document.body to escape overflow-auto clipping ── */}
       {productHoverPos && (() => {

@@ -8,6 +8,9 @@ import {
 } from 'lucide-react';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
+import { TableLoader } from '../../components/ui/TableLoader';
+import { TruncatedText } from '../../components/ui/TruncatedText';
+import { DesktopPagination } from '../../hooks/usePagination';
 import { apiClient } from '../../services/apiClient';
 
 const STATUS_BADGE_STYLES: Record<string, string> = {
@@ -16,11 +19,31 @@ const STATUS_BADGE_STYLES: Record<string, string> = {
   'Bronze': 'bg-amber-50 text-amber-700 border-amber-200',
   'Silver': 'bg-slate-50 text-slate-700 border-slate-200',
   'Gold': 'bg-yellow-50 text-yellow-700 border-yellow-200',
+  'Platinum': 'bg-indigo-50 text-indigo-700 border-indigo-200',
+  'Diamond': 'bg-cyan-50 text-cyan-700 border-cyan-200',
+  'Titanium': 'bg-purple-50 text-purple-700 border-purple-200',
 };
 
 const getStatusBadgeClass = (status: string) => {
   const normalized = status || '';
   return `${STATUS_BADGE_STYLES[normalized] || 'bg-blue-50 text-blue-700 border-blue-200'} px-2.5 py-0.5 rounded-full border text-[10px] font-semibold uppercase tracking-wider whitespace-nowrap shadow-sm`;
+};
+
+// Tier is derived from monthly shipment volume — thresholds per the tier table (Silver 0–1,000 … Titanium 10,000+).
+const getTier = (monthlyShipments: number): string => {
+  const n = monthlyShipments || 0;
+  if (n >= 10001) return 'Titanium';
+  if (n >= 6001) return 'Diamond';
+  if (n >= 3001) return 'Platinum';
+  if (n >= 1001) return 'Gold';
+  return 'Silver';
+};
+
+// Prefers a real backend field if present; otherwise infers from GST/company data already on the user record.
+const getUserType = (user: any): string => {
+  if (user.userType) return user.userType;
+  if (user.accountType) return user.accountType;
+  return (user.gstDetails?.gstNumber || user.company) ? 'Business' : 'Individual';
 };
 
 const fmtCurrency = (amount: number) => {
@@ -47,6 +70,7 @@ export function AdminUsers() {
   const [users, setUsers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(20);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [verifiedKycCount, setVerifiedKycCount] = useState(0);
@@ -68,6 +92,8 @@ export function AdminUsers() {
   const [appliedKyc, setAppliedKyc] = useState<string[]>([]);
   const [appliedRateCard, setAppliedRateCard] = useState<string[]>([]);
   const [appliedBalance, setAppliedBalance] = useState<string[]>([]);
+  const [appliedDateStart, setAppliedDateStart] = useState('');
+  const [appliedDateEnd, setAppliedDateEnd] = useState('');
 
   // ─── Global search from admin header ────────────────────────────────────────
   const [globalSearch, setGlobalSearch] = useState('');
@@ -114,7 +140,7 @@ export function AdminUsers() {
   const fetchUsers = useCallback(async (page: number) => {
     setIsLoading(true);
     try {
-      const params: Record<string, any> = { page, limit: 10 };
+      const params: Record<string, any> = { page, limit: rowsPerPage };
       const search = globalSearch || appliedSearch;
       if (search.trim()) {
         if (/^\d+$/.test(search.trim())) {
@@ -134,6 +160,8 @@ export function AdminUsers() {
         };
         params.balanceType = bmap[appliedBalance[0]] || appliedBalance[0].toLowerCase();
       }
+      if (appliedDateStart) params.fromDate = new Date(appliedDateStart).toISOString();
+      if (appliedDateEnd) params.toDate = new Date(appliedDateEnd).toISOString();
       const res = await apiClient.get('/user/getAllUsers', { params });
       setUsers(res.data.userDetails || []);
       setTotalPages(res.data.totalPages || 1);
@@ -145,11 +173,15 @@ export function AdminUsers() {
     } finally {
       setIsLoading(false);
     }
-  }, [globalSearch, appliedSearch, appliedKyc, appliedRateCard, appliedBalance]);
+  }, [globalSearch, appliedSearch, appliedKyc, appliedRateCard, appliedBalance, appliedDateStart, appliedDateEnd, rowsPerPage]);
 
   useEffect(() => {
     fetchUsers(currentPage);
   }, [fetchUsers, currentPage]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [rowsPerPage]);
 
   // ─── Apply / reset filters ──────────────────────────────────────────────────
   const applyFilters = () => {
@@ -157,6 +189,8 @@ export function AdminUsers() {
     setAppliedKyc(selectedKycStatuses);
     setAppliedRateCard(selectedRateCards);
     setAppliedBalance(selectedWalletBalances);
+    setAppliedDateStart(dateStart);
+    setAppliedDateEnd(dateEnd);
     setCurrentPage(1);
   };
 
@@ -171,6 +205,8 @@ export function AdminUsers() {
     setAppliedKyc([]);
     setAppliedRateCard([]);
     setAppliedBalance([]);
+    setAppliedDateStart('');
+    setAppliedDateEnd('');
     setCurrentPage(1);
     setActionDropdownOpen(false);
   };
@@ -276,7 +312,7 @@ export function AdminUsers() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
-              className="h-9 px-3 rounded-lg border border-[#E2E8F0] text-xs bg-white focus:outline-none w-[200px] shrink-0"
+              className="glass-search-input w-[200px] shrink-0"
             />
 
             <GlassDropdown
@@ -315,7 +351,7 @@ export function AdminUsers() {
 
             <button
               onClick={applyFilters}
-              className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm flex items-center justify-center"
+              className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm flex items-center justify-center cursor-pointer"
             >
               Apply
             </button>
@@ -324,7 +360,7 @@ export function AdminUsers() {
               <button
                 onClick={() => setActionDropdownOpen(!actionDropdownOpen)}
                 onBlur={() => setTimeout(() => setActionDropdownOpen(false), 200)}
-                className="h-9 pl-4 pr-8 rounded-full border border-[#E2E8F0] text-xs bg-white focus:outline-none flex items-center font-bold text-[#475569] shadow-sm hover:bg-[#F8FAFC] transition-colors"
+                className="h-9 pl-4 pr-8 rounded-full border border-[#E2E8F0] text-xs bg-white focus:outline-none flex items-center font-bold text-[#475569] shadow-sm hover:bg-[#F8FAFC] transition-colors cursor-pointer"
               >
                 Action
                 <ChevronDown className="w-3.5 h-3.5 absolute right-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
@@ -346,7 +382,8 @@ export function AdminUsers() {
 
         {/* Table Section */}
         <div className="bg-white flex flex-col flex-1 min-h-0 overflow-hidden border-t border-[#E2E8F0]">
-          <div className="flex-1 overflow-auto no-scrollbar relative">
+          <div className="flex-1 overflow-auto w-full relative">
+            {isLoading && <TableLoader />}
             <table className="w-full text-left border-collapse min-w-[1300px]">
               <thead className="sticky top-0 z-40 bg-[#E6F5F1] shadow-sm">
                 <tr className="text-xs font-medium text-[#00A86B] uppercase tracking-wider">
@@ -355,7 +392,6 @@ export function AdminUsers() {
                   </th>
                   <th className="p-3 whitespace-nowrap"><User className="w-3.5 h-3.5 inline mr-1" /> User Details</th>
                   <th className="p-3 whitespace-nowrap"><Building2 className="w-3.5 h-3.5 inline mr-1" /> Business Details</th>
-                  <th className="p-3 whitespace-nowrap"><UserCheck className="w-3.5 h-3.5 inline mr-1" /> KYC</th>
                   <th className="p-3 whitespace-nowrap"><CreditCard className="w-3.5 h-3.5 inline mr-1" /> Rate Card</th>
                   <th className="p-3 whitespace-nowrap"><IndianRupee className="w-3.5 h-3.5 inline mr-1" /> Balance</th>
                   <th className="p-3 whitespace-nowrap"><User className="w-3.5 h-3.5 inline mr-1" /> Account Manager</th>
@@ -365,17 +401,7 @@ export function AdminUsers() {
                 </tr>
               </thead>
               <tbody className="text-[11px] text-[#475569]">
-                {isLoading ? (
-                  Array.from({ length: 8 }).map((_, i) => (
-                    <tr key={i} className="border-b border-[#E2E8F0]">
-                      {Array.from({ length: 10 }).map((_, j) => (
-                        <td key={j} className="p-3 pt-4">
-                          <div className="h-4 bg-[#F1F5F9] rounded animate-pulse" />
-                        </td>
-                      ))}
-                    </tr>
-                  ))
-                ) : users.length > 0 ? users.map((user) => {
+                {users.length > 0 ? users.map((user) => {
                   const uid = String(user.id);
                   const kycLabel = user.kycStatus ? 'Verified' : 'Pending';
                   return (
@@ -390,38 +416,30 @@ export function AdminUsers() {
                             <Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" />
                           </button>
                         </div>
-                        <div className="text-sm font-semibold text-[#0F172A] mt-0.5">{user.fullname || '—'}</div>
+                        <TruncatedText text={user.fullname || '—'} maxLength={20} className="text-sm font-semibold text-[#0F172A] mt-0.5 max-w-[160px]" />
                         <div className="flex items-center gap-1 mt-0.5">
-                          <div className="font-sans text-xs font-normal text-[#94A3B8]">{user.email || '—'}</div>
+                          <TruncatedText text={user.email || '—'} maxLength={25} className="font-sans text-xs font-normal text-[#94A3B8] max-w-[180px]" />
                           {user.email && (
-                            <button onClick={() => copyToClipboard(user.email, 'Email')} className="opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onClick={() => copyToClipboard(user.email, 'Email')} className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                               <Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" />
                             </button>
                           )}
                         </div>
-                        {user.phoneNumber && (
-                          <div className="flex items-center gap-1 mt-0.5">
-                            <div className="font-sans text-xs font-normal text-[#94A3B8]">{user.phoneNumber}</div>
-                            <button onClick={() => copyToClipboard(user.phoneNumber, 'Phone')} className="opacity-0 group-hover:opacity-100 transition-opacity">
-                              <Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" />
-                            </button>
+                      </td>
+                      <td className="p-3 align-top pt-4">
+                        <div className="ml-[6px]">
+                          <TruncatedText text={user.company || '—'} maxLength={20} className="font-bold text-[#475569] text-[12px] max-w-[160px]" tooltipClassName="text-[12px] font-normal" />
+                          <div className="text-[#64748B] font-normal mt-0.5 text-[12px]">User Type: {getUserType(user)}</div>
+                          <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                            <span className={getStatusBadgeClass(kycLabel)}>{kycLabel}</span>
+                            <span className={getStatusBadgeClass(getTier(user.monthlyShipments ?? user.orderCount ?? 0))}>{getTier(user.monthlyShipments ?? user.orderCount ?? 0)}</span>
+                            {user.isBlocked && (
+                              <span className="bg-red-50 text-red-700 border border-red-200 px-2.5 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider whitespace-nowrap shadow-sm">
+                                Blocked
+                              </span>
+                            )}
                           </div>
-                        )}
-                      </td>
-                      <td className="p-3 align-top pt-4">
-                        <div className="font-bold text-[#0F172A] text-[11px]">{user.company || '—'}</div>
-                        <div className="text-[#64748B] mt-0.5 text-[11px]">Aadhaar: {user.aadharDetails?.aadharNumber || '—'}</div>
-                        {user.gstDetails?.gstNumber && (
-                          <div className="text-[#64748B] text-[11px]">GST: {user.gstDetails.gstNumber}</div>
-                        )}
-                      </td>
-                      <td className="p-3 align-top pt-4">
-                        <span className={getStatusBadgeClass(kycLabel)}>{kycLabel}</span>
-                        {user.isBlocked && (
-                          <span className="mt-1 block bg-red-50 text-red-700 border border-red-200 px-2.5 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider whitespace-nowrap shadow-sm">
-                            Blocked
-                          </span>
-                        )}
+                        </div>
                       </td>
                       <td className="p-3 align-top pt-4">
                         <div className="flex items-center gap-1.5">
@@ -432,25 +450,27 @@ export function AdminUsers() {
                         </div>
                       </td>
                       <td className="p-3 align-top pt-4">
-                        <div className={`font-bold ${(user.walletAmount ?? 0) < 0 ? 'text-red-500' : 'text-[#00A86B]'}`}>
+                        <div className="text-[10px] font-medium text-[#94A3B8] uppercase tracking-wider">Wallet Balance</div>
+                        <div className={`font-normal text-[12px] ${(user.walletAmount ?? 0) < 0 ? 'text-red-500' : 'text-[#00A86B]'}`}>
                           {fmtCurrency(user.walletAmount ?? 0)}
                         </div>
-                        {user.creditLimit > 0 && (
-                          <div className="text-[10px] text-[#94A3B8] mt-0.5">Credit: {fmtCurrency(user.creditLimit)}</div>
-                        )}
+                        <div className="text-[10px] font-medium text-[#94A3B8] uppercase tracking-wider mt-1.5">Hold Amount</div>
+                        <div className="text-[#0F172A] font-normal text-[12px]">{fmtCurrency(user.holdAmount ?? 0)}</div>
+                        <div className="text-[10px] font-medium text-[#94A3B8] uppercase tracking-wider mt-1.5">Last Recharge</div>
+                        <div className="text-[#0F172A] font-normal text-[12px]">{fmtDate(user.lastRechargeDate)}</div>
                       </td>
-                      <td className="p-3 align-top pt-4">
-                        <div className="text-[#64748B]">N/A</div>
+                      <td className="p-3 align-top pt-4 text-left">
+                        <TruncatedText text={user.accountManagerName || 'N/A'} maxLength={20} className="text-[#0F172A] font-normal text-[12px] max-w-[140px] ml-[20px]" />
                       </td>
                       <td className="p-3 align-top pt-4">
                         <div className="table-date">{fmtDate(user.createdAt)}</div>
-                        <div className="text-[10px] text-[#94A3B8] mt-0.5">{fmtTime(user.createdAt)}</div>
+                        <div className="text-[12px] font-normal text-[#94A3B8] mt-0.5">{fmtTime(user.createdAt)}</div>
                       </td>
                       <td className="p-3 align-top pt-4">
-                        <div className="font-bold text-[#0F172A]">Orders: {user.orderCount || 0}</div>
-                        <div className="table-date mt-0.5">{fmtDate(user.lastOrderDate)}</div>
+                        <div className="font-bold text-[#475569] text-[12px] ml-[5px]">Orders: {user.orderCount || 0}</div>
+                        <div className="table-date mt-0.5 ml-[5px]">{fmtDate(user.lastOrderDate)}</div>
                         {user.lastLogin && (
-                          <div className="text-[10px] text-[#94A3B8] mt-0.5">Login: {fmtDate(user.lastLogin)}</div>
+                          <div className="text-[12px] font-normal text-[#94A3B8] mt-0.5 ml-[5px]">Login: {fmtDate(user.lastLogin)}</div>
                         )}
                       </td>
                       <td className="p-3 align-top pt-4 text-right pr-6">
@@ -474,44 +494,16 @@ export function AdminUsers() {
 
           {/* Pagination */}
           {totalPages > 0 && (
-            <div className="p-4 border-t border-[#E2E8F0] flex items-center justify-between bg-white relative z-20">
-              <div className="text-xs text-[#64748B]">
-                Page <span className="font-bold text-[#0F172A]">{currentPage}</span> of <span className="font-bold text-[#0F172A]">{totalPages}</span>
-                {' '}· <span className="font-bold text-[#0F172A]">{totalCount.toLocaleString('en-IN')}</span> total
-              </div>
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                  className="px-3 py-1.5 rounded border border-[#E2E8F0] text-xs font-medium text-[#475569] hover:bg-[#F8FAFC] disabled:opacity-50"
-                >
-                  Previous
-                </button>
-                {(() => {
-                  const window = 3;
-                  const start = Math.max(1, Math.min(currentPage - window, totalPages - window * 2));
-                  const end = Math.min(totalPages, start + window * 2);
-                  return Array.from({ length: end - start + 1 }, (_, i) => start + i).map(p => (
-                    <button
-                      key={p}
-                      onClick={() => setCurrentPage(p)}
-                      className={`w-8 h-8 rounded text-xs font-medium flex items-center justify-center transition-colors ${
-                        currentPage === p ? 'bg-[#00A86B] text-white border border-[#00A86B]' : 'border border-[#E2E8F0] text-[#475569] hover:bg-[#F8FAFC]'
-                      }`}
-                    >
-                      {p}
-                    </button>
-                  ));
-                })()}
-                <button
-                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages}
-                  className="px-3 py-1.5 rounded border border-[#E2E8F0] text-xs font-medium text-[#475569] hover:bg-[#F8FAFC] disabled:opacity-50"
-                >
-                  Next
-                </button>
-              </div>
-            </div>
+            <DesktopPagination
+              page={currentPage}
+              setPage={setCurrentPage}
+              totalPages={totalPages}
+              rowsPerPage={rowsPerPage}
+              setRowsPerPage={setRowsPerPage}
+              startIndex={totalCount === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1}
+              endIndex={Math.min(currentPage * rowsPerPage, totalCount)}
+              totalItems={totalCount}
+            />
           )}
         </div>
       </div>
