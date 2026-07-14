@@ -1,26 +1,29 @@
-import React from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Save, Key, Mail, User, Hash, Clock, Box, ShieldCheck, ArrowRight } from 'lucide-react';
+import { X, Key, Mail, User, Clock, ShieldCheck, ArrowRight } from 'lucide-react';
 
 interface Courier {
-  id: number;
+  _id: string;
   name: string;
   logo: string;
-  type: string;
+  email?: string;
+  apiKey?: string;
+  password?: string;
+  CODDays?: number;
 }
 
 interface ConfigureCourierModalProps {
   isOpen: boolean;
   onClose: () => void;
   courier: Courier | null;
+  onSave: (data: Record<string, string>) => Promise<void>;
 }
 
 const getFieldsForCourier = (name: string) => {
   const n = name.toLowerCase();
-  
+
   const defaultFields = [
-    { id: 'name', label: 'Account Name', type: 'text', placeholder: 'e.g. Primary Account', icon: Box },
-    { id: 'days', label: 'Expected Delivery (Days)', type: 'number', placeholder: 'e.g. 3', icon: Clock },
+    { id: 'CODDays', label: 'Expected Delivery (Days)', type: 'number', placeholder: 'e.g. 3', icon: Clock },
   ];
 
   if (['delhivery', 'shadowfax', 'amazon shipping'].includes(n)) {
@@ -32,10 +35,9 @@ const getFieldsForCourier = (name: string) => {
   if (['dtdc'].includes(n)) {
     return [
       ...defaultFields,
-      { id: 'api', label: 'API Key', type: 'password', placeholder: 'Enter API Key', icon: Key },
-      { id: 'user', label: 'Username', type: 'text', placeholder: 'Enter Username', icon: User },
+      { id: 'apiKey', label: 'API Key', type: 'password', placeholder: 'Enter API Key', icon: Key },
+      { id: 'email', label: 'Username', type: 'text', placeholder: 'Enter Username', icon: User },
       { id: 'password', label: 'Password', type: 'password', placeholder: 'Enter Password', icon: ShieldCheck },
-      { id: 'token', label: 'Token', type: 'password', placeholder: 'Enter Token', icon: Hash },
     ];
   }
   if (['xpressbees'].includes(n)) {
@@ -45,19 +47,11 @@ const getFieldsForCourier = (name: string) => {
       { id: 'password', label: 'Password', type: 'password', placeholder: 'Enter Password', icon: ShieldCheck },
     ];
   }
-  if (['shiprocket', 'shree maruti', 'lousung360'].includes(n)) {
+  if (['shiprocket', 'shree maruti', 'lousung360', 'losung360', 'ekart', 'smartship', 'ecom express', 'ecomexpress', 'proship', 'zipypost', 'boxdlogistics'].includes(n)) {
     return [
       ...defaultFields,
-      { id: 'userEmail', label: 'User / Email', type: 'text', placeholder: 'Enter User or Email', icon: User },
+      { id: 'email', label: 'User / Email', type: 'text', placeholder: 'Enter User or Email', icon: User },
       { id: 'password', label: 'Password', type: 'password', placeholder: 'Enter Password', icon: ShieldCheck },
-    ];
-  }
-  if (['ekart'].includes(n)) {
-    return [
-      ...defaultFields,
-      { id: 'userEmail', label: 'User / Email', type: 'text', placeholder: 'Enter User or Email', icon: User },
-      { id: 'password', label: 'Password', type: 'password', placeholder: 'Enter Password', icon: ShieldCheck },
-      { id: 'clientId', label: 'Client ID', type: 'text', placeholder: 'Enter Client ID', icon: Hash },
     ];
   }
   return [
@@ -66,12 +60,31 @@ const getFieldsForCourier = (name: string) => {
   ];
 };
 
-export function ConfigureCourierModal({ isOpen, onClose, courier }: ConfigureCourierModalProps) {
+export function ConfigureCourierModal({ isOpen, onClose, courier, onSave }: ConfigureCourierModalProps) {
+  const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (courier) {
+      setFieldValues({
+        CODDays: courier.CODDays != null ? String(courier.CODDays) : '',
+        apiKey: courier.apiKey || '',
+        email: courier.email || '',
+        password: '',
+      });
+    }
+  }, [courier]);
+
   if (!courier) return null;
 
   const fields = getFieldsForCourier(courier.name);
 
-  // Motion variants for macOS feel
+  const handleConnect = async () => {
+    setSaving(true);
+    await onSave(fieldValues);
+    setSaving(false);
+  };
+
   const overlayVariants = {
     hidden: { opacity: 0, backdropFilter: 'blur(0px)' },
     visible: { opacity: 1, backdropFilter: 'blur(8px)', transition: { duration: 0.4, ease: [0.16, 1, 0.3, 1] as const } },
@@ -80,37 +93,22 @@ export function ConfigureCourierModal({ isOpen, onClose, courier }: ConfigureCou
 
   const modalVariants = {
     hidden: { opacity: 0, scale: 0.96, y: 16 },
-    visible: { 
-      opacity: 1, 
-      scale: 1, 
-      y: 0,
-      transition: { 
-        type: "spring" as const, 
-        stiffness: 400, 
-        damping: 32, 
-        mass: 0.8,
-        staggerChildren: 0.04,
-        delayChildren: 0.1
-      } 
+    visible: {
+      opacity: 1, scale: 1, y: 0,
+      transition: { type: 'spring' as const, stiffness: 400, damping: 32, mass: 0.8, staggerChildren: 0.04, delayChildren: 0.1 }
     },
-    exit: { 
-      opacity: 0, 
-      scale: 0.96, 
-      y: 12, 
-      transition: { duration: 0.25, ease: [0.16, 1, 0.3, 1] as const } 
-    }
+    exit: { opacity: 0, scale: 0.96, y: 12, transition: { duration: 0.25, ease: [0.16, 1, 0.3, 1] as const } }
   } as const;
 
   const itemVariants = {
     hidden: { opacity: 0, y: 10 },
-    visible: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 400, damping: 30 } }
+    visible: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 400, damping: 30 } }
   };
 
   return (
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* Backdrop */}
           <motion.div
             variants={overlayVariants}
             initial="hidden"
@@ -120,7 +118,6 @@ export function ConfigureCourierModal({ isOpen, onClose, courier }: ConfigureCou
             onClick={onClose}
           />
 
-          {/* Modal Container */}
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-6 pointer-events-none">
             <motion.div
               variants={modalVariants}
@@ -132,15 +129,15 @@ export function ConfigureCourierModal({ isOpen, onClose, courier }: ConfigureCou
               {/* Header */}
               <div className="px-7 py-6 border-b border-[#E2E8F0]/60 flex items-start justify-between relative bg-white/40">
                 <div className="flex items-center gap-5">
-                  <motion.div 
+                  <motion.div
                     initial={{ scale: 0.8, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
-                    transition={{ type: "spring", delay: 0.15 }}
+                    transition={{ type: 'spring', delay: 0.15 }}
                     className="w-14 h-14 bg-white rounded-[16px] shadow-[0_2px_12px_rgba(0,0,0,0.06)] border border-[#E2E8F0]/80 p-2.5 flex items-center justify-center overflow-hidden shrink-0"
                   >
-                    <img 
-                      src={courier.logo} 
-                      alt={courier.name} 
+                    <img
+                      src={courier.logo}
+                      alt={courier.name}
                       className="max-w-full max-h-full object-contain"
                       onError={(e) => {
                         (e.target as HTMLImageElement).style.display = 'none';
@@ -149,12 +146,18 @@ export function ConfigureCourierModal({ isOpen, onClose, courier }: ConfigureCou
                     />
                   </motion.div>
                   <div>
-                    <motion.h3 
+                    <motion.h3
                       initial={{ opacity: 0, x: -5 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.25 }}
                       className="text-xl font-bold text-[#0F172A] tracking-tight leading-none"
                     >
                       {courier.name}
                     </motion.h3>
+                    <motion.p
+                      initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}
+                      className="text-xs text-[#94A3B8] mt-1"
+                    >
+                      Configure API credentials
+                    </motion.p>
                   </div>
                 </div>
                 <motion.button
@@ -169,14 +172,10 @@ export function ConfigureCourierModal({ isOpen, onClose, courier }: ConfigureCou
 
               {/* Body */}
               <div className="p-7 overflow-y-auto max-h-[60vh] bg-[#F8FAFC]/50 space-y-5">
-                {fields.map((field, idx) => {
+                {fields.map((field) => {
                   const Icon = field.icon;
                   return (
-                    <motion.div 
-                      key={field.id}
-                      variants={itemVariants}
-                      className="group"
-                    >
+                    <motion.div key={field.id} variants={itemVariants} className="group">
                       <label className="block text-xs font-bold text-[#64748B] mb-2 ml-1 tracking-wide uppercase">
                         {field.label}
                       </label>
@@ -187,18 +186,10 @@ export function ConfigureCourierModal({ isOpen, onClose, courier }: ConfigureCou
                         <input
                           type={field.type}
                           placeholder={field.placeholder}
+                          value={fieldValues[field.id] || ''}
+                          onChange={(e) => setFieldValues(prev => ({ ...prev, [field.id]: e.target.value }))}
                           className="w-full h-12 pl-11 pr-4 bg-white border border-[#E2E8F0] hover:border-[#CBD5E1] rounded-[14px] text-sm font-medium text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#00A86B]/20 focus:border-[#00A86B] transition-all shadow-[0_2px_6px_rgba(0,0,0,0.02)]"
                         />
-                        {field.type === 'password' && (
-                          <div className="absolute right-4 top-1/2 -translate-y-1/2 text-[#CBD5E1]">
-                            <motion.div whileHover={{ scale: 1.1 }} className="cursor-pointer">
-                              {/* Simple dots mask visualization */}
-                              <div className="flex gap-0.5">
-                                {[1,2,3,4].map(i => <div key={i} className="w-1 h-1 rounded-full bg-current" />)}
-                              </div>
-                            </motion.div>
-                          </div>
-                        )}
                       </div>
                     </motion.div>
                   );
@@ -219,9 +210,11 @@ export function ConfigureCourierModal({ isOpen, onClose, courier }: ConfigureCou
                   <motion.button
                     whileHover={{ scale: 1.02, boxShadow: '0 8px 20px rgba(0,168,107,0.3)' }}
                     whileTap={{ scale: 0.97 }}
-                    className="px-6 h-11 rounded-[14px] font-semibold text-sm text-white bg-gradient-to-b from-[#00b876] to-[#00A86B] shadow-[0_4px_12px_rgba(0,168,107,0.25),inset_0_1px_1px_rgba(255,255,255,0.2)] flex items-center gap-2 transition-all border border-[#009B63]"
+                    onClick={handleConnect}
+                    disabled={saving}
+                    className="px-6 h-11 rounded-[14px] font-semibold text-sm text-white bg-gradient-to-b from-[#00b876] to-[#00A86B] shadow-[0_4px_12px_rgba(0,168,107,0.25),inset_0_1px_1px_rgba(255,255,255,0.2)] flex items-center gap-2 transition-all border border-[#009B63] disabled:opacity-60"
                   >
-                    Connect <ArrowRight className="w-4 h-4" />
+                    {saving ? 'Saving...' : 'Connect'} <ArrowRight className="w-4 h-4" />
                   </motion.button>
                 </div>
               </div>

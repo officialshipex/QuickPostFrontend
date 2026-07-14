@@ -1,118 +1,147 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { Search, ChevronRight, Settings, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ConfigureCourierModal } from '../../components/admin/couriers/ConfigureCourierModal';
 import { AddServiceModal } from '../../components/admin/couriers/AddServiceModal';
+import { AddCourierModal } from '../../components/admin/couriers/AddCourierModal';
+import { apiClient } from '../../services/apiClient';
 
-const INITIAL_COURIERS = [
-  { id: 1, name: 'Amazon Shipping', logo: '/brands/amazon.png', couriersCount: 3, type: 'Domestic', status: 'Active' },
-  { id: 2, name: 'Delhivery', logo: '/brands/delhivery.png', couriersCount: 12, type: 'Domestic', status: 'Active' },
-  { id: 3, name: 'DTDC', logo: '/brands/dtdc.png', couriersCount: 7, type: 'Domestic', status: 'Inactive' },
-  { id: 4, name: 'Ekart', logo: '/brands/ekart.png', couriersCount: 8, type: 'Domestic', status: 'Active' },
-  { id: 5, name: 'Lousung360', logo: '/brands/losung.jpg', couriersCount: 2, type: 'Domestic', status: 'Inactive' },
-  { id: 6, name: 'Shadowfax', logo: '/brands/shadowfax.png', couriersCount: 5, type: 'Domestic', status: 'Inactive' },
-  { id: 7, name: 'Shiprocket', logo: '/brands/shiprocket.jpg', couriersCount: 6, type: 'Domestic', status: 'Active' },
-  { id: 8, name: 'Shree Maruti', logo: '/brands/shree_maruti.jpg', couriersCount: 4, type: 'Domestic', status: 'Inactive' },
-  { id: 9, name: 'XpressBees', logo: '/brands/xpressbees.png', couriersCount: 9, type: 'Domestic', status: 'Inactive' },
-];
-
-const MOCK_ACCOUNTS: Record<number, any[]> = {
-  1: [
-    { id: 101, name: 'Amazon Shipping', weight: '500 g', type: 'Surface', status: 'Active' },
-    { id: 1011, name: 'Amazon Shipping 1 KG', weight: '1 kg', type: 'Surface', status: 'Active' },
-    { id: 1012, name: 'Amazon Shipping 2 KG', weight: '2 kg', type: 'Surface', status: 'Active' },
-  ],
-  2: [
-    { id: 102, name: 'Delhivery B2B Direct', weight: '5 kg', type: 'Surface', status: 'Active' },
-    { id: 103, name: 'Delhivery Heavy', weight: '10 kg', type: 'Air', status: 'Active' },
-  ],
-  4: [
-    { id: 104, name: 'Ekart Standard', weight: '1 kg', type: 'Surface', status: 'Active' },
-  ],
-  7: [
-    { id: 105, name: 'Shiprocket Pro', weight: '2 kg', type: 'Surface', status: 'Active' },
-  ],
-};
-
-const INITIAL_SERVICES: Record<number, any[]> = {
-  1: [
-    { id: 201, name: 'Amazon Standard', type: 'Surface', status: 'Active' },
-    { id: 202, name: 'Amazon Prime Air', type: 'Air', status: 'Active' },
-  ],
-  2: [
-    { id: 203, name: 'Delhivery Surface', type: 'Surface', status: 'Active' },
-    { id: 204, name: 'Delhivery Express', type: 'Air', status: 'Active' },
-  ],
-  7: [
-    { id: 205, name: 'Shiprocket Lite', type: 'Surface', status: 'Active' },
-  ]
+const LOGO_MAP: Record<string, string> = {
+  'Amazon Shipping': '/brands/amazon.png',
+  'Delhivery': '/brands/delhivery.png',
+  'DTDC': '/brands/dtdc.png',
+  'Dtdc': '/brands/dtdc.png',
+  'Ekart': '/brands/ekart.png',
+  'Losung360': '/brands/losung.jpg',
+  'Lousung360': '/brands/losung.jpg',
+  'Shadowfax': '/brands/shadowfax.png',
+  'Shiprocket': '/brands/shiprocket.jpg',
+  'Shree Maruti': '/brands/shree_maruti.jpg',
+  'XpressBees': '/brands/xpressbees.png',
+  'Xpressbees': '/brands/xpressbees.png',
+  'Smartship': '/brands/smartship.png',
+  'Ecom Express': '/brands/ecom.png',
+  'EcomExpress': '/brands/ecom.png',
+  'BoxdLogistics': '/brands/boxd.png',
+  'Proship': '/brands/proship.png',
+  'ZipyPost': '/brands/zipypost.png',
 };
 
 export function AdminCouriers() {
-  const [couriers, setCouriers] = useState(INITIAL_COURIERS);
+  const [providers, setProviders] = useState<any[]>([]);
+  const [servicesMap, setServicesMap] = useState<Record<string, any[]>>({});
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All Status');
-  const [typeFilter, setTypeFilter] = useState('All Types');
   const [selectedCourier, setSelectedCourier] = useState<any | null>(null);
   const [serviceCourier, setServiceCourier] = useState<any | null>(null);
-  const [expandedCourierId, setExpandedCourierId] = useState<number | null>(null);
+  const [expandedProviderId, setExpandedProviderId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'couriers' | 'services'>('couriers');
-  const [servicesMap, setServicesMap] = useState<Record<number, any[]>>(() => {
-    const stored = localStorage.getItem('admin_services_map');
-    return stored ? JSON.parse(stored) : INITIAL_SERVICES;
-  });
+  const [showAddCourier, setShowAddCourier] = useState(false);
 
-  React.useEffect(() => {
-    localStorage.setItem('admin_services_map', JSON.stringify(servicesMap));
-  }, [servicesMap]);
+  useEffect(() => {
+    fetchAll();
+  }, []);
 
-  const toggleCourierStatus = (id: number) => {
-    const items = activeTab === 'couriers' ? (MOCK_ACCOUNTS[id] || []) : (servicesMap[id] || []);
-    if (items.length === 0) return; // Prevent toggling if no items are configured
-    
-    setCouriers(prev => prev.map(c => 
-      c.id === id ? { ...c, status: c.status === 'Active' ? 'Inactive' : 'Active' } : c
-    ));
+  const fetchAll = async () => {
+    setLoading(true);
+    try {
+      const [providersRes, servicesRes] = await Promise.allSettled([
+        apiClient.get('/allCourier/couriers'),
+        apiClient.get('/courierServices/couriers'),
+      ]);
+
+      if (providersRes.status === 'fulfilled') {
+        setProviders(providersRes.value.data || []);
+      }
+
+      if (servicesRes.status === 'fulfilled') {
+        const services: any[] = servicesRes.value.data || [];
+        const grouped: Record<string, any[]> = {};
+        services.forEach(s => {
+          if (!grouped[s.provider]) grouped[s.provider] = [];
+          grouped[s.provider].push(s);
+        });
+        setServicesMap(grouped);
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleDeleteService = (courierId: number, serviceId: number) => {
-    setServicesMap(prev => ({
-      ...prev,
-      [courierId]: prev[courierId]?.filter(s => s.id !== serviceId) || []
-    }));
+  const toggleProviderStatus = async (provider: any) => {
+    const newStatus = provider.status === 'Enable' ? 'Disable' : 'Enable';
+    try {
+      await apiClient.post('/allCourier/updateStatus', { id: provider._id, status: newStatus });
+      setProviders(prev => prev.map(p => p._id === provider._id ? { ...p, status: newStatus } : p));
+    } catch {}
   };
 
-  const toggleServiceStatus = (courierId: number, serviceId: number) => {
-    setServicesMap(prev => ({
-      ...prev,
-      [courierId]: prev[courierId]?.map(s => 
-        s.id === serviceId ? { ...s, status: s.status === 'Active' ? 'Inactive' : 'Active' } : s
-      ) || []
-    }));
+  const toggleServiceStatus = async (svc: any) => {
+    const newStatus = svc.status === 'Enable' ? 'Disable' : 'Enable';
+    try {
+      await apiClient.put(`/courierServices/updateStatus/${svc._id}`, { status: newStatus });
+      setServicesMap(prev => {
+        const updated = { ...prev };
+        if (updated[svc.provider]) {
+          updated[svc.provider] = updated[svc.provider].map(s =>
+            s._id === svc._id ? { ...s, status: newStatus } : s
+          );
+        }
+        return updated;
+      });
+    } catch {}
   };
 
-  const filteredCouriers = couriers.filter(c => {
-    const matchesSearch = c.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === 'All Status' || c.status === statusFilter;
-    const matchesType = typeFilter === 'All Types' || c.type === typeFilter;
-    return matchesSearch && matchesStatus && matchesType;
+  const handleDeleteService = async (svc: any) => {
+    try {
+      await apiClient.delete(`/courierServices/couriers/${svc._id}`);
+      setServicesMap(prev => {
+        const updated = { ...prev };
+        if (updated[svc.provider]) {
+          updated[svc.provider] = updated[svc.provider].filter(s => s._id !== svc._id);
+        }
+        return updated;
+      });
+    } catch {}
+  };
+
+  const handleConfigureSave = async (data: Record<string, string>): Promise<void> => {
+    if (!selectedCourier) return;
+    try {
+      await apiClient.put(`/allCourier/updateCourier/${selectedCourier._id}`, data);
+      setProviders(prev =>
+        prev.map(p => p._id === selectedCourier._id ? { ...p, ...data } : p)
+      );
+    } catch {}
+    setSelectedCourier(null);
+  };
+
+  const filteredProviders = providers.filter(p => {
+    const name = p.courierName || p.courierProvider || '';
+    const matchesSearch = name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus =
+      statusFilter === 'All Status' ||
+      (statusFilter === 'Active' && p.status === 'Enable') ||
+      (statusFilter === 'Inactive' && p.status === 'Disable');
+    return matchesSearch && matchesStatus;
   });
 
   return (
     <AdminLayout>
       <div className="max-w-6xl mx-auto space-y-6">
-        
+
         {/* Header Tabs */}
         <div className="border-b border-[#E2E8F0]">
           <div className="flex gap-8">
-            <button 
+            <button
               onClick={() => setActiveTab('couriers')}
               className={`px-1 py-4 text-sm font-bold transition-colors ${activeTab === 'couriers' ? 'text-[#00A86B] border-b-2 border-[#00A86B]' : 'text-[#64748B] hover:text-[#0F172A]'}`}
             >
               Couriers
             </button>
-            <button 
+            <button
               onClick={() => setActiveTab('services')}
               className={`px-1 py-4 text-sm font-bold transition-colors ${activeTab === 'services' ? 'text-[#00A86B] border-b-2 border-[#00A86B]' : 'text-[#64748B] hover:text-[#0F172A]'}`}
             >
@@ -122,9 +151,9 @@ export function AdminCouriers() {
         </div>
 
         {/* Filters & Search */}
-        <div className="bg-white rounded-xl border border-[#E2E8F0] p-4 flex flex-col md:flex-row gap-4">
+        <div className="bg-white rounded-xl border border-[#E2E8F0] p-4 flex flex-col md:flex-row gap-4 items-center">
           <div className="flex gap-4">
-            <select 
+            <select
               className="h-10 px-4 border border-[#E2E8F0] rounded-xl text-sm font-medium text-[#0F172A] outline-none focus:border-[#00A86B] min-w-[140px] appearance-none bg-white"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
@@ -133,27 +162,25 @@ export function AdminCouriers() {
               <option>Active</option>
               <option>Inactive</option>
             </select>
-            
-            <select 
-              className="h-10 px-4 border border-[#E2E8F0] rounded-xl text-sm font-medium text-[#0F172A] outline-none focus:border-[#00A86B] min-w-[140px] appearance-none bg-white"
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-            >
-              <option>All Types</option>
-              <option>Domestic</option>
-            </select>
           </div>
 
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8]" />
-            <input 
-              type="text" 
+            <input
+              type="text"
               placeholder="Search by courier name"
               className="w-full h-10 pl-10 pr-4 border border-[#E2E8F0] rounded-xl text-sm outline-none focus:border-[#00A86B] text-[#0F172A]"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
+
+          <button
+            onClick={() => setShowAddCourier(true)}
+            className="ml-auto h-10 px-5 rounded-xl text-sm font-semibold text-white bg-[#00A86B] hover:bg-[#009B63] transition-colors shrink-0"
+          >
+            + Add Courier
+          </button>
         </div>
 
         {/* Table */}
@@ -167,79 +194,90 @@ export function AdminCouriers() {
                   <th className="py-4 px-6 text-xs font-bold text-[#64748B] uppercase tracking-wider text-center">TYPE</th>
                   <th className="py-4 px-6 text-xs font-bold text-[#64748B] uppercase tracking-wider text-center">STATUS</th>
                   <th className="py-4 px-6 text-xs font-bold text-[#64748B] uppercase tracking-wider text-center">ACTION</th>
-                  <th className="py-4 px-6 text-xs font-bold text-[#64748B] uppercase tracking-wider text-right">{activeTab === 'couriers' ? 'CONFIGURE' : 'ADD SERVICE'}</th>
+                  <th className="py-4 px-6 text-xs font-bold text-[#64748B] uppercase tracking-wider text-right">
+                    {activeTab === 'couriers' ? 'CONFIGURE' : 'ADD SERVICE'}
+                  </th>
                 </tr>
               </thead>
               <tbody>
-                {filteredCouriers.length > 0 ? (
-                  filteredCouriers.map((courier, index) => {
-                    const isExpanded = expandedCourierId === courier.id;
-                    const items = activeTab === 'couriers' ? (MOCK_ACCOUNTS[courier.id] || []) : (servicesMap[courier.id] || []);
+                {loading ? (
+                  <tr>
+                    <td colSpan={6} className="py-12 text-center">
+                      <div className="text-sm font-semibold text-[#94A3B8]">Loading...</div>
+                    </td>
+                  </tr>
+                ) : filteredProviders.length > 0 ? (
+                  filteredProviders.map((provider, index) => {
+                    const name = provider.courierName || provider.courierProvider || '';
+                    const logo = LOGO_MAP[name] || '';
+                    const isEnabled = provider.status === 'Enable';
+                    const services = servicesMap[name] || [];
+                    const isExpanded = expandedProviderId === provider._id && activeTab === 'services';
 
                     return (
-                      <React.Fragment key={courier.id}>
-                        <tr 
-                          className={`border-b border-[#E2E8F0] hover:bg-[#F8FAFC]/50 transition-colors cursor-pointer ${isExpanded ? 'bg-[#F8FAFC]' : ''}`}
-                          onClick={() => setExpandedCourierId(isExpanded ? null : courier.id)}
+                      <React.Fragment key={provider._id}>
+                        <tr
+                          className={`border-b border-[#E2E8F0] hover:bg-[#F8FAFC]/50 transition-colors ${activeTab === 'services' ? 'cursor-pointer' : ''} ${isExpanded ? 'bg-[#F8FAFC]' : ''}`}
+                          onClick={() => activeTab === 'services' && setExpandedProviderId(isExpanded ? null : provider._id)}
                         >
                           <td className="py-4 px-6">
                             <div className="flex items-center gap-3">
                               <span className="text-sm font-semibold text-[#64748B]">{index + 1}</span>
-                              <ChevronRight className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-90 text-[#00A86B]' : 'text-[#CBD5E1]'}`} />
+                              {activeTab === 'services' && (
+                                <ChevronRight className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-90 text-[#00A86B]' : 'text-[#CBD5E1]'}`} />
+                              )}
                             </div>
                           </td>
                           <td className="py-4 px-6">
                             <div className="flex items-center gap-5">
                               <div className="w-[60px] h-[60px] bg-white border border-[#E2E8F0] rounded-2xl p-2.5 flex items-center justify-center shrink-0 overflow-hidden shadow-sm">
-                                <img 
-                                  src={courier.logo} 
-                                  alt={courier.name} 
-                                  className="max-w-full max-h-full object-contain"
-                                  onError={(e) => {
-                                    (e.target as HTMLImageElement).style.display = 'none';
-                                    (e.target as HTMLImageElement).parentElement!.innerHTML = `<span class="text-[15px] font-bold text-[#94A3B8]">${courier.name.charAt(0)}</span>`;
-                                  }}
-                                />
+                                {logo ? (
+                                  <img
+                                    src={logo}
+                                    alt={name}
+                                    className="max-w-full max-h-full object-contain"
+                                    onError={(e) => {
+                                      (e.target as HTMLImageElement).style.display = 'none';
+                                      (e.target as HTMLImageElement).parentElement!.innerHTML = `<span class="text-[15px] font-bold text-[#94A3B8]">${name.charAt(0)}</span>`;
+                                    }}
+                                  />
+                                ) : (
+                                  <span className="text-[15px] font-bold text-[#94A3B8]">{name.charAt(0)}</span>
+                                )}
                               </div>
                               <div>
-                                <div className="text-[15px] font-extrabold text-[#0F172A]">{courier.name}</div>
+                                <div className="text-[15px] font-extrabold text-[#0F172A]">{name}</div>
+                                {activeTab === 'services' && (
+                                  <div className="text-xs text-[#94A3B8] mt-0.5">
+                                    {services.length} service{services.length !== 1 ? 's' : ''}
+                                  </div>
+                                )}
                               </div>
                             </div>
                           </td>
                           <td className="py-4 px-6">
                             <div className="flex justify-center">
-                              <span className="px-3 py-1 bg-[#F1F5F9] text-[#475569] rounded-full text-xs font-bold">
-                                {courier.type}
+                              <span className="px-3 py-1 bg-[#F1F5F9] text-[#475569] rounded-full text-xs font-bold">Domestic</span>
+                            </div>
+                          </td>
+                          <td className="py-4 px-6">
+                            <div className="flex justify-center" onClick={(e) => e.stopPropagation()}>
+                              <span className={`text-sm font-bold ${isEnabled ? 'text-[#00A86B]' : 'text-[#94A3B8]'}`}>
+                                {isEnabled ? 'Active' : 'Inactive'}
                               </span>
                             </div>
                           </td>
                           <td className="py-4 px-6">
                             <div className="flex justify-center" onClick={(e) => e.stopPropagation()}>
-                              <span className={`text-sm font-bold ${courier.status === 'Active' ? 'text-[#00A86B]' : 'text-[#94A3B8]'}`}>
-                                {courier.status}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="py-4 px-6">
-                            <div className="flex justify-center" onClick={(e) => e.stopPropagation()}>
-                              <button 
-                                onClick={() => toggleCourierStatus(courier.id)}
-                                disabled={items.length === 0}
+                              <button
+                                onClick={() => toggleProviderStatus(provider)}
                                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#00A86B] focus:ring-offset-2 ${
-                                  items.length === 0 
-                                    ? 'bg-[#E2E8F0] opacity-50 cursor-not-allowed' 
-                                    : courier.status === 'Active' 
-                                      ? 'bg-[#1E1B4B]' 
-                                      : 'bg-[#E2E8F0]'
+                                  isEnabled ? 'bg-[#1E1B4B]' : 'bg-[#E2E8F0]'
                                 }`}
                               >
-                                <span 
+                                <span
                                   className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ease-in-out ${
-                                    items.length === 0 
-                                      ? 'translate-x-1 bg-[#94A3B8]' 
-                                      : courier.status === 'Active' 
-                                        ? 'translate-x-6' 
-                                        : 'translate-x-1'
+                                    isEnabled ? 'translate-x-6' : 'translate-x-1'
                                   }`}
                                 />
                               </button>
@@ -248,15 +286,15 @@ export function AdminCouriers() {
                           <td className="py-4 px-6">
                             <div className="flex justify-end" onClick={(e) => e.stopPropagation()}>
                               {activeTab === 'couriers' ? (
-                                <button 
-                                  onClick={() => setSelectedCourier(courier)}
+                                <button
+                                  onClick={() => setSelectedCourier({ ...provider, name, logo })}
                                   className="text-sm font-semibold text-[#64748B] hover:text-[#00A86B] transition-colors flex items-center gap-1"
                                 >
                                   <Settings className="w-4 h-4" /> Configure
                                 </button>
                               ) : (
-                                <button 
-                                  onClick={() => setServiceCourier(courier)}
+                                <button
+                                  onClick={() => setServiceCourier({ ...provider, name, logo })}
                                   className="text-sm font-semibold text-[#64748B] hover:text-[#00A86B] transition-colors flex items-center gap-1"
                                 >
                                   + Add Service
@@ -265,61 +303,58 @@ export function AdminCouriers() {
                             </div>
                           </td>
                         </tr>
-                        
-                        {/* Expandable Accounts Row */}
+
+                        {/* Expandable Services Row — Services tab only */}
                         <AnimatePresence initial={false}>
-                          {isExpanded && (
-                            <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] shadow-inner overflow-hidden">
+                          {activeTab === 'services' && isExpanded && (
+                            <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] overflow-hidden">
                               <td colSpan={6} className="p-0">
                                 <motion.div
                                   initial={{ height: 0, opacity: 0 }}
-                                  animate={{ height: "auto", opacity: 1 }}
+                                  animate={{ height: 'auto', opacity: 1 }}
                                   exit={{ height: 0, opacity: 0 }}
-                                  transition={{ type: "spring", stiffness: 350, damping: 30, mass: 0.8 }}
+                                  transition={{ type: 'spring', stiffness: 350, damping: 30, mass: 0.8 }}
                                   className="overflow-hidden"
                                 >
                                   <div className="py-6 px-12">
-                                    {items.length > 0 ? (
+                                    {services.length > 0 ? (
                                       <div className="bg-white rounded-xl border border-[#E2E8F0] overflow-hidden shadow-[0_2px_12px_rgba(0,0,0,0.02)]">
                                         <div className="flex flex-col">
-                                          {items.map((acc, i) => (
-                                            <div key={acc.id} className={`flex items-center justify-between py-5 px-8 hover:bg-[#F8FAFC] transition-colors ${i !== items.length - 1 ? 'border-b border-[#F1F5F9]' : ''}`}>
+                                          {services.map((svc, i) => (
+                                            <div
+                                              key={svc._id}
+                                              className={`flex items-center justify-between py-5 px-8 hover:bg-[#F8FAFC] transition-colors ${i !== services.length - 1 ? 'border-b border-[#F1F5F9]' : ''}`}
+                                            >
                                               <div className="w-1/3">
-                                                <div className="text-[15px] font-medium text-[#1E293B] mb-1 leading-none">{acc.name}</div>
-                                                {acc.weight && <div className="text-[13px] text-[#94A3B8] leading-none">{acc.weight}</div>}
+                                                <div className="text-[15px] font-medium text-[#1E293B] mb-1 leading-none">{svc.name}</div>
+                                                {svc.courier_id && (
+                                                  <div className="text-[13px] text-[#94A3B8] leading-none">ID: {svc.courier_id}</div>
+                                                )}
                                               </div>
                                               <div className="w-1/3 flex justify-center">
                                                 <span className="px-4 py-1.5 bg-[#F1F5F9] text-[#1E293B] rounded-full text-[13px] font-medium">
-                                                  {acc.type || 'Surface'}
+                                                  {svc.courierType === 'Domestic (Air)' ? 'Air' : 'Surface'}
                                                 </span>
                                               </div>
                                               <div className="w-1/3 flex justify-end items-center gap-4 pr-8">
-                                                {activeTab === 'services' ? (
-                                                  <button 
-                                                    onClick={() => toggleServiceStatus(courier.id, acc.id)}
-                                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#00A86B] focus:ring-offset-2 ${
-                                                      acc.status === 'Active' ? 'bg-[#1E1B4B]' : 'bg-[#E2E8F0]'
+                                                <button
+                                                  onClick={() => toggleServiceStatus(svc)}
+                                                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#00A86B] focus:ring-offset-2 ${
+                                                    svc.status === 'Enable' ? 'bg-[#1E1B4B]' : 'bg-[#E2E8F0]'
+                                                  }`}
+                                                >
+                                                  <span
+                                                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ease-in-out ${
+                                                      svc.status === 'Enable' ? 'translate-x-6' : 'translate-x-1'
                                                     }`}
-                                                  >
-                                                    <span 
-                                                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ease-in-out ${
-                                                        acc.status === 'Active' ? 'translate-x-6' : 'translate-x-1'
-                                                      }`}
-                                                    />
-                                                  </button>
-                                                ) : (
-                                                  <span className={`text-[15px] font-semibold ${acc.status === 'Active' ? 'text-[#00A86B]' : 'text-[#94A3B8]'}`}>
-                                                    {acc.status}
-                                                  </span>
-                                                )}
-                                                {activeTab === 'services' && (
-                                                  <button 
-                                                    onClick={() => handleDeleteService(courier.id, acc.id)}
-                                                    className="w-8 h-8 flex items-center justify-center rounded-full text-[#94A3B8] hover:text-red-500 hover:bg-red-50 transition-colors"
-                                                  >
-                                                    <Trash2 className="w-4 h-4" />
-                                                  </button>
-                                                )}
+                                                  />
+                                                </button>
+                                                <button
+                                                  onClick={() => handleDeleteService(svc)}
+                                                  className="w-8 h-8 flex items-center justify-center rounded-full text-[#94A3B8] hover:text-red-500 hover:bg-red-50 transition-colors"
+                                                >
+                                                  <Trash2 className="w-4 h-4" />
+                                                </button>
                                               </div>
                                             </div>
                                           ))}
@@ -327,7 +362,7 @@ export function AdminCouriers() {
                                       </div>
                                     ) : (
                                       <div className="text-center py-8 bg-white rounded-xl border border-[#E2E8F0] border-dashed">
-                                        <p className="text-xs font-semibold text-[#94A3B8]">No {activeTab === 'couriers' ? 'accounts' : 'services'} configured yet.</p>
+                                        <p className="text-xs font-semibold text-[#94A3B8]">No services configured yet.</p>
                                       </div>
                                     )}
                                   </div>
@@ -352,33 +387,25 @@ export function AdminCouriers() {
         </div>
 
       </div>
-      
-      <ConfigureCourierModal 
+
+      <ConfigureCourierModal
         isOpen={!!selectedCourier}
         onClose={() => setSelectedCourier(null)}
         courier={selectedCourier}
+        onSave={handleConfigureSave}
       />
 
       <AddServiceModal
         isOpen={!!serviceCourier}
         onClose={() => setServiceCourier(null)}
         courier={serviceCourier}
-        onAdd={(servicesToAdd) => {
-          if (serviceCourier) {
-            setServicesMap(prev => ({
-              ...prev,
-              [serviceCourier.id]: [
-                ...(prev[serviceCourier.id] || []),
-                ...servicesToAdd.map(s => ({
-                  id: Math.floor(Math.random() * 100000),
-                  name: s.name,
-                  type: s.type,
-                  status: 'Active'
-                }))
-              ]
-            }));
-          }
-        }}
+        onSuccess={() => { fetchAll(); setServiceCourier(null); }}
+      />
+
+      <AddCourierModal
+        isOpen={showAddCourier}
+        onClose={() => setShowAddCourier(false)}
+        onSuccess={() => { fetchAll(); setShowAddCourier(false); }}
       />
     </AdminLayout>
   );
