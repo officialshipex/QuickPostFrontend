@@ -30,7 +30,9 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     '/admin/announcement',
     '/admin/notification',
     '/admin/kyc',
-    '/admin/reports'
+    '/admin/reports',
+    '/admin/couriers',
+    '/admin/rate-card'
   ].some((path) => location.pathname === path || location.pathname.startsWith(path + '/'));
 
   return (

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
-import { Search, ChevronRight, Settings, Trash2 } from 'lucide-react';
+import { Search, ChevronRight, Settings, Trash2, Filter, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ConfigureCourierModal } from '../../components/admin/couriers/ConfigureCourierModal';
 import { AddServiceModal } from '../../components/admin/couriers/AddServiceModal';
@@ -58,6 +58,7 @@ export function AdminCouriers() {
   const [serviceCourier, setServiceCourier] = useState<any | null>(null);
   const [expandedCourierId, setExpandedCourierId] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<'couriers' | 'services'>('couriers');
+  const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
   const [servicesMap, setServicesMap] = useState<Record<number, any[]>>(() => {
     const stored = localStorage.getItem('admin_services_map');
     return stored ? JSON.parse(stored) : INITIAL_SERVICES;
@@ -105,26 +106,26 @@ export function AdminCouriers() {
         
         {/* Header Tabs */}
         <div className="border-b border-[#E2E8F0]">
-          <div className="flex gap-8">
-            <button 
+          <div className="flex gap-6 md:gap-8 overflow-x-auto no-scrollbar">
+            <button
               onClick={() => setActiveTab('couriers')}
-              className={`px-1 py-4 text-sm font-bold transition-colors ${activeTab === 'couriers' ? 'text-[#00A86B] border-b-2 border-[#00A86B]' : 'text-[#64748B] hover:text-[#0F172A]'}`}
+              className={`px-1 py-4 text-sm font-bold transition-colors whitespace-nowrap ${activeTab === 'couriers' ? 'text-[#00A86B] border-b-2 border-[#00A86B]' : 'text-[#64748B] hover:text-[#0F172A]'}`}
             >
               Couriers
             </button>
-            <button 
+            <button
               onClick={() => setActiveTab('services')}
-              className={`px-1 py-4 text-sm font-bold transition-colors ${activeTab === 'services' ? 'text-[#00A86B] border-b-2 border-[#00A86B]' : 'text-[#64748B] hover:text-[#0F172A]'}`}
+              className={`px-1 py-4 text-sm font-bold transition-colors whitespace-nowrap ${activeTab === 'services' ? 'text-[#00A86B] border-b-2 border-[#00A86B]' : 'text-[#64748B] hover:text-[#0F172A]'}`}
             >
               Courier Services
             </button>
           </div>
         </div>
 
-        {/* Filters & Search */}
-        <div className="bg-white rounded-xl border border-[#E2E8F0] p-4 flex flex-col md:flex-row gap-4">
+        {/* Filters & Search — desktop */}
+        <div className="hidden md:flex bg-white rounded-xl border border-[#E2E8F0] p-4 flex-col md:flex-row gap-4">
           <div className="flex gap-4">
-            <select 
+            <select
               className="h-10 px-4 border border-[#E2E8F0] rounded-xl text-sm font-medium text-[#0F172A] outline-none focus:border-[#00A86B] min-w-[140px] appearance-none bg-white"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
@@ -133,8 +134,8 @@ export function AdminCouriers() {
               <option>Active</option>
               <option>Inactive</option>
             </select>
-            
-            <select 
+
+            <select
               className="h-10 px-4 border border-[#E2E8F0] rounded-xl text-sm font-medium text-[#0F172A] outline-none focus:border-[#00A86B] min-w-[140px] appearance-none bg-white"
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
@@ -146,8 +147,8 @@ export function AdminCouriers() {
 
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8]" />
-            <input 
-              type="text" 
+            <input
+              type="text"
               placeholder="Search by courier name"
               className="w-full h-10 pl-10 pr-4 border border-[#E2E8F0] rounded-xl text-sm outline-none focus:border-[#00A86B] text-[#0F172A]"
               value={searchQuery}
@@ -156,8 +157,28 @@ export function AdminCouriers() {
           </div>
         </div>
 
-        {/* Table */}
-        <div className="bg-white border border-[#E2E8F0] rounded-2xl overflow-hidden shadow-sm">
+        {/* Filters & Search — mobile */}
+        <div className="md:hidden flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8]" />
+            <input
+              type="text"
+              placeholder="Search by courier name"
+              className="w-full h-10 pl-10 pr-4 rounded-xl border border-[#E2E8F0] bg-white text-sm outline-none focus:border-[#00A86B] text-[#0F172A]"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <button
+            onClick={() => setIsMobileFiltersOpen(true)}
+            className="flex items-center gap-1.5 h-10 px-4 rounded-xl bg-[#00A86B] text-white text-[12px] font-bold shadow-sm shrink-0"
+          >
+            <Filter className="w-3.5 h-3.5" /> Filters
+          </button>
+        </div>
+
+        {/* Table — desktop only */}
+        <div className="hidden md:block bg-white border border-[#E2E8F0] rounded-2xl overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse min-w-[800px]">
               <thead>
@@ -351,9 +372,238 @@ export function AdminCouriers() {
           </div>
         </div>
 
+        {/* Card List — mobile only */}
+        <div className="md:hidden space-y-4">
+          {filteredCouriers.length > 0 ? (
+            filteredCouriers.map((courier) => {
+              const isExpanded = expandedCourierId === courier.id;
+              const items = activeTab === 'couriers' ? (MOCK_ACCOUNTS[courier.id] || []) : (servicesMap[courier.id] || []);
+              return (
+                <div key={courier.id} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
+                  {/* Ribbon Tag */}
+                  <div
+                    className={`absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide ${courier.status === 'Active' ? 'bg-[#00A86B]' : 'bg-[#94A3B8]'}`}
+                    style={{ clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}
+                  >
+                    {courier.status}
+                  </div>
+
+                  <button
+                    onClick={() => setExpandedCourierId(isExpanded ? null : courier.id)}
+                    className="w-full pt-8 px-4 pb-4 text-left"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 bg-white border border-[#E2E8F0] rounded-xl p-2 flex items-center justify-center shrink-0 overflow-hidden shadow-sm">
+                        <img
+                          src={courier.logo}
+                          alt={courier.name}
+                          className="max-w-full max-h-full object-contain"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = 'none';
+                            (e.target as HTMLImageElement).parentElement!.innerHTML = `<span class="text-[13px] font-bold text-[#94A3B8]">${courier.name.charAt(0)}</span>`;
+                          }}
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[14px] font-bold text-[#0F172A] truncate">{courier.name}</div>
+                        <span className="inline-block mt-1 px-2 py-0.5 bg-[#F1F5F9] text-[#475569] rounded-full text-[10px] font-bold">
+                          {courier.type}
+                        </span>
+                      </div>
+                      <ChevronRight className={`w-4 h-4 shrink-0 transition-transform ${isExpanded ? 'rotate-90 text-[#00A86B]' : 'text-[#CBD5E1]'}`} />
+                    </div>
+                  </button>
+
+                  <div className="px-4 pb-4 flex items-center justify-between gap-2" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      onClick={() => toggleCourierStatus(courier.id)}
+                      disabled={items.length === 0}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#00A86B] focus:ring-offset-2 ${
+                        items.length === 0
+                          ? 'bg-[#E2E8F0] opacity-50 cursor-not-allowed'
+                          : courier.status === 'Active'
+                            ? 'bg-[#1E1B4B]'
+                            : 'bg-[#E2E8F0]'
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ease-in-out ${
+                          items.length === 0
+                            ? 'translate-x-1 bg-[#94A3B8]'
+                            : courier.status === 'Active'
+                              ? 'translate-x-6'
+                              : 'translate-x-1'
+                        }`}
+                      />
+                    </button>
+
+                    {activeTab === 'couriers' ? (
+                      <button
+                        onClick={() => setSelectedCourier(courier)}
+                        className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-[#E2E8F0] text-[12px] font-semibold text-[#475569] bg-white active:bg-[#F8FAFC]"
+                      >
+                        <Settings className="w-3.5 h-3.5" /> Configure
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => setServiceCourier(courier)}
+                        className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-[#E2E8F0] text-[12px] font-semibold text-[#475569] bg-white active:bg-[#F8FAFC]"
+                      >
+                        + Add Service
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Expandable Accounts/Services List */}
+                  <AnimatePresence initial={false}>
+                    {isExpanded && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ type: 'spring', stiffness: 350, damping: 30, mass: 0.8 }}
+                        className="overflow-hidden border-t border-[#E2E8F0] bg-[#F8FAFC]"
+                      >
+                        <div className="p-4">
+                          {items.length > 0 ? (
+                            <div className="space-y-2.5">
+                              {items.map((acc) => (
+                                <div key={acc.id} className="bg-white rounded-xl border border-[#E2E8F0] p-3.5">
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div className="min-w-0">
+                                      <div className="text-[13px] font-semibold text-[#0F172A] truncate">{acc.name}</div>
+                                      {acc.weight && <div className="text-[11px] text-[#94A3B8] mt-0.5">{acc.weight}</div>}
+                                      <span className="inline-block mt-1.5 px-2 py-0.5 bg-[#F1F5F9] text-[#1E293B] rounded-full text-[10px] font-medium">
+                                        {acc.type || 'Surface'}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-2 shrink-0">
+                                      {activeTab === 'services' ? (
+                                        <button
+                                          onClick={() => toggleServiceStatus(courier.id, acc.id)}
+                                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#00A86B] focus:ring-offset-2 ${
+                                            acc.status === 'Active' ? 'bg-[#1E1B4B]' : 'bg-[#E2E8F0]'
+                                          }`}
+                                        >
+                                          <span
+                                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ease-in-out ${
+                                              acc.status === 'Active' ? 'translate-x-6' : 'translate-x-1'
+                                            }`}
+                                          />
+                                        </button>
+                                      ) : (
+                                        <span className={`text-[12px] font-semibold ${acc.status === 'Active' ? 'text-[#00A86B]' : 'text-[#94A3B8]'}`}>
+                                          {acc.status}
+                                        </span>
+                                      )}
+                                      {activeTab === 'services' && (
+                                        <button
+                                          onClick={() => handleDeleteService(courier.id, acc.id)}
+                                          className="w-8 h-8 flex items-center justify-center rounded-full text-[#94A3B8] active:text-red-500 active:bg-red-50 transition-colors shrink-0"
+                                        >
+                                          <Trash2 className="w-4 h-4" />
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="text-center py-6 bg-white rounded-xl border border-[#E2E8F0] border-dashed">
+                              <p className="text-xs font-semibold text-[#94A3B8]">No {activeTab === 'couriers' ? 'accounts' : 'services'} configured yet.</p>
+                            </div>
+                          )}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              );
+            })
+          ) : (
+            <div className="p-8 text-center bg-white rounded-2xl border border-[#E2E8F0]">
+              <div className="text-sm font-semibold text-[#64748B]">No couriers found</div>
+            </div>
+          )}
+        </div>
+
       </div>
-      
-      <ConfigureCourierModal 
+
+      {/* Mobile Filters Bottom Sheet */}
+      <AnimatePresence>
+        {isMobileFiltersOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[140] md:hidden flex items-end justify-center"
+            onClick={() => setIsMobileFiltersOpen(false)}
+          >
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="bg-white rounded-t-3xl border-t border-[#E2E8F0] shadow-2xl w-full max-h-[80vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="px-6 py-4 border-b border-[#E2E8F0] flex items-center justify-between sticky top-0 bg-white z-10">
+                <h3 className="font-bold text-slate-800 text-base flex items-center gap-2">
+                  <Filter className="w-5 h-5 text-[#00A86B]" /> Filters
+                </h3>
+                <button onClick={() => setIsMobileFiltersOpen(false)} className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Status</label>
+                  <select
+                    className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                  >
+                    <option>All Status</option>
+                    <option>Active</option>
+                    <option>Inactive</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Type</label>
+                  <select
+                    className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
+                    value={typeFilter}
+                    onChange={(e) => setTypeFilter(e.target.value)}
+                  >
+                    <option>All Types</option>
+                    <option>Domestic</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="px-6 py-4 border-t border-[#E2E8F0] flex items-center gap-3 sticky bottom-0 bg-white">
+                <button
+                  onClick={() => { setStatusFilter('All Status'); setTypeFilter('All Types'); }}
+                  className="flex-1 h-11 rounded-full border border-[#E2E8F0] text-[#475569] text-sm font-bold hover:bg-[#F8FAFC] transition-colors"
+                >
+                  Reset All
+                </button>
+                <button
+                  onClick={() => setIsMobileFiltersOpen(false)}
+                  className="flex-1 h-11 rounded-full bg-[#00A86B] text-white text-sm font-bold hover:bg-[#009B63] transition-colors shadow-sm"
+                >
+                  Apply Filters
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <ConfigureCourierModal
         isOpen={!!selectedCourier}
         onClose={() => setSelectedCourier(null)}
         courier={selectedCourier}

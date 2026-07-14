@@ -3,9 +3,11 @@ import { apiClient } from '../../services/apiClient';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import {
   LayoutGrid, Truck, Clock, Plus, Edit2, Trash2,
-  X, CheckCircle2, AlertCircle, ChevronDown,
+  X, CheckCircle2, AlertCircle, ChevronDown, Settings,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { usePagination, DesktopPagination } from '../../hooks/usePagination';
+import { TableLoader } from '../../components/ui/TableLoader';
 
 const getCourierLogo = (partner: string) => {
   const p = partner.toUpperCase();
@@ -123,6 +125,17 @@ export function AdminEPDMapping() {
     return local && global;
   }), [data, searchQuery, globalSearchQuery]);
 
+  const {
+    page: currentPage,
+    setPage: setCurrentPage,
+    totalPages,
+    paginatedData,
+    startIndex,
+    endIndex,
+    rowsPerPage,
+    setRowsPerPage,
+  } = usePagination({ data: filteredData, perPage: 20 });
+
   const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (addForm.couriers.length === 0 || addForm.serviceNames.length === 0) {
@@ -211,7 +224,7 @@ export function AdminEPDMapping() {
             <h1 className="text-[28px] font-bold text-[#0F172A] tracking-tight">EPD Mapping</h1>
             <button
               onClick={() => { setAddForm({ couriers: [], serviceNames: [], cutoffTime: '10:00' }); setIsAddOpen(true); }}
-              className="h-9 px-4 rounded-[14px] bg-[#00A86B] text-white text-[12px] font-bold hover:bg-[#009B63] transition-colors shadow-sm flex items-center gap-1.5"
+              className="h-9 px-4 rounded-[14px] bg-[#00A86B] text-white text-[12px] font-bold hover:bg-[#009B63] transition-colors shadow-sm flex items-center gap-1.5 cursor-pointer"
             >
               <Plus className="w-4 h-4" /> Add Cutoff Time
             </button>
@@ -219,36 +232,26 @@ export function AdminEPDMapping() {
           <div className="p-4 border-b border-[#E2E8F0] flex flex-wrap gap-3 justify-between items-center bg-white">
             <div className="flex items-center gap-4">
               <div className="text-xs font-bold text-[#475569]">{filteredData.length} Records Found</div>
-              <input type="text" placeholder="Search couriers..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-                className="h-9 px-3 rounded-lg border border-[#E2E8F0] text-xs bg-white focus:outline-none w-[180px]" />
+              <input type="text" placeholder="Search Courier Services" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+                className="glass-search-input w-[220px]" />
             </div>
           </div>
         </div>
 
         <div className="bg-white flex flex-col flex-1 min-h-0 overflow-hidden border-t border-[#E2E8F0]">
-          <div className="flex-1 overflow-auto no-scrollbar">
+          <div className="flex-1 overflow-auto w-full relative">
+            {loading && <TableLoader />}
             <table className="w-full text-left border-collapse min-w-[700px]">
               <thead className="sticky top-0 z-40 bg-[#E6F5F1] shadow-sm">
                 <tr className="text-[10px] font-extrabold text-[#00A86B] uppercase tracking-wider">
                   <th className="p-4 whitespace-nowrap"><LayoutGrid className="w-3.5 h-3.5 inline mr-1" /> Courier</th>
                   <th className="p-4 whitespace-nowrap"><Truck className="w-3.5 h-3.5 inline mr-1" /> Courier Services</th>
                   <th className="p-4 whitespace-nowrap"><Clock className="w-3.5 h-3.5 inline mr-1" /> Cutoff Time (IST)</th>
-                  <th className="p-4 whitespace-nowrap text-right pr-6">Actions</th>
+                  <th className="p-4 whitespace-nowrap text-right pr-6"><Settings className="w-3.5 h-3.5 inline mr-1" /> Actions</th>
                 </tr>
               </thead>
               <tbody className="text-[11px] text-[#475569] font-bold">
-                {loading && (
-                  <tr><td colSpan={4} className="p-10 text-center text-[#94A3B8]">
-                    <div className="flex items-center justify-center gap-2">
-                      <svg className="w-4 h-4 animate-spin text-[#00A86B]" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-                      </svg>
-                      Loading EPD mappings...
-                    </div>
-                  </td></tr>
-                )}
-                {!loading && filteredData.map(row => (
+                {!loading && paginatedData.map(row => (
                   <tr key={row._id} className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors">
                     <td className="p-4">
                       <div className="flex items-center gap-3">
@@ -260,12 +263,12 @@ export function AdminEPDMapping() {
                               (e.target as HTMLImageElement).className = 'w-full h-full object-cover rounded-full border border-[#E2E8F0]';
                             }} />
                         </div>
-                        <div className="font-bold text-[#0F172A] text-[12px] uppercase">{row.courier}</div>
+                        <div className="font-semibold text-[#475569] text-[12px] uppercase">{row.courier}</div>
                       </div>
                     </td>
-                    <td className="p-4 text-[#475569] font-bold text-[12px]">{row.serviceName}</td>
+                    <td className="p-4 text-[#475569] font-normal text-[12px]">{row.serviceName}</td>
                     <td className="p-4">
-                      <span className="text-[#00A86B] font-bold text-[12px]">{formatTo12H(row.cutoffTime)}</span>
+                      <span className="text-[#00A86B] font-normal text-[12px]">{formatTo12H(row.cutoffTime)}</span>
                     </td>
                     <td className="p-4 text-right pr-6">
                       <div className="flex items-center justify-end gap-2">
@@ -281,12 +284,24 @@ export function AdminEPDMapping() {
                     </td>
                   </tr>
                 ))}
-                {!loading && filteredData.length === 0 && (
+                {!loading && paginatedData.length === 0 && (
                   <tr><td colSpan={4} className="p-8 text-center text-[#94A3B8] font-semibold">No EPD mapping records found.</td></tr>
                 )}
               </tbody>
             </table>
           </div>
+          {totalPages > 0 && (
+            <DesktopPagination
+              page={currentPage}
+              setPage={setCurrentPage}
+              totalPages={totalPages}
+              rowsPerPage={rowsPerPage}
+              setRowsPerPage={setRowsPerPage}
+              startIndex={startIndex}
+              endIndex={endIndex}
+              totalItems={filteredData.length}
+            />
+          )}
         </div>
       </div>
 

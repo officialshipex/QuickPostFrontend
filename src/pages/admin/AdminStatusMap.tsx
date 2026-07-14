@@ -6,7 +6,7 @@ import { TableLoader } from '../../components/ui/TableLoader';
 import {
   Upload, Download, Briefcase,
   Plus, Edit3, Trash2, X, CheckCircle2, AlertCircle,
-  ChevronDown, SlidersHorizontal,
+  ChevronDown, SlidersHorizontal, ScanLine, Tag, FileText, Activity, ArrowLeftRight, Settings,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -31,7 +31,19 @@ const getCourierLogo = (partner: string) => {
   if (p.includes('SHREE MARUTI')) return '/brands/shree_maruti.jpg';
   if (p.includes('DTDC')) return '/brands/dtdc.png';
   if (p.includes('SHADOWFAX')) return '/brands/shadowfax.png';
+  if (p.includes('AMAZON')) return '/brands/amazon.png';
   return `https://ui-avatars.com/api/?name=${encodeURIComponent(partner)}&background=f8fafc&color=0f172a&bold=true&font-size=0.4`;
+};
+
+// Maps a dynamic column name (from the API-driven column set) to a heading icon, matching the icon-per-column convention used on other admin pages.
+const getColumnIcon = (col: string) => {
+  const c = col.toLowerCase();
+  if (c.includes('scan type')) return <Tag className="w-3.5 h-3.5 inline mr-1" />;
+  if (c.includes('scan')) return <ScanLine className="w-3.5 h-3.5 inline mr-1" />;
+  if (c.includes('instruction')) return <FileText className="w-3.5 h-3.5 inline mr-1" />;
+  if (c.includes('status')) return <Activity className="w-3.5 h-3.5 inline mr-1" />;
+  if (c.includes('process')) return <ArrowLeftRight className="w-3.5 h-3.5 inline mr-1" />;
+  return <FileText className="w-3.5 h-3.5 inline mr-1" />;
 };
 
 export function AdminStatusMap() {
@@ -351,9 +363,9 @@ export function AdminStatusMap() {
                     <Briefcase className="w-3.5 h-3.5 inline mr-1" /> Partner Name
                   </th>
                   {rawColumns.map(col => (
-                    <th key={col} className="p-4 whitespace-nowrap">{col}</th>
+                    <th key={col} className="p-4 whitespace-nowrap">{getColumnIcon(col)}{col}</th>
                   ))}
-                  <th className="p-4 text-center whitespace-nowrap w-24">Actions</th>
+                  <th className="p-4 text-center whitespace-nowrap w-24"><Settings className="w-3.5 h-3.5 inline mr-1" /> Actions</th>
                 </tr>
               </thead>
               <tbody className="text-[11px] text-[#64748B] font-semibold">
@@ -373,7 +385,7 @@ export function AdminStatusMap() {
                             }}
                           />
                         </div>
-                        <span className="font-semibold text-[#0F172A] text-[12px] uppercase">{selectedCourier}</span>
+                        <span className="font-semibold text-[#475569] text-[12px] uppercase">{selectedCourier}</span>
                       </div>
                     </td>
                     {rawColumns.map(col => (

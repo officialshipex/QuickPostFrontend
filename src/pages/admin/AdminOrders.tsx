@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { createPortal } from 'react-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { apiClient } from '../../services/apiClient';
 import { getToken } from '../../utils/session';
@@ -8,16 +9,29 @@ import { PDFDocument } from 'pdf-lib';
 import {
   Search, ChevronDown, RefreshCcw, Send, Calendar, Check, MoreHorizontal,
   IndianRupee, Package, User, Settings, MapPin, X, Truck, CreditCard,
-  CheckCircle2, Clock, AlertTriangle, Flame, History, Layers, RefreshCw
+  CheckCircle2, Clock, AlertTriangle, Flame, History, Layers, RefreshCw, Mail,
+  Filter, Copy
 } from 'lucide-react';
 import { TransferCODModal } from '../../components/ui/TransferCODModal';
 import { usePagination, DesktopPagination } from '../../hooks/usePagination';
+import { useMobilePaginationBar } from '../../hooks/useMobilePaginationBar';
 import { TableLoader } from '../../components/ui/TableLoader';
 import { TruncatedText } from '../../components/ui/TruncatedText';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
 import { AdminPickupManifest } from './AdminPickupManifest';
 import { useAdminTab } from '../../context/AdminUserContext';
+
+// ─── Courier logo lookup — mobile card layout (mirrors AdminWallet.tsx convention) ──
+const getCourierLogo = (courierName: string) => {
+  const key = (courierName || '').toLowerCase();
+  if (key.includes('delhivery')) return 'https://cdn.brandfetch.io/delhivery.com/logo';
+  if (key.includes('bluedart') || key.includes('blue dart')) return 'https://cdn.brandfetch.io/bluedart.com/logo';
+  if (key.includes('xpressbees')) return 'https://cdn.brandfetch.io/xpressbees.com/logo';
+  if (key.includes('ecom')) return 'https://cdn.brandfetch.io/ecomexpress.in/logo';
+  if (key.includes('dtdc')) return 'https://cdn.brandfetch.io/dtdc.in/logo';
+  return 'https://cdn-icons-png.flaticon.com/512/2830/2830284.png';
+};
 
 // ─── Tabs ─────────────────────────────────────────────────────────────────────
 const MAIN_TABS = ['New', 'Ready to Ship', 'Pickup & Manifest', 'In Transit', 'Delivered'];
@@ -88,6 +102,31 @@ const STATUS_BADGE_STYLES: Record<string, string> = {
   'RTO Damaged':       'bg-rose-50 text-rose-700 border-rose-200',
 };
 
+// ─── Ribbon accent colors — mobile card layout (mirrors STATUS_BADGE_STYLES per status) ──
+const STATUS_RIBBON_COLORS: Record<string, string> = {
+  'New':               '#64748B',
+  'Booked':            '#2563EB',
+  'Not Picked':        '#F59E0B',
+  'Ready To Ship':     '#4F46E5',
+  'Ready to Ship':     '#4F46E5',
+  'Pickup & Manifest': '#7C3AED',
+  'Pickup Scheduled':  '#7C3AED',
+  'In-Transit':        '#0284C7',
+  'In-transit':        '#0284C7',
+  'In Transit':        '#0284C7',
+  'Delivered':         '#00A86B',
+  'Out for Delivery':  '#F59E0B',
+  'Cancelled':         '#E11D48',
+  'Lost':              '#64748B',
+  'Damaged':           '#E11D48',
+  'RTO Initiated':     '#EA580C',
+  'RTO In Transit':    '#EA580C',
+  'RTO Delivered':     '#00A86B',
+  'RTO Lost':          '#64748B',
+  'RTO Damaged':       '#E11D48',
+};
+const getRibbonColor = (status: string) => STATUS_RIBBON_COLORS[status] || '#00A86B';
+
 const getStatusBadgeClass = (status: string) =>
   `${STATUS_BADGE_STYLES[status] || 'bg-blue-50 text-blue-700 border-blue-200'} px-2.5 py-0.5 rounded-full border text-[10px] font-semibold uppercase tracking-wider whitespace-nowrap shadow-sm`;
 
@@ -110,6 +149,9 @@ const renderAgeing = (dateStr: string) => {
   if (days <= 6) return <div className="flex items-center gap-1.5 text-[#0F172A] font-bold" title={tip}><AlertTriangle className="w-3.5 h-3.5" /><span>{days} days</span></div>;
   return <div className="flex items-center gap-1.5 text-[#0F172A] font-bold" title={tip}><Flame className="w-3.5 h-3.5" /><span>{days} days</span></div>;
 };
+
+// Guards against non-email placeholder values (e.g. a stray phone/id like "123") leaking through the fallback chain.
+const asEmail = (v: any): string => (typeof v === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim())) ? v.trim() : '';
 
 // ─── Map raw API order → display shape ────────────────────────────────────────
 const mapOrder = (o: any) => {
@@ -150,6 +192,10 @@ const mapOrder = (o: any) => {
     customerName:   o.receiverAddress?.contactName || '—',
     customerPhone:  o.receiverAddress?.phoneNumber || '—',
     customerAddress: o.receiverAddress?.address || '',
+    customerCity:   o.receiverAddress?.city || '',
+    customerState:  o.receiverAddress?.state || '',
+    customerPinCode: o.receiverAddress?.pinCode || o.receiverAddress?.pincode || '',
+    customerEmail:  asEmail(o.receiverAddress?.email) || asEmail(o.customerEmail) || asEmail(o.email) || '',
     pickupName:     o.pickupAddress?.contactName || '—',
     pickupAddressLine: o.pickupAddress?.address || '',
     pickupCity:     o.pickupAddress?.city || '',
@@ -225,7 +271,13 @@ export function AdminOrders() {
   const [page, setPage]             = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(20);
+  const [rowsPerPage, setRowsPerPageState] = useState(20);
+  // Changing page size always resets to page 1 — otherwise the current page can go out of
+  // range against the new page size and the next fetch returns an empty page.
+  const setRowsPerPage = useCallback((value: number | ((prev: number) => number)) => {
+    setRowsPerPageState(value);
+    setPage(1);
+  }, []);
 
   // Client-side re-slice of the already server-fetched page — same usePagination + TableLoader
   // wiring as AdminWallet.tsx (paginatedData drives the table body; loading state drives TableLoader).
@@ -263,7 +315,24 @@ export function AdminOrders() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const ageingLegendRef = useRef<any>(null);
   const [hoveredPickup,   setHoveredPickup]     = useState<{ id: string; rect: DOMRect; name: string; address: string; city: string; state: string; pinCode: string; phone: string } | null>(null);
-  const [hoveredCustomer, setHoveredCustomer]   = useState<{ rect: DOMRect; name: string; address: string } | null>(null);
+  const [hoveredCustomer, setHoveredCustomer]   = useState<{ rect: DOMRect; name: string; address: string; city: string; state: string; pinCode: string; email: string } | null>(null);
+
+  // ── Mobile view state ──
+  const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
+  const [mobileSearchQuery,   setMobileSearchQuery]   = useState('');
+  const [mobileToast, setMobileToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const showMobileToast = (type: 'success' | 'error', text: string) => {
+    setMobileToast({ type, text });
+    setTimeout(() => setMobileToast(null), 2000);
+  };
+  const copyToClipboard = async (text: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      showMobileToast('success', `${label} copied!`);
+    } catch {
+      showMobileToast('error', `Failed to copy ${label}.`);
+    }
+  };
 
   // ── Global search (header bar) ──
   const [globalSearchQuery, setGlobalSearchQuery] = useState((window as any).__adminSearchQuery?.toLowerCase() || '');
@@ -592,12 +661,26 @@ export function AdminOrders() {
     <AdminLayout>
       <div className="flex flex-col h-[calc(100vh-72px)] -m-4 md:-m-6 bg-white">
 
+        {/* ── Mobile Search Bar ── */}
+        <div className="md:hidden px-4 py-3 border-b border-[#E2E8F0] bg-white shrink-0">
+          <div className="relative">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
+            <input
+              type="text"
+              placeholder="AWB/Order ID tracking"
+              value={mobileSearchQuery}
+              onChange={(e) => setMobileSearchQuery(e.target.value)}
+              className="w-full h-10 pl-10 pr-4 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] text-sm text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all"
+            />
+          </div>
+        </div>
+
         {/* ── Top Tab Bar ── */}
         <div className="bg-white relative z-50 shrink-0">
-          <div className="flex items-center px-6 py-2 border-b border-[#E2E8F0]">
+          <div className="flex items-center px-4 md:px-6 py-2 border-b border-[#E2E8F0]">
             {/* Left group: scrollable main tabs + More button side by side */}
-            <div className="flex items-center flex-1 min-w-0">
-              <div className="flex gap-5 items-center overflow-x-auto no-scrollbar">
+            <div className="flex items-center flex-1 min-w-0 gap-4 md:gap-5">
+              <div className="flex gap-4 md:gap-5 items-center overflow-x-auto no-scrollbar min-w-0">
                 {MAIN_TABS.map((tab) => (
                   <button
                     key={tab}
@@ -609,8 +692,8 @@ export function AdminOrders() {
                   </button>
                 ))}
               </div>
-              {/* More button — outside overflow-x-auto so its dropdown is never clipped, but stays left */}
-              <div className="relative shrink-0 ml-5" ref={moreRef}>
+              {/* More button — outside overflow-x-auto so its dropdown is never clipped, and shrink-0 keeps it always visible (not pushed off-screen on mobile) */}
+              <div className="relative shrink-0" ref={moreRef}>
                 <button
                   onClick={() => setShowMore(!showMore)}
                   className={`py-3 text-[13px] font-bold flex items-center gap-1 transition-colors whitespace-nowrap ${MORE_TABS.includes(activeTab) ? 'text-[#00A86B]' : 'text-[#64748B] hover:text-[#0F172A]'}`}
@@ -618,7 +701,7 @@ export function AdminOrders() {
                   {MORE_TABS.includes(activeTab) ? activeTab : 'More'} <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showMore ? 'rotate-180' : ''}`} />
                 </button>
                 {showMore && (
-                  <div className="absolute top-full left-0 mt-1 w-48 bg-white rounded-xl shadow-xl border border-[#E2E8F0] overflow-hidden z-[200]">
+                  <div className="absolute top-full right-0 md:left-0 md:right-auto mt-1 w-48 bg-white rounded-xl shadow-xl border border-[#E2E8F0] overflow-hidden z-[200] max-h-[60vh] overflow-y-auto">
                     {MORE_TABS.map(tab => (
                       <button key={tab} onClick={() => handleTabChange(tab)}
                         className={`w-full text-left px-4 py-2.5 text-sm font-medium hover:bg-[#F8FAFC] transition-colors ${activeTab === tab ? 'text-[#00A86B] bg-[#00A86B]/5' : 'text-[#475569]'}`}>
@@ -630,13 +713,62 @@ export function AdminOrders() {
               </div>
             </div>
             {/* Refresh on the right */}
-            <button onClick={() => fetchOrders(page)} className="w-8 h-8 rounded-full border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC] shrink-0 ml-4">
+            <button onClick={() => fetchOrders(page)} className="hidden md:flex w-8 h-8 rounded-full border border-[#E2E8F0] items-center justify-center text-[#64748B] hover:bg-[#F8FAFC] shrink-0 ml-4">
               <RefreshCcw className="w-4 h-4" />
             </button>
           </div>
 
+          {/* ── Mobile Filters + Action Row ── */}
+          {!isPMTab && (
+            <div className="md:hidden px-4 py-3 border-b border-[#E2E8F0] flex items-center justify-between bg-white gap-2">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setIsMobileFiltersOpen(true)}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#00A86B] text-white text-[12px] font-bold shadow-sm"
+                >
+                  <Filter className="w-3.5 h-3.5" /> Filters
+                </button>
+                {selectedOrders.length > 0 && (
+                  <span className="text-[11px] font-bold text-[#00A86B] bg-[#F0FDF4] border border-[#00A86B]/20 px-2.5 py-1 rounded-full">
+                    {selectedOrders.length} selected
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="relative" ref={actionMenuRef}>
+                  <button
+                    onClick={() => selectedOrders.length > 0 && setShowActionMenu(v => !v)}
+                    disabled={selectedOrders.length === 0}
+                    className={`flex items-center gap-1.5 px-4 py-2 rounded-lg border text-[12px] font-semibold transition-colors ${selectedOrders.length === 0 ? 'border-[#E2E8F0] bg-[#F8FAFC] text-[#CBD5E1]' : 'border-[#E2E8F0] text-[#475569] bg-white active:bg-[#F8FAFC]'}`}
+                  >
+                    Action
+                    <ChevronDown className={`w-3.5 h-3.5 text-[#94A3B8] transition-transform duration-200 ${showActionMenu ? 'rotate-180' : ''}`} />
+                  </button>
+                  <AnimatePresence>
+                    {showActionMenu && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -6, scale: 0.97 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -6, scale: 0.97 }}
+                        transition={{ duration: 0.16, ease: 'easeOut' }}
+                        className="absolute right-0 top-full mt-2 w-[190px] bg-white rounded-xl shadow-[0_8px_28px_-6px_rgba(0,0,0,0.15)] border border-[#E2E8F0] py-1.5 z-50 origin-top-right"
+                      >
+                        {renderActionMenuItems()}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+                <button
+                  className="w-9 h-9 rounded-full bg-[#00A86B] flex items-center justify-center text-white shadow-sm shrink-0"
+                >
+                  <span className="text-lg leading-none mt-[-2px]">+</span>
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* ── Filter Row — hidden for Pickup & Manifest (that tab has its own UI) ── */}
-          {!isPMTab && <div className="p-3 border-b border-[#E2E8F0] flex flex-wrap items-center gap-2.5 bg-[#F8FAFC]/50">
+          {!isPMTab && <div className="hidden md:flex p-3 border-b border-[#E2E8F0] flex-wrap items-center gap-2.5 bg-[#F8FAFC]/50">
 
             {/* User search autocomplete — admin view only */}
             {isAdminView && (
@@ -772,7 +904,7 @@ export function AdminOrders() {
 
           {/* ── Bulk Actions Toolbar — only for order tabs ── */}
           {!isPMTab && selectedOrders.length > 0 && (
-            <div className="px-4 py-2 bg-blue-50 border-b border-blue-100 flex items-center gap-3">
+            <div className="hidden md:flex px-4 py-2 bg-blue-50 border-b border-blue-100 items-center gap-3">
               <span className="text-xs font-bold text-blue-700">{selectedOrders.length} selected</span>
               {isNewTab && <button className="h-8 px-3 rounded-md bg-white border border-blue-200 text-xs font-bold text-blue-700 shadow-sm">Bulk Ship</button>}
               {isNewTab && <button className="h-8 px-3 rounded-md bg-white border border-blue-200 text-xs font-bold text-blue-700 shadow-sm">Update Package Details</button>}
@@ -793,8 +925,8 @@ export function AdminOrders() {
           </div>
         )}
 
-        {/* ── Table (all other tabs) ── */}
-        {!isPMTab && <div className="bg-white flex flex-col flex-1 min-h-0 overflow-hidden border-t border-[#E2E8F0]">
+        {/* ── Table (all other tabs) — desktop only ── */}
+        {!isPMTab && <div className="hidden md:flex bg-white flex-col flex-1 min-h-0 overflow-hidden border-t border-[#E2E8F0]">
           <div className="flex-1 overflow-auto w-full relative">
             {loading && <TableLoader />}
             <table className="w-full text-left border-collapse min-w-full">
@@ -947,7 +1079,7 @@ export function AdminOrders() {
                           <td className="p-3">
                             <div
                               className="text-xs font-normal text-[#0F172A] underline decoration-dotted underline-offset-2 hover:text-[#00A86B] cursor-help inline-block truncate max-w-[140px]"
-                              onMouseEnter={(e) => setHoveredCustomer({ rect: e.currentTarget.getBoundingClientRect(), name: order.customerName, address: order.customerAddress })}
+                              onMouseEnter={(e) => setHoveredCustomer({ rect: e.currentTarget.getBoundingClientRect(), name: order.customerName, address: order.customerAddress, city: order.customerCity, state: order.customerState, pinCode: order.customerPinCode, email: order.customerEmail })}
                               onMouseLeave={() => setHoveredCustomer(null)}
                             >
                               {order.customerName}
@@ -1040,6 +1172,318 @@ export function AdminOrders() {
           )}
         </div>}
 
+        {/* ── Mobile Card Layout (all other tabs) ── */}
+        {!isPMTab && (
+          <div className="md:hidden flex-1 overflow-y-auto bg-[#F8FAFC] relative">
+            {loading && <TableLoader />}
+            {paginatedOrders.length === 0 ? (
+              <div className="p-8 text-center text-[#64748B] font-medium text-sm">
+                No orders found for <span className="font-bold text-[#0F172A]">{activeTab}</span>
+              </div>
+            ) : (
+              <div className="p-4 space-y-4">
+                {paginatedOrders.map((order) => {
+                  const accent = getRibbonColor(order.status || activeTab);
+                  return (
+                  <div key={order._id} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
+                    {/* Ribbon Tag */}
+                    <div
+                      className="absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide"
+                      style={{ background: accent, clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}
+                    >
+                      {order.status || activeTab}
+                    </div>
+
+                    <div className="pt-8 px-4 pb-4">
+                      {/* User Details Row */}
+                      <div className="flex items-center justify-between mb-3 gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <input type="checkbox" checked={selectedOrders.includes(order._id)} onChange={() => toggleSelect(order._id)} className="rounded border-gray-300 accent-[#00A86B] w-4 h-4 shrink-0" />
+                          <span className="text-[#64748B] font-medium text-[12px]">User Details</span>
+                        </div>
+                        <span className="text-[12px] inline-flex items-baseline gap-1 max-w-[190px] justify-end text-right">
+                          <TruncatedText text={order.userName || order.customerName} maxLength={16} className="font-semibold text-[#0F172A] text-[12px]" />
+                          <span className="text-[#64748B] font-semibold shrink-0">({order.userUserId || order.orderId})</span>
+                        </span>
+                      </div>
+
+                      {/* Courier & Order Card */}
+                      <div className="rounded-xl p-3 mb-3 bg-white" style={{ border: `1px solid ${accent}` }}>
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                            {order.courier && order.courier !== '—' ? (
+                              <div className="w-10 h-10 bg-white border border-[#E2E8F0] rounded-xl flex items-center justify-center shrink-0 overflow-hidden p-1 shadow-sm">
+                                <img src={getCourierLogo(order.courier)} alt={order.courier} className="w-full h-full object-contain" />
+                              </div>
+                            ) : (
+                              <div className="w-10 h-10 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl flex items-center justify-center shrink-0">
+                                <Truck className="w-4 h-4 text-[#94A3B8]" />
+                              </div>
+                            )}
+                            <div className="min-w-0 flex-1">
+                              <div className="text-[12px] font-normal text-[#0F172A] truncate">
+                                {order.courier && order.courier !== '—' ? order.courier : 'Courier not assigned'} {order.weight ? `· ${order.weight}` : ''}
+                              </div>
+                              <div className="flex items-center gap-1.5 min-w-0 mt-0.5">
+                                {order.awb ? (
+                                  <>
+                                    <span className="text-[12px] font-semibold text-[#00A86B] truncate active:opacity-60">{order.awb}</span>
+                                    <button onClick={(e) => { e.stopPropagation(); copyToClipboard(order.awb, 'AWB'); }} className="shrink-0 focus:outline-none">
+                                      <Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" />
+                                    </button>
+                                  </>
+                                ) : (
+                                  <span className="text-[12px] font-semibold text-[#94A3B8] truncate">AWB not generated</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <div className="text-[12px] font-normal text-[#0F172A]">{order.paymentType}</div>
+                            <div className="text-[12px] font-semibold text-[#00A86B]">&#8377;{order.payment}</div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Product & Weight Row */}
+                      <div
+                        className="flex items-start justify-between mb-3 px-1 gap-2 cursor-help"
+                        onMouseEnter={(e) => {
+                          if (!order.products || order.products.length === 0) return;
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          setProductHoverPos({ id: order._id, top: rect.bottom + 4, left: rect.left });
+                        }}
+                        onMouseLeave={() => setProductHoverPos(prev => (prev?.id === order._id ? null : prev))}
+                        onClick={(e) => {
+                          if (!order.products || order.products.length === 0) return;
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          setProductHoverPos(prev => (prev?.id === order._id ? null : { id: order._id, top: rect.bottom + 4, left: rect.left }));
+                        }}
+                      >
+                        <TruncatedText text={order.productName || '—'} maxLength={22} className="text-[12px] font-medium text-[#0F172A] flex-1" />
+                        <span className="text-[11px] font-medium text-[#64748B] shrink-0">Weight: {order.weight}</span>
+                      </div>
+
+                      {/* Pickup / Receiver Row */}
+                      <div className="flex items-start justify-between bg-[#F8FAFC] rounded-xl px-3 py-2.5 mb-3 gap-2">
+                        <div
+                          className="min-w-0 cursor-help"
+                          onMouseEnter={(e) => setHoveredPickup({ id: order._id, rect: e.currentTarget.getBoundingClientRect(), name: order.pickupName, address: order.pickupAddressLine, city: order.pickupCity, state: order.pickupState, pinCode: order.pickupPinCode, phone: order.pickupPhone })}
+                          onMouseLeave={() => setHoveredPickup(null)}
+                        >
+                          <TruncatedText text={order.pickupName} maxLength={16} className="text-[10px] font-normal text-[#94A3B8] uppercase tracking-wider underline decoration-dotted underline-offset-2" />
+                          <div className="text-[12px] font-medium text-[#0F172A] mt-0.5">{order.pickupPhone}</div>
+                        </div>
+                        <div
+                          className="text-right min-w-0 cursor-help"
+                          onMouseEnter={(e) => setHoveredCustomer({ rect: e.currentTarget.getBoundingClientRect(), name: order.customerName, address: order.customerAddress, city: order.customerCity, state: order.customerState, pinCode: order.customerPinCode, email: order.customerEmail })}
+                          onMouseLeave={() => setHoveredCustomer(null)}
+                        >
+                          <TruncatedText text={order.customerName} maxLength={16} className="text-[10px] font-normal text-[#94A3B8] uppercase tracking-wider underline decoration-dotted underline-offset-2" />
+                          <div className="text-[12px] font-medium text-[#0F172A] mt-0.5">{order.customerPhone}</div>
+                        </div>
+                      </div>
+
+                      {/* Actions Row */}
+                      <div className="flex items-center gap-2">
+                        {isNewTab ? (
+                          <button className="flex-1 py-2.5 rounded-xl bg-[#1e40af] text-white text-[12px] font-bold flex items-center justify-center gap-1.5 hover:bg-[#1e3a8a] transition-colors">
+                            Ship <Send className="w-3.5 h-3.5" />
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => setDrawerOrder(order)}
+                            className="flex-1 py-2.5 rounded-xl bg-[#1e40af] text-white text-[12px] font-bold flex items-center justify-center gap-1.5 hover:bg-[#1e3a8a] transition-colors"
+                          >
+                            View Details
+                          </button>
+                        )}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (dropdownPos?.id === order._id) { setDropdownPos(null); return; }
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            setDropdownPos({ id: order._id, top: rect.bottom + 4, left: rect.right - 176 });
+                          }}
+                          className={`w-10 h-10 rounded-full border flex items-center justify-center shrink-0 transition-colors ${dropdownPos?.id === order._id ? 'bg-green-100 border-[#00A86B] text-[#00A86B]' : 'border-[#E2E8F0] text-[#64748B] bg-white'}`}
+                        >
+                          <MoreHorizontal className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Mobile Pagination */}
+            {useMobilePaginationBar({
+              page,
+              setPage,
+              totalPages,
+              rowsPerPage,
+              setRowsPerPage,
+              startIndex: Math.min((page - 1) * rowsPerPage + 1, totalRecords),
+              endIndex: Math.min(page * rowsPerPage, totalRecords),
+              totalItems: totalRecords,
+            })}
+          </div>
+        )}
+
+        {/* ── Mobile Filters Bottom Sheet ── */}
+        <AnimatePresence>
+          {isMobileFiltersOpen && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[140] md:hidden flex items-end justify-center"
+              onClick={() => setIsMobileFiltersOpen(false)}
+            >
+              <motion.div
+                initial={{ y: '100%' }}
+                animate={{ y: 0 }}
+                exit={{ y: '100%' }}
+                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                className="bg-white rounded-t-3xl border-t border-[#E2E8F0] shadow-2xl w-full max-h-[80vh] overflow-y-auto"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="px-6 py-4 border-b border-[#E2E8F0] flex items-center justify-between sticky top-0 bg-white z-10">
+                  <h3 className="font-bold text-slate-800 text-base flex items-center gap-2">
+                    <Filter className="w-5 h-5 text-[#00A86B]" /> Filters
+                  </h3>
+                  <button onClick={() => setIsMobileFiltersOpen(false)} className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition-colors">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="p-6 space-y-4">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Date Range</label>
+                    <GlassDateFilter
+                      className="w-full [&_.glass-dropdown-trigger]:w-full [&_.glass-dropdown-trigger]:h-11"
+                      startDate={dateStart}
+                      endDate={dateEnd}
+                      onDateChange={(s, e) => { setDateStart(s); setDateEnd(e); }}
+                    />
+                  </div>
+
+                  {isAdminView && (
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Search by name, email, or contact</label>
+                      <input
+                        type="text"
+                        placeholder="Search user..."
+                        value={userQuery}
+                        onChange={(e) => setUserQuery(e.target.value)}
+                        className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
+                      />
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Order Id</label>
+                    <input
+                      type="text"
+                      placeholder="Order Id"
+                      value={orderId}
+                      onChange={(e) => setOrderId(e.target.value)}
+                      className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
+                    />
+                  </div>
+
+                  {!isNewTab && !isPMTab && (
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">AWB Number</label>
+                      <input
+                        type="text"
+                        placeholder="Search by AWB..."
+                        value={awbNumber}
+                        onChange={(e) => setAwbNumber(e.target.value)}
+                        className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
+                      />
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Payment Type</label>
+                    <select
+                      value={selectedPaymentTypes[0] || ''}
+                      onChange={(e) => setSelectedPaymentTypes(e.target.value ? [e.target.value] : [])}
+                      className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
+                    >
+                      <option value="">All Payment Types</option>
+                      {PAYMENT_TYPE_OPTIONS.map(opt => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Pickup Address</label>
+                    <select
+                      value={selectedPickupAddresses[0] || ''}
+                      onChange={(e) => setSelectedPickupAddresses(e.target.value ? [e.target.value] : [])}
+                      className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
+                    >
+                      <option value="">All Pickup Addresses</option>
+                      {pickupOptions.map((opt) => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {!isNewTab && (
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Courier Service</label>
+                      <select
+                        value={selectedCouriers[0] || ''}
+                        onChange={(e) => setSelectedCouriers(e.target.value ? [e.target.value] : [])}
+                        className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
+                      >
+                        <option value="">All Couriers</option>
+                        {courierOptions.map((opt) => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
+
+                <div className="px-6 py-4 border-t border-[#E2E8F0] flex items-center gap-3 sticky bottom-0 bg-white">
+                  <button
+                    onClick={() => { handleClearAllFilters(); setIsMobileFiltersOpen(false); }}
+                    className="flex-1 h-11 rounded-full border border-[#E2E8F0] text-[#475569] text-sm font-bold hover:bg-[#F8FAFC] transition-colors"
+                  >
+                    Reset All
+                  </button>
+                  <button
+                    onClick={() => { handleApplyFilters(); setIsMobileFiltersOpen(false); }}
+                    className="flex-1 h-11 rounded-full bg-[#00A86B] text-white text-sm font-bold hover:bg-[#009B63] transition-colors shadow-sm"
+                  >
+                    Apply Filters
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* ── Mobile Toast ── */}
+        <AnimatePresence>
+          {mobileToast && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              className={`md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] px-4 py-2.5 rounded-xl shadow-xl text-xs font-bold text-white ${mobileToast.type === 'success' ? 'bg-[#0F172A]' : 'bg-red-600'}`}
+            >
+              {mobileToast.text}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* ── Order Detail Drawer ── */}
         {drawerOrder && (
           <div className="fixed inset-0 z-[100] flex">
@@ -1100,30 +1544,69 @@ export function AdminOrders() {
         )}
 
         {/* ── Pickup Tooltip ── */}
-        {hoveredPickup && (
-          <div className="fixed z-[9999] pointer-events-none bg-[#0F172A] text-white text-xs p-3 rounded-xl shadow-xl w-64"
-            style={{ top: hoveredPickup.rect.top - 10, left: hoveredPickup.rect.left + hoveredPickup.rect.width / 2, transform: 'translate(-50%, -100%)' }}>
-            <div className="font-bold flex items-center gap-1.5 mb-1.5"><MapPin className="w-3.5 h-3.5 text-[#00A86B]" />{hoveredPickup.name}</div>
-            <div className="text-slate-300 font-normal leading-relaxed border-t border-white/10 pt-1.5">
-              {hoveredPickup.address || 'No address on file'}
-              {(hoveredPickup.city || hoveredPickup.state || hoveredPickup.pinCode) && (
-                <div>{[hoveredPickup.city, hoveredPickup.state].filter(Boolean).join(', ')}{hoveredPickup.pinCode ? ` – ${hoveredPickup.pinCode}` : ''}</div>
+        {hoveredPickup && (() => {
+          // Flip below the trigger when there isn't enough room above to show the full tooltip without clipping.
+          const showBelow = hoveredPickup.rect.top < 260;
+          return (
+            <div className="fixed z-[9999] pointer-events-none bg-[#0F172A] text-white text-xs p-3 rounded-xl shadow-xl w-64"
+              style={{
+                top: showBelow ? hoveredPickup.rect.bottom + 10 : hoveredPickup.rect.top - 10,
+                left: Math.min(Math.max(hoveredPickup.rect.left + hoveredPickup.rect.width / 2, 140), window.innerWidth - 140),
+                transform: showBelow ? 'translate(-50%, 0)' : 'translate(-50%, -100%)',
+              }}>
+              <div className="font-bold flex items-center gap-1.5 mb-1.5"><MapPin className="w-3.5 h-3.5 text-[#00A86B] shrink-0" />{hoveredPickup.name}</div>
+              <div className="text-slate-300 font-normal leading-relaxed border-t border-white/10 pt-1.5 break-words whitespace-normal">
+                {hoveredPickup.address || 'No address on file'}
+                {(hoveredPickup.city || hoveredPickup.state || hoveredPickup.pinCode) && (
+                  <div>{[hoveredPickup.city, hoveredPickup.state].filter(Boolean).join(', ')}{hoveredPickup.pinCode ? ` – ${hoveredPickup.pinCode}` : ''}</div>
+                )}
+                {hoveredPickup.phone && <div className="text-slate-400 mt-1">{hoveredPickup.phone}</div>}
+              </div>
+              {showBelow ? (
+                <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 border-[6px] border-transparent border-b-[#0F172A]" />
+              ) : (
+                <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 border-[6px] border-transparent border-t-[#0F172A]" />
               )}
-              {hoveredPickup.phone && <div className="text-slate-400 mt-1">{hoveredPickup.phone}</div>}
             </div>
-            <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 border-[6px] border-transparent border-t-[#0F172A]" />
-          </div>
-        )}
+          );
+        })()}
 
         {/* ── Customer Tooltip ── */}
-        {hoveredCustomer && (
-          <div className="fixed z-[9999] pointer-events-none bg-[#0F172A] text-white text-xs font-normal p-3 rounded-xl shadow-xl w-64"
-            style={{ top: hoveredCustomer.rect.top - 10, left: hoveredCustomer.rect.left + hoveredCustomer.rect.width / 2, transform: 'translate(-50%, -100%)' }}>
-            <div className="font-normal flex items-center gap-1.5 mb-1.5"><User className="w-3.5 h-3.5 text-[#00A86B]" />{hoveredCustomer.name}</div>
-            {hoveredCustomer.address && <div className="text-slate-300 font-normal leading-relaxed border-t border-white/10 pt-1.5">{hoveredCustomer.address}</div>}
-            <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 border-[6px] border-transparent border-t-[#0F172A]" />
-          </div>
-        )}
+        {hoveredCustomer && (() => {
+          // Flip below the trigger when there isn't enough room above to show the full tooltip without clipping.
+          const showBelow = hoveredCustomer.rect.top < 260;
+          return (
+            <div className="fixed z-[9999] pointer-events-none bg-[#0F172A] text-white text-xs font-normal p-3 rounded-xl shadow-xl w-72"
+              style={{
+                top: showBelow ? hoveredCustomer.rect.bottom + 10 : hoveredCustomer.rect.top - 10,
+                left: Math.min(Math.max(hoveredCustomer.rect.left + hoveredCustomer.rect.width / 2, 150), window.innerWidth - 150),
+                transform: showBelow ? 'translate(-50%, 0)' : 'translate(-50%, -100%)',
+              }}>
+              <div className="font-normal flex items-center gap-1.5 mb-1.5"><User className="w-3.5 h-3.5 text-[#00A86B] shrink-0" />{hoveredCustomer.name}</div>
+              {(hoveredCustomer.address || hoveredCustomer.city || hoveredCustomer.state || hoveredCustomer.pinCode) && (
+                <div className="text-slate-300 font-normal leading-relaxed border-t border-white/10 pt-1.5 break-words whitespace-normal">
+                  {hoveredCustomer.address}
+                  {(hoveredCustomer.city || hoveredCustomer.state || hoveredCustomer.pinCode) && (
+                    <div className="mt-0.5">
+                      {[hoveredCustomer.city, hoveredCustomer.state].filter(Boolean).join(', ')}
+                      {hoveredCustomer.pinCode && ` - ${hoveredCustomer.pinCode}`}
+                    </div>
+                  )}
+                </div>
+              )}
+              {hoveredCustomer.email && (
+                <div className="flex items-center gap-1.5 text-slate-300 font-normal mt-1.5 pt-1.5 border-t border-white/10 break-all">
+                  <Mail className="w-3.5 h-3.5 text-[#00A86B] shrink-0" />{hoveredCustomer.email}
+                </div>
+              )}
+              {showBelow ? (
+                <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 border-[6px] border-transparent border-b-[#0F172A]" />
+              ) : (
+                <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 border-[6px] border-transparent border-t-[#0F172A]" />
+              )}
+            </div>
+          );
+        })()}
       </div>
 
       {/* ── Row-action dropdown portal — rendered on document.body to escape overflow-auto clipping ── */}

@@ -8,7 +8,7 @@ import { useAdminTab } from '../../context/AdminUserContext';
 import {
   Search, ChevronDown, RefreshCcw, Check, IndianRupee, Package,
   User, Settings, MapPin, X, Truck,
-  AlertTriangle
+  AlertTriangle, Mail
 } from 'lucide-react';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
@@ -51,6 +51,9 @@ const PAYMENT_TYPE_OPTIONS = [
   { label: 'COD',     value: 'COD' },
 ];
 
+// Guards against non-email placeholder values (e.g. a stray phone/id like "123") leaking through the fallback chain.
+const asEmail = (v: any): string => (typeof v === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim())) ? v.trim() : '';
+
 // ─── Map raw order from API ─────────────────────────────────────────────────────
 const mapOrder = (o: any) => {
   const products = Array.isArray(o.productDetails) ? o.productDetails : [];
@@ -82,6 +85,10 @@ const mapOrder = (o: any) => {
     customerName:  o.receiverAddress?.contactName || '—',
     customerPhone: o.receiverAddress?.phoneNumber || '—',
     customerAddress: o.receiverAddress?.address || '',
+    customerCity:  o.receiverAddress?.city || '',
+    customerState: o.receiverAddress?.state || '',
+    customerPinCode: o.receiverAddress?.pinCode || o.receiverAddress?.pincode || '',
+    customerEmail: asEmail(o.receiverAddress?.email) || asEmail(o.customerEmail) || asEmail(o.email) || '',
     pickupName:    o.pickupAddress?.contactName || '—',
     pickupAddress: o.pickupAddress?.address || '',
     courier:       o.courierServiceName || '—',
@@ -155,7 +162,7 @@ export function AdminNDR() {
   // ── UI state ──
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
   const [hoveredPickup,  setHoveredPickup]  = useState<{ rect: DOMRect; name: string; address: string } | null>(null);
-  const [hoveredCustomer, setHoveredCustomer] = useState<{ rect: DOMRect; name: string; address: string } | null>(null);
+  const [hoveredCustomer, setHoveredCustomer] = useState<{ rect: DOMRect; name: string; address: string; city: string; state: string; pinCode: string; email: string } | null>(null);
   const [productHoverPos, setProductHoverPos] = useState<{ id: string; top: number; left: number } | null>(null);
   const [hoveredNdrReason, setHoveredNdrReason] = useState<{ rect: DOMRect; reason: string } | null>(null);
   const [showActionMenu, setShowActionMenu] = useState(false);
@@ -617,7 +624,7 @@ export function AdminNDR() {
                       <td className="p-3">
                         <div
                           className="text-[#0F172A] text-[12px] font-normal underline decoration-dotted underline-offset-2 hover:text-[#00A86B] cursor-help inline-block truncate max-w-[120px]"
-                          onMouseEnter={e => setHoveredCustomer({ rect: e.currentTarget.getBoundingClientRect(), name: order.customerName, address: order.customerAddress })}
+                          onMouseEnter={e => setHoveredCustomer({ rect: e.currentTarget.getBoundingClientRect(), name: order.customerName, address: order.customerAddress, city: order.customerCity, state: order.customerState, pinCode: order.customerPinCode, email: order.customerEmail })}
                           onMouseLeave={() => setHoveredCustomer(null)}>
                           {order.customerName}
                         </div>
@@ -707,14 +714,41 @@ export function AdminNDR() {
         )}
 
         {/* ── Customer Tooltip ── */}
-        {hoveredCustomer && (
-          <div className="fixed z-[9999] pointer-events-none bg-[#0F172A] text-white text-xs font-normal p-3 rounded-xl shadow-xl w-64"
-            style={{ top: hoveredCustomer.rect.top - 10, left: hoveredCustomer.rect.left + hoveredCustomer.rect.width / 2, transform: 'translate(-50%, -100%)' }}>
-            <div className="font-normal flex items-center gap-1.5 mb-1.5"><User className="w-3.5 h-3.5 text-[#00A86B]" />{hoveredCustomer.name}</div>
-            {hoveredCustomer.address && <div className="text-slate-300 font-normal leading-relaxed border-t border-white/10 pt-1.5">{hoveredCustomer.address}</div>}
-            <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 border-[6px] border-transparent border-t-[#0F172A]" />
-          </div>
-        )}
+        {hoveredCustomer && (() => {
+          // Flip below the trigger when there isn't enough room above to show the full tooltip without clipping.
+          const showBelow = hoveredCustomer.rect.top < 260;
+          return (
+            <div className="fixed z-[9999] pointer-events-none bg-[#0F172A] text-white text-xs font-normal p-3 rounded-xl shadow-xl w-72"
+              style={{
+                top: showBelow ? hoveredCustomer.rect.bottom + 10 : hoveredCustomer.rect.top - 10,
+                left: Math.min(Math.max(hoveredCustomer.rect.left + hoveredCustomer.rect.width / 2, 150), window.innerWidth - 150),
+                transform: showBelow ? 'translate(-50%, 0)' : 'translate(-50%, -100%)',
+              }}>
+              <div className="font-normal flex items-center gap-1.5 mb-1.5"><User className="w-3.5 h-3.5 text-[#00A86B] shrink-0" />{hoveredCustomer.name}</div>
+              {(hoveredCustomer.address || hoveredCustomer.city || hoveredCustomer.state || hoveredCustomer.pinCode) && (
+                <div className="text-slate-300 font-normal leading-relaxed border-t border-white/10 pt-1.5 break-words whitespace-normal">
+                  {hoveredCustomer.address}
+                  {(hoveredCustomer.city || hoveredCustomer.state || hoveredCustomer.pinCode) && (
+                    <div className="mt-0.5">
+                      {[hoveredCustomer.city, hoveredCustomer.state].filter(Boolean).join(', ')}
+                      {hoveredCustomer.pinCode && ` - ${hoveredCustomer.pinCode}`}
+                    </div>
+                  )}
+                </div>
+              )}
+              {hoveredCustomer.email && (
+                <div className="flex items-center gap-1.5 text-slate-300 font-normal mt-1.5 pt-1.5 border-t border-white/10 break-all">
+                  <Mail className="w-3.5 h-3.5 text-[#00A86B] shrink-0" />{hoveredCustomer.email}
+                </div>
+              )}
+              {showBelow ? (
+                <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 border-[6px] border-transparent border-b-[#0F172A]" />
+              ) : (
+                <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 border-[6px] border-transparent border-t-[#0F172A]" />
+              )}
+            </div>
+          );
+        })()}
 
         {/* ── NDR Reason Tooltip ── */}
         {hoveredNdrReason && (
