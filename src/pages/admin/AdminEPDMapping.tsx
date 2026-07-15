@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePagination, DesktopPagination } from '../../hooks/usePagination';
+import { useMobilePaginationBar } from '../../hooks/useMobilePaginationBar';
 import { TableLoader } from '../../components/ui/TableLoader';
 
 const getCourierLogo = (partner: string) => {
@@ -220,7 +221,7 @@ export function AdminEPDMapping() {
     <AdminLayout>
       <div className="flex flex-col h-[calc(100vh-72px)] -m-4 md:-m-6 bg-white">
         <div className="bg-white shadow-xs relative z-50 shrink-0">
-          <div className="px-6 py-4 border-b border-[#E2E8F0] flex justify-between items-center">
+          <div className="hidden md:flex px-6 py-4 border-b border-[#E2E8F0] justify-between items-center">
             <h1 className="text-[28px] font-bold text-[#0F172A] tracking-tight">EPD Mapping</h1>
             <button
               onClick={() => { setAddForm({ couriers: [], serviceNames: [], cutoffTime: '10:00' }); setIsAddOpen(true); }}
@@ -229,16 +230,33 @@ export function AdminEPDMapping() {
               <Plus className="w-4 h-4" /> Add Cutoff Time
             </button>
           </div>
-          <div className="p-4 border-b border-[#E2E8F0] flex flex-wrap gap-3 justify-between items-center bg-white">
+          <div className="hidden md:flex p-4 border-b border-[#E2E8F0] flex-wrap gap-3 justify-between items-center bg-white">
             <div className="flex items-center gap-4">
               <div className="text-xs font-bold text-[#475569]">{filteredData.length} Records Found</div>
               <input type="text" placeholder="Search Courier Services" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
                 className="glass-search-input w-[220px]" />
             </div>
           </div>
+
+          {/* Mobile Search + Add Row */}
+          <div className="md:hidden p-4 border-b border-[#E2E8F0] bg-white flex items-center gap-2">
+            <input
+              type="text"
+              placeholder="Search Courier Services"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="flex-1 h-10 px-4 rounded-xl border border-[#E2E8F0] bg-white text-sm text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B]"
+            />
+            <button
+              onClick={() => { setAddForm({ couriers: [], serviceNames: [], cutoffTime: '10:00' }); setIsAddOpen(true); }}
+              className="h-10 px-4 rounded-xl bg-[#00A86B] text-white text-[12px] font-bold shadow-sm flex items-center gap-1.5 shrink-0 whitespace-nowrap active:bg-[#009B63] transition-colors"
+            >
+              Add Cutoff Time
+            </button>
+          </div>
         </div>
 
-        <div className="bg-white flex flex-col flex-1 min-h-0 overflow-hidden border-t border-[#E2E8F0]">
+        <div className="hidden md:flex bg-white flex-col flex-1 min-h-0 overflow-hidden border-t border-[#E2E8F0]">
           <div className="flex-1 overflow-auto w-full relative">
             {loading && <TableLoader />}
             <table className="w-full text-left border-collapse min-w-[700px]">
@@ -302,6 +320,73 @@ export function AdminEPDMapping() {
               totalItems={filteredData.length}
             />
           )}
+        </div>
+
+        {/* Card List — mobile only */}
+        <div className="md:hidden flex flex-col flex-1 min-h-0 bg-[#F8FAFC]">
+          <div className="flex-1 overflow-y-auto relative">
+          {loading && <TableLoader />}
+          {!loading && paginatedData.length === 0 ? (
+            <div className="p-8 text-center text-[#94A3B8] font-semibold text-sm">No EPD mapping records found.</div>
+          ) : (
+            <div className="p-4 space-y-4">
+              {paginatedData.map((row) => (
+                <div key={row._id} className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden p-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-8 h-8 flex items-center justify-center shrink-0">
+                        <img
+                          src={getCourierLogo(row.serviceName || row.courier)}
+                          alt={row.courier}
+                          className="w-full h-full object-contain mix-blend-multiply"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(row.courier)}&background=f8fafc&color=0f172a&bold=true&font-size=0.4`;
+                            (e.target as HTMLImageElement).className = 'w-full h-full object-cover rounded-full border border-[#E2E8F0]';
+                          }}
+                        />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="font-bold text-[#0F172A] text-[13px] capitalize truncate">{row.courier}</div>
+                        <div className="text-[12px] font-normal text-[#64748B] truncate">{row.serviceName}</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={() => { setEditMapping(row); setEditForm({ courier: row.courier, serviceName: row.serviceName, cutoffTime: row.cutoffTime || '10:00' }); }}
+                        className="w-8 h-8 rounded-full border border-[#E2E8F0] bg-white text-[#64748B] flex items-center justify-center active:text-indigo-600 active:bg-indigo-50 transition-all"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => setDeleteMapping(row)}
+                        className="w-8 h-8 rounded-full border border-red-100 bg-white text-red-500 flex items-center justify-center active:text-white active:bg-red-600 transition-all"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between bg-[#F8FAFC] rounded-xl px-3 py-2.5 mt-3">
+                    <span className="text-[11px] font-semibold text-[#64748B] flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> Cutoff Time (IST)</span>
+                    <span className="text-[13px] font-bold text-[#00A86B]">{formatTo12H(row.cutoffTime)}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          </div>
+
+          {/* Mobile Pagination */}
+          {useMobilePaginationBar({
+            page: currentPage,
+            setPage: setCurrentPage,
+            totalPages,
+            rowsPerPage,
+            setRowsPerPage,
+            startIndex,
+            endIndex,
+            totalItems: filteredData.length,
+          })}
         </div>
       </div>
 

@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { apiClient } from '../../services/apiClient';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { usePagination, DesktopPagination } from '../../hooks/usePagination';
+import { useMobilePaginationBar } from '../../hooks/useMobilePaginationBar';
 import { TableLoader } from '../../components/ui/TableLoader';
 import {
   Upload, Download, Briefcase,
@@ -65,6 +66,8 @@ export function AdminStatusMap() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isCourierOpen, setIsCourierOpen] = useState(false);
   const courierRef = useRef<HTMLDivElement>(null);
+  const [isMobileCourierOpen, setIsMobileCourierOpen] = useState(false);
+  const mobileCourierRef = useRef<HTMLDivElement>(null);
 
   // — Modal state —
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -86,6 +89,7 @@ export function AdminStatusMap() {
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (courierRef.current && !courierRef.current.contains(e.target as Node)) setIsCourierOpen(false);
+      if (mobileCourierRef.current && !mobileCourierRef.current.contains(e.target as Node)) setIsMobileCourierOpen(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
@@ -284,13 +288,73 @@ export function AdminStatusMap() {
       <div className="flex flex-col h-[calc(100vh-72px)] -m-4 md:-m-6 bg-white">
         <div className="bg-white shadow-xs relative z-50 shrink-0">
 
-          {/* Page Header */}
-          <div className="px-6 py-4 border-b border-[#E2E8F0] bg-white flex justify-between items-center z-50 relative shrink-0">
+          {/* Page Header — desktop only */}
+          <div className="hidden md:flex px-6 py-4 border-b border-[#E2E8F0] bg-white justify-between items-center z-50 relative shrink-0">
             <h1 className="text-[28px] font-bold text-[#0F172A] tracking-tight">Status Mapping</h1>
           </div>
 
-          {/* Filter and Action Row */}
-          <div className="p-4 border-b border-[#E2E8F0] flex flex-wrap gap-3 justify-between items-center bg-white">
+          {/* Mobile Search + Courier + Actions Row */}
+          <div className="md:hidden p-4 border-b border-[#E2E8F0] bg-white space-y-3">
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search mapping rules..."
+                value={searchQuery}
+                onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+                className="w-full h-10 px-4 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] text-sm text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <div ref={mobileCourierRef} className="relative flex-1 min-w-0">
+                <button
+                  onClick={() => setIsMobileCourierOpen(o => !o)}
+                  className="w-full h-10 px-4 rounded-xl border border-[#E2E8F0] bg-white text-sm text-[#0F172A] flex items-center gap-2 focus:outline-none"
+                  type="button"
+                >
+                  <Briefcase className="w-3.5 h-3.5 text-[#00A86B] shrink-0" />
+                  <span className="truncate flex-1 text-left">{selectedCourier || 'Select Courier'}</span>
+                  <ChevronDown className={`w-3.5 h-3.5 shrink-0 transition-transform ${isMobileCourierOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {isMobileCourierOpen && (
+                  <ul className="absolute z-50 mt-1 w-full bg-white border border-[#E2E8F0] rounded-xl shadow-lg max-h-60 overflow-y-auto">
+                    {couriers.map(c => (
+                      <li
+                        key={c}
+                        onClick={() => { setSelectedCourier(c); setIsMobileCourierOpen(false); setCurrentPage(1); setSearchQuery(''); }}
+                        className={`px-4 py-2.5 text-sm cursor-pointer hover:bg-green-50 font-semibold ${c === selectedCourier ? 'bg-[#E6F5F1] text-[#00A86B]' : 'text-[#0F172A]'}`}
+                      >
+                        {c}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              <button
+                onClick={() => setIsUploadOpen(true)}
+                className="w-10 h-10 rounded-xl border border-[#00A86B] text-[#00A86B] flex items-center justify-center shrink-0 bg-white active:bg-green-50 transition-colors"
+                title="Upload CSV"
+              >
+                <Upload className="w-4 h-4" />
+              </button>
+              <button
+                onClick={handleExport}
+                className="w-10 h-10 rounded-xl border border-[#00A86B] text-[#00A86B] flex items-center justify-center shrink-0 bg-white active:bg-green-50 transition-colors"
+                title="Export"
+              >
+                <Download className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setIsAddOpen(true)}
+                className="w-10 h-10 rounded-xl bg-[#00A86B] text-white flex items-center justify-center shrink-0 shadow-sm active:bg-[#009B63] transition-colors"
+                title="Add Mapping"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Filter and Action Row — desktop only */}
+          <div className="hidden md:flex p-4 border-b border-[#E2E8F0] flex-wrap gap-3 justify-between items-center bg-white">
 
             <div className="flex flex-wrap items-center gap-3">
               {/* Search */}
@@ -352,8 +416,8 @@ export function AdminStatusMap() {
           </div>
         </div>
 
-        {/* Table Section */}
-        <div className="bg-white flex flex-col flex-1 min-h-0 overflow-hidden border-t border-[#E2E8F0]">
+        {/* Table Section — desktop only */}
+        <div className="hidden md:flex bg-white flex-col flex-1 min-h-0 overflow-hidden border-t border-[#E2E8F0]">
           <div className="flex-1 overflow-auto w-full relative">
             {loading && <TableLoader />}
             <table className="w-full text-left border-collapse min-w-[600px]">
@@ -440,6 +504,92 @@ export function AdminStatusMap() {
               totalItems={filteredRows.length}
             />
           )}
+        </div>
+
+        {/* Card List — mobile only */}
+        <div className="md:hidden flex-1 overflow-y-auto bg-[#F8FAFC] relative">
+          {loading && <TableLoader />}
+          {!loading && paginatedData.length === 0 ? (
+            <div className="p-8 text-center text-[#94A3B8] font-semibold text-sm flex flex-col items-center gap-2">
+              <SlidersHorizontal className="w-8 h-8 text-slate-300" />
+              <span>{selectedCourier ? `No data found for ${selectedCourier}.` : 'Select a courier to view data.'}</span>
+            </div>
+          ) : (
+            <div className="p-4 space-y-4">
+              {paginatedData.map((item, idx) => {
+                const syStatusVal = String(item.syStatus || item.Sy_status || item.sy_status || item.systemStatus || item['Sy Status'] || '');
+                return (
+                  <div key={idx} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
+                    {/* Ribbon Tag */}
+                    {syStatusVal && (
+                      <div
+                        className="absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide bg-[#F59E0B]"
+                        style={{ clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}
+                      >
+                        {syStatusVal}
+                      </div>
+                    )}
+
+                    <div className={`px-4 pb-4 ${syStatusVal ? 'pt-8' : 'pt-4'}`}>
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="w-8 h-8 flex items-center justify-center shrink-0">
+                            <img
+                              src={getCourierLogo(selectedCourier)}
+                              alt={selectedCourier}
+                              className="w-full h-full object-contain mix-blend-multiply"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedCourier)}&background=f8fafc&color=0f172a&bold=true&font-size=0.4`;
+                                (e.target as HTMLImageElement).className = 'w-full h-full object-cover rounded-full border border-[#E2E8F0]';
+                              }}
+                            />
+                          </div>
+                          <span className="font-bold text-[#0F172A] text-[13px] uppercase truncate">{selectedCourier}</span>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            onClick={() => handleEditOpen(item)}
+                            className="w-8 h-8 rounded-full border border-[#E2E8F0] flex items-center justify-center text-[#64748B] active:text-indigo-600 active:bg-indigo-50 transition-all bg-white"
+                            title="Edit Rule"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteOpen(item)}
+                            className="w-8 h-8 rounded-full border border-red-100 text-red-500 active:text-white active:bg-red-600 flex items-center justify-center transition-all bg-white"
+                            title="Delete Rule"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-2 bg-[#F8FAFC] rounded-xl px-3 py-2.5">
+                        {rawColumns.map(col => (
+                          <div key={col} className="min-w-0">
+                            <span className="text-[11px] font-semibold text-[#64748B]">{col}: </span>
+                            <span className="text-[12px] font-medium text-[#0F172A] break-words">{String(item[col] ?? '')}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Mobile Pagination */}
+          {useMobilePaginationBar({
+            page: currentPage,
+            setPage: setCurrentPage,
+            totalPages,
+            rowsPerPage,
+            setRowsPerPage,
+            startIndex,
+            endIndex,
+            totalItems: filteredRows.length,
+          })}
         </div>
       </div>
 

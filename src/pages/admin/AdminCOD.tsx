@@ -15,6 +15,7 @@ import { TableLoader } from '../../components/ui/TableLoader';
 import { TransferCODModal } from '../../components/ui/TransferCODModal';
 import { useTableLoader } from '../../hooks/useTableLoader';
 import { usePagination, DesktopPagination } from '../../hooks/usePagination';
+import { useMobilePaginationBar } from '../../hooks/useMobilePaginationBar';
 
 const MAIN_TABS = [
   { name: 'All COD Orders' },
@@ -30,9 +31,10 @@ const mapCodOrder = (item: any) => ({
   userId: item.userId || '',
   userName: item.userName || '',
   userEmail: item.Email || '',
-  date: item.Date
-    ? new Date(item.Date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+  date: (item.Date || item.createdAt || item.orderDate)
+    ? new Date(item.Date || item.createdAt || item.orderDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
     : 'N/A',
+  rawDate: item.Date || item.createdAt || item.orderDate || '',
   courier: item.courierProvider || '',
   codAmount: parseFloat(item.CODAmount) || 0,
   status: item.status || 'Pending',
@@ -98,6 +100,33 @@ const withOrdinalSuffix = (dateStr: string) => {
     : (day % 10 === 2 && day !== 12) ? 'nd'
     : (day % 10 === 3 && day !== 13) ? 'rd' : 'th';
   return `${day}${suffix}${match[2]}`;
+};
+
+const getCourierLogo = (partner: string) => {
+  const p = (partner || '').toUpperCase();
+  if (p.includes('DELHIVERY')) return '/brands/delhivery.png';
+  if (p.includes('BLUEDART') || p.includes('BLUE DART')) return '/brands/bluedart.png';
+  if (p.includes('EKART')) return '/brands/ekart.png';
+  if (p.includes('XPRESSBEES')) return '/brands/xpressbees.png';
+  if (p.includes('SHREE MARUTI')) return '/brands/shree_maruti.jpg';
+  if (p.includes('DTDC')) return '/brands/dtdc.png';
+  if (p.includes('SHADOWFAX')) return '/brands/shadowfax.png';
+  if (p.includes('AMAZON')) return '/brands/amazon.png';
+  return `https://ui-avatars.com/api/?name=${encodeURIComponent(partner || '?')}&background=f8fafc&color=0f172a&bold=true&font-size=0.4`;
+};
+
+// "Created At: 13th Apr 2026 | 12hr:60min:09sec" — elapsed time since order creation, live-formatted on each render.
+const formatCreatedAt = (rawDate: string) => {
+  if (!rawDate) return 'N/A';
+  const created = new Date(rawDate);
+  if (isNaN(created.getTime())) return 'N/A';
+  const datePart = withOrdinalSuffix(created.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }));
+  const elapsedMs = Math.max(0, Date.now() - created.getTime());
+  const totalSeconds = Math.floor(elapsedMs / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  return `${datePart} | ${hours}hr:${minutes}min:${seconds}sec`;
 };
 
 export function AdminCOD() {
@@ -259,12 +288,19 @@ export function AdminCOD() {
         setShowAllCodActionMenu(false);
         setShowActionMenu(false);
         setShowCourierActionMenu(false);
+        setShowMobileSellerActionMenu(false);
+        setShowMobileCourierActionMenu(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
+  const [isMobileSellerFiltersOpen, setIsMobileSellerFiltersOpen] = useState(false);
+  const [isMobileCourierFiltersOpen, setIsMobileCourierFiltersOpen] = useState(false);
+  const [showMobileSellerActionMenu, setShowMobileSellerActionMenu] = useState(false);
+  const [showMobileCourierActionMenu, setShowMobileCourierActionMenu] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [codRowsPerPage, setCodRowsPerPage] = useState(20);
   const [sellerRowsPerPage, setSellerRowsPerPage] = useState(20);
@@ -701,10 +737,24 @@ export function AdminCOD() {
     <AdminLayout>
       <div className="flex flex-col h-[calc(100vh-72px)] -m-4 md:-m-6 bg-white">
 
+        {/* Mobile Search Bar */}
+        <div className="md:hidden px-4 py-3 border-b border-[#E2E8F0] bg-white">
+          <div className="relative">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
+            <input
+              type="text"
+              placeholder="AWB/Order ID tracking"
+              value={activeTab === 'All COD Orders' ? codAwb : ''}
+              onChange={(e) => { if (activeTab === 'All COD Orders') setCodAwb(e.target.value); }}
+              className="w-full h-10 pl-10 pr-4 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] text-sm text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all"
+            />
+          </div>
+        </div>
+
         {/* Tab Navigation */}
         <div className="bg-white relative z-50 shrink-0">
-          <div className="flex justify-between items-center px-6 py-2 border-b border-[#E2E8F0] overflow-x-auto no-scrollbar">
-            <div className="flex gap-6 items-center shrink-0">
+          <div className="flex justify-between items-center px-4 md:px-6 py-2 border-b border-[#E2E8F0] overflow-x-auto no-scrollbar">
+            <div className="flex gap-4 md:gap-6 items-center shrink-0">
               {(isAdminView ? MAIN_TABS : MAIN_TABS.filter(t => t.name === 'All COD Orders')).map(tab => (
                 <button
                   key={tab.name}
@@ -720,67 +770,287 @@ export function AdminCOD() {
                 </button>
               ))}
             </div>
-            <div className="flex items-center gap-3 shrink-0 ml-4">
+            <div className="hidden md:flex items-center gap-3 shrink-0 ml-4">
               <button onClick={handleRefresh} className="w-8 h-8 rounded-full border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC]">
                 <RefreshCcw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
               </button>
             </div>
           </div>
-          {activeTab === 'Seller COD Remittance' && (
-            <div className="p-4 border-b border-[#E2E8F0] bg-[#F8FAFC]/30 flex flex-nowrap overflow-x-auto gap-4 no-scrollbar">
-              <div className="flex-1 min-w-[200px] bg-[#F0F9FF] rounded-xl p-3 border border-[#E0F2FE] flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-[#DBEAFE] flex items-center justify-center shrink-0"><Wallet className="w-4 h-4 text-[#3B82F6]" /></div>
-                <div><div className="text-[14px] font-bold text-[#0F172A]">{fmtCurrency(sellerSummary.CODToBeRemitted)}</div><div className="text-[10px] font-semibold text-[#64748B]">COD To Be Remitted</div></div>
-              </div>
-              <div className="flex-1 min-w-[200px] bg-[#FAF5FF] rounded-xl p-3 border border-[#F3E8FF] flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-[#F3E8FF] flex items-center justify-center shrink-0"><Send className="w-4 h-4 text-[#A855F7]" /></div>
-                <div><div className="text-[14px] font-bold text-[#0F172A]">{fmtCurrency(sellerSummary.LastCodRemmited)}</div><div className="text-[10px] font-semibold text-[#64748B]">Last COD Remitted</div></div>
-              </div>
-              <div className="flex-1 min-w-[200px] bg-[#F0FDFA] rounded-xl p-3 border border-[#CCFBF1] flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-[#CCFBF1] flex items-center justify-center shrink-0"><Banknote className="w-4 h-4 text-[#14B8A6]" /></div>
-                <div><div className="text-[14px] font-bold text-[#0F172A]">{fmtCurrency(sellerSummary.TotalCODRemitted)}</div><div className="text-[10px] font-semibold text-[#64748B]">Total COD Remitted</div></div>
-              </div>
-              <div className="flex-1 min-w-[200px] bg-[#FEFCE8] rounded-xl p-3 border border-[#FEF08A] flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-[#FEF08A] flex items-center justify-center shrink-0"><MinusCircle className="w-4 h-4 text-[#EAB308]" /></div>
-                <div><div className="text-[14px] font-bold text-[#0F172A]">{fmtCurrency(sellerSummary.TotalDeductionfromCOD)}</div><div className="text-[10px] font-semibold text-[#64748B]">Total Deduction</div></div>
-              </div>
-              <div className="flex-1 min-w-[200px] bg-[#F8F5FF] rounded-xl p-3 border border-[#F3EFFF] flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-[#EADDFF] flex items-center justify-center shrink-0"><Clock className="w-4 h-4 text-[#8B5CF6]" /></div>
-                <div><div className="text-[14px] font-bold text-[#0F172A]">{fmtCurrency(sellerSummary.RemittanceInitiated)}</div><div className="text-[10px] font-semibold text-[#64748B]">Remittance Initiated</div></div>
+
+          {/* Mobile Filters + Action Row — All COD Orders only */}
+          {activeTab === 'All COD Orders' && (
+            <div className="md:hidden px-4 py-3 border-b border-[#E2E8F0] flex items-center justify-between bg-white gap-2">
+              <button
+                onClick={() => setIsMobileFiltersOpen(true)}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#00A86B] text-white text-[12px] font-bold shadow-sm"
+              >
+                <Filter className="w-3.5 h-3.5" /> Filters
+              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleExportBankTemplate}
+                  disabled={bankExportLoading}
+                  className="h-9 px-4 rounded-full bg-[#00A86B] text-white text-[12px] font-bold shadow-sm flex items-center gap-1.5 whitespace-nowrap active:bg-[#009B63] transition-colors disabled:opacity-60"
+                >
+                  <Banknote className="w-3.5 h-3.5" /> Early COD
+                </button>
+                <button
+                  onClick={handleOpenBankResponseUpload}
+                  className="w-9 h-9 rounded-full border border-[#E2E8F0] flex items-center justify-center text-[#64748B] bg-white active:bg-[#F8FAFC] transition-colors shrink-0"
+                  title="Upload Bank Response"
+                >
+                  <Upload className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => { if (selectedOrders.length === 0) { showToast('error', 'Select rows to export.'); return; } const rows = codOrdersList.filter(o => selectedOrders.includes(o.id)); handleExportCsv(rows, 'cod_orders.csv'); }}
+                  className={`w-9 h-9 rounded-full border flex items-center justify-center shrink-0 transition-colors ${selectedOrders.length > 0 ? 'border-[#00A86B] text-[#00A86B] bg-white active:bg-[#00A86B]/5' : 'border-[#E2E8F0] text-[#CBD5E1] bg-white'}`}
+                  title="Export"
+                >
+                  <Download className="w-4 h-4" />
+                </button>
               </div>
             </div>
+          )}
+
+          {/* Mobile Filters + Action Row — Seller COD Remittance */}
+          {activeTab === 'Seller COD Remittance' && (
+            <div className="md:hidden px-4 py-3 border-b border-[#E2E8F0] flex items-center justify-between bg-white gap-2">
+              <button
+                onClick={() => setIsMobileSellerFiltersOpen(true)}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#00A86B] text-white text-[12px] font-bold shadow-sm shrink-0"
+              >
+                <Filter className="w-3.5 h-3.5" /> Filters
+              </button>
+              <div className="flex items-center gap-2">
+                <div className="relative shrink-0 action-dropdown-container">
+                  <button
+                    onClick={() => selectedCodOrders.length > 0 && setShowMobileSellerActionMenu(v => !v)}
+                    disabled={selectedCodOrders.length === 0}
+                    className={`h-9 px-4 rounded-lg border text-[12px] font-semibold flex items-center gap-1 transition-colors ${selectedCodOrders.length > 0 ? 'border-[#E2E8F0] text-[#475569] bg-white active:bg-[#F8FAFC]' : 'border-[#E2E8F0] text-[#CBD5E1] bg-[#F8FAFC]'}`}
+                  >
+                    Action <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showMobileSellerActionMenu ? 'rotate-180' : ''}`} />
+                  </button>
+                  <AnimatePresence>
+                    {showMobileSellerActionMenu && selectedCodOrders.length > 0 && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -6, scale: 0.97 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -6, scale: 0.97 }}
+                        transition={{ duration: 0.16, ease: 'easeOut' }}
+                        className="absolute right-0 top-full mt-2 w-[200px] bg-white rounded-xl shadow-[0_8px_28px_-6px_rgba(0,0,0,0.15)] border border-[#E2E8F0] py-1.5 z-50 origin-top-right"
+                      >
+                        <button onClick={() => { const rows = sellerRemittanceList.filter(r => selectedCodOrders.includes(r.awb)); handleExportCsv(rows, 'seller_remittances.csv'); setShowMobileSellerActionMenu(false); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] flex items-center gap-2"><Download className="w-4 h-4 text-[#00A86B]" />Export Data</button>
+                        <button onClick={() => { handleExportBankTemplate(); setShowMobileSellerActionMenu(false); }} disabled={bankExportLoading} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] flex items-center gap-2"><FileText className="w-4 h-4 text-blue-500" />{bankExportLoading ? 'Generating…' : 'Export Bank Template'}</button>
+                        <button onClick={() => { handleOpenBankResponseUpload(); setShowMobileSellerActionMenu(false); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] flex items-center gap-2"><Upload className="w-4 h-4 text-orange-500" />Upload Bank Response</button>
+                        <div className="border-t border-[#E2E8F0] my-1" />
+                        <button onClick={() => { setShowMobileSellerActionMenu(false); handleTransferCOD('seller'); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#00A86B] hover:bg-[#F0FDF4] flex items-center gap-2"><Send className="w-4 h-4" />Transfer COD</button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+                <button
+                  onClick={handleExportBankTemplate}
+                  disabled={bankExportLoading}
+                  className="h-9 px-4 rounded-full bg-[#00A86B] text-white text-[12px] font-bold shadow-sm flex items-center gap-1.5 whitespace-nowrap active:bg-[#009B63] transition-colors disabled:opacity-60 shrink-0"
+                >
+                  <Banknote className="w-3.5 h-3.5" /> Early COD
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Mobile Filters + Action Row — Courier COD Remittance */}
+          {activeTab === 'Courier COD Remittance' && (
+            <div className="md:hidden px-4 py-3 border-b border-[#E2E8F0] flex items-center justify-between bg-white gap-2">
+              <button
+                onClick={() => setIsMobileCourierFiltersOpen(true)}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#00A86B] text-white text-[12px] font-bold shadow-sm shrink-0"
+              >
+                <Filter className="w-3.5 h-3.5" /> Filters
+              </button>
+              <div className="relative shrink-0 action-dropdown-container">
+                <button
+                  onClick={() => selectedCourierCodOrders.length > 0 && setShowMobileCourierActionMenu(v => !v)}
+                  disabled={selectedCourierCodOrders.length === 0}
+                  className={`h-9 px-4 rounded-lg border text-[12px] font-semibold flex items-center gap-1 transition-colors ${selectedCourierCodOrders.length > 0 ? 'border-[#E2E8F0] text-[#475569] bg-white active:bg-[#F8FAFC]' : 'border-[#E2E8F0] text-[#CBD5E1] bg-[#F8FAFC]'}`}
+                >
+                  Action <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showMobileCourierActionMenu ? 'rotate-180' : ''}`} />
+                </button>
+                <AnimatePresence>
+                  {showMobileCourierActionMenu && selectedCourierCodOrders.length > 0 && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -6, scale: 0.97 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -6, scale: 0.97 }}
+                      transition={{ duration: 0.16, ease: 'easeOut' }}
+                      className="absolute right-0 top-full mt-2 w-[190px] bg-white rounded-xl shadow-[0_8px_28px_-6px_rgba(0,0,0,0.15)] border border-[#E2E8F0] py-1.5 z-50 origin-top-right"
+                    >
+                      <button onClick={() => { const rows = courierRemittanceList.filter(r => selectedCourierCodOrders.includes(r.id)); handleExportCsv(rows, 'courier_cod.csv'); setShowMobileCourierActionMenu(false); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] flex items-center gap-2"><Download className="w-4 h-4 text-[#00A86B]" />Export Data</button>
+                      <div className="border-t border-[#E2E8F0] my-1" />
+                      <button onClick={() => { setShowMobileCourierActionMenu(false); handleTransferCOD('courier'); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#00A86B] hover:bg-[#F0FDF4] flex items-center gap-2"><Send className="w-4 h-4" />Transfer COD</button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'Seller COD Remittance' && (
+            <>
+              <div className="hidden md:flex p-4 border-b border-[#E2E8F0] bg-[#F8FAFC]/30 flex-nowrap overflow-x-auto gap-4 no-scrollbar">
+                <div className="flex-1 min-w-[200px] bg-[#F0F9FF] rounded-xl p-3 border border-[#E0F2FE] flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-[#DBEAFE] flex items-center justify-center shrink-0"><Wallet className="w-4 h-4 text-[#3B82F6]" /></div>
+                  <div><div className="text-[14px] font-bold text-[#0F172A]">{fmtCurrency(sellerSummary.CODToBeRemitted)}</div><div className="text-[10px] font-semibold text-[#64748B]">COD To Be Remitted</div></div>
+                </div>
+                <div className="flex-1 min-w-[200px] bg-[#FAF5FF] rounded-xl p-3 border border-[#F3E8FF] flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-[#F3E8FF] flex items-center justify-center shrink-0"><Send className="w-4 h-4 text-[#A855F7]" /></div>
+                  <div><div className="text-[14px] font-bold text-[#0F172A]">{fmtCurrency(sellerSummary.LastCodRemmited)}</div><div className="text-[10px] font-semibold text-[#64748B]">Last COD Remitted</div></div>
+                </div>
+                <div className="flex-1 min-w-[200px] bg-[#F0FDFA] rounded-xl p-3 border border-[#CCFBF1] flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-[#CCFBF1] flex items-center justify-center shrink-0"><Banknote className="w-4 h-4 text-[#14B8A6]" /></div>
+                  <div><div className="text-[14px] font-bold text-[#0F172A]">{fmtCurrency(sellerSummary.TotalCODRemitted)}</div><div className="text-[10px] font-semibold text-[#64748B]">Total COD Remitted</div></div>
+                </div>
+                <div className="flex-1 min-w-[200px] bg-[#FEFCE8] rounded-xl p-3 border border-[#FEF08A] flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-[#FEF08A] flex items-center justify-center shrink-0"><MinusCircle className="w-4 h-4 text-[#EAB308]" /></div>
+                  <div><div className="text-[14px] font-bold text-[#0F172A]">{fmtCurrency(sellerSummary.TotalDeductionfromCOD)}</div><div className="text-[10px] font-semibold text-[#64748B]">Total Deduction</div></div>
+                </div>
+                <div className="flex-1 min-w-[200px] bg-[#F8F5FF] rounded-xl p-3 border border-[#F3EFFF] flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-[#EADDFF] flex items-center justify-center shrink-0"><Clock className="w-4 h-4 text-[#8B5CF6]" /></div>
+                  <div><div className="text-[14px] font-bold text-[#0F172A]">{fmtCurrency(sellerSummary.RemittanceInitiated)}</div><div className="text-[10px] font-semibold text-[#64748B]">Remittance Initiated</div></div>
+                </div>
+              </div>
+
+              {/* Mobile Stat Cards */}
+              <div className="md:hidden p-4 border-b border-[#E2E8F0] bg-white space-y-2.5">
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div className="bg-[#F0F9FF] rounded-xl p-3 border border-[#E0F2FE] flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-full bg-[#DBEAFE] flex items-center justify-center shrink-0"><Wallet className="w-4 h-4 text-[#3B82F6]" /></div>
+                    <div className="min-w-0">
+                      <div className="text-[13px] font-bold text-[#0F172A] truncate">{fmtCurrency(sellerSummary.CODToBeRemitted)}</div>
+                      <div className="text-[10px] font-semibold text-[#64748B] truncate">COD To Be Remitted</div>
+                    </div>
+                  </div>
+                  <div className="bg-[#FAF5FF] rounded-xl p-3 border border-[#F3E8FF] flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-full bg-[#F3E8FF] flex items-center justify-center shrink-0"><Send className="w-4 h-4 text-[#A855F7]" /></div>
+                    <div className="min-w-0">
+                      <div className="text-[13px] font-bold text-[#0F172A] truncate">{fmtCurrency(sellerSummary.LastCodRemmited)}</div>
+                      <div className="text-[10px] font-semibold text-[#64748B] truncate">Last COD Remitted</div>
+                    </div>
+                  </div>
+                  <div className="bg-[#F0FDFA] rounded-xl p-3 border border-[#CCFBF1] flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-full bg-[#CCFBF1] flex items-center justify-center shrink-0"><Banknote className="w-4 h-4 text-[#14B8A6]" /></div>
+                    <div className="min-w-0">
+                      <div className="text-[13px] font-bold text-[#0F172A] truncate">{fmtCurrency(sellerSummary.TotalCODRemitted)}</div>
+                      <div className="text-[10px] font-semibold text-[#64748B] truncate">Total COD Remitted</div>
+                    </div>
+                  </div>
+                  <div className="bg-[#FEFCE8] rounded-xl p-3 border border-[#FEF08A] flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-full bg-[#FEF08A] flex items-center justify-center shrink-0"><MinusCircle className="w-4 h-4 text-[#EAB308]" /></div>
+                    <div className="min-w-0">
+                      <div className="text-[13px] font-bold text-[#0F172A] truncate">{fmtCurrency(sellerSummary.TotalDeductionfromCOD)}</div>
+                      <div className="text-[10px] font-semibold text-[#64748B] truncate">Total Deduction</div>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-[#F8F5FF] rounded-xl p-3 border border-[#F3EFFF] flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-full bg-[#EADDFF] flex items-center justify-center shrink-0"><Clock className="w-4 h-4 text-[#8B5CF6]" /></div>
+                  <div className="min-w-0">
+                    <div className="text-[13px] font-bold text-[#0F172A] truncate">{fmtCurrency(sellerSummary.RemittanceInitiated)}</div>
+                    <div className="text-[10px] font-semibold text-[#64748B] truncate">Remittance Initiated</div>
+                  </div>
+                </div>
+              </div>
+            </>
           )}
           {activeTab === 'Courier COD Remittance' && (
-            <div className="p-4 border-b border-[#E2E8F0] bg-[#F8FAFC]/30 flex flex-nowrap overflow-x-auto gap-4 no-scrollbar">
-              <div className="flex-1 min-w-[200px] bg-[#F0F9FF] rounded-xl p-3 border border-[#E0F2FE] flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-[#DBEAFE] flex items-center justify-center shrink-0"><Banknote className="w-4 h-4 text-[#3B82F6]" /></div>
-                <div><div className="text-[14px] font-bold text-[#0F172A]">{fmtCurrency(courierSummary.totalCODAmount)}</div><div className="text-[10px] font-semibold text-[#64748B]">Total Courier COD</div></div>
+            <>
+              <div className="hidden md:flex p-4 border-b border-[#E2E8F0] bg-[#F8FAFC]/30 flex-nowrap overflow-x-auto gap-4 no-scrollbar">
+                <div className="flex-1 min-w-[200px] bg-[#F0F9FF] rounded-xl p-3 border border-[#E0F2FE] flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-[#DBEAFE] flex items-center justify-center shrink-0"><Banknote className="w-4 h-4 text-[#3B82F6]" /></div>
+                  <div><div className="text-[14px] font-bold text-[#0F172A]">{fmtCurrency(courierSummary.totalCODAmount)}</div><div className="text-[10px] font-semibold text-[#64748B]">Total Courier COD</div></div>
+                </div>
+                <div className="flex-1 min-w-[200px] bg-[#FEFCE8] rounded-xl p-3 border border-[#FEF08A] flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-[#FEF08A] flex items-center justify-center shrink-0"><MinusCircle className="w-4 h-4 text-[#EAB308]" /></div>
+                  <div><div className="text-[14px] font-bold text-[#0F172A]">{fmtCurrency(courierSummary.paidCODAmount)}</div><div className="text-[10px] font-semibold text-[#64748B]">Paid COD Amount</div></div>
+                </div>
+                <div className="flex-1 min-w-[200px] bg-[#FAF5FF] rounded-xl p-3 border border-[#F3E8FF] flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-[#F3E8FF] flex items-center justify-center shrink-0"><Send className="w-4 h-4 text-[#A855F7]" /></div>
+                  <div><div className="text-[14px] font-bold text-[#0F172A]">{fmtCurrency(courierSummary.pendingCODAmount)}</div><div className="text-[10px] font-semibold text-[#64748B]">Pending COD Amount</div></div>
+                </div>
               </div>
-              <div className="flex-1 min-w-[200px] bg-[#FEFCE8] rounded-xl p-3 border border-[#FEF08A] flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-[#FEF08A] flex items-center justify-center shrink-0"><MinusCircle className="w-4 h-4 text-[#EAB308]" /></div>
-                <div><div className="text-[14px] font-bold text-[#0F172A]">{fmtCurrency(courierSummary.paidCODAmount)}</div><div className="text-[10px] font-semibold text-[#64748B]">Paid COD Amount</div></div>
+
+              {/* Mobile Stat Cards */}
+              <div className="md:hidden p-4 border-b border-[#E2E8F0] bg-white space-y-2.5">
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div className="bg-[#F0F9FF] rounded-xl p-3 border border-[#E0F2FE] flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-full bg-[#DBEAFE] flex items-center justify-center shrink-0"><Banknote className="w-4 h-4 text-[#3B82F6]" /></div>
+                    <div className="min-w-0">
+                      <div className="text-[13px] font-bold text-[#0F172A] truncate">{fmtCurrency(courierSummary.totalCODAmount)}</div>
+                      <div className="text-[10px] font-semibold text-[#64748B] truncate">Total Courier COD</div>
+                    </div>
+                  </div>
+                  <div className="bg-[#FEFCE8] rounded-xl p-3 border border-[#FEF08A] flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-full bg-[#FEF08A] flex items-center justify-center shrink-0"><MinusCircle className="w-4 h-4 text-[#EAB308]" /></div>
+                    <div className="min-w-0">
+                      <div className="text-[13px] font-bold text-[#0F172A] truncate">{fmtCurrency(courierSummary.paidCODAmount)}</div>
+                      <div className="text-[10px] font-semibold text-[#64748B] truncate">Paid COD Amount</div>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-[#FAF5FF] rounded-xl p-3 border border-[#F3E8FF] flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-full bg-[#F3E8FF] flex items-center justify-center shrink-0"><Send className="w-4 h-4 text-[#A855F7]" /></div>
+                  <div className="min-w-0">
+                    <div className="text-[13px] font-bold text-[#0F172A] truncate">{fmtCurrency(courierSummary.pendingCODAmount)}</div>
+                    <div className="text-[10px] font-semibold text-[#64748B] truncate">Pending COD Amount</div>
+                  </div>
+                </div>
               </div>
-              <div className="flex-1 min-w-[200px] bg-[#FAF5FF] rounded-xl p-3 border border-[#F3E8FF] flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-[#F3E8FF] flex items-center justify-center shrink-0"><Send className="w-4 h-4 text-[#A855F7]" /></div>
-                <div><div className="text-[14px] font-bold text-[#0F172A]">{fmtCurrency(courierSummary.pendingCODAmount)}</div><div className="text-[10px] font-semibold text-[#64748B]">Pending COD Amount</div></div>
-              </div>
-            </div>
+            </>
           )}
           {activeTab === 'All COD Orders' && (
-            <div className="p-4 border-b border-[#E2E8F0] bg-[#F8FAFC]/30 flex flex-nowrap overflow-x-auto gap-4 no-scrollbar">
-              <div className="flex-1 min-w-[200px] bg-[#F0F9FF] rounded-xl p-3 border border-[#E0F2FE] flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-[#DBEAFE] flex items-center justify-center shrink-0"><Banknote className="w-4 h-4 text-[#3B82F6]" /></div>
-                <div><div className="text-[14px] font-bold text-[#0F172A]">{fmtCurrency(codSummary.totalCODAmount)}</div><div className="text-[10px] font-semibold text-[#64748B]">Total COD Amount</div></div>
+            <>
+              <div className="hidden md:flex p-4 border-b border-[#E2E8F0] bg-[#F8FAFC]/30 flex-nowrap overflow-x-auto gap-4 no-scrollbar">
+                <div className="flex-1 min-w-[200px] bg-[#F0F9FF] rounded-xl p-3 border border-[#E0F2FE] flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-[#DBEAFE] flex items-center justify-center shrink-0"><Banknote className="w-4 h-4 text-[#3B82F6]" /></div>
+                  <div><div className="text-[14px] font-bold text-[#0F172A]">{fmtCurrency(codSummary.totalCODAmount)}</div><div className="text-[10px] font-semibold text-[#64748B]">Total COD Amount</div></div>
+                </div>
+                <div className="flex-1 min-w-[200px] bg-[#F0FDFA] rounded-xl p-3 border border-[#CCFBF1] flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-[#CCFBF1] flex items-center justify-center shrink-0"><Check className="w-4 h-4 text-[#14B8A6]" /></div>
+                  <div><div className="text-[14px] font-bold text-[#0F172A]">{fmtCurrency(codSummary.paidCODAmount)}</div><div className="text-[10px] font-semibold text-[#64748B]">Paid COD Amount</div></div>
+                </div>
+                <div className="flex-1 min-w-[200px] bg-[#FEFCE8] rounded-xl p-3 border border-[#FEF08A] flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-[#FEF08A] flex items-center justify-center shrink-0"><Clock className="w-4 h-4 text-[#EAB308]" /></div>
+                  <div><div className="text-[14px] font-bold text-[#0F172A]">{fmtCurrency(codSummary.pendingCODAmount)}</div><div className="text-[10px] font-semibold text-[#64748B]">Pending COD Amount</div></div>
+                </div>
               </div>
-              <div className="flex-1 min-w-[200px] bg-[#F0FDFA] rounded-xl p-3 border border-[#CCFBF1] flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-[#CCFBF1] flex items-center justify-center shrink-0"><Check className="w-4 h-4 text-[#14B8A6]" /></div>
-                <div><div className="text-[14px] font-bold text-[#0F172A]">{fmtCurrency(codSummary.paidCODAmount)}</div><div className="text-[10px] font-semibold text-[#64748B]">Paid COD Amount</div></div>
+
+              {/* Mobile Stat Cards */}
+              <div className="md:hidden p-4 border-b border-[#E2E8F0] bg-white space-y-2.5">
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div className="bg-[#F0F9FF] rounded-xl p-3 border border-[#E0F2FE] flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-full bg-[#DBEAFE] flex items-center justify-center shrink-0"><Banknote className="w-4 h-4 text-[#3B82F6]" /></div>
+                    <div className="min-w-0">
+                      <div className="text-[13px] font-bold text-[#0F172A] truncate">{fmtCurrency(codSummary.totalCODAmount)}</div>
+                      <div className="text-[10px] font-semibold text-[#64748B] truncate">Total COD Remitted</div>
+                    </div>
+                  </div>
+                  <div className="bg-[#FEFCE8] rounded-xl p-3 border border-[#FEF08A] flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-full bg-[#FEF08A] flex items-center justify-center shrink-0"><Check className="w-4 h-4 text-[#EAB308]" /></div>
+                    <div className="min-w-0">
+                      <div className="text-[13px] font-bold text-[#0F172A] truncate">{fmtCurrency(codSummary.paidCODAmount)}</div>
+                      <div className="text-[10px] font-semibold text-[#64748B] truncate">Paid COD Amount</div>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-[#FAF5FF] rounded-xl p-3 border border-[#F3E8FF] flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-full bg-[#F3E8FF] flex items-center justify-center shrink-0"><Clock className="w-4 h-4 text-[#A855F7]" /></div>
+                  <div className="min-w-0">
+                    <div className="text-[13px] font-bold text-[#0F172A] truncate">{fmtCurrency(codSummary.pendingCODAmount)}</div>
+                    <div className="text-[10px] font-semibold text-[#64748B] truncate">Pending COD Amount</div>
+                  </div>
+                </div>
               </div>
-              <div className="flex-1 min-w-[200px] bg-[#FEFCE8] rounded-xl p-3 border border-[#FEF08A] flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-[#FEF08A] flex items-center justify-center shrink-0"><Clock className="w-4 h-4 text-[#EAB308]" /></div>
-                <div><div className="text-[14px] font-bold text-[#0F172A]">{fmtCurrency(codSummary.pendingCODAmount)}</div><div className="text-[10px] font-semibold text-[#64748B]">Pending COD Amount</div></div>
-              </div>
-            </div>
+            </>
           )}
         </div>
 
@@ -791,8 +1061,8 @@ export function AdminCOD() {
         {/* All COD Orders Tab */}
         {activeTab === 'All COD Orders' && (
           <>
-            {/* Filter Bar */}
-            <div className="p-3 border-b border-[#E2E8F0] flex flex-wrap items-center gap-2.5 bg-[#F8FAFC]/50 shrink-0">
+            {/* Filter Bar — desktop only */}
+            <div className="hidden md:flex p-3 border-b border-[#E2E8F0] flex-wrap items-center gap-2.5 bg-[#F8FAFC]/50 shrink-0">
               {isAdminView && (
                 <div className="relative shrink-0">
                   <div className="relative">
@@ -835,12 +1105,12 @@ export function AdminCOD() {
               </div>
             </div>
             {selectedOrders.length > 0 && (
-              <div className="px-4 py-2 bg-emerald-50 border-b border-emerald-100 flex items-center gap-3 shrink-0">
+              <div className="hidden md:flex px-4 py-2 bg-emerald-50 border-b border-emerald-100 items-center gap-3 shrink-0">
                 <span className="text-xs font-bold text-emerald-700">{selectedOrders.length} selected</span>
                 <button onClick={() => setSelectedOrders([])} className="text-xs text-[#64748B] hover:text-red-500">Clear</button>
               </div>
             )}
-            <div className="flex-1 overflow-y-auto overflow-x-auto no-scrollbar">
+            <div className="hidden md:block flex-1 overflow-y-auto overflow-x-auto no-scrollbar">
               <table className="w-full text-left border-collapse min-w-[900px]">
                 <thead className="sticky top-0 z-30 bg-[#E6F5F1] shadow-sm">
                   <tr>
@@ -900,14 +1170,107 @@ export function AdminCOD() {
               endIndex={Math.min(currentPage * codRowsPerPage, codOrdersTotal)}
               totalItems={codOrdersTotal}
             />
+
+            {/* Mobile Card Layout */}
+            <div className="md:hidden flex flex-col flex-1 min-h-0 bg-[#F8FAFC]">
+              <div className="flex-1 overflow-y-auto">
+                {paginatedOrders.length === 0 ? (
+                  <div className="p-8 text-center text-[#64748B] font-medium text-sm">No COD orders found</div>
+                ) : (
+                  <div className="p-4 space-y-4">
+                    {paginatedOrders.map((order) => {
+                      const accent = order.status === 'Paid' ? '#00A86B' : '#F59E0B';
+                      return (
+                        <div key={order.id} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
+                          {/* Ribbon Tag */}
+                          <div
+                            className="absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide"
+                            style={{ background: accent, clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}
+                          >
+                            {order.status}
+                          </div>
+
+                          <div className="pt-8 px-4 pb-4">
+                            {/* User Details Row */}
+                            <div className="flex items-center justify-between mb-2 gap-2">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <input type="checkbox" checked={selectedOrders.includes(order.id)} onChange={() => toggleSelect(order.id)} className="rounded border-gray-300 accent-[#00A86B] w-4 h-4 shrink-0" />
+                                <span className="text-[#64748B] font-medium text-[12px]">User Details</span>
+                              </div>
+                              <span className="text-[12px] inline-flex items-baseline gap-1 max-w-[190px] justify-end text-right">
+                                <TruncatedText text={order.userName} maxLength={16} className="font-semibold text-[#0F172A] text-[12px]" />
+                                <span className="text-[#00A86B] font-semibold shrink-0">({order.userId})</span>
+                              </span>
+                            </div>
+
+                            {/* Created At */}
+                            <div className="text-[11px] font-normal text-[#64748B] mb-3">
+                              Created At: {formatCreatedAt(order.rawDate)}
+                            </div>
+
+                            {/* Courier / AWB / Amount Card */}
+                            <div className="rounded-xl p-3 bg-white" style={{ border: `1px solid ${accent}` }}>
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                                  <div className="w-9 h-9 bg-white border border-[#E2E8F0] rounded-xl flex items-center justify-center shrink-0 overflow-hidden p-1 shadow-sm">
+                                    {order.courier ? (
+                                      <img
+                                        src={getCourierLogo(order.courier)}
+                                        alt={order.courier}
+                                        className="w-full h-full object-contain"
+                                        onError={(e) => {
+                                          (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(order.courier)}&background=f8fafc&color=0f172a&bold=true&font-size=0.4`;
+                                        }}
+                                      />
+                                    ) : (
+                                      <Truck className="w-4 h-4 text-[#94A3B8]" />
+                                    )}
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <div className="text-[12px] font-normal text-[#0F172A] truncate">{order.courier || '—'}</div>
+                                    {order.awb ? (
+                                      <div
+                                        className="text-[12px] font-semibold text-[#00A86B] underline truncate mt-0.5 active:opacity-60"
+                                        onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(order.awb); showToast('success', 'AWB copied!'); }}
+                                      >
+                                        {order.awb}
+                                      </div>
+                                    ) : (
+                                      <div className="text-[12px] font-semibold text-[#94A3B8] truncate mt-0.5">—</div>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="text-[12px] font-semibold text-[#00A86B] shrink-0">{fmtCurrency(order.codAmount)}</div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Mobile Pagination */}
+              {useMobilePaginationBar({
+                page: currentPage,
+                setPage: setCurrentPage,
+                totalPages,
+                rowsPerPage: codRowsPerPage,
+                setRowsPerPage: setCodRowsPerPage,
+                startIndex: Math.min((currentPage - 1) * codRowsPerPage + 1, codOrdersTotal),
+                endIndex: Math.min(currentPage * codRowsPerPage, codOrdersTotal),
+                totalItems: codOrdersTotal,
+              })}
+            </div>
           </>
         )}
 
         {/* Seller COD Remittance Tab */}
         {activeTab === 'Seller COD Remittance' && (
           <>
-            {/* Filter Bar */}
-            <div className="p-3 border-b border-[#E2E8F0] flex flex-wrap items-center gap-2.5 bg-[#F8FAFC]/50 shrink-0">
+            {/* Filter Bar — desktop only */}
+            <div className="hidden md:flex p-3 border-b border-[#E2E8F0] flex-wrap items-center gap-2.5 bg-[#F8FAFC]/50 shrink-0">
               {isAdminView && (
                 <div className="relative shrink-0">
                   <div className="relative">
@@ -956,13 +1319,13 @@ export function AdminCOD() {
               </div>
             </div>
             {selectedCodOrders.length > 0 && (
-              <div className="px-4 py-2 bg-emerald-50 border-b border-emerald-100 flex items-center gap-3 shrink-0">
+              <div className="hidden md:flex px-4 py-2 bg-emerald-50 border-b border-emerald-100 items-center gap-3 shrink-0">
                 <span className="text-xs font-bold text-emerald-700">{selectedCodOrders.length} selected</span>
                 <button onClick={() => handleTransferCOD('seller')} className="h-7 px-3 rounded-md bg-[#00A86B] text-white text-xs font-bold shadow-sm hover:bg-[#009B63]">Transfer COD</button>
                 <button onClick={() => setSelectedCodOrders([])} className="text-xs text-[#64748B] hover:text-red-500">Clear</button>
               </div>
             )}
-            <div className="flex-1 overflow-y-auto overflow-x-auto no-scrollbar">
+            <div className="hidden md:block flex-1 overflow-y-auto overflow-x-auto no-scrollbar">
               <table className="w-full text-left border-collapse min-w-[1200px]">
                 <thead className="sticky top-0 z-30 bg-[#E6F5F1] shadow-sm">
                   <tr>
@@ -1047,14 +1410,108 @@ export function AdminCOD() {
               endIndex={Math.min(sellerPage * sellerRowsPerPage, sellerRemittanceTotal)}
               totalItems={sellerRemittanceTotal}
             />
+
+            {/* Mobile Card Layout */}
+            <div className="md:hidden flex flex-col flex-1 min-h-0 bg-[#F8FAFC]">
+              <div className="flex-1 overflow-y-auto">
+                {filteredSellerRemittanceList.length === 0 ? (
+                  <div className="p-8 text-center text-[#64748B] font-medium text-sm">No seller remittance records found</div>
+                ) : (
+                  <div className="p-4 space-y-4">
+                    {filteredSellerRemittanceList.map((order) => {
+                      const accent = order.status === 'Paid' ? '#00A86B' : '#F59E0B';
+                      return (
+                        <div key={order.id || order.awb} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
+                          {/* Ribbon Tag */}
+                          <div
+                            className="absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide"
+                            style={{ background: accent, clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}
+                          >
+                            {order.status}
+                          </div>
+
+                          <div className="pt-8 px-4 pb-4">
+                            {/* Header row: checkbox + COD Remittance / Remitted on + Amount */}
+                            <div className="rounded-xl p-3 mb-3 bg-white flex items-start justify-between gap-2" style={{ border: `1px solid ${accent}` }}>
+                              <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                                <input type="checkbox" checked={selectedCodOrders.includes(order.awb)} onChange={() => toggleSelectCod(order.awb)} className="rounded border-gray-300 accent-[#00A86B] w-4 h-4 shrink-0 mt-0.5" />
+                                <div className="w-8 h-8 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg flex items-center justify-center shrink-0">
+                                  <Banknote className="w-4 h-4 text-[#94A3B8]" />
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="text-[12px] font-semibold text-[#0F172A]">COD Remittance</div>
+                                  <div className="text-[11px] font-normal text-[#94A3B8] mt-0.5">Remitted on: {withOrdinalSuffix(order.date)}</div>
+                                </div>
+                              </div>
+                              <div className="text-[13px] font-bold text-[#00A86B] shrink-0">{fmtCurrency(order.remittanceAmount)}</div>
+                            </div>
+
+                            {/* UTR / Total COD / Wallet Credit / Adj. Amt / Early COD strip */}
+                            <div className="grid grid-cols-2 gap-x-3 gap-y-2 bg-[#F8FAFC] rounded-xl px-3 py-2.5 mb-3">
+                              <div>
+                                <div className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wide">UTR</div>
+                                <div className="text-[12px] font-medium text-[#0F172A] mt-0.5 truncate">{order.utr}</div>
+                              </div>
+                              <div>
+                                <div className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wide">Total COD</div>
+                                <div className="text-[12px] font-medium text-[#0F172A] mt-0.5">{fmtCurrency(order.totalCodAmount)}</div>
+                              </div>
+                              <div>
+                                <div className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wide">Wallet Credit</div>
+                                <div className="text-[12px] font-medium text-red-500 mt-0.5">{fmtCurrency(order.creditedAmount)}</div>
+                              </div>
+                              <div>
+                                <div className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wide">Adj. Amt</div>
+                                <div className="text-[12px] font-medium text-[#0F172A] mt-0.5">{fmtCurrency(order.adjustedAmount)}</div>
+                              </div>
+                              <div>
+                                <div className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wide">Early COD</div>
+                                <div className="text-[12px] font-medium text-red-700 mt-0.5">{fmtCurrency(order.earlyCodCharges)}</div>
+                              </div>
+                            </div>
+
+                            {/* User footer row */}
+                            {isAdminView && order.userName && (
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <div className="w-7 h-7 rounded-full bg-[#DCFCE7] text-[#00A86B] flex items-center justify-center text-[11px] font-bold shrink-0">
+                                    {order.userName.charAt(0).toUpperCase()}
+                                  </div>
+                                  <div className="min-w-0">
+                                    <TruncatedText text={order.userName} maxLength={20} className="text-[12px] font-semibold text-[#0F172A]" />
+                                    <TruncatedText text={order.userEmail} maxLength={26} className="text-[11px] font-normal text-[#94A3B8]" />
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Mobile Pagination */}
+              {useMobilePaginationBar({
+                page: sellerPage,
+                setPage: setSellerPage,
+                totalPages: totalSellerPages,
+                rowsPerPage: sellerRowsPerPage,
+                setRowsPerPage: setSellerRowsPerPage,
+                startIndex: Math.min((sellerPage - 1) * sellerRowsPerPage + 1, sellerRemittanceTotal),
+                endIndex: Math.min(sellerPage * sellerRowsPerPage, sellerRemittanceTotal),
+                totalItems: sellerRemittanceTotal,
+              })}
+            </div>
           </>
         )}
 
         {/* Courier COD Remittance Tab */}
         {activeTab === 'Courier COD Remittance' && (
           <>
-            {/* Filter Bar */}
-            <div className="p-3 border-b border-[#E2E8F0] flex flex-wrap items-center gap-2.5 bg-[#F8FAFC]/50 shrink-0">
+            {/* Filter Bar — desktop only */}
+            <div className="hidden md:flex p-3 border-b border-[#E2E8F0] flex-wrap items-center gap-2.5 bg-[#F8FAFC]/50 shrink-0">
               {isAdminView && (
                 <div className="relative shrink-0">
                   <div className="relative">
@@ -1104,13 +1561,13 @@ export function AdminCOD() {
               </div>
             </div>
             {selectedCourierCodOrders.length > 0 && (
-              <div className="px-4 py-2 bg-emerald-50 border-b border-emerald-100 flex items-center gap-3 shrink-0">
+              <div className="hidden md:flex px-4 py-2 bg-emerald-50 border-b border-emerald-100 items-center gap-3 shrink-0">
                 <span className="text-xs font-bold text-emerald-700">{selectedCourierCodOrders.length} selected</span>
                 <button onClick={() => handleTransferCOD('courier')} className="h-7 px-3 rounded-md bg-[#00A86B] text-white text-xs font-bold shadow-sm hover:bg-[#009B63]">Transfer COD</button>
                 <button onClick={() => setSelectedCourierCodOrders([])} className="text-xs text-[#64748B] hover:text-red-500">Clear</button>
               </div>
             )}
-            <div className="flex-1 overflow-y-auto overflow-x-auto no-scrollbar">
+            <div className="hidden md:block flex-1 overflow-y-auto overflow-x-auto no-scrollbar">
               <table className="w-full text-left border-collapse min-w-[900px]">
                 <thead className="sticky top-0 z-30 bg-[#E6F5F1] shadow-sm">
                   <tr>
@@ -1170,6 +1627,105 @@ export function AdminCOD() {
               endIndex={Math.min(courierPage * courierRowsPerPage, courierRemittanceTotal)}
               totalItems={courierRemittanceTotal}
             />
+
+            {/* Mobile Card Layout */}
+            <div className="md:hidden flex flex-col flex-1 min-h-0 bg-[#F8FAFC]">
+              <div className="flex-1 overflow-y-auto">
+                {filteredCourierRemittanceList.length === 0 ? (
+                  <div className="p-8 text-center text-[#64748B] font-medium text-sm">No courier remittance records found</div>
+                ) : (
+                  <div className="p-4 space-y-4">
+                    {filteredCourierRemittanceList.map((order) => {
+                      const accent = order.status === 'Paid' ? '#00A86B' : '#F59E0B';
+                      return (
+                        <div key={order.id} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
+                          {/* Ribbon Tag */}
+                          <div
+                            className="absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide"
+                            style={{ background: accent, clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}
+                          >
+                            {order.status}
+                          </div>
+
+                          <div className="pt-8 px-4 pb-4">
+                            {/* User Details Row */}
+                            <div className="flex items-center justify-between mb-2 gap-2">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <input type="checkbox" checked={selectedCourierCodOrders.includes(order.id)} onChange={() => toggleSelectCourierCod(order.id)} className="rounded border-gray-300 accent-[#00A86B] w-4 h-4 shrink-0" />
+                                <span className="text-[#64748B] font-medium text-[12px]">User Details</span>
+                              </div>
+                              <span className="text-[12px] inline-flex items-baseline gap-1 max-w-[190px] justify-end text-right">
+                                <TruncatedText text={order.userName} maxLength={16} className="font-semibold text-[#0F172A] text-[12px]" />
+                                <span className="text-[#00A86B] font-semibold shrink-0">({order.userId})</span>
+                              </span>
+                            </div>
+
+                            {/* Order ID */}
+                            {order.orderID && (
+                              <div
+                                className="text-[11px] font-semibold text-[#00A86B] mb-3"
+                                onClick={() => { navigator.clipboard.writeText(order.orderID); showToast('success', 'Order ID copied!'); }}
+                              >
+                                Order ID: {order.orderID}
+                              </div>
+                            )}
+
+                            {/* Courier / AWB / Amount Card */}
+                            <div className="rounded-xl p-3 bg-white" style={{ border: `1px solid ${accent}` }}>
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                                  <div className="w-9 h-9 bg-white border border-[#E2E8F0] rounded-xl flex items-center justify-center shrink-0 overflow-hidden p-1 shadow-sm">
+                                    {order.courierName ? (
+                                      <img
+                                        src={getCourierLogo(order.courierName)}
+                                        alt={order.courierName}
+                                        className="w-full h-full object-contain"
+                                        onError={(e) => {
+                                          (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(order.courierName)}&background=f8fafc&color=0f172a&bold=true&font-size=0.4`;
+                                        }}
+                                      />
+                                    ) : (
+                                      <Truck className="w-4 h-4 text-[#94A3B8]" />
+                                    )}
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <div className="text-[12px] font-normal text-[#0F172A] truncate">{order.courierName || '—'}</div>
+                                    <div className="text-[11px] font-normal text-[#94A3B8] truncate mt-0.5">Delivered On: {withOrdinalSuffix(order.date)}</div>
+                                    {order.awb ? (
+                                      <div
+                                        className="text-[12px] font-semibold text-[#00A86B] underline truncate mt-0.5 active:opacity-60"
+                                        onClick={(e) => { e.stopPropagation(); navigate('/admin/tracking', { state: { awb: order.awb } }); }}
+                                      >
+                                        {order.awb}
+                                      </div>
+                                    ) : (
+                                      <div className="text-[12px] font-semibold text-[#94A3B8] truncate mt-0.5">—</div>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="text-[12px] font-semibold text-[#00A86B] shrink-0">{fmtCurrency(order.codAmount)}</div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Mobile Pagination */}
+              {useMobilePaginationBar({
+                page: courierPage,
+                setPage: setCourierPage,
+                totalPages: totalCourierPages,
+                rowsPerPage: courierRowsPerPage,
+                setRowsPerPage: setCourierRowsPerPage,
+                startIndex: Math.min((courierPage - 1) * courierRowsPerPage + 1, courierRemittanceTotal),
+                endIndex: Math.min(courierPage * courierRowsPerPage, courierRemittanceTotal),
+                totalItems: courierRemittanceTotal,
+              })}
+            </div>
           </>
         )}
       </div>
@@ -1335,6 +1891,388 @@ export function AdminCOD() {
         )}
       </AnimatePresence>
 
+      {/* ── Mobile Filters Bottom Sheet — All COD Orders ── */}
+      <AnimatePresence>
+        {isMobileFiltersOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[140] md:hidden flex items-end justify-center"
+            onClick={() => setIsMobileFiltersOpen(false)}
+          >
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="bg-white rounded-t-3xl border-t border-[#E2E8F0] shadow-2xl w-full max-h-[80vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="px-6 py-4 border-b border-[#E2E8F0] flex items-center justify-between sticky top-0 bg-white z-10">
+                <h3 className="font-bold text-slate-800 text-base">Filters</h3>
+                <button onClick={() => setIsMobileFiltersOpen(false)} className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Date Range</label>
+                  <GlassDateFilter
+                    className="w-full [&_.glass-dropdown-trigger]:w-full [&_.glass-dropdown-trigger]:h-11"
+                    startDate={dateStart}
+                    endDate={dateEnd}
+                    onDateChange={(s, e) => { setDateStart(s); setDateEnd(e); }}
+                  />
+                </div>
+
+                {isAdminView && (
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Search by name, email, or contact</label>
+                    <input
+                      type="text"
+                      placeholder="Search user..."
+                      value={codUserQuery}
+                      onChange={(e) => { setCodUserQuery(e.target.value); if (!e.target.value.trim()) { setCodUserMongoId(''); setCodUserSuggestions([]); } }}
+                      className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
+                    />
+                    {codUserSuggestions.length > 0 && !codUserMongoId && (
+                      <div className="mt-1 bg-white border border-[#E2E8F0] rounded-xl shadow-lg max-h-52 overflow-y-auto py-1">
+                        {codUserSuggestions.map((u: any) => (
+                          <button key={u._id} type="button" onClick={() => { setCodUserMongoId(u._id); setCodUserQuery(`${u.fullname} (${u.email})`); setCodUserSuggestions([]); }}
+                            className="w-full text-left px-3 py-2 hover:bg-[#F0FDF4] flex items-start gap-2">
+                            <div className="flex-1 min-w-0">
+                              <div className="text-[12px] font-bold text-slate-800 truncate">{u.fullname}</div>
+                              <div className="text-[11px] text-slate-400 truncate">{u.email} · {u.phoneNumber}</div>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Order Id</label>
+                  <input
+                    type="text"
+                    placeholder="Order Id"
+                    value={codOrderId}
+                    onChange={(e) => setCodOrderId(e.target.value)}
+                    className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">AWB Number</label>
+                  <input
+                    type="text"
+                    placeholder="AWB Number"
+                    value={codAwb}
+                    onChange={(e) => setCodAwb(e.target.value)}
+                    className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Status</label>
+                  <select
+                    value={selectedStatuses[0] || ''}
+                    onChange={(e) => setSelectedStatuses(e.target.value ? [e.target.value] : [])}
+                    className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
+                  >
+                    <option value="">All Statuses</option>
+                    {STATUS_OPTIONS.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Courier Service</label>
+                  <select
+                    value={selectedCouriers[0] || ''}
+                    onChange={(e) => setSelectedCouriers(e.target.value ? [e.target.value] : [])}
+                    className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
+                  >
+                    <option value="">All Couriers</option>
+                    {codCourierOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="px-6 py-4 border-t border-[#E2E8F0] flex items-center gap-3 sticky bottom-0 bg-white">
+                <button
+                  onClick={() => {
+                    setCodOrderId(''); setCodAwb(''); setSelectedStatuses([]); setSelectedCouriers([]);
+                    setDateStart(''); setDateEnd('');
+                    if (isAdminView) { setCodUserQuery(''); setCodUserSuggestions([]); setCodUserMongoId(''); }
+                  }}
+                  className="flex-1 h-11 rounded-full border border-[#E2E8F0] text-[#475569] text-sm font-bold hover:bg-[#F8FAFC] transition-colors"
+                >
+                  Reset All
+                </button>
+                <button
+                  onClick={() => { setCurrentPage(1); fetchCodOrders(1); setIsMobileFiltersOpen(false); }}
+                  className="flex-1 h-11 rounded-full bg-[#00A86B] text-white text-sm font-bold hover:bg-[#009B63] transition-colors shadow-sm"
+                >
+                  Apply Filters
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Mobile Filters Bottom Sheet — Seller COD Remittance ── */}
+      <AnimatePresence>
+        {isMobileSellerFiltersOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[140] md:hidden flex items-end justify-center"
+            onClick={() => setIsMobileSellerFiltersOpen(false)}
+          >
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="bg-white rounded-t-3xl border-t border-[#E2E8F0] shadow-2xl w-full max-h-[80vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="px-6 py-4 border-b border-[#E2E8F0] flex items-center justify-between sticky top-0 bg-white z-10">
+                <h3 className="font-bold text-slate-800 text-base">Filters</h3>
+                <button onClick={() => setIsMobileSellerFiltersOpen(false)} className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Date Range</label>
+                  <GlassDateFilter
+                    className="w-full [&_.glass-dropdown-trigger]:w-full [&_.glass-dropdown-trigger]:h-11"
+                    startDate={codDateStart}
+                    endDate={codDateEnd}
+                    onDateChange={(s, e) => { setCodDateStart(s); setCodDateEnd(e); }}
+                  />
+                </div>
+
+                {isAdminView && (
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Search by name, email, or contact</label>
+                    <input
+                      type="text"
+                      placeholder="Search user..."
+                      value={sellerUserQuery}
+                      onChange={(e) => { setSellerUserQuery(e.target.value); if (!e.target.value.trim()) { setSellerUserMongoId(''); setSellerUserSuggestions([]); } }}
+                      className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
+                    />
+                    {sellerUserSuggestions.length > 0 && !sellerUserMongoId && (
+                      <div className="mt-1 bg-white border border-[#E2E8F0] rounded-xl shadow-lg max-h-52 overflow-y-auto py-1">
+                        {sellerUserSuggestions.map((u: any) => (
+                          <button key={u._id} type="button" onClick={() => { setSellerUserMongoId(u._id); setSellerUserQuery(`${u.fullname} (${u.email})`); setSellerUserSuggestions([]); }}
+                            className="w-full text-left px-3 py-2 hover:bg-[#F0FDF4] flex items-start gap-2">
+                            <div className="flex-1 min-w-0">
+                              <div className="text-[12px] font-bold text-slate-800 truncate">{u.fullname}</div>
+                              <div className="text-[11px] text-slate-400 truncate">{u.email} · {u.phoneNumber}</div>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Remittance ID</label>
+                  <input
+                    type="text"
+                    placeholder="Remittance ID"
+                    value={sellerRemittanceId}
+                    onChange={(e) => setSellerRemittanceId(e.target.value)}
+                    className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Status</label>
+                  <select
+                    value={selectedCodStatuses[0] || ''}
+                    onChange={(e) => setSelectedCodStatuses(e.target.value ? [e.target.value] : [])}
+                    className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
+                  >
+                    <option value="">All Statuses</option>
+                    {STATUS_OPTIONS.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="px-6 py-4 border-t border-[#E2E8F0] flex items-center gap-3 sticky bottom-0 bg-white">
+                <button
+                  onClick={() => {
+                    setSellerRemittanceId(''); setSelectedCodStatuses([]); setCodDateStart(''); setCodDateEnd('');
+                    if (isAdminView) { setSellerUserQuery(''); setSellerUserSuggestions([]); setSellerUserMongoId(''); }
+                  }}
+                  className="flex-1 h-11 rounded-full border border-[#E2E8F0] text-[#475569] text-sm font-bold hover:bg-[#F8FAFC] transition-colors"
+                >
+                  Reset All
+                </button>
+                <button
+                  onClick={() => { setSellerPage(1); fetchSellerRemittance(1); setIsMobileSellerFiltersOpen(false); }}
+                  className="flex-1 h-11 rounded-full bg-[#00A86B] text-white text-sm font-bold hover:bg-[#009B63] transition-colors shadow-sm"
+                >
+                  Apply Filters
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Mobile Filters Bottom Sheet — Courier COD Remittance ── */}
+      <AnimatePresence>
+        {isMobileCourierFiltersOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[140] md:hidden flex items-end justify-center"
+            onClick={() => setIsMobileCourierFiltersOpen(false)}
+          >
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="bg-white rounded-t-3xl border-t border-[#E2E8F0] shadow-2xl w-full max-h-[80vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="px-6 py-4 border-b border-[#E2E8F0] flex items-center justify-between sticky top-0 bg-white z-10">
+                <h3 className="font-bold text-slate-800 text-base">Filters</h3>
+                <button onClick={() => setIsMobileCourierFiltersOpen(false)} className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Date Range</label>
+                  <GlassDateFilter
+                    className="w-full [&_.glass-dropdown-trigger]:w-full [&_.glass-dropdown-trigger]:h-11"
+                    startDate={courierCodDateStart}
+                    endDate={courierCodDateEnd}
+                    onDateChange={(s, e) => { setCourierCodDateStart(s); setCourierCodDateEnd(e); }}
+                  />
+                </div>
+
+                {isAdminView && (
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Search by name, email, or contact</label>
+                    <input
+                      type="text"
+                      placeholder="Search user..."
+                      value={courierUserQuery}
+                      onChange={(e) => { setCourierUserQuery(e.target.value); if (!e.target.value.trim()) { setCourierUserMongoId(''); setCourierUserSuggestions([]); } }}
+                      className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
+                    />
+                    {courierUserSuggestions.length > 0 && !courierUserMongoId && (
+                      <div className="mt-1 bg-white border border-[#E2E8F0] rounded-xl shadow-lg max-h-52 overflow-y-auto py-1">
+                        {courierUserSuggestions.map((u: any) => (
+                          <button key={u._id} type="button" onClick={() => { setCourierUserMongoId(u._id); setCourierUserQuery(`${u.fullname} (${u.email})`); setCourierUserSuggestions([]); }}
+                            className="w-full text-left px-3 py-2 hover:bg-[#F0FDF4] flex items-start gap-2">
+                            <div className="flex-1 min-w-0">
+                              <div className="text-[12px] font-bold text-slate-800 truncate">{u.fullname}</div>
+                              <div className="text-[11px] text-slate-400 truncate">{u.email} · {u.phoneNumber}</div>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Order Id</label>
+                  <input
+                    type="text"
+                    placeholder="Order Id"
+                    value={courierOrderId}
+                    onChange={(e) => setCourierOrderId(e.target.value)}
+                    className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">AWB Number</label>
+                  <input
+                    type="text"
+                    placeholder="AWB Number"
+                    value={courierAwb}
+                    onChange={(e) => setCourierAwb(e.target.value)}
+                    className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Status</label>
+                  <select
+                    value={selectedCourierCodStatuses[0] || ''}
+                    onChange={(e) => setSelectedCourierCodStatuses(e.target.value ? [e.target.value] : [])}
+                    className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
+                  >
+                    <option value="">All Statuses</option>
+                    {STATUS_OPTIONS.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Courier Service</label>
+                  <select
+                    value={selectedCourierCouriers[0] || ''}
+                    onChange={(e) => setSelectedCourierCouriers(e.target.value ? [e.target.value] : [])}
+                    className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
+                  >
+                    <option value="">All Couriers</option>
+                    {courierCourierOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="px-6 py-4 border-t border-[#E2E8F0] flex items-center gap-3 sticky bottom-0 bg-white">
+                <button
+                  onClick={() => {
+                    setCourierOrderId(''); setCourierAwb(''); setSelectedCourierCodStatuses([]); setSelectedCourierCouriers([]);
+                    setCourierCodDateStart(''); setCourierCodDateEnd('');
+                    if (isAdminView) { setCourierUserQuery(''); setCourierUserSuggestions([]); setCourierUserMongoId(''); }
+                  }}
+                  className="flex-1 h-11 rounded-full border border-[#E2E8F0] text-[#475569] text-sm font-bold hover:bg-[#F8FAFC] transition-colors"
+                >
+                  Reset All
+                </button>
+                <button
+                  onClick={() => { setCourierPage(1); fetchCourierRemittance(1); setIsMobileCourierFiltersOpen(false); }}
+                  className="flex-1 h-11 rounded-full bg-[#00A86B] text-white text-sm font-bold hover:bg-[#009B63] transition-colors shadow-sm"
+                >
+                  Apply Filters
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* ── Transfer COD Modal ── */}
       {showTransferModal && (
         <TransferCODModal
@@ -1357,7 +2295,7 @@ export function AdminCOD() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 50, scale: 0.95 }}
             transition={{ duration: 0.2 }}
-            className="fixed bottom-6 right-6 z-[100] bg-[#1E293B] text-white px-5 py-3.5 rounded-xl shadow-2xl flex items-center gap-3 border border-white/10 min-w-[320px]"
+            className="fixed bottom-6 left-4 right-4 sm:left-auto sm:right-6 z-[100] bg-[#1E293B] text-white px-5 py-3.5 rounded-xl shadow-2xl flex items-center gap-3 border border-white/10 sm:min-w-[320px]"
           >
             <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${toast.type === 'error' ? 'bg-red-500/20' : 'bg-emerald-500/20'}`}>
               {toast.type === 'error'
