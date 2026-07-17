@@ -34,6 +34,8 @@ export function AdminCouriers() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All Status');
+  const [typeFilter, setTypeFilter] = useState('All Types');
+
   const [selectedCourier, setSelectedCourier] = useState<any | null>(null);
   const [serviceCourier, setServiceCourier] = useState<any | null>(null);
   const [expandedProviderId, setExpandedProviderId] = useState<string | null>(null);
