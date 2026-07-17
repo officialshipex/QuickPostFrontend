@@ -69,6 +69,9 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
     '/admin/notification'
   ].some((path) => location.pathname === path || location.pathname.startsWith(path + '/'));
 
+  // KYC is a self-contained onboarding flow — the page-context search/date/quick-action tools don't apply there.
+  const isKycPage = location.pathname === '/admin/kyc' || location.pathname.startsWith('/admin/kyc/');
+
   const ORDERS_TAB_PLACEHOLDER: Record<string, string> = {
     'new': "Search new orders by AWB or Order ID (Press '/')",
     'ready-to-ship': "Search ready-to-ship orders by AWB or Order ID (Press '/')",
@@ -288,6 +291,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
 
       {/* Middle Section - Search */}
       <div className="flex-1 flex items-center justify-center min-w-0">
+        {!isKycPage && (
         <div className="hidden md:flex items-center relative w-full max-w-lg group">
           <Search className="w-4 h-4 absolute left-3.5 text-[#94A3B8] group-focus-within:text-[#00A86B] transition-colors duration-300" />
           <input 
@@ -314,13 +318,14 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
             ⌘K
           </div>
         </div>
+        )}
       </div>
 
       {/* Right Section - Actions */}
       <div className="flex items-center gap-3 shrink-0">
         
         {/* Date Filter */}
-        {!isSetupPage && (
+        {!isSetupPage && !isKycPage && (
           <div className="relative">
             <motion.button 
               whileHover={{ scale: 1.02 }} 
@@ -498,7 +503,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
         </div>
         
         {/* Quick Actions */}
-        {!isSetupPage && (
+        {!isSetupPage && !isKycPage && (
           <div className="relative">
             <motion.button 
               whileHover={{ scale: 1.05 }}

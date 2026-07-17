@@ -1,12 +1,14 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { apiClient } from '../../services/apiClient';
 import { getToken } from '../../utils/session';
 import {
-  Search, ChevronDown, MapPin, Truck, X, Download,
+  Search, ChevronDown, MapPin, Truck, X, Download, Filter,
 } from 'lucide-react';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
 import { usePagination, DesktopPagination } from '../../hooks/usePagination';
+import { useMobilePaginationBar } from '../../hooks/useMobilePaginationBar';
 import { TableLoader } from '../../components/ui/TableLoader';
 import { TruncatedText } from '../../components/ui/TruncatedText';
 
@@ -54,6 +56,12 @@ export function AdminPickupManifest({ isAdminView }: Props) {
 
   // Tooltip
   const [hoveredAddressId, setHoveredAddressId] = useState<string | null>(null);
+  // Mobile pickup-address tooltip — fixed + rect-positioned so it stays within the viewport
+  // regardless of where the narrow middle column of the card strip sits.
+  const [mobileHoveredAddress, setMobileHoveredAddress] = useState<{ id: string; rect: DOMRect } | null>(null);
+
+  // Mobile view state
+  const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
 
   // Refresh trigger (clear uses this)
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -202,8 +210,48 @@ export function AdminPickupManifest({ isAdminView }: Props) {
   return (
     <div className="flex flex-col h-full">
 
-      {/* ── Filter Row ── */}
-      <div className="p-3 border-b border-[#E2E8F0] flex flex-wrap items-center gap-2.5 bg-[#F8FAFC]/50 shrink-0">
+      {/* ── Mobile Filters + Action Row ── */}
+      <div className="md:hidden px-4 py-3 border-b border-[#E2E8F0] flex items-center justify-between bg-white gap-2 shrink-0">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsMobileFiltersOpen(true)}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#00A86B] text-white text-[12px] font-bold shadow-sm"
+          >
+            <Filter className="w-3.5 h-3.5" /> Filters
+          </button>
+          {selectedManifests.length > 0 && (
+            <span className="text-[11px] font-bold text-[#00A86B] bg-[#F0FDF4] border border-[#00A86B]/20 px-2.5 py-1 rounded-full">
+              {selectedManifests.length} selected
+            </span>
+          )}
+        </div>
+        <div className="relative" ref={actionMenuRef}>
+          <button
+            onClick={() => selectedManifests.length > 0 && setShowActionMenu(v => !v)}
+            disabled={selectedManifests.length === 0}
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg border text-[12px] font-semibold transition-colors ${selectedManifests.length === 0 ? 'border-[#E2E8F0] bg-[#F8FAFC] text-[#CBD5E1]' : 'border-[#E2E8F0] text-[#475569] bg-white active:bg-[#F8FAFC]'}`}
+          >
+            Action
+            <ChevronDown className={`w-3.5 h-3.5 text-[#94A3B8] transition-transform duration-200 ${showActionMenu ? 'rotate-180' : ''}`} />
+          </button>
+          <AnimatePresence>
+            {showActionMenu && (
+              <motion.div
+                initial={{ opacity: 0, y: -6, scale: 0.97 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -6, scale: 0.97 }}
+                transition={{ duration: 0.16, ease: 'easeOut' }}
+                className="absolute right-0 top-full mt-2 w-[190px] bg-white rounded-xl shadow-[0_8px_28px_-6px_rgba(0,0,0,0.15)] border border-[#E2E8F0] py-1.5 z-50 origin-top-right"
+              >
+                <button onClick={handleBulkManifest} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC]">Download Manifests</button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+
+      {/* ── Filter Row — desktop only ── */}
+      <div className="hidden md:flex p-3 border-b border-[#E2E8F0] flex-wrap items-center gap-2.5 bg-[#F8FAFC]/50 shrink-0">
 
         {/* User search — admin view only */}
         {isAdminView && (
@@ -305,8 +353,8 @@ export function AdminPickupManifest({ isAdminView }: Props) {
         </div>
       </div>
 
-      {/* ── Table ── */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 relative">
+      {/* ── Table — desktop only ── */}
+      <div className="hidden md:block flex-1 overflow-y-auto overflow-x-hidden min-h-0 relative">
         {loading && <TableLoader />}
           <table className="w-full text-left border-collapse">
             <thead className="sticky top-0 z-40 bg-[#E6F5F1] shadow-sm">
@@ -401,7 +449,7 @@ export function AdminPickupManifest({ isAdminView }: Props) {
           </table>
       </div>
 
-      {/* ── Pagination ── */}
+      {/* ── Pagination — desktop only ── */}
       {totalRecords > 0 && (
         <DesktopPagination
           page={page}
@@ -414,6 +462,238 @@ export function AdminPickupManifest({ isAdminView }: Props) {
           totalItems={totalRecords}
         />
       )}
+
+      {/* ── Mobile Card Layout ── */}
+      <div className="md:hidden flex-1 overflow-y-auto bg-[#F8FAFC] relative">
+        {loading && <TableLoader />}
+        {paginatedManifests.length === 0 ? (
+          <div className="p-8 text-center text-[#64748B] font-medium text-sm">
+            No manifests found
+          </div>
+        ) : (
+          <div className="p-4 space-y-4">
+            {paginatedManifests.map((m) => (
+              <div key={m._id} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
+                {/* Ribbon Tag */}
+                <div
+                  className="absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide bg-[#F59E0B]"
+                  style={{ clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}
+                >
+                  {(m.status || 'Pickup Scheduled').replace(/_/g, ' ')}
+                </div>
+
+                <div className="pt-8 px-4 pb-4">
+                  {/* User Details Row */}
+                  <div className="flex items-center justify-between mb-3 gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <input type="checkbox" checked={selectedManifests.includes(m._id)} onChange={() => toggleOne(m._id)} className="rounded border-gray-300 accent-[#00A86B] w-4 h-4 shrink-0" />
+                      <span className="text-[#64748B] font-medium text-[12px]">User Details</span>
+                    </div>
+                    <span className="text-[12px] inline-flex items-baseline gap-1 max-w-[190px] justify-end text-right">
+                      <TruncatedText text={m.userId?.fullname || m.pickupAddress?.contactName || '—'} maxLength={16} className="font-semibold text-[#0F172A] text-[12px]" />
+                      <span className="text-[#00A86B] font-semibold shrink-0">({m.userId?.userId || m.pickupId})</span>
+                    </span>
+                  </div>
+
+                  {/* Pickup ID & Item Count Row */}
+                  <div className="flex items-center justify-between mb-3 px-1">
+                    <span className="text-[13px] font-bold text-[#00A86B]">{m.pickupId}</span>
+                    <span className="text-[12px] font-medium text-[#94A3B8]">{(m.orderIds || []).length} items</span>
+                  </div>
+
+                  {/* Pickup Req. Date / Pickup Address / Pickup Date strip */}
+                  <div className="flex items-start justify-between bg-white border border-[#E2E8F0] rounded-xl px-3 py-2.5 mb-3 gap-2">
+                    <div className="min-w-0">
+                      <div className="text-[10px] font-normal text-[#94A3B8]">Pickup Req. Date</div>
+                      <div className="text-[12px] font-medium text-[#0F172A] mt-0.5 whitespace-nowrap">{fmt(m.createdAt)}</div>
+                    </div>
+                    <div
+                      className="min-w-0 text-center cursor-help"
+                      onMouseEnter={(e) => setMobileHoveredAddress({ id: m._id, rect: e.currentTarget.getBoundingClientRect() })}
+                      onMouseLeave={() => setMobileHoveredAddress(null)}
+                      onClick={(e) => {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setMobileHoveredAddress(prev => (prev?.id === m._id ? null : { id: m._id, rect }));
+                      }}
+                    >
+                      <div className="text-[10px] font-normal text-[#94A3B8]">Pickup Address</div>
+                      <TruncatedText text={m.pickupAddress?.contactName || '—'} maxLength={16} className="text-[12px] font-medium text-[#0F172A] mt-0.5 underline decoration-dotted underline-offset-2" />
+                    </div>
+                    <div className="min-w-0 text-right">
+                      <div className="text-[10px] font-normal text-[#94A3B8]">Pickup Date</div>
+                      <div className="text-[12px] font-medium text-[#0F172A] mt-0.5 whitespace-nowrap">{fmt(m.pickupDate)}</div>
+                    </div>
+                  </div>
+
+                  {/* Actions Row */}
+                  <button
+                    onClick={() => handleDownloadManifest(m)}
+                    className="w-full py-2.5 rounded-full bg-[#1e40af] text-white text-[13px] font-bold flex items-center justify-center gap-1.5 hover:bg-[#1e3a8a] transition-colors"
+                  >
+                    Download Manifest
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Mobile Pagination */}
+        {useMobilePaginationBar({
+          page,
+          setPage,
+          totalPages,
+          rowsPerPage,
+          setRowsPerPage,
+          startIndex: Math.min((page - 1) * rowsPerPage + 1, totalRecords),
+          endIndex: Math.min(page * rowsPerPage, totalRecords),
+          totalItems: totalRecords,
+        })}
+      </div>
+
+      {/* ── Mobile Pickup Address Tooltip — fixed + viewport-clamped ── */}
+      {mobileHoveredAddress && (() => {
+        const m = paginatedManifests.find(x => x._id === mobileHoveredAddress.id);
+        if (!m) return null;
+        const rect = mobileHoveredAddress.rect;
+        const showBelow = rect.top < 220;
+        return (
+          <div
+            className="md:hidden fixed z-[200] p-3 bg-[#0F172A] text-white rounded-xl shadow-xl text-xs font-normal w-60 pointer-events-none text-left"
+            style={{
+              top: showBelow ? rect.bottom + 8 : rect.top - 8,
+              left: Math.min(Math.max(rect.left + rect.width / 2, 128), window.innerWidth - 128),
+              transform: showBelow ? 'translate(-50%, 0)' : 'translate(-50%, -100%)',
+            }}
+          >
+            <div className="font-bold mb-1 flex items-center gap-1.5"><MapPin className="w-3 h-3 text-[#00A86B] shrink-0" />{m.pickupAddress?.contactName}</div>
+            <div className="text-slate-300 break-words whitespace-normal">{m.pickupAddress?.address}</div>
+            <div className="text-slate-400 mt-0.5">{m.pickupAddress?.city}, {m.pickupAddress?.state} – {m.pickupAddress?.pinCode || m.pickupAddress?.pincode}</div>
+            {m.pickupAddress?.phoneNumber && <div className="text-slate-400 mt-1">{m.pickupAddress?.phoneNumber}</div>}
+          </div>
+        );
+      })()}
+
+      {/* ── Mobile Filters Bottom Sheet ── */}
+      <AnimatePresence>
+        {isMobileFiltersOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[140] md:hidden flex items-end justify-center"
+            onClick={() => setIsMobileFiltersOpen(false)}
+          >
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="bg-white rounded-t-3xl border-t border-[#E2E8F0] shadow-2xl w-full max-h-[80vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="px-6 py-4 border-b border-[#E2E8F0] flex items-center justify-between sticky top-0 bg-white z-10">
+                <h3 className="font-bold text-slate-800 text-base flex items-center gap-2">
+                  <Filter className="w-5 h-5 text-[#00A86B]" /> Filters
+                </h3>
+                <button onClick={() => setIsMobileFiltersOpen(false)} className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4">
+                {isAdminView && (
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Search User</label>
+                    <input
+                      type="text"
+                      placeholder="Search user..."
+                      value={userQuery}
+                      onChange={(e) => setUserQuery(e.target.value)}
+                      className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
+                    />
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Pickup ID</label>
+                  <input
+                    type="text"
+                    placeholder="Search by pickup ID..."
+                    value={searchId}
+                    onChange={(e) => setSearchId(e.target.value)}
+                    className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">AWB Number</label>
+                  <input
+                    type="text"
+                    placeholder="Search by AWB..."
+                    value={awbNumber}
+                    onChange={(e) => setAwbNumber(e.target.value)}
+                    className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Pickup Address</label>
+                  <select
+                    value={selectedPickupAddresses[0] || ''}
+                    onChange={(e) => setSelectedPickupAddresses(e.target.value ? [e.target.value] : [])}
+                    className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
+                  >
+                    <option value="">All Pickup Addresses</option>
+                    {pickupOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Courier Service</label>
+                  <select
+                    value={selectedCouriers[0] || ''}
+                    onChange={(e) => setSelectedCouriers(e.target.value ? [e.target.value] : [])}
+                    className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
+                  >
+                    <option value="">All Couriers</option>
+                    {courierOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Date Range</label>
+                  <GlassDateFilter
+                    className="w-full [&_.glass-dropdown-trigger]:w-full [&_.glass-dropdown-trigger]:h-11"
+                    startDate={dateStart}
+                    endDate={dateEnd}
+                    onDateChange={(s, e) => { setDateStart(s); setDateEnd(e); }}
+                  />
+                </div>
+              </div>
+
+              <div className="px-6 py-4 border-t border-[#E2E8F0] flex items-center gap-3 sticky bottom-0 bg-white">
+                <button
+                  onClick={() => { handleClear(); setIsMobileFiltersOpen(false); }}
+                  className="flex-1 h-11 rounded-full border border-[#E2E8F0] text-[#475569] text-sm font-bold hover:bg-[#F8FAFC] transition-colors"
+                >
+                  Reset All
+                </button>
+                <button
+                  onClick={() => { handleApply(); setIsMobileFiltersOpen(false); }}
+                  className="flex-1 h-11 rounded-full bg-[#00A86B] text-white text-sm font-bold hover:bg-[#009B63] transition-colors shadow-sm"
+                >
+                  Apply Filters
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
