@@ -1,16 +1,18 @@
 import { useState, useEffect, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { useNavigate } from 'react-router-dom';
 import {
   ChevronDown, User, Users,
   UserCheck, ShieldAlert, IndianRupee, CreditCard, Building2,
-  Clock, Edit2, Wallet, Copy, CheckCircle2, AlertCircle, X, MoreVertical
+  Clock, Edit2, Wallet, Copy, CheckCircle2, AlertCircle, X, MoreVertical, Info, Filter, Search
 } from 'lucide-react';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
 import { TableLoader } from '../../components/ui/TableLoader';
 import { TruncatedText } from '../../components/ui/TruncatedText';
 import { DesktopPagination } from '../../hooks/usePagination';
+import { useMobilePaginationBar } from '../../hooks/useMobilePaginationBar';
 import { apiClient } from '../../services/apiClient';
 
 const STATUS_BADGE_STYLES: Record<string, string> = {
@@ -75,9 +77,11 @@ export function AdminUsers() {
   const [totalCount, setTotalCount] = useState(0);
   const [verifiedKycCount, setVerifiedKycCount] = useState(0);
   const [pendingKycCount, setPendingKycCount] = useState(0);
+  const [newUsersCount, setNewUsersCount] = useState(0);
 
   // ─── Selection ──────────────────────────────────────────────────────────────
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [hoveredBalance, setHoveredBalance] = useState<{ rect: DOMRect; holdAmount: number; lastRechargeDate: any } | null>(null);
 
   // ─── Filter display state ───────────────────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState('');
@@ -108,6 +112,9 @@ export function AdminUsers() {
   // ─── UI state ───────────────────────────────────────────────────────────────
   const [actionDropdownOpen, setActionDropdownOpen] = useState(false);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [rateCardFilterOptions, setRateCardFilterOptions] = useState<{ label: string; value: string }[]>([]);
+  const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
+  const [mobileActionOpen, setMobileActionOpen] = useState(false);
 
   // ─── Helpers ────────────────────────────────────────────────────────────────
   const showToast = (type: 'success' | 'error', text: string) => {
@@ -134,6 +141,13 @@ export function AdminUsers() {
     window.addEventListener('admin-search', handleSearch);
     setGlobalSearch(((window as any).__adminSearchQuery || '').toLowerCase());
     return () => window.removeEventListener('admin-search', handleSearch);
+  }, []);
+
+  // ─── Fetch rate card plan names for the filter dropdown (same source as the assign-plan modal) ──
+  useEffect(() => {
+    apiClient.get('/saveRate/getPlanNames')
+      .then(res => setRateCardFilterOptions((res.data.planNames || []).map((p: string) => ({ label: p, value: p }))))
+      .catch(() => {});
   }, []);
 
   // ─── Fetch users ─────────────────────────────────────────────────────────────
@@ -168,6 +182,7 @@ export function AdminUsers() {
       setTotalCount(res.data.totalCount || 0);
       setVerifiedKycCount(res.data.verifiedKycCount || 0);
       setPendingKycCount(res.data.pendingKycCount || 0);
+      setNewUsersCount(res.data.newUsersCount || 0);
     } catch {
       showToast('error', 'Failed to load users.');
     } finally {
@@ -182,6 +197,16 @@ export function AdminUsers() {
   useEffect(() => {
     setCurrentPage(1);
   }, [rowsPerPage]);
+
+  // Live search: debounce searchQuery into appliedSearch so results update as the user types,
+  // without needing to press Enter or hit Apply.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setAppliedSearch(searchQuery);
+      setCurrentPage(1);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   // ─── Apply / reset filters ──────────────────────────────────────────────────
   const applyFilters = () => {
@@ -255,12 +280,6 @@ export function AdminUsers() {
     { label: 'Pending', value: 'Pending' }
   ];
 
-  const RATE_CARD_OPTIONS = [
-    { label: 'Bronze', value: 'Bronze' },
-    { label: 'Silver', value: 'Silver' },
-    { label: 'Gold', value: 'Gold' }
-  ];
-
   const WALLET_BALANCE_OPTIONS = [
     { label: 'Negative', value: 'Negative' },
     { label: 'Positive', value: 'Positive' },
@@ -273,8 +292,52 @@ export function AdminUsers() {
       <div className="flex flex-col h-[calc(100vh-72px)] -m-4 md:-m-6 bg-white">
         <div className="bg-white relative z-50 shrink-0">
 
-          {/* Summary Cards Row */}
-          <div className="p-4 border-b border-[#E2E8F0] flex flex-nowrap overflow-x-auto gap-4 no-scrollbar">
+          {/* Mobile Search Bar */}
+          <div className="md:hidden px-4 py-3 border-b border-[#E2E8F0] bg-white">
+            <div className="relative">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
+              <input
+                type="text"
+                placeholder="Search by User ID / Name / Email"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
+                className="w-full h-10 pl-10 pr-4 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] text-sm text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all"
+              />
+            </div>
+          </div>
+
+          {/* Mobile Filters + Action Row */}
+          <div className="md:hidden px-4 py-3 border-b border-[#E2E8F0] flex items-center justify-between bg-white gap-2">
+            <button
+              onClick={() => setIsMobileFiltersOpen(true)}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#00A86B] text-white text-[12px] font-bold shadow-sm shrink-0"
+            >
+              <Filter className="w-3.5 h-3.5" /> Filters
+            </button>
+            <div className="relative shrink-0">
+              <button
+                onClick={() => setMobileActionOpen(v => !v)}
+                className="h-9 px-4 rounded-lg border border-[#E2E8F0] text-[12px] font-semibold text-[#475569] bg-white active:bg-[#F8FAFC] flex items-center gap-1"
+              >
+                Action <ChevronDown className={`w-3.5 h-3.5 transition-transform ${mobileActionOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {mobileActionOpen && (
+                <div className="absolute right-0 top-full mt-2 w-40 bg-white border border-[#E2E8F0] rounded-lg shadow-lg py-1 z-50">
+                  <button onClick={() => { resetFilters(); setMobileActionOpen(false); }} className="w-full text-left px-4 py-2 text-xs hover:bg-[#F8FAFC] text-[#475569]">Reset Filters</button>
+                  <button
+                    onClick={() => { fetchUsers(currentPage); setMobileActionOpen(false); }}
+                    className="w-full text-left px-4 py-2 text-xs hover:bg-[#F8FAFC] text-[#475569]"
+                  >
+                    Refresh
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Summary Cards Row — desktop */}
+          <div className="hidden md:flex p-4 border-b border-[#E2E8F0] flex-nowrap overflow-x-auto gap-4 no-scrollbar">
             <div className="flex-1 min-w-[200px] bg-[#F4F9FF] rounded-xl p-3 border border-[#E0F2FE] flex items-center gap-3 shadow-sm">
               <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shrink-0 shadow-sm border border-[#E0F2FE]">
                 <Users className="w-4 h-4 text-[#3B82F6]" />
@@ -304,8 +367,48 @@ export function AdminUsers() {
             </div>
           </div>
 
-          {/* Filters Row */}
-          <div className="p-3 border-b border-[#E2E8F0] flex flex-wrap items-center gap-2.5 bg-white relative z-20">
+          {/* Mobile Stat Cards */}
+          <div className="md:hidden p-4 border-b border-[#E2E8F0] bg-white grid grid-cols-2 gap-2.5">
+            <div className="bg-[#F4F9FF] rounded-xl p-3 border border-[#E0F2FE] flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shrink-0 shadow-sm border border-[#E0F2FE]">
+                <Users className="w-4 h-4 text-[#3B82F6]" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-[13px] font-bold text-[#0F172A] truncate">{isLoading ? '—' : totalCount.toLocaleString('en-IN')}</div>
+                <div className="text-[10px] font-semibold text-[#64748B] truncate">Total Users</div>
+              </div>
+            </div>
+            <div className="bg-[#FDF4FF] rounded-xl p-3 border border-[#F3E8FF] flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shrink-0 shadow-sm border border-[#F3E8FF]">
+                <Users className="w-4 h-4 text-[#A855F7]" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-[13px] font-bold text-[#0F172A] truncate">{isLoading ? '—' : newUsersCount.toLocaleString('en-IN')}</div>
+                <div className="text-[10px] font-semibold text-[#64748B] truncate">New Users</div>
+              </div>
+            </div>
+            <div className="bg-[#FAF5FF] rounded-xl p-3 border border-[#F3E8FF] flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shrink-0 shadow-sm border border-[#F3E8FF]">
+                <Clock className="w-4 h-4 text-[#A855F7]" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-[13px] font-bold text-[#0F172A] truncate">{isLoading ? '—' : verifiedKycCount.toLocaleString('en-IN')}</div>
+                <div className="text-[10px] font-semibold text-[#64748B] truncate">Verified KYC</div>
+              </div>
+            </div>
+            <div className="bg-[#F0FDF4] rounded-xl p-3 border border-[#DCFCE7] flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shrink-0 shadow-sm border border-[#DCFCE7]">
+                <ShieldAlert className="w-4 h-4 text-[#22C55E]" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-[13px] font-bold text-[#0F172A] truncate">{isLoading ? '—' : pendingKycCount.toLocaleString('en-IN')}</div>
+                <div className="text-[10px] font-semibold text-[#64748B] truncate">Pending KYC</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Filters Row — desktop only */}
+          <div className="hidden md:flex p-3 border-b border-[#E2E8F0] flex-wrap items-center gap-2.5 bg-white relative z-20">
             <input
               type="text"
               placeholder="User ID / Name / Email"
@@ -326,7 +429,7 @@ export function AdminUsers() {
 
             <GlassDropdown
               label="Rate Card"
-              options={RATE_CARD_OPTIONS}
+              options={rateCardFilterOptions}
               selected={selectedRateCards}
               onChange={setSelectedRateCards}
               placeholder="Search rate card..."
@@ -380,8 +483,8 @@ export function AdminUsers() {
           </div>
         </div>
 
-        {/* Table Section */}
-        <div className="bg-white flex flex-col flex-1 min-h-0 overflow-hidden border-t border-[#E2E8F0]">
+        {/* Table Section — desktop only */}
+        <div className="hidden md:flex bg-white flex-col flex-1 min-h-0 overflow-hidden border-t border-[#E2E8F0]">
           <div className="flex-1 overflow-auto w-full relative">
             {isLoading && <TableLoader />}
             <table className="w-full text-left border-collapse min-w-[1300px]">
@@ -432,7 +535,6 @@ export function AdminUsers() {
                           <div className="text-[#64748B] font-normal mt-0.5 text-[12px]">User Type: {getUserType(user)}</div>
                           <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                             <span className={getStatusBadgeClass(kycLabel)}>{kycLabel}</span>
-                            <span className={getStatusBadgeClass(getTier(user.monthlyShipments ?? user.orderCount ?? 0))}>{getTier(user.monthlyShipments ?? user.orderCount ?? 0)}</span>
                             {user.isBlocked && (
                               <span className="bg-red-50 text-red-700 border border-red-200 px-2.5 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider whitespace-nowrap shadow-sm">
                                 Blocked
@@ -448,16 +550,23 @@ export function AdminUsers() {
                             <Edit2 className="w-3.5 h-3.5 text-[#00A86B] cursor-pointer hover:text-[#009B63]" />
                           </button>
                         </div>
+                        <div className="mt-1.5">
+                          <span className={getStatusBadgeClass(getTier(user.monthlyShipments ?? user.orderCount ?? 0))}>{getTier(user.monthlyShipments ?? user.orderCount ?? 0)} Tier</span>
+                        </div>
                       </td>
                       <td className="p-3 align-top pt-4">
                         <div className="text-[10px] font-medium text-[#94A3B8] uppercase tracking-wider">Wallet Balance</div>
-                        <div className={`font-normal text-[12px] ${(user.walletAmount ?? 0) < 0 ? 'text-red-500' : 'text-[#00A86B]'}`}>
-                          {fmtCurrency(user.walletAmount ?? 0)}
+                        <div className="flex items-center gap-1">
+                          <span className={`font-normal text-[12px] ${(user.walletAmount ?? 0) < 0 ? 'text-red-500' : 'text-[#00A86B]'}`}>
+                            {fmtCurrency(user.walletAmount ?? 0)}
+                          </span>
+                          <Info
+                            className="w-3 h-3 cursor-help shrink-0"
+                            style={{ color: '#9FB5AB', width: 12, height: 12 }}
+                            onMouseEnter={(e) => setHoveredBalance({ rect: e.currentTarget.getBoundingClientRect(), holdAmount: user.holdAmount ?? 0, lastRechargeDate: user.lastRechargeDate })}
+                            onMouseLeave={() => setHoveredBalance(null)}
+                          />
                         </div>
-                        <div className="text-[10px] font-medium text-[#94A3B8] uppercase tracking-wider mt-1.5">Hold Amount</div>
-                        <div className="text-[#0F172A] font-normal text-[12px]">{fmtCurrency(user.holdAmount ?? 0)}</div>
-                        <div className="text-[10px] font-medium text-[#94A3B8] uppercase tracking-wider mt-1.5">Last Recharge</div>
-                        <div className="text-[#0F172A] font-normal text-[12px]">{fmtDate(user.lastRechargeDate)}</div>
                       </td>
                       <td className="p-3 align-top pt-4 text-left">
                         <TruncatedText text={user.accountManagerName || 'N/A'} maxLength={20} className="text-[#0F172A] font-normal text-[12px] max-w-[140px] ml-[20px]" />
@@ -506,12 +615,254 @@ export function AdminUsers() {
             />
           )}
         </div>
+
+        {/* Mobile Card Layout */}
+        <div className="md:hidden flex flex-col flex-1 min-h-0 bg-[#F8FAFC]">
+          <div className="flex-1 overflow-y-auto relative">
+            {isLoading && <TableLoader />}
+            {users.length === 0 ? (
+              <div className="p-8 text-center text-[#94A3B8] font-medium text-sm">No users found.</div>
+            ) : (
+              <div className="p-4 space-y-4">
+                {users.map((user) => {
+                  const uid = String(user.id);
+                  const kycLabel = user.kycStatus ? 'Verified' : 'Pending';
+                  const aadhaar = user.aadhaarNumber || user.aadhaar || user.kycDetails?.aadhaarNumber || '';
+                  return (
+                    <div key={uid} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
+                      {/* Ribbon Tag */}
+                      <div
+                        className={`absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide ${kycLabel === 'Verified' ? 'bg-[#00A86B]' : 'bg-[#F59E0B]'}`}
+                        style={{ clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}
+                      >
+                        {kycLabel}
+                      </div>
+
+                      <div className="pt-8 px-4 pb-4">
+                        {/* User Details Row */}
+                        <div className="flex items-center justify-between mb-2 gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <input type="checkbox" checked={selectedIds.includes(uid)} onChange={() => toggleSelect(uid)} className="rounded border-gray-300 accent-[#00A86B] w-4 h-4 shrink-0" />
+                            <span className="text-[#64748B] font-medium text-[12px]">User Details</span>
+                          </div>
+                          <span className="text-[12px] inline-flex items-baseline gap-1 max-w-[190px] justify-end text-right">
+                            <TruncatedText text={user.fullname || '—'} maxLength={16} className="font-semibold text-[#0F172A] text-[12px]" />
+                            <span className="text-[#00A86B] font-semibold shrink-0">({user.userId})</span>
+                          </span>
+                        </div>
+
+                        {/* Company + Aadhaar */}
+                        <div className="text-[12px] font-medium text-[#475569] mb-0.5">{user.company || '—'}</div>
+                        {aadhaar && (
+                          <div className="text-[11px] font-normal text-[#94A3B8] mb-3">Aadhaar: {aadhaar}</div>
+                        )}
+
+                        {/* Rate Card + Amount Row */}
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-1.5">
+                            <span className={getStatusBadgeClass(user.rateCard || 'N/A')}>{user.rateCard || 'N/A'}</span>
+                            <button onClick={() => openRateCardModal(user)}>
+                              <Edit2 className="w-3.5 h-3.5 text-[#00A86B] cursor-pointer" />
+                            </button>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <span className={`font-semibold text-[13px] ${(user.walletAmount ?? 0) < 0 ? 'text-red-500' : 'text-[#00A86B]'}`}>
+                              {fmtCurrency(user.walletAmount ?? 0)}
+                            </span>
+                            <Info
+                              className="w-3 h-3 cursor-help shrink-0"
+                              style={{ color: '#9FB5AB', width: 12, height: 12 }}
+                              onMouseEnter={(e) => setHoveredBalance({ rect: e.currentTarget.getBoundingClientRect(), holdAmount: user.holdAmount ?? 0, lastRechargeDate: user.lastRechargeDate })}
+                              onMouseLeave={() => setHoveredBalance(null)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                setHoveredBalance(prev => prev ? null : { rect, holdAmount: user.holdAmount ?? 0, lastRechargeDate: user.lastRechargeDate });
+                              }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Orders + Date / Profile Row */}
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="text-[12px] font-semibold text-[#475569]">Orders: {user.orderCount || 0}</div>
+                            <div className="text-[11px] font-normal text-[#94A3B8] mt-0.5">{fmtDate(user.createdAt)} | {fmtTime(user.createdAt)}</div>
+                          </div>
+                          <button
+                            onClick={() => navigate('/admin/profile', { state: { user } })}
+                            className="px-4 py-1.5 rounded-full border border-[#00A86B] text-[#00A86B] font-bold text-[11px] active:bg-[#F0FDF4] transition-colors shrink-0"
+                          >
+                            Profile
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Mobile Pagination */}
+          {useMobilePaginationBar({
+            page: currentPage,
+            setPage: setCurrentPage,
+            totalPages,
+            rowsPerPage,
+            setRowsPerPage,
+            startIndex: totalCount === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1,
+            endIndex: Math.min(currentPage * rowsPerPage, totalCount),
+            totalItems: totalCount,
+          })}
+        </div>
       </div>
+
+      {/* Balance Tooltip */}
+      {hoveredBalance && (() => {
+        const showBelow = hoveredBalance.rect.top < 160;
+        return (
+          <div
+            className="fixed z-[9999] pointer-events-none bg-[#0F172A] text-white text-xs font-normal p-3 rounded-xl shadow-xl w-52"
+            style={{
+              top: showBelow ? hoveredBalance.rect.bottom + 10 : hoveredBalance.rect.top - 10,
+              left: Math.min(Math.max(hoveredBalance.rect.left + hoveredBalance.rect.width / 2, 110), window.innerWidth - 110),
+              transform: showBelow ? 'translate(-50%, 0)' : 'translate(-50%, -100%)',
+            }}
+          >
+            <div className="flex justify-between items-center gap-3">
+              <span className="text-slate-300">Hold Amount</span>
+              <span className="font-semibold text-white">{fmtCurrency(hoveredBalance.holdAmount)}</span>
+            </div>
+            <div className="flex justify-between items-center gap-3 mt-1.5 pt-1.5 border-t border-white/10">
+              <span className="text-slate-300">Last Recharge</span>
+              <span className="font-semibold text-white">{fmtDate(hoveredBalance.lastRechargeDate)}</span>
+            </div>
+            {showBelow ? (
+              <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 border-[6px] border-transparent border-b-[#0F172A]" />
+            ) : (
+              <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 border-[6px] border-transparent border-t-[#0F172A]" />
+            )}
+          </div>
+        );
+      })()}
+
+      {/* Mobile Filters Bottom Sheet */}
+      <AnimatePresence>
+        {isMobileFiltersOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[140] md:hidden flex items-end justify-center"
+            onClick={() => setIsMobileFiltersOpen(false)}
+          >
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="bg-white rounded-t-3xl border-t border-[#E2E8F0] shadow-2xl w-full max-h-[80vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="px-6 py-4 border-b border-[#E2E8F0] flex items-center justify-between sticky top-0 bg-white z-10">
+                <h3 className="font-bold text-slate-800 text-base">Filters</h3>
+                <button onClick={() => setIsMobileFiltersOpen(false)} className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Date Range</label>
+                  <GlassDateFilter
+                    className="w-full [&_.glass-dropdown-trigger]:w-full [&_.glass-dropdown-trigger]:h-11"
+                    startDate={dateStart}
+                    endDate={dateEnd}
+                    onDateChange={(s, e) => { setDateStart(s); setDateEnd(e); }}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">User ID</label>
+                  <input
+                    type="text"
+                    placeholder="User ID / Name / Email"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">KYC Status</label>
+                  <select
+                    value={selectedKycStatuses[0] || ''}
+                    onChange={(e) => setSelectedKycStatuses(e.target.value ? [e.target.value] : [])}
+                    className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
+                  >
+                    <option value="">All Statuses</option>
+                    {KYC_OPTIONS.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Rate Card</label>
+                  <select
+                    value={selectedRateCards[0] || ''}
+                    onChange={(e) => setSelectedRateCards(e.target.value ? [e.target.value] : [])}
+                    className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
+                  >
+                    <option value="">All Rate Cards</option>
+                    {rateCardFilterOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Wallet Balance</label>
+                  <select
+                    value={selectedWalletBalances[0] || ''}
+                    onChange={(e) => setSelectedWalletBalances(e.target.value ? [e.target.value] : [])}
+                    className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
+                  >
+                    <option value="">All Balances</option>
+                    {WALLET_BALANCE_OPTIONS.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="px-6 py-4 border-t border-[#E2E8F0] flex items-center gap-3 sticky bottom-0 bg-white">
+                <button
+                  onClick={() => { resetFilters(); }}
+                  className="flex-1 h-11 rounded-full border border-[#E2E8F0] text-[#475569] text-sm font-bold hover:bg-[#F8FAFC] transition-colors"
+                >
+                  Reset All
+                </button>
+                <button
+                  onClick={() => { applyFilters(); setIsMobileFiltersOpen(false); }}
+                  className="flex-1 h-11 rounded-full bg-[#00A86B] text-white text-sm font-bold hover:bg-[#009B63] transition-colors shadow-sm"
+                >
+                  Apply Filters
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Rate Card Modal */}
       {rateCardModal.open && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
-          <div className="bg-white rounded-xl p-6 w-[320px] shadow-2xl">
+        <div
+          className="fixed inset-0 bg-black/50 z-[200] flex items-center justify-center"
+          onClick={() => { setRateCardModal({ open: false, userId: '', userName: '', currentPlan: '' }); setPlanDropdownOpen(false); }}
+        >
+          <div className="bg-white rounded-xl p-6 w-[320px] shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-sm font-bold text-[#0F172A] mb-1">Update Rate Card</h3>
             <p className="text-xs text-[#64748B] mb-4">
               User: <span className="font-semibold text-[#0F172A]">{rateCardModal.userName}</span>
