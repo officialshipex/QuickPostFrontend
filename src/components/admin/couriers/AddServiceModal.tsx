@@ -8,11 +8,12 @@ interface AddServiceModalProps {
   onClose: () => void;
   courier: any;
   onSuccess: () => void;
+  editData?: any;
 }
 
 const DTDC_SERVICES = ['B2C SMART EXPRESS', 'B2C PRIORITY', 'B2C GROUND ECONOMY'];
 
-export function AddServiceModal({ isOpen, onClose, courier, onSuccess }: AddServiceModalProps) {
+export function AddServiceModal({ isOpen, onClose, courier, onSuccess, editData }: AddServiceModalProps) {
   const [courier_field, setCourierField] = useState('');
   const [courier_id, setCourierId] = useState('');
   const [courierType, setCourierType] = useState('Domestic (Surface)');
@@ -32,8 +33,18 @@ export function AddServiceModal({ isOpen, onClose, courier, onSuccess }: AddServ
 
   useEffect(() => {
     if (!isOpen) return;
-    setCourierField(''); setCourierId(''); setCourierType('Domestic (Surface)');
-    setName(''); setStatus('Enable'); setError('');
+    if (editData?._id) {
+      const isLosungEdit = (editData.provider || '').toLowerCase().includes('losung');
+      setCourierField(isLosungEdit ? '' : (editData.courier || ''));
+      setCourierId(editData.courier_id || '');
+      setCourierType(editData.courierType || 'Domestic (Surface)');
+      setName(editData.name || '');
+      setStatus(editData.status || 'Enable');
+    } else {
+      setCourierField(''); setCourierId(''); setCourierType('Domestic (Surface)');
+      setName(''); setStatus('Enable');
+    }
+    setError('');
     setProviderServices([]);
     fetchSubServices();
   }, [isOpen, providerName]);
@@ -86,9 +97,8 @@ export function AddServiceModal({ isOpen, onClose, courier, onSuccess }: AddServ
     setError('');
     setSaving(true);
     try {
-      // For Losung360: courier field = courier_id value
       const courierValue = isLosung ? courier_id : courier_field;
-      await apiClient.post('/courierServices/couriers', {
+      const payload = {
         provider: providerName,
         courier: courierValue,
         courierName: courierValue,
@@ -96,7 +106,12 @@ export function AddServiceModal({ isOpen, onClose, courier, onSuccess }: AddServ
         name: name.trim(),
         status,
         courier_id,
-      });
+      };
+      if (editData?._id) {
+        await apiClient.put(`/courierServices/couriers/${editData._id}`, payload);
+      } else {
+        await apiClient.post('/courierServices/couriers', payload);
+      }
       onSuccess();
       onClose();
     } catch (err: any) {
@@ -145,7 +160,7 @@ export function AddServiceModal({ isOpen, onClose, courier, onSuccess }: AddServ
                   </div>
                   <div>
                     <h3 className="text-lg font-bold text-[#0F172A]">{providerName}</h3>
-                    <p className="text-xs text-[#94A3B8]">Add courier service</p>
+                    <p className="text-xs text-[#94A3B8]">{editData?._id ? 'Edit courier service' : 'Add courier service'}</p>
                   </div>
                 </div>
                 <button onClick={onClose}
@@ -288,7 +303,7 @@ export function AddServiceModal({ isOpen, onClose, courier, onSuccess }: AddServ
                   disabled={saving}
                   className="px-6 h-11 rounded-[14px] font-semibold text-sm text-white bg-gradient-to-b from-[#00b876] to-[#00A86B] shadow-[0_4px_12px_rgba(0,168,107,0.25)] flex items-center gap-2 border border-[#009B63] disabled:opacity-60"
                 >
-                  {saving ? 'Saving...' : 'Save Service'} <ArrowRight className="w-4 h-4" />
+                  {saving ? 'Saving...' : editData?._id ? 'Save Changes' : 'Save Service'} <ArrowRight className="w-4 h-4" />
                 </motion.button>
               </div>
             </motion.div>

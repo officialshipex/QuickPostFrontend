@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
-import { Search, ChevronRight, Settings, Trash2, Filter, X } from 'lucide-react';
+import { Search, ChevronRight, Settings, Trash2, Pencil, Filter, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ConfigureCourierModal } from '../../components/admin/couriers/ConfigureCourierModal';
 import { AddServiceModal } from '../../components/admin/couriers/AddServiceModal';
@@ -42,6 +42,7 @@ export function AdminCouriers() {
   const [activeTab, setActiveTab] = useState<'couriers' | 'services'>('couriers');
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
   const [showAddCourier, setShowAddCourier] = useState(false);
+  const [editServiceData, setEditServiceData] = useState<any | null>(null);
 
 
   useEffect(() => {
@@ -95,6 +96,13 @@ export function AdminCouriers() {
         }
         return updated;
       });
+    } catch {}
+  };
+
+  const handleDeleteProvider = async (provider: any) => {
+    try {
+      await apiClient.delete(`/allCourier/deleteCourier/${provider._id}`);
+      setProviders(prev => prev.filter(p => p._id !== provider._id));
     } catch {}
   };
 
@@ -317,14 +325,22 @@ export function AdminCouriers() {
                             </div>
                           </td>
                           <td className="py-4 px-6">
-                            <div className="flex justify-end" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex justify-end items-center gap-2" onClick={(e) => e.stopPropagation()}>
                               {activeTab === 'couriers' ? (
-                                <button
-                                  onClick={() => setSelectedCourier({ ...provider, name, logo })}
-                                  className="text-sm font-semibold text-[#64748B] hover:text-[#00A86B] transition-colors flex items-center gap-1"
-                                >
-                                  <Settings className="w-4 h-4" /> Configure
-                                </button>
+                                <>
+                                  <button
+                                    onClick={() => setSelectedCourier({ ...provider, name, logo })}
+                                    className="text-sm font-semibold text-[#64748B] hover:text-[#00A86B] transition-colors flex items-center gap-1"
+                                  >
+                                    <Settings className="w-4 h-4" /> Configure
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteProvider(provider)}
+                                    className="w-8 h-8 flex items-center justify-center rounded-full text-[#94A3B8] hover:text-red-500 hover:bg-red-50 transition-colors"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </>
                               ) : (
                                 <button
                                   onClick={() => setServiceCourier({ ...provider, name, logo })}
@@ -369,7 +385,7 @@ export function AdminCouriers() {
                                                   {svc.courierType === 'Domestic (Air)' ? 'Air' : 'Surface'}
                                                 </span>
                                               </div>
-                                              <div className="w-1/3 flex justify-end items-center gap-4 pr-8">
+                                              <div className="w-1/3 flex justify-end items-center gap-3 pr-8">
                                                 <button
                                                   onClick={() => toggleServiceStatus(svc)}
                                                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#00A86B] focus:ring-offset-2 ${
@@ -381,6 +397,12 @@ export function AdminCouriers() {
                                                       svc.status === 'Enable' ? 'translate-x-6' : 'translate-x-1'
                                                     }`}
                                                   />
+                                                </button>
+                                                <button
+                                                  onClick={() => setEditServiceData({ ...svc, providerCourier: { ...provider, name, logo } })}
+                                                  className="w-8 h-8 flex items-center justify-center rounded-full text-[#94A3B8] hover:text-[#00A86B] hover:bg-[#00A86B]/10 transition-colors"
+                                                >
+                                                  <Pencil className="w-3.5 h-3.5" />
                                                 </button>
                                                 <button
                                                   onClick={() => handleDeleteService(svc)}
@@ -486,12 +508,20 @@ export function AdminCouriers() {
                     </button>
 
                     {activeTab === 'couriers' ? (
-                      <button
-                        onClick={() => setSelectedCourier({ ...provider, name, logo })}
-                        className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-[#E2E8F0] text-[12px] font-semibold text-[#475569] bg-white active:bg-[#F8FAFC]"
-                      >
-                        <Settings className="w-3.5 h-3.5" /> Configure
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setSelectedCourier({ ...provider, name, logo })}
+                          className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-[#E2E8F0] text-[12px] font-semibold text-[#475569] bg-white active:bg-[#F8FAFC]"
+                        >
+                          <Settings className="w-3.5 h-3.5" /> Configure
+                        </button>
+                        <button
+                          onClick={() => handleDeleteProvider(provider)}
+                          className="w-9 h-9 flex items-center justify-center rounded-lg border border-[#E2E8F0] text-[#94A3B8] active:text-red-500 active:bg-red-50 transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     ) : (
                       <button
                         onClick={() => setServiceCourier({ ...provider, name, logo })}
@@ -541,6 +571,12 @@ export function AdminCouriers() {
                                               svcIsEnabled ? 'translate-x-6' : 'translate-x-1'
                                             }`}
                                           />
+                                        </button>
+                                        <button
+                                          onClick={() => setEditServiceData({ ...svc, providerCourier: { ...provider, name, logo } })}
+                                          className="w-8 h-8 flex items-center justify-center rounded-full text-[#94A3B8] active:text-[#00A86B] active:bg-[#00A86B]/10 transition-colors shrink-0"
+                                        >
+                                          <Pencil className="w-3.5 h-3.5" />
                                         </button>
                                         <button
                                           onClick={() => handleDeleteService(svc)}
@@ -660,6 +696,14 @@ export function AdminCouriers() {
         onClose={() => setServiceCourier(null)}
         courier={serviceCourier}
         onSuccess={() => { fetchAll(); setServiceCourier(null); }}
+      />
+
+      <AddServiceModal
+        isOpen={!!editServiceData}
+        onClose={() => setEditServiceData(null)}
+        courier={editServiceData?.providerCourier || null}
+        editData={editServiceData}
+        onSuccess={() => { fetchAll(); setEditServiceData(null); }}
       />
 
       <AddCourierModal
