@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { apiClient } from '../../services/apiClient';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
+import { useAdminTab } from '../../context/AdminUserContext';
 import {
   MapPin,
   CreditCard,
@@ -40,9 +41,13 @@ export function AdminProfile() {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const { currentUserId } = useAdminTab();
   const apiUser = location.state?.user;
   // getAllUsers returns ObjectId as `id` (not `_id`), getUserById does the same
   const mongoId = String(apiUser?.id || '');
+  // When navigating from header dropdown (no route state), fall back to own user ID
+  const effectiveId = mongoId || currentUserId;
+  const isOwnProfile = !mongoId;
 
   const buildInitialData = () => {
     if (apiUser) {
@@ -135,10 +140,10 @@ export function AdminProfile() {
   };
 
   useEffect(() => {
-    if (!mongoId) return;
+    if (!effectiveId) return;
 
     // Fresh user details — getUserById returns the full nested user document
-    apiClient.get('/user/getUserById', { params: { id: mongoId } })
+    apiClient.get('/user/getUserById', { params: { id: effectiveId } })
       .then(res => {
         const fresh = res.data.userDetails;
         if (!fresh) return;
@@ -189,7 +194,7 @@ export function AdminProfile() {
       .catch(() => {});
 
     // Wallet balance + hold
-    apiClient.get('/recharge/getWalletBalanceAndHoldAmount', { params: { id: mongoId } })
+    apiClient.get('/recharge/getWalletBalanceAndHoldAmount', { params: { id: effectiveId } })
       .then(res => {
         if (res.data.success) {
           setHoldAmount(res.data.holdAmount || 0);
@@ -203,21 +208,21 @@ export function AdminProfile() {
       .catch(() => {});
 
     // Notification settings
-    apiClient.get('/notification/getNotification', { params: { userId: mongoId } })
+    apiClient.get('/notification/getNotification', { params: { userId: effectiveId } })
       .then(res => { if (res.data) setNotificationSettings(res.data); })
       .catch(() => {});
 
     // Rate cards
-    fetchRates(mongoId);
+    fetchRates(effectiveId);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [effectiveId]);
 
   const handleToggle = async () => {
     const currentActive = isActive;
     const newBlocked = currentActive; // if currently active, clicking = block
     setIsActive(!currentActive);
     try {
-      const res = await apiClient.post('/user/updateBlockStatus', { userId: mongoId, isBlocked: newBlocked });
+      const res = await apiClient.post('/user/updateBlockStatus', { userId: effectiveId, isBlocked: newBlocked });
       showToast('success', res.data?.message || `User ${newBlocked ? 'blocked' : 'unblocked'} successfully.`);
     } catch (err: any) {
       setIsActive(currentActive);
@@ -230,7 +235,7 @@ export function AdminProfile() {
     setIsKycVerified(newStatus);
     setUserData(prev => ({ ...prev, kyc: newStatus ? 'Verified' : 'Pending' }));
     try {
-      const res = await apiClient.post('/user/updateKycStatus', { userId: mongoId, kycStatus: newStatus });
+      const res = await apiClient.post('/user/updateKycStatus', { userId: effectiveId, kycStatus: newStatus });
       showToast('success', res.data?.message || `KYC ${newStatus ? 'verified' : 'marked pending'} successfully.`);
     } catch (err: any) {
       setIsKycVerified(!newStatus);
@@ -243,7 +248,7 @@ export function AdminProfile() {
     const newValue = !apiAccess;
     setApiAccess(newValue);
     try {
-      await apiClient.post('/user/apiAccess', { userId: mongoId, adminApiAccess: newValue });
+      await apiClient.post('/user/apiAccess', { userId: effectiveId, adminApiAccess: newValue });
       showToast('success', 'API access updated.');
     } catch {
       setApiAccess(!newValue);
@@ -254,7 +259,7 @@ export function AdminProfile() {
   const handleNotificationToggle = async (field: string, value: boolean) => {
     setNotificationSettings(prev => ({ ...prev, [field]: value }));
     try {
-      await apiClient.put('/notification/updateNotification', { field, value, userId: mongoId });
+      await apiClient.put('/notification/updateNotification', { field, value, userId: effectiveId });
       const name = field === 'isAdminWhatsAppEnable' ? 'WhatsApp' : field === 'isAdminEmailEnable' ? 'Email' : 'SMS';
       showToast('success', `${name} notification ${value ? 'enabled' : 'disabled'}.`);
     } catch {
@@ -338,26 +343,28 @@ export function AdminProfile() {
             </div>
 
             <div className="flex items-center gap-6">
-              {/* Block/Unblock + KYC toggles */}
-              <div className="flex flex-col gap-2.5">
-                <div className="flex items-center gap-3">
-                  <span className={`text-[12px] font-semibold min-w-[90px] ${isActive ? 'text-[#00A86B]' : 'text-[#EF4444]'}`}>
-                    {isActive ? 'User Active' : 'User Blocked'}
-                  </span>
-                  <button
-                    onClick={handleToggle}
-                    className={`w-11 h-6 rounded-full transition-colors relative flex items-center ${isActive ? 'bg-[#00A86B]' : 'bg-[#EF4444]'}`}
-                  >
-                    <div className={`w-5 h-5 rounded-full bg-white shadow-sm absolute transition-transform ${isActive ? 'translate-x-5' : 'translate-x-0.5'}`} />
-                  </button>
+              {/* Block/Unblock + KYC toggles — hidden when viewing own profile */}
+              {!isOwnProfile && (
+                <div className="flex flex-col gap-2.5">
+                  <div className="flex items-center gap-3">
+                    <span className={`text-[12px] font-semibold min-w-[90px] ${isActive ? 'text-[#00A86B]' : 'text-[#EF4444]'}`}>
+                      {isActive ? 'User Active' : 'User Blocked'}
+                    </span>
+                    <button
+                      onClick={handleToggle}
+                      className={`w-11 h-6 rounded-full transition-colors relative flex items-center ${isActive ? 'bg-[#00A86B]' : 'bg-[#EF4444]'}`}
+                    >
+                      <div className={`w-5 h-5 rounded-full bg-white shadow-sm absolute transition-transform ${isActive ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className={`text-[12px] font-semibold min-w-[90px] ${isKycVerified ? 'text-[#00A86B]' : 'text-[#F59E0B]'}`}>
+                      {isKycVerified ? 'KYC Verified' : 'KYC Pending'}
+                    </span>
+                    <Toggle on={isKycVerified} onClick={handleKycToggle} />
+                  </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <span className={`text-[12px] font-semibold min-w-[90px] ${isKycVerified ? 'text-[#00A86B]' : 'text-[#F59E0B]'}`}>
-                    {isKycVerified ? 'KYC Verified' : 'KYC Pending'}
-                  </span>
-                  <Toggle on={isKycVerified} onClick={handleKycToggle} />
-                </div>
-              </div>
+              )}
 
               {/* Wallet balance */}
               <div className="flex items-center gap-4 bg-[#F8FAFC] border border-[#E2E8F0] rounded-[14px] p-3 shadow-sm min-w-[200px]">
@@ -564,7 +571,7 @@ export function AdminProfile() {
               <CreditCard className="w-4 h-4 text-[#64748B]" /> Rate Card Management
             </h3>
             <button
-              onClick={() => fetchRates(mongoId)}
+              onClick={() => fetchRates(effectiveId)}
               className="text-[13px] font-bold text-[#00A86B] hover:underline px-3 py-1 rounded-lg border border-[#00A86B] hover:bg-[#ECFDF5] transition-colors"
             >
               Refresh

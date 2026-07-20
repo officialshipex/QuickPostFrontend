@@ -1,8 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Search, LogOut, Bell, User, Building2, Calendar, ChevronDown, ChevronUp, Shield, FileText, Zap, Calculator, PackagePlus, MapPin, Wallet, Check, X, ArrowLeft, Banknote, Menu, RefreshCcw } from 'lucide-react';
+import { Search, LogOut, Bell, User, Building2, Calendar, ChevronDown, ChevronUp, Shield, FileText, Zap, Calculator, PackagePlus, MapPin, Wallet, Check, X, ArrowLeft, Banknote, Menu, RefreshCcw, Upload, Users } from 'lucide-react';
 import { useAuth } from '../../../hooks/useAuth';
+import { apiClient } from '../../../services/apiClient';
+import { getToken } from '../../../utils/session';
 import { useAdminTab } from '../../../context/AdminUserContext';
+import { useDashboardFilters } from '../../../context/DashboardFilterContext';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -12,18 +15,19 @@ interface AdminHeaderProps {
 
 export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
   const { logout } = useAuth();
-  const { isAdmin, adminTab, toggleAdminTab } = useAdminTab();
+  const { isAdmin, adminTab, toggleAdminTab, userName, userEmail, profileImage, walletBalance: ctxWalletBalance, walletHold } = useAdminTab();
+  const { filters, updateFilter } = useDashboardFilters();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showQuickActions, setShowQuickActions] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showDateDropdown, setShowDateDropdown] = useState(false);
-  const [selectedDateFilter, setSelectedDateFilter] = useState('Last 30 Days');
   const [toast, setToast] = useState<string | null>(null);
   const [isCustomMode, setIsCustomMode] = useState(false);
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
-  const [walletBalance, setWalletBalance] = useState(4820000);
+  // Local copy of wallet balance so recharge modal can update it optimistically
+  const [walletBalance, setWalletBalance] = useState(0);
   const [showWalletHover, setShowWalletHover] = useState(false);
   const [showRechargeModal, setShowRechargeModal] = useState(false);
   const [rechargeAmount, setRechargeAmount] = useState(500);
@@ -33,6 +37,131 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
   const [tempCouponCode, setTempCouponCode] = useState('');
   const [rechargeMode, setRechargeMode] = useState<'Payment' | 'COD'>('Payment');
   const [availableCodBalance, setAvailableCodBalance] = useState(148250);
+
+  // Bulk Import modal
+  const bulkFileInputRef = useRef<HTMLInputElement>(null);
+  const [showBulkModal, setShowBulkModal] = useState(false);
+  const [bulkStep, setBulkStep] = useState<1 | 2>(1);
+  const [bulkOrderType, setBulkOrderType] = useState<'B2C' | 'B2B'>('B2C');
+  const [bulkFile, setBulkFile] = useState<File | null>(null);
+  const [bulkUploading, setBulkUploading] = useState(false);
+
+  // User Login (impersonation) modal
+  const [showUserLoginModal, setShowUserLoginModal] = useState(false);
+  const [userLoginQuery, setUserLoginQuery] = useState('');
+  const [userSuggestions, setUserSuggestions] = useState<any[]>([]);
+  const [userLoginSearching, setUserLoginSearching] = useState(false);
+  const [userLoginLoading, setUserLoginLoading] = useState(false);
+
+  // Pending agreement for notification bell
+  const [pendingAgreement, setPendingAgreement] = useState<any>(null);
+
+  // Sync real wallet balance from context on load (and whenever context updates)
+  React.useEffect(() => { setWalletBalance(ctxWalletBalance); }, [ctxWalletBalance]);
+
+  // Fetch pending agreement for notification bell
+  useEffect(() => {
+    apiClient.get('/agreement/user/pending')
+      .then(res => {
+        if (res.data?.success && res.data?.hasPending) {
+          setPendingAgreement(res.data.agreement);
+        } else {
+          setPendingAgreement(null);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // Debounced user search for impersonation popup
+  useEffect(() => {
+    if (!showUserLoginModal) return;
+    if (!userLoginQuery.trim()) { setUserSuggestions([]); return; }
+    const timer = setTimeout(async () => {
+      setUserLoginSearching(true);
+      try {
+        const res = await apiClient.get(`/user/searchUsers?q=${encodeURIComponent(userLoginQuery.trim())}`);
+        setUserSuggestions(res.data.users || []);
+      } catch { setUserSuggestions([]); }
+      finally { setUserLoginSearching(false); }
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [userLoginQuery, showUserLoginModal]);
+
+  const handleAdminLoginAsUser = async (user: any) => {
+    setUserLoginLoading(true);
+    try {
+      const res = await apiClient.post('/user/adminLoginAsUser', { userId: user.id });
+      if (res.data.success) {
+        const currentToken = getToken();
+        if (currentToken) localStorage.setItem('admin_token_backup', currentToken);
+        window.location.href = `/login?token=${res.data.token}`;
+      }
+    } catch (e) {
+      console.error('adminLoginAsUser error:', e);
+      showToast('Failed to login as user.');
+    } finally {
+      setUserLoginLoading(false);
+    }
+  };
+
+  const handleBulkUpload = async () => {
+    if (!bulkFile) return;
+    setBulkUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', bulkFile);
+      const url = bulkOrderType === 'B2C' ? '/bulkOrderUpload/upload' : '/b2b/bulkOrderUpload/upload';
+      await apiClient.post(url, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      showToast('Bulk import successful!');
+      setShowBulkModal(false);
+      setBulkFile(null);
+      setBulkStep(1);
+    } catch {
+      showToast('Bulk import failed. Please check your file and try again.');
+    } finally {
+      setBulkUploading(false);
+    }
+  };
+
+  // Initials fallback for profile avatar
+  const userInitials = (userName || '?').split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase();
+
+  // Helper to compute date boundaries for preset options
+  const getPresetDates = (option: string): { start: Date; end: Date } => {
+    const now = new Date();
+    const endOfToday = new Date(now); endOfToday.setHours(23, 59, 59, 999);
+    const startOfToday = new Date(now); startOfToday.setHours(0, 0, 0, 0);
+    switch (option) {
+      case 'Today':
+        return { start: startOfToday, end: endOfToday };
+      case 'Yesterday': {
+        const s = new Date(startOfToday); s.setDate(s.getDate() - 1);
+        const e = new Date(s); e.setHours(23, 59, 59, 999);
+        return { start: s, end: e };
+      }
+      case 'Last 7 Days': {
+        const s = new Date(startOfToday); s.setDate(s.getDate() - 6);
+        return { start: s, end: endOfToday };
+      }
+      case 'Last 30 Days': {
+        const s = new Date(startOfToday); s.setDate(s.getDate() - 29);
+        return { start: s, end: endOfToday };
+      }
+      case 'This Month': {
+        const s = new Date(now.getFullYear(), now.getMonth(), 1);
+        return { start: s, end: endOfToday };
+      }
+      case 'Last Month': {
+        const s = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        const e = new Date(now.getFullYear(), now.getMonth(), 0); e.setHours(23, 59, 59, 999);
+        return { start: s, end: e };
+      }
+      default: {
+        const s = new Date(startOfToday); s.setDate(s.getDate() - 29);
+        return { start: s, end: endOfToday };
+      }
+    }
+  };
 
   const showToast = (message: string) => {
     setToast(message);
@@ -173,13 +302,9 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                   <span className="text-[10px] font-semibold text-[#00A86B] cursor-pointer hover:underline" onClick={() => setShowNotifications(false)}>Dismiss</span>
                 </div>
                 <div className="max-h-[220px] overflow-y-auto">
-                  <div className="px-4 py-2.5 border-b border-[#E2E8F0]/60 hover:bg-[#F8FAFC] cursor-pointer">
-                    <p className="text-xs font-bold text-[#0F172A]">Failed Courier API</p>
-                    <p className="text-[11px] font-medium text-[#64748B] mt-0.5">Bluedart API is experiencing latency.</p>
-                  </div>
-                  <div className="px-4 py-2.5 hover:bg-[#F8FAFC] cursor-pointer">
-                    <p className="text-xs font-bold text-[#0F172A]">New Vendor Request</p>
-                    <p className="text-[11px] font-medium text-[#64748B] mt-0.5">SuperMart onboarding request.</p>
+                  <div className="px-4 py-6 text-center">
+                    <Bell className="w-6 h-6 text-[#CBD5E1] mx-auto mb-2" />
+                    <p className="text-xs font-semibold text-[#94A3B8]">No alerts right now</p>
                   </div>
                 </div>
               </div>
@@ -200,30 +325,24 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
             </button>
 
             {showQuickActions && (
-              <div className="absolute right-0 mt-2 w-44 bg-white rounded-xl shadow-xl border border-[#E2E8F0] py-2 z-50 origin-top-right">
+              <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-[#E2E8F0] py-2 z-50 origin-top-right">
                 <div className="px-4 py-1.5 border-b border-slate-100 mb-1">
                   <span className="text-[10px] font-bold text-[#94A3B8] uppercase">Quick Menu</span>
                 </div>
-                <Link
-                  to="/admin/add-order"
-                  className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A]"
-                  onClick={() => setShowQuickActions(false)}
-                >
-                  <PackagePlus className="w-3.5 h-3.5" /> Book Shipment
+                <Link to="/admin/add-order" className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A]" onClick={() => setShowQuickActions(false)}>
+                  <PackagePlus className="w-3.5 h-3.5" /> Add an Order
                 </Link>
-                <Link
-                  to="/admin/rate-calculator"
-                  className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A]"
-                  onClick={() => setShowQuickActions(false)}
-                >
-                  <Calculator className="w-3.5 h-3.5" /> Rate Calculator
+                <button className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] text-left w-full" onClick={() => { setShowBulkModal(true); setBulkStep(1); setBulkFile(null); setShowQuickActions(false); }}>
+                  <Upload className="w-3.5 h-3.5" /> Bulk Import
+                </button>
+                <Link to="/admin/rate-calculator" className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A]" onClick={() => setShowQuickActions(false)}>
+                  <Calculator className="w-3.5 h-3.5" /> Calculate Rate
                 </Link>
-                <div
-                  onClick={() => { setShowRechargeModal(true); setShowQuickActions(false); }}
-                  className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] cursor-pointer"
-                >
-                  <Wallet className="w-3.5 h-3.5" /> Recharge Wallet
-                </div>
+                {isAdmin && (
+                  <button className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] text-left w-full" onClick={() => { setShowUserLoginModal(true); setUserLoginQuery(''); setUserSuggestions([]); setShowQuickActions(false); }}>
+                    <Users className="w-3.5 h-3.5" /> User Login
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -231,7 +350,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
           {/* Wallet Balance */}
           <button
             onClick={() => setShowRechargeModal(true)}
-            className="flex items-center gap-1.5 bg-[#00A86B] text-white px-2.5 py-1.5 rounded-full text-[11px] font-bold shadow-sm cursor-pointer hover:bg-[#009B63] transition-colors focus:outline-none"
+            className={`flex items-center gap-1.5 text-white px-2.5 py-1.5 rounded-full text-[11px] font-bold shadow-sm cursor-pointer transition-colors focus:outline-none ${walletBalance < 0 ? 'bg-[#EF4444] hover:bg-[#DC2626]' : 'bg-[#00A86B] hover:bg-[#009B63]'}`}
           >
             <Wallet className="w-3.5 h-3.5" />
             <span>₹{(walletBalance / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
@@ -327,8 +446,8 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
         {/* Date Filter */}
         {!isSetupPage && !isKycPage && (
           <div className="relative">
-            <motion.button 
-              whileHover={{ scale: 1.02 }} 
+            <motion.button
+              whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={() => {
                 setShowDateDropdown(!showDateDropdown);
@@ -336,7 +455,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
               }}
               className="hidden lg:flex items-center gap-2 px-4 h-10 rounded-[14px] border border-[#E2E8F0] text-xs font-semibold text-[#475569] cursor-pointer hover:bg-[#F8FAFC] hover:border-[#CBD5E1] transition-all bg-white shadow-sm focus:outline-none"
             >
-              <Calendar className="w-4 h-4 text-[#94A3B8]" /> {selectedDateFilter} <ChevronDown className="w-3.5 h-3.5 text-[#94A3B8]" />
+              <Calendar className="w-4 h-4 text-[#94A3B8]" /> {filters.dateRange.label} <ChevronDown className="w-3.5 h-3.5 text-[#94A3B8]" />
             </motion.button>
             
             {showDateDropdown && (
@@ -396,12 +515,14 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                           showToast('Please select both start and end dates.');
                           return;
                         }
-                        const formattedStart = new Date(customStart).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
-                        const formattedEnd = new Date(customEnd).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
-                        setSelectedDateFilter(`${formattedStart} - ${formattedEnd}`);
+                        const start = new Date(customStart); start.setHours(0, 0, 0, 0);
+                        const end = new Date(customEnd); end.setHours(23, 59, 59, 999);
+                        const fmt = (d: Date) => d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                        const label = `${fmt(start)} – ${fmt(end)}`;
+                        updateFilter('dateRange', { start, end, label });
                         setShowDateDropdown(false);
                         setIsCustomMode(false);
-                        showToast(`Date range set to: ${formattedStart} - ${formattedEnd}`);
+                        showToast(`Date range set to: ${label}`);
                       }}
                       className="w-full h-8 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors"
                     >
@@ -414,18 +535,19 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                       <button
                         key={option}
                         onClick={() => {
-                          setSelectedDateFilter(option);
+                          const { start, end } = getPresetDates(option);
+                          updateFilter('dateRange', { start, end, label: option });
                           setShowDateDropdown(false);
                           showToast(`Date range set to: ${option}`);
                         }}
                         className={`w-full text-left px-3 py-1.5 rounded-xl text-[13px] font-semibold transition-colors flex items-center justify-between ${
-                          selectedDateFilter === option 
-                            ? 'bg-[#00A86B]/10 text-[#00A86B]' 
+                          filters.dateRange.label === option
+                            ? 'bg-[#00A86B]/10 text-[#00A86B]'
                             : 'text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A]'
                         }`}
                       >
                         {option}
-                        {selectedDateFilter === option && <Check className="w-4 h-4 text-[#00A86B]" />}
+                        {filters.dateRange.label === option && <Check className="w-4 h-4 text-[#00A86B]" />}
                       </button>
                     ))}
                     <div className="h-[1px] bg-slate-100 my-1"></div>
@@ -456,7 +578,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
               setShowRechargeModal(true);
               setShowWalletHover(false);
             }}
-            className="h-10 px-4 rounded-[14px] bg-gradient-to-b from-[#00b876] to-[#00A86B] text-white text-sm font-semibold flex items-center gap-2 shadow-[0_4px_12px_rgba(0,168,107,0.25),inset_0_1px_1px_rgba(255,255,255,0.2)] border border-[#009B63] transition-all cursor-pointer focus:outline-none"
+            className={`h-10 px-4 rounded-[14px] text-white text-sm font-semibold flex items-center gap-2 transition-all cursor-pointer focus:outline-none ${walletBalance < 0 ? 'bg-gradient-to-b from-[#F87171] to-[#EF4444] shadow-[0_4px_12px_rgba(239,68,68,0.25),inset_0_1px_1px_rgba(255,255,255,0.2)] border border-[#DC2626]' : 'bg-gradient-to-b from-[#00b876] to-[#00A86B] shadow-[0_4px_12px_rgba(0,168,107,0.25),inset_0_1px_1px_rgba(255,255,255,0.2)] border border-[#009B63]'}`}
           >
             <Wallet className="w-4 h-4 text-white/95" /> ₹{walletBalance.toLocaleString('en-IN')}
           </motion.button>
@@ -483,14 +605,14 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                   
                   <div className="flex justify-between items-center">
                     <span className="text-xs font-semibold text-[#64748B]">Hold Amount</span>
-                    <span className="text-sm font-bold text-amber-600">₹{(150000).toLocaleString('en-IN')}</span>
+                    <span className="text-sm font-bold text-amber-600">₹{walletHold.toLocaleString('en-IN')}</span>
                   </div>
 
                   <div className="h-[1px] bg-slate-100 my-1"></div>
 
                   <div className="flex justify-between items-center">
                     <span className="text-xs font-bold text-slate-700">Net Balance</span>
-                    <span className="text-sm font-extrabold text-[#00A86B]">₹{(walletBalance - 150000).toLocaleString('en-IN')}</span>
+                    <span className="text-sm font-extrabold text-[#00A86B]">₹{Math.max(0, walletBalance - walletHold).toLocaleString('en-IN')}</span>
                   </div>
                 </div>
 
@@ -529,27 +651,47 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                   <div className="px-4 py-3.5 border-b border-[#E2E8F0]/60 bg-white/50">
                     <h3 className="font-bold text-[#0F172A] text-[13px] tracking-wide uppercase">Quick Actions</h3>
                   </div>
-                  <div className="p-2 flex flex-col gap-1">
-                    <Link 
-                      to="/admin/add-order" 
-                      className="flex items-center gap-3 p-3 rounded-xl hover:bg-[#F8FAFC] transition-colors group"
+                  <div className="p-2 grid grid-cols-2 gap-1">
+                    <Link
+                      to="/admin/add-order"
+                      className="flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-[#F8FAFC] transition-colors group text-center"
                       onClick={() => setShowQuickActions(false)}
                     >
                       <div className="w-10 h-10 rounded-full bg-[#EFF6FF] flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
                         <PackagePlus className="w-5 h-5 text-[#3B82F6]" />
                       </div>
-                      <h4 className="text-[13px] font-bold text-[#0F172A] group-hover:text-[#3B82F6] transition-colors">Add Order</h4>
+                      <h4 className="text-[12px] font-bold text-[#0F172A] group-hover:text-[#3B82F6] transition-colors leading-tight">Add an Order</h4>
                     </Link>
-                    <Link 
-                      to="/admin/rate-calculator" 
-                      className="flex items-center gap-3 p-3 rounded-xl hover:bg-[#F8FAFC] transition-colors group"
+                    <button
+                      className="flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-[#F8FAFC] transition-colors group text-center w-full"
+                      onClick={() => { setShowBulkModal(true); setBulkStep(1); setBulkFile(null); setShowQuickActions(false); }}
+                    >
+                      <div className="w-10 h-10 rounded-full bg-[#FFF7ED] flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                        <Upload className="w-5 h-5 text-[#F97316]" />
+                      </div>
+                      <h4 className="text-[12px] font-bold text-[#0F172A] group-hover:text-[#F97316] transition-colors leading-tight">Bulk Import</h4>
+                    </button>
+                    <Link
+                      to="/admin/rate-calculator"
+                      className="flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-[#F8FAFC] transition-colors group text-center"
                       onClick={() => setShowQuickActions(false)}
                     >
                       <div className="w-10 h-10 rounded-full bg-[#F0FDF4] flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
                         <Calculator className="w-5 h-5 text-[#00A86B]" />
                       </div>
-                      <h4 className="text-[13px] font-bold text-[#0F172A] group-hover:text-[#00A86B] transition-colors">Rate Calculator</h4>
+                      <h4 className="text-[12px] font-bold text-[#0F172A] group-hover:text-[#00A86B] transition-colors leading-tight">Calculate Rate</h4>
                     </Link>
+                    {isAdmin && (
+                      <button
+                        className="flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-[#F8FAFC] transition-colors group text-center w-full"
+                        onClick={() => { setShowUserLoginModal(true); setUserLoginQuery(''); setUserSuggestions([]); setShowQuickActions(false); }}
+                      >
+                        <div className="w-10 h-10 rounded-full bg-[#F5F3FF] flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                          <Users className="w-5 h-5 text-[#8B5CF6]" />
+                        </div>
+                        <h4 className="text-[12px] font-bold text-[#0F172A] group-hover:text-[#8B5CF6] transition-colors leading-tight">User Login</h4>
+                      </button>
+                    )}
                   </div>
                 </motion.div>
               )}
@@ -567,7 +709,9 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
             className={`w-10 h-10 rounded-[14px] border flex items-center justify-center transition-all relative ${showNotifications ? 'bg-[#F8FAFC] border-[#CBD5E1] text-[#0F172A]' : 'bg-white border-[#E2E8F0] text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A]'}`}
           >
             <Bell className="w-5 h-5" />
-            <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-[#EF4444] rounded-full border-[1.5px] border-white shadow-sm" />
+            {!!pendingAgreement && (
+              <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-[#EF4444] rounded-full border-[1.5px] border-white shadow-sm" />
+            )}
           </motion.button>
 
           <AnimatePresence>
@@ -581,29 +725,37 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                 onMouseDown={(e) => e.preventDefault()}
               >
                 <div className="px-4 py-3.5 border-b border-[#E2E8F0]/60 flex justify-between items-center bg-white/50">
-                  <h3 className="font-bold text-[#0F172A] text-[13px] tracking-wide uppercase">System Alerts</h3>
-                  <span className="text-xs font-semibold text-[#00A86B] cursor-pointer hover:text-[#009B63]">Mark all read</span>
+                  <h3 className="font-bold text-[#0F172A] text-[13px] tracking-wide uppercase">Notifications</h3>
+                  {!!pendingAgreement && (
+                    <span className="text-[11px] font-bold text-white bg-[#EF4444] rounded-full px-2 py-0.5">1</span>
+                  )}
                 </div>
                 <div className="max-h-[300px] overflow-y-auto">
-                  <div className="px-4 py-3.5 border-b border-[#E2E8F0]/60 hover:bg-[#F8FAFC] cursor-pointer transition-colors">
-                    <div className="flex items-center gap-2 mb-1">
-                      <div className="w-1.5 h-1.5 rounded-full bg-[#EF4444]" />
-                      <p className="text-[13px] font-bold text-[#0F172A]">Failed Courier API</p>
+                  {pendingAgreement ? (
+                    <div className="px-4 py-3.5 border-b border-[#E2E8F0]/60 hover:bg-[#F8FAFC] transition-colors">
+                      <div className="flex items-start gap-2">
+                        <div className="w-1.5 h-1.5 rounded-full bg-[#EF4444] shrink-0 mt-1.5" />
+                        <div className="flex-1">
+                          <p className="text-[13px] font-semibold text-[#0F172A] leading-snug">Agreement Pending</p>
+                          <p className="text-[12px] text-[#64748B] mt-0.5">{pendingAgreement.versionName || 'New Terms & Conditions'} — please review and accept.</p>
+                          <button
+                            onClick={() => { navigate('/admin/notification'); setShowNotifications(false); }}
+                            className="mt-1.5 text-[11px] font-bold text-[#00A86B] hover:underline"
+                          >
+                            View &amp; Accept →
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                    <p className="text-xs font-medium text-[#64748B] ml-3.5">Bluedart API is experiencing high latency (500ms+).</p>
-                    <p className="text-[10px] font-semibold text-[#94A3B8] ml-3.5 mt-1.5">Just now</p>
-                  </div>
-                  <div className="px-4 py-3.5 border-b border-[#E2E8F0]/60 hover:bg-[#F8FAFC] cursor-pointer transition-colors">
-                    <div className="flex items-center gap-2 mb-1">
-                      <div className="w-1.5 h-1.5 rounded-full bg-[#3B82F6]" />
-                      <p className="text-[13px] font-bold text-[#0F172A]">New Vendor Request</p>
+                  ) : (
+                    <div className="px-4 py-8 flex flex-col items-center gap-2">
+                      <Bell className="w-8 h-8 text-[#CBD5E1]" />
+                      <p className="text-[13px] font-semibold text-[#94A3B8]">No notifications right now</p>
                     </div>
-                    <p className="text-xs font-medium text-[#64748B] ml-3.5">SuperMart Pvt Ltd requested onboarding approval.</p>
-                    <p className="text-[10px] font-semibold text-[#94A3B8] ml-3.5 mt-1.5">2 hours ago</p>
-                  </div>
+                  )}
                 </div>
-                <div className="p-2.5 text-center bg-[#F8FAFC]/80 hover:bg-[#F1F5F9] transition-colors cursor-pointer">
-                  <span className="text-xs font-bold text-[#0F172A]">View All Alerts</span>
+                <div className="p-2.5 text-center bg-[#F8FAFC]/80 hover:bg-[#F1F5F9] transition-colors cursor-pointer" onClick={() => { navigate('/admin/notification'); setShowNotifications(false); }}>
+                  <span className="text-xs font-bold text-[#0F172A]">View All Notifications</span>
                 </div>
               </motion.div>
             )}
@@ -612,17 +764,25 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
 
         {/* Profile Dropdown */}
         <div className="relative ml-1 border-l border-[#E2E8F0] pl-3 hidden sm:block">
-          <button 
+          <button
             onClick={() => setShowProfileMenu(!showProfileMenu)}
             onBlur={() => setTimeout(() => setShowProfileMenu(false), 200)}
             className="flex items-center gap-3 focus:outline-none group"
           >
-            <div className="w-10 h-10 rounded-[14px] bg-gradient-to-br from-[#1E293B] to-[#0F172A] flex items-center justify-center text-white font-bold overflow-hidden shadow-[0_2px_8px_rgba(0,0,0,0.1)] group-hover:shadow-[0_4px_12px_rgba(0,0,0,0.15)] transition-all">
-               <Shield className="w-4 h-4 text-white/90" />
+            <div className="w-10 h-10 rounded-[14px] overflow-hidden shadow-[0_2px_8px_rgba(0,0,0,0.1)] group-hover:shadow-[0_4px_12px_rgba(0,0,0,0.15)] transition-all shrink-0">
+              {profileImage ? (
+                <img src={profileImage} alt={userName} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-br from-[#1E293B] to-[#0F172A] flex items-center justify-center text-white text-xs font-bold">
+                  {userInitials}
+                </div>
+              )}
             </div>
             <div className="flex flex-col text-left">
-              <span className="text-[13px] font-bold text-[#0F172A] leading-tight group-hover:text-[#00A86B] transition-colors">Super Admin</span>
-              <span className="text-[11px] font-semibold text-[#64748B]">System Role</span>
+              <span className="text-[13px] font-bold text-[#0F172A] leading-tight group-hover:text-[#00A86B] transition-colors truncate max-w-[120px]">
+                {userName || 'User'}
+              </span>
+              <span className="text-[11px] font-semibold text-[#64748B]">{isAdmin ? 'Admin' : 'Seller'}</span>
             </div>
             <ChevronDown className="w-3.5 h-3.5 text-[#94A3B8] group-hover:text-[#0F172A] transition-colors" />
           </button>
@@ -639,7 +799,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
               >
                 <div className="px-3 py-2.5 mb-1 border-b border-[#E2E8F0]/60">
                   <p className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider mb-0.5">Signed in as</p>
-                  <p className="text-[13px] font-bold text-[#0F172A] truncate">admin@quickpost.in</p>
+                  <p className="text-[13px] font-bold text-[#0F172A] truncate">{userEmail || '—'}</p>
                 </div>
                 
                 <Link to="/admin/profile" className="flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors" onClick={() => setShowProfileMenu(false)}>
@@ -1115,6 +1275,153 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
         document.body
       )}
       </header>
+
+      {/* Bulk Import Modal */}
+      {typeof document !== 'undefined' && createPortal(
+        <AnimatePresence>
+          {showBulkModal && (
+            <>
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => { setShowBulkModal(false); setBulkFile(null); setBulkStep(1); }} className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm z-[200]" />
+              <div className="fixed inset-0 flex items-center justify-center z-[201] p-4 pointer-events-none">
+                <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} transition={{ type: 'spring', duration: 0.4 }} className="w-full max-w-[380px] bg-white rounded-2xl shadow-[0_24px_48px_rgba(0,0,0,0.16)] p-6 relative pointer-events-auto border border-slate-100">
+                  <button onClick={() => { setShowBulkModal(false); setBulkFile(null); setBulkStep(1); }} className="absolute top-4 right-4 w-8 h-8 bg-slate-100 hover:bg-slate-200 rounded-full flex items-center justify-center transition-colors focus:outline-none">
+                    <X className="w-4 h-4 text-slate-500" />
+                  </button>
+
+                  <div className="flex items-center gap-3 mb-5">
+                    <div className="w-10 h-10 rounded-full bg-[#FFF7ED] flex items-center justify-center shrink-0">
+                      <Upload className="w-5 h-5 text-[#F97316]" />
+                    </div>
+                    <div>
+                      <h2 className="text-[15px] font-bold text-[#0F172A]">Bulk Import Orders</h2>
+                      <p className="text-[11px] text-[#64748B] font-medium">{bulkStep === 1 ? 'Step 1: Select order type' : `Step 2: Upload ${bulkOrderType} file`}</p>
+                    </div>
+                  </div>
+
+                  <div className="h-[1px] bg-slate-100 mb-5" />
+
+                  {bulkStep === 1 ? (
+                    <div className="flex flex-col gap-3">
+                      <p className="text-[12px] font-semibold text-[#64748B] mb-1">Select Order Type</p>
+                      <button onClick={() => { setBulkOrderType('B2C'); setBulkStep(2); }} className="flex items-center gap-3 p-4 rounded-xl border-2 border-[#E2E8F0] hover:border-[#00A86B] hover:bg-[#F0FDF4] transition-all text-left group">
+                        <div className="w-9 h-9 rounded-full bg-[#EFF6FF] flex items-center justify-center shrink-0 group-hover:bg-[#DCFCE7] transition-colors"><Upload className="w-4 h-4 text-[#3B82F6] group-hover:text-[#00A86B]" /></div>
+                        <div><p className="text-[13px] font-bold text-[#0F172A]">B2C Order</p><p className="text-[11px] text-[#64748B]">Business to Consumer shipments</p></div>
+                      </button>
+                      <button onClick={() => { setBulkOrderType('B2B'); setBulkStep(2); }} className="flex items-center gap-3 p-4 rounded-xl border-2 border-[#E2E8F0] hover:border-[#00A86B] hover:bg-[#F0FDF4] transition-all text-left group">
+                        <div className="w-9 h-9 rounded-full bg-[#FFF7ED] flex items-center justify-center shrink-0 group-hover:bg-[#DCFCE7] transition-colors"><Upload className="w-4 h-4 text-[#F97316] group-hover:text-[#00A86B]" /></div>
+                        <div><p className="text-[13px] font-bold text-[#0F172A]">B2B Order</p><p className="text-[11px] text-[#64748B]">Business to Business shipments</p></div>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-4">
+                      <button onClick={() => setBulkStep(1)} className="flex items-center gap-1.5 text-[12px] font-semibold text-[#64748B] hover:text-[#0F172A] transition-colors self-start">
+                        <ArrowLeft className="w-3.5 h-3.5" /> Back
+                      </button>
+                      <input ref={bulkFileInputRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={e => setBulkFile(e.target.files?.[0] || null)} />
+                      <div onClick={() => bulkFileInputRef.current?.click()} className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all ${bulkFile ? 'border-[#00A86B] bg-[#F0FDF4]' : 'border-[#E2E8F0] hover:border-[#00A86B] hover:bg-[#F8FAFC]'}`}>
+                        <Upload className={`w-8 h-8 mx-auto mb-2 ${bulkFile ? 'text-[#00A86B]' : 'text-[#CBD5E1]'}`} />
+                        {bulkFile ? (
+                          <><p className="text-[13px] font-bold text-[#00A86B]">{bulkFile.name}</p><p className="text-[11px] text-[#64748B] mt-0.5">{(bulkFile.size / 1024).toFixed(1)} KB</p></>
+                        ) : (
+                          <><p className="text-[13px] font-semibold text-[#475569]">Click to upload file</p><p className="text-[11px] text-[#94A3B8] mt-0.5">Supported: .xlsx, .xls, .csv</p></>
+                        )}
+                      </div>
+                      <button onClick={handleBulkUpload} disabled={!bulkFile || bulkUploading} className="w-full py-3 bg-gradient-to-r from-[#00b876] to-[#00A86B] text-white text-sm font-bold rounded-xl shadow-sm hover:from-[#00c982] hover:to-[#00b876] transition-all disabled:opacity-50 disabled:pointer-events-none focus:outline-none">
+                        {bulkUploading ? 'Uploading…' : 'Upload & Import'}
+                      </button>
+                    </div>
+                  )}
+                </motion.div>
+              </div>
+            </>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
+
+      {/* User Login (Impersonation) Modal */}
+      {typeof document !== 'undefined' && createPortal(
+        <AnimatePresence>
+          {showUserLoginModal && (
+            <>
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => { setShowUserLoginModal(false); setUserLoginQuery(''); setUserSuggestions([]); }} className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm z-[200]" />
+              <div className="fixed inset-0 flex items-center justify-center z-[201] p-4 pointer-events-none">
+                <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} transition={{ type: 'spring', duration: 0.4 }} className="w-full max-w-[420px] bg-white rounded-2xl shadow-[0_24px_48px_rgba(0,0,0,0.16)] p-6 relative pointer-events-auto border border-slate-100">
+                  <button onClick={() => { setShowUserLoginModal(false); setUserLoginQuery(''); setUserSuggestions([]); }} className="absolute top-4 right-4 w-8 h-8 bg-slate-100 hover:bg-slate-200 rounded-full flex items-center justify-center transition-colors focus:outline-none">
+                    <X className="w-4 h-4 text-slate-500" />
+                  </button>
+
+                  <div className="flex items-center gap-3 mb-5">
+                    <div className="w-10 h-10 rounded-full bg-[#F5F3FF] flex items-center justify-center shrink-0">
+                      <Users className="w-5 h-5 text-[#8B5CF6]" />
+                    </div>
+                    <div>
+                      <h2 className="text-[15px] font-bold text-[#0F172A]">Login as User</h2>
+                      <p className="text-[11px] text-[#64748B] font-medium">Admin access — no password required</p>
+                    </div>
+                  </div>
+
+                  <div className="h-[1px] bg-slate-100 mb-4" />
+
+                  <div className="relative">
+                    <div className="flex items-center gap-2 border border-[#E2E8F0] rounded-xl px-3 py-2.5 bg-[#F8FAFC] focus-within:border-[#8B5CF6] focus-within:bg-white transition-all">
+                      <Search className="w-4 h-4 text-[#94A3B8] shrink-0" />
+                      <input
+                        autoFocus
+                        type="text"
+                        placeholder="Search by name, email, phone or company…"
+                        value={userLoginQuery}
+                        onChange={e => setUserLoginQuery(e.target.value)}
+                        className="w-full bg-transparent text-[13px] font-medium text-[#0F172A] outline-none placeholder:text-[#94A3B8]"
+                      />
+                      {userLoginSearching && <div className="w-4 h-4 border-2 border-[#8B5CF6] border-t-transparent rounded-full animate-spin shrink-0" />}
+                      {userLoginQuery && !userLoginSearching && (
+                        <button onClick={() => { setUserLoginQuery(''); setUserSuggestions([]); }} className="text-[#94A3B8] hover:text-[#64748B] shrink-0 text-[12px] focus:outline-none">
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+
+                    {userSuggestions.length > 0 && (
+                      <div className="absolute left-0 right-0 top-full mt-1.5 bg-white border border-[#E2E8F0] rounded-xl shadow-lg z-50 overflow-y-auto max-h-[280px]">
+                        {userSuggestions.map((u) => (
+                          <button
+                            key={u.id}
+                            disabled={userLoginLoading}
+                            onClick={() => handleAdminLoginAsUser(u)}
+                            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[#F5F3FF] transition-colors text-left border-b border-[#F1F5F9] last:border-0 disabled:opacity-60 focus:outline-none"
+                          >
+                            <div className="w-8 h-8 rounded-full bg-[#8B5CF6] text-white text-[12px] font-bold flex items-center justify-center shrink-0">
+                              {u.fullname?.charAt(0)?.toUpperCase() || 'U'}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[13px] font-bold text-[#0F172A] truncate">{u.fullname || '—'}</p>
+                              <p className="text-[11px] text-[#64748B] truncate">{u.email}</p>
+                            </div>
+                            {userLoginLoading && <div className="w-3.5 h-3.5 border-2 border-[#8B5CF6] border-t-transparent rounded-full animate-spin shrink-0" />}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {userLoginQuery.trim() && !userLoginSearching && userSuggestions.length === 0 && (
+                      <div className="mt-4 text-center py-6">
+                        <p className="text-[13px] font-semibold text-[#94A3B8]">No users found</p>
+                        <p className="text-[11px] text-[#CBD5E1] mt-1">Try a different name, email or phone</p>
+                      </div>
+                    )}
+
+                    {!userLoginQuery.trim() && (
+                      <p className="mt-3 text-[11px] text-[#94A3B8] text-center">Type to search for a user to log in as</p>
+                    )}
+                  </div>
+                </motion.div>
+              </div>
+            </>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
     </>
   );
 }

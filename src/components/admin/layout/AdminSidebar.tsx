@@ -1,10 +1,8 @@
 import React, { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAdminTab } from '../../../context/AdminUserContext';
-import { 
+import {
   Home,
-  Briefcase,
-  Package,
   Wallet,
   Wrench,
   Settings,
@@ -15,18 +13,13 @@ import {
   ShoppingCart,
   FileText,
   Banknote,
-  Send,
   Scale,
   Bell,
   AlertCircle,
-  UserCog,
-  UserPlus,
   Route,
   Calendar,
-  History,
   Mail,
   Building2,
-  BarChart2,
   RotateCcw,
   X,
   ChevronRight
@@ -34,7 +27,26 @@ import {
 
 const LOGO_URL = '/logo-white.png';
 
-const MENU_GROUPS = [
+interface MenuItem {
+  name: string;
+  path: string;
+  icon: any;
+  adminOnly?: boolean;
+  userOnly?: boolean;
+}
+
+interface MenuGroup {
+  label?: string;
+  icon?: any;
+  path?: string;
+  isBeta?: boolean;
+  adminOnly?: boolean;
+  userOnly?: boolean;
+  items?: MenuItem[];
+  divider?: boolean;
+}
+
+const MENU_GROUPS: MenuGroup[] = [
   {
     label: 'Dashboard',
     icon: Home,
@@ -44,7 +56,8 @@ const MENU_GROUPS = [
     label: 'Internal CRM',
     icon: Building2,
     path: '/internal-crm/shipments',
-    isBeta: true
+    isBeta: true,
+    adminOnly: true
   },
   {
     label: 'Orders',
@@ -63,7 +76,7 @@ const MENU_GROUPS = [
     icon: Wallet,
     items: [
       { name: 'Wallet', path: '/admin/wallet', icon: Wallet },
-      { name: 'COD', path: '/admin/cod', icon: Banknote },
+      { name: 'COD', path: '/admin/cod', icon: Banknote, adminOnly: true },
     ]
   },
   {
@@ -77,23 +90,24 @@ const MENU_GROUPS = [
     items: [
       { name: 'Weight Discrepancy', path: '/admin/weight-discrepancy', icon: Scale },
       { name: 'Notification', path: '/admin/notification', icon: Bell },
-      { name: 'Announcements', path: '/admin/announcement', icon: AlertCircle },
+      { name: 'Announcements', path: '/admin/announcement', icon: AlertCircle, adminOnly: true },
     ]
   },
   {
     label: 'Setup & Manage',
     icon: Settings,
     items: [
-      { name: 'Users', path: '/admin/users', icon: Users },
-      { name: 'Status Map', path: '/admin/status-map', icon: Route },
-      { name: 'EDD Mapping', path: '/admin/edd-mapping', icon: Calendar },
-      { name: 'EPD Mapping', path: '/admin/epd-mapping', icon: Calendar },
-      { name: 'Complete KYC', path: '/admin/kyc', icon: FileText },
+      { name: 'Users', path: '/admin/users', icon: Users, adminOnly: true },
+      { name: 'Status Map', path: '/admin/status-map', icon: Route, adminOnly: true },
+      { name: 'EDD Mapping', path: '/admin/edd-mapping', icon: Calendar, adminOnly: true },
+      { name: 'EPD Mapping', path: '/admin/epd-mapping', icon: Calendar, adminOnly: true },
+      { name: 'Complete KYC', path: '/admin/kyc', icon: FileText, userOnly: true },
     ]
   },
   {
     label: 'Courier',
     icon: Truck,
+    adminOnly: true,
     items: [
       { name: 'Couriers', path: '/admin/couriers', icon: Truck },
       { name: 'Rate Card', path: '/admin/rate-card', icon: Banknote },
@@ -102,6 +116,7 @@ const MENU_GROUPS = [
   {
     label: 'System',
     icon: Monitor,
+    adminOnly: true,
     items: [
       { name: 'Support Tickets', path: '/admin/support', icon: Mail },
       { name: 'System Settings', path: '/admin/settings', icon: Settings },
@@ -126,24 +141,49 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
   const { isAdmin, adminTab } = useAdminTab();
   const isAdminView = isAdmin && adminTab;
 
-  const filterItems = (items?: { name: string; path: string; icon: any }[]) =>
-    (items || []).filter(item => item.path !== '/admin/cod' || isAdminView);
-
-  const getIsGroupActive = (items?: {path: string}[]) => {
-    if (!items) return false;
-    return items.some(item => location.pathname.startsWith(item.path));
+  // Replace /admin/ prefix with /user/ when in user mode
+  const resolvePath = (path: string) => {
+    if (!isAdminView && path.startsWith('/admin/')) {
+      return path.replace('/admin/', '/user/');
+    }
+    return path;
   };
+
+  const filterItems = (items?: MenuItem[]) =>
+    (items || []).filter(item => {
+      if (item.adminOnly && !isAdminView) return false;
+      if (item.userOnly && isAdminView) return false;
+      return true;
+    });
+
+  const shouldShowGroup = (group: MenuGroup) => {
+    if (group.divider) return true;
+    if (group.adminOnly && !isAdminView) return false;
+    if (group.userOnly && isAdminView) return false;
+    if (group.items) return filterItems(group.items).length > 0;
+    return true;
+  };
+
+  const getIsGroupActive = (items?: MenuItem[]) => {
+    if (!items) return false;
+    return filterItems(items).some(item => location.pathname.startsWith(resolvePath(item.path)));
+  };
+
+  // Dashboard is active on both /admin/dashboard and /user/dashboard
+  const dashboardPath = location.pathname === '/user/dashboard' ? '/user/dashboard' : '/admin/dashboard';
 
   const handleMobileNavClick = () => {
     onMobileClose?.();
     setMobileExpandedGroup(null);
   };
 
+  const visibleGroups = MENU_GROUPS.filter(shouldShowGroup);
+
   return (
     <>
       {/* Desktop Sidebar — hidden on mobile */}
       <aside className="hidden md:flex fixed left-0 top-0 h-screen w-[68px] bg-[#0F172A] z-[100] flex-col items-center py-4 border-r border-[#1E293B]">
-        
+
         {/* Logo */}
         <div className="w-full flex justify-center mb-8">
           <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
@@ -153,13 +193,16 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
 
         {/* Navigation Menu */}
         <nav className="flex-1 w-full flex flex-col gap-2 items-center px-2">
-          {MENU_GROUPS.map((group, index) => {
+          {visibleGroups.map((group, index) => {
             if (group.divider) {
               return <div key={index} className="w-8 border-b border-[#1E293B] my-1 opacity-50" />;
             }
 
-            const isActive = group.path
-              ? location.pathname.startsWith(group.path)
+            const resolvedGroupPath = group.path ? resolvePath(group.path) : undefined;
+
+            const isActive = resolvedGroupPath
+              ? (location.pathname.startsWith(resolvedGroupPath) ||
+                 (group.path === '/admin/dashboard' && location.pathname === '/user/dashboard'))
               : getIsGroupActive(group.items);
 
             const Icon = group.icon as React.ComponentType<{ className?: string; strokeWidth?: number }>;
@@ -167,22 +210,22 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
             return (
               <div key={index} className="relative group w-full">
                 {/* Main Icon Button */}
-                {group.path ? (
+                {resolvedGroupPath ? (
                   <NavLink
-                    to={group.path}
+                    to={group.path === '/admin/dashboard' ? dashboardPath : resolvedGroupPath}
                     title={group.label}
                     className={`w-full h-12 flex items-center justify-center rounded-xl transition-all duration-200
-                      ${isActive 
-                        ? 'bg-[#00A86B] text-white shadow-lg shadow-[#00A86B]/20' 
+                      ${isActive
+                        ? 'bg-[#00A86B] text-white shadow-lg shadow-[#00A86B]/20'
                         : 'text-[#94A3B8] hover:bg-white/10 hover:text-white'}`}
                   >
                     <Icon className="w-[22px] h-[22px]" strokeWidth={2} />
                   </NavLink>
                 ) : (
-                  <div 
+                  <div
                     className={`w-full h-12 flex items-center justify-center rounded-xl cursor-pointer transition-all duration-200
-                      ${isActive 
-                        ? 'bg-[#00A86B]/10 text-[#00A86B]' 
+                      ${isActive
+                        ? 'bg-[#00A86B]/10 text-[#00A86B]'
                         : 'text-[#94A3B8] hover:bg-white/10 hover:text-white'}`}
                   >
                     <Icon className="w-[22px] h-[22px]" strokeWidth={isActive ? 2.5 : 2} />
@@ -191,7 +234,7 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
 
                 {/* Flyout Menu Container */}
                 {group.items && filterItems(group.items).length > 0 && (
-                  <div className={`absolute left-full ml-2 invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-all duration-200 z-[100] ${index > MENU_GROUPS.length / 2 ? 'bottom-0' : 'top-0'}`}>
+                  <div className={`absolute left-full ml-2 invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-all duration-200 z-[100] ${index > visibleGroups.length / 2 ? 'bottom-0' : 'top-0'}`}>
                     <div className="bg-white rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.15)] border border-[#E2E8F0] min-w-[200px] overflow-hidden py-2">
                       <div className="px-4 py-2 border-b border-[#E2E8F0] mb-2 flex justify-between items-center">
                         <p className="text-[12px] font-bold text-[#64748B] uppercase tracking-wider">{group.label}</p>
@@ -200,14 +243,15 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
 
                       <div className="flex flex-col">
                         {filterItems(group.items).map((item, i) => {
-                          const isSubActive = location.pathname === item.path;
+                          const resolvedItemPath = resolvePath(item.path);
+                          const isSubActive = location.pathname === resolvedItemPath;
                           return (
                             <NavLink
                               key={i}
-                              to={item.path}
+                              to={resolvedItemPath}
                               className={`flex items-center gap-3 px-4 py-2.5 transition-colors
-                                ${isSubActive 
-                                  ? 'bg-[#F0FDF4] text-[#00A86B]' 
+                                ${isSubActive
+                                  ? 'bg-[#F0FDF4] text-[#00A86B]'
                                   : 'text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A]'}`}
                             >
                               <item.icon className="w-[18px] h-[18px]" strokeWidth={2} />
@@ -233,7 +277,7 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
       {isMobileOpen && (
         <div className="md:hidden fixed inset-0 z-[200]">
           {/* Backdrop */}
-          <div 
+          <div
             className="absolute inset-0 bg-black/50 backdrop-blur-sm"
             onClick={handleMobileNavClick}
           />
@@ -247,7 +291,7 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
                 </div>
                 <span className="text-white text-[15px] font-bold tracking-wide">QuickPost</span>
               </div>
-              <button 
+              <button
                 onClick={handleMobileNavClick}
                 className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-[#94A3B8] hover:text-white hover:bg-white/20 transition-colors"
               >
@@ -257,27 +301,30 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
 
             {/* Mobile Navigation */}
             <nav className="flex-1 overflow-y-auto py-3 px-3">
-              {MENU_GROUPS.map((group, index) => {
+              {visibleGroups.map((group, index) => {
                 if (group.divider) {
                   return <div key={index} className="border-b border-[#1E293B] my-2 mx-2 opacity-50" />;
                 }
 
-                const isActive = group.path
-                  ? location.pathname.startsWith(group.path)
+                const resolvedGroupPath = group.path ? resolvePath(group.path) : undefined;
+
+                const isActive = resolvedGroupPath
+                  ? (location.pathname.startsWith(resolvedGroupPath) ||
+                     (group.path === '/admin/dashboard' && location.pathname === '/user/dashboard'))
                   : getIsGroupActive(group.items);
 
                 const Icon = group.icon as React.ComponentType<{ className?: string; strokeWidth?: number }>;
 
                 // Direct link
-                if (group.path) {
+                if (resolvedGroupPath) {
                   return (
                     <NavLink
                       key={index}
-                      to={group.path}
+                      to={group.path === '/admin/dashboard' ? dashboardPath : resolvedGroupPath}
                       onClick={handleMobileNavClick}
                       className={`flex items-center gap-3 px-3 py-3 rounded-xl mb-1 transition-all duration-200
-                        ${isActive 
-                          ? 'bg-[#00A86B] text-white shadow-lg shadow-[#00A86B]/20' 
+                        ${isActive
+                          ? 'bg-[#00A86B] text-white shadow-lg shadow-[#00A86B]/20'
                           : 'text-[#94A3B8] hover:bg-white/10 hover:text-white'}`}
                     >
                       <Icon className="w-5 h-5" strokeWidth={2} />
@@ -294,8 +341,8 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
                     <button
                       onClick={() => setMobileExpandedGroup(isExpanded ? null : (group.label || null))}
                       className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200
-                        ${isActive 
-                          ? 'bg-[#00A86B]/10 text-[#00A86B]' 
+                        ${isActive
+                          ? 'bg-[#00A86B]/10 text-[#00A86B]'
                           : 'text-[#94A3B8] hover:bg-white/10 hover:text-white'}`}
                     >
                       <Icon className="w-5 h-5" strokeWidth={isActive ? 2.5 : 2} />
@@ -305,15 +352,16 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
                     {isExpanded && group.items && (
                       <div className="ml-4 mt-1 flex flex-col gap-0.5 border-l-2 border-[#1E293B] pl-3">
                         {filterItems(group.items).map((item, i) => {
-                          const isSubActive = location.pathname === item.path;
+                          const resolvedItemPath = resolvePath(item.path);
+                          const isSubActive = location.pathname === resolvedItemPath;
                           return (
                             <NavLink
                               key={i}
-                              to={item.path}
+                              to={resolvedItemPath}
                               onClick={handleMobileNavClick}
                               className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg transition-colors
-                                ${isSubActive 
-                                  ? 'bg-[#00A86B]/10 text-[#00A86B]' 
+                                ${isSubActive
+                                  ? 'bg-[#00A86B]/10 text-[#00A86B]'
                                   : 'text-[#64748B] hover:bg-white/5 hover:text-white'}`}
                             >
                               <item.icon className="w-4 h-4" strokeWidth={2} />
@@ -333,4 +381,3 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
     </>
   );
 }
-

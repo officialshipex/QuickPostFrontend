@@ -11,39 +11,18 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const location = useLocation();
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
-  const showHeader = [
-    '/admin/dashboard',
-    '/admin/users',
-    '/admin/roles',
-    '/admin/allocate-sellers',
-    '/admin/status-map',
-    '/admin/edd-mapping',
-    '/admin/epd-mapping',
-    '/admin/orders',
-    '/admin/ndr',
-    '/admin/weight-discrepancy',
-    '/admin/cod',
-    '/admin/wallet',
-    '/admin/support',
-    '/admin/referral',
-    '/admin/accounts',
-    '/admin/announcement',
-    '/admin/notification',
-    '/admin/kyc',
-    '/admin/reports',
-    '/admin/couriers',
-    '/admin/rate-card'
-  ].some((path) => location.pathname === path || location.pathname.startsWith(path + '/'));
+  const showHeader =
+    location.pathname.startsWith('/admin/') ||
+    location.pathname.startsWith('/user/') ||
+    location.pathname.startsWith('/internal-crm/');
 
   return (
     <div className="admin-dashboard-layout flex min-h-screen bg-[#F8FAFC] text-[#0F172A] selection:bg-[#00A86B]/20 selection:text-[#00A86B] text-sm">
-      <AdminSidebar 
-        isMobileOpen={isMobileSidebarOpen} 
-        onMobileClose={() => setIsMobileSidebarOpen(false)} 
+      <AdminSidebar
+        isMobileOpen={isMobileSidebarOpen}
+        onMobileClose={() => setIsMobileSidebarOpen(false)}
       />
-      <div 
-        className="flex-1 flex flex-col min-w-0 md:ml-[68px]"
-      >
+      <div className="flex-1 flex flex-col min-w-0 md:ml-[68px]">
         {showHeader && (
           <AdminHeader onMobileMenuToggle={() => setIsMobileSidebarOpen(true)} />
         )}

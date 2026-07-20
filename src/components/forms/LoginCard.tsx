@@ -8,6 +8,7 @@ import { CheckCircle2, Apple, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { apiClient } from '../../services/apiClient';
+import { getRoleFromToken } from '../../utils/session';
 
 const formSchema = z.object({
   email: z.string().min(1, 'Email is required').email('Invalid email address'),
@@ -54,9 +55,9 @@ export function LoginCard() {
       }
 
       login(token);
-      
       setStatus('success');
-      navigate('/admin/dashboard');
+      const role = getRoleFromToken(token);
+      navigate(role === 'admin' ? '/admin/dashboard' : '/user/dashboard');
     } catch (err: any) {
       setStatus('error');
       setServerError(

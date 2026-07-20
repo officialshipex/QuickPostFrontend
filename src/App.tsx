@@ -1,12 +1,13 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
-import { getToken, isTokenExpired } from './utils/session';
+import { getToken, isTokenExpired, getRoleFromToken } from './utils/session';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Home } from './pages/Home';
 import { ForgotPassword } from './pages/ForgotPassword';
 import { Login } from './pages/Login';
 import { ProtectedRoute } from './components/layout/ProtectedRoute';
 import { AdminUserProvider } from './context/AdminUserContext';
+import { DashboardFilterProvider } from './context/DashboardFilterContext';
 
 
 
@@ -134,7 +135,9 @@ function GlobalOrderClickInterceptor() {
 function AuthRedirect({ children }: { children: React.ReactNode }) {
   const token = getToken();
   const isValid = token && !isTokenExpired(token);
-  return isValid ? <Navigate to="/admin/dashboard" replace /> : <>{children}</>;
+  if (!isValid) return <>{children}</>;
+  const role = getRoleFromToken(token!);
+  return <Navigate to={role === 'admin' ? '/admin/dashboard' : '/user/dashboard'} replace />;
 }
 
 const queryClient = new QueryClient();
@@ -150,9 +153,25 @@ function App() {
           <Route path="/forgot-password" element={<AuthRedirect><ForgotPassword /></AuthRedirect>} />
           
           {/* Admin Routes */}
-          <Route element={<AdminUserProvider><ProtectedRoute allowedRoles={['admin', 'user']} /></AdminUserProvider>}>
+          <Route element={<AdminUserProvider><DashboardFilterProvider><ProtectedRoute allowedRoles={['admin', 'user']} /></DashboardFilterProvider></AdminUserProvider>}>
             <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
             <Route path="/admin/dashboard" element={<AdminDashboard />} />
+            <Route path="/user/dashboard" element={<AdminDashboard />} />
+            <Route path="/user/orders" element={<AdminOrders />} />
+            <Route path="/user/orders/:tabSlug" element={<AdminOrders />} />
+            <Route path="/user/ndr" element={<AdminNDR />} />
+            <Route path="/user/wallet" element={<AdminWallet />} />
+            <Route path="/user/reports" element={<AdminReports />} />
+            <Route path="/user/weight-discrepancy" element={<AdminWeightDiscrepancy />} />
+            <Route path="/user/weight-discrepancy/:tabSlug" element={<AdminWeightDiscrepancy />} />
+            <Route path="/user/notification" element={<AdminNotification />} />
+            <Route path="/user/kyc" element={<AdminKYC />} />
+            <Route path="/user/referral" element={<AdminReferral />} />
+            <Route path="/user/rate-calculator" element={<AdminRateCalculator />} />
+            <Route path="/user/add-order" element={<AdminAddOrder />} />
+            <Route path="/user/tracking" element={<AdminTracking />} />
+            <Route path="/user/profile" element={<AdminProfile />} />
+            <Route path="/user/order-tracking" element={<AdminOrderTracking />} />
             <Route path="/admin/users" element={<AdminUsers />} />
             <Route path="/admin/roles" element={<AdminRoles />} />
             <Route path="/admin/allocate-sellers" element={<AdminAllocateSellers />} />

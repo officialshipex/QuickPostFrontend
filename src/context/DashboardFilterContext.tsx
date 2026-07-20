@@ -1,8 +1,14 @@
 import React, { createContext, useContext, useState } from 'react';
 import type { ReactNode } from 'react';
 
+export interface DashboardDateRange {
+  start: Date;
+  end: Date;
+  label: string;
+}
+
 export interface DashboardFilters {
-  dateRange: { start: Date | null; end: Date | null };
+  dateRange: DashboardDateRange;
   courier: string;
   shipmentType: string;
   status: string;
@@ -14,8 +20,14 @@ interface DashboardFilterContextType {
   updateFilter: (key: keyof DashboardFilters, value: any) => void;
 }
 
+function getDefaultDateRange(): DashboardDateRange {
+  const end = new Date(); end.setHours(23, 59, 59, 999);
+  const start = new Date(); start.setDate(start.getDate() - 29); start.setHours(0, 0, 0, 0);
+  return { start, end, label: 'Last 30 Days' };
+}
+
 const defaultFilters: DashboardFilters = {
-  dateRange: { start: null, end: null },
+  dateRange: getDefaultDateRange(),
   courier: 'All',
   shipmentType: 'All',
   status: 'All',
