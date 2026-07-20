@@ -95,6 +95,14 @@ const mapRechargeItem = (item: any) => ({
   orderId: item.orderId || '',
 });
 
+// "March 2026" — the invoice period is always a single billing month, so periodEnd is redundant.
+const formatInvoicePeriod = (periodStart: string | undefined) => {
+  if (!periodStart) return '—';
+  const d = new Date(periodStart);
+  if (isNaN(d.getTime())) return '—';
+  return d.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+};
+
 const mapInvoiceItem = (item: any) => ({
   id: item._id || '',
   userId: item.userDetails?.userId || '',
@@ -105,7 +113,7 @@ const mapInvoiceItem = (item: any) => ({
   shipments: item.totalShipments || 0,
   amount: item.amount || 0,
   createdOn: item.invoiceDate ? new Date(item.invoiceDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '',
-  invoicePeriod: [item.periodStart, item.periodEnd].filter(Boolean).join(' - '),
+  invoicePeriod: formatInvoicePeriod(item.periodStart),
   status: (item.status || '').toUpperCase() === 'PAID' ? 'PAID' : 'UNPAID',
   invoiceUrl: item.invoiceUrl || '',
 });
@@ -718,6 +726,46 @@ export function AdminWallet() {
   useEffect(() => { if (activeTab === 'Wallet Recharge') fetchRechargeData(rechargePage); }, [rechargePage]);
   useEffect(() => { if (activeTab === 'Invoices') fetchInvoiceData(invoicePage); }, [invoicePage]);
 
+  // Clear All — same pattern as Orders/NDR: reset every filter for the active tab, reset to page 1, refetch immediately.
+  const clearShippingFilters = () => {
+    setSearchTerm(''); setSelectedSearchTypes([]); setSearchTypeId('');
+    setSelectedCouriers([]); setSelectedStatuses([]);
+    setShippingDateStart(''); setShippingDateEnd('');
+    if (isAdminView) { setShipUserQuery(''); setShipUserSuggestions([]); setShipUserMongoId(''); }
+    setShippingPage(1);
+    fetchShippingData(1);
+  };
+  const hasShippingFilters = !!(searchTerm || selectedSearchTypes.length || searchTypeId || selectedCouriers.length || selectedStatuses.length || (shippingDateStart && shippingDateEnd) || (isAdminView && shipUserMongoId));
+
+  const clearPassbookFilters = () => {
+    setPassbookSearchTerm(''); setPassbookOrderId(''); setPassbookAwb('');
+    setSelectedCategories([]); setSelectedDescriptions([]);
+    setPassbookDateStart(''); setPassbookDateEnd('');
+    if (isAdminView) { setPbUserQuery(''); setPbUserSuggestions([]); setPbUserMongoId(''); }
+    setPassbookPage(1);
+    fetchPassbookData(1);
+  };
+  const hasPassbookFilters = !!(passbookSearchTerm || passbookOrderId || passbookAwb || selectedCategories.length || selectedDescriptions.length || (passbookDateStart && passbookDateEnd) || (isAdminView && pbUserMongoId));
+
+  const clearRechargeFilters = () => {
+    setRechargeSearchTerm(''); setRechargeTxnId('');
+    setSelectedPaymentMethods([]); setSelectedRechargeStatuses([]);
+    setRechargeDateStart(''); setRechargeDateEnd('');
+    if (isAdminView) { setRcUserQuery(''); setRcUserSuggestions([]); setRcUserMongoId(''); }
+    setRechargePage(1);
+    fetchRechargeData(1);
+  };
+  const hasRechargeFilters = !!(rechargeSearchTerm || rechargeTxnId || selectedPaymentMethods.length || selectedRechargeStatuses.length || (rechargeDateStart && rechargeDateEnd) || (isAdminView && rcUserMongoId));
+
+  const clearInvoiceFilters = () => {
+    setInvoiceSearchTerm(''); setSelectedMonths([]); setSelectedYears([]);
+    setInvoiceDateStart(''); setInvoiceDateEnd('');
+    if (isAdminView) { setInvUserQuery(''); setInvUserSuggestions([]); setInvUserMongoId(''); }
+    setInvoicePage(1);
+    fetchInvoiceData(1);
+  };
+  const hasInvoiceFilters = !!(invoiceSearchTerm || selectedMonths.length || selectedYears.length || (invoiceDateStart && invoiceDateEnd) || (isAdminView && invUserMongoId));
+
   // Fetch COD balance when recharge modal opens
   useEffect(() => { if (isRechargeModalOpen) fetchCodBalance(); }, [isRechargeModalOpen, fetchCodBalance]);
 
@@ -1252,6 +1300,13 @@ export function AdminWallet() {
                   Apply
                 </button>
 
+                {hasShippingFilters && (
+                  <button onClick={clearShippingFilters}
+                    className="h-9 px-3 shrink-0 rounded-lg border border-red-200 text-red-500 text-xs font-bold hover:bg-red-50 transition-colors">
+                    Clear All
+                  </button>
+                )}
+
                 <div className="relative shrink-0 ml-auto flex items-center gap-2">
                   <button
                     onClick={() => setIsRechargeModalOpen(true)}
@@ -1443,6 +1498,13 @@ export function AdminWallet() {
                   Apply
                 </button>
 
+                {hasPassbookFilters && (
+                  <button onClick={clearPassbookFilters}
+                    className="h-9 px-3 shrink-0 rounded-lg border border-red-200 text-red-500 text-xs font-bold hover:bg-red-50 transition-colors">
+                    Clear All
+                  </button>
+                )}
+
                 <div className="relative shrink-0 ml-auto flex items-center gap-2">
                   <button
                     onClick={() => setIsRechargeModalOpen(true)}
@@ -1534,6 +1596,13 @@ export function AdminWallet() {
                 >
                   Apply
                 </button>
+
+                {hasRechargeFilters && (
+                  <button onClick={clearRechargeFilters}
+                    className="h-9 px-3 shrink-0 rounded-lg border border-red-200 text-red-500 text-xs font-bold hover:bg-red-50 transition-colors">
+                    Clear All
+                  </button>
+                )}
 
                 <div className="relative shrink-0 ml-auto flex items-center gap-2">
                   <button
@@ -1671,6 +1740,13 @@ export function AdminWallet() {
                 >
                   Apply
                 </button>
+
+                {hasInvoiceFilters && (
+                  <button onClick={clearInvoiceFilters}
+                    className="h-9 px-3 shrink-0 rounded-lg border border-red-200 text-red-500 text-xs font-bold hover:bg-red-50 transition-colors">
+                    Clear All
+                  </button>
+                )}
 
                 <div className="relative shrink-0 ml-auto flex items-center gap-2">
                   {isAdminView && (
@@ -2544,8 +2620,8 @@ export function AdminWallet() {
                                 <span className="text-[#64748B] font-medium text-[12px] font-sans">User Details</span>
                               </div>
                               <span className="text-[12px] font-sans inline-flex items-baseline gap-1 max-w-[180px]">
-                                {renderTruncatedName(recharge.userName, 16, "font-semibold text-[#0F172A] text-[12px]")}
-                                <span className="text-[#94A3B8] font-semibold shrink-0">({recharge.id})</span>
+                                <TruncatedText text={recharge.userName || '—'} maxLength={16} className="font-semibold text-[#0F172A] text-[12px]" />
+                                <span className="text-[#94A3B8] font-semibold shrink-0">({recharge.userId || '—'})</span>
                               </span>
                             </div>
 
@@ -2787,28 +2863,20 @@ export function AdminWallet() {
                                   onChange={() => toggleSelectInvoice(invoice.invoiceNumber)}
                                   className="rounded border-gray-300 accent-[#00A86B] w-4 h-4 shrink-0"
                                 />
-                                <div className="w-8 h-8 rounded-full bg-[#E6F5F1] text-[#00A86B] font-bold text-xs flex items-center justify-center shrink-0">
-                                  {invoice.userName.charAt(0)}
-                                </div>
-                                <div className="min-w-0">
-                                  <div
-                                    className={`text-[12px] font-normal text-[#0F172A] truncate font-sans ${invoice.userName.length > 16 ? 'active:opacity-60' : ''}`}
-                                    title={invoice.userName.length > 16 ? invoice.userName : undefined}
-                                    onClick={invoice.userName.length > 16 ? () => showToast('success', invoice.userName) : undefined}
-                                  >
-                                    {truncateChars(invoice.userName, 16)}
+                                {isAdminView && (
+                                  <div className="w-8 h-8 rounded-full bg-[#E6F5F1] text-[#00A86B] font-bold text-xs flex items-center justify-center shrink-0">
+                                    {(invoice.userName || '?').charAt(0)}
                                   </div>
-                                  <div
-                                    className={`text-[12px] font-normal text-[#94A3B8] font-sans truncate ${invoice.userEmail.length > 15 ? 'active:opacity-60' : ''}`}
-                                    title={invoice.userEmail.length > 15 ? invoice.userEmail : undefined}
-                                    onClick={invoice.userEmail.length > 15 ? () => showToast('success', invoice.userEmail) : undefined}
-                                  >
-                                    {truncateChars(invoice.userEmail, 15)}
+                                )}
+                                {isAdminView && (
+                                  <div className="min-w-0">
+                                    <div className="text-[12px] font-semibold text-[#00A86B] font-sans uppercase">{invoice.userId || '—'}</div>
+                                    <TruncatedText text={invoice.userName || '—'} maxLength={16} className="text-[12px] font-normal text-[#0F172A] font-sans" />
+                                    <TruncatedText text={invoice.userEmail || '—'} maxLength={18} className="text-[12px] font-normal text-[#94A3B8] font-sans" />
                                   </div>
-                                </div>
+                                )}
                               </div>
                               <div className="flex items-center gap-1.5 shrink-0">
-                                <span className="text-[12px] font-semibold text-[#00A86B] font-sans">{invoice.id}</span>
                                 <button
                                   onClick={() => handleDownloadInvoice(invoice)}
                                   title="Download PDF"
@@ -2849,13 +2917,7 @@ export function AdminWallet() {
                             <div className="grid grid-cols-3 gap-2 items-start bg-[#F8FAFC] rounded-xl px-3 py-2.5">
                               <div className="min-w-0">
                                 <div className="text-[12px] font-normal text-[#94A3B8] uppercase tracking-wider font-sans">Invoice No</div>
-                                <div
-                                  className={`text-[12px] font-semibold text-[#00A86B] mt-0.5 font-sans truncate ${invoice.invoiceNumber.length > 20 ? 'active:opacity-60' : ''}`}
-                                  title={invoice.invoiceNumber.length > 20 ? invoice.invoiceNumber : undefined}
-                                  onClick={invoice.invoiceNumber.length > 20 ? () => showToast('success', invoice.invoiceNumber) : undefined}
-                                >
-                                  {truncateChars(invoice.invoiceNumber, 20)}
-                                </div>
+                                <TruncatedText text={invoice.invoiceNumber || '—'} maxLength={14} className="text-[12px] font-semibold text-[#00A86B] mt-0.5 font-sans" />
                               </div>
                               <div className="text-center min-w-0">
                                 <div className="text-[12px] font-normal text-[#94A3B8] uppercase tracking-wider font-sans">Shipments</div>
@@ -3964,36 +4026,10 @@ export function AdminWallet() {
                 <div className="flex gap-3 pt-4 border-t border-[#E2E8F0] mt-6">
                   <button
                     onClick={() => {
-                      if (activeTab === 'Shipping') {
-                        setSearchTerm('');
-                        setSelectedSearchTypes([]);
-                        setSearchTypeId('');
-                        setSelectedCouriers([]);
-                        setSelectedStatuses([]);
-                        setShippingDateStart('');
-                        setShippingDateEnd('');
-                      } else if (activeTab === 'Passbook') {
-                        setPassbookSearchTerm('');
-                        setPassbookOrderId('');
-                        setPassbookAwb('');
-                        setSelectedCategories([]);
-                        setSelectedDescriptions([]);
-                        setPassbookDateStart('');
-                        setPassbookDateEnd('');
-                      } else if (activeTab === 'Wallet Recharge') {
-                        setRechargeSearchTerm('');
-                        setRechargeTxnId('');
-                        setSelectedPaymentMethods([]);
-                        setSelectedRechargeStatuses([]);
-                        setRechargeDateStart('');
-                        setRechargeDateEnd('');
-                      } else if (activeTab === 'Invoices') {
-                        setInvoiceSearchTerm('');
-                        setSelectedMonths([]);
-                        setSelectedYears([]);
-                        setInvoiceDateStart('');
-                        setInvoiceDateEnd('');
-                      }
+                      if (activeTab === 'Shipping') clearShippingFilters();
+                      else if (activeTab === 'Passbook') clearPassbookFilters();
+                      else if (activeTab === 'Wallet Recharge') clearRechargeFilters();
+                      else if (activeTab === 'Invoices') clearInvoiceFilters();
                       setIsMobileFiltersOpen(false);
                       showToast('success', 'Filters cleared');
                     }}

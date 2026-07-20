@@ -66,7 +66,9 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
     '/admin/referral',
     '/admin/accounts',
     '/admin/announcement',
-    '/admin/notification'
+    '/admin/notification',
+    '/admin/couriers',
+    '/admin/rate-card'
   ].some((path) => location.pathname === path || location.pathname.startsWith(path + '/'));
 
   // KYC is a self-contained onboarding flow — the page-context search/date/quick-action tools don't apply there.
@@ -98,6 +100,12 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
     if (location.pathname.startsWith('/admin/weight-discrepancy/')) {
       return "Search weight discrepancies by name, email, or AWB (Press '/')";
     }
+    if (location.pathname === '/admin/couriers' || location.pathname.startsWith('/admin/couriers/')) {
+      return "Search by courier name (Press '/')";
+    }
+    if (location.pathname === '/admin/rate-card' || location.pathname.startsWith('/admin/rate-card/')) {
+      return "Search rate cards by courier name (Press '/')";
+    }
     const path = location.pathname;
     switch (path) {
       case '/admin/users': return "Search users by name, email or role (Press '/')";
@@ -116,7 +124,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
           default: return "Search COD orders by user, order ID or AWB (Press '/')";
         }
       case '/admin/wallet': return "Search transactions by user or remark (Press '/')";
-      case '/admin/referral': return "Search referrers by name, email, phone or ID (Press '/')";
+      case '/admin/referral': return "Search referrals by name, user ID, email or contact (Press '/')";
       case '/admin/support': return "Search support tickets by ID, AWB or customer (Press '/')";
       case '/admin/accounts': return "Search admin accounts by name, email or role (Press '/')";
       case '/admin/announcement': return "Search announcements by title or message (Press '/')";

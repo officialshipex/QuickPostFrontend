@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   ChevronDown, User, Users,
   UserCheck, ShieldAlert, IndianRupee, CreditCard, Building2,
-  Clock, Edit2, Wallet, Copy, CheckCircle2, AlertCircle, X, MoreVertical, Info, Filter, Search
+  Clock, Edit2, Wallet, Copy, CheckCircle2, AlertCircle, X, MoreVertical, MoreHorizontal, Settings, Info, Filter, Search
 } from 'lucide-react';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
@@ -82,12 +82,17 @@ export function AdminUsers() {
   // ─── Selection ──────────────────────────────────────────────────────────────
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [hoveredBalance, setHoveredBalance] = useState<{ rect: DOMRect; holdAmount: number; lastRechargeDate: any } | null>(null);
+  const [hoveredManager, setHoveredManager] = useState<{ rect: DOMRect; name: string; email: string; phone: string } | null>(null);
+  const [hoveredBusiness, setHoveredBusiness] = useState<{ rect: DOMRect; company: string; userType: string; isBlocked: boolean } | null>(null);
 
   // ─── Filter display state ───────────────────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedKycStatuses, setSelectedKycStatuses] = useState<string[]>([]);
   const [selectedRateCards, setSelectedRateCards] = useState<string[]>([]);
   const [selectedWalletBalances, setSelectedWalletBalances] = useState<string[]>([]);
+  const [selectedTiers, setSelectedTiers] = useState<string[]>([]);
+  const [selectedAccountManagers, setSelectedAccountManagers] = useState<string[]>([]);
+  const [selectedUserTypes, setSelectedUserTypes] = useState<string[]>([]);
   const [dateStart, setDateStart] = useState('');
   const [dateEnd, setDateEnd] = useState('');
 
@@ -96,6 +101,9 @@ export function AdminUsers() {
   const [appliedKyc, setAppliedKyc] = useState<string[]>([]);
   const [appliedRateCard, setAppliedRateCard] = useState<string[]>([]);
   const [appliedBalance, setAppliedBalance] = useState<string[]>([]);
+  const [appliedTiers, setAppliedTiers] = useState<string[]>([]);
+  const [appliedAccountManagers, setAppliedAccountManagers] = useState<string[]>([]);
+  const [appliedUserTypes, setAppliedUserTypes] = useState<string[]>([]);
   const [appliedDateStart, setAppliedDateStart] = useState('');
   const [appliedDateEnd, setAppliedDateEnd] = useState('');
 
@@ -115,6 +123,7 @@ export function AdminUsers() {
   const [rateCardFilterOptions, setRateCardFilterOptions] = useState<{ label: string; value: string }[]>([]);
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
   const [mobileActionOpen, setMobileActionOpen] = useState(false);
+  const [rowActionOpenId, setRowActionOpenId] = useState<string | null>(null);
 
   // ─── Helpers ────────────────────────────────────────────────────────────────
   const showToast = (type: 'success' | 'error', text: string) => {
@@ -148,6 +157,19 @@ export function AdminUsers() {
     apiClient.get('/saveRate/getPlanNames')
       .then(res => setRateCardFilterOptions((res.data.planNames || []).map((p: string) => ({ label: p, value: p }))))
       .catch(() => {});
+  }, []);
+
+  // Close the Action dropdown on outside click (not onBlur — a blur timeout races the
+  // Refresh button's click and can unmount the menu before the click registers).
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.action-dropdown-container')) {
+        setActionDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   // ─── Fetch users ─────────────────────────────────────────────────────────────
@@ -214,6 +236,9 @@ export function AdminUsers() {
     setAppliedKyc(selectedKycStatuses);
     setAppliedRateCard(selectedRateCards);
     setAppliedBalance(selectedWalletBalances);
+    setAppliedTiers(selectedTiers);
+    setAppliedAccountManagers(selectedAccountManagers);
+    setAppliedUserTypes(selectedUserTypes);
     setAppliedDateStart(dateStart);
     setAppliedDateEnd(dateEnd);
     setCurrentPage(1);
@@ -224,17 +249,27 @@ export function AdminUsers() {
     setSelectedKycStatuses([]);
     setSelectedRateCards([]);
     setSelectedWalletBalances([]);
+    setSelectedTiers([]);
+    setSelectedAccountManagers([]);
+    setSelectedUserTypes([]);
     setDateStart('');
     setDateEnd('');
     setAppliedSearch('');
     setAppliedKyc([]);
     setAppliedRateCard([]);
     setAppliedBalance([]);
+    setAppliedTiers([]);
+    setAppliedAccountManagers([]);
+    setAppliedUserTypes([]);
     setAppliedDateStart('');
     setAppliedDateEnd('');
     setCurrentPage(1);
     setActionDropdownOpen(false);
   };
+
+  // Matches Wallet's behavior: show "Clear All" as soon as a filter is picked (draft state),
+  // not only after Apply — so it's visible the moment the user selects anything.
+  const hasActiveFilters = !!(searchQuery || selectedKycStatuses.length || selectedRateCards.length || selectedWalletBalances.length || selectedTiers.length || selectedAccountManagers.length || selectedUserTypes.length || (dateStart && dateEnd));
 
   // ─── Rate card modal ─────────────────────────────────────────────────────────
   const openRateCardModal = async (user: any) => {
@@ -272,7 +307,7 @@ export function AdminUsers() {
   };
 
   // ─── Selection helpers ───────────────────────────────────────────────────────
-  const toggleAll = () => setSelectedIds(selectedIds.length === users.length ? [] : users.map(u => String(u.id)));
+  const toggleAll = () => setSelectedIds(selectedIds.length === filteredUsers.length ? [] : filteredUsers.map(u => String(u.id)));
   const toggleSelect = (id: string) => setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
   const KYC_OPTIONS = [
@@ -286,6 +321,34 @@ export function AdminUsers() {
     { label: 'Hold Balance', value: 'Hold Balance' },
     { label: 'Never Recharged', value: 'Never Recharged' }
   ];
+
+  const TIER_OPTIONS = [
+    { label: 'Silver', value: 'Silver' },
+    { label: 'Gold', value: 'Gold' },
+    { label: 'Platinum', value: 'Platinum' },
+    { label: 'Diamond', value: 'Diamond' },
+    { label: 'Titanium', value: 'Titanium' },
+  ];
+
+  const USER_TYPE_OPTIONS = [
+    { label: 'Business', value: 'Business' },
+    { label: 'Individual', value: 'Individual' },
+  ];
+
+  // Account manager names aren't a fixed enum — build the filter's options from whatever names
+  // have loaded on the current page/search, same as the existing "current data" driven filters.
+  const accountManagerFilterOptions = Array.from(
+    new Set(users.map(u => u.accountManagerName).filter(Boolean))
+  ).sort().map(name => ({ label: name, value: name }));
+
+  // Tier, Account Manager and User Type have no backend query params (all derived client-side),
+  // so they filter the already-fetched page in-memory rather than refetching.
+  const filteredUsers = users.filter(u => {
+    const matchesTier = appliedTiers.length === 0 || appliedTiers.includes(getTier(u.monthlyShipments ?? u.orderCount ?? 0));
+    const matchesAccountManager = appliedAccountManagers.length === 0 || appliedAccountManagers.includes(u.accountManagerName || '');
+    const matchesUserType = appliedUserTypes.length === 0 || appliedUserTypes.includes(getUserType(u));
+    return matchesTier && matchesAccountManager && matchesUserType;
+  });
 
   return (
     <AdminLayout>
@@ -324,7 +387,6 @@ export function AdminUsers() {
               </button>
               {mobileActionOpen && (
                 <div className="absolute right-0 top-full mt-2 w-40 bg-white border border-[#E2E8F0] rounded-lg shadow-lg py-1 z-50">
-                  <button onClick={() => { resetFilters(); setMobileActionOpen(false); }} className="w-full text-left px-4 py-2 text-xs hover:bg-[#F8FAFC] text-[#475569]">Reset Filters</button>
                   <button
                     onClick={() => { fetchUsers(currentPage); setMobileActionOpen(false); }}
                     className="w-full text-left px-4 py-2 text-xs hover:bg-[#F8FAFC] text-[#475569]"
@@ -445,6 +507,33 @@ export function AdminUsers() {
               icon={<Wallet className="w-3.5 h-3.5" />}
             />
 
+            <GlassDropdown
+              label="Tier"
+              options={TIER_OPTIONS}
+              selected={selectedTiers}
+              onChange={setSelectedTiers}
+              placeholder="Search tier..."
+              icon={<ShieldAlert className="w-3.5 h-3.5" />}
+            />
+
+            <GlassDropdown
+              label="Account Manager"
+              options={accountManagerFilterOptions}
+              selected={selectedAccountManagers}
+              onChange={setSelectedAccountManagers}
+              placeholder="Search manager..."
+              icon={<User className="w-3.5 h-3.5" />}
+            />
+
+            <GlassDropdown
+              label="User Type"
+              options={USER_TYPE_OPTIONS}
+              selected={selectedUserTypes}
+              onChange={setSelectedUserTypes}
+              placeholder="Search type..."
+              icon={<Building2 className="w-3.5 h-3.5" />}
+            />
+
             <GlassDateFilter
               align="right"
               startDate={dateStart}
@@ -459,10 +548,16 @@ export function AdminUsers() {
               Apply
             </button>
 
-            <div className="relative shrink-0 ml-auto flex items-center">
+            {hasActiveFilters && (
+              <button onClick={resetFilters}
+                className="h-9 px-3 shrink-0 rounded-lg border border-red-200 text-red-500 text-xs font-bold hover:bg-red-50 transition-colors">
+                Clear All
+              </button>
+            )}
+
+            <div className="relative shrink-0 ml-auto flex items-center action-dropdown-container">
               <button
                 onClick={() => setActionDropdownOpen(!actionDropdownOpen)}
-                onBlur={() => setTimeout(() => setActionDropdownOpen(false), 200)}
                 className="h-9 pl-4 pr-8 rounded-full border border-[#E2E8F0] text-xs bg-white focus:outline-none flex items-center font-bold text-[#475569] shadow-sm hover:bg-[#F8FAFC] transition-colors cursor-pointer"
               >
                 Action
@@ -470,7 +565,6 @@ export function AdminUsers() {
               </button>
               {actionDropdownOpen && (
                 <div className="absolute top-full right-0 mt-2 w-40 bg-white border border-[#E2E8F0] rounded-lg shadow-lg py-1 z-50">
-                  <button onClick={resetFilters} className="w-full text-left px-4 py-2 text-xs hover:bg-[#F8FAFC] text-[#475569]">Reset Filters</button>
                   <button
                     onClick={() => { fetchUsers(currentPage); setActionDropdownOpen(false); }}
                     className="w-full text-left px-4 py-2 text-xs hover:bg-[#F8FAFC] text-[#475569]"
@@ -491,20 +585,21 @@ export function AdminUsers() {
               <thead className="sticky top-0 z-40 bg-[#E6F5F1] shadow-sm">
                 <tr className="text-xs font-medium text-[#00A86B] uppercase tracking-wider">
                   <th className="p-3 w-10">
-                    <input type="checkbox" checked={selectedIds.length === users.length && users.length > 0} onChange={toggleAll} className="rounded border-[#00A86B] accent-[#00A86B] w-3.5 h-3.5" />
+                    <input type="checkbox" checked={selectedIds.length === filteredUsers.length && filteredUsers.length > 0} onChange={toggleAll} className="rounded border-[#00A86B] accent-[#00A86B] w-3.5 h-3.5" />
                   </th>
                   <th className="p-3 whitespace-nowrap"><User className="w-3.5 h-3.5 inline mr-1" /> User Details</th>
-                  <th className="p-3 whitespace-nowrap"><Building2 className="w-3.5 h-3.5 inline mr-1" /> Business Details</th>
+                  <th className="p-3 whitespace-nowrap"><UserCheck className="w-3.5 h-3.5 inline mr-1" /> KYC Status</th>
                   <th className="p-3 whitespace-nowrap"><CreditCard className="w-3.5 h-3.5 inline mr-1" /> Rate Card</th>
+                  <th className="p-3 whitespace-nowrap"><ShieldAlert className="w-3.5 h-3.5 inline mr-1" /> Tier</th>
                   <th className="p-3 whitespace-nowrap"><IndianRupee className="w-3.5 h-3.5 inline mr-1" /> Balance</th>
                   <th className="p-3 whitespace-nowrap"><User className="w-3.5 h-3.5 inline mr-1" /> Account Manager</th>
                   <th className="p-3 whitespace-nowrap"><Clock className="w-3.5 h-3.5 inline mr-1" /> Registration Date</th>
-                  <th className="p-3 whitespace-nowrap"><MoreVertical className="w-3.5 h-3.5 inline mr-1" /> Last Activity</th>
-                  <th className="p-3 whitespace-nowrap text-right pr-6">Actions</th>
+                  <th className="p-3 whitespace-nowrap"><MoreVertical className="w-3.5 h-3.5 inline mr-1" /> Order Activity</th>
+                  <th className="p-3 whitespace-nowrap text-right pr-6"><Settings className="w-3.5 h-3.5 inline mr-1" /> Actions</th>
                 </tr>
               </thead>
               <tbody className="text-[11px] text-[#475569]">
-                {users.length > 0 ? users.map((user) => {
+                {filteredUsers.length > 0 ? filteredUsers.map((user) => {
                   const uid = String(user.id);
                   const kycLabel = user.kycStatus ? 'Verified' : 'Pending';
                   return (
@@ -514,7 +609,18 @@ export function AdminUsers() {
                       </td>
                       <td className="p-3 align-top pt-4">
                         <div className="flex items-center gap-1">
-                          <div className="text-xs font-semibold text-[#00A86B]">{user.userId}</div>
+                          <div
+                            className="text-xs font-semibold text-[#00A86B] cursor-default"
+                            onMouseEnter={(e) => setHoveredBusiness({
+                              rect: e.currentTarget.getBoundingClientRect(),
+                              company: user.company || '—',
+                              userType: getUserType(user),
+                              isBlocked: !!user.isBlocked,
+                            })}
+                            onMouseLeave={() => setHoveredBusiness(null)}
+                          >
+                            {user.userId}
+                          </div>
                           <button onClick={() => copyToClipboard(user.userId, 'User ID')} className="opacity-0 group-hover:opacity-100 transition-opacity">
                             <Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" />
                           </button>
@@ -530,17 +636,13 @@ export function AdminUsers() {
                         </div>
                       </td>
                       <td className="p-3 align-top pt-4">
-                        <div className="ml-[6px]">
-                          <TruncatedText text={user.company || '—'} maxLength={20} className="font-bold text-[#475569] text-[12px] max-w-[160px]" tooltipClassName="text-[12px] font-normal" />
-                          <div className="text-[#64748B] font-normal mt-0.5 text-[12px]">User Type: {getUserType(user)}</div>
-                          <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-                            <span className={getStatusBadgeClass(kycLabel)}>{kycLabel}</span>
-                            {user.isBlocked && (
-                              <span className="bg-red-50 text-red-700 border border-red-200 px-2.5 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider whitespace-nowrap shadow-sm">
-                                Blocked
-                              </span>
-                            )}
-                          </div>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className={getStatusBadgeClass(kycLabel)}>{kycLabel}</span>
+                          {user.isBlocked && (
+                            <span className="bg-red-50 text-red-700 border border-red-200 px-2.5 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider whitespace-nowrap shadow-sm">
+                              Blocked
+                            </span>
+                          )}
                         </div>
                       </td>
                       <td className="p-3 align-top pt-4">
@@ -550,9 +652,9 @@ export function AdminUsers() {
                             <Edit2 className="w-3.5 h-3.5 text-[#00A86B] cursor-pointer hover:text-[#009B63]" />
                           </button>
                         </div>
-                        <div className="mt-1.5">
-                          <span className={getStatusBadgeClass(getTier(user.monthlyShipments ?? user.orderCount ?? 0))}>{getTier(user.monthlyShipments ?? user.orderCount ?? 0)} Tier</span>
-                        </div>
+                      </td>
+                      <td className="p-3 align-top pt-4">
+                        <span className={getStatusBadgeClass(getTier(user.monthlyShipments ?? user.orderCount ?? 0))}>{getTier(user.monthlyShipments ?? user.orderCount ?? 0)} Tier</span>
                       </td>
                       <td className="p-3 align-top pt-4">
                         <div className="text-[10px] font-medium text-[#94A3B8] uppercase tracking-wider">Wallet Balance</div>
@@ -569,26 +671,48 @@ export function AdminUsers() {
                         </div>
                       </td>
                       <td className="p-3 align-top pt-4 text-left">
-                        <TruncatedText text={user.accountManagerName || 'N/A'} maxLength={20} className="text-[#0F172A] font-normal text-[12px] max-w-[140px] ml-[20px]" />
+                        <div
+                          className="max-w-[140px] ml-[20px] truncate text-[#0F172A] font-normal text-[12px] cursor-default"
+                          onMouseEnter={(e) => setHoveredManager({
+                            rect: e.currentTarget.getBoundingClientRect(),
+                            name: user.accountManagerName || 'N/A',
+                            email: user.accountManagerEmail || '',
+                            phone: user.accountManagerPhone || user.accountManagerNumber || '',
+                          })}
+                          onMouseLeave={() => setHoveredManager(null)}
+                        >
+                          {user.accountManagerName || 'N/A'}
+                        </div>
                       </td>
                       <td className="p-3 align-top pt-4">
                         <div className="table-date">{fmtDate(user.createdAt)}</div>
                         <div className="text-[12px] font-normal text-[#94A3B8] mt-0.5">{fmtTime(user.createdAt)}</div>
                       </td>
                       <td className="p-3 align-top pt-4">
-                        <div className="font-bold text-[#475569] text-[12px] ml-[5px]">Orders: {user.orderCount || 0}</div>
+                        <div className="font-bold text-[#475569] text-[12px] ml-[5px]">Total Orders: {user.orderCount || 0}</div>
+                        <div className="text-[12px] font-normal text-[#64748B] mt-0.5 ml-[5px]">Last Booked: {user.lastBookedCount ?? 0}</div>
                         <div className="table-date mt-0.5 ml-[5px]">{fmtDate(user.lastOrderDate)}</div>
-                        {user.lastLogin && (
-                          <div className="text-[12px] font-normal text-[#94A3B8] mt-0.5 ml-[5px]">Login: {fmtDate(user.lastLogin)}</div>
-                        )}
                       </td>
                       <td className="p-3 align-top pt-4 text-right pr-6">
-                        <button
-                          onClick={() => navigate('/admin/profile', { state: { user } })}
-                          className="px-4 py-1 rounded-full border border-[#00A86B] text-[#00A86B] font-bold text-[10px] hover:bg-[#F0FDF4] cursor-pointer transition-colors shadow-sm"
-                        >
-                          Profile
-                        </button>
+                        <div className="relative inline-block text-left">
+                          <button
+                            onClick={() => setRowActionOpenId(prev => prev === uid ? null : uid)}
+                            onBlur={() => setTimeout(() => setRowActionOpenId(prev => prev === uid ? null : prev), 150)}
+                            className={`w-7 h-7 rounded-full border flex items-center justify-center transition-colors cursor-pointer ${rowActionOpenId === uid ? 'bg-green-100 border-[#00A86B] text-[#00A86B]' : 'border-[#E2E8F0] text-[#64748B] hover:bg-[#F1F5F9]'}`}
+                          >
+                            <MoreHorizontal className="w-3.5 h-3.5" />
+                          </button>
+                          {rowActionOpenId === uid && (
+                            <div className="absolute right-0 top-full mt-1 w-36 bg-white rounded-xl shadow-[0_4px_24px_-4px_rgba(0,0,0,0.15)] border border-[#E2E8F0] py-1.5 z-50">
+                              <button
+                                onClick={() => navigate('/admin/profile', { state: { user } })}
+                                className="w-full text-left px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#00A86B] transition-colors"
+                              >
+                                Profile
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -620,11 +744,11 @@ export function AdminUsers() {
         <div className="md:hidden flex flex-col flex-1 min-h-0 bg-[#F8FAFC]">
           <div className="flex-1 overflow-y-auto relative">
             {isLoading && <TableLoader />}
-            {users.length === 0 ? (
+            {filteredUsers.length === 0 ? (
               <div className="p-8 text-center text-[#94A3B8] font-medium text-sm">No users found.</div>
             ) : (
               <div className="p-4 space-y-4">
-                {users.map((user) => {
+                {filteredUsers.map((user) => {
                   const uid = String(user.id);
                   const kycLabel = user.kycStatus ? 'Verified' : 'Pending';
                   const aadhaar = user.aadhaarNumber || user.aadhaar || user.kycDetails?.aadhaarNumber || '';
@@ -747,6 +871,77 @@ export function AdminUsers() {
         );
       })()}
 
+      {/* Account Manager Tooltip */}
+      {hoveredManager && (() => {
+        const showBelow = hoveredManager.rect.top < 160;
+        return (
+          <div
+            className="fixed z-[9999] pointer-events-none bg-[#0F172A] text-white text-xs font-normal p-3 rounded-xl shadow-xl w-60"
+            style={{
+              top: showBelow ? hoveredManager.rect.bottom + 10 : hoveredManager.rect.top - 10,
+              left: Math.min(Math.max(hoveredManager.rect.left + hoveredManager.rect.width / 2, 120), window.innerWidth - 120),
+              transform: showBelow ? 'translate(-50%, 0)' : 'translate(-50%, -100%)',
+            }}
+          >
+            <div className="flex justify-between items-center gap-3">
+              <span className="text-slate-300">Name</span>
+              <span className="font-semibold text-white truncate max-w-[140px]">{hoveredManager.name}</span>
+            </div>
+            <div className="flex justify-between items-center gap-3 mt-1.5 pt-1.5 border-t border-white/10">
+              <span className="text-slate-300">Email</span>
+              <span className="font-semibold text-white truncate max-w-[140px]">{hoveredManager.email || '—'}</span>
+            </div>
+            <div className="flex justify-between items-center gap-3 mt-1.5 pt-1.5 border-t border-white/10">
+              <span className="text-slate-300">Number</span>
+              <span className="font-semibold text-white truncate max-w-[140px]">{hoveredManager.phone || '—'}</span>
+            </div>
+            {showBelow ? (
+              <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 border-[6px] border-transparent border-b-[#0F172A]" />
+            ) : (
+              <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 border-[6px] border-transparent border-t-[#0F172A]" />
+            )}
+          </div>
+        );
+      })()}
+
+      {/* Business Details Tooltip */}
+      {hoveredBusiness && (() => {
+        // Anchored below the sticky table header (~104px with summary/filter rows), so always
+        // show below the trigger unless there's not enough room before the viewport bottom.
+        const tooltipHeight = 90 + (hoveredBusiness.isBlocked ? 30 : 0);
+        const showBelow = hoveredBusiness.rect.bottom + 10 + tooltipHeight < window.innerHeight;
+        return (
+          <div
+            className="fixed z-[9999] pointer-events-none bg-[#0F172A] text-white text-xs font-normal p-3 rounded-xl shadow-xl w-60"
+            style={{
+              top: showBelow ? hoveredBusiness.rect.bottom + 10 : hoveredBusiness.rect.top - 10,
+              left: Math.min(Math.max(hoveredBusiness.rect.left, 12), window.innerWidth - 252),
+              transform: showBelow ? 'translate(0, 0)' : 'translate(0, -100%)',
+            }}
+          >
+            <div className="flex justify-between items-center gap-3">
+              <span className="text-slate-300">Company</span>
+              <span className="font-semibold text-white truncate max-w-[140px]">{hoveredBusiness.company}</span>
+            </div>
+            <div className="flex justify-between items-center gap-3 mt-1.5 pt-1.5 border-t border-white/10">
+              <span className="text-slate-300">User Type</span>
+              <span className="font-semibold text-white truncate max-w-[140px]">{hoveredBusiness.userType}</span>
+            </div>
+            {hoveredBusiness.isBlocked && (
+              <div className="flex justify-between items-center gap-3 mt-1.5 pt-1.5 border-t border-white/10">
+                <span className="text-slate-300">Status</span>
+                <span className="font-semibold text-red-400">Blocked</span>
+              </div>
+            )}
+            {showBelow ? (
+              <div className="absolute -top-1.5 left-4 border-[6px] border-transparent border-b-[#0F172A]" />
+            ) : (
+              <div className="absolute -bottom-1.5 left-4 border-[6px] border-transparent border-t-[#0F172A]" />
+            )}
+          </div>
+        );
+      })()}
+
       {/* Mobile Filters Bottom Sheet */}
       <AnimatePresence>
         {isMobileFiltersOpen && (
@@ -835,11 +1030,53 @@ export function AdminUsers() {
                     ))}
                   </select>
                 </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Tier</label>
+                  <select
+                    value={selectedTiers[0] || ''}
+                    onChange={(e) => setSelectedTiers(e.target.value ? [e.target.value] : [])}
+                    className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
+                  >
+                    <option value="">All Tiers</option>
+                    {TIER_OPTIONS.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Account Manager</label>
+                  <select
+                    value={selectedAccountManagers[0] || ''}
+                    onChange={(e) => setSelectedAccountManagers(e.target.value ? [e.target.value] : [])}
+                    className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
+                  >
+                    <option value="">All Managers</option>
+                    {accountManagerFilterOptions.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">User Type</label>
+                  <select
+                    value={selectedUserTypes[0] || ''}
+                    onChange={(e) => setSelectedUserTypes(e.target.value ? [e.target.value] : [])}
+                    className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
+                  >
+                    <option value="">All Types</option>
+                    {USER_TYPE_OPTIONS.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div className="px-6 py-4 border-t border-[#E2E8F0] flex items-center gap-3 sticky bottom-0 bg-white">
                 <button
-                  onClick={() => { resetFilters(); }}
+                  onClick={() => { resetFilters(); setIsMobileFiltersOpen(false); }}
                   className="flex-1 h-11 rounded-full border border-[#E2E8F0] text-[#475569] text-sm font-bold hover:bg-[#F8FAFC] transition-colors"
                 >
                   Reset All

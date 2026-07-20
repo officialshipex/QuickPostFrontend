@@ -161,6 +161,7 @@ function App() {
             <Route path="/admin/epd-mapping" element={<AdminEPDMapping />} />
             <Route path="/admin/vendors" element={<AdminVendors />} />
             <Route path="/admin/couriers" element={<AdminCouriers />} />
+            <Route path="/admin/couriers/:tabSlug" element={<AdminCouriers />} />
             <Route path="/admin/orders" element={<AdminOrders />} />
             <Route path="/admin/orders/:tabSlug" element={<AdminOrders />} />
             <Route path="/admin/shipments" element={<AdminShipments />} />

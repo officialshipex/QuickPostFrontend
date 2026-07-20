@@ -3,8 +3,12 @@ import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { apiClient } from '../../services/apiClient';
 import {
   RefreshCcw, User, Package, Truck, Wallet,
-  Phone, Calendar, ChevronDown, X, Mail, Users, Download,
+  Phone, Calendar, ChevronDown, X, Mail, Users, Download, Settings, MoreHorizontal,
 } from 'lucide-react';
+import { GlassDropdown } from '../../components/ui/GlassDropdown';
+import { TableLoader } from '../../components/ui/TableLoader';
+import { TruncatedText } from '../../components/ui/TruncatedText';
+import { DesktopPagination } from '../../hooks/usePagination';
 
 const MONTH_NAMES = [
   'January','February','March','April','May','June',
@@ -36,105 +40,122 @@ interface Summary {
   totalShipping: number;
 }
 
+// ─── Type scale — only these four are allowed anywhere in this modal ─────────
+// 14px semibold : section/modal titles
+// 12px semibold : field labels, tags, table headers
+// 12px regular  : field values, body content
+// 10px semibold : small badges/meta text
+const DTXT = {
+  title: 'text-[14px] font-semibold',
+  label: 'text-[12px] font-semibold',
+  value: 'text-[12px] font-normal',
+  meta: 'text-[10px] font-semibold',
+};
+
 function ReferralDetailsModal({ referral, onClose }: { referral: ReferralRow; onClose: () => void }) {
   return (
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
-      <div className="bg-white rounded-lg shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-3 border-b bg-gray-50">
+      <div className="bg-white rounded-[12px] shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden border border-[#E2E8F0]">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[#E2E8F0]">
           <div>
-            <h2 className="text-[14px] font-bold text-gray-700">Referral Performance Details</h2>
-            <p className="text-[11px] text-gray-500">{getMonthFull(referral.month)} {referral.year}</p>
+            <h2 className={`${DTXT.title} text-[#0F172A]`}>Referral Performance Details</h2>
+            <p className={`${DTXT.value} text-[#94A3B8] mt-0.5`}>{getMonthFull(referral.month)} {referral.year}</p>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-gray-200 rounded-full text-gray-500 transition-colors">
-            <X className="w-5 h-5" />
+          <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC] transition-colors">
+            <X className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-green-50/50 border border-green-100 rounded-xl p-4 space-y-2">
-              <h3 className="text-[11px] font-bold text-[#00A86B] uppercase tracking-wider flex items-center gap-2">
-                <User className="w-4 h-4" /> Referrer Information
+            {/* Referrer Information */}
+            <div className="bg-white border border-[#E2E8F0] rounded-[10px] p-4">
+              <h3 className={`${DTXT.title} text-[#0F172A] flex items-center gap-2 mb-3`}>
+                <User className="w-4 h-4 text-[#64748B]" /> Referrer Information
               </h3>
-              <div className="space-y-2 text-[12px]">
-                <div className="flex justify-between border-b border-green-100 pb-1">
-                  <span className="text-gray-500">Full Name</span>
-                  <span className="font-bold text-gray-700">{referral.userName || '—'}</span>
+              <div className="flex flex-col gap-2.5">
+                <div className="flex justify-between items-center">
+                  <span className={`${DTXT.label} text-[#94A3B8]`}>Full Name</span>
+                  <span className={`${DTXT.value} text-[#1E293B]`}>{referral.userName || '—'}</span>
                 </div>
-                <div className="flex justify-between border-b border-green-100 pb-1">
-                  <span className="text-gray-500">User ID</span>
-                  <span className="font-bold text-[#00A86B]">{referral.userId || '—'}</span>
+                <div className="flex justify-between items-center">
+                  <span className={`${DTXT.label} text-[#94A3B8]`}>User ID</span>
+                  <span className={`${DTXT.value} text-[#00A86B]`}>{referral.userId || '—'}</span>
                 </div>
-                <div className="flex items-center gap-2 text-gray-600">
-                  <Mail className="w-3.5 h-3.5 text-gray-500" />
-                  <span>{referral.email || '—'}</span>
+                <div className="h-px bg-[#F1F5F9]" />
+                <div className="flex items-center gap-2">
+                  <Mail className="w-3.5 h-3.5 text-[#94A3B8] shrink-0" />
+                  <span className={`${DTXT.value} text-[#475569] truncate`}>{referral.email || '—'}</span>
                 </div>
-                <div className="flex items-center gap-2 text-gray-600">
-                  <Phone className="w-3.5 h-3.5 text-gray-500" />
-                  <span>{referral.mobile || '—'}</span>
+                <div className="flex items-center gap-2">
+                  <Phone className="w-3.5 h-3.5 text-[#94A3B8] shrink-0" />
+                  <span className={`${DTXT.value} text-[#475569]`}>{referral.mobile || '—'}</span>
                 </div>
               </div>
             </div>
 
-            <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-4 space-y-2">
-              <h3 className="text-[11px] font-bold text-blue-600 uppercase tracking-wider">Monthly Summary</h3>
+            {/* Monthly Summary */}
+            <div className="bg-white border border-[#E2E8F0] rounded-[10px] p-4">
+              <h3 className={`${DTXT.title} text-[#0F172A] mb-3`}>Monthly Summary</h3>
               <div className="grid grid-cols-3 gap-2">
-                <div className="text-center p-2 bg-white rounded-lg border border-blue-100">
-                  <p className="text-[9px] text-gray-500 font-bold">Orders</p>
-                  <p className="text-[12px] font-bold text-gray-700">{referral.totalOrderCount || 0}</p>
+                <div className="text-center p-2.5 bg-[#F8FAFC] rounded-[8px] border border-[#E2E8F0]">
+                  <p className={`${DTXT.meta} text-[#94A3B8] mb-1`}>Orders</p>
+                  <p className={`${DTXT.title} text-[#0F172A]`}>{referral.totalOrderCount || 0}</p>
                 </div>
-                <div className="text-center p-2 bg-white rounded-lg border border-blue-100">
-                  <p className="text-[9px] text-gray-500 font-bold">Freight</p>
-                  <p className="text-[12px] font-bold text-[#00A86B]">₹{Math.round(referral.totalShipping || 0)}</p>
+                <div className="text-center p-2.5 bg-[#F8FAFC] rounded-[8px] border border-[#E2E8F0]">
+                  <p className={`${DTXT.meta} text-[#94A3B8] mb-1`}>Freight</p>
+                  <p className={`${DTXT.title} text-[#00A86B]`}>₹{Math.round(referral.totalShipping || 0)}</p>
                 </div>
-                <div className="text-center p-2 bg-white rounded-lg border border-blue-100">
-                  <p className="text-[9px] text-gray-500 font-bold">Reward</p>
-                  <p className="text-[12px] font-bold text-blue-600">₹{Math.round(referral.totalCommission || 0)}</p>
+                <div className="text-center p-2.5 bg-[#F8FAFC] rounded-[8px] border border-[#E2E8F0]">
+                  <p className={`${DTXT.meta} text-[#94A3B8] mb-1`}>Reward</p>
+                  <p className={`${DTXT.title} text-[#00A86B]`}>₹{Math.round(referral.totalCommission || 0)}</p>
                 </div>
               </div>
             </div>
           </div>
 
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-[13px] font-bold text-gray-700 flex items-center gap-2">
-                <Users className="w-4 h-4 text-[#00A86B]" /> Referred Customers
+          {/* Referred Customers */}
+          <div className="bg-white border border-[#E2E8F0] rounded-[10px] p-4 flex flex-col min-h-0">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className={`${DTXT.title} text-[#0F172A] flex items-center gap-2`}>
+                <Users className="w-4 h-4 text-[#64748B]" /> Referred Customers
               </h3>
-              <span className="bg-gray-100 text-gray-500 px-3 py-1 rounded-full text-[10px] font-bold">
-                {referral.subUsers?.length || 0} Total
+              <span className={`bg-[#F8FAFC] border border-[#E2E8F0] text-[#64748B] px-2.5 py-1 rounded-full ${DTXT.meta}`}>
+                {referral.subUsers?.length || 0} TOTAL
               </span>
             </div>
-            <div className="max-h-[300px] overflow-y-auto border rounded-lg">
-              <table className="w-full text-[12px] border-collapse">
-                <thead className="bg-[#00A86B] text-white font-bold sticky top-0">
-                  <tr>
-                    <th className="px-3 py-2 text-left">User Details</th>
-                    <th className="px-3 py-2 text-center">Orders</th>
-                    <th className="px-3 py-2 text-right">Shipping</th>
-                    <th className="px-3 py-2 text-right">Commission</th>
+            <div className="max-h-[280px] overflow-y-auto border border-[#E2E8F0] rounded-[8px]">
+              <table className="w-full border-collapse">
+                <thead className="bg-[#F8FAFC] sticky top-0">
+                  <tr className="border-b border-[#E2E8F0]">
+                    <th className={`px-3 py-2.5 text-left ${DTXT.label} text-[#64748B]`}>User Details</th>
+                    <th className={`px-3 py-2.5 text-center ${DTXT.label} text-[#64748B]`}>Orders</th>
+                    <th className={`px-3 py-2.5 text-right ${DTXT.label} text-[#64748B]`}>Shipping</th>
+                    <th className={`px-3 py-2.5 text-right ${DTXT.label} text-[#64748B]`}>Commission</th>
                   </tr>
                 </thead>
                 <tbody>
                   {referral.subUsers && referral.subUsers.length > 0 ? (
                     referral.subUsers.map((sub: any, idx: number) => (
-                      <tr key={idx} className="border-b border-gray-100 hover:bg-gray-50">
-                        <td className="px-3 py-2">
-                          <p className="font-bold text-[#00A86B]">{sub.userId}</p>
-                          <p className="text-gray-700">{sub.fullname}</p>
-                          <p className="text-gray-400 text-[11px]">{sub.email}</p>
+                      <tr key={idx} className="border-b border-[#F1F5F9] last:border-0 hover:bg-[#F8FAFC] transition-colors">
+                        <td className="px-3 py-2.5">
+                          <p className={`${DTXT.value} text-[#00A86B]`}>{sub.userId}</p>
+                          <p className={`${DTXT.value} text-[#1E293B]`}>{sub.fullname}</p>
+                          <p className={`${DTXT.value} text-[#94A3B8]`}>{sub.email}</p>
                         </td>
-                        <td className="px-3 py-2 text-center font-bold text-gray-700">{sub.orderCount}</td>
-                        <td className="px-3 py-2 text-right font-bold text-gray-500">
+                        <td className={`px-3 py-2.5 text-center ${DTXT.value} text-[#475569]`}>{sub.orderCount}</td>
+                        <td className={`px-3 py-2.5 text-right ${DTXT.value} text-[#475569]`}>
                           {Number(sub.totalShipping || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                         </td>
-                        <td className="px-3 py-2 text-right font-bold text-[#00A86B]">
+                        <td className={`px-3 py-2.5 text-right ${DTXT.value} text-[#00A86B]`}>
                           {Number(sub.commission || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                         </td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={4} className="py-8 text-center text-gray-400 text-[12px]">
+                      <td colSpan={4} className={`py-8 text-center text-[#94A3B8] ${DTXT.value}`}>
                         No sub-user data available
                       </td>
                     </tr>
@@ -145,10 +166,11 @@ function ReferralDetailsModal({ referral, onClose }: { referral: ReferralRow; on
           </div>
         </div>
 
-        <div className="px-4 py-3 bg-gray-50 border-t flex justify-end">
+        {/* Footer */}
+        <div className="px-5 py-3.5 bg-[#F8FAFC] border-t border-[#E2E8F0] flex justify-end">
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-[12px] font-bold text-gray-700 hover:bg-gray-100 transition-colors"
+            className={`px-4 py-2 bg-white border border-[#E2E8F0] rounded-lg ${DTXT.label} text-[#475569] hover:bg-[#F1F5F9] transition-colors`}
           >
             Close
           </button>
@@ -163,14 +185,23 @@ export function AdminReferral() {
   const [summary, setSummary] = useState<Summary>({ totalUsers: 0, totalOrders: 0, totalCommission: 0, totalShipping: 0 });
   const [loading, setLoading] = useState(true);
 
-  // Server-side pagination
+  // Server-side pagination — same shape as other admin list pages (DesktopPagination hook)
   const [page, setPage] = useState(1);
-  const limit = 20;
+  const [rowsPerPage, setRowsPerPage] = useState(20);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
 
-  // Filters
-  const [selectedMonth, setSelectedMonth] = useState('');
-  const [selectedYear, setSelectedYear] = useState('');
+  // Filters — draft (live in the inputs) vs applied (drives the fetch, set by Apply/Clear All)
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedMonth, setSelectedMonth] = useState<string[]>([]);
+  const [selectedYear, setSelectedYear] = useState<string[]>([]);
+
+  const [appliedSearch, setAppliedSearch] = useState('');
+  const [appliedMonth, setAppliedMonth] = useState<string[]>([]);
+  const [appliedYear, setAppliedYear] = useState<string[]>([]);
+
+  // Global search from admin header navbar
+  const [globalSearch, setGlobalSearch] = useState('');
 
   // Row selection (stores full row objects for export)
   const [selectedRows, setSelectedRows] = useState<ReferralRow[]>([]);
@@ -178,9 +209,12 @@ export function AdminReferral() {
   // Details modal
   const [detailsRow, setDetailsRow] = useState<ReferralRow | null>(null);
 
-  // Action dropdown
+  // Bulk actions dropdown
   const [actionOpen, setActionOpen] = useState(false);
   const actionRef = useRef<HTMLDivElement>(null);
+
+  // Per-row actions dropdown ("..." menu)
+  const [rowActionOpenId, setRowActionOpenId] = useState<string | null>(null);
 
   // Transfer modal
   const [transferOpen, setTransferOpen] = useState(false);
@@ -196,28 +230,45 @@ export function AdminReferral() {
   const fetchReferrals = useCallback(async () => {
     try {
       setLoading(true);
+      const search = globalSearch || appliedSearch;
       const res = await apiClient.get('/referral/getAllReferralStats', {
         params: {
-          ...(selectedMonth && { month: selectedMonth }),
-          ...(selectedYear && { year: selectedYear }),
+          ...(appliedMonth[0] && { month: appliedMonth[0] }),
+          ...(appliedYear[0] && { year: appliedYear[0] }),
+          ...(search.trim() && { search: search.trim() }),
           page,
-          limit,
+          limit: rowsPerPage,
         },
       });
       setReferrals(res.data?.referrals || []);
       setSummary(res.data?.summary || { totalUsers: 0, totalOrders: 0, totalCommission: 0, totalShipping: 0 });
       setTotalPages(res.data?.totalPages || 1);
+      setTotalCount(res.data?.totalCount ?? res.data?.total ?? 0);
       setSelectedRows([]);
     } catch (err) {
       console.error('Error fetching referral stats:', err);
     } finally {
       setLoading(false);
     }
-  }, [selectedMonth, selectedYear, page, limit]);
+  }, [globalSearch, appliedSearch, appliedMonth, appliedYear, page, rowsPerPage]);
 
   useEffect(() => { fetchReferrals(); }, [fetchReferrals]);
 
-  // Close action dropdown on outside click
+  useEffect(() => { setPage(1); }, [rowsPerPage]);
+
+  // Global search listener (navbar search bar)
+  useEffect(() => {
+    const handleSearch = (e: Event) => {
+      const q = ((e as CustomEvent).detail || '').toLowerCase();
+      setGlobalSearch(q);
+      setPage(1);
+    };
+    window.addEventListener('admin-search', handleSearch);
+    setGlobalSearch(((window as any).__adminSearchQuery || '').toLowerCase());
+    return () => window.removeEventListener('admin-search', handleSearch);
+  }, []);
+
+  // Close bulk actions dropdown on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (actionRef.current && !actionRef.current.contains(e.target as Node)) setActionOpen(false);
@@ -225,6 +276,39 @@ export function AdminReferral() {
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
+
+  // ─── Apply / reset filters ──────────────────────────────────────────────────
+  const applyFilters = () => {
+    setAppliedSearch(searchQuery);
+    setAppliedMonth(selectedMonth);
+    setAppliedYear(selectedYear);
+    setPage(1);
+  };
+
+  const resetFilters = () => {
+    setSearchQuery('');
+    setSelectedMonth([]);
+    setSelectedYear([]);
+    setAppliedSearch('');
+    setAppliedMonth([]);
+    setAppliedYear([]);
+    setPage(1);
+  };
+
+  const hasActiveFilters = !!(searchQuery || selectedMonth.length || selectedYear.length);
+
+  // Client-side fallback: the backend may ignore an unsupported `search` param, so also
+  // filter the fetched page locally against the same applied/global search value — this
+  // guarantees the search bar (both the page filter and the navbar) always works.
+  const activeSearch = (globalSearch || appliedSearch).trim().toLowerCase();
+  const filteredReferrals = activeSearch
+    ? referrals.filter(r =>
+        String(r.userName ?? '').toLowerCase().includes(activeSearch) ||
+        String(r.userId ?? '').toLowerCase().includes(activeSearch) ||
+        String(r.email ?? '').toLowerCase().includes(activeSearch) ||
+        String(r.mobile ?? '').toLowerCase().includes(activeSearch)
+      )
+    : referrals;
 
   // Debounced user search for transfer modal
   useEffect(() => {
@@ -297,7 +381,7 @@ export function AdminReferral() {
   };
 
   const toggleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSelectedRows(e.target.checked ? [...referrals] : []);
+    setSelectedRows(e.target.checked ? [...filteredReferrals] : []);
   };
   const toggleSelect = (row: ReferralRow) => {
     setSelectedRows(prev =>
@@ -353,45 +437,50 @@ export function AdminReferral() {
           </div>
 
           {/* Filters */}
-          <div className="p-4 border-b border-[#E2E8F0] flex flex-wrap justify-between items-center gap-3 bg-[#F8FAFC]/50 relative z-20">
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-1.5">
-                <Calendar className="w-3.5 h-3.5 text-[#64748B]" />
-                <select
-                  value={selectedMonth}
-                  onChange={e => { setSelectedMonth(e.target.value); setPage(1); }}
-                  className="h-9 px-3 rounded-lg border border-[#E2E8F0] text-xs bg-white focus:outline-none focus:border-[#00A86B] appearance-none pr-7 cursor-pointer"
-                >
-                  <option value="">All Months</option>
-                  {MONTH_NAMES.map((m, i) => (
-                    <option key={i + 1} value={String(i + 1)}>{m}</option>
-                  ))}
-                </select>
-              </div>
+          <div className="p-3 border-b border-[#E2E8F0] flex flex-wrap items-center gap-2.5 bg-[#F8FAFC]/50 relative z-20">
+            <input
+              type="text"
+              placeholder="Search by name, user ID or email"
+              className="glass-search-input w-[220px] shrink-0"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
+            />
 
-              <select
-                value={selectedYear}
-                onChange={e => { setSelectedYear(e.target.value); setPage(1); }}
-                className="h-9 px-3 rounded-lg border border-[#E2E8F0] text-xs bg-white focus:outline-none focus:border-[#00A86B] appearance-none cursor-pointer"
-              >
-                <option value="">All Years</option>
-                {['2024', '2025', '2026', '2027'].map(y => (
-                  <option key={y} value={y}>{y}</option>
-                ))}
-              </select>
+            <GlassDropdown
+              label="Month"
+              options={MONTH_NAMES.map((m, i) => ({ label: m, value: String(i + 1) }))}
+              selected={selectedMonth}
+              onChange={setSelectedMonth}
+              placeholder="Search month..."
+              icon={<Calendar className="w-3.5 h-3.5" />}
+            />
 
-              {(selectedMonth || selectedYear) && (
-                <button
-                  onClick={() => { setSelectedMonth(''); setSelectedYear(''); setPage(1); }}
-                  className="h-9 px-4 rounded-full border border-red-200 text-red-500 text-[11px] font-bold hover:bg-red-50 transition-colors"
-                >
-                  Clear
-                </button>
-              )}
-            </div>
+            <GlassDropdown
+              label="Year"
+              options={['2024', '2025', '2026', '2027'].map(y => ({ label: y, value: y }))}
+              selected={selectedYear}
+              onChange={setSelectedYear}
+              placeholder="Search year..."
+              icon={<Calendar className="w-3.5 h-3.5" />}
+            />
 
-            {/* Action Dropdown */}
-            <div className="relative shrink-0" ref={actionRef}>
+            <button
+              onClick={applyFilters}
+              className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm flex items-center justify-center cursor-pointer"
+            >
+              Apply
+            </button>
+
+            {hasActiveFilters && (
+              <button onClick={resetFilters}
+                className="h-9 px-3 shrink-0 rounded-lg border border-red-200 text-red-500 text-xs font-bold hover:bg-red-50 transition-colors">
+                Clear All
+              </button>
+            )}
+
+            {/* Bulk Actions Dropdown */}
+            <div className="relative shrink-0 ml-auto" ref={actionRef}>
               <button
                 onClick={() => setActionOpen(v => !v)}
                 className={`h-9 px-4 rounded-full border text-[11px] font-bold flex items-center gap-1.5 transition-colors ${
@@ -432,138 +521,123 @@ export function AdminReferral() {
 
         {/* Table */}
         <div className="bg-white flex flex-col flex-1 min-h-0 overflow-hidden border-t border-[#E2E8F0]">
-          <div className="flex-1 overflow-y-auto overflow-x-auto w-full no-scrollbar">
-            {loading ? (
-              <div className="flex justify-center items-center h-48">
-                <div className="w-8 h-8 border-2 border-[#00A86B] border-t-transparent rounded-full animate-spin" />
-              </div>
-            ) : (
-              <table className="w-full text-left border-collapse min-w-[900px]">
-                <thead>
-                  <tr className="bg-[#E6F5F1] text-xs font-medium text-[#00A86B] uppercase tracking-wider sticky top-0 z-10">
-                    <th className="p-4 w-12 text-center">
-                      <input
-                        type="checkbox"
-                        onChange={toggleSelectAll}
-                        checked={selectedRows.length === referrals.length && referrals.length > 0}
-                        className="rounded border-gray-300 text-[#00A86B] focus:ring-[#00A86B]"
-                      />
-                    </th>
-                    <th className="p-4 whitespace-nowrap">
-                      <User className="w-3.5 h-3.5 inline mr-1" />Refer By
-                    </th>
-                    <th className="p-4 whitespace-nowrap">
-                      <Phone className="w-3.5 h-3.5 inline mr-1" />Contact
-                    </th>
-                    <th className="p-4 whitespace-nowrap text-center">
-                      <Package className="w-3.5 h-3.5 inline mr-1" />Orders
-                    </th>
-                    <th className="p-4 whitespace-nowrap">
-                      <Truck className="w-3.5 h-3.5 inline mr-1" />Shipping
-                    </th>
-                    <th className="p-4 whitespace-nowrap">
-                      <Wallet className="w-3.5 h-3.5 inline mr-1" />Commission
-                    </th>
-                    <th className="p-4 whitespace-nowrap">
-                      <Calendar className="w-3.5 h-3.5 inline mr-1" />Period
-                    </th>
-                    <th className="p-4 whitespace-nowrap text-right pr-6">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="text-[12px] text-[#475569]">
-                  {referrals.length > 0 ? (
-                    referrals.map(row => (
-                      <tr
-                        key={row._id}
-                        className={`border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors ${
-                          selectedRows.find(r => r._id === row._id) ? 'bg-green-50/40' : ''
-                        }`}
-                      >
-                        <td className="p-4 text-center">
-                          <input
-                            type="checkbox"
-                            checked={!!selectedRows.find(r => r._id === row._id)}
-                            onChange={() => toggleSelect(row)}
-                            className="rounded border-gray-300 text-[#00A86B] focus:ring-[#00A86B]"
-                          />
-                        </td>
-                        <td className="p-4">
-                          <div className="text-xs font-semibold text-[#00A86B] mb-0.5">{row.userId || '—'}</div>
-                          <div className="text-[13px] text-[#0F172A] font-medium">{row.userName}</div>
-                        </td>
-                        <td className="p-4">
-                          <div className="text-xs text-[#475569] mb-0.5">{row.email || '—'}</div>
-                          <div className="text-[12px] text-[#94A3B8]">{row.mobile || '—'}</div>
-                        </td>
-                        <td className="p-4 text-center font-medium">{row.totalOrderCount || 0}</td>
-                        <td className="p-4 text-[#00A86B] font-medium">
-                          ₹{Number(row.totalShipping || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                        </td>
-                        <td className="p-4 text-[#00A86B] font-medium">
-                          ₹{Number(row.totalCommission || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                        </td>
-                        <td className="p-4 text-[#64748B] text-xs">
-                          {getMonthFull(row.month)} {row.year}
-                        </td>
-                        <td className="p-4 text-right pr-6">
+          <div className="flex-1 overflow-auto w-full relative">
+            {loading && <TableLoader />}
+            <table className="w-full text-left border-collapse min-w-[900px]">
+              <thead className="sticky top-0 z-20 bg-[#E6F5F1] shadow-sm">
+                <tr className="text-xs font-medium text-[#00A86B] uppercase tracking-wider">
+                  <th className="p-4 w-12 text-center">
+                    <input
+                      type="checkbox"
+                      onChange={toggleSelectAll}
+                      checked={selectedRows.length === filteredReferrals.length && filteredReferrals.length > 0}
+                      className="rounded border-gray-300 text-[#00A86B] focus:ring-[#00A86B]"
+                    />
+                  </th>
+                  <th className="p-4 whitespace-nowrap">
+                    <User className="w-3.5 h-3.5 inline mr-1" />Refer By
+                  </th>
+                  <th className="p-4 whitespace-nowrap">
+                    <Phone className="w-3.5 h-3.5 inline mr-1" />Contact
+                  </th>
+                  <th className="p-4 whitespace-nowrap text-center">
+                    <Package className="w-3.5 h-3.5 inline mr-1" />Orders
+                  </th>
+                  <th className="p-4 whitespace-nowrap">
+                    <Truck className="w-3.5 h-3.5 inline mr-1" />Shipping
+                  </th>
+                  <th className="p-4 whitespace-nowrap">
+                    <Wallet className="w-3.5 h-3.5 inline mr-1" />Commission
+                  </th>
+                  <th className="p-4 whitespace-nowrap">
+                    <Calendar className="w-3.5 h-3.5 inline mr-1" />Period
+                  </th>
+                  <th className="p-4 whitespace-nowrap text-right pr-6">
+                    <Settings className="w-3.5 h-3.5 inline mr-1" />Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="text-[#475569]">
+                {loading ? null : filteredReferrals.length > 0 ? (
+                  filteredReferrals.map(row => (
+                    <tr
+                      key={row._id}
+                      className={`border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors ${
+                        selectedRows.find(r => r._id === row._id) ? 'bg-green-50/40' : ''
+                      }`}
+                    >
+                      <td className="p-4 text-center align-top">
+                        <input
+                          type="checkbox"
+                          checked={!!selectedRows.find(r => r._id === row._id)}
+                          onChange={() => toggleSelect(row)}
+                          className="rounded border-gray-300 text-[#00A86B] focus:ring-[#00A86B]"
+                        />
+                      </td>
+                      <td className="p-4 align-top max-w-[180px]">
+                        <div className="text-xs font-semibold text-[#00A86B] mb-0.5">{row.userId || '—'}</div>
+                        <TruncatedText text={row.userName || '—'} maxLength={20} className="text-[13px] text-[#0F172A] font-medium" />
+                      </td>
+                      <td className="p-4 align-top max-w-[180px]">
+                        <TruncatedText text={row.email || '—'} maxLength={22} className="text-[12px] text-[#475569] mb-0.5" />
+                        <div className="text-[12px] text-[#94A3B8]">{row.mobile || '—'}</div>
+                      </td>
+                      <td className="p-4 text-center align-top text-[12px] font-normal">{row.totalOrderCount || 0}</td>
+                      <td className="p-4 align-top text-[12px] font-normal text-[#00A86B]">
+                        ₹{Number(row.totalShipping || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </td>
+                      <td className="p-4 align-top text-[12px] font-normal text-[#00A86B]">
+                        ₹{Number(row.totalCommission || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </td>
+                      <td className="p-4 align-top text-[12px] font-normal text-[#64748B]">
+                        {getMonthFull(row.month)} {row.year}
+                      </td>
+                      <td className="p-4 text-right pr-6 align-top">
+                        <div className="relative inline-block text-left">
                           <button
-                            onClick={() => setDetailsRow(row)}
-                            className="px-4 py-1.5 rounded-full border border-[#00A86B] text-[#00A86B] font-bold text-[10px] hover:bg-[#E6F5F1] transition-colors shadow-sm"
+                            onClick={() => setRowActionOpenId(prev => prev === row._id ? null : row._id)}
+                            onBlur={() => setTimeout(() => setRowActionOpenId(prev => prev === row._id ? null : prev), 150)}
+                            className={`w-7 h-7 rounded-full border flex items-center justify-center transition-colors cursor-pointer ${rowActionOpenId === row._id ? 'bg-green-100 border-[#00A86B] text-[#00A86B]' : 'border-[#E2E8F0] text-[#64748B] hover:bg-[#F1F5F9]'}`}
                           >
-                            Details
+                            <MoreHorizontal className="w-3.5 h-3.5" />
                           </button>
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={8} className="p-12 text-center text-[#94A3B8] font-medium text-[13px]">
-                        No referral data found for the selected filters.
+                          {rowActionOpenId === row._id && (
+                            <div className="absolute right-0 top-full mt-1 w-36 bg-white rounded-xl shadow-[0_4px_24px_-4px_rgba(0,0,0,0.15)] border border-[#E2E8F0] py-1.5 z-50">
+                              <button
+                                onClick={() => setDetailsRow(row)}
+                                className="w-full text-left px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#00A86B] transition-colors"
+                              >
+                                Details
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </td>
                     </tr>
-                  )}
-                </tbody>
-              </table>
-            )}
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={8} className="p-12 text-center text-[#94A3B8] font-medium text-[13px]">
+                      No referral data found for the selected filters.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
 
           {/* Pagination */}
-          {!loading && totalPages > 1 && (
-            <div className="border-t border-[#E2E8F0] px-6 py-3 flex items-center justify-between text-[12px] text-[#64748B] bg-white shrink-0">
-              <span>Page {page} of {totalPages}</span>
-              <div className="flex items-center gap-1.5">
-                <button
-                  onClick={() => setPage(p => Math.max(1, p - 1))}
-                  disabled={page <= 1}
-                  className="h-8 px-3 rounded border border-[#E2E8F0] text-xs disabled:opacity-40 hover:bg-[#F8FAFC] transition-colors"
-                >
-                  Prev
-                </button>
-                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                  const p = Math.max(1, Math.min(totalPages - 4, page - 2)) + i;
-                  return (
-                    <button
-                      key={p}
-                      onClick={() => setPage(p)}
-                      className={`h-8 w-8 rounded border text-[11px] font-bold transition-colors ${
-                        p === page
-                          ? 'bg-[#00A86B] border-[#00A86B] text-white'
-                          : 'border-[#E2E8F0] hover:bg-[#F8FAFC]'
-                      }`}
-                    >
-                      {p}
-                    </button>
-                  );
-                })}
-                <button
-                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                  disabled={page >= totalPages}
-                  className="h-8 px-3 rounded border border-[#E2E8F0] text-xs disabled:opacity-40 hover:bg-[#F8FAFC] transition-colors"
-                >
-                  Next
-                </button>
-              </div>
-            </div>
+          {totalPages > 0 && (
+            <DesktopPagination
+              page={page}
+              setPage={setPage}
+              totalPages={totalPages}
+              rowsPerPage={rowsPerPage}
+              setRowsPerPage={setRowsPerPage}
+              startIndex={totalCount === 0 ? 0 : (page - 1) * rowsPerPage + 1}
+              endIndex={Math.min(page * rowsPerPage, totalCount)}
+              totalItems={totalCount}
+            />
           )}
         </div>
       </div>

@@ -684,6 +684,33 @@ export function AdminCOD() {
 
   const handleApplyFilters = () => { setCurrentPage(1); fetchCodOrders(1); };
 
+  // Clear All — same pattern as Orders/NDR: reset every filter, reset to page 1, refetch immediately.
+  const clearCodOrderFilters = () => {
+    setCodOrderId(''); setCodAwb(''); setSelectedStatuses([]); setSelectedCouriers([]);
+    setDateStart(''); setDateEnd('');
+    if (isAdminView) { setCodUserQuery(''); setCodUserSuggestions([]); setCodUserMongoId(''); }
+    setCurrentPage(1);
+    fetchCodOrders(1);
+  };
+  const hasCodOrderFilters = !!(codOrderId || codAwb || selectedStatuses.length || selectedCouriers.length || (dateStart && dateEnd) || (isAdminView && codUserMongoId));
+
+  const clearSellerRemittanceFilters = () => {
+    setSellerRemittanceId(''); setSelectedCodStatuses([]); setCodDateStart(''); setCodDateEnd('');
+    if (isAdminView) { setSellerUserQuery(''); setSellerUserSuggestions([]); setSellerUserMongoId(''); }
+    setSellerPage(1);
+    fetchSellerRemittance(1);
+  };
+  const hasSellerRemittanceFilters = !!(sellerRemittanceId || selectedCodStatuses.length || (codDateStart && codDateEnd) || (isAdminView && sellerUserMongoId));
+
+  const clearCourierRemittanceFilters = () => {
+    setCourierOrderId(''); setCourierAwb(''); setSelectedCourierCodStatuses([]); setSelectedCourierCouriers([]);
+    setCourierCodDateStart(''); setCourierCodDateEnd('');
+    if (isAdminView) { setCourierUserQuery(''); setCourierUserSuggestions([]); setCourierUserMongoId(''); }
+    setCourierPage(1);
+    fetchCourierRemittance(1);
+  };
+  const hasCourierRemittanceFilters = !!(courierOrderId || courierAwb || selectedCourierCodStatuses.length || selectedCourierCouriers.length || (courierCodDateStart && courierCodDateEnd) || (isAdminView && courierUserMongoId));
+
 
 
   const handleTransferCOD = async (type: 'seller' | 'courier') => {
@@ -1097,6 +1124,12 @@ export function AdminCOD() {
               <GlassDateFilter startDate={dateStart} endDate={dateEnd} onDateChange={(s, e) => { setDateStart(s); setDateEnd(e); }} />
               <button onClick={() => { setCurrentPage(1); fetchCodOrders(1); }}
                 className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm">Apply</button>
+              {hasCodOrderFilters && (
+                <button onClick={clearCodOrderFilters}
+                  className="h-9 px-3 shrink-0 rounded-lg border border-red-200 text-red-500 text-xs font-bold hover:bg-red-50 transition-colors">
+                  Clear All
+                </button>
+              )}
               <div className="ml-auto flex items-center gap-2 shrink-0">
                 <button onClick={() => { if (selectedOrders.length === 0) { showToast('error', 'Select rows to export.'); return; } const rows = codOrdersList.filter(o => selectedOrders.includes(o.id)); handleExportCsv(rows, 'cod_orders.csv'); }}
                   className={`w-9 h-9 rounded-full border flex items-center justify-center transition-colors ${selectedOrders.length > 0 ? 'border-[#00A86B] text-[#00A86B] hover:bg-[#00A86B]/5' : 'border-[#E2E8F0] text-[#CBD5E1] cursor-not-allowed'}`}>
@@ -1302,6 +1335,12 @@ export function AdminCOD() {
               <GlassDateFilter startDate={codDateStart} endDate={codDateEnd} onDateChange={(s, e) => { setCodDateStart(s); setCodDateEnd(e); }} />
               <button onClick={() => { setSellerPage(1); fetchSellerRemittance(1); }}
                 className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm">Apply</button>
+              {hasSellerRemittanceFilters && (
+                <button onClick={clearSellerRemittanceFilters}
+                  className="h-9 px-3 shrink-0 rounded-lg border border-red-200 text-red-500 text-xs font-bold hover:bg-red-50 transition-colors">
+                  Clear All
+                </button>
+              )}
               <div className="relative shrink-0 ml-auto action-dropdown-container">
                 <button onClick={() => selectedCodOrders.length > 0 && setShowActionMenu(!showActionMenu)} disabled={selectedCodOrders.length === 0}
                   className={`h-9 pl-4 pr-8 rounded-full border text-xs font-bold relative transition-colors ${selectedCodOrders.length > 0 ? 'border-[#00A86B] text-[#00A86B] bg-white hover:bg-[#F0FDF4]' : 'border-[#E2E8F0] text-[#CBD5E1] bg-[#F8FAFC] cursor-not-allowed'}`}>
@@ -1546,6 +1585,12 @@ export function AdminCOD() {
               <GlassDateFilter startDate={courierCodDateStart} endDate={courierCodDateEnd} onDateChange={(s, e) => { setCourierCodDateStart(s); setCourierCodDateEnd(e); }} />
               <button onClick={() => { setCourierPage(1); fetchCourierRemittance(1); }}
                 className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm">Apply</button>
+              {hasCourierRemittanceFilters && (
+                <button onClick={clearCourierRemittanceFilters}
+                  className="h-9 px-3 shrink-0 rounded-lg border border-red-200 text-red-500 text-xs font-bold hover:bg-red-50 transition-colors">
+                  Clear All
+                </button>
+              )}
               <div className="relative shrink-0 ml-auto action-dropdown-container">
                 <button onClick={() => selectedCourierCodOrders.length > 0 && setShowCourierActionMenu(!showCourierActionMenu)} disabled={selectedCourierCodOrders.length === 0}
                   className={`h-9 pl-4 pr-8 rounded-full border text-xs font-bold relative transition-colors ${selectedCourierCodOrders.length > 0 ? 'border-[#00A86B] text-[#00A86B] bg-white hover:bg-[#F0FDF4]' : 'border-[#E2E8F0] text-[#CBD5E1] bg-[#F8FAFC] cursor-not-allowed'}`}>
@@ -2006,11 +2051,7 @@ export function AdminCOD() {
 
               <div className="px-6 py-4 border-t border-[#E2E8F0] flex items-center gap-3 sticky bottom-0 bg-white">
                 <button
-                  onClick={() => {
-                    setCodOrderId(''); setCodAwb(''); setSelectedStatuses([]); setSelectedCouriers([]);
-                    setDateStart(''); setDateEnd('');
-                    if (isAdminView) { setCodUserQuery(''); setCodUserSuggestions([]); setCodUserMongoId(''); }
-                  }}
+                  onClick={() => { clearCodOrderFilters(); setIsMobileFiltersOpen(false); }}
                   className="flex-1 h-11 rounded-full border border-[#E2E8F0] text-[#475569] text-sm font-bold hover:bg-[#F8FAFC] transition-colors"
                 >
                   Reset All
@@ -2117,10 +2158,7 @@ export function AdminCOD() {
 
               <div className="px-6 py-4 border-t border-[#E2E8F0] flex items-center gap-3 sticky bottom-0 bg-white">
                 <button
-                  onClick={() => {
-                    setSellerRemittanceId(''); setSelectedCodStatuses([]); setCodDateStart(''); setCodDateEnd('');
-                    if (isAdminView) { setSellerUserQuery(''); setSellerUserSuggestions([]); setSellerUserMongoId(''); }
-                  }}
+                  onClick={() => { clearSellerRemittanceFilters(); setIsMobileSellerFiltersOpen(false); }}
                   className="flex-1 h-11 rounded-full border border-[#E2E8F0] text-[#475569] text-sm font-bold hover:bg-[#F8FAFC] transition-colors"
                 >
                   Reset All
@@ -2252,11 +2290,7 @@ export function AdminCOD() {
 
               <div className="px-6 py-4 border-t border-[#E2E8F0] flex items-center gap-3 sticky bottom-0 bg-white">
                 <button
-                  onClick={() => {
-                    setCourierOrderId(''); setCourierAwb(''); setSelectedCourierCodStatuses([]); setSelectedCourierCouriers([]);
-                    setCourierCodDateStart(''); setCourierCodDateEnd('');
-                    if (isAdminView) { setCourierUserQuery(''); setCourierUserSuggestions([]); setCourierUserMongoId(''); }
-                  }}
+                  onClick={() => { clearCourierRemittanceFilters(); setIsMobileCourierFiltersOpen(false); }}
                   className="flex-1 h-11 rounded-full border border-[#E2E8F0] text-[#475569] text-sm font-bold hover:bg-[#F8FAFC] transition-colors"
                 >
                   Reset All

@@ -1,8 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
-import { Search, ChevronRight, Save, Filter, X, Upload, Download, Plus, Edit2 } from 'lucide-react';
+import { Search, ChevronRight, Save, Filter, X, Upload, Download, Plus, Edit2, CheckCircle2, Truck, Hash, Layers } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiClient } from '../../services/apiClient';
+import { GlassDropdown } from '../../components/ui/GlassDropdown';
+import { TableLoader } from '../../components/ui/TableLoader';
+
+const STATUS_OPTIONS = [
+  { label: 'Active', value: 'Active' },
+  { label: 'Inactive', value: 'Inactive' },
+];
+const TYPE_OPTIONS = [
+  { label: 'Domestic (Surface)', value: 'Domestic (Surface)' },
+  { label: 'Domestic (Air)', value: 'Domestic (Air)' },
+];
 
 const getProviderLogo = (name: string) => {
   const n = (name || '').toLowerCase();
@@ -74,8 +85,17 @@ export function AdminRateCard() {
   const [saveError, setSaveError] = useState('');
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('All Status');
-  const [typeFilter, setTypeFilter] = useState('All Types');
+  const [statusFilter, setStatusFilter] = useState<string[]>([]);
+  const [typeFilter, setTypeFilter] = useState<string[]>([]);
+
+  // ─── Applied filters (only these drive filteredProviders — set by Apply/Clear All) ──
+  const [appliedSearch, setAppliedSearch] = useState('');
+  const [appliedStatus, setAppliedStatus] = useState<string[]>([]);
+  const [appliedType, setAppliedType] = useState<string[]>([]);
+
+  // ─── Global search from admin header navbar ──────────────────────────────────
+  const [globalSearch, setGlobalSearch] = useState('');
+
   const [selectedPlan, setSelectedPlan] = useState('');
   const [isPlanDropdownOpen, setIsPlanDropdownOpen] = useState(false);
   const [expandedProviderId, setExpandedProviderId] = useState<string | null>(null);
@@ -103,6 +123,17 @@ export function AdminRateCard() {
   const [addingRate, setAddingRate] = useState(false);
 
   const [ratesMap, setRatesMap] = useState<Record<string, Record<string, Record<string, any>>>>({});
+
+  // ─── Global search listener (navbar search bar) ──────────────────────────────
+  useEffect(() => {
+    const handleSearch = (e: Event) => {
+      const q = ((e as CustomEvent).detail || '').toLowerCase();
+      setGlobalSearch(q);
+    };
+    window.addEventListener('admin-search', handleSearch);
+    setGlobalSearch(((window as any).__adminSearchQuery || '').toLowerCase());
+    return () => window.removeEventListener('admin-search', handleSearch);
+  }, []);
 
   useEffect(() => {
     const init = async () => {
@@ -302,14 +333,36 @@ export function AdminRateCard() {
     }
   };
 
+  // ─── Apply / reset filters ──────────────────────────────────────────────────
+  const applyFilters = () => {
+    setAppliedSearch(searchQuery);
+    setAppliedStatus(statusFilter);
+    setAppliedType(typeFilter);
+  };
+
+  const resetFilters = () => {
+    setSearchQuery('');
+    setStatusFilter([]);
+    setTypeFilter([]);
+    setAppliedSearch('');
+    setAppliedStatus([]);
+    setAppliedType([]);
+  };
+
+  const hasActiveFilters = !!(searchQuery || statusFilter.length || typeFilter.length);
+
   const filteredProviders = providers.filter(p => {
-    const matchesSearch = (p.courierName || '').toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === 'All Status' || p.status === statusFilter;
+    const search = globalSearch || appliedSearch;
+    const matchesSearch = (p.courierName || '').toLowerCase().includes(search.toLowerCase());
+    const matchesStatus =
+      appliedStatus.length === 0 ||
+      (appliedStatus.includes('Active') && p.status === 'Enable') ||
+      (appliedStatus.includes('Inactive') && p.status === 'Disable');
     const provSvcs: any[] = servicesGrouped[p.courierName] || servicesGrouped[p.courierProvider] || [];
     const matchesType =
-      typeFilter === 'All Types' ||
-      (typeFilter === 'Domestic (Surface)' && provSvcs.some((s: any) => (s.courierType || '').toLowerCase().includes('surface'))) ||
-      (typeFilter === 'Domestic (Air)' && provSvcs.some((s: any) => (s.courierType || '').toLowerCase().includes('air')));
+      appliedType.length === 0 ||
+      (appliedType.includes('Domestic (Surface)') && provSvcs.some((s: any) => (s.courierType || '').toLowerCase().includes('surface'))) ||
+      (appliedType.includes('Domestic (Air)') && provSvcs.some((s: any) => (s.courierType || '').toLowerCase().includes('air')));
     return matchesSearch && matchesStatus && matchesType;
   });
 
@@ -326,91 +379,64 @@ export function AdminRateCard() {
 
   return (
     <AdminLayout>
-      <div className="max-w-6xl mx-auto space-y-6">
+      <div className="flex flex-col h-[calc(100vh-72px)] -m-4 md:-m-6 bg-white">
+        <div className="bg-white relative z-50 shrink-0">
 
-        {/* Header */}
-        <div className="border-b border-[#E2E8F0] flex items-end justify-between gap-4 flex-wrap">
-          <div className="flex gap-8">
-            <button className="px-1 py-4 text-sm font-bold text-[#00A86B] border-b-2 border-[#00A86B]">
+        {/* Header Tab */}
+        <div className="px-4 md:px-6 border-b border-[#E2E8F0]">
+          <div className="flex gap-6 md:gap-8 overflow-x-auto no-scrollbar">
+            <button className="px-1 py-4 text-sm font-bold text-[#00A86B] border-b-2 border-[#00A86B] whitespace-nowrap">
               Rate Card Management
-            </button>
-          </div>
-          <div className="flex items-center gap-2 pb-2 flex-wrap">
-            <button
-              onClick={handleDownloadTemplate}
-              className="flex items-center gap-1.5 h-9 px-4 rounded-xl border border-[#E2E8F0] bg-white text-[#475569] text-[12px] font-bold hover:bg-[#F8FAFC] transition-all shadow-sm"
-            >
-              <Download className="w-3.5 h-3.5" /> Template
-            </button>
-            <label className={`flex items-center gap-1.5 h-9 px-4 rounded-xl border border-[#E2E8F0] bg-white text-[#475569] text-[12px] font-bold hover:bg-[#F8FAFC] transition-all shadow-sm cursor-pointer ${uploading ? 'opacity-60 pointer-events-none' : ''}`}>
-              {uploading ? <><Spinner /> Uploading...</> : <><Upload className="w-3.5 h-3.5" /> Upload</>}
-              <input
-                ref={uploadInputRef}
-                type="file"
-                accept=".xlsx,.xls,.csv"
-                className="hidden"
-                disabled={uploading}
-                onChange={(e) => { const f = e.target.files?.[0]; if (f) { handleUpload(f); e.target.value = ''; } }}
-              />
-            </label>
-            <button
-              onClick={() => { setNewPlanName(''); setPlanError(''); setAddPlanModal(true); }}
-              className="flex items-center gap-1.5 h-9 px-4 rounded-xl border border-[#00A86B] text-[#00A86B] text-[12px] font-bold hover:bg-[#F0FDF4] transition-all shadow-sm bg-white"
-            >
-              <Plus className="w-3.5 h-3.5" /> Add Plan
-            </button>
-            <button
-              onClick={() => { setAddRateForm({ ...emptyAddRateForm, plan: selectedPlan || plans[0] || '' }); setAddRateError(''); setAddRateModal(true); }}
-              className="flex items-center gap-1.5 h-9 px-4 rounded-xl bg-[#00A86B] text-white text-[12px] font-bold hover:bg-[#009B63] transition-all shadow-sm"
-            >
-              <Plus className="w-3.5 h-3.5" /> Add Rate Card
             </button>
           </div>
         </div>
 
         {uploadSuccess && (
-          <div className="px-4 py-3 bg-green-50 border border-green-200 rounded-xl text-sm text-green-600 font-medium">
+          <div className="mx-4 md:mx-6 mt-3 px-4 py-3 bg-green-50 border border-green-200 rounded-xl text-sm text-green-600 font-medium">
             {uploadSuccess}
           </div>
         )}
+        {saveError && (
+          <div className="mx-4 md:mx-6 mt-3 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600 font-medium flex items-center justify-between gap-2">
+            <span>{saveError}</span>
+            <button onClick={() => setSaveError('')}><X className="w-4 h-4" /></button>
+          </div>
+        )}
 
-        {/* Filters — desktop */}
-        <div className="hidden md:flex bg-white rounded-xl border border-[#E2E8F0] p-4 flex-col md:flex-row gap-4 items-center">
-          <div className="flex gap-4">
-            <select
-              className="h-10 px-4 border border-[#E2E8F0] rounded-xl text-sm font-medium text-[#0F172A] outline-none focus:border-[#00A86B] min-w-[140px] appearance-none bg-white"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-            >
-              <option>All Status</option>
-              <option>Enable</option>
-              <option>Disable</option>
-            </select>
-            <select
-              className="h-10 px-4 border border-[#E2E8F0] rounded-xl text-sm font-medium text-[#0F172A] outline-none focus:border-[#00A86B] min-w-[180px] appearance-none bg-white"
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-            >
-              <option value="All Types">All Types</option>
-              <option value="Domestic (Surface)">Domestic (Surface)</option>
-              <option value="Domestic (Air)">Domestic (Air)</option>
-            </select>
-          </div>
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8]" />
-            <input
-              type="text"
-              placeholder="Search by courier name"
-              className="w-full h-10 pl-10 pr-4 border border-[#E2E8F0] rounded-xl text-sm outline-none focus:border-[#00A86B] text-[#0F172A]"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
+        {/* Filters & Actions — desktop */}
+        <div className="hidden md:flex p-3 border-b border-[#E2E8F0] flex-wrap items-center gap-2.5 bg-[#F8FAFC]/50">
+          <input
+            type="text"
+            placeholder="Search by courier name"
+            className="glass-search-input w-[220px] shrink-0"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
+          />
+
+          <GlassDropdown
+            label="Status"
+            options={STATUS_OPTIONS}
+            selected={statusFilter}
+            onChange={setStatusFilter}
+            placeholder="Search status..."
+            icon={<CheckCircle2 className="w-3.5 h-3.5" />}
+          />
+
+          <GlassDropdown
+            label="Type"
+            options={TYPE_OPTIONS}
+            selected={typeFilter}
+            onChange={setTypeFilter}
+            placeholder="Search type..."
+            icon={<Truck className="w-3.5 h-3.5" />}
+          />
+
           {/* Plan Dropdown */}
-          <div className="relative min-w-[240px]">
+          <div className="relative min-w-[220px] shrink-0">
             <button
               onClick={() => setIsPlanDropdownOpen(!isPlanDropdownOpen)}
-              className={`w-full h-10 px-4 border rounded-xl text-sm font-bold transition-all flex items-center justify-between ${isPlanDropdownOpen ? 'border-[#00A86B] ring-1 ring-[#00A86B]/20 bg-white text-[#00A86B]' : 'border-[#E2E8F0] bg-white text-[#0F172A] hover:border-[#00A86B] hover:text-[#00A86B]'}`}
+              className={`w-full h-9 px-4 border rounded-lg text-xs font-bold transition-all flex items-center justify-between ${isPlanDropdownOpen ? 'border-[#00A86B] ring-1 ring-[#00A86B]/20 bg-white text-[#00A86B]' : 'border-[#E2E8F0] bg-white text-[#0F172A] hover:border-[#00A86B] hover:text-[#00A86B]'}`}
             >
               <span className="truncate pr-2">{selectedPlan || 'Select Plan'}</span>
               <motion.div animate={{ rotate: isPlanDropdownOpen ? 180 : 0 }} transition={{ duration: 0.2 }}>
@@ -442,44 +468,96 @@ export function AdminRateCard() {
               )}
             </AnimatePresence>
           </div>
-        </div>
 
-        {/* Filters — mobile */}
-        <div className="md:hidden space-y-3">
-          <div className="flex items-center gap-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8]" />
-              <input type="text" placeholder="Search by courier name"
-                className="w-full h-10 pl-10 pr-4 rounded-xl border border-[#E2E8F0] bg-white text-sm outline-none focus:border-[#00A86B] text-[#0F172A]"
-                value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
-            </div>
-            <button onClick={() => setIsMobileFiltersOpen(true)}
-              className="flex items-center gap-1.5 h-10 px-4 rounded-xl bg-[#00A86B] text-white text-[12px] font-bold shadow-sm shrink-0">
-              <Filter className="w-3.5 h-3.5" /> Filters
+          <button
+            onClick={applyFilters}
+            className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm flex items-center justify-center cursor-pointer"
+          >
+            Apply
+          </button>
+
+          {hasActiveFilters && (
+            <button onClick={resetFilters}
+              className="h-9 px-3 shrink-0 rounded-lg border border-red-200 text-red-500 text-xs font-bold hover:bg-red-50 transition-colors">
+              Clear All
             </button>
-          </div>
-          <div className="flex items-center gap-2">
-            <button onClick={handleDownloadTemplate}
-              className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-xl border border-[#E2E8F0] bg-white text-[#475569] text-[12px] font-bold">
+          )}
+
+          <div className="ml-auto flex items-center gap-2 flex-wrap">
+            <button
+              onClick={handleDownloadTemplate}
+              className="flex items-center gap-1.5 h-9 px-4 shrink-0 rounded-lg border border-[#E2E8F0] bg-white text-[#475569] text-xs font-bold hover:bg-[#F8FAFC] transition-colors shadow-sm"
+            >
               <Download className="w-3.5 h-3.5" /> Template
             </button>
-            <label className={`flex-1 flex items-center justify-center gap-1.5 h-9 rounded-xl border border-[#E2E8F0] bg-white text-[#475569] text-[12px] font-bold cursor-pointer ${uploading ? 'opacity-60 pointer-events-none' : ''}`}>
-              {uploading ? <><Spinner /> Uploading</> : <><Upload className="w-3.5 h-3.5" /> Upload</>}
-              <input type="file" accept=".xlsx,.xls,.csv" className="hidden" disabled={uploading}
-                onChange={(e) => { const f = e.target.files?.[0]; if (f) { handleUpload(f); e.target.value = ''; } }} />
+            <label className={`flex items-center gap-1.5 h-9 px-4 shrink-0 rounded-lg border border-[#E2E8F0] bg-white text-[#475569] text-xs font-bold hover:bg-[#F8FAFC] transition-colors shadow-sm cursor-pointer ${uploading ? 'opacity-60 pointer-events-none' : ''}`}>
+              {uploading ? <><Spinner /> Uploading...</> : <><Upload className="w-3.5 h-3.5" /> Upload</>}
+              <input
+                ref={uploadInputRef}
+                type="file"
+                accept=".xlsx,.xls,.csv"
+                className="hidden"
+                disabled={uploading}
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) { handleUpload(f); e.target.value = ''; } }}
+              />
             </label>
-            <button onClick={() => { setNewPlanName(''); setPlanError(''); setAddPlanModal(true); }}
-              className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-xl border border-[#00A86B] text-[#00A86B] text-[12px] font-bold bg-white">
+            <button
+              onClick={() => { setNewPlanName(''); setPlanError(''); setAddPlanModal(true); }}
+              className="flex items-center gap-1.5 h-9 px-4 shrink-0 rounded-lg border border-[#00A86B] text-[#00A86B] text-xs font-bold hover:bg-[#F0FDF4] transition-colors shadow-sm bg-white"
+            >
               <Plus className="w-3.5 h-3.5" /> Add Plan
             </button>
-            <button onClick={() => { setAddRateForm({ ...emptyAddRateForm, plan: selectedPlan || plans[0] || '' }); setAddRateError(''); setAddRateModal(true); }}
-              className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-xl bg-[#00A86B] text-white text-[12px] font-bold">
-              <Plus className="w-3.5 h-3.5" /> Add Rate
+            <button
+              onClick={() => { setAddRateForm({ ...emptyAddRateForm, plan: selectedPlan || plans[0] || '' }); setAddRateError(''); setAddRateModal(true); }}
+              className="flex items-center gap-1.5 h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm"
+            >
+              <Plus className="w-3.5 h-3.5" /> Add Rate Card
             </button>
           </div>
-          <div className="relative">
+        </div>
+
+        {/* Filters & Actions — mobile */}
+        <div className="md:hidden p-4 flex items-center gap-2 border-b border-[#E2E8F0]">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8]" />
+            <input
+              type="text"
+              placeholder="Search by courier name"
+              className="w-full h-10 pl-10 pr-4 rounded-xl border border-[#E2E8F0] bg-white text-sm outline-none focus:border-[#00A86B] text-[#0F172A]"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
+            />
+          </div>
+          <button
+            onClick={() => setIsMobileFiltersOpen(true)}
+            className="flex items-center gap-1.5 h-10 px-4 rounded-xl bg-[#00A86B] text-white text-[12px] font-bold shadow-sm shrink-0"
+          >
+            <Filter className="w-3.5 h-3.5" /> Filters
+          </button>
+        </div>
+
+        <div className="md:hidden px-4 pb-3 border-b border-[#E2E8F0] flex items-center gap-2 overflow-x-auto no-scrollbar">
+          <button onClick={handleDownloadTemplate}
+            className="flex items-center justify-center gap-1.5 h-9 px-4 shrink-0 rounded-xl border border-[#E2E8F0] bg-white text-[#475569] text-[12px] font-bold">
+            <Download className="w-3.5 h-3.5" /> Template
+          </button>
+          <label className={`flex items-center justify-center gap-1.5 h-9 px-4 shrink-0 rounded-xl border border-[#E2E8F0] bg-white text-[#475569] text-[12px] font-bold cursor-pointer ${uploading ? 'opacity-60 pointer-events-none' : ''}`}>
+            {uploading ? <><Spinner /> Uploading</> : <><Upload className="w-3.5 h-3.5" /> Upload</>}
+            <input type="file" accept=".xlsx,.xls,.csv" className="hidden" disabled={uploading}
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) { handleUpload(f); e.target.value = ''; } }} />
+          </label>
+          <button onClick={() => { setNewPlanName(''); setPlanError(''); setAddPlanModal(true); }}
+            className="flex items-center justify-center gap-1.5 h-9 px-4 shrink-0 rounded-xl border border-[#00A86B] text-[#00A86B] text-[12px] font-bold bg-white">
+            <Plus className="w-3.5 h-3.5" /> Add Plan
+          </button>
+          <button onClick={() => { setAddRateForm({ ...emptyAddRateForm, plan: selectedPlan || plans[0] || '' }); setAddRateError(''); setAddRateModal(true); }}
+            className="flex items-center justify-center gap-1.5 h-9 px-4 shrink-0 rounded-xl bg-[#00A86B] text-white text-[12px] font-bold">
+            <Plus className="w-3.5 h-3.5" /> Add Rate
+          </button>
+          <div className="relative min-w-[200px] shrink-0">
             <button onClick={() => setIsPlanDropdownOpen(!isPlanDropdownOpen)}
-              className={`w-full h-11 px-4 border rounded-xl text-sm font-bold transition-all flex items-center justify-between ${isPlanDropdownOpen ? 'border-[#00A86B] ring-1 ring-[#00A86B]/20 bg-white text-[#00A86B]' : 'border-[#E2E8F0] bg-white text-[#0F172A]'}`}>
+              className={`w-full h-9 px-4 border rounded-xl text-[12px] font-bold transition-all flex items-center justify-between ${isPlanDropdownOpen ? 'border-[#00A86B] ring-1 ring-[#00A86B]/20 bg-white text-[#00A86B]' : 'border-[#E2E8F0] bg-white text-[#0F172A]'}`}>
               <span className="truncate pr-2">{selectedPlan || 'Select Plan'}</span>
               <motion.div animate={{ rotate: isPlanDropdownOpen ? 180 : 0 }} transition={{ duration: 0.2 }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
@@ -490,7 +568,7 @@ export function AdminRateCard() {
                 <>
                   <div className="fixed inset-0 z-10" onClick={() => setIsPlanDropdownOpen(false)} />
                   <motion.div initial={{ opacity: 0, y: -10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -10, scale: 0.95 }} transition={{ duration: 0.15 }}
-                    className="absolute top-[calc(100%+8px)] left-0 w-full bg-white border border-[#E2E8F0] rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] z-20 overflow-hidden py-1.5">
+                    className="absolute top-[calc(100%+8px)] left-0 w-[240px] bg-white border border-[#E2E8F0] rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] z-20 overflow-hidden py-1.5">
                     <div className="max-h-[280px] overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
                       {plans.map(plan => (
                         <button key={plan} onClick={() => { setSelectedPlan(plan); setIsPlanDropdownOpen(false); }}
@@ -506,36 +584,34 @@ export function AdminRateCard() {
             </AnimatePresence>
           </div>
         </div>
-
-        {saveError && (
-          <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600 font-medium flex items-center justify-between gap-2">
-            <span>{saveError}</span>
-            <button onClick={() => setSaveError('')}><X className="w-4 h-4" /></button>
-          </div>
-        )}
+        </div>
 
         {/* Desktop Table */}
-        <div className="hidden md:block bg-white border border-[#E2E8F0] rounded-2xl overflow-hidden shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse min-w-[800px]">
-              <thead>
-                <tr className="border-b border-[#E2E8F0] bg-[#F8FAFC]">
-                  <th className="py-4 px-6 text-xs font-bold text-[#64748B] uppercase tracking-wider w-20">S.NO.</th>
-                  <th className="py-4 px-6 text-xs font-bold text-[#64748B] uppercase tracking-wider">COURIER NAME</th>
-                  <th className="py-4 px-6 text-xs font-bold text-[#64748B] uppercase tracking-wider text-center">TYPE</th>
-                  <th className="py-4 px-6 text-xs font-bold text-[#64748B] uppercase tracking-wider text-center">STATUS</th>
-                  <th className="py-4 px-6 text-xs font-bold text-[#64748B] uppercase tracking-wider text-right">SERVICES COUNT</th>
+        <div className="hidden md:flex bg-white flex-col flex-1 min-h-0 overflow-hidden border-t border-[#E2E8F0]">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden w-full relative">
+          {loading && <TableLoader />}
+          <table className="w-full text-left border-collapse">
+              <thead className="sticky top-0 z-20 bg-[#E6F5F1] shadow-sm">
+                <tr className="border-b border-[#E2E8F0]">
+                  <th className="py-4 px-6 text-xs font-bold text-[#00A86B] uppercase tracking-wider w-20">
+                    <div className="flex items-center gap-1.5"><Hash className="w-3.5 h-3.5 shrink-0" /><span>S.NO.</span></div>
+                  </th>
+                  <th className="py-4 px-6 text-xs font-bold text-[#00A86B] uppercase tracking-wider">
+                    <div className="flex items-center gap-1.5"><Truck className="w-3.5 h-3.5 shrink-0" /><span>COURIER NAME</span></div>
+                  </th>
+                  <th className="py-4 px-6 text-xs font-bold text-[#00A86B] uppercase tracking-wider text-center">
+                    <div className="flex items-center justify-center gap-1.5"><Filter className="w-3.5 h-3.5 shrink-0" /><span>TYPE</span></div>
+                  </th>
+                  <th className="py-4 px-6 text-xs font-bold text-[#00A86B] uppercase tracking-wider text-center">
+                    <div className="flex items-center justify-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 shrink-0" /><span>STATUS</span></div>
+                  </th>
+                  <th className="py-4 px-6 text-xs font-bold text-[#00A86B] uppercase tracking-wider text-right">
+                    <div className="flex items-center justify-end gap-1.5"><Layers className="w-3.5 h-3.5 shrink-0" /><span>SERVICES COUNT</span></div>
+                  </th>
                 </tr>
               </thead>
               <tbody>
-                {loading ? (
-                  <tr><td colSpan={5} className="py-16 text-center">
-                    <div className="flex justify-center items-center gap-2 text-[#94A3B8]">
-                      <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-                      <span className="text-sm font-semibold">Loading...</span>
-                    </div>
-                  </td></tr>
-                ) : filteredProviders.length > 0 ? (
+                {loading ? null : filteredProviders.length > 0 ? (
                   filteredProviders.map((provider, index) => {
                     const isExpanded = expandedProviderId === provider._id;
                     const isEditing = editingProviderId === provider._id;
@@ -759,13 +835,9 @@ export function AdminRateCard() {
         </div>
 
         {/* Mobile Cards */}
-        <div className="md:hidden space-y-4">
-          {loading ? (
-            <div className="flex justify-center items-center py-16 text-[#94A3B8] gap-2">
-              <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-              <span className="text-sm font-semibold">Loading...</span>
-            </div>
-          ) : filteredProviders.length > 0 ? (
+        <div className="md:hidden flex-1 overflow-y-auto p-4 space-y-4 relative">
+          {loading && <TableLoader />}
+          {loading ? null : filteredProviders.length > 0 ? (
             filteredProviders.map((provider) => {
               const isExpanded = expandedProviderId === provider._id;
               const isEditing = editingProviderId === provider._id;
@@ -969,27 +1041,29 @@ export function AdminRateCard() {
               <div className="p-6 space-y-4">
                 <div>
                   <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Status</label>
-                  <select className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-                    <option>All Status</option>
-                    <option>Enable</option>
-                    <option>Disable</option>
+                  <select className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white" value={statusFilter[0] || ''} onChange={(e) => setStatusFilter(e.target.value ? [e.target.value] : [])}>
+                    <option value="">All Status</option>
+                    {STATUS_OPTIONS.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
                   </select>
                 </div>
                 <div>
                   <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Type</label>
-                  <select className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
-                    <option value="All Types">All Types</option>
-                    <option value="Domestic (Surface)">Domestic (Surface)</option>
-                    <option value="Domestic (Air)">Domestic (Air)</option>
+                  <select className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white" value={typeFilter[0] || ''} onChange={(e) => setTypeFilter(e.target.value ? [e.target.value] : [])}>
+                    <option value="">All Types</option>
+                    {TYPE_OPTIONS.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
                   </select>
                 </div>
               </div>
               <div className="px-6 py-4 border-t border-[#E2E8F0] flex items-center gap-3 sticky bottom-0 bg-white">
-                <button onClick={() => { setStatusFilter('All Status'); setTypeFilter('All Types'); }}
+                <button onClick={() => { resetFilters(); setIsMobileFiltersOpen(false); }}
                   className="flex-1 h-11 rounded-full border border-[#E2E8F0] text-[#475569] text-sm font-bold hover:bg-[#F8FAFC] transition-colors">
                   Reset All
                 </button>
-                <button onClick={() => setIsMobileFiltersOpen(false)}
+                <button onClick={() => { applyFilters(); setIsMobileFiltersOpen(false); }}
                   className="flex-1 h-11 rounded-full bg-[#00A86B] text-white text-sm font-bold hover:bg-[#009B63] transition-colors shadow-sm">
                   Apply Filters
                 </button>
