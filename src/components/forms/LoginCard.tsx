@@ -57,7 +57,7 @@ export function LoginCard() {
       login(token);
       setStatus('success');
       const role = getRoleFromToken(token);
-      navigate(role === 'admin' ? '/admin/dashboard' : '/user/dashboard');
+      navigate(role === 'admin' ? '/admin/dashboard' : '/user/dashboard', { replace: true });
     } catch (err: any) {
       setStatus('error');
       setServerError(

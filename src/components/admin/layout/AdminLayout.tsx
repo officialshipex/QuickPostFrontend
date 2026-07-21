@@ -26,7 +26,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         {showHeader && (
           <AdminHeader onMobileMenuToggle={() => setIsMobileSidebarOpen(true)} />
         )}
-        <main className="flex-1 p-4 md:p-6 w-full">
+        <main className="flex-1 p-4 md:p-6 w-full min-w-0 overflow-x-hidden">
           {children}
         </main>
       </div>

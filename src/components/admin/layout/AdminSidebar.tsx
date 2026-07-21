@@ -91,6 +91,7 @@ const MENU_GROUPS: MenuGroup[] = [
       { name: 'Weight Discrepancy', path: '/admin/weight-discrepancy', icon: Scale },
       { name: 'Notification', path: '/admin/notification', icon: Bell },
       { name: 'Announcements', path: '/admin/announcement', icon: AlertCircle, adminOnly: true },
+      { name: 'Rate Calculator', path: '/user/rate-calculator', icon: Wrench, userOnly: true },
     ]
   },
   {
@@ -102,6 +103,7 @@ const MENU_GROUPS: MenuGroup[] = [
       { name: 'EDD Mapping', path: '/admin/edd-mapping', icon: Calendar, adminOnly: true },
       { name: 'EPD Mapping', path: '/admin/epd-mapping', icon: Calendar, adminOnly: true },
       { name: 'Complete KYC', path: '/admin/kyc', icon: FileText, userOnly: true },
+      { name: 'Settings', path: '/user/settings', icon: Settings, userOnly: true },
     ]
   },
   {
@@ -127,7 +129,7 @@ const MENU_GROUPS: MenuGroup[] = [
     label: 'Referral',
     icon: Star,
     path: '/admin/referral'
-  }
+  },
 ];
 
 interface AdminSidebarProps {

@@ -49,6 +49,11 @@ import { AdminAddOrder } from './pages/admin/AdminAddOrder';
 import { AdminTracking } from './pages/admin/AdminTracking';
 import { AdminProfile } from './pages/admin/AdminProfile';
 import { AdminOrderTracking } from './pages/admin/AdminOrderTracking';
+import { AdminSettingsHub } from './pages/admin/AdminSettingsHub';
+import { AdminSettingsPlaceholder } from './pages/admin/AdminSettingsPlaceholder';
+import { AdminWebhookSettings } from './pages/admin/AdminWebhookSettings';
+import { AdminLabelSettings } from './pages/admin/AdminLabelSettings';
+import { AdminChangePassword } from './pages/admin/AdminChangePassword';
 import { AdminKYC } from './pages/admin/AdminKYC';
 
 function GlobalOrderClickInterceptor() {
@@ -152,67 +157,79 @@ function App() {
           <Route path="/login" element={<AuthRedirect><Login /></AuthRedirect>} />
           <Route path="/forgot-password" element={<AuthRedirect><ForgotPassword /></AuthRedirect>} />
           
-          {/* Admin Routes */}
-          <Route element={<AdminUserProvider><DashboardFilterProvider><ProtectedRoute allowedRoles={['admin', 'user']} /></DashboardFilterProvider></AdminUserProvider>}>
-            <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
-            <Route path="/admin/dashboard" element={<AdminDashboard />} />
-            <Route path="/user/dashboard" element={<AdminDashboard />} />
-            <Route path="/user/orders" element={<AdminOrders />} />
-            <Route path="/user/orders/:tabSlug" element={<AdminOrders />} />
-            <Route path="/user/ndr" element={<AdminNDR />} />
-            <Route path="/user/wallet" element={<AdminWallet />} />
-            <Route path="/user/reports" element={<AdminReports />} />
-            <Route path="/user/weight-discrepancy" element={<AdminWeightDiscrepancy />} />
-            <Route path="/user/weight-discrepancy/:tabSlug" element={<AdminWeightDiscrepancy />} />
-            <Route path="/user/notification" element={<AdminNotification />} />
-            <Route path="/user/kyc" element={<AdminKYC />} />
-            <Route path="/user/referral" element={<AdminReferral />} />
-            <Route path="/user/rate-calculator" element={<AdminRateCalculator />} />
-            <Route path="/user/add-order" element={<AdminAddOrder />} />
-            <Route path="/user/tracking" element={<AdminTracking />} />
-            <Route path="/user/profile" element={<AdminProfile />} />
-            <Route path="/user/order-tracking" element={<AdminOrderTracking />} />
-            <Route path="/admin/users" element={<AdminUsers />} />
-            <Route path="/admin/roles" element={<AdminRoles />} />
-            <Route path="/admin/allocate-sellers" element={<AdminAllocateSellers />} />
-            <Route path="/admin/status-map" element={<AdminStatusMap />} />
-            <Route path="/admin/edd-mapping" element={<AdminEDDMapping />} />
-            <Route path="/admin/epd-mapping" element={<AdminEPDMapping />} />
-            <Route path="/admin/vendors" element={<AdminVendors />} />
-            <Route path="/admin/couriers" element={<AdminCouriers />} />
-            <Route path="/admin/couriers/:tabSlug" element={<AdminCouriers />} />
-            <Route path="/admin/orders" element={<AdminOrders />} />
-            <Route path="/admin/orders/:tabSlug" element={<AdminOrders />} />
-            <Route path="/admin/shipments" element={<AdminShipments />} />
-            <Route path="/admin/ndr" element={<AdminNDR />} />
-            <Route path="/admin/cod" element={<AdminCOD />} />
-            <Route path="/admin/wallet" element={<AdminWallet />} />
-            <Route path="/admin/reports" element={<AdminReports />} />
-            <Route path="/admin/support" element={<AdminSupport />} />
-            <Route path="/admin/settings" element={<AdminSettings />} />
-            <Route path="/admin/accounts" element={<AdminAccounts />} />
-            <Route path="/admin/audit" element={<AdminAuditLogs />} />
-            <Route path="/admin/profile" element={<AdminProfile />} />
-            <Route path="/admin/company" element={<AdminSettings />} />
-            <Route path="/admin/weight-discrepancy" element={<AdminWeightDiscrepancy />} />
-            <Route path="/admin/weight-discrepancy/:tabSlug" element={<AdminWeightDiscrepancy />} />
-            <Route path="/admin/announcement" element={<AdminAnnouncements />} />
-            <Route path="/admin/notification" element={<AdminNotification />} />
-            <Route path="/admin/rate-calculator" element={<AdminRateCalculator />} />
-            <Route path="/admin/add-order" element={<AdminAddOrder />} />
-            <Route path="/admin/tracking" element={<AdminTracking />} />
-            <Route path="/admin/referral" element={<AdminReferral />} />
-            <Route path="/admin/rate-card" element={<AdminRateCard />} />
-            <Route path="/admin/order-tracking" element={<AdminOrderTracking />} />
-            <Route path="/admin/kyc" element={<AdminKYC />} />
-            
-            {/* Internal CRM Routes */}
-            <Route path="/internal-crm/shipments" element={<CRMShipmentListing />} />
-            <Route path="/internal-crm/sellers" element={<CRMSellerAccounts />} />
-            <Route path="/internal-crm/leads" element={<CRMLeads />} />
-            <Route path="/internal-crm/couriers" element={<CRMCourierPartners />} />
-            <Route path="/internal-crm/escalations" element={<CRMEscalations />} />
-            <Route path="/internal-crm/metrics" element={<CRMBusinessMetrics />} />
+          {/* Protected Routes — auth check + context providers */}
+          <Route element={<AdminUserProvider><DashboardFilterProvider><ProtectedRoute /></DashboardFilterProvider></AdminUserProvider>}>
+
+            {/* ── Admin-only routes (/admin/*, /internal-crm/*) ── */}
+            <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
+              <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+              <Route path="/admin/dashboard" element={<AdminDashboard />} />
+              <Route path="/admin/users" element={<AdminUsers />} />
+              <Route path="/admin/roles" element={<AdminRoles />} />
+              <Route path="/admin/allocate-sellers" element={<AdminAllocateSellers />} />
+              <Route path="/admin/status-map" element={<AdminStatusMap />} />
+              <Route path="/admin/edd-mapping" element={<AdminEDDMapping />} />
+              <Route path="/admin/epd-mapping" element={<AdminEPDMapping />} />
+              <Route path="/admin/vendors" element={<AdminVendors />} />
+              <Route path="/admin/couriers" element={<AdminCouriers />} />
+              <Route path="/admin/couriers/:tabSlug" element={<AdminCouriers />} />
+              <Route path="/admin/orders" element={<AdminOrders />} />
+              <Route path="/admin/orders/:tabSlug" element={<AdminOrders />} />
+              <Route path="/admin/shipments" element={<AdminShipments />} />
+              <Route path="/admin/ndr" element={<AdminNDR />} />
+              <Route path="/admin/cod" element={<AdminCOD />} />
+              <Route path="/admin/wallet" element={<AdminWallet />} />
+              <Route path="/admin/reports" element={<AdminReports />} />
+              <Route path="/admin/support" element={<AdminSupport />} />
+              <Route path="/admin/settings" element={<AdminSettings />} />
+              <Route path="/admin/accounts" element={<AdminAccounts />} />
+              <Route path="/admin/audit" element={<AdminAuditLogs />} />
+              <Route path="/admin/profile" element={<AdminProfile />} />
+              <Route path="/admin/company" element={<AdminSettings />} />
+              <Route path="/admin/weight-discrepancy" element={<AdminWeightDiscrepancy />} />
+              <Route path="/admin/weight-discrepancy/:tabSlug" element={<AdminWeightDiscrepancy />} />
+              <Route path="/admin/announcement" element={<AdminAnnouncements />} />
+              <Route path="/admin/notification" element={<AdminNotification />} />
+              <Route path="/admin/rate-calculator" element={<AdminRateCalculator />} />
+              <Route path="/admin/add-order" element={<AdminAddOrder />} />
+              <Route path="/admin/tracking" element={<AdminTracking />} />
+              <Route path="/admin/referral" element={<AdminReferral />} />
+              <Route path="/admin/rate-card" element={<AdminRateCard />} />
+              <Route path="/admin/order-tracking" element={<AdminOrderTracking />} />
+              <Route path="/admin/kyc" element={<AdminKYC />} />
+              <Route path="/internal-crm/shipments" element={<CRMShipmentListing />} />
+              <Route path="/internal-crm/sellers" element={<CRMSellerAccounts />} />
+              <Route path="/internal-crm/leads" element={<CRMLeads />} />
+              <Route path="/internal-crm/couriers" element={<CRMCourierPartners />} />
+              <Route path="/internal-crm/escalations" element={<CRMEscalations />} />
+              <Route path="/internal-crm/metrics" element={<CRMBusinessMetrics />} />
+            </Route>
+
+            {/* ── User-only routes (/user/*) ── */}
+            <Route element={<ProtectedRoute allowedRoles={['user']} />}>
+              <Route path="/user/dashboard" element={<AdminDashboard />} />
+              <Route path="/user/orders" element={<AdminOrders />} />
+              <Route path="/user/orders/:tabSlug" element={<AdminOrders />} />
+              <Route path="/user/ndr" element={<AdminNDR />} />
+              <Route path="/user/wallet" element={<AdminWallet />} />
+              <Route path="/user/reports" element={<AdminReports />} />
+              <Route path="/user/weight-discrepancy" element={<AdminWeightDiscrepancy />} />
+              <Route path="/user/weight-discrepancy/:tabSlug" element={<AdminWeightDiscrepancy />} />
+              <Route path="/user/notification" element={<AdminNotification />} />
+              <Route path="/user/kyc" element={<AdminKYC />} />
+              <Route path="/user/referral" element={<AdminReferral />} />
+              <Route path="/user/rate-calculator" element={<AdminRateCalculator />} />
+              <Route path="/user/add-order" element={<AdminAddOrder />} />
+              <Route path="/user/tracking" element={<AdminTracking />} />
+              <Route path="/user/profile" element={<AdminProfile />} />
+              <Route path="/user/order-tracking" element={<AdminOrderTracking />} />
+              <Route path="/user/settings" element={<AdminSettingsHub />} />
+              <Route path="/user/settings/change-password" element={<AdminChangePassword />} />
+              <Route path="/user/settings/label" element={<AdminLabelSettings />} />
+              <Route path="/user/settings/invoice" element={<AdminSettingsPlaceholder title="Invoice" description="Manage your invoice preferences and billing settings." />} />
+              <Route path="/user/settings/webhook" element={<AdminWebhookSettings />} />
+            </Route>
+
           </Route>
         </Routes>
       </Router>
