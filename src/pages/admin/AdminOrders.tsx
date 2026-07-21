@@ -21,6 +21,7 @@ import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
 import { AdminPickupManifest } from './AdminPickupManifest';
 import { useAdminTab } from '../../context/AdminUserContext';
+import { ShipOrderModal } from '../../components/admin/orders/ShipOrderModal';
 
 // ─── Courier logo lookup — mobile card layout (mirrors AdminWallet.tsx convention) ──
 const getCourierLogo = (courierName: string) => {
@@ -307,6 +308,7 @@ export function AdminOrders() {
   // ── UI state ──
   const [selectedOrders,   setSelectedOrders]   = useState<string[]>([]);
   const [drawerOrder,      setDrawerOrder]       = useState<any | null>(null);
+  const [shipOrder,        setShipOrder]         = useState<any | null>(null);
   // dropdownPos renders the row-action dropdown via portal (fixed position) so overflow-auto doesn't clip it
   const [dropdownPos,      setDropdownPos]       = useState<{ id: string; top: number; left: number } | null>(null);
   // productHoverPos renders the Product-column line-item breakdown via portal, same reason as dropdownPos
@@ -1134,7 +1136,10 @@ export function AdminOrders() {
                       <td className="p-3">
                         <div className="flex items-center gap-2">
                           {isNewTab && (
-                            <button className="h-7 px-3 rounded-full bg-[#1e40af] text-white font-bold text-[10px] flex items-center gap-1 hover:bg-[#1e3a8a] shadow-sm cursor-pointer">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setShipOrder(order); }}
+                              className="h-7 px-3 rounded-full bg-[#1e40af] text-white font-bold text-[10px] flex items-center gap-1 hover:bg-[#1e3a8a] shadow-sm cursor-pointer"
+                            >
                               Ship <Send className="w-3 h-3" />
                             </button>
                           )}
@@ -1287,7 +1292,10 @@ export function AdminOrders() {
                       {/* Actions Row */}
                       <div className="flex items-center gap-2">
                         {isNewTab ? (
-                          <button className="flex-1 py-2.5 rounded-xl bg-[#1e40af] text-white text-[12px] font-bold flex items-center justify-center gap-1.5 hover:bg-[#1e3a8a] transition-colors">
+                          <button
+                            onClick={() => setShipOrder(order)}
+                            className="flex-1 py-2.5 rounded-xl bg-[#1e40af] text-white text-[12px] font-bold flex items-center justify-center gap-1.5 hover:bg-[#1e3a8a] transition-colors"
+                          >
                             Ship <Send className="w-3.5 h-3.5" />
                           </button>
                         ) : (
@@ -1541,6 +1549,15 @@ export function AdminOrders() {
               </div>
             </div>
           </div>
+        )}
+
+        {/* ── Ship Order Modal ── */}
+        {shipOrder && (
+          <ShipOrderModal
+            order={shipOrder}
+            onClose={() => setShipOrder(null)}
+            onShipped={() => fetchOrders(page)}
+          />
         )}
 
         {/* ── Pickup Tooltip ── */}

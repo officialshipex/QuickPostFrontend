@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ArrowRight, Tag, Type, Hash } from 'lucide-react';
+import { X, ArrowRight, Tag, Type, Hash, ChevronDown } from 'lucide-react';
 import { apiClient } from '../../../services/apiClient';
 
 interface AddServiceModalProps {
@@ -184,16 +184,19 @@ export function AddServiceModal({ isOpen, onClose, courier, onSuccess, editData 
                         Loading services...
                       </div>
                     ) : (
-                      <select
-                        value={courier_field}
-                        onChange={(e) => handleCourierSelect(e.target.value)}
-                        className="w-full h-12 px-4 bg-white border border-[#E2E8F0] rounded-[14px] text-sm font-medium text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#00A86B]/20 focus:border-[#00A86B] appearance-none"
-                      >
-                        <option value="">Select sub-service</option>
-                        {providerServices.map((svc, i) => (
-                          <option key={i} value={svc.service}>{svc.service}</option>
-                        ))}
-                      </select>
+                      <div className="relative">
+                        <select
+                          value={courier_field}
+                          onChange={(e) => handleCourierSelect(e.target.value)}
+                          className="w-full h-12 pl-4 pr-10 bg-white border border-[#E2E8F0] rounded-[14px] text-sm font-medium text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#00A86B]/20 focus:border-[#00A86B] appearance-none"
+                        >
+                          <option value="">Select sub-service</option>
+                          {providerServices.map((svc, i) => (
+                            <option key={i} value={svc.service}>{svc.service}</option>
+                          ))}
+                        </select>
+                        <ChevronDown className="w-4 h-4 text-[#94A3B8] absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      </div>
                     )}
                   </div>
                 )}
@@ -250,14 +253,17 @@ export function AddServiceModal({ isOpen, onClose, courier, onSuccess, editData 
                   <label className="block text-xs font-bold text-[#64748B] mb-2 uppercase tracking-wide">
                     <Tag className="inline w-3 h-3 mr-1" />Mode
                   </label>
-                  <select
-                    value={courierType}
-                    onChange={(e) => setCourierType(e.target.value)}
-                    className="w-full h-12 px-4 bg-white border border-[#E2E8F0] rounded-[14px] text-sm font-medium text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#00A86B]/20 focus:border-[#00A86B] appearance-none"
-                  >
-                    <option value="Domestic (Surface)">Domestic (Surface)</option>
-                    <option value="Domestic (Air)">Domestic (Air)</option>
-                  </select>
+                  <div className="relative">
+                    <select
+                      value={courierType}
+                      onChange={(e) => setCourierType(e.target.value)}
+                      className="w-full h-12 pl-4 pr-10 bg-white border border-[#E2E8F0] rounded-[14px] text-sm font-medium text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#00A86B]/20 focus:border-[#00A86B] appearance-none"
+                    >
+                      <option value="Domestic (Surface)">Domestic (Surface)</option>
+                      <option value="Domestic (Air)">Domestic (Air)</option>
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-[#94A3B8] absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
                 </div>
 
                 {/* Service Name */}
@@ -278,14 +284,17 @@ export function AddServiceModal({ isOpen, onClose, courier, onSuccess, editData 
                 {/* Status */}
                 <div>
                   <label className="block text-xs font-bold text-[#64748B] mb-2 uppercase tracking-wide">Status</label>
-                  <select
-                    value={status}
-                    onChange={(e) => setStatus(e.target.value)}
-                    className="w-full h-12 px-4 bg-white border border-[#E2E8F0] rounded-[14px] text-sm font-medium text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#00A86B]/20 focus:border-[#00A86B] appearance-none"
-                  >
-                    <option value="Enable">Enable</option>
-                    <option value="Disable">Disable</option>
-                  </select>
+                  <div className="relative">
+                    <select
+                      value={status}
+                      onChange={(e) => setStatus(e.target.value)}
+                      className="w-full h-12 pl-4 pr-10 bg-white border border-[#E2E8F0] rounded-[14px] text-sm font-medium text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#00A86B]/20 focus:border-[#00A86B] appearance-none"
+                    >
+                      <option value="Enable">Enable</option>
+                      <option value="Disable">Disable</option>
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-[#94A3B8] absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
                 </div>
 
                 {error && <p className="text-xs text-red-500 font-medium">{error}</p>}

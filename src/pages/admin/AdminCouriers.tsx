@@ -1,11 +1,22 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
-import { Search, ChevronRight, Settings, Trash2, Pencil, Filter, X } from 'lucide-react';
+import { Search, ChevronRight, Settings, Trash2, Pencil, Filter, X, CheckCircle2, Truck, Plus, Hash } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ConfigureCourierModal } from '../../components/admin/couriers/ConfigureCourierModal';
 import { AddServiceModal } from '../../components/admin/couriers/AddServiceModal';
 import { AddCourierModal } from '../../components/admin/couriers/AddCourierModal';
+import { GlassDropdown } from '../../components/ui/GlassDropdown';
+import { TableLoader } from '../../components/ui/TableLoader';
 import { apiClient } from '../../services/apiClient';
+
+const STATUS_OPTIONS = [
+  { label: 'Active', value: 'Active' },
+  { label: 'Inactive', value: 'Inactive' },
+];
+const TYPE_OPTIONS = [
+  { label: 'Domestic', value: 'Domestic' },
+];
 
 const LOGO_MAP: Record<string, string> = {
   'Amazon Shipping': '/brands/amazon.png',
@@ -28,25 +39,88 @@ const LOGO_MAP: Record<string, string> = {
   'ZipyPost': '/brands/zipypost.png',
 };
 
+const maskValue = (value?: string) => {
+  if (!value) return '';
+  if (value.length <= 4) return '****';
+  return `${'*'.repeat(value.length - 4)}${value.slice(-4)}`;
+};
+
+const TAB_SLUG_MAP: Record<'couriers' | 'services', string> = {
+  couriers: 'couriers',
+  services: 'services',
+};
+const SLUG_TO_TAB: Record<string, 'couriers' | 'services'> = {
+  couriers: 'couriers',
+  services: 'services',
+};
+
 export function AdminCouriers() {
   const [providers, setProviders] = useState<any[]>([]);
   const [servicesMap, setServicesMap] = useState<Record<string, any[]>>({});
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('All Status');
-  const [typeFilter, setTypeFilter] = useState('All Types');
+  const [statusFilter, setStatusFilter] = useState<string[]>([]);
+  const [typeFilter, setTypeFilter] = useState<string[]>([]);
+
+  // ─── Applied filters (only these drive filteredProviders — set by Apply/Clear All) ──
+  const [appliedSearch, setAppliedSearch] = useState('');
+  const [appliedStatus, setAppliedStatus] = useState<string[]>([]);
+  const [appliedType, setAppliedType] = useState<string[]>([]);
+
+  // ─── Global search from admin header navbar ──────────────────────────────────
+  const [globalSearch, setGlobalSearch] = useState('');
 
   const [selectedCourier, setSelectedCourier] = useState<any | null>(null);
   const [serviceCourier, setServiceCourier] = useState<any | null>(null);
   const [expandedProviderId, setExpandedProviderId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'couriers' | 'services'>('couriers');
+
+  // ── Tabs — each tab is its own URL sub-route (/admin/couriers/:tabSlug) ──
+  const navigate = useNavigate();
+  const { tabSlug } = useParams<{ tabSlug?: string }>();
+  const [activeTab, setActiveTab] = useState<'couriers' | 'services'>(
+    () => (tabSlug && SLUG_TO_TAB[tabSlug]) || 'couriers'
+  );
+
+  // Keep activeTab in sync with the URL (browser back/forward, direct links, refresh)
+  useEffect(() => {
+    const tabFromUrl = (tabSlug && SLUG_TO_TAB[tabSlug]) || 'couriers';
+    setActiveTab(prev => (prev === tabFromUrl ? prev : tabFromUrl));
+  }, [tabSlug]);
+
+  const handleTabChange = (tab: 'couriers' | 'services') => {
+    navigate(`/admin/couriers/${TAB_SLUG_MAP[tab]}`);
+  };
+
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
   const [showAddCourier, setShowAddCourier] = useState(false);
   const [editServiceData, setEditServiceData] = useState<any | null>(null);
 
 
+  // ─── Global search listener (navbar search bar) ──────────────────────────────
+  useEffect(() => {
+    const handleSearch = (e: Event) => {
+      const q = ((e as CustomEvent).detail || '').toLowerCase();
+      setGlobalSearch(q);
+    };
+    window.addEventListener('admin-search', handleSearch);
+    setGlobalSearch(((window as any).__adminSearchQuery || '').toLowerCase());
+    return () => window.removeEventListener('admin-search', handleSearch);
+  }, []);
+
   useEffect(() => {
     fetchAll();
+  }, [activeTab]);
+
+  // When the browser restores this page from bfcache (e.g. navigating away and
+  // pressing Back), React never remounts and stale data from before navigation
+  // is left showing. Refetch so nothing "persists".
+  useEffect(() => {
+    const handlePageShow = (e: PageTransitionEvent) => {
+      if (!e.persisted) return;
+      fetchAll();
+    };
+    window.addEventListener('pageshow', handlePageShow);
+    return () => window.removeEventListener('pageshow', handlePageShow);
   }, []);
 
   const fetchAll = async () => {
@@ -130,31 +204,52 @@ export function AdminCouriers() {
     setSelectedCourier(null);
   };
 
+  // ─── Apply / reset filters ──────────────────────────────────────────────────
+  const applyFilters = () => {
+    setAppliedSearch(searchQuery);
+    setAppliedStatus(statusFilter);
+    setAppliedType(typeFilter);
+  };
+
+  const resetFilters = () => {
+    setSearchQuery('');
+    setStatusFilter([]);
+    setTypeFilter([]);
+    setAppliedSearch('');
+    setAppliedStatus([]);
+    setAppliedType([]);
+  };
+
+  const hasActiveFilters = !!(searchQuery || statusFilter.length || typeFilter.length);
+
   const filteredProviders = providers.filter(p => {
     const name = p.courierName || p.courierProvider || '';
-    const matchesSearch = name.toLowerCase().includes(searchQuery.toLowerCase());
+    const search = globalSearch || appliedSearch;
+    const matchesSearch = name.toLowerCase().includes(search.toLowerCase());
     const matchesStatus =
-      statusFilter === 'All Status' ||
-      (statusFilter === 'Active' && p.status === 'Enable') ||
-      (statusFilter === 'Inactive' && p.status === 'Disable');
-    return matchesSearch && matchesStatus;
+      appliedStatus.length === 0 ||
+      (appliedStatus.includes('Active') && p.status === 'Enable') ||
+      (appliedStatus.includes('Inactive') && p.status === 'Disable');
+    const matchesType = appliedType.length === 0 || appliedType.includes('Domestic');
+    return matchesSearch && matchesStatus && matchesType;
   });
 
   return (
     <AdminLayout>
-      <div className="max-w-6xl mx-auto space-y-6">
+      <div className="flex flex-col h-[calc(100vh-72px)] -m-4 md:-m-6 bg-white">
+        <div className="bg-white relative z-50 shrink-0">
 
         {/* Header Tabs */}
-        <div className="border-b border-[#E2E8F0]">
+        <div className="px-4 md:px-6 border-b border-[#E2E8F0]">
           <div className="flex gap-6 md:gap-8 overflow-x-auto no-scrollbar">
             <button
-              onClick={() => setActiveTab('couriers')}
+              onClick={() => handleTabChange('couriers')}
               className={`px-1 py-4 text-sm font-bold transition-colors whitespace-nowrap ${activeTab === 'couriers' ? 'text-[#00A86B] border-b-2 border-[#00A86B]' : 'text-[#64748B] hover:text-[#0F172A]'}`}
             >
               Couriers
             </button>
             <button
-              onClick={() => setActiveTab('services')}
+              onClick={() => handleTabChange('services')}
               className={`px-1 py-4 text-sm font-bold transition-colors whitespace-nowrap ${activeTab === 'services' ? 'text-[#00A86B] border-b-2 border-[#00A86B]' : 'text-[#64748B] hover:text-[#0F172A]'}`}
             >
               Courier Services
@@ -163,49 +258,58 @@ export function AdminCouriers() {
         </div>
 
         {/* Filters & Search — desktop */}
-        <div className="hidden md:flex bg-white rounded-xl border border-[#E2E8F0] p-4 flex-col md:flex-row gap-4">
-          <div className="flex gap-4">
-            <select
-              className="h-10 px-4 border border-[#E2E8F0] rounded-xl text-sm font-medium text-[#0F172A] outline-none focus:border-[#00A86B] min-w-[140px] appearance-none bg-white"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-            >
-              <option>All Status</option>
-              <option>Active</option>
-              <option>Inactive</option>
-            </select>
+        <div className="hidden md:flex p-3 border-b border-[#E2E8F0] flex-wrap items-center gap-2.5 bg-[#F8FAFC]/50">
+          <input
+            type="text"
+            placeholder="Search by courier name"
+            className="glass-search-input w-[220px] shrink-0"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
+          />
 
-            <select
-              className="h-10 px-4 border border-[#E2E8F0] rounded-xl text-sm font-medium text-[#0F172A] outline-none focus:border-[#00A86B] min-w-[140px] appearance-none bg-white"
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-            >
-              <option>All Types</option>
-              <option>Domestic</option>
-            </select>
-          </div>
+          <GlassDropdown
+            label="Status"
+            options={STATUS_OPTIONS}
+            selected={statusFilter}
+            onChange={setStatusFilter}
+            placeholder="Search status..."
+            icon={<CheckCircle2 className="w-3.5 h-3.5" />}
+          />
 
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8]" />
-            <input
-              type="text"
-              placeholder="Search by courier name"
-              className="w-full h-10 pl-10 pr-4 border border-[#E2E8F0] rounded-xl text-sm outline-none focus:border-[#00A86B] text-[#0F172A]"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
+          <GlassDropdown
+            label="Type"
+            options={TYPE_OPTIONS}
+            selected={typeFilter}
+            onChange={setTypeFilter}
+            placeholder="Search type..."
+            icon={<Truck className="w-3.5 h-3.5" />}
+          />
+
+          <button
+            onClick={applyFilters}
+            className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm flex items-center justify-center cursor-pointer"
+          >
+            Apply
+          </button>
+
+          {hasActiveFilters && (
+            <button onClick={resetFilters}
+              className="h-9 px-3 shrink-0 rounded-lg border border-red-200 text-red-500 text-xs font-bold hover:bg-red-50 transition-colors">
+              Clear All
+            </button>
+          )}
 
           <button
             onClick={() => setShowAddCourier(true)}
-            className="ml-auto h-10 px-5 rounded-xl text-sm font-semibold text-white bg-[#00A86B] hover:bg-[#009B63] transition-colors shrink-0"
+            className="ml-auto h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm flex items-center gap-1.5 cursor-pointer"
           >
-            + Add Courier
+            <Plus className="w-3.5 h-3.5" /> Add Courier
           </button>
         </div>
 
         {/* Filters & Search — mobile */}
-        <div className="md:hidden flex items-center gap-2">
+        <div className="md:hidden p-4 flex items-center gap-2 border-b border-[#E2E8F0]">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8]" />
             <input
@@ -214,6 +318,7 @@ export function AdminCouriers() {
               className="w-full h-10 pl-10 pr-4 rounded-xl border border-[#E2E8F0] bg-white text-sm outline-none focus:border-[#00A86B] text-[#0F172A]"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
             />
           </div>
           <button
@@ -223,141 +328,138 @@ export function AdminCouriers() {
             <Filter className="w-3.5 h-3.5" /> Filters
           </button>
         </div>
+        </div>
 
         {/* Table — desktop only */}
-        <div className="hidden md:block bg-white border border-[#E2E8F0] rounded-2xl overflow-hidden shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse min-w-[800px]">
-              <thead>
-                <tr className="border-b border-[#E2E8F0] bg-[#F8FAFC]">
-                  <th className="py-4 px-6 text-xs font-bold text-[#64748B] uppercase tracking-wider w-20">S.NO.</th>
-                  <th className="py-4 px-6 text-xs font-bold text-[#64748B] uppercase tracking-wider">COURIER NAME</th>
-                  <th className="py-4 px-6 text-xs font-bold text-[#64748B] uppercase tracking-wider text-center">TYPE</th>
-                  <th className="py-4 px-6 text-xs font-bold text-[#64748B] uppercase tracking-wider text-center">STATUS</th>
-                  <th className="py-4 px-6 text-xs font-bold text-[#64748B] uppercase tracking-wider text-center">ACTION</th>
-                  <th className="py-4 px-6 text-xs font-bold text-[#64748B] uppercase tracking-wider text-right">
-                    {activeTab === 'couriers' ? 'CONFIGURE' : 'ADD SERVICE'}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr>
-                    <td colSpan={6} className="py-12 text-center">
-                      <div className="text-sm font-semibold text-[#94A3B8]">Loading...</div>
-                    </td>
-                  </tr>
-                ) : filteredProviders.length > 0 ? (
-                  filteredProviders.map((provider, index) => {
-                    const name = provider.courierName || provider.courierProvider || '';
-                    const logo = LOGO_MAP[name] || '';
-                    const isEnabled = provider.status === 'Enable';
-                    const services = servicesMap[name] || [];
-                    const isExpanded = expandedProviderId === provider._id && activeTab === 'services';
+        <div className="hidden md:flex bg-white flex-col flex-1 min-h-0 overflow-hidden border-t border-[#E2E8F0]">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden w-full relative">
+          {loading && <TableLoader />}
+          <table className="w-full text-left border-collapse">
+            <thead className="sticky top-0 z-20 bg-[#E6F5F1] shadow-sm">
+              <tr className="border-b border-[#E2E8F0]">
+                <th className="py-4 px-6 text-xs font-bold text-[#00A86B] uppercase tracking-wider w-20">
+                  <div className="flex items-center gap-1.5"><Hash className="w-3.5 h-3.5 shrink-0" /><span>S.NO.</span></div>
+                </th>
+                <th className="py-4 px-6 text-xs font-bold text-[#00A86B] uppercase tracking-wider">
+                  <div className="flex items-center gap-1.5"><Truck className="w-3.5 h-3.5 shrink-0" /><span>COURIER NAME</span></div>
+                </th>
+                <th className="py-4 px-6 text-xs font-bold text-[#00A86B] uppercase tracking-wider text-center">
+                  <div className="flex items-center justify-center gap-1.5"><Filter className="w-3.5 h-3.5 shrink-0" /><span>TYPE</span></div>
+                </th>
+                <th className="py-4 px-6 text-xs font-bold text-[#00A86B] uppercase tracking-wider text-center">
+                  <div className="flex items-center justify-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 shrink-0" /><span>STATUS</span></div>
+                </th>
+                <th className="py-4 px-6 text-xs font-bold text-[#00A86B] uppercase tracking-wider text-right">
+                  <div className="flex items-center justify-end gap-1.5">
+                    {activeTab === 'couriers' ? <Settings className="w-3.5 h-3.5 shrink-0" /> : <Plus className="w-3.5 h-3.5 shrink-0" />}
+                    <span>{activeTab === 'couriers' ? 'CONFIGURE' : 'ADD SERVICE'}</span>
+                  </div>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? null : filteredProviders.length > 0 ? (
+                filteredProviders.map((provider, index) => {
+                  const name = provider.courierName || provider.courierProvider || '';
+                  const logo = LOGO_MAP[name] || '';
+                  const isEnabled = provider.status === 'Enable';
+                  const services = servicesMap[name] || [];
+                  const isExpanded = expandedProviderId === provider._id;
 
-                    return (
-                      <React.Fragment key={provider._id}>
-                        <tr
-                          className={`border-b border-[#E2E8F0] hover:bg-[#F8FAFC]/50 transition-colors ${activeTab === 'services' ? 'cursor-pointer' : ''} ${isExpanded ? 'bg-[#F8FAFC]' : ''}`}
-                          onClick={() => activeTab === 'services' && setExpandedProviderId(isExpanded ? null : provider._id)}
-                        >
-                          <td className="py-4 px-6">
-                            <div className="flex items-center gap-3">
-                              <span className="text-sm font-semibold text-[#64748B]">{index + 1}</span>
-                              {activeTab === 'services' && (
-                                <ChevronRight className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-90 text-[#00A86B]' : 'text-[#CBD5E1]'}`} />
+                  return (
+                    <React.Fragment key={provider._id}>
+                      <tr
+                        className={`border-b border-[#E2E8F0] hover:bg-[#F8FAFC]/50 transition-colors cursor-pointer ${isExpanded ? 'bg-[#F8FAFC]' : ''}`}
+                        onClick={() => setExpandedProviderId(isExpanded ? null : provider._id)}
+                      >
+                        <td className="py-4 px-6">
+                          <div className="flex items-center gap-3">
+                            <span className="text-sm font-semibold text-[#64748B]">{index + 1}</span>
+                            <ChevronRight className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-90 text-[#00A86B]' : 'text-[#CBD5E1]'}`} />
+                          </div>
+                        </td>
+                        <td className="py-4 px-6">
+                          <div className="flex items-center gap-5">
+                            <div className="w-[60px] h-[60px] bg-white border border-[#E2E8F0] rounded-2xl p-2.5 flex items-center justify-center shrink-0 overflow-hidden shadow-sm">
+                              {logo ? (
+                                <img
+                                  src={logo}
+                                  alt={name}
+                                  className="max-w-full max-h-full object-contain"
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).style.display = 'none';
+                                    (e.target as HTMLImageElement).parentElement!.innerHTML = `<span class="text-[15px] font-bold text-[#94A3B8]">${name.charAt(0)}</span>`;
+                                  }}
+                                />
+                              ) : (
+                                <span className="text-[15px] font-bold text-[#94A3B8]">{name.charAt(0)}</span>
                               )}
                             </div>
-                          </td>
-                          <td className="py-4 px-6">
-                            <div className="flex items-center gap-5">
-                              <div className="w-[60px] h-[60px] bg-white border border-[#E2E8F0] rounded-2xl p-2.5 flex items-center justify-center shrink-0 overflow-hidden shadow-sm">
-                                {logo ? (
-                                  <img
-                                    src={logo}
-                                    alt={name}
-                                    className="max-w-full max-h-full object-contain"
-                                    onError={(e) => {
-                                      (e.target as HTMLImageElement).style.display = 'none';
-                                      (e.target as HTMLImageElement).parentElement!.innerHTML = `<span class="text-[15px] font-bold text-[#94A3B8]">${name.charAt(0)}</span>`;
-                                    }}
-                                  />
-                                ) : (
-                                  <span className="text-[15px] font-bold text-[#94A3B8]">{name.charAt(0)}</span>
-                                )}
-                              </div>
-                              <div>
-                                <div className="text-[15px] font-extrabold text-[#0F172A]">{name}</div>
-                                {activeTab === 'services' && (
-                                  <div className="text-xs text-[#94A3B8] mt-0.5">
-                                    {services.length} service{services.length !== 1 ? 's' : ''}
-                                  </div>
-                                )}
+                            <div>
+                              <div className="text-[15px] font-extrabold text-[#0F172A]">{name}</div>
+                              <div className="text-xs text-[#94A3B8] mt-0.5">
+                                {activeTab === 'couriers'
+                                  ? (provider.apiKey || provider.email ? '1 account configured' : 'No account configured')
+                                  : `${services.length} service${services.length !== 1 ? 's' : ''}`}
                               </div>
                             </div>
-                          </td>
-                          <td className="py-4 px-6">
-                            <div className="flex justify-center">
-                              <span className="px-3 py-1 bg-[#F1F5F9] text-[#475569] rounded-full text-xs font-bold">Domestic</span>
-                            </div>
-                          </td>
-                          <td className="py-4 px-6">
-                            <div className="flex justify-center" onClick={(e) => e.stopPropagation()}>
-                              <span className={`text-sm font-bold ${isEnabled ? 'text-[#00A86B]' : 'text-[#94A3B8]'}`}>
-                                {isEnabled ? 'Active' : 'Inactive'}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="py-4 px-6">
-                            <div className="flex justify-center" onClick={(e) => e.stopPropagation()}>
-                              <button
-                                onClick={() => toggleProviderStatus(provider)}
-                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#00A86B] focus:ring-offset-2 ${
-                                  isEnabled ? 'bg-[#1E1B4B]' : 'bg-[#E2E8F0]'
+                          </div>
+                        </td>
+                        <td className="py-4 px-6">
+                          <div className="flex justify-center">
+                            <span className="px-3 py-1 bg-[#F1F5F9] text-[#475569] rounded-full text-xs font-bold">Domestic</span>
+                          </div>
+                        </td>
+                        <td className="py-4 px-6">
+                          <div className="flex justify-center" onClick={(e) => e.stopPropagation()}>
+                            <button
+                              onClick={() => toggleProviderStatus(provider)}
+                              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#00A86B] focus:ring-offset-2 ${
+                                isEnabled ? 'bg-[#00A86B]' : 'bg-[#EF4444]'
+                              }`}
+                            >
+                              <span
+                                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ease-in-out ${
+                                  isEnabled ? 'translate-x-6' : 'translate-x-1'
                                 }`}
-                              >
-                                <span
-                                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ease-in-out ${
-                                    isEnabled ? 'translate-x-6' : 'translate-x-1'
-                                  }`}
-                                />
-                              </button>
-                            </div>
-                          </td>
-                          <td className="py-4 px-6">
-                            <div className="flex justify-end items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                              {activeTab === 'couriers' ? (
-                                <>
-                                  <button
-                                    onClick={() => setSelectedCourier({ ...provider, name, logo })}
-                                    className="text-sm font-semibold text-[#64748B] hover:text-[#00A86B] transition-colors flex items-center gap-1"
-                                  >
-                                    <Settings className="w-4 h-4" /> Configure
-                                  </button>
-                                  <button
-                                    onClick={() => handleDeleteProvider(provider)}
-                                    className="w-8 h-8 flex items-center justify-center rounded-full text-[#94A3B8] hover:text-red-500 hover:bg-red-50 transition-colors"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
-                                </>
-                              ) : (
+                              />
+                            </button>
+                          </div>
+                        </td>
+                        <td className="py-4 px-6">
+                          <div className="flex justify-end items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                            {activeTab === 'couriers' ? (
+                              <>
                                 <button
-                                  onClick={() => setServiceCourier({ ...provider, name, logo })}
+                                  onClick={() => setSelectedCourier({ ...provider, name, logo })}
                                   className="text-sm font-semibold text-[#64748B] hover:text-[#00A86B] transition-colors flex items-center gap-1"
                                 >
-                                  + Add Service
+                                  <Settings className="w-4 h-4" /> Configure
                                 </button>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
+                                <button
+                                  onClick={() => handleDeleteProvider(provider)}
+                                  className="w-8 h-8 flex items-center justify-center rounded-full text-[#94A3B8] hover:text-red-500 hover:bg-red-50 transition-colors"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </>
+                            ) : (
+                              <button
+                                onClick={() => setServiceCourier({ ...provider, name, logo })}
+                                className="text-sm font-semibold text-[#64748B] hover:text-[#00A86B] transition-colors flex items-center gap-1"
+                              >
+                                + Add Service
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
 
-                        {/* Expandable Services Row — Services tab only */}
+                        {/* Expandable Services Row */}
                         <AnimatePresence initial={false}>
-                          {activeTab === 'services' && isExpanded && (
+                          {isExpanded && (
                             <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] overflow-hidden">
-                              <td colSpan={6} className="p-0">
+                              <td colSpan={5} className="p-0">
                                 <motion.div
                                   initial={{ height: 0, opacity: 0 }}
                                   animate={{ height: 'auto', opacity: 1 }}
@@ -366,7 +468,40 @@ export function AdminCouriers() {
                                   className="overflow-hidden"
                                 >
                                   <div className="py-6 px-12">
-                                    {services.length > 0 ? (
+                                    {activeTab === 'couriers' ? (
+                                      <div className="bg-white rounded-xl border border-[#E2E8F0] overflow-hidden shadow-[0_2px_12px_rgba(0,0,0,0.02)]">
+                                        {provider.apiKey || provider.email ? (
+                                          <div className="flex items-center justify-between py-5 px-8">
+                                            <div className="w-1/3">
+                                              <div className="text-[15px] font-medium text-[#1E293B] mb-1 leading-none">
+                                                {provider.email || maskValue(provider.apiKey)}
+                                              </div>
+                                              <div className="text-[13px] text-[#94A3B8] leading-none">Configured Account</div>
+                                            </div>
+                                            <div className="w-1/3 flex justify-center">
+                                              <span className="px-4 py-1.5 bg-[#F1F5F9] text-[#1E293B] rounded-full text-[13px] font-medium">
+                                                {provider.CODDays != null ? `${provider.CODDays} day delivery` : 'No ETA set'}
+                                              </span>
+                                            </div>
+                                            <div className="w-1/3 flex justify-end items-center gap-3 pr-8">
+                                              <span className={`text-sm font-bold ${isEnabled ? 'text-[#00A86B]' : 'text-[#94A3B8]'}`}>
+                                                {isEnabled ? 'Active' : 'Inactive'}
+                                              </span>
+                                              <button
+                                                onClick={() => setSelectedCourier({ ...provider, name, logo })}
+                                                className="w-8 h-8 flex items-center justify-center rounded-full text-[#94A3B8] hover:text-[#00A86B] hover:bg-[#00A86B]/10 transition-colors"
+                                              >
+                                                <Pencil className="w-3.5 h-3.5" />
+                                              </button>
+                                            </div>
+                                          </div>
+                                        ) : (
+                                          <div className="text-center py-8">
+                                            <p className="text-xs font-semibold text-[#94A3B8]">No account configured yet.</p>
+                                          </div>
+                                        )}
+                                      </div>
+                                    ) : services.length > 0 ? (
                                       <div className="bg-white rounded-xl border border-[#E2E8F0] overflow-hidden shadow-[0_2px_12px_rgba(0,0,0,0.02)]">
                                         <div className="flex flex-col">
                                           {services.map((svc, i) => (
@@ -389,7 +524,7 @@ export function AdminCouriers() {
                                                 <button
                                                   onClick={() => toggleServiceStatus(svc)}
                                                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#00A86B] focus:ring-offset-2 ${
-                                                    svc.status === 'Enable' ? 'bg-[#1E1B4B]' : 'bg-[#E2E8F0]'
+                                                    svc.status === 'Enable' ? 'bg-[#00A86B]' : 'bg-[#EF4444]'
                                                   }`}
                                                 >
                                                   <span
@@ -431,7 +566,7 @@ export function AdminCouriers() {
                   })
                 ) : (
                   <tr>
-                    <td colSpan={6} className="py-12 text-center">
+                    <td colSpan={5} className="py-12 text-center">
                       <div className="text-sm font-semibold text-[#64748B]">No couriers found</div>
                     </td>
                   </tr>
@@ -442,15 +577,20 @@ export function AdminCouriers() {
         </div>
 
         {/* Card List — mobile only */}
-        <div className="md:hidden space-y-4">
-          {filteredProviders.length > 0 ? (
+        <div className="md:hidden flex-1 overflow-y-auto p-4 space-y-4">
+          {loading ? (
+            <div className="flex flex-col items-center justify-center gap-3 py-16">
+              <div className="w-8 h-8 border-[3px] border-[#E2E8F0] border-t-[#00A86B] rounded-full animate-spin" />
+              <div className="text-sm font-semibold text-[#94A3B8]">Loading couriers...</div>
+            </div>
+          ) : filteredProviders.length > 0 ? (
             filteredProviders.map((provider) => {
               const name = provider.courierName || provider.courierProvider || '';
               const logo = LOGO_MAP[name] || '';
               const isEnabled = provider.status === 'Enable';
               const services = servicesMap[name] || [];
-              const isExpanded = expandedProviderId === provider._id && activeTab === 'services';
-              
+              const isExpanded = expandedProviderId === provider._id;
+
               return (
                 <div key={provider._id} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
                   {/* Ribbon Tag */}
@@ -462,7 +602,7 @@ export function AdminCouriers() {
                   </div>
 
                   <button
-                    onClick={() => activeTab === 'services' && setExpandedProviderId(isExpanded ? null : provider._id)}
+                    onClick={() => setExpandedProviderId(isExpanded ? null : provider._id)}
                     className="w-full pt-8 px-4 pb-4 text-left"
                   >
                     <div className="flex items-center gap-3">
@@ -487,9 +627,7 @@ export function AdminCouriers() {
                           Domestic
                         </span>
                       </div>
-                      {activeTab === 'services' && (
-                        <ChevronRight className={`w-4 h-4 shrink-0 transition-transform ${isExpanded ? 'rotate-90 text-[#00A86B]' : 'text-[#CBD5E1]'}`} />
-                      )}
+                      <ChevronRight className={`w-4 h-4 shrink-0 transition-transform ${isExpanded ? 'rotate-90 text-[#00A86B]' : 'text-[#CBD5E1]'}`} />
                     </div>
                   </button>
 
@@ -497,7 +635,7 @@ export function AdminCouriers() {
                     <button
                       onClick={() => toggleProviderStatus(provider)}
                       className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#00A86B] focus:ring-offset-2 ${
-                        isEnabled ? 'bg-[#1E1B4B]' : 'bg-[#E2E8F0]'
+                        isEnabled ? 'bg-[#00A86B]' : 'bg-[#EF4444]'
                       }`}
                     >
                       <span
@@ -534,7 +672,7 @@ export function AdminCouriers() {
 
                   {/* Expandable Services List */}
                   <AnimatePresence initial={false}>
-                    {activeTab === 'services' && isExpanded && (
+                    {isExpanded && (
                       <motion.div
                         initial={{ height: 0, opacity: 0 }}
                         animate={{ height: 'auto', opacity: 1 }}
@@ -543,7 +681,38 @@ export function AdminCouriers() {
                         className="overflow-hidden border-t border-[#E2E8F0] bg-[#F8FAFC]"
                       >
                         <div className="p-4">
-                          {services.length > 0 ? (
+                          {activeTab === 'couriers' ? (
+                            provider.apiKey || provider.email ? (
+                              <div className="bg-white rounded-xl border border-[#E2E8F0] p-3.5">
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="min-w-0">
+                                    <div className="text-[13px] font-semibold text-[#0F172A] truncate">
+                                      {provider.email || maskValue(provider.apiKey)}
+                                    </div>
+                                    <div className="text-[11px] text-[#94A3B8] mt-0.5">Configured Account</div>
+                                    <span className="inline-block mt-1.5 px-2 py-0.5 bg-[#F1F5F9] text-[#1E293B] rounded-full text-[10px] font-medium">
+                                      {provider.CODDays != null ? `${provider.CODDays} day delivery` : 'No ETA set'}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-2 shrink-0">
+                                    <span className={`text-xs font-bold ${isEnabled ? 'text-[#00A86B]' : 'text-[#94A3B8]'}`}>
+                                      {isEnabled ? 'Active' : 'Inactive'}
+                                    </span>
+                                    <button
+                                      onClick={() => setSelectedCourier({ ...provider, name, logo })}
+                                      className="w-8 h-8 flex items-center justify-center rounded-full text-[#94A3B8] active:text-[#00A86B] active:bg-[#00A86B]/10 transition-colors shrink-0"
+                                    >
+                                      <Pencil className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="text-center py-6 bg-white rounded-xl border border-[#E2E8F0] border-dashed">
+                                <p className="text-xs font-semibold text-[#94A3B8]">No account configured yet.</p>
+                              </div>
+                            )
+                          ) : services.length > 0 ? (
                             <div className="space-y-2.5">
                               {services.map((svc) => {
                                 const svcIsEnabled = svc.status === 'Enable';
@@ -563,7 +732,7 @@ export function AdminCouriers() {
                                         <button
                                           onClick={() => toggleServiceStatus(svc)}
                                           className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#00A86B] focus:ring-offset-2 ${
-                                            svcIsEnabled ? 'bg-[#1E1B4B]' : 'bg-[#E2E8F0]'
+                                            svcIsEnabled ? 'bg-[#00A86B]' : 'bg-[#EF4444]'
                                           }`}
                                         >
                                           <span
@@ -643,12 +812,13 @@ export function AdminCouriers() {
                   <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Status</label>
                   <select
                     className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
+                    value={statusFilter[0] || ''}
+                    onChange={(e) => setStatusFilter(e.target.value ? [e.target.value] : [])}
                   >
-                    <option>All Status</option>
-                    <option>Active</option>
-                    <option>Inactive</option>
+                    <option value="">All Status</option>
+                    {STATUS_OPTIONS.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
                   </select>
                 </div>
 
@@ -656,24 +826,26 @@ export function AdminCouriers() {
                   <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Type</label>
                   <select
                     className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
-                    value={typeFilter}
-                    onChange={(e) => setTypeFilter(e.target.value)}
+                    value={typeFilter[0] || ''}
+                    onChange={(e) => setTypeFilter(e.target.value ? [e.target.value] : [])}
                   >
-                    <option>All Types</option>
-                    <option>Domestic</option>
+                    <option value="">All Types</option>
+                    {TYPE_OPTIONS.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
                   </select>
                 </div>
               </div>
 
               <div className="px-6 py-4 border-t border-[#E2E8F0] flex items-center gap-3 sticky bottom-0 bg-white">
                 <button
-                  onClick={() => { setStatusFilter('All Status'); setTypeFilter('All Types'); }}
+                  onClick={() => { resetFilters(); setIsMobileFiltersOpen(false); }}
                   className="flex-1 h-11 rounded-full border border-[#E2E8F0] text-[#475569] text-sm font-bold hover:bg-[#F8FAFC] transition-colors"
                 >
                   Reset All
                 </button>
                 <button
-                  onClick={() => setIsMobileFiltersOpen(false)}
+                  onClick={() => { applyFilters(); setIsMobileFiltersOpen(false); }}
                   className="flex-1 h-11 rounded-full bg-[#00A86B] text-white text-sm font-bold hover:bg-[#009B63] transition-colors shadow-sm"
                 >
                   Apply Filters

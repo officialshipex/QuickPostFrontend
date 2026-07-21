@@ -185,9 +185,13 @@ export function ConfigureCourierModal({ isOpen, onClose, courier, onSave }: Conf
                         </div>
                         <input
                           type={field.type}
+                          name={`courier-config-${field.id}`}
                           placeholder={field.placeholder}
                           value={fieldValues[field.id] || ''}
                           onChange={(e) => setFieldValues(prev => ({ ...prev, [field.id]: e.target.value }))}
+                          autoComplete="new-password"
+                          data-lpignore="true"
+                          data-1p-ignore="true"
                           className="w-full h-12 pl-11 pr-4 bg-white border border-[#E2E8F0] hover:border-[#CBD5E1] rounded-[14px] text-sm font-medium text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#00A86B]/20 focus:border-[#00A86B] transition-all shadow-[0_2px_6px_rgba(0,0,0,0.02)]"
                         />
                       </div>

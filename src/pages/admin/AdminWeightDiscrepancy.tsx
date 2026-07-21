@@ -750,7 +750,7 @@ export function AdminWeightDiscrepancy() {
             {hasFilters && (
               <button onClick={clearFilters}
                 className="h-9 px-3 shrink-0 rounded-lg border border-red-200 text-red-500 text-xs font-bold hover:bg-red-50 transition-colors">
-                Clear Filters
+                Clear All
               </button>
             )}
 
