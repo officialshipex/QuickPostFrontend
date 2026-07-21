@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   ChevronDown, User, Users,
   UserCheck, ShieldAlert, IndianRupee, CreditCard, Building2,
-  Clock, Edit2, Wallet, Copy, CheckCircle2, AlertCircle, X, MoreVertical, MoreHorizontal, Settings, Info, Filter, Search
+  Clock, Edit2, Wallet, Copy, CheckCircle2, AlertCircle, X, MoreVertical, Settings, Info, Filter, Search, ExternalLink
 } from 'lucide-react';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
@@ -123,7 +123,6 @@ export function AdminUsers() {
   const [rateCardFilterOptions, setRateCardFilterOptions] = useState<{ label: string; value: string }[]>([]);
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
   const [mobileActionOpen, setMobileActionOpen] = useState(false);
-  const [rowActionOpenId, setRowActionOpenId] = useState<string | null>(null);
 
   // ─── Helpers ────────────────────────────────────────────────────────────────
   const showToast = (type: 'success' | 'error', text: string) => {
@@ -694,24 +693,14 @@ export function AdminUsers() {
                         <div className="table-date mt-0.5 ml-[5px]">{fmtDate(user.lastOrderDate)}</div>
                       </td>
                       <td className="p-3 align-top pt-4 text-right pr-6">
-                        <div className="relative inline-block text-left">
+                        <div className="flex items-center justify-end gap-1.5">
                           <button
-                            onClick={() => setRowActionOpenId(prev => prev === uid ? null : uid)}
-                            onBlur={() => setTimeout(() => setRowActionOpenId(prev => prev === uid ? null : prev), 150)}
-                            className={`w-7 h-7 rounded-full border flex items-center justify-center transition-colors cursor-pointer ${rowActionOpenId === uid ? 'bg-green-100 border-[#00A86B] text-[#00A86B]' : 'border-[#E2E8F0] text-[#64748B] hover:bg-[#F1F5F9]'}`}
+                            onClick={() => navigate('/admin/profile', { state: { user } })}
+                            title="View Profile"
+                            className="w-7 h-7 rounded-full border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:bg-[#F0FDF4] hover:border-[#00A86B] hover:text-[#00A86B] transition-colors cursor-pointer"
                           >
-                            <MoreHorizontal className="w-3.5 h-3.5" />
+                            <ExternalLink className="w-3.5 h-3.5" />
                           </button>
-                          {rowActionOpenId === uid && (
-                            <div className="absolute right-0 top-full mt-1 w-36 bg-white rounded-xl shadow-[0_4px_24px_-4px_rgba(0,0,0,0.15)] border border-[#E2E8F0] py-1.5 z-50">
-                              <button
-                                onClick={() => navigate('/admin/profile', { state: { user } })}
-                                className="w-full text-left px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#00A86B] transition-colors"
-                              >
-                                Profile
-                              </button>
-                            </div>
-                          )}
                         </div>
                       </td>
                     </tr>

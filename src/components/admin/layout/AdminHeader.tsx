@@ -8,6 +8,7 @@ import { useAdminTab } from '../../../context/AdminUserContext';
 import { useDashboardFilters } from '../../../context/DashboardFilterContext';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { BulkUploadModal } from '../../ui/BulkUploadModal';
 
 interface AdminHeaderProps {
   onMobileMenuToggle?: () => void;
@@ -39,12 +40,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
   const [availableCodBalance, setAvailableCodBalance] = useState(148250);
 
   // Bulk Import modal
-  const bulkFileInputRef = useRef<HTMLInputElement>(null);
   const [showBulkModal, setShowBulkModal] = useState(false);
-  const [bulkStep, setBulkStep] = useState<1 | 2>(1);
-  const [bulkOrderType, setBulkOrderType] = useState<'B2C' | 'B2B'>('B2C');
-  const [bulkFile, setBulkFile] = useState<File | null>(null);
-  const [bulkUploading, setBulkUploading] = useState(false);
 
   // User Login (impersonation) modal
   const [showUserLoginModal, setShowUserLoginModal] = useState(false);
@@ -104,24 +100,6 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
     }
   };
 
-  const handleBulkUpload = async () => {
-    if (!bulkFile) return;
-    setBulkUploading(true);
-    try {
-      const formData = new FormData();
-      formData.append('file', bulkFile);
-      const url = bulkOrderType === 'B2C' ? '/bulkOrderUpload/upload' : '/b2b/bulkOrderUpload/upload';
-      await apiClient.post(url, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
-      showToast('Bulk import successful!');
-      setShowBulkModal(false);
-      setBulkFile(null);
-      setBulkStep(1);
-    } catch {
-      showToast('Bulk import failed. Please check your file and try again.');
-    } finally {
-      setBulkUploading(false);
-    }
-  };
 
   // Initials fallback for profile avatar
   const userInitials = (userName || '?').split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase();
@@ -340,7 +318,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                 <Link to="/admin/add-order" className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A]" onClick={() => setShowQuickActions(false)}>
                   <PackagePlus className="w-3.5 h-3.5" /> Add an Order
                 </Link>
-                <button className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] text-left w-full" onClick={() => { setShowBulkModal(true); setBulkStep(1); setBulkFile(null); setShowQuickActions(false); }}>
+                <button className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] text-left w-full" onClick={() => { setShowBulkModal(true); setShowQuickActions(false); }}>
                   <Upload className="w-3.5 h-3.5" /> Bulk Import
                 </button>
                 <Link to="/admin/rate-calculator" className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A]" onClick={() => setShowQuickActions(false)}>
@@ -672,7 +650,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                     </Link>
                     <button
                       className="flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-[#F8FAFC] transition-colors group text-center w-full"
-                      onClick={() => { setShowBulkModal(true); setBulkStep(1); setBulkFile(null); setShowQuickActions(false); }}
+                      onClick={() => { setShowBulkModal(true); setShowQuickActions(false); }}
                     >
                       <div className="w-10 h-10 rounded-full bg-[#FFF7ED] flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
                         <Upload className="w-5 h-5 text-[#F97316]" />
@@ -1285,67 +1263,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
       </header>
 
       {/* Bulk Import Modal */}
-      {typeof document !== 'undefined' && createPortal(
-        <AnimatePresence>
-          {showBulkModal && (
-            <>
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => { setShowBulkModal(false); setBulkFile(null); setBulkStep(1); }} className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm z-[200]" />
-              <div className="fixed inset-0 flex items-center justify-center z-[201] p-4 pointer-events-none">
-                <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} transition={{ type: 'spring', duration: 0.4 }} className="w-full max-w-[380px] bg-white rounded-2xl shadow-[0_24px_48px_rgba(0,0,0,0.16)] p-6 relative pointer-events-auto border border-slate-100">
-                  <button onClick={() => { setShowBulkModal(false); setBulkFile(null); setBulkStep(1); }} className="absolute top-4 right-4 w-8 h-8 bg-slate-100 hover:bg-slate-200 rounded-full flex items-center justify-center transition-colors focus:outline-none">
-                    <X className="w-4 h-4 text-slate-500" />
-                  </button>
-
-                  <div className="flex items-center gap-3 mb-5">
-                    <div className="w-10 h-10 rounded-full bg-[#FFF7ED] flex items-center justify-center shrink-0">
-                      <Upload className="w-5 h-5 text-[#F97316]" />
-                    </div>
-                    <div>
-                      <h2 className="text-[15px] font-bold text-[#0F172A]">Bulk Import Orders</h2>
-                      <p className="text-[11px] text-[#64748B] font-medium">{bulkStep === 1 ? 'Step 1: Select order type' : `Step 2: Upload ${bulkOrderType} file`}</p>
-                    </div>
-                  </div>
-
-                  <div className="h-[1px] bg-slate-100 mb-5" />
-
-                  {bulkStep === 1 ? (
-                    <div className="flex flex-col gap-3">
-                      <p className="text-[12px] font-semibold text-[#64748B] mb-1">Select Order Type</p>
-                      <button onClick={() => { setBulkOrderType('B2C'); setBulkStep(2); }} className="flex items-center gap-3 p-4 rounded-xl border-2 border-[#E2E8F0] hover:border-[#00A86B] hover:bg-[#F0FDF4] transition-all text-left group">
-                        <div className="w-9 h-9 rounded-full bg-[#EFF6FF] flex items-center justify-center shrink-0 group-hover:bg-[#DCFCE7] transition-colors"><Upload className="w-4 h-4 text-[#3B82F6] group-hover:text-[#00A86B]" /></div>
-                        <div><p className="text-[13px] font-bold text-[#0F172A]">B2C Order</p><p className="text-[11px] text-[#64748B]">Business to Consumer shipments</p></div>
-                      </button>
-                      <button onClick={() => { setBulkOrderType('B2B'); setBulkStep(2); }} className="flex items-center gap-3 p-4 rounded-xl border-2 border-[#E2E8F0] hover:border-[#00A86B] hover:bg-[#F0FDF4] transition-all text-left group">
-                        <div className="w-9 h-9 rounded-full bg-[#FFF7ED] flex items-center justify-center shrink-0 group-hover:bg-[#DCFCE7] transition-colors"><Upload className="w-4 h-4 text-[#F97316] group-hover:text-[#00A86B]" /></div>
-                        <div><p className="text-[13px] font-bold text-[#0F172A]">B2B Order</p><p className="text-[11px] text-[#64748B]">Business to Business shipments</p></div>
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col gap-4">
-                      <button onClick={() => setBulkStep(1)} className="flex items-center gap-1.5 text-[12px] font-semibold text-[#64748B] hover:text-[#0F172A] transition-colors self-start">
-                        <ArrowLeft className="w-3.5 h-3.5" /> Back
-                      </button>
-                      <input ref={bulkFileInputRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={e => setBulkFile(e.target.files?.[0] || null)} />
-                      <div onClick={() => bulkFileInputRef.current?.click()} className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all ${bulkFile ? 'border-[#00A86B] bg-[#F0FDF4]' : 'border-[#E2E8F0] hover:border-[#00A86B] hover:bg-[#F8FAFC]'}`}>
-                        <Upload className={`w-8 h-8 mx-auto mb-2 ${bulkFile ? 'text-[#00A86B]' : 'text-[#CBD5E1]'}`} />
-                        {bulkFile ? (
-                          <><p className="text-[13px] font-bold text-[#00A86B]">{bulkFile.name}</p><p className="text-[11px] text-[#64748B] mt-0.5">{(bulkFile.size / 1024).toFixed(1)} KB</p></>
-                        ) : (
-                          <><p className="text-[13px] font-semibold text-[#475569]">Click to upload file</p><p className="text-[11px] text-[#94A3B8] mt-0.5">Supported: .xlsx, .xls, .csv</p></>
-                        )}
-                      </div>
-                      <button onClick={handleBulkUpload} disabled={!bulkFile || bulkUploading} className="w-full py-3 bg-gradient-to-r from-[#00b876] to-[#00A86B] text-white text-sm font-bold rounded-xl shadow-sm hover:from-[#00c982] hover:to-[#00b876] transition-all disabled:opacity-50 disabled:pointer-events-none focus:outline-none">
-                        {bulkUploading ? 'Uploading…' : 'Upload & Import'}
-                      </button>
-                    </div>
-                  )}
-                </motion.div>
-              </div>
-            </>
-          )}
-        </AnimatePresence>,
-        document.body
-      )}
+      <BulkUploadModal open={showBulkModal} onClose={() => setShowBulkModal(false)} />
 
       {/* User Login (Impersonation) Modal */}
       {typeof document !== 'undefined' && createPortal(

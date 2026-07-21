@@ -10,7 +10,7 @@ import {
   Search, ChevronDown, RefreshCcw, Send, Calendar, Check, MoreHorizontal,
   IndianRupee, Package, User, Settings, MapPin, X, Truck, CreditCard,
   CheckCircle2, Clock, AlertTriangle, Flame, History, Layers, RefreshCw, Mail,
-  Filter, Copy
+  Filter, Copy, PackagePlus
 } from 'lucide-react';
 import { TransferCODModal } from '../../components/ui/TransferCODModal';
 import { usePagination, DesktopPagination } from '../../hooks/usePagination';
@@ -626,15 +626,15 @@ export function AdminOrders() {
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { handleLabel(rowOrder._id); close(); }}>Download Label</button>
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { handleInvoice(rowOrder._id); close(); }}>Download Invoice</button>
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { handleManifest(rowOrder._id); close(); }}>Download Manifest</button>
-        <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] cursor-pointer" onClick={close}>Clone Order</button>
+        <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { navigate(`${isAdminView ? '/admin' : '/user'}/add-order?cloneId=${rowOrder._id}`); close(); }}>Clone Order</button>
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#EF4444] hover:bg-red-50 mt-1 cursor-pointer" onClick={() => { handleCancelOrder(rowOrder); close(); }}>Cancel Order</button>
       </>
     );
     if (isNewTab) return (
       <>
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { handleInvoice(rowOrder._id); close(); }}>Download Invoice</button>
-        <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer" onClick={close}>Clone Order</button>
-        <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer" onClick={close}>Update Order</button>
+        <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { navigate(`${isAdminView ? '/admin' : '/user'}/add-order?cloneId=${rowOrder._id}`); close(); }}>Clone Order</button>
+        <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { navigate(`${isAdminView ? '/admin' : '/user'}/add-order?updateId=${rowOrder._id}`); close(); }}>Update Order</button>
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#EF4444] hover:bg-red-50 mt-1 cursor-pointer" onClick={() => { handleCancelOrder(rowOrder); close(); }}>Delete Order</button>
       </>
     );
@@ -643,7 +643,7 @@ export function AdminOrders() {
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { handleLabel(rowOrder._id); close(); }}>Download Label</button>
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { handleInvoice(rowOrder._id); close(); }}>Download Invoice</button>
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { handleManifest(rowOrder._id); close(); }}>Download Manifest</button>
-        <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer" onClick={close}>Clone Order</button>
+        <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { navigate(`${isAdminView ? '/admin' : '/user'}/add-order?cloneId=${rowOrder._id}`); close(); }}>Clone Order</button>
       </>
     );
   };
@@ -760,11 +760,15 @@ export function AdminOrders() {
                     )}
                   </AnimatePresence>
                 </div>
-                <button
-                  className="w-9 h-9 rounded-full bg-[#00A86B] flex items-center justify-center text-white shadow-sm shrink-0"
-                >
-                  <span className="text-lg leading-none mt-[-2px]">+</span>
-                </button>
+                {!isAdminView && (
+                  <button
+                    onClick={() => navigate('/user/add-order')}
+                    className="h-9 px-4 rounded-full bg-[#00A86B] flex items-center gap-2 text-white text-[13px] font-bold hover:bg-[#009B63] shadow-sm transition-colors shrink-0"
+                  >
+                    <PackagePlus className="w-4 h-4" />
+                    Add Order
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -898,9 +902,15 @@ export function AdminOrders() {
                   </div>
                 )}
               </div>
-              <button className="w-9 h-9 rounded-full bg-[#00A86B] flex items-center justify-center text-white hover:bg-[#009B63] shadow-sm">
-                <span className="text-lg leading-none mt-[-2px]">+</span>
-              </button>
+              {!isAdminView && (
+                <button
+                  onClick={() => navigate('/user/add-order')}
+                  className="h-9 px-4 rounded-full bg-[#00A86B] flex items-center gap-2 text-white text-[13px] font-bold hover:bg-[#009B63] shadow-sm transition-colors"
+                >
+                  <PackagePlus className="w-4 h-4" />
+                  Add Order
+                </button>
+              )}
             </div>
           </div>}
 

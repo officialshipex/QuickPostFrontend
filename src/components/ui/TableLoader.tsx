@@ -23,15 +23,13 @@ export function TableLoader() {
             animation: 'spin 0.8s cubic-bezier(0.5, 0, 0.5, 1) infinite reverse',
           }}
         />
-        {/* Inner pulsing dot */}
-        <div 
-          className="absolute inset-0 flex items-center justify-center"
-        >
-          <div 
-            className="w-3 h-3 rounded-full bg-[#00A86B]"
-            style={{
-              animation: 'pulse 1.2s ease-in-out infinite',
-            }}
+        {/* Inner pulsing icon */}
+        <div className="absolute inset-0 flex items-center justify-center">
+          <img
+            src="/icon-color.png"
+            alt="icon"
+            className="w-6 h-6 object-contain"
+            style={{ animation: 'pulse 1.2s ease-in-out infinite' }}
           />
         </div>
       </div>
