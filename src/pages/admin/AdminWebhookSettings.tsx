@@ -1,11 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { apiClient } from '../../services/apiClient';
 import { TableLoader } from '../../components/ui/TableLoader';
 import {
-  ArrowLeft, Plus, X, RefreshCcw, Trash2, Pencil, Copy, Eye, EyeOff,
+  Plus, X, RefreshCcw, Trash2, Pencil, Copy, Eye, EyeOff,
   CheckCircle2, XCircle, Loader2, Webhook as WebhookIcon,
 } from 'lucide-react';
 
@@ -39,7 +38,6 @@ interface WebhookLogRow {
 const genSecret = () => Array.from({ length: 24 }, () => Math.floor(Math.random() * 36).toString(36)).join('');
 
 export function AdminWebhookSettings() {
-  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'webhooks' | 'logs'>('webhooks');
 
   const [webhooks, setWebhooks] = useState<WebhookRow[]>([]);
@@ -152,13 +150,6 @@ export function AdminWebhookSettings() {
   return (
     <AdminLayout>
       <div className="max-w-[1400px] mx-auto pb-10">
-        <button
-          onClick={() => navigate('/user/settings')}
-          className={`flex items-center gap-2 ${TXT.label} text-[#64748B] hover:text-[#0F172A] transition-colors bg-white px-3.5 py-2 rounded-lg border border-[#E2E8F0] hover:border-[#CBD5E1] mb-4`}
-        >
-          <ArrowLeft className="w-3.5 h-3.5" /> Back to Settings
-        </button>
-
         <h1 className={`text-[20px] font-bold text-[#0F172A] mb-4 flex items-center gap-2`}>
           <WebhookIcon className="w-5 h-5 text-[#00A86B]" /> Webhook Settings
         </h1>

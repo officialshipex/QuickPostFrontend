@@ -574,7 +574,7 @@ export function AdminProfile() {
                 title="Rate Card Management"
                 action={
                   <button
-                    onClick={() => fetchRates(mongoId)}
+                    onClick={() => fetchRates(effectiveId)}
                     className={`${TXT.label} text-[#00A86B] px-3 py-1.5 rounded-lg border border-[#00A86B] hover:bg-[#ECFDF5] transition-colors`}
                   >
                     Refresh
