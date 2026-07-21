@@ -782,7 +782,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
               <span className="text-[13px] font-bold text-[#0F172A] leading-tight group-hover:text-[#00A86B] transition-colors truncate max-w-[120px]">
                 {userName || 'User'}
               </span>
-              <span className="text-[11px] font-semibold text-[#64748B]">{isAdmin ? 'Admin' : 'Seller'}</span>
+              <span className="text-[11px] font-semibold text-[#64748B]">{isAdmin ? 'Admin' : 'User'}</span>
             </div>
             <ChevronDown className="w-3.5 h-3.5 text-[#94A3B8] group-hover:text-[#0F172A] transition-colors" />
           </button>
