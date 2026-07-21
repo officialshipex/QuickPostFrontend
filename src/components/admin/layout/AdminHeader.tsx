@@ -29,6 +29,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
   // Local copy of wallet balance so recharge modal can update it optimistically
   const [walletBalance, setWalletBalance] = useState(0);
   const [showWalletHover, setShowWalletHover] = useState(false);
+  const [showMobileWalletSummary, setShowMobileWalletSummary] = useState(false);
   const [showRechargeModal, setShowRechargeModal] = useState(false);
   const [rechargeAmount, setRechargeAmount] = useState(500);
   const [couponCode, setCouponCode] = useState('');
@@ -288,14 +289,15 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
           <Menu className="w-5 h-5" />
         </button>
         
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-1.5 shrink-0">
           {/* Notifications */}
-          <div className="relative animate-fade-in">
+          <div className="relative animate-fade-in shrink-0">
             <button
               onClick={() => {
                 setShowNotifications(!showNotifications);
                 setShowQuickActions(false);
                 setShowProfileMenu(false);
+                setShowMobileWalletSummary(false);
               }}
               className={`w-8 h-8 flex items-center justify-center rounded-full text-[#64748B] hover:bg-[#F8FAFC] transition-colors relative ${showNotifications ? 'bg-[#F8FAFC] text-[#0F172A]' : ''}`}
             >
@@ -304,28 +306,32 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
             </button>
 
             {showNotifications && (
-              <div className="fixed left-3 right-3 top-[60px] max-w-[calc(100vw-24px)] bg-white rounded-xl shadow-xl border border-[#E2E8F0] py-2 z-50 origin-top-right">
-                <div className="px-4 py-2 border-b border-[#E2E8F0] flex justify-between items-center bg-slate-50/50">
-                  <h3 className="font-bold text-[#0F172A] text-xs uppercase tracking-wider">Alerts</h3>
-                  <span className="text-[10px] font-semibold text-[#00A86B] cursor-pointer hover:underline" onClick={() => setShowNotifications(false)}>Dismiss</span>
-                </div>
-                <div className="max-h-[220px] overflow-y-auto">
-                  <div className="px-4 py-6 text-center">
-                    <Bell className="w-6 h-6 text-[#CBD5E1] mx-auto mb-2" />
-                    <p className="text-xs font-semibold text-[#94A3B8]">No alerts right now</p>
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowNotifications(false)} />
+                <div className="fixed left-3 right-3 top-[60px] max-w-[calc(100vw-24px)] bg-white rounded-xl shadow-xl border border-[#E2E8F0] py-2 z-50 origin-top-right">
+                  <div className="px-4 py-2 border-b border-[#E2E8F0] flex justify-between items-center bg-slate-50/50">
+                    <h3 className="font-bold text-[#0F172A] text-xs uppercase tracking-wider">Alerts</h3>
+                    <span className="text-[10px] font-semibold text-[#00A86B] cursor-pointer hover:underline" onClick={() => setShowNotifications(false)}>Dismiss</span>
+                  </div>
+                  <div className="max-h-[220px] overflow-y-auto">
+                    <div className="px-4 py-6 text-center">
+                      <Bell className="w-6 h-6 text-[#CBD5E1] mx-auto mb-2" />
+                      <p className="text-xs font-semibold text-[#94A3B8]">No alerts right now</p>
+                    </div>
                   </div>
                 </div>
-              </div>
+              </>
             )}
           </div>
 
           {/* Quick Actions */}
-          <div className="relative animate-fade-in">
+          <div className="relative animate-fade-in shrink-0">
             <button
               onClick={() => {
                 setShowQuickActions(!showQuickActions);
                 setShowNotifications(false);
                 setShowProfileMenu(false);
+                setShowMobileWalletSummary(false);
               }}
               className={`w-8 h-8 flex items-center justify-center rounded-full text-[#64748B] hover:bg-[#F8FAFC] transition-colors ${showQuickActions ? 'bg-[#F8FAFC] text-[#0F172A]' : ''}`}
             >
@@ -333,47 +339,99 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
             </button>
 
             {showQuickActions && (
-              <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-[#E2E8F0] py-2 z-50 origin-top-right">
-                <div className="px-4 py-1.5 border-b border-slate-100 mb-1">
-                  <span className="text-[10px] font-bold text-[#94A3B8] uppercase">Quick Menu</span>
-                </div>
-                <Link to="/admin/add-order" className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A]" onClick={() => setShowQuickActions(false)}>
-                  <PackagePlus className="w-3.5 h-3.5" /> Add an Order
-                </Link>
-                <button className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] text-left w-full" onClick={() => { setShowBulkModal(true); setBulkStep(1); setBulkFile(null); setShowQuickActions(false); }}>
-                  <Upload className="w-3.5 h-3.5" /> Bulk Import
-                </button>
-                <Link to="/admin/rate-calculator" className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A]" onClick={() => setShowQuickActions(false)}>
-                  <Calculator className="w-3.5 h-3.5" /> Calculate Rate
-                </Link>
-                {isAdmin && (
-                  <button className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] text-left w-full" onClick={() => { setShowUserLoginModal(true); setUserLoginQuery(''); setUserSuggestions([]); setShowQuickActions(false); }}>
-                    <Users className="w-3.5 h-3.5" /> User Login
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowQuickActions(false)} />
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-[#E2E8F0] py-2 z-50 origin-top-right">
+                  <div className="px-4 py-1.5 border-b border-slate-100 mb-1">
+                    <span className="text-[10px] font-bold text-[#94A3B8] uppercase">Quick Menu</span>
+                  </div>
+                  <Link to="/admin/add-order" className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A]" onClick={() => setShowQuickActions(false)}>
+                    <PackagePlus className="w-3.5 h-3.5" /> Add an Order
+                  </Link>
+                  <button className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] text-left w-full" onClick={() => { setShowBulkModal(true); setBulkStep(1); setBulkFile(null); setShowQuickActions(false); }}>
+                    <Upload className="w-3.5 h-3.5" /> Bulk Import
                   </button>
-                )}
-              </div>
+                  <Link to="/admin/rate-calculator" className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A]" onClick={() => setShowQuickActions(false)}>
+                    <Calculator className="w-3.5 h-3.5" /> Calculate Rate
+                  </Link>
+                  {isAdmin && (
+                    <button className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] text-left w-full" onClick={() => { setShowUserLoginModal(true); setUserLoginQuery(''); setUserSuggestions([]); setShowQuickActions(false); }}>
+                      <Users className="w-3.5 h-3.5" /> User Login
+                    </button>
+                  )}
+                </div>
+              </>
             )}
           </div>
 
           {/* Wallet Balance */}
-          <button
-            onClick={() => setShowRechargeModal(true)}
-            className={`flex items-center gap-1.5 text-white px-2.5 py-1.5 rounded-full text-[11px] font-bold shadow-sm cursor-pointer transition-colors focus:outline-none ${walletBalance < 0 ? 'bg-[#EF4444] hover:bg-[#DC2626]' : 'bg-[#00A86B] hover:bg-[#009B63]'}`}
-          >
-            <Wallet className="w-3.5 h-3.5" />
-            <span>₹{(walletBalance / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-            <span className="text-white/80">+</span>
-          </button>
+          <div className="relative shrink-0">
+            <div
+              className={`flex items-center gap-1 shrink-0 whitespace-nowrap text-white pl-2 pr-1 py-1.5 rounded-full text-[11px] font-bold shadow-sm transition-colors ${walletBalance < 0 ? 'bg-[#EF4444]' : 'bg-[#00A86B]'}`}
+            >
+              <button
+                onClick={() => {
+                  setShowMobileWalletSummary(!showMobileWalletSummary);
+                  setShowNotifications(false);
+                  setShowQuickActions(false);
+                  setShowProfileMenu(false);
+                }}
+                className="flex items-center gap-1 focus:outline-none"
+              >
+                <Wallet className="w-3.5 h-3.5 shrink-0" />
+                <span>₹{walletBalance.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
+              </button>
+              <button
+                onClick={() => setShowRechargeModal(true)}
+                className="text-white/80 hover:text-white px-1 focus:outline-none"
+                aria-label="Recharge wallet"
+              >
+                +
+              </button>
+            </div>
+
+            {showMobileWalletSummary && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowMobileWalletSummary(false)} />
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-[#E2E8F0] p-3 z-50 origin-top-right">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-[9px] font-bold text-[#94A3B8] uppercase tracking-wider">Wallet Summary</span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#00A86B] animate-pulse shrink-0"></span>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between items-center gap-2">
+                      <span className="text-[11px] font-semibold text-[#64748B]">Available</span>
+                      <span className="text-[11px] font-bold text-slate-800">₹{walletBalance.toLocaleString('en-IN')}</span>
+                    </div>
+
+                    <div className="flex justify-between items-center gap-2">
+                      <span className="text-[11px] font-semibold text-[#64748B]">Hold</span>
+                      <span className="text-[11px] font-bold text-amber-600">₹{walletHold.toLocaleString('en-IN')}</span>
+                    </div>
+
+                    <div className="h-[1px] bg-slate-100"></div>
+
+                    <div className="flex justify-between items-center gap-2">
+                      <span className="text-[11px] font-bold text-slate-700">Net</span>
+                      <span className="text-[11px] font-extrabold text-[#00A86B]">₹{Math.max(0, walletBalance - walletHold).toLocaleString('en-IN')}</span>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
 
           {/* Profile Dropdown */}
-          <div className="relative animate-fade-in">
+          <div className="relative animate-fade-in shrink-0">
             <button
               onClick={() => {
                 setShowProfileMenu(!showProfileMenu);
                 setShowNotifications(false);
                 setShowQuickActions(false);
+                setShowMobileWalletSummary(false);
               }}
-              className="w-8 h-8 rounded-full bg-[#E2E8F0] overflow-hidden flex items-center justify-center focus:outline-none border border-[#CBD5E1]"
+              className="w-8 h-8 rounded-full bg-[#E2E8F0] overflow-hidden flex items-center justify-center focus:outline-none border border-[#CBD5E1] shrink-0"
             >
               <img src="https://ui-avatars.com/api/?name=Admin&background=00A86B&color=fff&size=32&bold=true" alt="Profile" className="w-full h-full object-cover" />
             </button>

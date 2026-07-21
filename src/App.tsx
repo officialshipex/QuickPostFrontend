@@ -49,6 +49,9 @@ import { AdminAddOrder } from './pages/admin/AdminAddOrder';
 import { AdminTracking } from './pages/admin/AdminTracking';
 import { AdminProfile } from './pages/admin/AdminProfile';
 import { AdminOrderTracking } from './pages/admin/AdminOrderTracking';
+import { AdminSettingsHub } from './pages/admin/AdminSettingsHub';
+import { AdminSettingsPlaceholder } from './pages/admin/AdminSettingsPlaceholder';
+import { AdminWebhookSettings } from './pages/admin/AdminWebhookSettings';
 import { AdminKYC } from './pages/admin/AdminKYC';
 
 function GlobalOrderClickInterceptor() {
@@ -172,6 +175,12 @@ function App() {
             <Route path="/user/tracking" element={<AdminTracking />} />
             <Route path="/user/profile" element={<AdminProfile />} />
             <Route path="/user/order-tracking" element={<AdminOrderTracking />} />
+            <Route path="/user/settings" element={<AdminSettingsHub />} />
+            <Route path="/user/settings/company-profile" element={<AdminSettingsPlaceholder title="Company Profile" description="Edit your company details, logo, and business information." />} />
+            <Route path="/user/settings/change-password" element={<AdminSettingsPlaceholder title="Change Password" description="Update your account credentials and security settings." />} />
+            <Route path="/user/settings/label" element={<AdminSettingsPlaceholder title="Label" description="Customize your shipping label templates and branding." />} />
+            <Route path="/user/settings/invoice" element={<AdminSettingsPlaceholder title="Invoice" description="Manage your invoice preferences and billing settings." />} />
+            <Route path="/user/settings/webhook" element={<AdminWebhookSettings />} />
             <Route path="/admin/users" element={<AdminUsers />} />
             <Route path="/admin/roles" element={<AdminRoles />} />
             <Route path="/admin/allocate-sellers" element={<AdminAllocateSellers />} />

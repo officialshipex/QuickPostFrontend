@@ -17,16 +17,16 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     location.pathname.startsWith('/internal-crm/');
 
   return (
-    <div className="admin-dashboard-layout flex min-h-screen bg-[#F8FAFC] text-[#0F172A] selection:bg-[#00A86B]/20 selection:text-[#00A86B] text-sm">
+    <div className="admin-dashboard-layout flex min-h-screen bg-[#F8FAFC] text-[#0F172A] selection:bg-[#00A86B]/20 selection:text-[#00A86B] text-sm overflow-x-hidden">
       <AdminSidebar
         isMobileOpen={isMobileSidebarOpen}
         onMobileClose={() => setIsMobileSidebarOpen(false)}
       />
-      <div className="flex-1 flex flex-col min-w-0 md:ml-[68px]">
+      <div className="flex-1 flex flex-col min-w-0 md:ml-[68px] overflow-x-hidden">
         {showHeader && (
           <AdminHeader onMobileMenuToggle={() => setIsMobileSidebarOpen(true)} />
         )}
-        <main className="flex-1 p-4 md:p-6 w-full">
+        <main className="flex-1 p-4 md:p-6 w-full min-w-0 overflow-x-hidden">
           {children}
         </main>
       </div>

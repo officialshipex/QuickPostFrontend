@@ -127,6 +127,12 @@ const MENU_GROUPS: MenuGroup[] = [
     label: 'Referral',
     icon: Star,
     path: '/admin/referral'
+  },
+  {
+    label: 'Settings',
+    icon: Settings,
+    path: '/user/settings',
+    userOnly: true
   }
 ];
 

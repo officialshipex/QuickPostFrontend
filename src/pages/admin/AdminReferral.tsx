@@ -277,6 +277,17 @@ export function AdminReferral() {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
+  // Close the per-row Actions dropdown on outside click (not onBlur — a blur timeout races
+  // the Details button's click and can unmount the menu before the click registers).
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.row-action-dropdown-container')) setRowActionOpenId(null);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
   // ─── Apply / reset filters ──────────────────────────────────────────────────
   const applyFilters = () => {
     setAppliedSearch(searchQuery);
@@ -593,10 +604,9 @@ export function AdminReferral() {
                         {getMonthFull(row.month)} {row.year}
                       </td>
                       <td className="p-4 text-right pr-6 align-top">
-                        <div className="relative inline-block text-left">
+                        <div className="relative inline-block text-left row-action-dropdown-container">
                           <button
                             onClick={() => setRowActionOpenId(prev => prev === row._id ? null : row._id)}
-                            onBlur={() => setTimeout(() => setRowActionOpenId(prev => prev === row._id ? null : prev), 150)}
                             className={`w-7 h-7 rounded-full border flex items-center justify-center transition-colors cursor-pointer ${rowActionOpenId === row._id ? 'bg-green-100 border-[#00A86B] text-[#00A86B]' : 'border-[#E2E8F0] text-[#64748B] hover:bg-[#F1F5F9]'}`}
                           >
                             <MoreHorizontal className="w-3.5 h-3.5" />
@@ -604,7 +614,7 @@ export function AdminReferral() {
                           {rowActionOpenId === row._id && (
                             <div className="absolute right-0 top-full mt-1 w-36 bg-white rounded-xl shadow-[0_4px_24px_-4px_rgba(0,0,0,0.15)] border border-[#E2E8F0] py-1.5 z-50">
                               <button
-                                onClick={() => setDetailsRow(row)}
+                                onClick={() => { setDetailsRow(row); setRowActionOpenId(null); }}
                                 className="w-full text-left px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#00A86B] transition-colors"
                               >
                                 Details

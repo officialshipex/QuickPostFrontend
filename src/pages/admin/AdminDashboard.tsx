@@ -4,6 +4,9 @@ import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { apiClient } from '../../services/apiClient';
 import { useAdminTab } from '../../context/AdminUserContext';
 import { useDashboardFilters } from '../../context/DashboardFilterContext';
+import { useTableLoader } from '../../hooks/useTableLoader';
+import { TableLoader } from '../../components/ui/TableLoader';
+import { TruncatedText } from '../../components/ui/TruncatedText';
 import {
   RefreshCcw, Package, IndianRupee, Users, CreditCard,
   ShoppingCart, Clock, AlertTriangle, CheckCircle2, RotateCcw,
@@ -42,14 +45,14 @@ const initials = (name: string) =>
 function StatCardWithTrend({ title, value, trend, isUp, isPrimary = false, icon: Icon }: any) {
   if (isPrimary) {
     return (
-      <div className="bg-gradient-to-br from-[#00A86B] to-[#007047] rounded-xl p-4 text-white shadow-sm flex flex-col justify-between">
-        <div className="flex justify-between items-start mb-2">
-          <div className="text-[12px] font-semibold opacity-90">{title}</div>
-          {Icon && <Icon className="w-4 h-4 opacity-80" />}
+      <div className="min-w-0 bg-gradient-to-br from-[#00A86B] to-[#007047] rounded-xl p-3 md:p-4 text-white shadow-sm flex flex-col justify-between">
+        <div className="flex justify-between items-start gap-2 mb-2">
+          <div className="text-[11px] md:text-[12px] font-semibold opacity-90 truncate">{title}</div>
+          {Icon && <Icon className="w-4 h-4 opacity-80 shrink-0" />}
         </div>
-        <div>
-          <div className="text-2xl font-bold mb-1">{value}</div>
-          <div className="flex items-center gap-1 text-[10px] font-medium opacity-90">
+        <div className="min-w-0">
+          <div className="text-lg md:text-2xl font-bold mb-1 truncate">{value}</div>
+          <div className="flex items-center gap-1 text-[10px] font-medium opacity-90 truncate">
             {isUp ? '↑' : '↓'} {trend}
           </div>
         </div>
@@ -57,14 +60,14 @@ function StatCardWithTrend({ title, value, trend, isUp, isPrimary = false, icon:
     );
   }
   return (
-    <div className="bg-white rounded-xl border border-[#E2E8F0] p-4 shadow-sm flex flex-col justify-between">
-      <div className="flex justify-between items-start mb-2">
-        <div className="text-[12px] font-semibold text-[#64748B]">{title}</div>
-        {Icon && <Icon className="w-4 h-4 text-[#94A3B8]" />}
+    <div className="min-w-0 bg-white rounded-xl border border-[#E2E8F0] p-3 md:p-4 shadow-sm flex flex-col justify-between">
+      <div className="flex justify-between items-start gap-2 mb-2">
+        <div className="text-[11px] md:text-[12px] font-semibold text-[#64748B] truncate">{title}</div>
+        {Icon && <Icon className="w-4 h-4 text-[#94A3B8] shrink-0" />}
       </div>
-      <div>
-        <div className="text-2xl font-bold text-[#0F172A] mb-1">{value}</div>
-        <div className={`flex items-center gap-1 text-[10px] font-medium ${isUp ? 'text-green-600' : 'text-red-500'}`}>
+      <div className="min-w-0">
+        <div className="text-lg md:text-2xl font-bold text-[#0F172A] mb-1 truncate">{value}</div>
+        <div className={`flex items-center gap-1 text-[10px] font-medium truncate ${isUp ? 'text-green-600' : 'text-red-500'}`}>
           {isUp ? '↑' : '↓'} {trend}
         </div>
       </div>
@@ -74,14 +77,14 @@ function StatCardWithTrend({ title, value, trend, isUp, isPrimary = false, icon:
 
 function MiniStatCard({ title, value, icon: Icon, iconColor, iconBg }: any) {
   return (
-    <div className="bg-white rounded-xl border border-[#E2E8F0] p-4 shadow-sm flex items-center justify-between">
-      <div>
-        <div className="text-[11px] font-semibold text-[#64748B] mb-1">{title}</div>
-        <div className="text-xl font-bold text-[#0F172A]">{value}</div>
+    <div className="min-w-0 bg-white rounded-xl border border-[#E2E8F0] p-2.5 md:p-4 shadow-sm flex items-start justify-between gap-1.5">
+      <div className="min-w-0 flex-1">
+        <div className="text-[10px] md:text-[11px] font-semibold text-[#64748B] mb-1 leading-tight break-words">{title}</div>
+        <div className="text-sm md:text-xl font-bold text-[#0F172A] truncate">{value}</div>
       </div>
       {Icon && (
-        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${iconBg}`}>
-          <Icon className={`w-4 h-4 ${iconColor}`} />
+        <div className={`w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center shrink-0 ${iconBg}`}>
+          <Icon className={`w-3.5 h-3.5 md:w-4 md:h-4 ${iconColor}`} />
         </div>
       )}
     </div>
@@ -121,7 +124,7 @@ export function AdminDashboard() {
   const location = useLocation();
   const isUserRoute = location.pathname === '/user/dashboard';
 
-  const [loading, setLoading] = useState(true);
+  const { isLoading: loading, setIsLoading: setLoading } = useTableLoader(0);
   const [overview,    setOverview]    = useState<any>(null);
   const [insights,    setInsights]    = useState<any>(null);
   const [graphs,      setGraphs]      = useState<any>(null);
@@ -236,8 +239,14 @@ export function AdminDashboard() {
   if (loading || loadingAdminTab) {
     return (
       <AdminLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="w-8 h-8 border-2 border-[#00A86B] border-t-transparent rounded-full animate-spin" />
+        <div className="max-w-[1400px] mx-auto pb-16">
+          <div className="flex flex-col items-center justify-center min-h-[70vh] gap-4">
+            <div className="relative w-32 h-32">
+              <TableLoader />
+            </div>
+            <p className="text-sm font-bold text-[#0F172A]">Loading your dashboard</p>
+            <p className="text-xs text-slate-400">Just a moment while we fetch the latest data…</p>
+          </div>
         </div>
       </AdminLayout>
     );
@@ -245,7 +254,7 @@ export function AdminDashboard() {
 
   return (
     <AdminLayout>
-      <div className="max-w-[1400px] mx-auto text-[#0F172A] pb-10">
+      <div className="max-w-[1400px] mx-auto text-[#0F172A] pb-10 min-w-0 overflow-x-hidden">
 
         {/* Header */}
         <div className="flex items-center gap-2 mb-4 text-[11px] font-medium text-[#64748B]">
@@ -384,7 +393,7 @@ export function AdminDashboard() {
 
         {/* ── Row 6: COD Status ─────────────────────────────────────── */}
         <SectionHeading title="COD Status" rightText="Last 30 days" />
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
           <MiniStatCard title="Total COD"          value={fmt(overview?.codTotal)}          icon={FileText}  iconColor="text-purple-500"  iconBg="bg-purple-50" />
           <MiniStatCard title="Last COD Remitted"  value={fmt(overview?.lastCODRemitted)}   icon={RefreshCcw} iconColor="text-emerald-500" iconBg="bg-emerald-50" />
           <MiniStatCard title="COD Initiated"      value={fmt(overview?.codAvailable)}      icon={FileText}  iconColor="text-sky-500"     iconBg="bg-sky-50" />
@@ -412,8 +421,8 @@ export function AdminDashboard() {
           <div className="bg-white rounded-xl border border-[#E2E8F0] p-4 shadow-sm flex flex-col">
             <h4 className="text-[12px] font-bold mb-4">Payment Mode</h4>
             {paymentChartData.length > 0 ? (
-              <div className="flex-1 flex items-center justify-center gap-8">
-                <div className="w-32 h-32">
+              <div className="flex-1 flex items-center justify-center gap-8 min-w-0">
+                <div className="w-32 h-32 shrink-0">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie data={paymentChartData} cx="50%" cy="50%" innerRadius={40} outerRadius={55} dataKey="value" stroke="none">
@@ -423,11 +432,11 @@ export function AdminDashboard() {
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
-                <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-4 min-w-0">
                   {paymentChartData.map((d: any, i: number) => (
-                    <div key={i}>
-                      <div className="text-[11px] font-bold" style={{ color: d.color }}>{d.name}</div>
-                      <div className="text-[11px] font-bold text-[#64748B] mt-0.5 border-b border-gray-200 pb-1">{d.value}</div>
+                    <div key={i} className="min-w-0">
+                      <div className="text-[11px] font-bold truncate" style={{ color: d.color }}>{d.name}</div>
+                      <div className="text-[11px] font-bold text-[#64748B] mt-0.5 border-b border-gray-200 pb-1 truncate">{d.value}</div>
                     </div>
                   ))}
                 </div>
@@ -550,10 +559,12 @@ export function AdminDashboard() {
         {isAdminView && (
           <>
             <h3 className="text-[13px] font-bold text-[#0F172A] mt-6 mb-3">Top Performing Sellers</h3>
-            <div className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm overflow-hidden overflow-x-auto mb-6">
+
+            {/* Desktop table */}
+            <div className="hidden md:block bg-white rounded-xl border border-[#E2E8F0] shadow-sm overflow-hidden overflow-x-auto mb-6">
               <table className="w-full text-left border-collapse min-w-[960px]">
                 <thead>
-                  <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-[9px] uppercase tracking-wider font-bold text-[#475569]">
+                  <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-[12px] uppercase tracking-wider font-medium text-[#475569]">
                     <th className="p-3 pl-4 w-8">#</th>
                     <th className="p-3">Seller Details</th>
                     <th className="p-3 text-center">Total Orders</th>
@@ -588,20 +599,20 @@ export function AdminDashboard() {
                               </div>
                             )}
                             <div>
-                              <div className="font-semibold text-[#0F172A] text-[13px] leading-tight">{s.name}</div>
-                              <div className="text-[10px] text-[#94A3B8] font-medium mt-0.5">{s.company !== '—' ? s.company : s.email}</div>
-                              {s.company !== '—' && <div className="text-[9px] text-[#CBD5E1] mt-0.5">{s.email}</div>}
+                              <div className="font-semibold text-[#0F172A] text-[14px] leading-tight">{s.name}</div>
+                              <div className="text-[12px] text-[#94A3B8] font-normal mt-0.5">{s.company !== '—' ? s.company : s.email}</div>
+                              {s.company !== '—' && <div className="text-[12px] text-[#CBD5E1] font-normal mt-0.5">{s.email}</div>}
                             </div>
                           </div>
                         </td>
-                        <td className="p-3 text-center text-[#0F172A] font-bold text-[13px]">{fmtN(s.totalOrders)}</td>
+                        <td className="p-3 text-center text-[#0F172A] font-normal text-[13px]">{fmtN(s.totalOrders)}</td>
                         <td className="p-3 text-center text-emerald-600 font-normal text-[13px]">{fmt(s.totalRevenue)}</td>
                         <td className="p-3 text-center">
-                          <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-bold ${deliveryColor}`}>{s.deliveryRate}%</span>
+                          <span className={`inline-block px-2 py-0.5 rounded-full text-[13px] font-normal ${deliveryColor}`}>{s.deliveryRate}%</span>
                         </td>
                         <td className="p-3 text-center text-[#0F172A] font-normal text-[13px]">{fmt(s.codAmount)}</td>
                         <td className="p-3 text-center">
-                          <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-bold ${rtoColor}`}>{s.rtoRate}%</span>
+                          <span className={`inline-block px-2 py-0.5 rounded-full text-[13px] font-normal ${rtoColor}`}>{s.rtoRate}%</span>
                         </td>
                         <td className="p-3 text-center font-normal text-[#00A86B] text-[13px]">{fmt(s.walletBalance)}</td>
                       </tr>
@@ -618,15 +629,78 @@ export function AdminDashboard() {
                 </tbody>
               </table>
             </div>
+
+            {/* Mobile cards */}
+            <div className="md:hidden space-y-3 mb-6">
+              {topSellers.length > 0 ? topSellers.map((s, i) => {
+                const rto = parseFloat(s.rtoRate || '0');
+                const rtoColor = rto < 5 ? 'text-emerald-600 bg-emerald-50' : rto < 15 ? 'text-amber-600 bg-amber-50' : 'text-red-600 bg-red-50';
+                const delivery = parseFloat(s.deliveryRate || '0');
+                const deliveryColor = delivery >= 80 ? 'text-emerald-600 bg-emerald-50' : delivery >= 50 ? 'text-amber-600 bg-amber-50' : 'text-red-600 bg-red-50';
+                const rankColors = ['bg-yellow-400 text-white', 'bg-slate-400 text-white', 'bg-amber-600 text-white'];
+                return (
+                  <div key={i} className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm p-3.5">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${rankColors[i] || 'bg-[#E2E8F0] text-[#475569]'}`}>
+                        {i + 1}
+                      </div>
+                      {s.profileImage ? (
+                        <img src={s.profileImage} alt={s.name} className="w-9 h-9 rounded-full object-cover shrink-0 border border-[#E2E8F0]" />
+                      ) : (
+                        <div className="w-9 h-9 rounded-full bg-[#E6F5F1] text-[#00A86B] flex items-center justify-center shrink-0 font-bold text-xs border border-[#00A86B]/20">
+                          {initials(s.name)}
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <div className="font-semibold text-[#0F172A] text-[14px] leading-tight truncate">{s.name}</div>
+                        {s.company !== '—' && (
+                          <TruncatedText text={s.company} maxLength={20} className="text-[12px] text-[#94A3B8] font-normal mt-0.5" />
+                        )}
+                        <TruncatedText text={s.email} maxLength={22} className="text-[12px] text-[#CBD5E1] font-normal mt-0.5" />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-[#F1F5F9]">
+                      <div className="min-w-0">
+                        <div className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider truncate">Orders</div>
+                        <div className="text-[13px] font-normal text-[#0F172A] truncate mt-0.5">{fmtN(s.totalOrders)}</div>
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider truncate">Revenue</div>
+                        <div className="text-[13px] font-normal text-emerald-600 truncate mt-0.5">{fmt(s.totalRevenue)}</div>
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider truncate">COD</div>
+                        <div className="text-[13px] font-normal text-[#0F172A] truncate mt-0.5">{fmt(s.codAmount)}</div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 mt-3 flex-wrap">
+                      <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-normal ${deliveryColor}`}>Delivery {s.deliveryRate}%</span>
+                      <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-normal ${rtoColor}`}>RTO {s.rtoRate}%</span>
+                      <span className="ml-auto text-[12px] font-normal text-[#00A86B] shrink-0">{fmt(s.walletBalance)}</span>
+                    </div>
+                  </div>
+                );
+              }) : (
+                <div className="bg-white rounded-xl border border-[#E2E8F0] p-6 text-center text-[12px]">
+                  {topSellersErr
+                    ? <span className="text-red-500 font-medium">{topSellersErr}</span>
+                    : <span className="text-[#94A3B8]">No seller data available</span>}
+                </div>
+              )}
+            </div>
           </>
         )}
 
         {/* ── Couriers Summary ──────────────────────────────────────── */}
         <h3 className="text-[13px] font-bold text-[#0F172A] mt-6 mb-3">Couriers Summary</h3>
-        <div className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm overflow-hidden overflow-x-auto">
+
+        {/* Desktop table */}
+        <div className="hidden md:block bg-white rounded-xl border border-[#E2E8F0] shadow-sm overflow-hidden overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[1000px]">
             <thead>
-              <tr className="bg-[#F0FDF4] border-b border-[#E2E8F0] text-[9px] uppercase tracking-wider font-bold text-[#166534]">
+              <tr className="bg-[#F0FDF4] border-b border-[#E2E8F0] text-[12px] uppercase tracking-wider font-medium text-[#166534]">
                 <th className="p-3 pl-4">Courier</th>
                 <th className="p-3 text-center">Shipments</th>
                 <th className="p-3 text-center">COD</th>
@@ -657,8 +731,8 @@ export function AdminDashboard() {
                           }
                         </div>
                         <div>
-                          <div className="font-semibold text-[#0F172A] text-[13px] leading-tight">{c.courier}</div>
-                          <div className="text-[10px] text-[#94A3B8] font-medium mt-0.5">{c.courierServiceName}</div>
+                          <div className="font-semibold text-[#0F172A] text-[14px] leading-tight">{c.courier}</div>
+                          <div className="text-[12px] text-[#94A3B8] font-normal mt-0.5">{c.courierServiceName}</div>
                         </div>
                       </div>
                     </td>
@@ -686,6 +760,77 @@ export function AdminDashboard() {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile cards */}
+        <div className="md:hidden space-y-3">
+          {couriers.length > 0 ? couriers.map((c, i) => {
+            const icon = courierIcon(c.courier);
+            return (
+              <div key={i} className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm p-3.5">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-lg bg-white flex items-center justify-center shrink-0 shadow-sm border border-[#E2E8F0] p-1 overflow-hidden">
+                    {icon
+                      ? <img src={icon} alt={c.courier} className="w-full h-full object-contain" />
+                      : <span className="text-[10px] font-bold text-[#475569]">{initials(c.courier)}</span>
+                    }
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="font-semibold text-[#0F172A] text-[14px] leading-tight truncate">{c.courier}</div>
+                    <div className="text-[12px] text-[#94A3B8] font-normal mt-0.5 truncate">{c.courierServiceName}</div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-4 gap-x-2 gap-y-3 mt-3 pt-3 border-t border-[#F1F5F9]">
+                  <div className="min-w-0">
+                    <div className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider truncate">Shipments</div>
+                    <div className="text-[13px] font-normal text-[#0F172A] truncate mt-0.5">{c.shipmentCount ?? '—'}</div>
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider truncate">COD</div>
+                    <div className="text-[13px] font-normal text-[#0F172A] truncate mt-0.5">{c.codOrders ?? '—'}</div>
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider truncate">Prepaid</div>
+                    <div className="text-[13px] font-normal text-[#0F172A] truncate mt-0.5">{c.prepaidOrders ?? '—'}</div>
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider truncate">Delivered</div>
+                    <div className="text-[13px] font-normal text-[#0F172A] truncate mt-0.5">{c.delivered ?? '—'}</div>
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider truncate">NDR Delvd</div>
+                    <div className="text-[13px] font-normal text-[#0F172A] truncate mt-0.5">{c.ndrDelivered ?? '—'}</div>
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider truncate">NDR Raised</div>
+                    <div className="text-[13px] font-normal text-[#94A3B8] truncate mt-0.5">{c.ndrRaised ?? '—'}</div>
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider truncate">RTO</div>
+                    <div className="text-[13px] font-normal text-[#94A3B8] truncate mt-0.5">{c.rto ?? '—'}</div>
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider truncate">Lost/Dmgd</div>
+                    <div className="text-[13px] font-normal text-[#94A3B8] truncate mt-0.5">{c['Lost/Damaged'] ?? '—'}</div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-5 gap-x-2 mt-3 pt-3 border-t border-[#F1F5F9]">
+                  {(['Zone A', 'Zone B', 'Zone C', 'Zone D', 'Zone E'] as const).map((zone) => (
+                    <div key={zone} className="min-w-0 text-center">
+                      <div className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider truncate">{zone.replace('Zone ', 'Z')}</div>
+                      <div className="text-[13px] font-normal text-[#0F172A] truncate mt-0.5">{c[zone] ?? 0}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          }) : (
+            <div className="bg-white rounded-xl border border-[#E2E8F0] p-6 text-center text-[#94A3B8] text-[12px]">
+              No courier data for the last 30 days
+            </div>
+          )}
         </div>
 
       </div>
