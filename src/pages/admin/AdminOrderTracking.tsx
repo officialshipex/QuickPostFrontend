@@ -243,7 +243,8 @@ interface OrderData {
   };
   status?: string;
   ndrStatus?: string;
-  ndrReason?: string;
+  reattempt?: boolean;
+  ndrReason?: string | { date?: string; reason?: string };
   ndrHistory?: Array<{
     date?: string;
     reason?: string;
@@ -1412,8 +1413,10 @@ export function AdminOrderTracking() {
               </div>
             </div>
 
-            {/* WIDGET 3: NDR ACTIONS (only when courier reports Undelivered) */}
-            {order?.ndrStatus === 'Undelivered' && (
+            {/* WIDGET 3: NDR ACTIONS — visible for any undelivered/NDR state */}
+            {(order?.status === 'Undelivered' || order?.ndrStatus === 'Undelivered' || order?.ndrStatus === 'Action_Requested') && (() => {
+              const ndrButtonsEnabled = order?.ndrStatus === 'Undelivered' && order?.reattempt === true;
+              return (
               <div className="bg-white rounded-xl border border-[#E5E5E5] p-5 shadow-sm right-col-widget">
                 <div className="flex items-center gap-2.5 border-b border-[#F0F0F0] pb-3 mb-4">
                   <div className="w-8 h-8 rounded-full bg-amber-50 flex items-center justify-center shrink-0">
@@ -1432,7 +1435,7 @@ export function AdminOrderTracking() {
                     <div className="text-[13px] border-t border-[#F5F5F5] pt-3">
                       <div className="font-normal text-[#5F5E5A]">Reason for Non-Delivery</div>
                       <div className="font-medium text-[#1A1A1A] mt-1 bg-slate-50 border border-slate-100 rounded-lg p-2.5 text-[12px] leading-relaxed">
-                        {order.ndrReason}
+                        {typeof order.ndrReason === 'string' ? order.ndrReason : (order.ndrReason?.reason || '—')}
                       </div>
                     </div>
                   )}
@@ -1447,16 +1450,30 @@ export function AdminOrderTracking() {
                     </div>
                   )}
                   <div className="border-t border-[#F5F5F5] pt-3.5 mt-2 space-y-2">
-                    <button onClick={() => setToastMessage(`Re-attempt instruction submitted to ${courierName}!`)} className="w-full bg-[#1D9E75] hover:bg-[#0F6E56] text-white text-[12px] font-bold py-2 rounded-lg transition-colors focus:outline-none">
+                    {!ndrButtonsEnabled && (
+                      <div className="text-[11px] text-[#94A3B8] bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 mb-1">
+                        Actions available when NDR status is Undelivered and re-attempt is pending.
+                      </div>
+                    )}
+                    <button
+                      disabled={!ndrButtonsEnabled}
+                      onClick={() => setToastMessage(`Re-attempt instruction submitted to ${courierName}!`)}
+                      className={`w-full text-[12px] font-bold py-2 rounded-lg transition-colors focus:outline-none ${ndrButtonsEnabled ? 'bg-[#1D9E75] hover:bg-[#0F6E56] text-white cursor-pointer' : 'bg-[#E2E8F0] text-[#94A3B8] cursor-not-allowed'}`}
+                    >
                       Request Re-attempt
                     </button>
                     <div className="grid grid-cols-2 gap-2">
-                      <button onClick={() => setToastMessage(`RTO instruction submitted to ${courierName}!`)} className="border border-red-200 bg-red-50/50 hover:bg-red-50 text-red-700 text-[12px] font-semibold py-2 rounded-lg transition-colors focus:outline-none">
+                      <button
+                        disabled={!ndrButtonsEnabled}
+                        onClick={() => setToastMessage(`RTO instruction submitted to ${courierName}!`)}
+                        className={`text-[12px] font-semibold py-2 rounded-lg transition-colors focus:outline-none ${ndrButtonsEnabled ? 'border border-red-200 bg-red-50/50 hover:bg-red-50 text-red-700 cursor-pointer' : 'border border-[#E2E8F0] bg-[#F8FAFC] text-[#94A3B8] cursor-not-allowed'}`}
+                      >
                         Initiate RTO
                       </button>
                       <button
+                        disabled={!ndrButtonsEnabled}
                         onClick={() => { setNewPhoneNumber(order.receiverAddress?.phoneNumber || ''); setShowUpdateInfoModal(true); }}
-                        className="border border-[#E5E5E5] hover:bg-[#F8F9FA] text-[#5F5E5A] text-[12px] font-semibold py-2 rounded-lg transition-colors focus:outline-none"
+                        className={`text-[12px] font-semibold py-2 rounded-lg transition-colors focus:outline-none ${ndrButtonsEnabled ? 'border border-[#E5E5E5] hover:bg-[#F8F9FA] text-[#5F5E5A] cursor-pointer' : 'border border-[#E2E8F0] bg-[#F8FAFC] text-[#94A3B8] cursor-not-allowed'}`}
                       >
                         Update Info
                       </button>
@@ -1464,7 +1481,8 @@ export function AdminOrderTracking() {
                   </div>
                 </div>
               </div>
-            )}
+              );
+            })()}
 
           </div>
         </div>
