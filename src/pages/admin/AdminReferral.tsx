@@ -127,12 +127,12 @@ function ReferralDetailsModal({ referral, onClose }: { referral: ReferralRow; on
             </div>
             <div className="max-h-[280px] overflow-y-auto border border-[#E2E8F0] rounded-[8px]">
               <table className="w-full border-collapse">
-                <thead className="bg-[#F8FAFC] sticky top-0">
+                <thead className="bg-green-50 sticky top-0">
                   <tr className="border-b border-[#E2E8F0]">
-                    <th className={`px-3 py-2.5 text-left ${DTXT.label} text-[#64748B]`}>User Details</th>
-                    <th className={`px-3 py-2.5 text-center ${DTXT.label} text-[#64748B]`}>Orders</th>
-                    <th className={`px-3 py-2.5 text-right ${DTXT.label} text-[#64748B]`}>Shipping</th>
-                    <th className={`px-3 py-2.5 text-right ${DTXT.label} text-[#64748B]`}>Commission</th>
+                    <th className={`py-2 px-3 text-left ${DTXT.label} text-[#475569]`}>User Details</th>
+                    <th className={`py-2 px-3 text-center ${DTXT.label} text-[#475569]`}>Orders</th>
+                    <th className={`py-2 px-3 text-right ${DTXT.label} text-[#475569]`}>Shipping</th>
+                    <th className={`py-2 px-3 text-right ${DTXT.label} text-[#475569]`}>Commission</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -535,9 +535,9 @@ export function AdminReferral() {
           <div className="flex-1 overflow-auto w-full relative">
             {loading && <TableLoader />}
             <table className="w-full text-left border-collapse min-w-[900px]">
-              <thead className="sticky top-0 z-20 bg-[#E6F5F1] shadow-sm">
-                <tr className="text-xs font-medium text-[#00A86B] uppercase tracking-wider">
-                  <th className="p-4 w-12 text-center">
+              <thead className="sticky top-0 z-20 bg-green-50 shadow-sm">
+                <tr className="text-xs font-medium text-[#475569] uppercase tracking-wider">
+                  <th className="py-2 px-3 w-12 text-center">
                     <input
                       type="checkbox"
                       onChange={toggleSelectAll}
@@ -545,36 +545,36 @@ export function AdminReferral() {
                       className="rounded border-gray-300 text-[#00A86B] focus:ring-[#00A86B]"
                     />
                   </th>
-                  <th className="p-4 whitespace-nowrap">
+                  <th className="py-2 px-3 whitespace-nowrap">
                     <User className="w-3.5 h-3.5 inline mr-1" />Refer By
                   </th>
-                  <th className="p-4 whitespace-nowrap">
+                  <th className="py-2 px-3 whitespace-nowrap">
                     <Phone className="w-3.5 h-3.5 inline mr-1" />Contact
                   </th>
-                  <th className="p-4 whitespace-nowrap text-center">
+                  <th className="py-2 px-3 whitespace-nowrap text-center">
                     <Package className="w-3.5 h-3.5 inline mr-1" />Orders
                   </th>
-                  <th className="p-4 whitespace-nowrap">
+                  <th className="py-2 px-3 whitespace-nowrap">
                     <Truck className="w-3.5 h-3.5 inline mr-1" />Shipping
                   </th>
-                  <th className="p-4 whitespace-nowrap">
+                  <th className="py-2 px-3 whitespace-nowrap">
                     <Wallet className="w-3.5 h-3.5 inline mr-1" />Commission
                   </th>
-                  <th className="p-4 whitespace-nowrap">
+                  <th className="py-2 px-3 whitespace-nowrap">
                     <Calendar className="w-3.5 h-3.5 inline mr-1" />Period
                   </th>
-                  <th className="p-4 whitespace-nowrap text-right pr-6">
+                  <th className="py-2 px-3 whitespace-nowrap text-right">
                     <Settings className="w-3.5 h-3.5 inline mr-1" />Actions
                   </th>
                 </tr>
               </thead>
               <tbody className="text-[#475569]">
                 {loading ? null : filteredReferrals.length > 0 ? (
-                  filteredReferrals.map(row => (
+                  filteredReferrals.map((row, ridx) => (
                     <tr
                       key={row._id}
-                      className={`border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors ${
-                        selectedRows.find(r => r._id === row._id) ? 'bg-green-50/40' : ''
+                      className={`border-b border-[#E2E8F0] transition-colors ${
+                        selectedRows.find(r => r._id === row._id) ? 'bg-green-50/40' : (ridx % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]')
                       }`}
                     >
                       <td className="p-4 text-center align-top">

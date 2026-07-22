@@ -335,21 +335,21 @@ export function AdminCouriers() {
           <div className="flex-1 overflow-y-auto overflow-x-hidden w-full relative">
           {loading && <TableLoader />}
           <table className="w-full text-left border-collapse">
-            <thead className="sticky top-0 z-20 bg-[#E6F5F1] shadow-sm">
+            <thead className="sticky top-0 z-20 bg-green-50 shadow-sm">
               <tr className="border-b border-[#E2E8F0]">
-                <th className="py-4 px-6 text-xs font-bold text-[#00A86B] uppercase tracking-wider w-20">
+                <th className="py-2 px-3 text-xs font-medium text-[#475569] uppercase tracking-wider w-20">
                   <div className="flex items-center gap-1.5"><Hash className="w-3.5 h-3.5 shrink-0" /><span>S.NO.</span></div>
                 </th>
-                <th className="py-4 px-6 text-xs font-bold text-[#00A86B] uppercase tracking-wider">
+                <th className="py-2 px-3 text-xs font-medium text-[#475569] uppercase tracking-wider">
                   <div className="flex items-center gap-1.5"><Truck className="w-3.5 h-3.5 shrink-0" /><span>COURIER NAME</span></div>
                 </th>
-                <th className="py-4 px-6 text-xs font-bold text-[#00A86B] uppercase tracking-wider text-center">
+                <th className="py-2 px-3 text-xs font-medium text-[#475569] uppercase tracking-wider text-center">
                   <div className="flex items-center justify-center gap-1.5"><Filter className="w-3.5 h-3.5 shrink-0" /><span>TYPE</span></div>
                 </th>
-                <th className="py-4 px-6 text-xs font-bold text-[#00A86B] uppercase tracking-wider text-center">
+                <th className="py-2 px-3 text-xs font-medium text-[#475569] uppercase tracking-wider text-center">
                   <div className="flex items-center justify-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 shrink-0" /><span>STATUS</span></div>
                 </th>
-                <th className="py-4 px-6 text-xs font-bold text-[#00A86B] uppercase tracking-wider text-right">
+                <th className="py-2 px-3 text-xs font-medium text-[#475569] uppercase tracking-wider text-right">
                   <div className="flex items-center justify-end gap-1.5">
                     {activeTab === 'couriers' ? <Settings className="w-3.5 h-3.5 shrink-0" /> : <Plus className="w-3.5 h-3.5 shrink-0" />}
                     <span>{activeTab === 'couriers' ? 'CONFIGURE' : 'ADD SERVICE'}</span>
@@ -369,7 +369,7 @@ export function AdminCouriers() {
                   return (
                     <React.Fragment key={provider._id}>
                       <tr
-                        className={`border-b border-[#E2E8F0] hover:bg-[#F8FAFC]/50 transition-colors cursor-pointer ${isExpanded ? 'bg-[#F8FAFC]' : ''}`}
+                        className={`border-b border-[#E2E8F0] transition-colors cursor-pointer ${isExpanded ? 'bg-[#F8FAFC]' : (index % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]')}`}
                         onClick={() => setExpandedProviderId(isExpanded ? null : provider._id)}
                       >
                         <td className="py-4 px-6">

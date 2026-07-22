@@ -515,62 +515,62 @@ export function CRMShipmentListing() {
                 {showLastUpdate && <col style={{ width: '180px' }} />}
                 <col style={{ width: '80px' }} />
               </colgroup>
-              <thead className="sticky top-0 z-40 shadow-sm bg-[#E6F5F1]">
-                <tr className="bg-[#E6F5F1] text-[11px] font-medium text-[#00A86B] uppercase tracking-wider whitespace-nowrap">
-                  <th className="px-2 py-3 text-center align-middle">
+              <thead className="sticky top-0 z-40 shadow-sm bg-green-50">
+                <tr className="bg-green-50 text-[11px] font-medium text-[#475569] uppercase tracking-wider whitespace-nowrap">
+                  <th className="py-2 px-3 text-center align-middle">
                     <input type="checkbox" checked={selectedOrders.length === paginated.length && paginated.length > 0} onChange={toggleAll} className="rounded border-[#00A86B] accent-[#00A86B] w-3.5 h-3.5" />
                   </th>
-                  <th className="px-2 py-3 text-left align-middle">
+                  <th className="py-2 px-3 text-left align-middle">
                     <div className="flex items-center gap-1">
                       <User className="w-3.5 h-3.5 shrink-0"/>
                       <span>User</span>
                     </div>
                   </th>
-                  <th className="px-2 py-3 text-left align-middle">
+                  <th className="py-2 px-3 text-left align-middle">
                     <div className="flex items-center gap-1">
                       <Check className="w-3.5 h-3.5 shrink-0"/>
                       <span>Order</span>
                     </div>
                   </th>
-                  <th className="px-2 py-3 text-left align-middle">
+                  <th className="py-2 px-3 text-left align-middle">
                     <div className="flex items-center gap-1">
                       <Package className="w-3.5 h-3.5 shrink-0"/>
                       <span>Product</span>
                     </div>
                   </th>
-                  <th className="px-2 py-3 text-left align-middle">
+                  <th className="py-2 px-3 text-left align-middle">
                     <div className="flex items-center gap-1">
                       <Package className="w-3.5 h-3.5 shrink-0"/>
                       <span>Package</span>
                     </div>
                   </th>
-                  <th className="px-2 py-3 text-center align-middle">
+                  <th className="py-2 px-3 text-center align-middle">
                     <div className="flex items-center justify-center gap-1">
                       <IndianRupee className="w-3.5 h-3.5 shrink-0"/>
                       <span>Payment</span>
                     </div>
                   </th>
-                  <th className="px-2 py-3 text-left align-middle">
+                  <th className="py-2 px-3 text-left align-middle">
                     <div className="flex items-center gap-1">
                       <User className="w-3.5 h-3.5 shrink-0"/>
                       <span>Customer</span>
                     </div>
                   </th>
-                  <th className="px-2 py-3 text-left align-middle">
+                  <th className="py-2 px-3 text-left align-middle">
                     <div className="flex items-center gap-1">
                       <MapPin className="w-3.5 h-3.5 shrink-0"/>
                       <span>Pickup</span>
                     </div>
                   </th>
-                  <th className="px-2 py-3 text-left align-middle">
+                  <th className="py-2 px-3 text-left align-middle">
                     <div className="flex items-center gap-1">
                       <Truck className="w-3.5 h-3.5 shrink-0"/>
                       <span>Shipment</span>
                     </div>
                   </th>
-                  <th 
+                  <th
                     ref={ageingLegendRef}
-                    className="px-2 py-3 text-left align-middle relative cursor-pointer hover:bg-[#D1F0E8] transition-colors"
+                    className="py-2 px-3 text-left align-middle relative cursor-pointer hover:bg-[#D1F0E8] transition-colors"
                     onClick={() => setShowAgeingLegend(!showAgeingLegend)}
                   >
                     <div className="flex items-center gap-1">
@@ -598,7 +598,7 @@ export function CRMShipmentListing() {
                       </div>
                     )}
                   </th>
-                  <th className="px-2 py-3 text-center align-middle">
+                  <th className="py-2 px-3 text-center align-middle">
                     <div className="flex items-center justify-center gap-1">
                       <Check className="w-3.5 h-3.5 shrink-0"/>
                       <span>Status</span>
@@ -612,7 +612,7 @@ export function CRMShipmentListing() {
                     </div>
                   </th>
                   {showLastUpdate && (
-                    <th className="px-3 py-3 text-left align-middle">
+                    <th className="py-2 px-3 text-left align-middle">
                       <div className="flex items-center gap-1">
                         <History className="w-3.5 h-3.5 shrink-0"/>
                         <span>Last Update</span>
@@ -620,7 +620,7 @@ export function CRMShipmentListing() {
                       </div>
                     </th>
                   )}
-                  <th className="px-2 py-3 text-center align-middle">
+                  <th className="py-2 px-3 text-center align-middle">
                     <div className="flex items-center justify-center gap-1">
                       <Settings className="w-3.5 h-3.5 shrink-0"/>
                       <span>Actions</span>
@@ -630,7 +630,7 @@ export function CRMShipmentListing() {
               </thead>
               <tbody className="text-[11px] text-[#475569]">
                 {paginated.map((row, idx) => (
-                  <tr key={row.awb} className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors group">
+                  <tr key={row.awb} className={`border-b border-[#E2E8F0] transition-colors group ${idx % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]'}`}>
                     <td className="px-2 py-3 text-center align-middle">
                       <input type="checkbox" checked={selectedOrders.includes(row.awb)} onChange={() => toggleSelect(row.awb)} className="rounded border-gray-300 accent-[#00A86B] w-3.5 h-3.5" />
                     </td>

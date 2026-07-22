@@ -1855,49 +1855,49 @@ export function AdminWallet() {
               <div className="hidden md:block flex-1 overflow-y-auto overflow-x-hidden w-full relative">
                 <table className="w-full text-left border-collapse min-w-full">
                   <thead className="sticky top-0 z-20">
-                    <tr className="bg-[#E6F5F1] text-xs font-medium text-[#00A86B] uppercase tracking-wider">
-                      <th className="p-3 w-10 text-left align-middle">
+                    <tr className="bg-green-50 text-xs font-medium text-[#475569] uppercase tracking-wider">
+                      <th className="py-2 px-3 w-10 text-left align-middle">
                         <input type="checkbox" checked={selectedOrders.length === filteredShippingData.length && filteredShippingData.length > 0} onChange={toggleAll} className="rounded border-[#00A86B] accent-[#00A86B] w-3.5 h-3.5" />
                       </th>
                       {isAdminView && (
-                        <th className="p-3 text-left align-middle whitespace-nowrap">
+                        <th className="py-2 px-3 text-left align-middle whitespace-nowrap">
                           <div className="flex items-center gap-1.5">
                             <User className="w-3.5 h-3.5 shrink-0" />
                             <span>User Details</span>
                           </div>
                         </th>
                       )}
-                      <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <th className="py-2 px-3 text-left align-middle whitespace-nowrap">
                         <div className="flex items-center gap-1.5">
                           <Package className="w-3.5 h-3.5 shrink-0" />
                           <span>Order Details</span>
                         </div>
                       </th>
-                      <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <th className="py-2 px-3 text-left align-middle whitespace-nowrap">
                         <div className="flex items-center gap-1.5">
                           <Truck className="w-3.5 h-3.5 shrink-0" />
                           <span>Shipping Details</span>
                         </div>
                       </th>
-                      <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <th className="py-2 px-3 text-left align-middle whitespace-nowrap">
                         <div className="flex items-center gap-1.5">
                           <Banknote className="w-3.5 h-3.5 shrink-0" />
                           <span>Status</span>
                         </div>
                       </th>
-                      <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <th className="py-2 px-3 text-left align-middle whitespace-nowrap">
                         <div className="flex items-center gap-1.5">
                           <Package className="w-3.5 h-3.5 shrink-0" />
                           <span>Initial Weight</span>
                         </div>
                       </th>
-                      <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <th className="py-2 px-3 text-left align-middle whitespace-nowrap">
                         <div className="flex items-center gap-1.5">
                           <Package className="w-3.5 h-3.5 shrink-0" />
                           <span>Courier Weight</span>
                         </div>
                       </th>
-                      <th className="p-3 text-center align-middle whitespace-nowrap">
+                      <th className="py-2 px-3 text-center align-middle whitespace-nowrap">
                         <div className="flex items-center justify-center gap-1.5">
                           <Settings className="w-3.5 h-3.5 shrink-0" />
                           <span>Actions</span>
@@ -1906,45 +1906,45 @@ export function AdminWallet() {
                     </tr>
                   </thead>
                   <tbody className="text-[11px] text-[#475569]">
-                    {paginatedShippingData.map((order) => (
-                      <tr key={order.awb} className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors group">
-                        <td className="p-3">
+                    {paginatedShippingData.map((order, idx) => (
+                      <tr key={order.awb} className={`border-b border-[#E2E8F0] transition-colors group ${idx % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]'}`}>
+                        <td className="p-4">
                           <input type="checkbox" checked={selectedOrders.includes(order.awb)} onChange={() => toggleSelect(order.awb)} className="rounded border-gray-300 accent-[#00A86B] w-3.5 h-3.5" />
                         </td>
                         {isAdminView && (
-                          <td className="p-3">
+                          <td className="p-4">
                             {renderCopyable(order.userId, 'User ID', "text-[12px] font-semibold font-sans text-[#00A86B] cursor-pointer hover:underline uppercase")}
                             <TruncatedText text={order.userName} maxLength={20} className="text-[14px] font-semibold font-sans text-[#0F172A] mt-0.5 max-w-[160px]" />
                             <TruncatedText text={order.userEmail} maxLength={25} className="text-[12px] font-normal font-sans text-[#94A3B8] max-w-[180px]" />
                           </td>
                         )}
-                        <td className="p-3">
+                        <td className="p-4">
                           {renderCopyable(order.id, 'Order ID', "text-[12px] font-semibold font-sans text-[#00A86B] cursor-pointer hover:underline uppercase", () => navigate(`/admin/order-tracking?id=${order.id}`))}
                           <div className="table-date mt-0.5">{order.date}</div>
                           <div className="text-[11px] text-[#475569] mt-0.5 font-medium">{order.paymentMethod}</div>
                         </td>
-                        <td className="p-3">
+                        <td className="p-4">
                           <div className="text-xs font-semibold text-[#00A86B]">{order.courier}</div>
                           <div className="table-date mt-0.5">Booked On : {order.bookedDate}</div>
                           {renderCopyable(order.awb, 'AWB', "text-[12px] font-semibold font-sans text-[#00A86B] underline decoration-solid underline-offset-2 mt-0.5 hover:text-[#009B63] cursor-pointer", () => navigate('/admin/tracking', { state: { awb: order.awb } }))}
                         </td>
-                        <td className="p-3">
+                        <td className="p-4">
                           <div className="text-[12px] font-normal font-sans text-[#0F172A]">₹{order.statusAmount}</div>
                           <span className={getStatusBadgeClass(order.status)}>
                             {order.status}
                           </span>
                         </td>
-                        <td className="p-3 text-xs font-normal text-[#64748B]">
+                        <td className="p-4 text-xs font-normal text-[#64748B]">
                           <div className="text-[#0F172A] font-medium">{order.initialWeight}</div>
                           <div className="mt-0.5">{order.initialDimensions}</div>
                           <div className="mt-0.5">{order.initialVol}</div>
                         </td>
-                        <td className="p-3 text-xs font-normal text-[#64748B]">
+                        <td className="p-4 text-xs font-normal text-[#64748B]">
                           <div className="text-[#0F172A] font-medium">{order.courierWeight}</div>
                           <div className="mt-0.5">{order.courierDimensions}</div>
                           <div className="mt-0.5">{order.courierVol}</div>
                         </td>
-                        <td className="p-3 text-center align-middle">
+                        <td className="p-4 text-center align-middle">
                           <button
                             onClick={() => {
                               setPassbookAwb(order.awb);
@@ -2183,55 +2183,55 @@ export function AdminWallet() {
               <div className="hidden md:block flex-1 overflow-y-auto overflow-x-hidden w-full relative">
                 <table className="w-full text-left border-collapse min-w-full">
                   <thead className="sticky top-0 z-20">
-                    <tr className="bg-[#E6F5F1] text-xs font-medium text-[#00A86B] uppercase tracking-wider">
-                      <th className="p-3 w-10 text-left align-middle">
+                    <tr className="bg-green-50 text-xs font-medium text-[#475569] uppercase tracking-wider">
+                      <th className="py-2 px-3 w-10 text-left align-middle">
                         <input type="checkbox" checked={selectedPassbookOrders.length === filteredPassbookData.length && filteredPassbookData.length > 0} onChange={toggleAllPassbook} className="rounded border-[#00A86B] accent-[#00A86B] w-3.5 h-3.5" />
                       </th>
                       {isAdminView && (
-                        <th className="p-3 text-left align-middle whitespace-nowrap">
+                        <th className="py-2 px-3 text-left align-middle whitespace-nowrap">
                           <div className="flex items-center gap-1.5">
                             <User className="w-3.5 h-3.5 shrink-0" />
                             <span>User</span>
                           </div>
                         </th>
                       )}
-                      <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <th className="py-2 px-3 text-left align-middle whitespace-nowrap">
                         <div className="flex items-center gap-1.5">
                           <Calendar className="w-3.5 h-3.5 shrink-0" />
                           <span>Date / Time</span>
                         </div>
                       </th>
-                      <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <th className="py-2 px-3 text-left align-middle whitespace-nowrap">
                         <div className="flex items-center gap-1.5">
                           <Truck className="w-3.5 h-3.5 shrink-0" />
                           <span>Shipment</span>
                         </div>
                       </th>
-                      <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <th className="py-2 px-3 text-left align-middle whitespace-nowrap">
                         <div className="flex items-center gap-1.5">
                           <FileText className="w-3.5 h-3.5 shrink-0" />
                           <span>Category</span>
                         </div>
                       </th>
-                      <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <th className="py-2 px-3 text-left align-middle whitespace-nowrap">
                         <div className="flex items-center gap-1.5">
                           <Banknote className="w-3.5 h-3.5 shrink-0" />
                           <span>Amount</span>
                         </div>
                       </th>
-                      <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <th className="py-2 px-3 text-left align-middle whitespace-nowrap">
                         <div className="flex items-center gap-1.5">
                           <Wallet className="w-3.5 h-3.5 shrink-0" />
                           <span>Balance</span>
                         </div>
                       </th>
-                      <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <th className="py-2 px-3 text-left align-middle whitespace-nowrap">
                         <div className="flex items-center gap-1.5">
                           <FileText className="w-3.5 h-3.5 shrink-0" />
                           <span>Description</span>
                         </div>
                       </th>
-                      <th className="p-3 text-center align-middle whitespace-nowrap">
+                      <th className="py-2 px-3 text-center align-middle whitespace-nowrap">
                         <div className="flex items-center justify-center gap-1.5">
                           <Settings className="w-3.5 h-3.5 shrink-0" />
                           <span>Actions</span>
@@ -2240,24 +2240,24 @@ export function AdminWallet() {
                     </tr>
                   </thead>
                   <tbody className="text-[11px] text-[#475569]">
-                    {paginatedPassbookData.map((order) => (
-                      <tr key={order.awb} className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors group">
-                        <td className="p-3">
+                    {paginatedPassbookData.map((order, idx) => (
+                      <tr key={order.awb} className={`border-b border-[#E2E8F0] transition-colors group ${idx % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]'}`}>
+                        <td className="p-4">
                           <input type="checkbox" checked={selectedPassbookOrders.includes(order.awb)} onChange={() => toggleSelectPassbook(order.awb)} className="rounded border-gray-300 accent-[#00A86B] w-3.5 h-3.5" />
                         </td>
                         {isAdminView && (
-                          <td className="p-3">
+                          <td className="p-4">
                             <div className="text-xs font-semibold text-[#00A86B] cursor-pointer hover:underline">{order.userId}</div>
                             <div className="text-sm font-semibold text-[#0F172A] mt-0.5">{order.userName}</div>
                             <div className="text-[11px] text-[#94A3B8]">{order.userEmail}</div>
                           </td>
                         )}
-                        <td className="p-3">
+                        <td className="p-4">
                           {renderCopyable(order.id, 'Order ID', "text-[12px] font-semibold font-sans text-[#00A86B] cursor-pointer hover:underline uppercase")}
                           <div className="table-date mt-0.5">{order.date}</div>
                           <div className="table-date mt-0.5">{order.day}</div>
                         </td>
-                        <td className="p-3">
+                        <td className="p-4">
                           <div className="text-[12px] font-semibold text-[#0F172A] font-sans">{order.courier || '—'}</div>
                           {order.awb && order.awb !== 'N/A' && (
                             <div className="text-[11px] font-semibold text-[#00A86B] font-sans">{order.awb}</div>
@@ -2266,21 +2266,21 @@ export function AdminWallet() {
                             <div className="text-[11px] text-[#94A3B8] font-sans">{order.bookedDate}</div>
                           )}
                         </td>
-                        <td className="p-3">
+                        <td className="p-4">
                           <span className={getStatusBadgeClass(order.category)}>
                             {order.category}
                           </span>
                         </td>
-                        <td className="p-3">
+                        <td className="p-4">
                           <div className={`text-[12px] font-normal font-sans ${order.category === 'Debit' ? 'text-red-500' : 'text-green-500'}`}>₹{order.amount.toFixed(2)}</div>
                         </td>
-                        <td className="p-3">
+                        <td className="p-4">
                           <div className="text-[#64748B] text-[12px] font-normal font-sans">₹{order.balance.toFixed(2)}</div>
                         </td>
-                        <td className="p-3">
+                        <td className="p-4">
                           <div className="text-[#64748B] text-[12px] font-normal font-sans">{order.description}</div>
                         </td>
-                        <td className="p-3 text-center align-middle">
+                        <td className="p-4 text-center align-middle">
                           {order.category === 'Debit' ? (
                             <button
                               onClick={() => handleReverseTransaction(order)}
@@ -2481,43 +2481,43 @@ export function AdminWallet() {
               <div className="hidden md:block flex-1 overflow-y-auto overflow-x-hidden w-full relative">
                 <table className="w-full text-left border-collapse min-w-full">
                   <thead className="sticky top-0 z-20">
-                    <tr className="bg-[#E6F5F1] text-xs font-medium text-[#00A86B] uppercase tracking-wider">
-                      <th className="p-3 w-10 text-left align-middle">
+                    <tr className="bg-green-50 text-xs font-medium text-[#475569] uppercase tracking-wider">
+                      <th className="py-2 px-3 w-10 text-left align-middle">
                         <input type="checkbox" checked={selectedRechargeOrders.length === filteredWalletRechargeData.length && filteredWalletRechargeData.length > 0} onChange={toggleAllRecharge} className="rounded border-[#00A86B] accent-[#00A86B] w-3.5 h-3.5" />
                       </th>
                       {isAdminView && (
-                        <th className="p-3 text-left align-middle whitespace-nowrap">
+                        <th className="py-2 px-3 text-left align-middle whitespace-nowrap">
                           <div className="flex items-center gap-1.5">
                             <User className="w-3.5 h-3.5 shrink-0" />
                             <span>User</span>
                           </div>
                         </th>
                       )}
-                      <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <th className="py-2 px-3 text-left align-middle whitespace-nowrap">
                         <div className="flex items-center gap-1.5">
                           <Calendar className="w-3.5 h-3.5 shrink-0" />
                           <span>Date</span>
                         </div>
                       </th>
-                      <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <th className="py-2 px-3 text-left align-middle whitespace-nowrap">
                         <div className="flex items-center gap-1.5">
                           <FileText className="w-3.5 h-3.5 shrink-0" />
                           <span>Transaction ID</span>
                         </div>
                       </th>
-                      <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <th className="py-2 px-3 text-left align-middle whitespace-nowrap">
                         <div className="flex items-center gap-1.5">
                           <Banknote className="w-3.5 h-3.5 shrink-0" />
                           <span>Amount</span>
                         </div>
                       </th>
-                      <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <th className="py-2 px-3 text-left align-middle whitespace-nowrap">
                         <div className="flex items-center gap-1.5">
                           <Check className="w-3.5 h-3.5 shrink-0" />
                           <span>Status</span>
                         </div>
                       </th>
-                      <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <th className="py-2 px-3 text-left align-middle whitespace-nowrap">
                         <div className="flex items-center gap-1.5">
                           <FileText className="w-3.5 h-3.5 shrink-0" />
                           <span>Description</span>
@@ -2526,34 +2526,34 @@ export function AdminWallet() {
                     </tr>
                   </thead>
                   <tbody className="text-[11px] text-[#475569]">
-                    {paginatedRechargeData.map((recharge) => (
-                      <tr key={recharge.transactionId} className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors group">
-                        <td className="p-3">
+                    {paginatedRechargeData.map((recharge, idx) => (
+                      <tr key={recharge.transactionId} className={`border-b border-[#E2E8F0] transition-colors group ${idx % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]'}`}>
+                        <td className="p-4">
                           <input type="checkbox" checked={selectedRechargeOrders.includes(recharge.transactionId)} onChange={() => toggleSelectRecharge(recharge.transactionId)} className="rounded border-gray-300 accent-[#00A86B] w-3.5 h-3.5" />
                         </td>
                         {isAdminView && (
-                          <td className="p-3">
+                          <td className="p-4">
                             <div className="text-xs font-semibold text-[#00A86B] cursor-pointer hover:underline">{recharge.userId}</div>
                             <TruncatedText text={recharge.userName} maxLength={20} className="text-[14px] font-semibold font-sans text-[#0F172A] mt-0.5 max-w-[160px]" />
                             <TruncatedText text={recharge.userEmail} maxLength={25} className="text-[12px] font-normal font-sans text-[#94A3B8] max-w-[180px]" />
                           </td>
                         )}
-                        <td className="p-3">
+                        <td className="p-4">
                           <div className="table-date">{recharge.date}</div>
                           <div className="table-date mt-0.5">{recharge.time}</div>
                         </td>
-                        <td className="p-3">
+                        <td className="p-4">
                           <div className="text-[12px] font-semibold font-sans text-[#00A86B]">{recharge.transactionId}</div>
                         </td>
-                        <td className="p-3">
+                        <td className="p-4">
                           <div className="text-[#0F172A] text-[12px] font-normal font-sans">₹{recharge.amount.toFixed(2)}</div>
                         </td>
-                        <td className="p-3">
+                        <td className="p-4">
                           <span className={getStatusBadgeClass(recharge.status)}>
                             {recharge.status}
                           </span>
                         </td>
-                        <td className="p-3">
+                        <td className="p-4">
                           <div className="text-[12px] text-[#0F172A] font-sans"><span className="font-medium">Payment ID : </span><span className="font-normal">{recharge.paymentId}</span></div>
                           <div className="text-[12px] text-[#0F172A] font-sans mt-0.5"><span className="font-medium">Order ID: </span><span className="font-normal">{recharge.orderId}</span></div>
                         </td>
@@ -2692,55 +2692,55 @@ export function AdminWallet() {
               <div className="hidden md:block flex-1 overflow-y-auto overflow-x-hidden w-full relative">
                 <table className="w-full text-left border-collapse min-w-full">
                   <thead className="sticky top-0 z-20">
-                    <tr className="bg-[#E6F5F1] text-xs font-medium text-[#00A86B] uppercase tracking-wider">
-                      <th className="p-3 w-10 text-left align-middle">
+                    <tr className="bg-green-50 text-xs font-medium text-[#475569] uppercase tracking-wider">
+                      <th className="py-2 px-3 w-10 text-left align-middle">
                         <input type="checkbox" checked={selectedInvoiceOrders.length === filteredInvoicesData.length && filteredInvoicesData.length > 0} onChange={toggleAllInvoices} className="rounded border-[#00A86B] accent-[#00A86B] w-3.5 h-3.5" />
                       </th>
                       {isAdminView && (
-                        <th className="p-3 text-left align-middle whitespace-nowrap">
+                        <th className="py-2 px-3 text-left align-middle whitespace-nowrap">
                           <div className="flex items-center gap-1.5">
                             <User className="w-3.5 h-3.5 shrink-0" />
                             <span>User</span>
                           </div>
                         </th>
                       )}
-                      <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <th className="py-2 px-3 text-left align-middle whitespace-nowrap">
                         <div className="flex items-center gap-1.5">
                           <FileText className="w-3.5 h-3.5 shrink-0" />
                           <span>Invoice No.</span>
                         </div>
                       </th>
-                      <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <th className="py-2 px-3 text-left align-middle whitespace-nowrap">
                         <div className="flex items-center gap-1.5">
                           <Package className="w-3.5 h-3.5 shrink-0" />
                           <span>Shipments</span>
                         </div>
                       </th>
-                      <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <th className="py-2 px-3 text-left align-middle whitespace-nowrap">
                         <div className="flex items-center gap-1.5">
                           <Banknote className="w-3.5 h-3.5 shrink-0" />
                           <span>Amount</span>
                         </div>
                       </th>
-                      <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <th className="py-2 px-3 text-left align-middle whitespace-nowrap">
                         <div className="flex items-center gap-1.5">
                           <Calendar className="w-3.5 h-3.5 shrink-0" />
                           <span>Created Date</span>
                         </div>
                       </th>
-                      <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <th className="py-2 px-3 text-left align-middle whitespace-nowrap">
                         <div className="flex items-center gap-1.5">
                           <Calendar className="w-3.5 h-3.5 shrink-0" />
                           <span>Period</span>
                         </div>
                       </th>
-                      <th className="p-3 text-left align-middle whitespace-nowrap">
+                      <th className="py-2 px-3 text-left align-middle whitespace-nowrap">
                         <div className="flex items-center gap-1.5">
                           <Check className="w-3.5 h-3.5 shrink-0" />
                           <span>Status</span>
                         </div>
                       </th>
-                      <th className="p-3 text-center align-middle whitespace-nowrap">
+                      <th className="py-2 px-3 text-center align-middle whitespace-nowrap">
                         <div className="flex items-center justify-center gap-1.5">
                           <Settings className="w-3.5 h-3.5 shrink-0" />
                           <span>Actions</span>
@@ -2749,37 +2749,37 @@ export function AdminWallet() {
                     </tr>
                   </thead>
                   <tbody className="text-[11px] text-[#475569]">
-                    {paginatedInvoicesData.map((invoice) => (
-                      <tr key={invoice.invoiceNumber} className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors group">
-                        <td className="p-3">
+                    {paginatedInvoicesData.map((invoice, idx) => (
+                      <tr key={invoice.invoiceNumber} className={`border-b border-[#E2E8F0] transition-colors group ${idx % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]'}`}>
+                        <td className="p-4">
                           <input type="checkbox" checked={selectedInvoiceOrders.includes(invoice.invoiceNumber)} onChange={() => toggleSelectInvoice(invoice.invoiceNumber)} className="rounded border-gray-300 accent-[#00A86B] w-3.5 h-3.5" />
                         </td>
                         {isAdminView && (
-                          <td className="p-3">
+                          <td className="p-4">
                             <div className="text-xs font-semibold text-[#00A86B] cursor-pointer hover:underline uppercase">{invoice.userId}</div>
                             <TruncatedText text={invoice.userName} maxLength={20} className="text-[14px] font-semibold font-sans text-[#0F172A] mt-0.5 max-w-[160px]" />
                             <TruncatedText text={invoice.userEmail} maxLength={25} className="text-[12px] font-normal font-sans text-[#94A3B8] max-w-[180px]" />
                           </td>
                         )}
-                        <td className="p-3">
+                        <td className="p-4">
                           <div className="text-xs font-semibold text-[#00A86B]">{invoice.invoiceNumber}</div>
                         </td>
-                        <td className="p-3">
+                        <td className="p-4">
                           <div className="text-[12px] font-normal font-sans text-[#64748B]">{invoice.shipments}</div>
                         </td>
-                        <td className="p-3">
+                        <td className="p-4">
                           <div className="text-[12px] font-normal font-sans text-[#0F172A]">₹{invoice.amount.toFixed(2)}</div>
                         </td>
-                        <td className="p-3">
+                        <td className="p-4">
                           <div className="text-[12px] font-normal font-sans text-[#64748B]">{invoice.createdOn}</div>
                         </td>
-                        <td className="p-3">
+                        <td className="p-4">
                           <div className="text-[12px] font-normal font-sans text-[#64748B]">{invoice.invoicePeriod}</div>
                         </td>
-                        <td className="p-3">
+                        <td className="p-4">
                           <span className={getStatusBadgeClass(invoice.status)}>{invoice.status}</span>
                         </td>
-                        <td className="p-3 text-center align-middle">
+                        <td className="p-4 text-center align-middle">
                           <div className="flex items-center justify-center gap-2">
                             <button
                               onClick={() => handleDownloadInvoice(invoice)}

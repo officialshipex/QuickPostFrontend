@@ -815,41 +815,41 @@ export function AdminWeightDiscrepancy() {
           <div className="flex-1 overflow-auto w-full relative">
             {loading && <TableLoader />}
             <table className="w-full text-left border-collapse min-w-full">
-              <thead className="sticky top-0 z-40 bg-[#E6F5F1] shadow-sm">
-                <tr className="text-xs font-semibold text-[#00A86B] uppercase tracking-wider">
-                  <th className="p-3 w-10">
+              <thead className="sticky top-0 z-40 bg-green-50 shadow-sm">
+                <tr className="text-xs font-medium text-[#475569] uppercase tracking-wider">
+                  <th className="py-2 px-3 w-10">
                     <input type="checkbox" className="rounded accent-[#00A86B] w-3.5 h-3.5"
                       checked={selectedItems.length === filteredOrders.length && filteredOrders.length > 0}
                       onChange={toggleAll} />
                   </th>
                   {isAdminView && (
-                    <th className="p-3 whitespace-nowrap">
+                    <th className="py-2 px-3 whitespace-nowrap">
                       <div className="flex items-center gap-1.5"><User className="w-3.5 h-3.5" /><span>User</span></div>
                     </th>
                   )}
-                  <th className="p-3 whitespace-nowrap">
+                  <th className="py-2 px-3 whitespace-nowrap">
                     <div className="flex items-center gap-1.5"><Package className="w-3.5 h-3.5" /><span>Product</span></div>
                   </th>
-                  <th className="p-3 whitespace-nowrap">
+                  <th className="py-2 px-3 whitespace-nowrap">
                     <div className="flex items-center gap-1.5"><Upload className="w-3.5 h-3.5" /><span>Upload On</span></div>
                   </th>
-                  <th className="p-3 whitespace-nowrap">
+                  <th className="py-2 px-3 whitespace-nowrap">
                     <div className="flex items-center gap-1.5"><Truck className="w-3.5 h-3.5" /><span>Shipment</span></div>
                   </th>
-                  <th className="p-3 whitespace-nowrap">
+                  <th className="py-2 px-3 whitespace-nowrap">
                     <div className="flex items-center gap-1.5"><Package className="w-3.5 h-3.5" /><span>Applied Weight</span></div>
                   </th>
-                  <th className="p-3 whitespace-nowrap">
+                  <th className="py-2 px-3 whitespace-nowrap">
                     <div className="flex items-center gap-1.5"><Package className="w-3.5 h-3.5" /><span>Charged Weight</span></div>
                   </th>
-                  <th className="p-3 whitespace-nowrap">
+                  <th className="py-2 px-3 whitespace-nowrap">
                     <div className="flex items-center gap-1.5"><FileText className="w-3.5 h-3.5" /><span>Excess Charges</span></div>
                   </th>
-                  <th className="p-3 whitespace-nowrap">
+                  <th className="py-2 px-3 whitespace-nowrap">
                     <div className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5" /><span>Status</span></div>
                   </th>
-                  <th className="p-3 whitespace-nowrap text-center">Details</th>
-                  <th className="p-3 whitespace-nowrap text-center">Actions</th>
+                  <th className="py-2 px-3 whitespace-nowrap text-center">Details</th>
+                  <th className="py-2 px-3 whitespace-nowrap text-center">Actions</th>
                 </tr>
               </thead>
               <tbody className="text-[11px] text-[#475569]">
@@ -870,7 +870,7 @@ export function AdminWeightDiscrepancy() {
                     const isDisputeRaised = orderStatus === 'discrepancy raised';
 
                     return (
-                      <tr key={order._id || order.awbNumber || idx} className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors">
+                      <tr key={order._id || order.awbNumber || idx} className={`border-b border-[#E2E8F0] transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]'}`}>
                         <td className="p-3">
                           <div className="flex flex-col items-start gap-1">
                             <input type="checkbox" className="rounded accent-[#00A86B] w-3.5 h-3.5"

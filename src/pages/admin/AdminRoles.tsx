@@ -60,19 +60,19 @@ export function AdminRoles() {
       <div className="bg-white flex flex-col flex-1 min-h-0 overflow-hidden border-t border-[#E2E8F0]">
         <div className="flex-1 overflow-auto no-scrollbar relative">
           <table className="w-full text-left border-collapse min-w-[1000px]">
-            <thead className="sticky top-0 z-40 bg-[#E6F5F1] shadow-sm">
-              <tr className="text-[10px] font-bold text-[#00A86B] uppercase tracking-wider">
-                <th className="p-4 w-16 text-center">Serial No.</th>
-                <th className="p-4 whitespace-nowrap"><Users className="w-3.5 h-3.5 inline mr-1"/> Employee Details</th>
-                <th className="p-4 whitespace-nowrap"><FileText className="w-3.5 h-3.5 inline mr-1"/> Role</th>
-                <th className="p-4 whitespace-nowrap"><FileText className="w-3.5 h-3.5 inline mr-1"/> Status</th>
-                <th className="p-4 whitespace-nowrap"><Clock className="w-3.5 h-3.5 inline mr-1"/> Created At</th>
-                <th className="p-4 whitespace-nowrap text-right pr-6"><MoreVertical className="w-3.5 h-3.5 inline mr-1"/> Actions</th>
+            <thead className="sticky top-0 z-40 bg-green-50 shadow-sm">
+              <tr className="text-xs font-medium text-[#475569] uppercase tracking-wider">
+                <th className="py-2 px-3 w-16 text-center">Serial No.</th>
+                <th className="py-2 px-3 whitespace-nowrap"><Users className="w-3.5 h-3.5 inline mr-1"/> Employee Details</th>
+                <th className="py-2 px-3 whitespace-nowrap"><FileText className="w-3.5 h-3.5 inline mr-1"/> Role</th>
+                <th className="py-2 px-3 whitespace-nowrap"><FileText className="w-3.5 h-3.5 inline mr-1"/> Status</th>
+                <th className="py-2 px-3 whitespace-nowrap"><Clock className="w-3.5 h-3.5 inline mr-1"/> Created At</th>
+                <th className="py-2 px-3 whitespace-nowrap text-right"><MoreVertical className="w-3.5 h-3.5 inline mr-1"/> Actions</th>
               </tr>
             </thead>
             <tbody className="text-[11px] text-[#475569]">
               {filteredRoles.length > 0 ? filteredRoles.map((role, i) => (
-                <tr key={i} className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors group">
+                <tr key={i} className={`border-b border-[#E2E8F0] transition-colors group ${i % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]'}`}>
                   <td className="p-4 text-center text-[#94A3B8] font-medium align-top pt-5">
                     {role.serialNo}
                   </td>

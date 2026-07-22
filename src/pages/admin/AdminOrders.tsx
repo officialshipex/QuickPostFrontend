@@ -942,26 +942,26 @@ export function AdminOrders() {
           <div className="flex-1 overflow-auto w-full relative">
             {loading && <TableLoader />}
             <table className="w-full text-left border-collapse min-w-full">
-                <thead className="sticky top-0 z-40 bg-[#E6F5F1] shadow-sm">
-                  <tr className="text-xs font-medium text-[#00A86B] uppercase tracking-wider">
-                    <th className="p-3 w-10">
+                <thead className="sticky top-0 z-40 bg-green-50 shadow-sm">
+                  <tr className="text-xs font-medium text-[#475569] uppercase tracking-wider">
+                    <th className="py-2 px-3 w-10">
                       <input type="checkbox" checked={selectedOrders.length === orders.length && orders.length > 0} onChange={toggleAll} className="rounded border-[#00A86B] accent-[#00A86B] w-3.5 h-3.5" />
                     </th>
 
                     {/* User column — admin view only */}
                     {isAdminView && (
-                      <th className="p-3 whitespace-nowrap">
+                      <th className="py-2 px-3 whitespace-nowrap">
                         <div className="flex items-center gap-1.5"><User className="w-3.5 h-3.5 shrink-0" /><span>User</span></div>
                       </th>
                     )}
 
                     {isPMTab ? (
                       <>
-                        <th className="p-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><Package className="w-3.5 h-3.5 shrink-0" /><span>Pickup ID</span></div></th>
-                        <th className="p-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 shrink-0" /><span>Pickup</span></div></th>
-                        <th className="p-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5 shrink-0" /><span>Pickup Date</span></div></th>
-                        <th className="p-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><Layers className="w-3.5 h-3.5 shrink-0" /><span>Total / Picked</span></div></th>
-                        <th ref={ageingLegendRef} className="p-3 whitespace-nowrap relative cursor-pointer hover:bg-[#D1F0E8]" onClick={() => setShowAgeingLegend(!showAgeingLegend)}>
+                        <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><Package className="w-3.5 h-3.5 shrink-0" /><span>Pickup ID</span></div></th>
+                        <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 shrink-0" /><span>Pickup</span></div></th>
+                        <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5 shrink-0" /><span>Pickup Date</span></div></th>
+                        <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><Layers className="w-3.5 h-3.5 shrink-0" /><span>Total / Picked</span></div></th>
+                        <th ref={ageingLegendRef} className="py-2 px-3 whitespace-nowrap relative cursor-pointer hover:bg-[#D1F0E8]" onClick={() => setShowAgeingLegend(!showAgeingLegend)}>
                           <div className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 shrink-0" /><span>Ageing</span></div>
                           {showAgeingLegend && (
                             <div className="absolute top-full left-0 mt-1 w-56 bg-white rounded-xl shadow-lg border border-[#E2E8F0] p-3 z-[100] normal-case tracking-normal">
@@ -978,23 +978,23 @@ export function AdminOrders() {
                       </>
                     ) : (
                       <>
-                        <th className="p-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 shrink-0" /><span>Order</span></div></th>
-                        <th className="p-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><Package className="w-3.5 h-3.5 shrink-0" /><span>Product</span></div></th>
-                        <th className="p-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><Package className="w-3.5 h-3.5 shrink-0" /><span>Package</span></div></th>
-                        <th className="p-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><IndianRupee className="w-3.5 h-3.5 shrink-0" /><span>Payment</span></div></th>
-                        <th className="p-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><User className="w-3.5 h-3.5 shrink-0" /><span>Customer</span></div></th>
-                        <th className="p-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 shrink-0" /><span>Pickup</span></div></th>
+                        <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 shrink-0" /><span>Order</span></div></th>
+                        <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><Package className="w-3.5 h-3.5 shrink-0" /><span>Product</span></div></th>
+                        <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><Package className="w-3.5 h-3.5 shrink-0" /><span>Package</span></div></th>
+                        <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><IndianRupee className="w-3.5 h-3.5 shrink-0" /><span>Payment</span></div></th>
+                        <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><User className="w-3.5 h-3.5 shrink-0" /><span>Customer</span></div></th>
+                        <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 shrink-0" /><span>Pickup</span></div></th>
                         {showShipmentCol && (
-                          <th className="p-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><Truck className="w-3.5 h-3.5 shrink-0" /><span>Shipment</span></div></th>
+                          <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><Truck className="w-3.5 h-3.5 shrink-0" /><span>Shipment</span></div></th>
                         )}
                       </>
                     )}
 
-                    <th className="p-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 shrink-0" /><span>Status</span></div></th>
+                    <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 shrink-0" /><span>Status</span></div></th>
                     {showLastUpdateCol && (
-                      <th className="p-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><History className="w-3.5 h-3.5 shrink-0" /><span>Last Update</span></div></th>
+                      <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><History className="w-3.5 h-3.5 shrink-0" /><span>Last Update</span></div></th>
                     )}
-                    <th className="p-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><Settings className="w-3.5 h-3.5 shrink-0" /><span>Actions</span></div></th>
+                    <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><Settings className="w-3.5 h-3.5 shrink-0" /><span>Actions</span></div></th>
                   </tr>
                 </thead>
                 <tbody className="text-[11px] text-[#475569]">
@@ -1005,7 +1005,7 @@ export function AdminOrders() {
                       </td>
                     </tr>
                   ) : paginatedOrders.map((order, _idx) => (
-                    <tr key={order._id} className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors group">
+                    <tr key={order._id} className={`border-b border-[#E2E8F0] transition-colors group ${_idx % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]'}`}>
                       <td className="p-3">
                         <input type="checkbox" checked={selectedOrders.includes(order._id)} onChange={() => toggleSelect(order._id)} className="rounded border-gray-300 accent-[#00A86B] w-3.5 h-3.5" />
                       </td>

@@ -357,20 +357,20 @@ export function AdminPickupManifest({ isAdminView }: Props) {
       <div className="hidden md:block flex-1 overflow-y-auto overflow-x-hidden min-h-0 relative">
         {loading && <TableLoader />}
           <table className="w-full text-left border-collapse">
-            <thead className="sticky top-0 z-40 bg-[#E6F5F1] shadow-sm">
-              <tr className="text-xs font-medium text-[#00A86B] uppercase tracking-wider">
-                <th className="p-3 w-10">
+            <thead className="sticky top-0 z-40 bg-green-50 shadow-sm">
+              <tr className="text-xs font-medium text-[#475569] uppercase tracking-wider">
+                <th className="py-2 px-3 w-10">
                   <input type="checkbox" checked={selectedManifests.length === filteredManifests.length && filteredManifests.length > 0} onChange={toggleAll} className="rounded border-[#00A86B] accent-[#00A86B] w-3.5 h-3.5" />
                 </th>
-                {isAdminView && <th className="p-3 whitespace-nowrap">User</th>}
-                <th className="p-3 whitespace-nowrap">Pickup ID</th>
-                <th className="p-3 whitespace-nowrap">Pickup Address</th>
-                <th className="p-3 whitespace-nowrap">Pickup Date</th>
-                <th className="p-3 whitespace-nowrap">Total/Picked</th>
-                <th className="p-3 whitespace-nowrap">Ageing</th>
-                <th className="p-3 whitespace-nowrap">Shipments</th>
-                <th className="p-3 whitespace-nowrap">Status</th>
-                <th className="p-3 whitespace-nowrap">Actions</th>
+                {isAdminView && <th className="py-2 px-3 whitespace-nowrap">User</th>}
+                <th className="py-2 px-3 whitespace-nowrap">Pickup ID</th>
+                <th className="py-2 px-3 whitespace-nowrap">Pickup Address</th>
+                <th className="py-2 px-3 whitespace-nowrap">Pickup Date</th>
+                <th className="py-2 px-3 whitespace-nowrap">Total/Picked</th>
+                <th className="py-2 px-3 whitespace-nowrap">Ageing</th>
+                <th className="py-2 px-3 whitespace-nowrap">Shipments</th>
+                <th className="py-2 px-3 whitespace-nowrap">Status</th>
+                <th className="py-2 px-3 whitespace-nowrap">Actions</th>
               </tr>
             </thead>
             <tbody className="text-[11px] text-[#475569]">
@@ -380,8 +380,8 @@ export function AdminPickupManifest({ isAdminView }: Props) {
                     No manifests found
                   </td>
                 </tr>
-              ) : paginatedManifests.map((m) => (
-                <tr key={m._id} className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors">
+              ) : paginatedManifests.map((m, idx) => (
+                <tr key={m._id} className={`border-b border-[#E2E8F0] transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]'}`}>
                   <td className="p-3">
                     <input type="checkbox" checked={selectedManifests.includes(m._id)} onChange={() => toggleOne(m._id)} className="rounded border-gray-300 accent-[#00A86B] w-3.5 h-3.5" />
                   </td>
