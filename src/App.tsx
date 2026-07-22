@@ -83,10 +83,12 @@ function GlobalOrderClickInterceptor() {
       const text = target.textContent?.trim() || "";
       const cleanText = text.replace(/,/g, '');
 
-      // Check if text is QP or ORD followed by digits, or a 5-8 digit number
+      // Check if text is QP or ORD followed by digits, or a 5-8 digit number (order ID)
       const isOrderId = /^(QP\d+|ORD\d+|\d{5,8})$/i.test(cleanText);
+      // AWB: 9+ digit number OR alphanumeric courier code (letter prefix + 6+ digits)
+      const isAwb = !isOrderId && /^(\d{9,}|[A-Z]{1,6}\d{6,})$/i.test(cleanText);
 
-      if (isOrderId) {
+      if (isOrderId || isAwb) {
         // Exclude inputs, selects, textareas
         if (target.closest('input, select, textarea')) {
           return;
@@ -124,7 +126,11 @@ function GlobalOrderClickInterceptor() {
         // Trigger redirection
         event.preventDefault();
         event.stopPropagation();
-        navigate(`/admin/order-tracking?id=${cleanText}`);
+        if (isAwb) {
+          navigate(`/admin/tracking?awb=${cleanText}`);
+        } else {
+          navigate(`/admin/order-tracking?id=${cleanText}`);
+        }
       }
     };
 
@@ -177,6 +183,7 @@ function App() {
               <Route path="/admin/orders/:tabSlug" element={<AdminOrders />} />
               <Route path="/admin/shipments" element={<AdminShipments />} />
               <Route path="/admin/ndr" element={<AdminNDR />} />
+              <Route path="/admin/ndr/:tabSlug" element={<AdminNDR />} />
               <Route path="/admin/cod" element={<AdminCOD />} />
               <Route path="/admin/wallet" element={<AdminWallet />} />
               <Route path="/admin/reports" element={<AdminReports />} />
@@ -211,6 +218,7 @@ function App() {
               <Route path="/user/orders" element={<AdminOrders />} />
               <Route path="/user/orders/:tabSlug" element={<AdminOrders />} />
               <Route path="/user/ndr" element={<AdminNDR />} />
+              <Route path="/user/ndr/:tabSlug" element={<AdminNDR />} />
               <Route path="/user/wallet" element={<AdminWallet />} />
               <Route path="/user/reports" element={<AdminReports />} />
               <Route path="/user/weight-discrepancy" element={<AdminWeightDiscrepancy />} />

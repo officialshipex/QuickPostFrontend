@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
+import { apiClient } from '../../services/apiClient';
+import { getToken } from '../../utils/session';
+import { ShipOrderModal } from '../../components/admin/orders/ShipOrderModal';
 
 // Tabler-style custom SVG icons to guarantee rendering without external CDNs
 interface TablerIconProps {
@@ -144,6 +147,14 @@ function TablerIcon({ name, size = 16, color = 'currentColor', className = '' }:
             <path d="M11 12h1v4h1" />
           </>
         );
+      case 'upload':
+        return (
+          <>
+            <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2" />
+            <path d="M7 9l5 -5l5 5" />
+            <path d="M12 4l0 12" />
+          </>
+        );
       default:
         return null;
     }
@@ -167,308 +178,241 @@ function TablerIcon({ name, size = 16, color = 'currentColor', className = '' }:
   );
 }
 
-// Derive status from orderId
-const getStatusFromId = (id: string): 'placed' | 'ready' | 'transit' | 'delivered' | 'cancelled' => {
-  // Default tracking ID is transit
-  if (id === '572294' || id.includes('090000')) return 'transit';
-  
-  // Custom parsing for ORD prefixed IDs (e.g. from Internal CRM)
-  if (id.startsWith('ORD')) {
-    const numPart = parseInt(id.replace(/\D/g, ''), 10);
-    if (isNaN(numPart)) return 'transit';
-    const rem = numPart % 4;
-    if (rem === 0) return 'transit';
-    if (rem === 1) return 'ready';
-    if (rem === 2) return 'delivered';
-    return 'cancelled';
-  }
+// ── API Types ──────────────────────────────────────────────────────────────────
 
-  // Parse trailing digit to determine status dynamically
-  const lastChar = id.slice(-1);
-  if (/\d/.test(lastChar)) {
-    const digit = parseInt(lastChar, 10);
-    if (digit === 0 || digit === 5) return 'delivered';
-    if (digit === 1 || digit === 6) return 'placed';
-    if (digit === 3 || digit === 8) return 'cancelled';
-    if (digit === 4 || digit === 9) return 'ready';
-  }
-  return 'transit';
-};
-
-// Config for header actions per status
-interface HeaderActionConfig {
-  primaryText: string;
-  primaryAction: (orderId: string) => void;
-  badgeText: string;
-  badgeClass: string;
-  dropdownOptions: Array<{
-    label: string;
-    action: (setChargesTab: (tab: 'billed' | 'dispute') => void) => void;
-    isDanger?: boolean;
-  }>;
+interface TrackingEntry {
+  status?: string;
+  StatusLocation?: string;
+  StatusDateTime?: string;
+  Instructions?: string;
 }
 
-const getHeaderActions = (status: 'placed' | 'ready' | 'transit' | 'delivered' | 'cancelled'): HeaderActionConfig => {
-  switch (status) {
-    case 'placed':
-      return {
-        primaryText: 'Ship Now',
-        primaryAction: (orderId) => alert(`Order ${orderId} is being scheduled for shipment!`),
-        badgeText: 'Order Placed',
-        badgeClass: 'bg-blue-50 text-blue-700 border border-blue-200',
-        dropdownOptions: [
-          { label: 'Download Label (Draft)', action: () => alert('Downloading Draft Label...') },
-          { label: 'Download Invoice', action: () => alert('Downloading Invoice...') },
-          { label: 'Edit Order Details', action: () => alert('Opening Edit Dialog...') },
-          { label: 'Cancel Order', action: () => alert('Cancelling Order...'), isDanger: true },
-        ]
-      };
-    case 'ready':
-      return {
-        primaryText: 'Assign Courier',
-        primaryAction: (orderId) => alert(`Assigning Courier for Shipment ${orderId}...`),
-        badgeText: 'Ready to Ship',
-        badgeClass: 'bg-amber-50 text-amber-700 border border-amber-200',
-        dropdownOptions: [
-          { label: 'Change Courier Partner', action: () => alert('Opening Courier Selection...') },
-          { label: 'Download Invoice', action: () => alert('Downloading Invoice...') },
-          { label: 'Edit Pickup Address', action: () => alert('Editing Pickup Address...') },
-          { label: 'Cancel Order', action: () => alert('Cancelling Order...'), isDanger: true },
-        ]
-      };
-    case 'delivered':
-      return {
-        primaryText: 'Download Invoice',
-        primaryAction: (orderId) => alert(`Downloading Invoice PDF for Order ${orderId}...`),
-        badgeText: 'Delivered',
-        badgeClass: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
-        dropdownOptions: [
-          { label: 'Download Shipping Label', action: () => alert('Downloading Shipping Label...') },
-          { label: 'Raise Weight Dispute', action: (setChargesTab) => setChargesTab('dispute') },
-          { label: 'Create Reverse Shipment (RTO)', action: () => alert('Initializing reverse pickup...') },
-          { label: 'Raise Support Ticket', action: () => alert('Contacting Helpdesk...') },
-        ]
-      };
-    case 'cancelled':
-      return {
-        primaryText: 'Clone Order',
-        primaryAction: (orderId) => alert(`Cloning order ${orderId} details to a new draft...`),
-        badgeText: 'Cancelled',
-        badgeClass: 'bg-red-50 text-red-700 border border-red-200',
-        dropdownOptions: [
-          { label: 'View Cancellation Reason', action: () => alert('Cancelled by: Merchant request') },
-          { label: 'Download Invoice', action: () => alert('Downloading Invoice...') },
-          { label: 'Contact Support', action: () => alert('Contacting Helpdesk...') },
-        ]
-      };
-    case 'transit':
-    default:
-      return {
-        primaryText: 'Share Tracking Link',
-        primaryAction: (orderId) => {
-          navigator.clipboard.writeText(`https://quickpost.in/track/${orderId}`);
-          alert('Tracking link copied to clipboard!');
-        },
-        badgeText: 'In Transit',
-        badgeClass: 'bg-[#E1F5EE] text-[#0F6E56] border border-[#BCE8D8]',
-        dropdownOptions: [
-          { label: 'Download Shipping Label', action: () => alert('Downloading Shipping Label...') },
-          { label: 'Download Commercial Invoice', action: () => alert('Downloading Invoice...') },
-          { label: 'Raise Weight Dispute', action: (setChargesTab) => setChargesTab('dispute') },
-          { label: 'Report Courier Delay', action: () => alert('Opening Delay Ticket...') },
-          { label: 'Request Return to Origin (RTO)', action: () => alert('Requesting Return to Origin...'), isDanger: true },
-        ]
-      };
-  }
+interface OrderData {
+  _id: string;
+  orderId?: number | string;
+  userId?: string;
+  channel?: string;
+  channelId?: number;
+  createdAt?: string;
+  shipmentCreatedAt?: string;
+  pickupDate?: string;
+  estimatedDeliveryDate?: string;
+  pickupAddress?: {
+    contactName?: string;
+    email?: string;
+    phoneNumber?: string;
+    address?: string;
+    pinCode?: string;
+    city?: string;
+    state?: string;
+  };
+  receiverAddress?: {
+    contactName?: string;
+    email?: string;
+    phoneNumber?: string;
+    address?: string;
+    pinCode?: string;
+    city?: string;
+    state?: string;
+  };
+  productDetails?: Array<{
+    quantity?: number;
+    name?: string;
+    unitPrice?: number;
+  }>;
+  packageDetails?: {
+    deadWeight?: number;
+    applicableWeight?: number;
+    volumetricWeight?: {
+      length?: number;
+      width?: number;
+      height?: number;
+      calculatedWeight?: number;
+    };
+  };
+  paymentDetails?: {
+    method?: string;
+    amount?: number;
+  };
+  codProcessed?: boolean;
+  priceBreakup?: {
+    freight?: number;
+    cod?: number;
+    gst?: number;
+    total?: number;
+  };
+  status?: string;
+  ndrStatus?: string;
+  ndrReason?: string;
+  ndrHistory?: Array<{
+    date?: string;
+    reason?: string;
+    action?: string;
+    status?: string;
+  }>;
+  awb_number?: string;
+  courierServiceName?: string;
+  courierName?: string;
+  pickupId?: string;
+  tracking?: TrackingEntry[];
+}
+
+interface DiscrepancyData {
+  _id?: string;
+  enteredWeight?: number;
+  chargedWeight?: number;
+  chargeDimension?: string;
+  excessWeightCharges?: number;
+  clientStatus?: string;
+  adminStatus?: string;
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────────
+
+const formatDate = (dateStr?: string, includeTime = false): string => {
+  if (!dateStr) return '—';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  const opts: Intl.DateTimeFormatOptions = {
+    day: '2-digit', month: 'short', year: 'numeric',
+    ...(includeTime ? { hour: '2-digit', minute: '2-digit', hour12: true } : {}),
+  };
+  return d.toLocaleString('en-IN', opts);
 };
 
-const getMilestones = (status: 'placed' | 'ready' | 'transit' | 'delivered' | 'cancelled') => {
-  switch (status) {
-    case 'placed':
-      return [
-        { name: 'Order Placed', date: '24 Jun, 6:50 PM', status: 'active', icon: 'check' },
-        { name: 'Parcel Prepared', date: '(pending)', status: 'pending', icon: 'check' },
-        { name: 'Pickup Confirmed', date: '(pending)', status: 'pending', icon: 'check' },
-        { name: 'In Transit', date: '(pending)', status: 'pending', icon: 'truck' },
-        { name: 'Out for Delivery', date: '(pending)', status: 'pending', icon: 'truck' },
-        { name: 'Delivered', date: '(pending)', status: 'pending', icon: 'package' },
-      ];
-    case 'ready':
-      return [
-        { name: 'Order Placed', date: '24 Jun, 6:50 PM', status: 'completed', icon: 'check' },
-        { name: 'Parcel Prepared', date: '24 Jun, 8:15 PM', status: 'active', icon: 'check' },
-        { name: 'Pickup Confirmed', date: '(pending)', status: 'pending', icon: 'check' },
-        { name: 'In Transit', date: '(pending)', status: 'pending', icon: 'truck' },
-        { name: 'Out for Delivery', date: '(pending)', status: 'pending', icon: 'truck' },
-        { name: 'Delivered', date: '(pending)', status: 'pending', icon: 'package' },
-      ];
-    case 'delivered':
-      return [
-        { name: 'Order Placed', date: '17 Sept, 2:00 PM', status: 'completed', icon: 'check' },
-        { name: 'Parcel Prepared', date: '17 Sept, 4:30 PM', status: 'completed', icon: 'check' },
-        { name: 'Pickup Confirmed', date: '18 Sept, 3:15 PM', status: 'completed', icon: 'check' },
-        { name: 'In Transit', date: '19 Sept, 11:30 PM', status: 'completed', icon: 'check' },
-        { name: 'Out for Delivery', date: '21 Sept, 10:23 AM', status: 'completed', icon: 'check' },
-        { name: 'Delivered', date: '21 Sept, 4:50 PM', status: 'active', icon: 'package' },
-      ];
-    case 'cancelled':
-      return [
-        { name: 'Order Placed', date: '24 Jun, 6:50 PM', status: 'completed', icon: 'check' },
-        { name: 'Order Cancelled', date: '25 Jun, 10:00 AM', status: 'active', icon: 'alert-triangle' },
-        { name: 'Pickup Confirmed', date: '(cancelled)', status: 'pending', icon: 'check' },
-        { name: 'In Transit', date: '(cancelled)', status: 'pending', icon: 'truck' },
-        { name: 'Out for Delivery', date: '(cancelled)', status: 'pending', icon: 'truck' },
-        { name: 'Delivered', date: '(cancelled)', status: 'pending', icon: 'package' },
-      ];
-    case 'transit':
-    default:
-      return [
-        { name: 'Order Placed', date: '17 Sept, 2:00 PM', status: 'completed', icon: 'check' },
-        { name: 'Parcel Prepared', date: '17 Sept, 4:30 PM', status: 'completed', icon: 'check' },
-        { name: 'Pickup Confirmed', date: '18 Sept, 3:15 PM', status: 'completed', icon: 'check' },
-        { name: 'In Transit', date: '19 Sept, 11:30 PM', status: 'active', icon: 'truck' },
-        { name: 'Out for Delivery', date: '(pending)', status: 'pending', icon: 'truck' },
-        { name: 'Delivered', date: '(pending)', status: 'pending', icon: 'package' },
-      ];
-  }
+const formatTrackingDate = (dateStr?: string): { date: string; time: string } => {
+  if (!dateStr) return { date: '—', time: '' };
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return { date: dateStr, time: '' };
+  const day = String(d.getUTCDate()).padStart(2, '0');
+  const month = d.toLocaleString('en-US', { month: 'short', timeZone: 'UTC' });
+  const year = d.getUTCFullYear();
+  let hours = d.getUTCHours();
+  const minutes = String(d.getUTCMinutes()).padStart(2, '0');
+  const amPm = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12 || 12;
+  return { date: `${day} ${month} ${year}`, time: `${hours}:${minutes} ${amPm}` };
 };
 
-const getShippingDetails = (status: 'placed' | 'ready' | 'transit' | 'delivered' | 'cancelled') => {
-  switch (status) {
-    case 'placed':
-      return {
-        pickupId: '—',
-        scheduledOn: '—',
-        pickedOn: '—',
-        estimatedDeliveryDate: '—',
-        deliveredOn: '—',
-        codStatus: 'Pending',
-        codBadgeClass: 'bg-amber-50 text-amber-700 border-amber-200',
-        isPaid: false,
-      };
-    case 'ready':
-      return {
-        pickupId: 'PKP20485910',
-        scheduledOn: '24 Jun 2026, 8:15 PM',
-        pickedOn: '—',
-        estimatedDeliveryDate: '28 Jun 2026',
-        deliveredOn: '—',
-        codStatus: 'Pending',
-        codBadgeClass: 'bg-amber-50 text-amber-700 border-amber-200',
-        isPaid: false,
-      };
-    case 'delivered':
-      return {
-        pickupId: 'PKP93018247',
-        scheduledOn: '18 Sept 2026, 3:15 PM',
-        pickedOn: '19 Sept 2026, 11:30 AM',
-        estimatedDeliveryDate: '21 Sept 2026',
-        deliveredOn: '21 Sept 2026, 4:50 PM',
-        codStatus: 'Paid',
-        codBadgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-        isPaid: true,
-        paymentDate: '23 Sept 2026',
-        remittanceId: 'REM-849201-QP',
-      };
-    case 'cancelled':
-      return {
-        pickupId: '—',
-        scheduledOn: '—',
-        pickedOn: '—',
-        estimatedDeliveryDate: '—',
-        deliveredOn: '—',
-        codStatus: 'Cancelled',
-        codBadgeClass: 'bg-rose-50 text-rose-700 border-rose-200',
-        isPaid: false,
-      };
-    case 'transit':
-    default:
-      return {
-        pickupId: 'PKP82947291',
-        scheduledOn: '18 Sept 2026, 3:15 PM',
-        pickedOn: '19 Sept 2026, 11:30 AM',
-        estimatedDeliveryDate: '27 Jun 2026',
-        deliveredOn: '—',
-        codStatus: 'Pending',
-        codBadgeClass: 'bg-amber-50 text-amber-700 border-amber-200',
-        isPaid: false,
-      };
-  }
+const mapApiStatus = (status?: string): 'placed' | 'ready' | 'transit' | 'delivered' | 'cancelled' => {
+  if (!status) return 'placed';
+  const s = status.toLowerCase().trim();
+  if (s === 'delivered' || s === 'rto delivered') return 'delivered';
+  if (s === 'cancelled' || s === 'lost' || s === 'damaged' || s.startsWith('rto')) return 'cancelled';
+  if (s === 'in-transit' || s === 'in transit' || s === 'out for delivery' || s === 'pickup & manifest' || s === 'pickup scheduled') return 'transit';
+  if (s === 'booked' || s === 'not picked' || s === 'ready to ship') return 'ready';
+  return 'placed'; // covers 'new' and unknowns
 };
 
-const getNDRDetails = (status: 'placed' | 'ready' | 'transit' | 'delivered' | 'cancelled') => {
-  switch (status) {
-    case 'delivered':
-      return {
-        showCard: true,
-        reason: 'Customer Refused Delivery (Cash not ready on 1st attempt)',
-        statusText: 'Resolved (Delivered)',
-        badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-        attempts: '2 / 3 attempts',
-        lastAction: 'Delivered successfully on 21 Sept 2026',
-        isActionable: false,
-      };
-    case 'cancelled':
-      return {
-        showCard: true,
-        reason: 'Incorrect Address / Customer Not Reachable',
-        statusText: 'RTO Initiated',
-        badgeClass: 'bg-rose-50 text-rose-700 border-rose-200',
-        attempts: '3 / 3 attempts',
-        lastAction: 'Returned to Origin on 25 Jun 2026',
-        isActionable: false,
-      };
-    case 'placed':
-    case 'ready':
-      return {
-        showCard: false,
-      };
-    case 'transit':
-    default:
-      return {
-        showCard: true,
-        reason: 'Customer Unavailable (Unanswered Phone)',
-        statusText: 'Action Required',
-        badgeClass: 'bg-amber-50 text-amber-700 border-amber-200 animate-pulse',
-        attempts: '1 / 3 attempts',
-        lastAction: 'Courier reported delivery attempt failed',
-        isActionable: true,
-      };
-  }
+// ── Status badge styles (mirrors AdminOrders STATUS_BADGE_STYLES) ──────────────
+const STATUS_BADGE_STYLES: Record<string, string> = {
+  'New':               'bg-slate-50 text-slate-700 border-slate-200',
+  'Booked':            'bg-blue-50 text-blue-700 border-blue-200',
+  'Not Picked':        'bg-amber-50 text-amber-700 border-amber-200',
+  'Ready To Ship':     'bg-indigo-50 text-indigo-700 border-indigo-200',
+  'Pickup & Manifest': 'bg-violet-50 text-violet-700 border-violet-200',
+  'Pickup Scheduled':  'bg-violet-50 text-violet-700 border-violet-200',
+  'In-transit':        'bg-sky-50 text-sky-700 border-sky-200',
+  'In-Transit':        'bg-sky-50 text-sky-700 border-sky-200',
+  'In Transit':        'bg-sky-50 text-sky-700 border-sky-200',
+  'Delivered':         'bg-emerald-50 text-emerald-700 border-emerald-200',
+  'Out for Delivery':  'bg-amber-50 text-amber-700 border-amber-200',
+  'Cancelled':         'bg-rose-50 text-rose-700 border-rose-200',
+  'Lost':              'bg-slate-100 text-slate-500 border-slate-200',
+  'Damaged':           'bg-rose-50 text-rose-700 border-rose-200',
+  'RTO Initiated':     'bg-orange-50 text-orange-700 border-orange-200',
+  'RTO In Transit':    'bg-orange-50 text-orange-700 border-orange-200',
+  'RTO Delivered':     'bg-emerald-50 text-emerald-700 border-emerald-200',
+  'RTO Lost':          'bg-slate-100 text-slate-500 border-slate-200',
+  'RTO Damaged':       'bg-rose-50 text-rose-700 border-rose-200',
 };
 
-const getCourierForOrder = (orderId: string) => {
-  const COURIERS = [
-    'Ekart',
-    'Delhivery',
-    'DTDC',
-    'Amazon Shipping',
-    'Shadowfax',
-    'Shiprocket',
-    'Shree Maruti',
-    'XpressBees',
-    'Lousung360'
-  ];
-  
-  let hash = 0;
-  for (let i = 0; i < orderId.length; i++) {
-    hash = orderId.charCodeAt(i) + ((hash << 5) - hash);
+const getMilestonesFromStatus = (rawStatus: string, order?: OrderData) => {
+  const created = order?.createdAt ? formatDate(order.createdAt) : '';
+  const shipmentCreated = order?.shipmentCreatedAt ? formatDate(order.shipmentCreatedAt) : '';
+  const pickedUp = order?.pickupDate ? formatDate(order.pickupDate) : '';
+  const estimated = order?.estimatedDeliveryDate ? formatDate(order.estimatedDeliveryDate) : '';
+  const s = (rawStatus || 'new').toLowerCase().trim();
+
+  // RTO flow – 4-step timeline
+  if (s.startsWith('rto')) {
+    const isRTOTransit   = s === 'rto in transit';
+    const isRTODelivered = s === 'rto delivered';
+    const isRTOLost      = s === 'rto lost';
+    const isRTODamaged   = s === 'rto damaged';
+    const afterInitiated = isRTOTransit || isRTODelivered || isRTOLost || isRTODamaged;
+    const afterTransit   = isRTODelivered || isRTOLost || isRTODamaged;
+    return [
+      { name: 'Delivery Attempt', date: created, status: 'completed',                                              icon: 'package' },
+      { name: 'RTO Initiated',    date: '',       status: afterInitiated ? 'completed' : 'active',                  icon: 'alert-triangle' },
+      { name: 'RTO In Transit',   date: '',       status: afterTransit ? 'completed' : isRTOTransit ? 'active' : 'pending', icon: 'truck' },
+      { name: isRTOLost ? 'RTO Lost' : isRTODamaged ? 'RTO Damaged' : 'RTO Delivered',
+        date: afterTransit ? estimated : '(pending)',
+        status: afterTransit ? 'active' : 'pending',
+        icon: isRTOLost || isRTODamaged ? 'alert-triangle' : 'home' },
+    ];
   }
-  const index = Math.abs(hash) % COURIERS.length;
-  return COURIERS[index];
+
+  // Cancelled
+  if (s === 'cancelled') {
+    return [
+      { name: 'Order Placed',    date: created, status: 'completed', icon: 'check' },
+      { name: 'Order Cancelled', date: '',       status: 'active',    icon: 'x' },
+    ];
+  }
+
+  // Lost / Damaged
+  if (s === 'lost' || s === 'damaged') {
+    return [
+      { name: 'Order Placed', date: created,  status: 'completed', icon: 'check' },
+      { name: 'Picked Up',    date: pickedUp, status: 'completed', icon: 'check' },
+      { name: 'In Transit',   date: '',       status: 'completed', icon: 'truck' },
+      { name: s === 'lost' ? 'Lost' : 'Damaged', date: '', status: 'active', icon: 'alert-triangle' },
+    ];
+  }
+
+  // Standard 6-step delivery flow
+  // 0 = Order Placed      → new
+  // 1 = Label Created     → Booked / Not Picked / Ready To Ship
+  // 2 = Pickup Confirmed  → Pickup Scheduled
+  // 3 = In Transit        → Pickup & Manifest / In-transit / In Transit
+  // 4 = Out for Delivery  → Out for Delivery
+  // 5 = Delivered         → Delivered
+  let activeIdx = 0;
+  if (s === 'booked' || s === 'not picked' || s === 'ready to ship') activeIdx = 1;
+  else if (s === 'pickup scheduled')                                   activeIdx = 2;
+  else if (s === 'pickup & manifest' || s === 'in-transit' || s === 'in transit') activeIdx = 3;
+  else if (s === 'out for delivery')                                   activeIdx = 4;
+  else if (s === 'delivered')                                          activeIdx = 5;
+
+  const milestoneNames = ['Order Placed', 'Label Created', 'Pickup Confirmed', 'In Transit', 'Out for Delivery', 'Delivered'];
+  const milestoneIcons = ['check', 'file-text', 'truck', 'truck', 'map-pin', 'package'];
+  const milestoneDates = [created, shipmentCreated || created, pickedUp, '', '', estimated];
+
+  return milestoneNames.map((name, i) => ({
+    name,
+    date:   i <= activeIdx ? (milestoneDates[i] || '') : '(pending)',
+    status: i < activeIdx ? 'completed' : i === activeIdx ? 'active' : 'pending',
+    icon:   milestoneIcons[i],
+  }));
 };
 
-const getCourierLogo = (courierName: string) => {
-  const name = courierName.toLowerCase();
-  if (name.includes('amazon')) return '/brands/amazon.png';
-  if (name.includes('delhivery')) return '/brands/delhivery.png';
-  if (name.includes('dtdc')) return '/brands/dtdc.png';
-  if (name.includes('ekart')) return '/brands/ekart.png';
+
+// ── Courier Logo ───────────────────────────────────────────────────────────────
+
+const getCourierLogo = (courierName: string): string => {
+  const name = (courierName || '').toLowerCase().trim();
+  if (!name || name === '—') return '';
+  if (name.includes('delhivery'))               return '/brands/delhivery.png';
+  if (name.includes('amazon'))                  return '/brands/amazon.png';
+  if (name.includes('dtdc'))                    return '/brands/dtdc.png';
+  if (name.includes('ekart'))                   return '/brands/ekart.png';
   if (name.includes('losung') || name.includes('lousung')) return '/brands/losung.jpg';
-  if (name.includes('shadowfax')) return '/brands/shadowfax.png';
-  if (name.includes('shiprocket')) return '/brands/shiprocket.jpg';
-  if (name.includes('maruti')) return '/brands/shree_maruti.jpg';
-  if (name.includes('xpressbees')) return '/brands/xpressbees.png';
+  if (name.includes('shadowfax'))               return '/brands/shadowfax.png';
+  if (name.includes('shiprocket'))              return '/brands/shiprocket.jpg';
+  if (name.includes('shree') || name.includes('maruti'))   return '/brands/shree_maruti.jpg';
+  if (name.includes('xpressbees'))              return '/brands/xpressbees.png';
+  if (name.includes('bluedart') || name.includes('blue dart')) return '/brands/bluedart.png';
   return '';
 };
 
@@ -479,32 +423,45 @@ interface CourierLogoProps {
 
 const CourierLogo: React.FC<CourierLogoProps> = ({ name, size = 'sm' }) => {
   const logoUrl = getCourierLogo(name);
-  const sizeClass = size === 'sm' ? 'w-12 h-12 text-[18px]' : 'w-20 h-14 text-[24px]';
-  const imgSizeClass = size === 'sm' ? 'w-12 h-12' : 'w-20 h-14';
-  const [error, setError] = useState(!logoUrl);
+  const sizeClass = size === 'sm' ? 'w-8 h-8 text-[14px]' : 'w-12 h-10 text-[18px]';
+  const imgSizeClass = size === 'sm' ? 'w-8 h-8' : 'w-12 h-10';
+  const [imgError, setImgError] = useState(false);
 
-  if (error) {
+  if (!logoUrl || imgError) {
     return (
       <div className={`${sizeClass} flex items-center justify-center rounded bg-slate-100 border border-slate-200 text-[#94A3B8] font-bold shrink-0 uppercase shadow-sm`}>
-        {name.charAt(0)}
+        {(name || '?').charAt(0)}
       </div>
     );
   }
 
   return (
     <img
+      key={logoUrl}
       src={logoUrl}
       alt={name}
-      className={`${imgSizeClass} object-contain rounded shrink-0 animate-fade-in bg-transparent`}
-      onError={() => setError(true)}
+      className={`${imgSizeClass} object-contain rounded shrink-0 bg-transparent`}
+      onError={() => setImgError(true)}
     />
   );
 };
 
+// ── Main Component ─────────────────────────────────────────────────────────────
+
+const BACKEND_BASE_URL = (import.meta.env.VITE_API_URL as string) || 'http://localhost:5000/v1';
+
 export function AdminOrderTracking() {
   const [searchParams] = useSearchParams();
-  const orderId = searchParams.get('id') || '572294';
+  const navigate = useNavigate();
+  const orderId = searchParams.get('id') || '';
 
+  // API state
+  const [order, setOrder] = useState<OrderData | null>(null);
+  const [discrepancy, setDiscrepancy] = useState<DiscrepancyData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // UI state
   const [copiedId, setCopiedId] = useState(false);
   const [copiedAwb, setCopiedAwb] = useState(false);
   const [isHeaderDropdownOpen, setIsHeaderDropdownOpen] = useState(false);
@@ -512,194 +469,343 @@ export function AdminOrderTracking() {
   const [showNdrHistory, setShowNdrHistory] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [showUpdateInfoModal, setShowUpdateInfoModal] = useState(false);
-  const [newPhoneNumber, setNewPhoneNumber] = useState('7988589102');
+  const [newPhoneNumber, setNewPhoneNumber] = useState('');
+  const [shipOrder, setShipOrder] = useState<any | null>(null);
 
-  useEffect(() => {
-    if (toastMessage) {
-      const timer = setTimeout(() => setToastMessage(null), 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [toastMessage]);
+  // Raise dispute state
+  const [showRaiseDisputeModal, setShowRaiseDisputeModal] = useState(false);
+  const [disputeText, setDisputeText] = useState('');
+  const [disputeFile, setDisputeFile] = useState<File | null>(null);
+  const [isSubmittingDispute, setIsSubmittingDispute] = useState(false);
+  const [disputeError, setDisputeError] = useState<string | null>(null);
 
-  // References for GSAP
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Copy click handlers
+  // Fetch order data
+  useEffect(() => {
+    if (!orderId) { setLoading(false); return; }
+    setLoading(true);
+    setError(null);
+    apiClient.get(`/order/getOrderById/${orderId}`)
+      .then(res => {
+        const data = res.data?.order || res.data?.data || res.data;
+        setOrder(data);
+      })
+      .catch(() => setError('Failed to load order details. Please try again.'))
+      .finally(() => setLoading(false));
+  }, [orderId]);
+
+  // Fetch discrepancy after order loads
+  useEffect(() => {
+    if (!order?.awb_number) return;
+    apiClient.get('/dispreancy/allDispreancyById', {
+      params: { id: order.userId, awbNumber: order.awb_number, page: 1, limit: 1 },
+    })
+      .then(res => {
+        const list = res.data?.data || res.data?.discrepancies || (Array.isArray(res.data) ? res.data : []);
+        if (list.length > 0) setDiscrepancy(list[0]);
+      })
+      .catch(() => {});
+  }, [order?.awb_number, order?.userId]);
+
+  // Toast auto-dismiss
+  useEffect(() => {
+    if (!toastMessage) return;
+    const t = setTimeout(() => setToastMessage(null), 3000);
+    return () => clearTimeout(t);
+  }, [toastMessage]);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const h = () => setIsHeaderDropdownOpen(false);
+    window.addEventListener('click', h);
+    return () => window.removeEventListener('click', h);
+  }, []);
+
+  // GSAP animations after load
+  useEffect(() => {
+    if (loading) return;
+    const gsap = (window as any).gsap;
+    if (!gsap) return;
+    gsap.fromTo('.milestone-circle-container', { scale: 0, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.4, stagger: 0.12, ease: 'back.out(1.4)', delay: 0.05 });
+    gsap.fromTo('.timeline-line-segment', { strokeDashoffset: 1 }, { strokeDashoffset: 0, duration: 0.6, stagger: 0.15, ease: 'power2.out', delay: 0.3 });
+    gsap.fromTo('.left-col-card', { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.5, stagger: 0.08, ease: 'power3.out', delay: 0.1 });
+    gsap.fromTo('.right-col-widget', { opacity: 0, x: 16 }, { opacity: 1, x: 0, duration: 0.5, stagger: 0.1, ease: 'power3.out', delay: 0.2 });
+    gsap.fromTo('.tracking-timeline-entry', { opacity: 0, x: 10 }, { opacity: 1, x: 0, duration: 0.35, stagger: 0.12, ease: 'power2.out', delay: 0.4 });
+  }, [loading]);
+
+  // Handlers
   const handleCopyOrderId = () => {
-    navigator.clipboard.writeText(orderId);
+    navigator.clipboard.writeText(String(order?.orderId || orderId));
     setCopiedId(true);
     setTimeout(() => setCopiedId(false), 1500);
   };
 
   const handleCopyAwb = () => {
-    navigator.clipboard.writeText('QP0900004821');
+    navigator.clipboard.writeText(order?.awb_number || '');
     setCopiedAwb(true);
     setTimeout(() => setCopiedAwb(false), 1500);
   };
 
-  // Close dropdown on click outside
-  useEffect(() => {
-    const handleOutsideClick = () => setIsHeaderDropdownOpen(false);
-    window.addEventListener('click', handleOutsideClick);
-    return () => window.removeEventListener('click', handleOutsideClick);
-  }, []);
+  const handleRaiseDispute = async () => {
+    if (!disputeText.trim()) { setDisputeError('Please describe the dispute reason.'); return; }
+    if (!order?.awb_number) { setDisputeError('AWB number not available.'); return; }
+    setIsSubmittingDispute(true);
+    setDisputeError(null);
+    try {
+      const fd = new FormData();
+      fd.append('awb_number', order.awb_number);
+      fd.append('text', disputeText);
+      if (disputeFile) fd.append('file', disputeFile);
+      await apiClient.post('/dispreancy/raiseDiscrepancies', fd);
+      setShowRaiseDisputeModal(false);
+      setDisputeText('');
+      setDisputeFile(null);
+      setDiscrepancy(prev => ({ ...prev, clientStatus: 'Discrepancy Raised' }));
+      setToastMessage('Dispute raised successfully! Resolution takes 5–7 working days.');
+    } catch {
+      setDisputeError('Failed to raise dispute. Please try again.');
+    } finally {
+      setIsSubmittingDispute(false);
+    }
+  };
 
-  // GSAP Animations
-  useEffect(() => {
-    const gsap = (window as any).gsap;
-    if (!gsap) return;
+  // ── Download / action helpers ────────────────────────────────────────────────
+  const downloadFile = async (path: string, filename: string) => {
+    const token = getToken();
+    const res = await fetch(`${BACKEND_BASE_URL}${path}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    window.URL.revokeObjectURL(url);
+  };
 
-    // 1. Milestone elements animation
-    gsap.fromTo('.milestone-circle-container', 
-      { scale: 0, opacity: 0 },
-      { scale: 1, opacity: 1, duration: 0.4, stagger: 0.12, ease: 'back.out(1.4)', delay: 0.05 }
+  const handleLabel = async () => {
+    if (!order?._id) return;
+    try { await downloadFile(`/printlabel/generate-pdf/${order._id}`, `Label-${displayOrderId}.pdf`); }
+    catch { setToastMessage('Failed to download label. Please try again.'); }
+  };
+
+  const handleInvoice = async () => {
+    if (!order?._id) return;
+    try { await downloadFile(`/printinvoice/download-invoice/${order._id}`, `Invoice-${displayOrderId}.pdf`); }
+    catch { setToastMessage('Failed to download invoice. Please try again.'); }
+  };
+
+  const handleManifest = async () => {
+    if (!order?._id) return;
+    try { await downloadFile(`/manifest/generate-pdf?orderIds=${order._id}`, `Manifest-${displayOrderId}.pdf`); }
+    catch { setToastMessage('Failed to download manifest. Please try again.'); }
+  };
+
+  const handleClone = () => {
+    if (!order?._id) return;
+    const base = window.location.pathname.startsWith('/user/') ? '/user' : '/admin';
+    navigate(`${base}/add-order?cloneId=${order._id}`);
+  };
+
+  const handleUpdate = () => {
+    if (!order?._id) return;
+    const base = window.location.pathname.startsWith('/user/') ? '/user' : '/admin';
+    navigate(`${base}/add-order?updateId=${order._id}`);
+  };
+
+  const handleCancelOrder = async () => {
+    if (!order?._id) return;
+    const isBooked = ['Booked', 'Not Picked', 'Ready To Ship'].includes(order.status || '');
+    const endpoint = isBooked ? '/order/cancelOrdersAtBooked' : '/order/cancelOrdersAtNotShipped';
+    try {
+      await apiClient.post(endpoint, { orderId: order._id });
+      setToastMessage('Order cancelled successfully.');
+      apiClient.get(`/order/getOrderById/${orderId}`).then(res => setOrder(res.data?.order || res.data?.data || res.data));
+    } catch { setToastMessage('Failed to cancel order. Please try again.'); }
+  };
+
+  // ── Derived values ───────────────────────────────────────────────────────────
+  const orderStatus = mapApiStatus(order?.status);
+  const milestones = getMilestonesFromStatus(order?.status || 'new', order || undefined);
+  const courierName = order?.courierName || order?.courierServiceName || '—';
+  const awbNumber = order?.awb_number || '—';
+  const displayOrderId = String(order?.orderId || orderId);
+  const isDisputeRaised = discrepancy?.clientStatus === 'Discrepancy Raised';
+
+  // ── Header actions — match AdminOrders renderRowActions per status ────────────
+  const rawStatus = order?.status || 'New';
+  const statusBadgeClass = STATUS_BADGE_STYLES[rawStatus] || 'bg-slate-50 text-slate-700 border-slate-200';
+  const isNewOrder = rawStatus.toLowerCase() === 'new';
+  const isBookedOrder = ['Booked', 'Not Picked', 'Ready To Ship'].includes(rawStatus);
+  const isPickupManifestOrder = ['Pickup Scheduled', 'Pickup & Manifest'].includes(rawStatus);
+  const isDeliveredOrder = rawStatus === 'Delivered';
+  const isCancelledOrder = ['Cancelled', 'Lost', 'Damaged', 'RTO Initiated', 'RTO In Transit', 'RTO Delivered', 'RTO Lost', 'RTO Damaged'].includes(rawStatus);
+
+  type DropdownOpt = { label: string; action: () => void; isDanger?: boolean };
+  let primaryText: string;
+  let primaryAction: () => void;
+  let dropdownOptions: DropdownOpt[];
+
+  if (isNewOrder) {
+    primaryText = 'Ship Now';
+    primaryAction = () => order && setShipOrder(order);
+    dropdownOptions = [
+      { label: 'Download Invoice', action: handleInvoice },
+      { label: 'Clone Order', action: handleClone },
+      { label: 'Update Order', action: handleUpdate },
+      { label: 'Delete Order', action: handleCancelOrder, isDanger: true },
+    ];
+  } else if (isBookedOrder) {
+    primaryText = 'Download Label';
+    primaryAction = handleLabel;
+    dropdownOptions = [
+      { label: 'Download Invoice', action: handleInvoice },
+      { label: 'Download Manifest', action: handleManifest },
+      { label: 'Clone Order', action: handleClone },
+      { label: 'Cancel Order', action: handleCancelOrder, isDanger: true },
+    ];
+  } else if (isPickupManifestOrder) {
+    primaryText = 'Download Manifest';
+    primaryAction = handleManifest;
+    dropdownOptions = [
+      { label: 'Download Label', action: handleLabel },
+      { label: 'Raise a Ticket', action: () => setToastMessage('Support ticket functionality coming soon.') },
+    ];
+  } else if (isDeliveredOrder) {
+    primaryText = 'Download Invoice';
+    primaryAction = handleInvoice;
+    dropdownOptions = [
+      { label: 'Download Label', action: handleLabel },
+      { label: 'Download Manifest', action: handleManifest },
+      { label: 'Clone Order', action: handleClone },
+      { label: 'Raise Weight Dispute', action: () => setChargesTab('dispute') },
+    ];
+  } else if (isCancelledOrder) {
+    primaryText = 'Clone Order';
+    primaryAction = handleClone;
+    dropdownOptions = [
+      { label: 'Download Invoice', action: handleInvoice },
+      { label: 'Download Label', action: handleLabel },
+      { label: 'Contact Support', action: () => setToastMessage('Support ticket functionality coming soon.') },
+    ];
+  } else {
+    // In Transit, Out for Delivery, NDR, etc.
+    primaryText = 'Download Label';
+    primaryAction = handleLabel;
+    dropdownOptions = [
+      { label: 'Download Invoice', action: handleInvoice },
+      { label: 'Download Manifest', action: handleManifest },
+      { label: 'Clone Order', action: handleClone },
+      { label: 'Raise Weight Dispute', action: () => setChargesTab('dispute') },
+    ];
+  }
+
+  // ── Loading skeleton ─────────────────────────────────────────────────────────
+  if (loading) {
+    return (
+      <AdminLayout>
+        <div className="bg-[#F8F9FA] min-h-screen pb-10" style={{ fontFamily: 'Roboto, sans-serif' }}>
+          <div className="w-full bg-white border-b border-[#E5E5E5] px-6 py-4 flex items-center gap-3">
+            <button onClick={() => window.history.back()} className="p-1 rounded-md text-[#5F5E5A] hover:text-[#1D9E75]">
+              <TablerIcon name="arrow-left" size={18} />
+            </button>
+            <div className="h-5 w-48 bg-slate-200 rounded animate-pulse" />
+          </div>
+          <div className="max-w-[1400px] mx-auto px-6 pt-6 grid grid-cols-1 lg:grid-cols-[65%_35%] gap-5">
+            {[1, 2, 3, 4, 5].map(i => (
+              <div key={i} className="bg-white rounded-xl border border-[#E5E5E5] p-5 shadow-sm h-40 animate-pulse" />
+            ))}
+          </div>
+        </div>
+      </AdminLayout>
     );
+  }
 
-    // 2. Connecting lines path drawing
-    gsap.fromTo('.timeline-line-segment',
-      { strokeDashoffset: 1 },
-      { strokeDashoffset: 0, duration: 0.6, stagger: 0.15, ease: 'power2.out', delay: 0.3 }
+  // ── Error state ──────────────────────────────────────────────────────────────
+  if (error) {
+    return (
+      <AdminLayout>
+        <div className="bg-[#F8F9FA] min-h-screen flex flex-col" style={{ fontFamily: 'Roboto, sans-serif' }}>
+          <div className="w-full bg-white border-b border-[#E5E5E5] px-6 py-4 flex items-center gap-3">
+            <button onClick={() => window.history.back()} className="p-1 rounded-md text-[#5F5E5A] hover:text-[#1D9E75]">
+              <TablerIcon name="arrow-left" size={18} />
+            </button>
+            <span className="text-[15px] font-semibold text-[#1A1A1A]">Order Details</span>
+          </div>
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center">
+              <div className="flex justify-center mb-3 text-[#E24B4A]"><TablerIcon name="alert-triangle" size={36} color="#E24B4A" /></div>
+              <div className="text-[15px] font-semibold text-[#1A1A1A] mb-1">{error}</div>
+              <button onClick={() => window.location.reload()} className="mt-4 bg-[#1D9E75] text-white text-[13px] font-bold py-2 px-5 rounded-lg hover:bg-[#0F6E56] transition-colors">
+                Try Again
+              </button>
+            </div>
+          </div>
+        </div>
+      </AdminLayout>
     );
+  }
 
-    // 3. Left column cards transition
-    gsap.fromTo('.left-col-card',
-      { opacity: 0, y: 16 },
-      { opacity: 1, y: 0, duration: 0.5, stagger: 0.08, ease: 'power3.out', delay: 0.1 }
-    );
-
-    // 4. Right column widgets transition
-    gsap.fromTo('.right-col-widget',
-      { opacity: 0, x: 16 },
-      { opacity: 1, x: 0, duration: 0.5, stagger: 0.1, ease: 'power3.out', delay: 0.2 }
-    );
-
-    // 5. Estimated delivery progress bar
-    gsap.fromTo('.delivery-progress-fill',
-      { width: '0%' },
-      { width: '65%', duration: 1.0, ease: 'power2.out', delay: 0.6 }
-    );
-
-    // 6. Right column timeline entries stagger
-    gsap.fromTo('.tracking-timeline-entry',
-      { opacity: 0, x: 10 },
-      { opacity: 1, x: 0, duration: 0.35, stagger: 0.12, ease: 'power2.out', delay: 0.4 }
-    );
-  }, []);
-
-  const orderStatus = getStatusFromId(orderId);
-  const headerActions = getHeaderActions(orderStatus);
-  const milestones = getMilestones(orderStatus);
-  const shippingDetails = getShippingDetails(orderStatus);
-  const ndrDetails = getNDRDetails(orderStatus);
-  const courierName = getCourierForOrder(orderId);
-
+  // ── Main render ──────────────────────────────────────────────────────────────
   return (
     <AdminLayout>
       <style>{`
         @keyframes pulseRing {
-          0% {
-            box-shadow: 0 0 0 4px rgba(29, 158, 117, 0.25);
-          }
-          50% {
-            box-shadow: 0 0 0 10px rgba(29, 158, 117, 0);
-          }
-          100% {
-            box-shadow: 0 0 0 4px rgba(29, 158, 117, 0.25);
-          }
+          0% { box-shadow: 0 0 0 4px rgba(29, 158, 117, 0.25); }
+          50% { box-shadow: 0 0 0 10px rgba(29, 158, 117, 0); }
+          100% { box-shadow: 0 0 0 4px rgba(29, 158, 117, 0.25); }
         }
-        .pulse-active {
-          animation: pulseRing 2s ease-in-out infinite;
-        }
-        .no-scrollbar::-webkit-scrollbar {
-          display: none;
-        }
-        .no-scrollbar {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-        }
-        .thin-scrollbar::-webkit-scrollbar {
-          width: 5px;
-        }
-        .thin-scrollbar::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        .thin-scrollbar::-webkit-scrollbar-thumb {
-          background: #E2E8F0;
-          border-radius: 9999px;
-        }
-        .thin-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: #1D9E75;
-        }
-        .thin-scrollbar {
-          scrollbar-width: thin;
-          scrollbar-color: #E2E8F0 transparent;
-        }
+        .pulse-active { animation: pulseRing 2s ease-in-out infinite; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .thin-scrollbar::-webkit-scrollbar { width: 5px; }
+        .thin-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .thin-scrollbar::-webkit-scrollbar-thumb { background: #E2E8F0; border-radius: 9999px; }
+        .thin-scrollbar::-webkit-scrollbar-thumb:hover { background: #1D9E75; }
+        .thin-scrollbar { scrollbar-width: thin; scrollbar-color: #E2E8F0 transparent; }
       `}</style>
 
       <div ref={containerRef} className="bg-[#F8F9FA] text-[#1A1A1A] min-h-screen pb-10" style={{ fontFamily: 'Roboto, sans-serif' }}>
-        
-        {/* =================================================================
-           PAGE HEADER ROW
-           ================================================================= */}
+
+        {/* ── PAGE HEADER ─────────────────────────────────────────────────────── */}
         <div className="w-full bg-white border-b border-[#E5E5E5] px-6 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          
-          {/* Left Header Group */}
           <div className="flex flex-wrap items-center gap-3">
-            <button 
-              onClick={() => window.history.back()} 
-              className="flex items-center justify-center p-1 rounded-md text-[#5F5E5A] hover:text-[#1D9E75] hover:bg-slate-50 transition-colors"
-              title="Back"
-            >
+            <button onClick={() => window.history.back()} className="flex items-center justify-center p-1 rounded-md text-[#5F5E5A] hover:text-[#1D9E75] hover:bg-slate-50 transition-colors" title="Back">
               <TablerIcon name="arrow-left" size={18} />
             </button>
             <div className="flex items-baseline">
               <span className="text-[13px] font-normal text-[#5F5E5A]">Order ID</span>
-              <span className="text-[16px] font-bold text-[#1A1A1A] ml-1.5">{orderId}</span>
+              <span className="text-[16px] font-bold text-[#1A1A1A] ml-1.5">{displayOrderId}</span>
             </div>
-            <div className={`text-[12px] font-medium px-3 py-1 rounded-full ${headerActions.badgeClass}`}>
-              {headerActions.badgeText}
+            <div className={`text-[12px] font-medium px-3 py-1 rounded-full border ${statusBadgeClass}`}>
+              {rawStatus}
             </div>
-            <button 
-              onClick={handleCopyOrderId}
-              className={`p-1.5 rounded-md transition-colors ${copiedId ? 'text-[#1D9E75] bg-emerald-50' : 'text-[#9FB5AB] hover:text-[#1D9E75] hover:bg-slate-50'}`}
-              title="Copy Order ID"
-            >
+            <button onClick={handleCopyOrderId} className={`p-1.5 rounded-md transition-colors ${copiedId ? 'text-[#1D9E75] bg-emerald-50' : 'text-[#9FB5AB] hover:text-[#1D9E75] hover:bg-slate-50'}`} title="Copy Order ID">
               <TablerIcon name="copy" size={14} color={copiedId ? '#1D9E75' : '#9FB5AB'} />
             </button>
           </div>
-
-          {/* Right Header Group */}
           <div className="flex items-center gap-3 w-full sm:w-auto relative">
-            <button 
-              onClick={() => headerActions.primaryAction(orderId)}
-              className="flex-1 sm:flex-none bg-[#1D9E75] hover:bg-[#0F6E56] text-white text-[14px] font-bold py-2.5 px-6 rounded-lg shadow-sm transition-all"
-            >
-              {headerActions.primaryText}
+            <button onClick={() => primaryAction()} className="flex-1 sm:flex-none bg-[#1D9E75] hover:bg-[#0F6E56] text-white text-[14px] font-bold py-2.5 px-6 rounded-lg shadow-sm transition-all">
+              {primaryText}
             </button>
             <div className="relative">
-              <button 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsHeaderDropdownOpen(!isHeaderDropdownOpen);
-                }}
+              <button
+                onClick={(e) => { e.stopPropagation(); setIsHeaderDropdownOpen(!isHeaderDropdownOpen); }}
                 className="border border-[#E5E5E5] hover:bg-[#F4F6F5] rounded-lg w-9 h-9 flex items-center justify-center text-slate-600 transition-all focus:outline-none"
                 title="More Actions"
               >
                 <span className="font-bold text-[14px] leading-[8px] -mt-1.5">...</span>
               </button>
-
               {isHeaderDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-48 bg-white border border-[#E5E5E5] rounded-xl shadow-lg overflow-hidden z-[105] py-1 animate-in fade-in slide-in-from-top-2 duration-150">
-                  {headerActions.dropdownOptions.map((opt, i) => (
+                <div className="absolute right-0 mt-2 w-48 bg-white border border-[#E5E5E5] rounded-xl shadow-lg overflow-hidden z-[105] py-1">
+                  {dropdownOptions.map((opt, i) => (
                     <React.Fragment key={i}>
-                      {i > 0 && (opt.label === 'Cancel Order' || opt.label === 'Request Return to Origin (RTO)' || opt.label === 'Create Reverse Shipment (RTO)' || opt.label === 'Raise Support Ticket') && (
+                      {i > 0 && opt.isDanger && (
                         <div className="border-t border-[#E5E5E5] my-1" />
                       )}
-                      <button 
-                        onClick={() => {
-                          opt.action(setChargesTab);
-                          setIsHeaderDropdownOpen(false);
-                        }}
+                      <button
+                        onClick={() => { opt.action(); setIsHeaderDropdownOpen(false); }}
                         className={`w-full text-left px-4 py-2.5 text-[13px] hover:bg-[#F8F9FA] transition-colors ${opt.isDanger ? 'font-medium text-[#E24B4A] hover:bg-red-50/50' : 'font-normal text-[#1A1A1A]'}`}
                       >
                         {opt.label}
@@ -712,153 +818,79 @@ export function AdminOrderTracking() {
           </div>
         </div>
 
-        {/* =================================================================
-           MILESTONE TIMELINE STRIP
-           ================================================================= */}
+        {/* ── MILESTONE TIMELINE STRIP ─────────────────────────────────────────── */}
         <div className="w-full bg-white border-b border-[#E5E5E5] px-8 py-6 mb-6">
-          
-          {/* Desktop horizontal layout */}
-          <div className="hidden md:block relative w-full px-6">
-            
-            {/* Connecting lines container */}
-            <div className="absolute top-[16px] left-[4%] right-[4%] h-[2px] flex items-center z-0">
-              {milestones.slice(0, -1).map((m, i) => {
-                const isCompleted = i < 3;
-                return (
-                  <div key={i} className="flex-1 relative h-full">
-                    <svg className="w-full h-[2px] overflow-visible" preserveAspectRatio="none">
-                      <line 
-                        x1="0" 
-                        y1="1" 
-                        x2="100%" 
-                        y2="1" 
-                        stroke={isCompleted ? "#1D9E75" : "#D4E4DC"} 
-                        strokeWidth="2" 
-                        strokeDasharray={isCompleted ? "1" : "4 4"}
-                        pathLength="1"
-                        className="timeline-line-segment" 
-                      />
-                    </svg>
-                  </div>
-                );
-              })}
-            </div>
 
-            {/* Milestones row */}
+          {/* Desktop */}
+          <div className="hidden md:block relative w-full px-6">
+            <div className="absolute top-[16px] left-[4%] right-[4%] h-[2px] flex items-center z-0">
+              {milestones.slice(0, -1).map((m, i) => (
+                <div key={i} className="flex-1 relative h-full">
+                  <svg className="w-full h-[2px] overflow-visible" preserveAspectRatio="none">
+                    <line x1="0" y1="1" x2="100%" y2="1" stroke={m.status === 'completed' ? '#1D9E75' : '#D4E4DC'} strokeWidth="2" strokeDasharray={m.status === 'completed' ? '1' : '4 4'} pathLength="1" className="timeline-line-segment" />
+                  </svg>
+                </div>
+              ))}
+            </div>
             <div className="flex justify-between items-start relative z-10 w-full">
               {milestones.map((m, i) => {
                 const isCompleted = m.status === 'completed';
                 const isActive = m.status === 'active';
                 const isPending = m.status === 'pending';
-
                 return (
                   <div key={i} className="flex flex-col items-center text-center w-[12%] milestone-circle-container">
-                    
-                    {/* Circle */}
                     <div className="h-8 flex items-center justify-center">
-                      {isCompleted && (
-                        <div className="w-7 h-7 rounded-full bg-[#1D9E75] flex items-center justify-center text-white shadow-sm">
-                          <TablerIcon name="check" size={14} color="#ffffff" />
-                        </div>
-                      )}
-                      {isActive && (
-                        <div className="w-8 h-8 rounded-full bg-[#1D9E75] flex items-center justify-center text-white pulse-active relative z-10">
-                          <TablerIcon name="truck" size={14} color="#ffffff" />
-                        </div>
-                      )}
-                      {isPending && (
-                        <div className="w-7 h-7 rounded-full bg-white border-2 border-[#D4E4DC] flex items-center justify-center text-[#C5D5D0]">
-                          <TablerIcon name={m.icon} size={14} color="#C5D5D0" />
-                        </div>
-                      )}
+                      {isCompleted && <div className="w-7 h-7 rounded-full bg-[#1D9E75] flex items-center justify-center text-white shadow-sm"><TablerIcon name="check" size={14} color="#ffffff" /></div>}
+                      {isActive && <div className="w-8 h-8 rounded-full bg-[#1D9E75] flex items-center justify-center text-white pulse-active relative z-10"><TablerIcon name={m.icon} size={14} color="#ffffff" /></div>}
+                      {isPending && <div className="w-7 h-7 rounded-full bg-white border-2 border-[#D4E4DC] flex items-center justify-center"><TablerIcon name={m.icon} size={14} color="#C5D5D0" /></div>}
                     </div>
-
-                    {/* Labels */}
                     <div className="mt-3">
-                      <div className={`text-[12px] ${isCompleted ? 'font-medium text-[#1A1A1A]' : isActive ? 'font-bold text-[#1D9E75]' : 'font-normal text-[#9FB5AB]'}`}>
-                        {m.name}
-                      </div>
-                      <div className="text-[11px] font-normal text-[#5F5E5A] mt-0.5">
-                        {m.date}
-                      </div>
+                      <div className={`text-[12px] ${isCompleted ? 'font-medium text-[#1A1A1A]' : isActive ? 'font-bold text-[#1D9E75]' : 'font-normal text-[#9FB5AB]'}`}>{m.name}</div>
+                      <div className="text-[11px] font-normal text-[#5F5E5A] mt-0.5">{m.date}</div>
                     </div>
-
                   </div>
                 );
               })}
             </div>
-
           </div>
 
-          {/* Mobile vertical layout */}
+          {/* Mobile */}
           <div className="block md:hidden relative pl-8 py-2">
-            
-            {/* Vertical dashed line */}
             <div className="absolute left-[15px] top-4 bottom-4 w-[2px] border-l border-dashed border-[#D4E4DC] z-0" />
             <div className="absolute left-[15px] top-4 h-[60%] w-[2px] border-l border-solid border-[#1D9E75] z-0" />
-
-            {/* Vertical milestone items */}
             <div className="flex flex-col gap-6">
               {milestones.map((m, i) => {
                 const isCompleted = m.status === 'completed';
                 const isActive = m.status === 'active';
                 const isPending = m.status === 'pending';
-
                 return (
                   <div key={i} className="flex items-start gap-4 relative z-10 milestone-circle-container">
-                    
-                    {/* Circle */}
                     <div className="w-8 h-8 flex items-center justify-center shrink-0">
-                      {isCompleted && (
-                        <div className="w-7 h-7 rounded-full bg-[#1D9E75] flex items-center justify-center text-white shadow-sm">
-                          <TablerIcon name="check" size={14} color="#ffffff" />
-                        </div>
-                      )}
-                      {isActive && (
-                        <div className="w-8 h-8 rounded-full bg-[#1D9E75] flex items-center justify-center text-white pulse-active relative z-10">
-                          <TablerIcon name="truck" size={14} color="#ffffff" />
-                        </div>
-                      )}
-                      {isPending && (
-                        <div className="w-7 h-7 rounded-full bg-white border-2 border-[#D4E4DC] flex items-center justify-center text-[#C5D5D0]">
-                          <TablerIcon name={m.icon} size={14} color="#C5D5D0" />
-                        </div>
-                      )}
+                      {isCompleted && <div className="w-7 h-7 rounded-full bg-[#1D9E75] flex items-center justify-center text-white shadow-sm"><TablerIcon name="check" size={14} color="#ffffff" /></div>}
+                      {isActive && <div className="w-8 h-8 rounded-full bg-[#1D9E75] flex items-center justify-center text-white pulse-active relative z-10"><TablerIcon name={m.icon} size={14} color="#ffffff" /></div>}
+                      {isPending && <div className="w-7 h-7 rounded-full bg-white border-2 border-[#D4E4DC] flex items-center justify-center"><TablerIcon name={m.icon} size={14} color="#C5D5D0" /></div>}
                     </div>
-
-                    {/* Labels */}
                     <div className="pt-0.5">
-                      <div className={`text-[13px] ${isCompleted ? 'font-medium text-[#1A1A1A]' : isActive ? 'font-bold text-[#1D9E75]' : 'font-normal text-[#9FB5AB]'}`}>
-                        {m.name}
-                      </div>
-                      <div className="text-[11px] font-normal text-[#5F5E5A] mt-0.5">
-                        {m.date}
-                      </div>
+                      <div className={`text-[13px] ${isCompleted ? 'font-medium text-[#1A1A1A]' : isActive ? 'font-bold text-[#1D9E75]' : 'font-normal text-[#9FB5AB]'}`}>{m.name}</div>
+                      <div className="text-[11px] font-normal text-[#5F5E5A] mt-0.5">{m.date}</div>
                     </div>
-
                   </div>
                 );
               })}
             </div>
-
           </div>
-
         </div>
 
-        {/* =================================================================
-           MAIN CONTENT — 2 COLUMN LAYOUT
-           ================================================================= */}
+        {/* ── MAIN CONTENT ─────────────────────────────────────────────────────── */}
         <div className="w-full max-w-[1400px] mx-auto px-6 grid grid-cols-1 lg:grid-cols-[65%_35%] gap-5 items-start">
-          
-          {/* =================================================================
-             LEFT COLUMN — DETAIL SECTIONS
-             ================================================================= */}
+
+          {/* LEFT COLUMN */}
           <div className="flex flex-col gap-5 min-w-0">
-            
-            {/* --- SECTION 1: ORDER DETAILS --- */}
+
+            {/* SECTION 1: ORDER DETAILS */}
             <div className="bg-white rounded-xl border border-[#E5E5E5] p-5 shadow-sm left-col-card">
               <div className="flex items-center gap-2.5 border-b border-[#F0F0F0] pb-3 mb-4">
-                <div className="w-8 h-8 rounded-full bg-[#E1F5EE] text-[#1D9E75] flex items-center justify-center shrink-0">
+                <div className="w-8 h-8 rounded-full bg-[#E1F5EE] flex items-center justify-center shrink-0">
                   <TablerIcon name="clipboard-list" size={16} color="#1D9E75" />
                 </div>
                 <h3 className="text-[14px] font-semibold text-[#1A1A1A]">Order Details</h3>
@@ -867,217 +899,250 @@ export function AdminOrderTracking() {
                 <div>
                   <label className="block text-[11px] font-normal text-[#9FB5AB] uppercase tracking-wider">Creation Date</label>
                   <div className="text-[13px] font-medium text-[#1A1A1A] mt-0.5">
-                    <div>24 Jun 2026</div>
-                    <div className="text-[11px] text-[#5F5E5A] font-normal mt-0.5">6:50 PM</div>
+                    <div>{formatDate(order?.createdAt)}</div>
+                    {order?.createdAt && (
+                      <div className="text-[11px] text-[#5F5E5A] font-normal mt-0.5">
+                        {new Date(order.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div>
                   <label className="block text-[11px] font-normal text-[#9FB5AB] uppercase tracking-wider">Channel</label>
                   <div className="mt-1">
-                    <span className="bg-[#E1F5EE] text-[#0F6E56] text-[11px] font-medium px-2.5 py-0.5 rounded">CUSTOM</span>
+                    <span className="bg-[#E1F5EE] text-[#0F6E56] text-[11px] font-medium px-2.5 py-0.5 rounded">
+                      {(order?.channel || 'CUSTOM').toUpperCase()}{order?.channelId ? ` (${order.channelId})` : ''}
+                    </span>
                   </div>
                 </div>
                 <div>
                   <label className="block text-[11px] font-normal text-[#9FB5AB] uppercase tracking-wider">Payment Amount</label>
-                  <div className="text-[13px] font-medium text-[#1A1A1A] mt-0.5">₹1,100</div>
+                  <div className="text-[13px] font-medium text-[#1A1A1A] mt-0.5">
+                    {order?.paymentDetails?.amount != null ? `₹${order.paymentDetails.amount.toLocaleString('en-IN')}` : '—'}
+                  </div>
                 </div>
                 <div>
                   <label className="block text-[11px] font-normal text-[#9FB5AB] uppercase tracking-wider">Payment Method</label>
-                  <div className="text-[13px] font-medium text-[#1A1A1A] mt-0.5">COD</div>
+                  <div className="text-[13px] font-medium text-[#1A1A1A] mt-0.5">{order?.paymentDetails?.method || '—'}</div>
                 </div>
               </div>
             </div>
 
-            {/* Sub-grid 1: Pickup and Receiver Details */}
+            {/* Sub-grid: Pickup + Receiver */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              {/* --- SECTION 2: PICKUP DETAILS --- */}
-              <div className="bg-white rounded-xl border border-[#E5E5E5] p-5 shadow-sm left-col-card flex flex-col justify-between">
-                <div>
-                  <div className="flex items-center gap-2.5 border-b border-[#F0F0F0] pb-3 mb-4">
-                    <div className="w-8 h-8 rounded-full bg-[#E1F5EE] text-[#1D9E75] flex items-center justify-center shrink-0">
-                      <TablerIcon name="map-pin-up" size={16} color="#1D9E75" />
-                    </div>
-                    <h3 className="text-[14px] font-semibold text-[#1A1A1A]">Pickup Details</h3>
+
+              {/* SECTION 2: PICKUP DETAILS */}
+              <div className="bg-white rounded-xl border border-[#E5E5E5] p-5 shadow-sm left-col-card">
+                <div className="flex items-center gap-2.5 border-b border-[#F0F0F0] pb-3 mb-4">
+                  <div className="w-8 h-8 rounded-full bg-[#E1F5EE] flex items-center justify-center shrink-0">
+                    <TablerIcon name="map-pin-up" size={16} color="#1D9E75" />
                   </div>
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-[11px] font-normal text-[#9FB5AB] uppercase tracking-wider">Name</label>
-                        <div className="text-[13px] font-medium text-[#1A1A1A] mt-0.5">Vishal</div>
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-normal text-[#9FB5AB] uppercase tracking-wider">Mobile No</label>
-                        <div className="text-[13px] font-medium text-[#1A1A1A] mt-0.5">7988589102</div>
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-normal text-[#9FB5AB] uppercase tracking-wider">Email</label>
-                        <div className="text-[13px] font-medium text-[#1A1A1A] mt-0.5 overflow-hidden text-ellipsis whitespace-nowrap" title="bajrangi@gmail.com">bajrangi@gmail.com</div>
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-normal text-[#9FB5AB] uppercase tracking-wider">Pincode</label>
-                        <div className="text-[13px] font-medium text-[#1A1A1A] mt-0.5">127021</div>
+                  <h3 className="text-[14px] font-semibold text-[#1A1A1A]">Pickup Details</h3>
+                </div>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[11px] font-normal text-[#9FB5AB] uppercase tracking-wider">Name</label>
+                      <div className="text-[13px] font-medium text-[#1A1A1A] mt-0.5">{order?.pickupAddress?.contactName || '—'}</div>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-normal text-[#9FB5AB] uppercase tracking-wider">Mobile No</label>
+                      <div className="text-[13px] font-medium text-[#1A1A1A] mt-0.5">{order?.pickupAddress?.phoneNumber || '—'}</div>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-normal text-[#9FB5AB] uppercase tracking-wider">Email</label>
+                      <div className="text-[13px] font-medium text-[#1A1A1A] mt-0.5 overflow-hidden text-ellipsis whitespace-nowrap" title={order?.pickupAddress?.email}>
+                        {order?.pickupAddress?.email || <span className="text-[#C5D5D0]">—</span>}
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-4 border-t border-[#F5F5F5] pt-3">
-                      <div>
-                        <label className="block text-[11px] font-normal text-[#9FB5AB] uppercase tracking-wider">State</label>
-                        <div className="text-[13px] font-medium text-[#1A1A1A] mt-0.5">HARYANA</div>
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-normal text-[#9FB5AB] uppercase tracking-wider">City</label>
-                        <div className="text-[13px] font-medium text-[#1A1A1A] mt-0.5">Bhiwani</div>
-                      </div>
+                    <div>
+                      <label className="block text-[11px] font-normal text-[#9FB5AB] uppercase tracking-wider">Pincode</label>
+                      <div className="text-[13px] font-medium text-[#1A1A1A] mt-0.5">{order?.pickupAddress?.pinCode || '—'}</div>
                     </div>
-                    <div className="border-t border-[#F5F5F5] pt-3">
-                      <label className="block text-[11px] font-normal text-[#9FB5AB] uppercase tracking-wider">Address</label>
-                      <div className="text-[13px] font-medium text-[#1A1A1A] mt-0.5 leading-relaxed">
-                        Near Sheoran Hospital, Bank Colony, Mini Bypass Road, Bajrangi Nutritions
-                      </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4 border-t border-[#F5F5F5] pt-3">
+                    <div>
+                      <label className="block text-[11px] font-normal text-[#9FB5AB] uppercase tracking-wider">State</label>
+                      <div className="text-[13px] font-medium text-[#1A1A1A] mt-0.5">{order?.pickupAddress?.state || '—'}</div>
                     </div>
+                    <div>
+                      <label className="block text-[11px] font-normal text-[#9FB5AB] uppercase tracking-wider">City</label>
+                      <div className="text-[13px] font-medium text-[#1A1A1A] mt-0.5">{order?.pickupAddress?.city || '—'}</div>
+                    </div>
+                  </div>
+                  <div className="border-t border-[#F5F5F5] pt-3">
+                    <label className="block text-[11px] font-normal text-[#9FB5AB] uppercase tracking-wider">Address</label>
+                    <div className="text-[13px] font-medium text-[#1A1A1A] mt-0.5 leading-relaxed">{order?.pickupAddress?.address || '—'}</div>
                   </div>
                 </div>
               </div>
 
-              {/* --- SECTION 3: RECEIVER DETAILS --- */}
-              <div className="bg-white rounded-xl border border-[#E5E5E5] p-5 shadow-sm left-col-card flex flex-col justify-between">
-                <div>
-                  <div className="flex items-center gap-2.5 border-b border-[#F0F0F0] pb-3 mb-4">
-                    <div className="w-8 h-8 rounded-full bg-[#E1F5EE] text-[#1D9E75] flex items-center justify-center shrink-0">
-                      <TablerIcon name="map-pin" size={16} color="#1D9E75" />
-                    </div>
-                    <h3 className="text-[14px] font-semibold text-[#1A1A1A]">Receiver Details</h3>
+              {/* SECTION 3: RECEIVER DETAILS */}
+              <div className="bg-white rounded-xl border border-[#E5E5E5] p-5 shadow-sm left-col-card">
+                <div className="flex items-center gap-2.5 border-b border-[#F0F0F0] pb-3 mb-4">
+                  <div className="w-8 h-8 rounded-full bg-[#E1F5EE] flex items-center justify-center shrink-0">
+                    <TablerIcon name="map-pin" size={16} color="#1D9E75" />
                   </div>
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-[11px] font-normal text-[#9FB5AB] uppercase tracking-wider">Name</label>
-                        <div className="text-[13px] font-medium text-[#1A1A1A] mt-0.5">Deepak</div>
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-normal text-[#9FB5AB] uppercase tracking-wider">Mobile No</label>
-                        <div className="text-[13px] font-medium text-[#1A1A1A] mt-0.5">7404152100</div>
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-normal text-[#9FB5AB] uppercase tracking-wider">Email</label>
-                        <div className="text-[13px] font-medium text-[#C5D5D0] mt-0.5">—</div>
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-normal text-[#9FB5AB] uppercase tracking-wider">Pincode</label>
-                        <div className="text-[13px] font-medium text-[#1A1A1A] mt-0.5">126116</div>
+                  <h3 className="text-[14px] font-semibold text-[#1A1A1A]">Receiver Details</h3>
+                </div>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[11px] font-normal text-[#9FB5AB] uppercase tracking-wider">Name</label>
+                      <div className="text-[13px] font-medium text-[#1A1A1A] mt-0.5">{order?.receiverAddress?.contactName || '—'}</div>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-normal text-[#9FB5AB] uppercase tracking-wider">Mobile No</label>
+                      <div className="text-[13px] font-medium text-[#1A1A1A] mt-0.5">{order?.receiverAddress?.phoneNumber || '—'}</div>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-normal text-[#9FB5AB] uppercase tracking-wider">Email</label>
+                      <div className="text-[13px] font-medium text-[#1A1A1A] mt-0.5">
+                        {order?.receiverAddress?.email || <span className="text-[#C5D5D0]">—</span>}
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-4 border-t border-[#F5F5F5] pt-3">
-                      <div>
-                        <label className="block text-[11px] font-normal text-[#9FB5AB] uppercase tracking-wider">State</label>
-                        <div className="text-[13px] font-medium text-[#1A1A1A] mt-0.5">HARYANA</div>
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-normal text-[#9FB5AB] uppercase tracking-wider">City</label>
-                        <div className="text-[13px] font-medium text-[#1A1A1A] mt-0.5">Jind</div>
-                      </div>
+                    <div>
+                      <label className="block text-[11px] font-normal text-[#9FB5AB] uppercase tracking-wider">Pincode</label>
+                      <div className="text-[13px] font-medium text-[#1A1A1A] mt-0.5">{order?.receiverAddress?.pinCode || '—'}</div>
                     </div>
-                    <div className="border-t border-[#F5F5F5] pt-3">
-                      <label className="block text-[11px] font-normal text-[#9FB5AB] uppercase tracking-wider">Address</label>
-                      <div className="text-[13px] font-medium text-[#1A1A1A] mt-0.5 leading-relaxed">
-                        Add-Chahal Pati, Ujhana, Jind
-                      </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4 border-t border-[#F5F5F5] pt-3">
+                    <div>
+                      <label className="block text-[11px] font-normal text-[#9FB5AB] uppercase tracking-wider">State</label>
+                      <div className="text-[13px] font-medium text-[#1A1A1A] mt-0.5">{order?.receiverAddress?.state || '—'}</div>
                     </div>
+                    <div>
+                      <label className="block text-[11px] font-normal text-[#9FB5AB] uppercase tracking-wider">City</label>
+                      <div className="text-[13px] font-medium text-[#1A1A1A] mt-0.5">{order?.receiverAddress?.city || '—'}</div>
+                    </div>
+                  </div>
+                  <div className="border-t border-[#F5F5F5] pt-3">
+                    <label className="block text-[11px] font-normal text-[#9FB5AB] uppercase tracking-wider">Address</label>
+                    <div className="text-[13px] font-medium text-[#1A1A1A] mt-0.5 leading-relaxed">{order?.receiverAddress?.address || '—'}</div>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Sub-grid 2: Package and Product Details */}
+            {/* Sub-grid: Package + Product */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              {/* --- SECTION 4: PACKAGE DETAILS --- */}
-              <div className="bg-white rounded-xl border border-[#E5E5E5] p-5 shadow-sm left-col-card flex flex-col justify-between">
-                <div>
-                  <div className="flex items-center gap-2.5 border-b border-[#F0F0F0] pb-3 mb-4">
-                    <div className="w-8 h-8 rounded-full bg-[#E1F5EE] text-[#1D9E75] flex items-center justify-center shrink-0">
-                      <TablerIcon name="package" size={16} color="#1D9E75" />
-                    </div>
-                    <h3 className="text-[14px] font-semibold text-[#1A1A1A]">Package Details</h3>
+
+              {/* SECTION 4: PACKAGE DETAILS */}
+              <div className="bg-white rounded-xl border border-[#E5E5E5] p-5 shadow-sm left-col-card">
+                <div className="flex items-center gap-2.5 border-b border-[#F0F0F0] pb-3 mb-4">
+                  <div className="w-8 h-8 rounded-full bg-[#E1F5EE] flex items-center justify-center shrink-0">
+                    <TablerIcon name="package" size={16} color="#1D9E75" />
                   </div>
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-[11px] font-normal text-[#9FB5AB] uppercase tracking-wider">Order Type</label>
-                        <div className="text-[13px] font-medium text-[#1A1A1A] mt-0.5">B2C</div>
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-normal text-[#9FB5AB] uppercase tracking-wider">Dead Weight</label>
-                        <div className="text-[13px] font-medium text-[#1A1A1A] mt-0.5">1 KG</div>
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-normal text-[#9FB5AB] uppercase tracking-wider">Dimensions (L×W×H)</label>
-                        <div className="text-[13px] font-medium text-[#1A1A1A] mt-0.5">10 × 10 × 10 cm</div>
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-normal text-[#9FB5AB] uppercase tracking-wider">Volumetric Weight</label>
-                        <div className="text-[13px] font-medium text-[#1A1A1A] mt-0.5">0.20 KG</div>
+                  <h3 className="text-[14px] font-semibold text-[#1A1A1A]">Package Details</h3>
+                </div>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[11px] font-normal text-[#9FB5AB] uppercase tracking-wider">Order Type</label>
+                      <div className="text-[13px] font-medium text-[#1A1A1A] mt-0.5">B2C</div>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-normal text-[#9FB5AB] uppercase tracking-wider">Dead Weight</label>
+                      <div className="text-[13px] font-medium text-[#1A1A1A] mt-0.5">
+                        {order?.packageDetails?.deadWeight != null ? `${order.packageDetails.deadWeight} KG` : '—'}
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-4 border-t border-[#F5F5F5] pt-3">
-                      <div>
-                        <label className="text-[11px] font-normal text-[#9FB5AB] uppercase tracking-wider flex items-center gap-1.5">
-                          Applicable Weight
-                          <div className="relative group cursor-pointer inline-flex items-center">
-                            <span className="text-[#9FB5AB] hover:text-[#1A1A1A]"><TablerIcon name="info-circle" size={12} /></span>
-                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-[#1A1A1A] text-white text-[12px] font-normal rounded-lg py-1.5 px-3 whitespace-nowrap shadow-md z-30 pointer-events-none">
-                              Higher of dead weight and volumetric weight
-                            </div>
+                    <div>
+                      <label className="block text-[11px] font-normal text-[#9FB5AB] uppercase tracking-wider">Dimensions (L×W×H)</label>
+                      <div className="text-[13px] font-medium text-[#1A1A1A] mt-0.5">
+                        {order?.packageDetails?.volumetricWeight
+                          ? `${order.packageDetails.volumetricWeight.length ?? '—'} × ${order.packageDetails.volumetricWeight.width ?? '—'} × ${order.packageDetails.volumetricWeight.height ?? '—'} cm`
+                          : '—'}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-normal text-[#9FB5AB] uppercase tracking-wider">Volumetric Weight</label>
+                      <div className="text-[13px] font-medium text-[#1A1A1A] mt-0.5">
+                        {(() => {
+                          const vw = order?.packageDetails?.volumetricWeight;
+                          if (vw?.length && vw?.width && vw?.height)
+                            return `${((vw.length * vw.width * vw.height) / 5000).toFixed(2)} KG`;
+                          if (vw?.calculatedWeight != null) return `${vw.calculatedWeight} KG`;
+                          return '—';
+                        })()}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4 border-t border-[#F5F5F5] pt-3">
+                    <div>
+                      <label className="text-[11px] font-normal text-[#9FB5AB] uppercase tracking-wider flex items-center gap-1.5">
+                        Applicable Weight
+                        <div className="relative group cursor-pointer inline-flex items-center">
+                          <span className="text-[#9FB5AB] hover:text-[#1A1A1A]"><TablerIcon name="info-circle" size={12} /></span>
+                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-[#1A1A1A] text-white text-[12px] font-normal rounded-lg py-1.5 px-3 whitespace-nowrap shadow-md z-30 pointer-events-none">
+                            Higher of dead weight and volumetric weight
                           </div>
-                        </label>
-                        <div className="text-[13px] font-medium text-[#1A1A1A] mt-0.5">1 KG</div>
+                        </div>
+                      </label>
+                      <div className="text-[13px] font-medium text-[#1A1A1A] mt-0.5">
+                        {order?.packageDetails?.applicableWeight != null ? `${order.packageDetails.applicableWeight} KG` : '—'}
                       </div>
-                      <div>
-                        <label className="block text-[11px] font-normal text-[#9FB5AB] uppercase tracking-wider">Charged Weight</label>
-                        <div className="text-[13px] font-medium text-[#1A1A1A] mt-0.5">1 KG</div>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-normal text-[#9FB5AB] uppercase tracking-wider">Charged Weight</label>
+                      <div className="text-[13px] font-medium text-[#1A1A1A] mt-0.5">
+                        {discrepancy?.chargedWeight != null
+                          ? `${discrepancy.chargedWeight} KG`
+                          : order?.packageDetails?.applicableWeight != null
+                            ? `${order.packageDetails.applicableWeight} KG`
+                            : '—'}
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* --- SECTION 5: PRODUCT DETAILS --- */}
-              <div className="bg-white rounded-xl border border-[#E5E5E5] p-5 shadow-sm left-col-card flex flex-col justify-between">
-                <div>
-                  <div className="flex items-center gap-2.5 border-b border-[#F0F0F0] pb-3 mb-4">
-                    <div className="w-8 h-8 rounded-full bg-[#E1F5EE] text-[#1D9E75] flex items-center justify-center shrink-0">
-                      <TablerIcon name="box" size={16} color="#1D9E75" />
-                    </div>
-                    <h3 className="text-[14px] font-semibold text-[#1A1A1A]">Product Details</h3>
+              {/* SECTION 5: PRODUCT DETAILS */}
+              <div className="bg-white rounded-xl border border-[#E5E5E5] p-5 shadow-sm left-col-card flex flex-col">
+                <div className="flex items-center gap-2.5 border-b border-[#F0F0F0] pb-3 mb-4">
+                  <div className="w-8 h-8 rounded-full bg-[#E1F5EE] flex items-center justify-center shrink-0">
+                    <TablerIcon name="box" size={16} color="#1D9E75" />
                   </div>
-                  <div className="overflow-x-auto no-scrollbar">
-                    <table className="w-full text-left border-collapse min-w-[300px]">
-                      <thead>
-                        <tr className="border-b border-[#F0F0F0] text-[11px] uppercase tracking-wider font-semibold text-[#9FB5AB]">
-                          <th className="pb-3">Product Name</th>
-                          <th className="pb-3 text-center">Qty</th>
-                          <th className="pb-3 text-right">Price</th>
+                  <h3 className="text-[14px] font-semibold text-[#1A1A1A]">Product Details</h3>
+                </div>
+                <div className="overflow-x-auto no-scrollbar flex-1">
+                  <table className="w-full text-left border-collapse min-w-[300px]">
+                    <thead>
+                      <tr className="border-b border-[#F0F0F0] text-[11px] uppercase tracking-wider font-semibold text-[#9FB5AB]">
+                        <th className="pb-3">Product Name</th>
+                        <th className="pb-3 text-center">Qty</th>
+                        <th className="pb-3 text-right">Price</th>
+                      </tr>
+                    </thead>
+                    <tbody className="text-[13px] font-normal text-[#1A1A1A]">
+                      {(order?.productDetails || []).map((p, i) => (
+                        <tr key={i} className="border-b last:border-0 border-[#F5F5F5]">
+                          <td className="py-3 font-medium">{p.name || '—'}</td>
+                          <td className="py-3 text-center">{p.quantity ?? 1}</td>
+                          <td className="py-3 text-right">₹{(p.unitPrice || 0).toLocaleString('en-IN')}</td>
                         </tr>
-                      </thead>
-                      <tbody className="text-[13px] font-normal text-[#1A1A1A]">
-                        <tr className="border-b last:border-0 border-[#F5F5F5]">
-                          <td className="py-3 font-medium">liver amrit</td>
-                          <td className="py-3 text-center">1</td>
-                          <td className="py-3 text-right">₹1,100</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
+                      ))}
+                      {(!order?.productDetails || order.productDetails.length === 0) && (
+                        <tr><td colSpan={3} className="py-3 text-center text-[#9FB5AB]">No products found</td></tr>
+                      )}
+                    </tbody>
+                  </table>
                 </div>
                 <div className="flex justify-end items-center gap-2.5 border-t border-[#F0F0F0] pt-4 mt-2">
                   <span className="text-[13px] font-medium text-[#1A1A1A]">Total Amount:</span>
-                  <span className="text-[14px] font-bold text-[#1D9E75]">₹1,100.00</span>
+                  <span className="text-[14px] font-bold text-[#1D9E75]">
+                    ₹{(order?.productDetails || [])
+                      .reduce((s, p) => s + (p.unitPrice || 0) * (p.quantity || 1), 0)
+                      .toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </span>
                 </div>
               </div>
             </div>
 
-            {/* --- SECTION 6: CHARGES BREAKDOWN --- */}
+            {/* SECTION 6: CHARGES BREAKDOWN */}
             <div className="bg-white rounded-xl border border-[#E5E5E5] p-5 shadow-sm left-col-card">
               <div className="flex items-center gap-2.5 border-b border-[#F0F0F0] pb-3 mb-4">
-                <div className="w-8 h-8 rounded-full bg-[#E1F5EE] text-[#1D9E75] flex items-center justify-center shrink-0">
+                <div className="w-8 h-8 rounded-full bg-[#E1F5EE] flex items-center justify-center shrink-0">
                   <TablerIcon name="receipt" size={16} color="#1D9E75" />
                 </div>
                 <h3 className="text-[14px] font-semibold text-[#1A1A1A]">Charges Breakdown</h3>
@@ -1085,111 +1150,139 @@ export function AdminOrderTracking() {
 
               {/* Tab selector */}
               <div className="bg-[#F4F6F5] p-1 rounded-xl flex gap-1 mb-5">
-                <button 
-                  onClick={() => setChargesTab('billed')}
-                  className={`flex-1 py-2 text-center text-[13px] font-medium transition-all ${chargesTab === 'billed' ? 'bg-white rounded-lg shadow-[0_1px_3px_rgba(0,0,0,0.08)] text-[#1A1A1A]' : 'text-[#9FB5AB] hover:text-[#1A1A1A]'}`}
-                >
+                <button onClick={() => setChargesTab('billed')} className={`flex-1 py-2 text-center text-[13px] font-medium transition-all ${chargesTab === 'billed' ? 'bg-white rounded-lg shadow-[0_1px_3px_rgba(0,0,0,0.08)] text-[#1A1A1A]' : 'text-[#9FB5AB] hover:text-[#1A1A1A]'}`}>
                   Billed Charges
                 </button>
-                <button 
-                  onClick={() => setChargesTab('dispute')}
-                  className={`flex-1 py-2 text-center text-[13px] font-medium transition-all ${chargesTab === 'dispute' ? 'bg-white rounded-lg shadow-[0_1px_3px_rgba(0,0,0,0.08)] text-[#1A1A1A]' : 'text-[#9FB5AB] hover:text-[#1A1A1A]'}`}
-                >
+                <button onClick={() => setChargesTab('dispute')} className={`flex-1 py-2 text-center text-[13px] font-medium transition-all flex items-center justify-center gap-1.5 ${chargesTab === 'dispute' ? 'bg-white rounded-lg shadow-[0_1px_3px_rgba(0,0,0,0.08)] text-[#1A1A1A]' : 'text-[#9FB5AB] hover:text-[#1A1A1A]'}`}>
                   Weight Dispute
+                  {isDisputeRaised && <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" />}
                 </button>
               </div>
 
-              {/* TAB 1: Billed Charges */}
+              {/* Billed Charges tab */}
               {chargesTab === 'billed' && (
                 <div className="space-y-0.5">
                   <div className="flex justify-between items-center py-2.5 border-b border-[#F4F6F5]">
                     <span className="text-[13px] font-normal text-[#5F5E5A]">Base Freight Charge</span>
-                    <span className="text-[13px] font-medium text-[#1A1A1A]">₹45.00</span>
+                    <span className="text-[13px] font-medium text-[#1A1A1A]">
+                      {order?.priceBreakup?.freight != null ? `₹${order.priceBreakup.freight.toFixed(2)}` : '—'}
+                    </span>
                   </div>
                   <div className="flex justify-between items-center py-2.5 border-b border-[#F4F6F5]">
                     <span className="text-[13px] font-normal text-[#5F5E5A]">COD Handling Charge</span>
-                    <span className="text-[13px] font-medium text-[#1A1A1A]">₹18.00</span>
+                    <span className="text-[13px] font-medium text-[#1A1A1A]">
+                      {order?.priceBreakup?.cod != null ? `₹${order.priceBreakup.cod.toFixed(2)}` : '—'}
+                    </span>
                   </div>
                   <div className="flex justify-between items-center py-2.5 border-b border-[#F4F6F5]">
                     <span className="text-[13px] font-normal text-[#5F5E5A]">Reverse Pickup Charge</span>
                     <span className="text-[13px] font-medium text-[#C5D5D0]">—</span>
                   </div>
-                  <div className="flex justify-between items-center py-2.5 border-b border-[#F4F6F5]">
-                    <div className="flex items-center">
-                      <span className="text-[13px] font-normal text-[#5F5E5A]">Weight Discrepancy Charge</span>
-                      <span className="bg-[#FFF3E0] text-[#E65100] text-[10px] font-medium px-2 py-0.5 rounded ml-2">Disputed</span>
+                  {discrepancy && (
+                    <div className="flex justify-between items-center py-2.5 border-b border-[#F4F6F5]">
+                      <div className="flex items-center">
+                        <span className="text-[13px] font-normal text-[#5F5E5A]">Weight Discrepancy Charge</span>
+                        {isDisputeRaised && <span className="bg-[#FFF3E0] text-[#E65100] text-[10px] font-medium px-2 py-0.5 rounded ml-2">Disputed</span>}
+                      </div>
+                      <span className="text-[13px] font-medium text-[#1A1A1A]">
+                        {discrepancy.excessWeightCharges != null ? `₹${discrepancy.excessWeightCharges.toFixed(2)}` : '—'}
+                      </span>
                     </div>
-                    <span className="text-[13px] font-medium text-[#1A1A1A]">₹12.00</span>
-                  </div>
+                  )}
                   <div className="flex justify-between items-center py-2.5 border-b border-[#F4F6F5]">
                     <span className="text-[13px] font-normal text-[#5F5E5A]">GST (18%)</span>
-                    <span className="text-[13px] font-medium text-[#1A1A1A]">₹13.50</span>
+                    <span className="text-[13px] font-medium text-[#1A1A1A]">
+                      {order?.priceBreakup?.gst != null ? `₹${order.priceBreakup.gst.toFixed(2)}` : '—'}
+                    </span>
                   </div>
-
                   <div className="border-t border-dashed border-[#E5E5E5] pt-3 mt-3 flex justify-between items-center">
                     <span className="text-[14px] font-bold text-[#1A1A1A]">Total Billed</span>
-                    <span className="text-[14px] font-bold text-[#1D9E75]">₹88.50</span>
+                    <span className="text-[14px] font-bold text-[#1D9E75]">
+                      {order?.priceBreakup?.total != null ? `₹${order.priceBreakup.total.toFixed(2)}` : '—'}
+                    </span>
                   </div>
                 </div>
               )}
 
-              {/* TAB 2: Weight Dispute */}
+              {/* Weight Dispute tab */}
               {chargesTab === 'dispute' && (
                 <div className="space-y-5">
-                  {/* Alert strip */}
-                  <div className="bg-[#FFF8E8] border border-[#FAC775] rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-sm">
-                    <div className="flex items-center gap-2.5">
-                      <div className="text-[#854F0B] shrink-0"><TablerIcon name="alert-triangle" size={18} color="#854F0B" /></div>
-                      <span className="text-[13px] font-normal text-[#633806] leading-relaxed">
-                        Weight discrepancy of 0.5 KG detected on this shipment.
-                      </span>
+                  {discrepancy ? (
+                    <>
+                      <div className="bg-[#FFF8E8] border border-[#FAC775] rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-sm">
+                        <div className="flex items-center gap-2.5">
+                          <div className="text-[#854F0B] shrink-0"><TablerIcon name="alert-triangle" size={18} color="#854F0B" /></div>
+                          <span className="text-[13px] font-normal text-[#633806] leading-relaxed">
+                            {isDisputeRaised
+                              ? `Dispute raised. Status: ${discrepancy.clientStatus}.`
+                              : 'Weight discrepancy detected on this shipment.'}
+                          </span>
+                        </div>
+                        {!isDisputeRaised ? (
+                          <button
+                            onClick={() => setShowRaiseDisputeModal(true)}
+                            className="border border-[#EF9F27] bg-[#FAEEDA] hover:bg-[#F5E2C4] text-[#633806] text-[12px] font-medium py-1.5 px-3.5 rounded-lg transition-colors shrink-0"
+                          >
+                            Raise Dispute
+                          </button>
+                        ) : (
+                          <span className="bg-[#E1F5EE] text-[#0F6E56] text-[11px] font-semibold px-3 py-1 rounded-full border border-[#BCE8D8] shrink-0">
+                            Dispute Raised
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="overflow-x-auto no-scrollbar">
+                        <table className="w-full text-left border-collapse min-w-[450px]">
+                          <thead>
+                            <tr className="border-b border-[#F4F6F5] text-[11px] uppercase tracking-wider font-semibold text-[#9FB5AB]">
+                              <th className="pb-3">Metric</th>
+                              <th className="pb-3">Seller Declared</th>
+                              <th className="pb-3">Courier Claimed</th>
+                            </tr>
+                          </thead>
+                          <tbody className="text-[13px] font-normal text-[#1A1A1A]">
+                            <tr className="border-b border-[#F4F6F5]">
+                              <td className="py-3">Dead Weight</td>
+                              <td className="py-3">{order?.packageDetails?.deadWeight != null ? `${order.packageDetails.deadWeight} KG` : '—'}</td>
+                              <td className="py-3 text-[#E24B4A]">{discrepancy.enteredWeight != null ? `${discrepancy.enteredWeight} KG` : '—'}</td>
+                            </tr>
+                            <tr className="border-b border-[#F4F6F5]">
+                              <td className="py-3">Dimensions</td>
+                              <td className="py-3">
+                                {order?.packageDetails?.volumetricWeight
+                                  ? `${order.packageDetails.volumetricWeight.length ?? '—'}×${order.packageDetails.volumetricWeight.width ?? '—'}×${order.packageDetails.volumetricWeight.height ?? '—'}cm`
+                                  : '—'}
+                              </td>
+                              <td className="py-3 text-[#E24B4A]">{discrepancy.chargeDimension || '—'}</td>
+                            </tr>
+                            <tr className="border-b border-[#F4F6F5]">
+                              <td className="py-3">Vol. Weight</td>
+                              <td className="py-3">{(() => { const vw = order?.packageDetails?.volumetricWeight; if (vw?.length && vw?.width && vw?.height) return `${((vw.length * vw.width * vw.height) / 5000).toFixed(2)} KG`; if (vw?.calculatedWeight != null) return `${vw.calculatedWeight} KG`; return '—'; })()}</td>
+                              <td className="py-3 text-[#E24B4A]">—</td>
+                            </tr>
+                            <tr className="border-b border-[#F4F6F5]">
+                              <td className="py-3">Charged Weight</td>
+                              <td className="py-3">{order?.packageDetails?.applicableWeight != null ? `${order.packageDetails.applicableWeight} KG` : '—'}</td>
+                              <td className="py-3 text-[#E24B4A]">{discrepancy.chargedWeight != null ? `${discrepancy.chargedWeight} KG` : '—'}</td>
+                            </tr>
+                            <tr className="border-b last:border-0 border-[#F4F6F5]">
+                              <td className="py-3 font-semibold">Charges</td>
+                              <td className="py-3 font-semibold">{order?.priceBreakup?.freight != null ? `₹${order.priceBreakup.freight.toFixed(2)}` : '—'}</td>
+                              <td className="py-3 font-semibold text-[#E24B4A]">{discrepancy.excessWeightCharges != null ? `₹${discrepancy.excessWeightCharges.toFixed(2)}` : '—'}</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="py-10 text-center">
+                      <div className="flex justify-center mb-3 text-[#9FB5AB]"><TablerIcon name="check" size={32} color="#9FB5AB" /></div>
+                      <div className="text-[14px] font-semibold text-[#1A1A1A] mb-1">No Weight Discrepancy</div>
+                      <div className="text-[13px] text-[#5F5E5A]">No discrepancy detected for this shipment.</div>
                     </div>
-                    <button className="border border-[#EF9F27] bg-[#FAEEDA] hover:bg-[#F5E2C4] text-[#633806] text-[12px] font-medium py-1.5 px-3.5 rounded-lg transition-colors shrink-0">
-                      Raise Dispute
-                    </button>
-                  </div>
-
-                  {/* Comparison Table */}
-                  <div className="overflow-x-auto no-scrollbar">
-                    <table className="w-full text-left border-collapse min-w-[450px]">
-                      <thead>
-                        <tr className="border-b border-[#F4F6F5] text-[11px] uppercase tracking-wider font-semibold text-[#9FB5AB]">
-                          <th className="pb-3">Metric</th>
-                          <th className="pb-3">Seller Declared</th>
-                          <th className="pb-3">Courier Claimed</th>
-                        </tr>
-                      </thead>
-                      <tbody className="text-[13px] font-normal text-[#1A1A1A]">
-                        <tr className="border-b border-[#F4F6F5]">
-                          <td className="py-3">Dead Weight</td>
-                          <td className="py-3">1.00 KG</td>
-                          <td className="py-3 text-[#E24B4A]">1.50 KG</td>
-                        </tr>
-                        <tr className="border-b border-[#F4F6F5]">
-                          <td className="py-3">Dimensions</td>
-                          <td className="py-3">10×10×10cm</td>
-                          <td className="py-3 text-[#E24B4A]">12×10×10cm</td>
-                        </tr>
-                        <tr className="border-b border-[#F4F6F5]">
-                          <td className="py-3">Vol. Weight</td>
-                          <td className="py-3">0.20 KG</td>
-                          <td className="py-3 text-[#E24B4A]">0.24 KG</td>
-                        </tr>
-                        <tr className="border-b border-[#F4F6F5]">
-                          <td className="py-3">Charged Weight</td>
-                          <td className="py-3">1.00 KG</td>
-                          <td className="py-3 text-[#E24B4A]">1.50 KG</td>
-                        </tr>
-                        <tr className="border-b last:border-0 border-[#F4F6F5]">
-                          <td className="py-3 font-semibold text-[#1A1A1A]">Charges</td>
-                          <td className="py-3 font-semibold text-[#1A1A1A]">₹45.00</td>
-                          <td className="py-3 font-semibold text-[#E24B4A]">₹57.00</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-
-                  <div className="text-[12px] font-normal text-[#9FB5AB] leading-relaxed mt-2">
+                  )}
+                  <div className="text-[12px] font-normal text-[#9FB5AB] leading-relaxed">
                     Dispute resolution typically takes 5–7 working days.
                   </div>
                 </div>
@@ -1198,15 +1291,13 @@ export function AdminOrderTracking() {
 
           </div>
 
-          {/* =================================================================
-             RIGHT COLUMN — TRACKING & INFO SIDEBAR
-             ================================================================= */}
+          {/* RIGHT COLUMN */}
           <div className="flex flex-col lg:sticky lg:top-5 gap-4 min-w-0">
-            
-            {/* --- WIDGET 1: SHIPPING DETAILS --- */}
+
+            {/* WIDGET 1: SHIPPING DETAILS */}
             <div className="bg-white rounded-xl border border-[#E5E5E5] p-5 shadow-sm right-col-widget">
               <div className="flex items-center gap-2.5 border-b border-[#F0F0F0] pb-3 mb-4">
-                <div className="w-8 h-8 rounded-full bg-[#E1F5EE] text-[#1D9E75] flex items-center justify-center shrink-0">
+                <div className="w-8 h-8 rounded-full bg-[#E1F5EE] flex items-center justify-center shrink-0">
                   <TablerIcon name="truck" size={16} color="#1D9E75" />
                 </div>
                 <h3 className="text-[14px] font-semibold text-[#1A1A1A]">Shipping Details</h3>
@@ -1214,167 +1305,118 @@ export function AdminOrderTracking() {
               <div className="space-y-3">
                 <div className="flex justify-between items-center text-[13px]">
                   <span className="font-normal text-[#5F5E5A]">Pickup ID</span>
-                  <span className="font-semibold text-[#1A1A1A] font-mono">{shippingDetails.pickupId}</span>
+                  <span className="font-semibold text-[#1A1A1A] font-mono">{order?.pickupId || '—'}</span>
                 </div>
                 <div className="flex justify-between items-center text-[13px] border-t border-[#F5F5F5] pt-3">
                   <span className="font-normal text-[#5F5E5A]">Courier Partner</span>
                   <div className="flex items-center gap-2">
-                    <CourierLogo name={courierName} size="md" />
+                    {courierName !== '—' && <CourierLogo name={courierName} size="md" />}
                     <span className="font-semibold text-[#1A1A1A]">{courierName}</span>
                   </div>
                 </div>
                 <div className="flex justify-between items-center text-[13px] border-t border-[#F5F5F5] pt-3">
                   <span className="font-normal text-[#5F5E5A]">Scheduled On</span>
-                  <span className="font-medium text-[#1A1A1A]">{shippingDetails.scheduledOn}</span>
+                  <span className="font-medium text-[#1A1A1A]">{order?.shipmentCreatedAt ? formatDate(order.shipmentCreatedAt, true) : '—'}</span>
                 </div>
                 <div className="flex justify-between items-center text-[13px] border-t border-[#F5F5F5] pt-3">
                   <span className="font-normal text-[#5F5E5A]">Picked On</span>
-                  <span className="font-medium text-[#1A1A1A]">{shippingDetails.pickedOn}</span>
+                  <span className="font-medium text-[#1A1A1A]">{order?.pickupDate ? formatDate(order.pickupDate, true) : '—'}</span>
                 </div>
                 <div className="flex justify-between items-center text-[13px] border-t border-[#F5F5F5] pt-3">
                   <span className="font-normal text-[#5F5E5A]">Estimated Delivery Date</span>
-                  <span className="font-medium text-[#1A1A1A]">{shippingDetails.estimatedDeliveryDate}</span>
+                  <span className="font-medium text-[#1A1A1A]">{order?.estimatedDeliveryDate ? formatDate(order.estimatedDeliveryDate) : '—'}</span>
                 </div>
                 <div className="flex justify-between items-center text-[13px] border-t border-[#F5F5F5] pt-3">
                   <span className="font-normal text-[#5F5E5A]">Delivered On</span>
-                  <span className="font-medium text-[#1A1A1A]">{shippingDetails.deliveredOn}</span>
-                </div>
-                <div className="flex justify-between items-center text-[13px] border-t border-[#F5F5F5] pt-3">
-                  <span className="font-normal text-[#5F5E5A]">COD Status</span>
-                  <span className={`text-[11px] font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded-full border ${shippingDetails.codBadgeClass}`}>
-                    {shippingDetails.codStatus}
+                  <span className="font-medium text-[#1A1A1A]">
+                    {orderStatus === 'delivered' ? (() => {
+                      const last = [...(order?.tracking || [])].filter(t => t.StatusDateTime).slice(-1)[0];
+                      if (!last?.StatusDateTime) return '—';
+                      const { date, time } = formatTrackingDate(last.StatusDateTime);
+                      return `${date}, ${time}`;
+                    })() : '—'}
                   </span>
                 </div>
-                {shippingDetails.isPaid && (
-                  <>
-                    <div className="flex justify-between items-center text-[13px] border-t border-[#F5F5F5] pt-3">
-                      <span className="font-normal text-[#5F5E5A]">Date of Payment</span>
-                      <span className="font-medium text-[#1A1A1A]">{shippingDetails.paymentDate}</span>
-                    </div>
-                    <div className="flex justify-between items-center text-[13px] border-t border-[#F5F5F5] pt-3">
-                      <span className="font-normal text-[#5F5E5A]">Remittance ID</span>
-                      <span className="font-semibold text-[#00A86B] font-mono hover:underline cursor-pointer">{shippingDetails.remittanceId}</span>
-                    </div>
-                  </>
+                {order?.paymentDetails?.method === 'COD' && (
+                  <div className="flex justify-between items-center text-[13px] border-t border-[#F5F5F5] pt-3">
+                    <span className="font-normal text-[#5F5E5A]">COD Status</span>
+                    {order.codProcessed
+                      ? <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-semibold px-2.5 py-0.5 rounded-full"><TablerIcon name="check" size={10} color="#059669" /> COD Paid</span>
+                      : <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-700 border border-amber-200 text-[11px] font-semibold px-2.5 py-0.5 rounded-full"><TablerIcon name="clock" size={10} color="#d97706" /> COD Pending</span>
+                    }
+                  </div>
                 )}
               </div>
             </div>
 
-            {/* --- WIDGET 2: TRACKING DETAILS --- */}
+            {/* WIDGET 2: TRACKING DETAILS */}
             <div className="bg-white rounded-xl border border-[#E5E5E5] p-5 shadow-sm right-col-widget">
               <div className="flex items-center gap-2.5 border-b border-[#F0F0F0] pb-3 mb-4">
-                <div className="w-8 h-8 rounded-full bg-[#E1F5EE] text-[#1D9E75] flex items-center justify-center shrink-0">
+                <div className="w-8 h-8 rounded-full bg-[#E1F5EE] flex items-center justify-center shrink-0">
                   <TablerIcon name="map-2" size={16} color="#1D9E75" />
                 </div>
                 <h3 className="text-[14px] font-semibold text-[#1A1A1A]">Tracking Details</h3>
               </div>
 
-              {/* AWB info block */}
+              {/* AWB block */}
               <div className="flex items-center justify-between bg-slate-50 rounded-xl p-3 mb-5">
                 <div>
                   <div className="text-[9px] font-bold text-[#9FB5AB] uppercase tracking-wider">AWB Number</div>
-                  <div className="text-[13px] font-bold text-[#1A1A1A] mt-0.5 tracking-wide font-mono">QP0900004821</div>
+                  <div className="text-[13px] font-bold text-[#1A1A1A] mt-0.5 tracking-wide font-mono">{awbNumber}</div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-[#1A1A1A] text-[11px] font-semibold px-2.5 py-1 rounded-md shrink-0 flex items-center gap-1.5 bg-transparent">
-                    <CourierLogo name={courierName} size="sm" />
-                    {courierName}
-                  </span>
-                  <button 
-                    onClick={handleCopyAwb}
-                    className={`p-1.5 rounded-md transition-colors ${copiedAwb ? 'text-[#1D9E75] bg-emerald-50' : 'text-[#9FB5AB] hover:text-[#1D9E75] hover:bg-slate-100'}`}
-                    title="Copy AWB Number"
-                  >
+                  {courierName !== '—' && (
+                    <span className="text-[#1A1A1A] text-[11px] font-semibold px-2.5 py-1 rounded-md shrink-0 flex items-center gap-1.5 bg-transparent">
+                      <CourierLogo name={courierName} size="sm" />
+                      {courierName}
+                    </span>
+                  )}
+                  <button onClick={handleCopyAwb} className={`p-1.5 rounded-md transition-colors ${copiedAwb ? 'text-[#1D9E75] bg-emerald-50' : 'text-[#9FB5AB] hover:text-[#1D9E75] hover:bg-slate-100'}`} title="Copy AWB Number">
                     <TablerIcon name="copy" size={13} color={copiedAwb ? '#1D9E75' : '#9FB5AB'} />
                   </button>
                 </div>
               </div>
 
-              {/* Vertical timeline details container (Scrollable - set height to 190px) */}
+              {/* Tracking timeline */}
               <div className="relative pl-8 py-1 overflow-y-auto pr-2 thin-scrollbar" style={{ maxHeight: '190px' }}>
-                
-                {/* Vertical timeline line */}
                 <div className="absolute left-[15px] top-3 bottom-3 w-[2px] bg-[#E1F5EE] z-0" />
-
-                {/* Tracking entries */}
                 <div className="space-y-6 relative z-10">
-                  
-                  {/* Entry 1 - Active */}
-                  <div className="relative flex items-start gap-4 tracking-timeline-entry">
-                    <div className="absolute -left-[22px] top-1">
-                      <div className="w-3 h-3 rounded-full bg-[#1D9E75] pulse-active border-2 border-white relative z-10" />
-                    </div>
-                    <div>
-                      <div className="text-[13px] font-bold text-[#1A1A1A]">Out for Delivery</div>
-                      <div className="text-[11px] font-normal text-[#5F5E5A] mt-0.5">Today, 10:23 AM</div>
-                      <div className="text-[11px] font-normal text-[#9FB5AB] mt-0.5">{courierName.split(' ')[0]} Agent: Ravi Kumar</div>
-                      <div className="mt-1.5">
-                        <span className="bg-[#E1F5EE] text-[#0F6E56] text-[10px] font-medium px-2 py-0.5 rounded">
-                          Andheri, Mumbai
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Entry 2 */}
-                  <div className="relative flex items-start gap-4 tracking-timeline-entry">
-                    <div className="absolute -left-[21px] top-1">
-                      <div className="w-2.5 h-2.5 rounded-full bg-[#1D9E75] border-2 border-white relative z-10" />
-                    </div>
-                    <div>
-                      <div className="text-[13px] font-semibold text-[#1A1A1A]">Reached Delivery Hub</div>
-                      <div className="text-[11px] font-normal text-[#5F5E5A] mt-0.5">Today, 7:45 AM</div>
-                      <div className="text-[11px] font-normal text-[#9FB5AB] mt-0.5">Andheri Sort Facility, Mumbai</div>
-                    </div>
-                  </div>
-
-                  {/* Entry 3 */}
-                  <div className="relative flex items-start gap-4 tracking-timeline-entry">
-                    <div className="absolute -left-[21px] top-1">
-                      <div className="w-2.5 h-2.5 rounded-full bg-[#1D9E75] border-2 border-white relative z-10" />
-                    </div>
-                    <div>
-                      <div className="text-[13px] font-semibold text-[#1A1A1A]">In Transit</div>
-                      <div className="text-[11px] font-normal text-[#5F5E5A] mt-0.5">Yesterday, 11:30 PM</div>
-                      <div className="text-[11px] font-normal text-[#9FB5AB] mt-0.5">Mumbai Hub</div>
-                    </div>
-                  </div>
-
-                  {/* Entry 4 */}
-                  <div className="relative flex items-start gap-4 tracking-timeline-entry">
-                    <div className="absolute -left-[21px] top-1">
-                      <div className="w-2.5 h-2.5 rounded-full bg-[#1D9E75] border-2 border-white relative z-10" />
-                    </div>
-                    <div>
-                      <div className="text-[13px] font-semibold text-[#1A1A1A]">Picked Up from Seller</div>
-                      <div className="text-[11px] font-normal text-[#5F5E5A] mt-0.5">Yesterday, 3:15 PM</div>
-                      <div className="text-[11px] font-normal text-[#9FB5AB] mt-0.5">Bhiwani Warehouse</div>
-                    </div>
-                  </div>
-
-                  {/* Entry 5 */}
-                  <div className="relative flex items-start gap-4 tracking-timeline-entry">
-                    <div className="absolute -left-[21px] top-1">
-                      <div className="w-2.5 h-2.5 rounded-full bg-[#1D9E75] border-2 border-white relative z-10" />
-                    </div>
-                    <div>
-                      <div className="text-[13px] font-semibold text-[#1A1A1A]">Order Booked</div>
-                      <div className="text-[11px] font-normal text-[#5F5E5A] mt-0.5">23 Jun 2026, 2:00 PM</div>
-                      <div className="text-[11px] font-normal text-[#9FB5AB] mt-0.5">Bhiwani, Haryana</div>
-                    </div>
-                  </div>
-
+                  {(() => {
+                    const trackingEntries = [...(order?.tracking || [])]
+                      .filter(t => t.Instructions && t.StatusDateTime)
+                      .reverse();
+                    return trackingEntries.length > 0 ? (
+                      trackingEntries.map((t, i) => {
+                        const { date, time } = formatTrackingDate(t.StatusDateTime);
+                        return (
+                          <div key={i} className="relative flex items-start gap-4 tracking-timeline-entry">
+                            <div className="absolute -left-[22px] top-1">
+                              {i === 0
+                                ? <div className="w-3 h-3 rounded-full bg-[#1D9E75] pulse-active border-2 border-white relative z-10" />
+                                : <div className="w-2.5 h-2.5 rounded-full bg-[#1D9E75] border-2 border-white relative z-10" />}
+                            </div>
+                            <div>
+                              <div className={`text-[13px] ${i === 0 ? 'font-bold' : 'font-semibold'} text-[#1A1A1A]`}>{t.Instructions}</div>
+                              <div className="text-[11px] font-normal text-[#5F5E5A] mt-0.5">{date}</div>
+                              <div className="text-[11px] font-normal text-[#5F5E5A]">{time}</div>
+                              {t.StatusLocation && <div className="text-[11px] font-normal text-[#9FB5AB] mt-0.5">{t.StatusLocation}</div>}
+                            </div>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div className="text-center py-4 text-[13px] text-[#9FB5AB]">No tracking updates yet</div>
+                    );
+                  })()}
                 </div>
-
               </div>
-
             </div>
 
-            {/* --- WIDGET 4: NDR ACTIONS & HISTORY --- */}
-            {ndrDetails.showCard && (
+            {/* WIDGET 3: NDR ACTIONS (only when courier reports Undelivered) */}
+            {order?.ndrStatus === 'Undelivered' && (
               <div className="bg-white rounded-xl border border-[#E5E5E5] p-5 shadow-sm right-col-widget">
                 <div className="flex items-center gap-2.5 border-b border-[#F0F0F0] pb-3 mb-4">
-                  <div className="w-8 h-8 rounded-full bg-amber-50 text-[#EF9F27] flex items-center justify-center shrink-0">
+                  <div className="w-8 h-8 rounded-full bg-amber-50 flex items-center justify-center shrink-0">
                     <TablerIcon name="alert-triangle" size={16} color="#EF9F27" />
                   </div>
                   <h3 className="text-[14px] font-semibold text-[#1A1A1A]">NDR Actions & History</h3>
@@ -1382,69 +1424,53 @@ export function AdminOrderTracking() {
                 <div className="space-y-3.5">
                   <div className="flex justify-between items-center text-[13px]">
                     <span className="font-normal text-[#5F5E5A]">NDR Status</span>
-                    <span className={`text-[11px] font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded-full border ${ndrDetails.badgeClass}`}>
-                      {ndrDetails.statusText}
+                    <span className="text-[11px] font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded-full border bg-amber-50 text-amber-700 border-amber-200">
+                      {order.ndrStatus}
                     </span>
                   </div>
-                  <div className="text-[13px] border-t border-[#F5F5F5] pt-3">
-                    <div className="font-normal text-[#5F5E5A]">Reason for Non-Delivery</div>
-                    <div className="font-medium text-[#1A1A1A] mt-1 bg-slate-50 border border-slate-100 rounded-lg p-2.5 text-[12px] leading-relaxed">
-                      {ndrDetails.reason}
-                    </div>
-                  </div>
-                  <div className="flex justify-between items-center text-[13px] border-t border-[#F5F5F5] pt-3">
-                    <span className="font-normal text-[#5F5E5A]">Attempt Count</span>
-                    <span className="font-medium text-[#1A1A1A]">{ndrDetails.attempts}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-[13px] border-t border-[#F5F5F5] pt-3 flex-wrap">
-                    <span className="font-normal text-[#5F5E5A] shrink-0">Last Update:</span>
-                    <span className="font-medium text-[#1A1A1A]">{ndrDetails.lastAction}</span>
-                    <button 
-                      onClick={() => setShowNdrHistory(true)}
-                      className="text-[11px] font-bold text-[#1D9E75] hover:text-[#0F6E56] hover:underline flex items-center gap-1 shrink-0 ml-1.5 bg-[#E1F5EE] px-2 py-0.5 rounded transition-colors"
-                      title="View Full NDR History"
-                    >
-                      <TablerIcon name="history" size={11} color="#1D9E75" />
-                      <span>History</span>
-                    </button>
-                  </div>
-                  {ndrDetails.isActionable && (
-                    <div className="border-t border-[#F5F5F5] pt-3.5 mt-2 space-y-2">
-                      <button 
-                        onClick={() => setToastMessage(`Re-attempt instruction submitted to ${courierName}!`)}
-                        className="w-full bg-[#1D9E75] hover:bg-[#0F6E56] text-white text-[12px] font-bold py-2 rounded-lg transition-colors focus:outline-none"
-                      >
-                        Request Re-attempt
-                      </button>
-                      <div className="grid grid-cols-2 gap-2">
-                        <button 
-                          onClick={() => setToastMessage(`RTO instruction submitted to ${courierName}!`)}
-                          className="border border-red-200 bg-red-50/50 hover:bg-red-50 text-red-700 text-[12px] font-semibold py-2 rounded-lg transition-colors focus:outline-none"
-                        >
-                          Initiate RTO
-                        </button>
-                        <button 
-                          onClick={() => setShowUpdateInfoModal(true)}
-                          className="border border-[#E5E5E5] hover:bg-[#F8F9FA] text-[#5F5E5A] text-[12px] font-semibold py-2 rounded-lg transition-colors focus:outline-none"
-                        >
-                          Update Info
-                        </button>
+                  {order.ndrReason && (
+                    <div className="text-[13px] border-t border-[#F5F5F5] pt-3">
+                      <div className="font-normal text-[#5F5E5A]">Reason for Non-Delivery</div>
+                      <div className="font-medium text-[#1A1A1A] mt-1 bg-slate-50 border border-slate-100 rounded-lg p-2.5 text-[12px] leading-relaxed">
+                        {order.ndrReason}
                       </div>
                     </div>
                   )}
+                  {order.ndrHistory && order.ndrHistory.length > 0 && (
+                    <div className="flex items-center gap-2 text-[13px] border-t border-[#F5F5F5] pt-3 flex-wrap">
+                      <span className="font-normal text-[#5F5E5A] shrink-0">Attempt Count:</span>
+                      <span className="font-medium text-[#1A1A1A]">{order.ndrHistory.length} / 3 attempts</span>
+                      <button onClick={() => setShowNdrHistory(true)} className="text-[11px] font-bold text-[#1D9E75] hover:text-[#0F6E56] flex items-center gap-1 shrink-0 ml-1.5 bg-[#E1F5EE] px-2 py-0.5 rounded transition-colors">
+                        <TablerIcon name="history" size={11} color="#1D9E75" />
+                        <span>History</span>
+                      </button>
+                    </div>
+                  )}
+                  <div className="border-t border-[#F5F5F5] pt-3.5 mt-2 space-y-2">
+                    <button onClick={() => setToastMessage(`Re-attempt instruction submitted to ${courierName}!`)} className="w-full bg-[#1D9E75] hover:bg-[#0F6E56] text-white text-[12px] font-bold py-2 rounded-lg transition-colors focus:outline-none">
+                      Request Re-attempt
+                    </button>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button onClick={() => setToastMessage(`RTO instruction submitted to ${courierName}!`)} className="border border-red-200 bg-red-50/50 hover:bg-red-50 text-red-700 text-[12px] font-semibold py-2 rounded-lg transition-colors focus:outline-none">
+                        Initiate RTO
+                      </button>
+                      <button
+                        onClick={() => { setNewPhoneNumber(order.receiverAddress?.phoneNumber || ''); setShowUpdateInfoModal(true); }}
+                        className="border border-[#E5E5E5] hover:bg-[#F8F9FA] text-[#5F5E5A] text-[12px] font-semibold py-2 rounded-lg transition-colors focus:outline-none"
+                      >
+                        Update Info
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
 
-
-
           </div>
-
         </div>
-
       </div>
-      
-      {/* NDR History Modal */}
+
+      {/* ── NDR HISTORY MODAL ───────────────────────────────────────────────────── */}
       {showNdrHistory && (
         <div className="fixed inset-0 bg-[#000000]/40 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl border border-[#E5E5E5] w-full max-w-md shadow-2xl overflow-hidden animate-fade-in">
@@ -1453,41 +1479,27 @@ export function AdminOrderTracking() {
                 <TablerIcon name="history" size={16} color="#1D9E75" />
                 <h3 className="text-[15px] font-bold text-[#1A1A1A]">NDR Lifecycle History</h3>
               </div>
-              <button 
-                onClick={() => setShowNdrHistory(false)}
-                className="text-[#9FB5AB] hover:text-[#1A1A1A] p-1.5 rounded-md hover:bg-slate-200 transition-colors focus:outline-none"
-              >
+              <button onClick={() => setShowNdrHistory(false)} className="text-[#9FB5AB] hover:text-[#1A1A1A] p-1.5 rounded-md hover:bg-slate-200 transition-colors focus:outline-none">
                 <TablerIcon name="x" size={14} />
               </button>
             </div>
-            <div className="p-5 max-h-[300px] overflow-y-auto pr-1 space-y-5">
-              {/* Timeline entries */}
+            <div className="p-5 max-h-[300px] overflow-y-auto pr-1">
               <div className="relative pl-6 space-y-5 border-l-2 border-[#E1F5EE]">
-                <div className="relative">
-                  <div className="absolute -left-[31px] top-1.5 w-2 h-2 rounded-full bg-[#1D9E75] border border-white" />
-                  <div className="text-[13px] font-bold text-[#1A1A1A]">NDR Attempt #1 Failed</div>
-                  <div className="text-[11px] text-[#5F5E5A] mt-0.5">26 Jun 2026, 4:10 PM</div>
-                  <div className="text-[11px] text-[#9FB5AB] mt-0.5">Reason: Customer Unavailable (Unanswered Phone)</div>
-                </div>
-                <div className="relative">
-                  <div className="absolute -left-[31px] top-1.5 w-2 h-2 rounded-full bg-[#9FB5AB] border border-white" />
-                  <div className="text-[13px] font-semibold text-[#1A1A1A]">NDR Case Generated</div>
-                  <div className="text-[11px] text-[#5F5E5A] mt-0.5">26 Jun 2026, 2:30 PM</div>
-                  <div className="text-[11px] text-[#9FB5AB] mt-0.5">Automatically flagged by system</div>
-                </div>
-                <div className="relative">
-                  <div className="absolute -left-[31px] top-1.5 w-2 h-2 rounded-full bg-[#9FB5AB] border border-white" />
-                  <div className="text-[13px] font-semibold text-[#1A1A1A]">Out for Delivery</div>
-                  <div className="text-[11px] text-[#5F5E5A] mt-0.5">26 Jun 2026, 10:15 AM</div>
-                  <div className="text-[11px] text-[#9FB5AB] mt-0.5">Agent: Ravi Kumar ({courierName})</div>
-                </div>
+                {(order?.ndrHistory || []).map((h, i) => (
+                  <div key={i} className="relative">
+                    <div className="absolute -left-[31px] top-1.5 w-2 h-2 rounded-full bg-[#1D9E75] border border-white" />
+                    <div className="text-[13px] font-bold text-[#1A1A1A]">{h.action || h.status || 'NDR Update'}</div>
+                    {h.date && <div className="text-[11px] text-[#5F5E5A] mt-0.5">{formatDate(h.date, true)}</div>}
+                    {h.reason && <div className="text-[11px] text-[#9FB5AB] mt-0.5">Reason: {h.reason}</div>}
+                  </div>
+                ))}
+                {(!order?.ndrHistory || order.ndrHistory.length === 0) && (
+                  <div className="text-[13px] text-[#9FB5AB] text-center py-4">No history available</div>
+                )}
               </div>
             </div>
             <div className="px-5 py-3.5 bg-slate-50 border-t border-[#F0F0F0] flex justify-end">
-              <button 
-                onClick={() => setShowNdrHistory(false)}
-                className="bg-[#1D9E75] hover:bg-[#0F6E56] text-white text-[12px] font-bold py-1.5 px-4 rounded-lg transition-colors shadow-sm focus:outline-none"
-              >
+              <button onClick={() => setShowNdrHistory(false)} className="bg-[#1D9E75] hover:bg-[#0F6E56] text-white text-[12px] font-bold py-1.5 px-4 rounded-lg transition-colors shadow-sm focus:outline-none">
                 Close
               </button>
             </div>
@@ -1495,7 +1507,7 @@ export function AdminOrderTracking() {
         </div>
       )}
 
-      {/* Update Info Modal */}
+      {/* ── UPDATE INFO MODAL ───────────────────────────────────────────────────── */}
       {showUpdateInfoModal && (
         <div className="fixed inset-0 bg-[#000000]/40 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl border border-[#E5E5E5] w-full max-w-sm shadow-2xl overflow-hidden animate-fade-in">
@@ -1504,37 +1516,28 @@ export function AdminOrderTracking() {
                 <TablerIcon name="phone" size={16} color="#1D9E75" />
                 <h3 className="text-[15px] font-bold text-[#1A1A1A]">Update Alternate Contact</h3>
               </div>
-              <button 
-                onClick={() => setShowUpdateInfoModal(false)}
-                className="text-[#9FB5AB] hover:text-[#1A1A1A] p-1.5 rounded-md hover:bg-slate-200 transition-colors focus:outline-none"
-              >
+              <button onClick={() => setShowUpdateInfoModal(false)} className="text-[#9FB5AB] hover:text-[#1A1A1A] p-1.5 rounded-md hover:bg-slate-200 transition-colors focus:outline-none">
                 <TablerIcon name="x" size={14} />
               </button>
             </div>
             <div className="p-5 space-y-4">
               <div className="flex flex-col gap-1.5">
                 <label className="text-[11px] font-semibold text-[#5F5E5A] uppercase tracking-wider">Alternate Phone Number</label>
-                <input 
-                  type="tel" 
-                  value={newPhoneNumber} 
-                  onChange={(e) => setNewPhoneNumber(e.target.value)} 
-                  className="w-full h-10 px-3.5 rounded-xl border border-[#E5E5E5] text-[13px] bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[#1D9E75]/20 focus:border-[#1D9E75] transition-all font-mono" 
+                <input
+                  type="tel"
+                  value={newPhoneNumber}
+                  onChange={(e) => setNewPhoneNumber(e.target.value)}
+                  className="w-full h-10 px-3.5 rounded-xl border border-[#E5E5E5] text-[13px] bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[#1D9E75]/20 focus:border-[#1D9E75] transition-all font-mono"
                   placeholder="Enter 10-digit mobile number"
                 />
               </div>
             </div>
             <div className="px-5 py-3.5 bg-slate-50 border-t border-[#F0F0F0] flex justify-end gap-2">
-              <button 
-                onClick={() => setShowUpdateInfoModal(false)}
-                className="border border-[#E5E5E5] bg-white hover:bg-slate-50 text-[#5F5E5A] text-[12px] font-bold py-1.5 px-4 rounded-lg transition-colors focus:outline-none"
-              >
+              <button onClick={() => setShowUpdateInfoModal(false)} className="border border-[#E5E5E5] bg-white hover:bg-slate-50 text-[#5F5E5A] text-[12px] font-bold py-1.5 px-4 rounded-lg transition-colors focus:outline-none">
                 Cancel
               </button>
-              <button 
-                onClick={() => {
-                  setShowUpdateInfoModal(false);
-                  setToastMessage(`Alternate number updated to ${newPhoneNumber}. Instructions sent to ${courierName}!`);
-                }}
+              <button
+                onClick={() => { setShowUpdateInfoModal(false); setToastMessage(`Alternate number updated. Instructions sent to ${courierName}!`); }}
                 className="bg-[#1D9E75] hover:bg-[#0F6E56] text-white text-[12px] font-bold py-1.5 px-4 rounded-lg transition-colors shadow-sm focus:outline-none"
               >
                 Save Changes
@@ -1544,17 +1547,85 @@ export function AdminOrderTracking() {
         </div>
       )}
 
-      {/* Toast Notification */}
+      {/* ── RAISE DISPUTE MODAL ─────────────────────────────────────────────────── */}
+      {showRaiseDisputeModal && (
+        <div className="fixed inset-0 bg-[#000000]/40 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl border border-[#E5E5E5] w-full max-w-md shadow-2xl overflow-hidden animate-fade-in">
+            <div className="px-5 py-4 border-b border-[#F0F0F0] flex justify-between items-center bg-slate-50">
+              <div className="flex items-center gap-2">
+                <TablerIcon name="alert-triangle" size={16} color="#EF9F27" />
+                <h3 className="text-[15px] font-bold text-[#1A1A1A]">Raise Weight Dispute</h3>
+              </div>
+              <button onClick={() => { setShowRaiseDisputeModal(false); setDisputeError(null); }} className="text-[#9FB5AB] hover:text-[#1A1A1A] p-1.5 rounded-md hover:bg-slate-200 transition-colors focus:outline-none">
+                <TablerIcon name="x" size={14} />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div className="bg-slate-50 rounded-lg p-3 flex justify-between items-center text-[12px]">
+                <span className="text-[#5F5E5A]">AWB Number</span>
+                <span className="font-mono font-semibold text-[#1A1A1A]">{awbNumber}</span>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[11px] font-semibold text-[#5F5E5A] uppercase tracking-wider">
+                  Dispute Reason <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  value={disputeText}
+                  onChange={(e) => setDisputeText(e.target.value)}
+                  rows={4}
+                  placeholder="Describe the weight discrepancy (e.g. actual weight, courier claimed weight, supporting details...)"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] text-[13px] bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[#1D9E75]/20 focus:border-[#1D9E75] transition-all resize-none"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[11px] font-semibold text-[#5F5E5A] uppercase tracking-wider">
+                  Supporting Document <span className="text-[#9FB5AB] font-normal normal-case">(optional)</span>
+                </label>
+                <input
+                  type="file"
+                  accept="image/*,.pdf"
+                  onChange={(e) => setDisputeFile(e.target.files?.[0] || null)}
+                  className="w-full text-[13px] text-[#5F5E5A] file:mr-4 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[12px] file:font-semibold file:bg-[#E1F5EE] file:text-[#0F6E56] hover:file:bg-[#BCE8D8] cursor-pointer"
+                />
+              </div>
+              {disputeError && (
+                <div className="bg-red-50 border border-red-200 text-red-700 text-[12px] px-3 py-2 rounded-lg">
+                  {disputeError}
+                </div>
+              )}
+            </div>
+            <div className="px-5 py-3.5 bg-slate-50 border-t border-[#F0F0F0] flex justify-end gap-2">
+              <button onClick={() => { setShowRaiseDisputeModal(false); setDisputeError(null); }} className="border border-[#E5E5E5] bg-white hover:bg-slate-50 text-[#5F5E5A] text-[12px] font-bold py-1.5 px-4 rounded-lg transition-colors focus:outline-none">
+                Cancel
+              </button>
+              <button onClick={handleRaiseDispute} disabled={isSubmittingDispute} className="bg-[#1D9E75] hover:bg-[#0F6E56] disabled:opacity-60 text-white text-[12px] font-bold py-1.5 px-5 rounded-lg transition-colors shadow-sm focus:outline-none">
+                {isSubmittingDispute ? 'Submitting...' : 'Submit Dispute'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── SHIP ORDER MODAL ────────────────────────────────────────────────────── */}
+      {shipOrder && (
+        <ShipOrderModal
+          order={shipOrder}
+          onClose={() => setShipOrder(null)}
+          onShipped={() => {
+            setShipOrder(null);
+            if (orderId) apiClient.get(`/order/getOrderById/${orderId}`).then(r => setOrder(r.data?.order || r.data?.data || r.data)).catch(() => {});
+          }}
+        />
+      )}
+
+      {/* ── TOAST ───────────────────────────────────────────────────────────────── */}
       {toastMessage && (
         <div className="fixed bottom-5 right-5 z-[210] bg-[#1A1A1A] text-white text-[13px] px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2.5 animate-fade-in">
           <div className="w-5 h-5 rounded-full bg-[#1D9E75] flex items-center justify-center shrink-0">
             <TablerIcon name="check" size={10} color="#FFFFFF" />
           </div>
           <span className="font-medium">{toastMessage}</span>
-          <button 
-            onClick={() => setToastMessage(null)}
-            className="text-white/50 hover:text-white ml-2 focus:outline-none"
-          >
+          <button onClick={() => setToastMessage(null)} className="text-white/50 hover:text-white ml-2 focus:outline-none">
             <TablerIcon name="x" size={10} />
           </button>
         </div>

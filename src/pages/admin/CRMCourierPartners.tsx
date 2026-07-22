@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
-import { Search, Truck, CheckCircle2, AlertTriangle, TrendingUp, TrendingDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Truck, CheckCircle2, TrendingUp, TrendingDown, Loader2 } from 'lucide-react';
+import { apiClient } from '../../services/apiClient';
 
 const STATUS_STYLES: Record<string, string> = {
   'Active': 'bg-green-50 text-green-600',
@@ -8,30 +9,34 @@ const STATUS_STYLES: Record<string, string> = {
   'Under Review': 'bg-amber-50 text-amber-700',
 };
 
-const MOCK_COURIERS = [
-  { id: 'COU001', name: 'Delhivery', type: 'Surface + Air', zones: 'Pan India', status: 'Active', deliveryRate: 94.2, avgDays: 2.3, ndrRate: 4.1, rtoRate: 5.8, activeAWBs: 12400, totalAWBs: 284000, slaBreaches: 12, weightCap: '10 kg', contact: 'ops@delhivery.com', rm: 'Rahul M.' },
-  { id: 'COU002', name: 'Ekart', type: 'Surface', zones: 'Pan India', status: 'Active', deliveryRate: 91.8, avgDays: 3.1, ndrRate: 5.2, rtoRate: 8.2, activeAWBs: 8900, totalAWBs: 196000, slaBreaches: 28, weightCap: '5 kg', contact: 'ops@ekart.com', rm: 'Priya S.' },
-  { id: 'COU003', name: 'XpressBees', type: 'Surface + Air', zones: 'Pan India', status: 'Active', deliveryRate: 93.1, avgDays: 2.7, ndrRate: 4.8, rtoRate: 6.9, activeAWBs: 6200, totalAWBs: 142000, slaBreaches: 9, weightCap: '30 kg', contact: 'ops@xpressbees.com', rm: 'Amit K.' },
-  { id: 'COU004', name: 'Shadowfax', type: 'Surface', zones: 'Tier 1 & 2', status: 'Active', deliveryRate: 96.4, avgDays: 1.9, ndrRate: 2.9, rtoRate: 3.6, activeAWBs: 4100, totalAWBs: 89000, slaBreaches: 3, weightCap: '3 kg', contact: 'ops@shadowfax.in', rm: 'Neha V.' },
-  { id: 'COU005', name: 'DTDC', type: 'Surface + Air', zones: 'Pan India', status: 'Active', deliveryRate: 88.6, avgDays: 3.8, ndrRate: 6.7, rtoRate: 11.4, activeAWBs: 3400, totalAWBs: 78000, slaBreaches: 41, weightCap: '50 kg', contact: 'ops@dtdc.com', rm: 'Rahul M.' },
-  { id: 'COU006', name: 'BlueDart', type: 'Air + Express', zones: 'Pan India', status: 'Active', deliveryRate: 98.1, avgDays: 1.2, ndrRate: 1.4, rtoRate: 1.9, activeAWBs: 2100, totalAWBs: 54000, slaBreaches: 1, weightCap: '100 kg', contact: 'ops@bluedart.com', rm: 'Priya S.' },
-  { id: 'COU007', name: 'Ecom Express', type: 'Surface', zones: 'Pan India', status: 'Under Review', deliveryRate: 85.2, avgDays: 4.2, ndrRate: 8.1, rtoRate: 14.8, activeAWBs: 1800, totalAWBs: 41000, slaBreaches: 67, weightCap: '10 kg', contact: 'ops@ecomexpress.in', rm: 'Amit K.' },
-  { id: 'COU008', name: 'Smartr', type: 'Surface', zones: 'Select States', status: 'Inactive', deliveryRate: 82.0, avgDays: 4.9, ndrRate: 9.3, rtoRate: 18.0, activeAWBs: 0, totalAWBs: 12000, slaBreaches: 0, weightCap: '5 kg', contact: 'ops@smartr.in', rm: 'Neha V.' },
-];
-
 export function CRMCourierPartners() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
 
-  const filtered = MOCK_COURIERS.filter(c => {
+  const [allPartners, setAllPartners] = useState<any[]>([]);
+  const [summary, setSummary] = useState({ totalPartners: 0, avgDeliveryRate: '0.0', avgRtoRate: '0.0', totalActiveAWBs: 0 });
+  const [loading, setLoading] = useState(false);
+
+  const fetchPartners = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await apiClient.get('/crm/courier-partners');
+      setAllPartners(res.data.partners || []);
+      if (res.data.summary) setSummary(res.data.summary);
+    } catch {
+      setAllPartners([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchPartners(); }, []);
+
+  const filtered = allPartners.filter(c => {
     if (statusFilter !== 'All' && c.status !== statusFilter) return false;
     if (search && !c.name.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
-
-  const avgDelivery = (MOCK_COURIERS.reduce((a, c) => a + c.deliveryRate, 0) / MOCK_COURIERS.length).toFixed(1);
-  const avgRTO = (MOCK_COURIERS.reduce((a, c) => a + c.rtoRate, 0) / MOCK_COURIERS.length).toFixed(1);
-  const totalActive = MOCK_COURIERS.reduce((a, c) => a + c.activeAWBs, 0);
 
   return (
     <AdminLayout>
@@ -48,12 +53,12 @@ export function CRMCourierPartners() {
       {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
         {[
-          { label: 'Active Partners', value: MOCK_COURIERS.filter(c => c.status === 'Active').length, sub: 'of ' + MOCK_COURIERS.length + ' total', icon: Truck, color: 'text-[#0F172A]', bg: 'bg-white' },
-          { label: 'Avg Delivery Rate', value: `${avgDelivery}%`, sub: 'across all couriers', icon: CheckCircle2, color: 'text-green-500', bg: 'bg-white' },
-          { label: 'Avg RTO Rate', value: `${avgRTO}%`, sub: 'return to origin', icon: TrendingDown, color: 'text-red-500', bg: 'bg-white' },
-          { label: 'Active AWBs', value: totalActive.toLocaleString('en-IN'), sub: 'in transit right now', icon: TrendingUp, color: 'text-blue-500', bg: 'bg-white' },
+          { label: 'Active Partners', value: loading ? '—' : summary.totalPartners, sub: 'Total couriers on platform', icon: Truck, color: 'text-[#0F172A]' },
+          { label: 'Avg Delivery Rate', value: loading ? '—' : `${summary.avgDeliveryRate}%`, sub: 'across all couriers', icon: CheckCircle2, color: 'text-green-500' },
+          { label: 'Avg RTO Rate', value: loading ? '—' : `${summary.avgRtoRate}%`, sub: 'return to origin', icon: TrendingDown, color: 'text-red-500' },
+          { label: 'Active AWBs', value: loading ? '—' : summary.totalActiveAWBs.toLocaleString('en-IN'), sub: 'in transit right now', icon: TrendingUp, color: 'text-blue-500' },
         ].map((card, i) => (
-          <div key={i} className={`${card.bg} rounded-xl border border-[#E2E8F0] p-4 hover:shadow-md transition-all`}>
+          <div key={i} className="bg-white rounded-xl border border-[#E2E8F0] p-4 hover:shadow-md transition-all">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-semibold text-[#64748B]">{card.label}</span>
               <card.icon className={`w-4 h-4 ${card.color}`} />
@@ -73,7 +78,10 @@ export function CRMCourierPartners() {
           {['All', 'Active', 'Inactive', 'Under Review'].map(s => (
             <button key={s} onClick={() => setStatusFilter(s)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${statusFilter === s ? 'bg-[#00A86B] text-white' : 'border border-[#E2E8F0] text-[#64748B] hover:bg-[#F8FAFC]'}`}>{s}</button>
           ))}
-          <span className="text-xs text-[#64748B] ml-auto">{filtered.length} partners</span>
+          <span className="text-xs text-[#64748B] ml-auto flex items-center gap-2">
+            {loading && <Loader2 className="w-3.5 h-3.5 animate-spin text-[#00A86B]" />}
+            {filtered.length} partners
+          </span>
         </div>
 
         <div className="overflow-x-auto">
@@ -89,32 +97,36 @@ export function CRMCourierPartners() {
                 <th className="p-3">NDR Rate</th>
                 <th className="p-3">RTO Rate</th>
                 <th className="p-3">Active AWBs</th>
-                <th className="p-3">SLA Breaches</th>
+                <th className="p-3">Total AWBs</th>
                 <th className="p-3">Weight Cap</th>
                 <th className="p-3">RM</th>
               </tr>
             </thead>
             <tbody className="text-xs text-[#475569]">
-              {filtered.map((c, i) => (
+              {loading && filtered.length === 0 ? (
+                <tr><td colSpan={12} className="p-8 text-center"><Loader2 className="w-5 h-5 animate-spin mx-auto text-[#00A86B]" /></td></tr>
+              ) : filtered.length === 0 ? (
+                <tr><td colSpan={12} className="p-8 text-center text-[#64748B] font-medium">No courier partners found</td></tr>
+              ) : filtered.map((c, i) => (
                 <tr key={i} className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors cursor-pointer">
                   <td className="p-3 pl-4">
                     <div className="font-bold text-[#0F172A]">{c.name}</div>
                     <div className="text-[10px] text-[#94A3B8]">{c.id}</div>
                   </td>
-                  <td className="p-3 text-[#64748B]">{c.type}</td>
-                  <td className="p-3">{c.zones}</td>
+                  <td className="p-3 text-[#64748B]">{c.type || '—'}</td>
+                  <td className="p-3">{c.zones || 'Pan India'}</td>
                   <td className="p-3">
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${STATUS_STYLES[c.status]}`}>{c.status}</span>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${STATUS_STYLES[c.status] || 'bg-gray-100 text-gray-500'}`}>{c.status}</span>
                   </td>
                   <td className="p-3">
                     <div className="flex items-center gap-1.5">
                       <div className="flex-1 h-1.5 bg-[#F1F5F9] rounded-full w-16">
-                        <div className="h-full rounded-full bg-green-500" style={{ width: `${c.deliveryRate}%` }} />
+                        <div className="h-full rounded-full bg-green-500" style={{ width: `${Math.min(c.deliveryRate, 100)}%` }} />
                       </div>
                       <span className={`font-bold text-[11px] ${c.deliveryRate >= 93 ? 'text-green-600' : c.deliveryRate >= 88 ? 'text-amber-600' : 'text-red-500'}`}>{c.deliveryRate}%</span>
                     </div>
                   </td>
-                  <td className="p-3 font-medium text-[#0F172A]">{c.avgDays}d</td>
+                  <td className="p-3 font-medium text-[#0F172A]">{c.avgDays ? `${c.avgDays}d` : '—'}</td>
                   <td className="p-3">
                     <span className={`font-bold ${c.ndrRate > 6 ? 'text-red-500' : c.ndrRate > 4 ? 'text-amber-600' : 'text-green-600'}`}>{c.ndrRate}%</span>
                   </td>
@@ -122,11 +134,9 @@ export function CRMCourierPartners() {
                     <span className={`font-bold ${c.rtoRate > 10 ? 'text-red-500' : c.rtoRate > 6 ? 'text-amber-600' : 'text-green-600'}`}>{c.rtoRate}%</span>
                   </td>
                   <td className="p-3 font-semibold text-[#0F172A]">{c.activeAWBs.toLocaleString('en-IN')}</td>
-                  <td className="p-3">
-                    <span className={`font-bold ${c.slaBreaches > 30 ? 'text-red-500' : c.slaBreaches > 10 ? 'text-amber-600' : 'text-green-600'}`}>{c.slaBreaches}</span>
-                  </td>
-                  <td className="p-3 text-[#64748B]">{c.weightCap}</td>
-                  <td className="p-3 text-[#64748B]">{c.rm}</td>
+                  <td className="p-3 text-[#64748B]">{c.total ? c.total.toLocaleString('en-IN') : '—'}</td>
+                  <td className="p-3 text-[#64748B]">{c.weightCap || '—'}</td>
+                  <td className="p-3 text-[#64748B]">{c.rm || '—'}</td>
                 </tr>
               ))}
             </tbody>

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 
 import { DesktopPagination } from '../../hooks/usePagination';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
@@ -346,6 +346,8 @@ export function AdminWeightDiscrepancy() {
 
   // ── Tabs — each tab is its own URL sub-route (/admin/weight-discrepancy/:tabSlug) ──
   const navigate = useNavigate();
+  const location = useLocation();
+  const wdBase = location.pathname.startsWith('/user/') ? '/user/weight-discrepancy' : '/admin/weight-discrepancy';
   const { tabSlug } = useParams<{ tabSlug?: string }>();
   const [activeTab, setActiveTab] = useState<TabName>(() => (tabSlug && SLUG_TO_TAB[tabSlug]) || 'All');
 
@@ -356,10 +358,7 @@ export function AdminWeightDiscrepancy() {
   }, [tabSlug]);
 
   const handleTabChange = (tab: TabName) => {
-    const path = `/admin/weight-discrepancy/${TAB_SLUG_MAP[tab]}`;
-    // Keep 'All' as the anchor entry beneath every other tab, so browser Back
-    // from any non-All tab always lands on All instead of cycling through
-    // every tab previously visited.
+    const path = `${wdBase}/${TAB_SLUG_MAP[tab]}`;
     if (tab !== 'All' && activeTab !== 'All') {
       navigate(path, { replace: true });
     } else {

@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
-import { Search, Download, Building2, CheckCircle2, AlertCircle, Clock, TrendingUp, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
+import { Search, Download, Building2, CheckCircle2, AlertCircle, Clock, TrendingUp, ChevronLeft, ChevronRight, Eye, Loader2 } from 'lucide-react';
+import { apiClient } from '../../services/apiClient';
 
 const KYC_STATUS: Record<string, string> = {
   'Verified': 'bg-green-50 text-green-600',
@@ -16,22 +17,6 @@ const ACCOUNT_STATUS: Record<string, string> = {
   'Trial': 'bg-blue-50 text-blue-600',
 };
 
-const MOCK_SELLERS = Array.from({ length: 18 }, (_, i) => ({
-  id: `COMP${1000 + i}`,
-  name: ['Fashion Hub India', 'TechGadgets Store', 'HomeDecor Plus', 'Beauty Bazaar', 'Sports Arena', 'KidsWorld', 'BookShelf India', 'FoodieDelights', 'AutoParts Hub', 'Luxury Watches'][i % 10],
-  email: `seller${i + 1}@example.com`,
-  phone: `+91 ${String(9800000000 + i * 1337).slice(0, 10)}`,
-  city: ['Mumbai', 'Delhi', 'Bangalore', 'Hyderabad', 'Chennai', 'Pune', 'Ahmedabad', 'Kolkata'][i % 8],
-  plan: ['Starter', 'Growth', 'Enterprise', 'Pro'][i % 4],
-  kycStatus: ['Verified', 'Pending', 'Rejected', 'Not Submitted'][i % 4],
-  accountStatus: ['Active', 'Inactive', 'Suspended', 'Trial'][i % 4],
-  totalOrders: Math.floor(Math.random() * 5000) + 100,
-  monthlyOrders: Math.floor(Math.random() * 500) + 10,
-  walletBalance: `₹${(Math.random() * 50000 + 500).toFixed(0)}`,
-  joinedDate: `2025-${String((i % 12) + 1).padStart(2, '0')}-${String((i % 28) + 1).padStart(2, '0')}`,
-  rm: ['Rahul M.', 'Priya S.', 'Amit K.', 'Neha V.'][i % 4],
-}));
-
 export function CRMSellerAccounts() {
   const [search, setSearch] = useState('');
   const [kycFilter, setKycFilter] = useState('All');
@@ -39,23 +24,59 @@ export function CRMSellerAccounts() {
   const [page, setPage] = useState(1);
   const perPage = 10;
 
-  const filtered = MOCK_SELLERS.filter(s => {
-    if (kycFilter !== 'All' && s.kycStatus !== kycFilter) return false;
-    if (statusFilter !== 'All' && s.accountStatus !== statusFilter) return false;
-    if (search && !s.name.toLowerCase().includes(search.toLowerCase()) && !s.id.toLowerCase().includes(search.toLowerCase()) && !s.email.toLowerCase().includes(search.toLowerCase())) return false;
-    return true;
-  });
+  const [sellers, setSellers] = useState<any[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [summary, setSummary] = useState({ total: 0, active: 0, kycVerified: 0, kycPending: 0, suspended: 0 });
+  const [loading, setLoading] = useState(false);
 
-  const totalPages = Math.ceil(filtered.length / perPage);
-  const paginated = filtered.slice((page - 1) * perPage, page * perPage);
+  const fetchSellers = useCallback(async (pg = page) => {
+    setLoading(true);
+    try {
+      const params: Record<string, string> = { page: String(pg), limit: String(perPage) };
+      if (search) params.search = search;
+      if (kycFilter !== 'All') params.kycStatus = kycFilter;
+      if (statusFilter !== 'All') params.accountStatus = statusFilter;
+
+      const res = await apiClient.get('/crm/sellers', { params });
+      setSellers(res.data.sellers || []);
+      setTotalCount(res.data.totalCount || 0);
+      setTotalPages(res.data.totalPages || 1);
+      if (res.data.summary) setSummary(res.data.summary);
+    } catch {
+      setSellers([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [search, kycFilter, statusFilter, page]);
+
+  useEffect(() => { setPage(1); }, [search, kycFilter, statusFilter]);
+  useEffect(() => { fetchSellers(page); }, [page, search, kycFilter, statusFilter]);
+
+  const handleExport = async () => {
+    try {
+      const params: Record<string, string> = { export: 'true' };
+      if (search) params.search = search;
+      if (kycFilter !== 'All') params.kycStatus = kycFilter;
+      if (statusFilter !== 'All') params.accountStatus = statusFilter;
+
+      const res = await apiClient.get('/crm/sellers', { params, responseType: 'blob' });
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `crm_sellers_${Date.now()}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch { /* silent */ }
+  };
 
   const stats = [
-    { label: 'Total Sellers', value: MOCK_SELLERS.length, icon: Building2, color: 'text-[#0F172A]' },
-    { label: 'Active', value: MOCK_SELLERS.filter(s => s.accountStatus === 'Active').length, icon: CheckCircle2, color: 'text-green-500' },
-    { label: 'KYC Verified', value: MOCK_SELLERS.filter(s => s.kycStatus === 'Verified').length, icon: CheckCircle2, color: 'text-blue-500' },
-    { label: 'KYC Pending', value: MOCK_SELLERS.filter(s => s.kycStatus === 'Pending').length, icon: Clock, color: 'text-amber-500' },
-    { label: 'Suspended', value: MOCK_SELLERS.filter(s => s.accountStatus === 'Suspended').length, icon: AlertCircle, color: 'text-red-500' },
-    { label: 'Enterprise', value: MOCK_SELLERS.filter(s => s.plan === 'Enterprise').length, icon: TrendingUp, color: 'text-purple-500' },
+    { label: 'Total Sellers', value: summary.total, icon: Building2, color: 'text-[#0F172A]' },
+    { label: 'Active', value: summary.active, icon: CheckCircle2, color: 'text-green-500' },
+    { label: 'KYC Verified', value: summary.kycVerified, icon: CheckCircle2, color: 'text-blue-500' },
+    { label: 'KYC Pending', value: summary.kycPending, icon: Clock, color: 'text-amber-500' },
+    { label: 'Suspended', value: summary.suspended, icon: AlertCircle, color: 'text-red-500' },
+    { label: 'Enterprise', value: sellers.filter(s => s.planName === 'Enterprise').length, icon: TrendingUp, color: 'text-purple-500' },
   ];
 
   return (
@@ -68,7 +89,7 @@ export function CRMSellerAccounts() {
           </div>
           <p className="text-xs text-[#64748B] mt-0.5">Manage all seller accounts, KYC status, wallet health and relationship managers.</p>
         </div>
-        <button className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#00A86B] text-white text-xs font-semibold hover:bg-[#009960] transition-colors self-start">
+        <button onClick={handleExport} className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#00A86B] text-white text-xs font-semibold hover:bg-[#009960] transition-colors self-start">
           <Download className="w-3.5 h-3.5" /> Export
         </button>
       </div>
@@ -95,7 +116,10 @@ export function CRMSellerAccounts() {
           <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="h-9 px-3 rounded-lg border border-[#E2E8F0] text-xs text-[#0F172A] bg-white focus:outline-none focus:border-[#00A86B]">
             {['All', 'Active', 'Inactive', 'Suspended', 'Trial'].map(o => <option key={o}>{o === 'All' ? 'All Status' : o}</option>)}
           </select>
-          <span className="text-xs text-[#64748B] ml-auto">{filtered.length} sellers</span>
+          <span className="text-xs text-[#64748B] ml-auto flex items-center gap-2">
+            {loading && <Loader2 className="w-3.5 h-3.5 animate-spin text-[#00A86B]" />}
+            {totalCount} sellers
+          </span>
         </div>
 
         <div className="overflow-x-auto">
@@ -117,31 +141,35 @@ export function CRMSellerAccounts() {
               </tr>
             </thead>
             <tbody className="text-xs text-[#475569]">
-              {paginated.map((seller, i) => (
+              {loading && sellers.length === 0 ? (
+                <tr><td colSpan={12} className="p-8 text-center text-[#64748B]"><Loader2 className="w-5 h-5 animate-spin mx-auto text-[#00A86B]" /></td></tr>
+              ) : sellers.length === 0 ? (
+                <tr><td colSpan={12} className="p-8 text-center text-[#64748B] font-medium">No sellers found</td></tr>
+              ) : sellers.map((seller, i) => (
                 <tr key={i} className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors cursor-pointer">
                   <td className="px-3 py-3.5 pl-4 text-left align-middle">
-                    <div className="font-semibold text-[#0F172A]">{seller.name}</div>
-                    <div className="text-[10px] text-[#64748B] font-mono">{seller.id}</div>
+                    <div className="font-semibold text-[#0F172A]">{seller.company || seller.fullname}</div>
+                    <div className="text-[10px] text-[#64748B] font-mono">{seller.userId}</div>
                   </td>
                   <td className="px-3 py-3.5 text-left align-middle">
                     <div className="font-sans text-xs font-normal">{seller.email}</div>
-                    <div className="text-[10px] text-[#64748B]">{seller.phone}</div>
+                    <div className="text-[10px] text-[#64748B]">{seller.phoneNumber}</div>
                   </td>
-                  <td className="px-3 py-3.5 text-left align-middle">{seller.city}</td>
+                  <td className="px-3 py-3.5 text-left align-middle">{seller.city || '—'}</td>
                   <td className="px-3 py-3.5 text-left align-middle">
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-600">{seller.plan}</span>
-                  </td>
-                  <td className="px-3 py-3.5 text-left align-middle">
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${KYC_STATUS[seller.kycStatus]}`}>{seller.kycStatus}</span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-600">{seller.planName || '—'}</span>
                   </td>
                   <td className="px-3 py-3.5 text-left align-middle">
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${ACCOUNT_STATUS[seller.accountStatus]}`}>{seller.accountStatus}</span>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${KYC_STATUS[seller.kycStatus] || 'bg-gray-100 text-gray-500'}`}>{seller.kycStatus}</span>
                   </td>
-                  <td className="px-3 py-3.5 text-right align-middle font-semibold text-[#0F172A]">{seller.totalOrders.toLocaleString('en-IN')}</td>
-                  <td className="px-3 py-3.5 text-right align-middle">{seller.monthlyOrders}</td>
-                  <td className="px-3 py-3.5 text-right align-middle font-semibold text-[#00A86B]">{seller.walletBalance}</td>
-                  <td className="px-3 py-3.5 text-left align-middle text-[#64748B]">{seller.rm}</td>
-                  <td className="px-3 py-3.5 text-left align-middle table-date">{seller.joinedDate}</td>
+                  <td className="px-3 py-3.5 text-left align-middle">
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${ACCOUNT_STATUS[seller.accountStatus] || 'bg-gray-100 text-gray-500'}`}>{seller.accountStatus}</span>
+                  </td>
+                  <td className="px-3 py-3.5 text-right align-middle font-semibold text-[#0F172A]">{(seller.totalOrders || 0).toLocaleString('en-IN')}</td>
+                  <td className="px-3 py-3.5 text-right align-middle">{seller.monthlyOrders || '—'}</td>
+                  <td className="px-3 py-3.5 text-right align-middle font-semibold text-[#00A86B]">₹{(seller.walletBalance || 0).toLocaleString('en-IN')}</td>
+                  <td className="px-3 py-3.5 text-left align-middle text-[#64748B]">{seller.rm || '—'}</td>
+                  <td className="px-3 py-3.5 text-left align-middle table-date">{seller.createdAt ? new Date(seller.createdAt).toISOString().split('T')[0] : '—'}</td>
                   <td className="px-3 py-3.5 text-center align-middle">
                     <button className="p-1.5 rounded-lg hover:bg-[#00A86B]/10 text-[#64748B] hover:text-[#00A86B] transition-colors inline-flex justify-center">
                       <Eye className="w-4 h-4" />

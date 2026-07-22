@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { apiClient } from '../../services/apiClient';
@@ -23,6 +24,17 @@ const BACKEND_BASE = (import.meta.env.VITE_API_URL as string) || 'http://localho
 
 // ─── Tabs ──────────────────────────────────────────────────────────────────────
 const TABS = ['Undelivered', 'Action Required', 'Action Requested', 'Delivered', 'RTO Initiated'];
+
+const TAB_SLUG_MAP: Record<string, string> = {
+  'Undelivered':      'undelivered',
+  'Action Required':  'action-required',
+  'Action Requested': 'action-requested',
+  'Delivered':        'delivered',
+  'RTO Initiated':    'rto-initiated',
+};
+const SLUG_TO_TAB: Record<string, string> = Object.fromEntries(
+  Object.entries(TAB_SLUG_MAP).map(([tab, slug]) => [slug, tab])
+);
 
 const TAB_PARAMS: Record<string, Record<string, string>> = {
   'Undelivered':      { status: 'Undelivered', ndrStatus: 'Undelivered' },
@@ -129,8 +141,18 @@ export function AdminNDR() {
   const { isAdmin, adminTab, currentUserId, loadingAdminTab } = useAdminTab();
   const isAdminView = isAdmin && adminTab;
 
-  // ── Tabs ──
-  const [activeTab, setActiveTab] = useState('Undelivered');
+  // ── Tabs — URL-based routing ──
+  const navigate = useNavigate();
+  const location = useLocation();
+  const ndrBase = location.pathname.startsWith('/user/') ? '/user/ndr' : '/admin/ndr';
+  const { tabSlug } = useParams<{ tabSlug?: string }>();
+  const [activeTab, setActiveTab] = useState(() => (tabSlug && SLUG_TO_TAB[tabSlug]) || 'Undelivered');
+
+  // Sync activeTab when URL changes (back/forward, direct link)
+  useEffect(() => {
+    const tabFromUrl = (tabSlug && SLUG_TO_TAB[tabSlug]) || 'Undelivered';
+    setActiveTab(prev => (prev === tabFromUrl ? prev : tabFromUrl));
+  }, [tabSlug]);
 
   // ── Data ──
   const [orders, setOrders]         = useState<any[]>([]);
@@ -258,14 +280,18 @@ export function AdminNDR() {
     setRefreshTrigger(t => t + 1);
   }, [rowsPerPage]);
 
-  const handleTabChange = (tab: string) => {
-    setActiveTab(tab);
+  // Reset page, selection and filters whenever the active tab changes
+  useEffect(() => {
     setPage(1);
     setSelectedOrders([]);
-    // Clear filters when navigating away to prevent them from persisting across tabs
     setOrderId(''); setAwbNumber(''); setSelectedPaymentTypes([]); setSelectedPickups([]);
     setSelectedCouriers([]); setDateStart(''); setDateEnd('');
     if (isAdminView) { setUserQuery(''); setUserSuggestions([]); setUserMongoId(''); }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
+
+  const handleTabChange = (tab: string) => {
+    navigate(`${ndrBase}/${TAB_SLUG_MAP[tab] || 'undelivered'}`);
   };
   const handleApplyFilters = () => { setPage(1); setRefreshTrigger(t => t + 1); };
   const hasActiveFilters = !!(orderId || awbNumber || selectedPaymentTypes.length || selectedPickups.length || selectedCouriers.length || (dateStart && dateEnd) || (isAdminView && userMongoId));

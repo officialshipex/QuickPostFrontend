@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
@@ -250,8 +250,10 @@ export function AdminOrders() {
   const { isAdmin, adminTab, currentUserId, loadingAdminTab } = useAdminTab();
   const isAdminView = isAdmin && adminTab;
 
-  // ── Tabs — each tab is its own URL sub-route (/admin/orders/:tabSlug) ──
+  // ── Tabs — each tab is its own URL sub-route (/admin/orders/:tabSlug or /user/orders/:tabSlug) ──
   const navigate = useNavigate();
+  const location = useLocation();
+  const ordersBase = location.pathname.startsWith('/user/') ? '/user/orders' : '/admin/orders';
   const { tabSlug } = useParams<{ tabSlug?: string }>();
   const [activeTab, setActiveTab]   = useState(() => (tabSlug && SLUG_TO_TAB[tabSlug]) || 'New');
 
@@ -555,7 +557,7 @@ export function AdminOrders() {
   }, [activeTab]);
 
   const handleTabChange = (tab: string) => {
-    navigate(`/admin/orders/${TAB_SLUG_MAP[tab] || 'new'}`);
+    navigate(`${ordersBase}/${TAB_SLUG_MAP[tab] || 'new'}`);
   };
 
   const handleApplyFilters = () => { setPage(1); setRefreshTrigger(t => t + 1); };
