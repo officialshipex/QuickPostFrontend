@@ -125,19 +125,19 @@ export function CRMSellerAccounts() {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[900px]">
             <thead>
-              <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-xs uppercase tracking-wider font-medium text-[#64748B]">
-                <th className="px-3 py-3.5 pl-4 text-left align-middle">Seller / ID</th>
-                <th className="px-3 py-3.5 text-left align-middle">Contact</th>
-                <th className="px-3 py-3.5 text-left align-middle">City</th>
-                <th className="px-3 py-3.5 text-left align-middle">Plan</th>
-                <th className="px-3 py-3.5 text-left align-middle">KYC</th>
-                <th className="px-3 py-3.5 text-left align-middle">Account</th>
-                <th className="px-3 py-3.5 text-right align-middle">Total Orders</th>
-                <th className="px-3 py-3.5 text-right align-middle">Monthly Orders</th>
-                <th className="px-3 py-3.5 text-right align-middle">Wallet</th>
-                <th className="px-3 py-3.5 text-left align-middle">RM</th>
-                <th className="px-3 py-3.5 text-left align-middle">Joined</th>
-                <th className="px-3 py-3.5 text-center align-middle">Action</th>
+              <tr className="bg-green-50 border-b border-[#E2E8F0] text-xs uppercase tracking-wider font-medium text-[#475569]">
+                <th className="py-2 px-3 text-left align-middle">Seller / ID</th>
+                <th className="py-2 px-3 text-left align-middle">Contact</th>
+                <th className="py-2 px-3 text-left align-middle">City</th>
+                <th className="py-2 px-3 text-left align-middle">Plan</th>
+                <th className="py-2 px-3 text-left align-middle">KYC</th>
+                <th className="py-2 px-3 text-left align-middle">Account</th>
+                <th className="py-2 px-3 text-right align-middle">Total Orders</th>
+                <th className="py-2 px-3 text-right align-middle">Monthly Orders</th>
+                <th className="py-2 px-3 text-right align-middle">Wallet</th>
+                <th className="py-2 px-3 text-left align-middle">RM</th>
+                <th className="py-2 px-3 text-left align-middle">Joined</th>
+                <th className="py-2 px-3 text-center align-middle">Action</th>
               </tr>
             </thead>
             <tbody className="text-xs text-[#475569]">

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { apiClient } from '../../services/apiClient';
-import { Plus, Megaphone, Edit2, Trash2, X, Check, Search, ChevronDown } from 'lucide-react';
+import { Plus, Megaphone, Edit2, Trash2, X, Check, Search, ChevronDown, Calendar, MessageSquare, Clock, Users, Activity, Settings } from 'lucide-react';
 import { usePagination, DesktopPagination } from '../../hooks/usePagination';
 import { TableLoader } from '../../components/ui/TableLoader';
 
@@ -288,14 +288,14 @@ export function AdminAnnouncements() {
           <div className="hidden md:block flex-1 overflow-auto w-full relative">
             {loading && <TableLoader />}
             <table className="w-full text-left border-collapse min-w-full">
-              <thead className="sticky top-0 z-40 bg-[#E6F5F1] shadow-sm">
-                <tr className="text-[10px] font-extrabold text-[#00A86B] uppercase tracking-wider">
-                  <th className="p-4 whitespace-nowrap">Created At</th>
-                  <th className="p-4">Announcement Message</th>
-                  <th className="p-4 whitespace-nowrap">Time Period</th>
-                  <th className="p-4 whitespace-nowrap">User Scope</th>
-                  <th className="p-4 whitespace-nowrap">Status</th>
-                  <th className="p-4 whitespace-nowrap text-center">Actions</th>
+              <thead className="sticky top-0 z-40 bg-green-50 shadow-sm">
+                <tr className="text-xs font-medium text-[#475569] uppercase tracking-wider">
+                  <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5 shrink-0" /><span>Created At</span></div></th>
+                  <th className="py-2 px-3"><div className="flex items-center gap-1.5"><MessageSquare className="w-3.5 h-3.5 shrink-0" /><span>Announcement Message</span></div></th>
+                  <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 shrink-0" /><span>Time Period</span></div></th>
+                  <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><Users className="w-3.5 h-3.5 shrink-0" /><span>User Scope</span></div></th>
+                  <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><Activity className="w-3.5 h-3.5 shrink-0" /><span>Status</span></div></th>
+                  <th className="py-2 px-3 whitespace-nowrap text-center"><div className="flex items-center justify-center gap-1.5"><Settings className="w-3.5 h-3.5 shrink-0" /><span>Actions</span></div></th>
                 </tr>
               </thead>
               <tbody className="text-[12px] text-[#475569]">
@@ -306,8 +306,8 @@ export function AdminAnnouncements() {
                     </td>
                   </tr>
                 ) : (
-                  paginatedData.map(ann => (
-                    <tr key={ann._id} className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors">
+                  paginatedData.map((ann, idx) => (
+                    <tr key={ann._id} className={`border-b border-[#E2E8F0] transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]'}`}>
                       <td className="p-4 align-top">
                         <div className="font-semibold text-[#0F172A] text-[12px]">{fmtDate(ann.createdAt)}</div>
                         <div className="text-[#94A3B8] text-[11px] mt-0.5">{fmtTime(ann.createdAt)}</div>

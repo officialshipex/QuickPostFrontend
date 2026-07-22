@@ -505,9 +505,9 @@ export function CRMShipmentListing() {
                 {showLastUpdate && <col style={{ width: '180px' }} />}
                 <col style={{ width: '80px' }} />
               </colgroup>
-              <thead className="sticky top-0 z-40 shadow-sm bg-[#E6F5F1]">
-                <tr className="bg-[#E6F5F1] text-[11px] font-medium text-[#00A86B] uppercase tracking-wider whitespace-nowrap">
-                  <th className="px-2 py-3 text-center align-middle">
+              <thead className="sticky top-0 z-40 shadow-sm bg-green-50">
+                <tr className="bg-green-50 text-[11px] font-medium text-[#475569] uppercase tracking-wider whitespace-nowrap">
+                  <th className="py-2 px-3 text-center align-middle">
                     <input type="checkbox" checked={selectedOrders.length === paginated.length && paginated.length > 0} onChange={toggleAll} className="rounded border-[#00A86B] accent-[#00A86B] w-3.5 h-3.5" />
                   </th>
                   <th className="px-2 py-3 text-left align-middle">
@@ -536,7 +536,7 @@ export function CRMShipmentListing() {
                   </th>
                   <th
                     ref={ageingLegendRef}
-                    className="px-2 py-3 text-left align-middle relative cursor-pointer hover:bg-[#D1F0E8] transition-colors"
+                    className="py-2 px-3 text-left align-middle relative cursor-pointer hover:bg-[#D1F0E8] transition-colors"
                     onClick={() => setShowAgeingLegend(!showAgeingLegend)}
                   >
                     <div className="flex items-center gap-1"><Clock className="w-3.5 h-3.5 shrink-0"/><span>Ageing</span></div>
@@ -552,7 +552,7 @@ export function CRMShipmentListing() {
                       </div>
                     )}
                   </th>
-                  <th className="px-2 py-3 text-center align-middle">
+                  <th className="py-2 px-3 text-center align-middle">
                     <div className="flex items-center justify-center gap-1">
                       <Check className="w-3.5 h-3.5 shrink-0"/>
                       <span>Status</span>
@@ -566,7 +566,7 @@ export function CRMShipmentListing() {
                     </div>
                   </th>
                   {showLastUpdate && (
-                    <th className="px-3 py-3 text-left align-middle">
+                    <th className="py-2 px-3 text-left align-middle">
                       <div className="flex items-center gap-1">
                         <History className="w-3.5 h-3.5 shrink-0"/>
                         <span>Last Update</span>

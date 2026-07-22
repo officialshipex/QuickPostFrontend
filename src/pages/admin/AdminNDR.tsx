@@ -567,27 +567,27 @@ export function AdminNDR() {
           <div className="flex-1 overflow-auto w-full relative">
             {loading && <TableLoader />}
             <table className="w-full text-left border-collapse min-w-full">
-                <thead className="sticky top-0 z-40 bg-[#E6F5F1] shadow-sm">
-                  <tr className="text-xs font-medium text-[#00A86B] uppercase tracking-wider">
-                    <th className="p-3 w-10">
+                <thead className="sticky top-0 z-40 bg-green-50 shadow-sm">
+                  <tr className="text-xs font-medium text-[#475569] uppercase tracking-wider">
+                    <th className="py-2 px-3 w-10">
                       <input type="checkbox" checked={selectedOrders.length === orders.length && orders.length > 0}
                         onChange={toggleAll} className="rounded border-[#00A86B] accent-[#00A86B] w-3.5 h-3.5" />
                     </th>
                     {isAdminView && (
-                      <th className="p-3 whitespace-nowrap">
+                      <th className="py-2 px-3 whitespace-nowrap">
                         <div className="flex items-center gap-1.5"><User className="w-3.5 h-3.5 shrink-0" /><span>User</span></div>
                       </th>
                     )}
-                    <th className="p-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 shrink-0" /><span>Order</span></div></th>
-                    <th className="p-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><Package className="w-3.5 h-3.5 shrink-0" /><span>Product</span></div></th>
-                    <th className="p-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><IndianRupee className="w-3.5 h-3.5 shrink-0" /><span>Payment</span></div></th>
-                    <th className="p-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><User className="w-3.5 h-3.5 shrink-0" /><span>Customer</span></div></th>
-                    <th className="p-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 shrink-0" /><span>Pickup</span></div></th>
-                    <th className="p-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><Truck className="w-3.5 h-3.5 shrink-0" /><span>Shipment</span></div></th>
-                    <th className="p-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 shrink-0" /><span>Status</span></div></th>
-                    <th className="p-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5 shrink-0" /><span>NDR Reason</span></div></th>
+                    <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 shrink-0" /><span>Order</span></div></th>
+                    <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><Package className="w-3.5 h-3.5 shrink-0" /><span>Product</span></div></th>
+                    <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><IndianRupee className="w-3.5 h-3.5 shrink-0" /><span>Payment</span></div></th>
+                    <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><User className="w-3.5 h-3.5 shrink-0" /><span>Customer</span></div></th>
+                    <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 shrink-0" /><span>Pickup</span></div></th>
+                    <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><Truck className="w-3.5 h-3.5 shrink-0" /><span>Shipment</span></div></th>
+                    <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 shrink-0" /><span>Status</span></div></th>
+                    <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5 shrink-0" /><span>NDR Reason</span></div></th>
                     {showActionsColumn && (
-                      <th className="p-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><Settings className="w-3.5 h-3.5 shrink-0" /><span>Actions</span></div></th>
+                      <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><Settings className="w-3.5 h-3.5 shrink-0" /><span>Actions</span></div></th>
                     )}
                   </tr>
                 </thead>
@@ -598,16 +598,16 @@ export function AdminNDR() {
                         No orders found for <span className="font-bold text-[#0F172A]">{activeTab}</span>
                       </td>
                     </tr>
-                  ) : orders.map(order => (
-                    <tr key={order._id} className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors group">
-                      <td className="p-3">
+                  ) : orders.map((order, idx) => (
+                    <tr key={order._id} className={`border-b border-[#E2E8F0] transition-colors group ${idx % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]'}`}>
+                      <td className="p-4">
                         <input type="checkbox" checked={selectedOrders.includes(order._id)}
                           onChange={() => toggleSelect(order._id)} className="rounded border-gray-300 accent-[#00A86B] w-3.5 h-3.5" />
                       </td>
 
                       {/* User — admin view only */}
                       {isAdminView && (
-                        <td className="p-3">
+                        <td className="p-4">
                           <div className="text-xs font-semibold text-[#00A86B]">{order.userUserId}</div>
                           <TruncatedText text={order.userName} maxLength={20} className="text-sm font-semibold text-[#0F172A] mt-0.5 max-w-[140px]" />
                           <TruncatedText text={order.userEmail} maxLength={25} className="text-xs font-normal text-[#94A3B8] max-w-[140px]" />
@@ -615,7 +615,7 @@ export function AdminNDR() {
                       )}
 
                       {/* Order */}
-                      <td className="p-3">
+                      <td className="p-4">
                         <div className="text-[12px] font-semibold text-[#00A86B]">{order.orderId}</div>
                         <div className="text-[12px] font-normal text-[#94A3B8] mt-0.5">{order.date}</div>
                         <span className="px-2 py-0.5 rounded-full border border-blue-200 text-blue-600 font-semibold text-[10px] bg-blue-50/50 mt-1 inline-block">
@@ -625,7 +625,7 @@ export function AdminNDR() {
 
                       {/* Product */}
                       <td
-                        className="p-3"
+                        className="p-4"
                         onMouseEnter={(e) => {
                           if (order.products.length === 0) return;
                           const rect = e.currentTarget.getBoundingClientRect();
@@ -639,7 +639,7 @@ export function AdminNDR() {
                       </td>
 
                       {/* Payment */}
-                      <td className="p-3">
+                      <td className="p-4">
                         <div className="text-[12px] font-normal text-[#0F172A]">&#8377;{Number(order.payment).toLocaleString('en-IN')}</div>
                         <span className={`px-2 py-0.5 rounded-full border font-semibold text-[10px] mt-1 inline-block ${order.paymentType === 'COD' ? 'border-orange-200 text-orange-600 bg-orange-50/50' : 'border-blue-200 text-blue-600 bg-blue-50/50'}`}>
                           {order.paymentType}
@@ -647,7 +647,7 @@ export function AdminNDR() {
                       </td>
 
                       {/* Customer */}
-                      <td className="p-3">
+                      <td className="p-4">
                         <div
                           className="text-[#0F172A] text-[12px] font-normal underline decoration-dotted underline-offset-2 hover:text-[#00A86B] cursor-help inline-block truncate max-w-[120px]"
                           onMouseEnter={e => setHoveredCustomer({ rect: e.currentTarget.getBoundingClientRect(), name: order.customerName, address: order.customerAddress, city: order.customerCity, state: order.customerState, pinCode: order.customerPinCode, email: order.customerEmail })}
@@ -658,7 +658,7 @@ export function AdminNDR() {
                       </td>
 
                       {/* Pickup */}
-                      <td className="p-3">
+                      <td className="p-4">
                         <div
                           className="text-[#64748B] text-[12px] font-normal underline decoration-dotted underline-offset-2 hover:text-[#0F172A] cursor-help inline-block truncate max-w-[120px]"
                           onMouseEnter={e => setHoveredPickup({ rect: e.currentTarget.getBoundingClientRect(), name: order.pickupName, address: order.pickupAddress })}
@@ -668,14 +668,14 @@ export function AdminNDR() {
                       </td>
 
                       {/* Shipment */}
-                      <td className="p-3">
+                      <td className="p-4">
                         <div className="text-[12px] font-semibold text-[#00A86B]">{order.courier}</div>
                         <div className="text-[12px] font-normal text-[#94A3B8] mt-0.5">Booked On | {order.bookedDate}</div>
                         <div className="text-[12px] font-semibold text-[#00A86B] underline mt-0.5 hover:text-[#009B63] cursor-pointer truncate max-w-[120px]">{order.awb}</div>
                       </td>
 
                       {/* Status */}
-                      <td className="p-3">
+                      <td className="p-4">
                         <span className={getStatusBadgeClass(order.status)}>{order.status}</span>
                       </td>
 
@@ -702,7 +702,7 @@ export function AdminNDR() {
 
                       {/* Actions */}
                       {showActionsColumn && (
-                        <td className="p-3">
+                        <td className="p-4">
                           <div className="flex items-center gap-1.5">
                             {renderTakeActionButton(order)}
                           </div>

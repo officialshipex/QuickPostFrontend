@@ -581,28 +581,28 @@ export function AdminUsers() {
           <div className="flex-1 overflow-auto w-full relative">
             {isLoading && <TableLoader />}
             <table className="w-full text-left border-collapse min-w-[1300px]">
-              <thead className="sticky top-0 z-40 bg-[#E6F5F1] shadow-sm">
-                <tr className="text-xs font-medium text-[#00A86B] uppercase tracking-wider">
-                  <th className="p-3 w-10">
+              <thead className="sticky top-0 z-40 bg-green-50 shadow-sm">
+                <tr className="text-xs font-medium text-[#475569] uppercase tracking-wider">
+                  <th className="py-2 px-3 w-10">
                     <input type="checkbox" checked={selectedIds.length === filteredUsers.length && filteredUsers.length > 0} onChange={toggleAll} className="rounded border-[#00A86B] accent-[#00A86B] w-3.5 h-3.5" />
                   </th>
-                  <th className="p-3 whitespace-nowrap"><User className="w-3.5 h-3.5 inline mr-1" /> User Details</th>
-                  <th className="p-3 whitespace-nowrap"><UserCheck className="w-3.5 h-3.5 inline mr-1" /> KYC Status</th>
-                  <th className="p-3 whitespace-nowrap"><CreditCard className="w-3.5 h-3.5 inline mr-1" /> Rate Card</th>
-                  <th className="p-3 whitespace-nowrap"><ShieldAlert className="w-3.5 h-3.5 inline mr-1" /> Tier</th>
-                  <th className="p-3 whitespace-nowrap"><IndianRupee className="w-3.5 h-3.5 inline mr-1" /> Balance</th>
-                  <th className="p-3 whitespace-nowrap"><User className="w-3.5 h-3.5 inline mr-1" /> Account Manager</th>
-                  <th className="p-3 whitespace-nowrap"><Clock className="w-3.5 h-3.5 inline mr-1" /> Registration Date</th>
-                  <th className="p-3 whitespace-nowrap"><MoreVertical className="w-3.5 h-3.5 inline mr-1" /> Order Activity</th>
-                  <th className="p-3 whitespace-nowrap text-right pr-6"><Settings className="w-3.5 h-3.5 inline mr-1" /> Actions</th>
+                  <th className="py-2 px-3 whitespace-nowrap"><User className="w-3.5 h-3.5 inline mr-1" /> User Details</th>
+                  <th className="py-2 px-3 whitespace-nowrap"><UserCheck className="w-3.5 h-3.5 inline mr-1" /> KYC Status</th>
+                  <th className="py-2 px-3 whitespace-nowrap"><CreditCard className="w-3.5 h-3.5 inline mr-1" /> Rate Card</th>
+                  <th className="py-2 px-3 whitespace-nowrap"><ShieldAlert className="w-3.5 h-3.5 inline mr-1" /> Tier</th>
+                  <th className="py-2 px-3 whitespace-nowrap"><IndianRupee className="w-3.5 h-3.5 inline mr-1" /> Balance</th>
+                  <th className="py-2 px-3 whitespace-nowrap"><User className="w-3.5 h-3.5 inline mr-1" /> Account Manager</th>
+                  <th className="py-2 px-3 whitespace-nowrap"><Clock className="w-3.5 h-3.5 inline mr-1" /> Registration Date</th>
+                  <th className="py-2 px-3 whitespace-nowrap"><MoreVertical className="w-3.5 h-3.5 inline mr-1" /> Order Activity</th>
+                  <th className="py-2 px-3 whitespace-nowrap text-right"><Settings className="w-3.5 h-3.5 inline mr-1" /> Actions</th>
                 </tr>
               </thead>
               <tbody className="text-[11px] text-[#475569]">
-                {filteredUsers.length > 0 ? filteredUsers.map((user) => {
+                {filteredUsers.length > 0 ? filteredUsers.map((user, uidx) => {
                   const uid = String(user.id);
                   const kycLabel = user.kycStatus ? 'Verified' : 'Pending';
                   return (
-                    <tr key={uid} className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors group">
+                    <tr key={uid} className={`border-b border-[#E2E8F0] transition-colors group ${uidx % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]'}`}>
                       <td className="p-3 align-top pt-4">
                         <input type="checkbox" checked={selectedIds.includes(uid)} onChange={() => toggleSelect(uid)} className="rounded border-gray-300 accent-[#00A86B] w-3.5 h-3.5" />
                       </td>

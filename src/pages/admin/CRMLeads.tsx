@@ -129,17 +129,17 @@ export function CRMLeads() {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[900px]">
             <thead>
-              <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-xs uppercase tracking-wider font-medium text-[#64748B]">
-                <th className="p-3 pl-4">Lead / Business</th>
-                <th className="p-3">Contact</th>
-                <th className="p-3">City</th>
-                <th className="p-3">Stage</th>
-                <th className="p-3">Source</th>
-                <th className="p-3">Expected Volume</th>
-                <th className="p-3">Assigned To</th>
-                <th className="p-3">Last Activity</th>
-                <th className="p-3">Follow-up</th>
-                <th className="p-3">Notes</th>
+              <tr className="bg-green-50 border-b border-[#E2E8F0] text-xs uppercase tracking-wider font-medium text-[#475569]">
+                <th className="py-2 px-3">Lead / Business</th>
+                <th className="py-2 px-3">Contact</th>
+                <th className="py-2 px-3">City</th>
+                <th className="py-2 px-3">Stage</th>
+                <th className="py-2 px-3">Source</th>
+                <th className="py-2 px-3">Expected Volume</th>
+                <th className="py-2 px-3">Assigned To</th>
+                <th className="py-2 px-3">Last Activity</th>
+                <th className="py-2 px-3">Follow-up</th>
+                <th className="py-2 px-3">Notes</th>
               </tr>
             </thead>
             <tbody className="text-xs text-[#475569]">

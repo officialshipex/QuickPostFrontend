@@ -87,28 +87,24 @@ export function CRMCourierPartners() {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[1000px]">
             <thead>
-              <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-xs uppercase tracking-wider font-medium text-[#64748B]">
-                <th className="p-3 pl-4">Courier</th>
-                <th className="p-3">Type</th>
-                <th className="p-3">Coverage</th>
-                <th className="p-3">Status</th>
-                <th className="p-3">Delivery Rate</th>
-                <th className="p-3">Avg Days</th>
-                <th className="p-3">NDR Rate</th>
-                <th className="p-3">RTO Rate</th>
-                <th className="p-3">Active AWBs</th>
-                <th className="p-3">Total AWBs</th>
-                <th className="p-3">Weight Cap</th>
-                <th className="p-3">RM</th>
+              <tr className="bg-green-50 border-b border-[#E2E8F0] text-xs uppercase tracking-wider font-medium text-[#475569]">
+                <th className="py-2 px-3">Courier</th>
+                <th className="py-2 px-3">Type</th>
+                <th className="py-2 px-3">Coverage</th>
+                <th className="py-2 px-3">Status</th>
+                <th className="py-2 px-3">Delivery Rate</th>
+                <th className="py-2 px-3">Avg Days</th>
+                <th className="py-2 px-3">NDR Rate</th>
+                <th className="py-2 px-3">RTO Rate</th>
+                <th className="py-2 px-3">Active AWBs</th>
+                <th className="py-2 px-3">SLA Breaches</th>
+                <th className="py-2 px-3">Weight Cap</th>
+                <th className="py-2 px-3">RM</th>
               </tr>
             </thead>
             <tbody className="text-xs text-[#475569]">
-              {loading && filtered.length === 0 ? (
-                <tr><td colSpan={12} className="p-8 text-center"><Loader2 className="w-5 h-5 animate-spin mx-auto text-[#00A86B]" /></td></tr>
-              ) : filtered.length === 0 ? (
-                <tr><td colSpan={12} className="p-8 text-center text-[#64748B] font-medium">No courier partners found</td></tr>
-              ) : filtered.map((c, i) => (
-                <tr key={i} className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors cursor-pointer">
+              {filtered.map((c, i) => (
+                <tr key={i} className={`border-b border-[#E2E8F0] transition-colors cursor-pointer ${i % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]'}`}>
                   <td className="p-3 pl-4">
                     <div className="font-bold text-[#0F172A]">{c.name}</div>
                     <div className="text-[10px] text-[#94A3B8]">{c.id}</div>

@@ -380,20 +380,20 @@ export function AdminSupport() {
         <div className="flex-1 overflow-y-auto overflow-x-hidden w-full relative">
           <table className="w-full text-left border-collapse min-w-full">
             <thead>
-              <tr className="bg-[#E6F5F1] text-xs font-medium text-[#00A86B] uppercase tracking-wider">
-                <th className="p-4"><User className="w-3.5 h-3.5 inline mr-1"/> Ticket ID</th>
-                <th className="p-4"><Package className="w-3.5 h-3.5 inline mr-1"/> AWB(s)</th>
-                <th className="p-4"><FileText className="w-3.5 h-3.5 inline mr-1"/> Subcategory</th>
-                <th className="p-4"><FileText className="w-3.5 h-3.5 inline mr-1"/> Ticket Status</th>
-                <th className="p-4"><Calendar className="w-3.5 h-3.5 inline mr-1"/> Resolution Due By</th>
-                <th className="p-4"><Calendar className="w-3.5 h-3.5 inline mr-1"/> Last Updated</th>
-                <th className="p-4 text-right pr-6"><User className="w-3.5 h-3.5 inline mr-1"/> Actions</th>
+              <tr className="bg-green-50 text-xs font-medium text-[#475569] uppercase tracking-wider">
+                <th className="py-2 px-3"><User className="w-3.5 h-3.5 inline mr-1"/> Ticket ID</th>
+                <th className="py-2 px-3"><Package className="w-3.5 h-3.5 inline mr-1"/> AWB(s)</th>
+                <th className="py-2 px-3"><FileText className="w-3.5 h-3.5 inline mr-1"/> Subcategory</th>
+                <th className="py-2 px-3"><FileText className="w-3.5 h-3.5 inline mr-1"/> Ticket Status</th>
+                <th className="py-2 px-3"><Calendar className="w-3.5 h-3.5 inline mr-1"/> Resolution Due By</th>
+                <th className="py-2 px-3"><Calendar className="w-3.5 h-3.5 inline mr-1"/> Last Updated</th>
+                <th className="py-2 px-3 text-right"><User className="w-3.5 h-3.5 inline mr-1"/> Actions</th>
               </tr>
             </thead>
             <tbody className="text-[11px] text-[#475569]">
               {paginatedTickets.length > 0 ? (
                 paginatedTickets.map((ticket, i) => (
-                  <tr key={i} className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors group">
+                  <tr key={i} className={`border-b border-[#E2E8F0] transition-colors group ${i % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]'}`}>
                     <td className="p-4 align-top pt-4 text-[#0F172A]">
                       <div className="text-xs font-semibold text-[#00A86B] mb-0.5">{ticket.id}</div>
                       <div className="table-date">{ticket.date}</div>

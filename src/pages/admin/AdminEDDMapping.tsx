@@ -290,17 +290,17 @@ export function AdminEDDMapping() {
           <div className="flex-1 overflow-auto w-full relative">
             {loading && <TableLoader />}
             <table className="w-full text-left border-collapse min-w-[1000px]">
-              <thead className="sticky top-0 z-40 bg-[#E6F5F1] shadow-sm">
-                <tr className="text-[10px] font-extrabold text-[#00A86B] uppercase tracking-wider">
-                  <th className="p-4 whitespace-nowrap"><LayoutGrid className="w-3.5 h-3.5 inline mr-1" /> Courier</th>
-                  <th className="p-4 whitespace-nowrap"><Truck className="w-3.5 h-3.5 inline mr-1" /> Courier Services</th>
-                  {ZONES.map(z => <th key={z} className="p-4 whitespace-nowrap text-center"><MapPin className="w-3.5 h-3.5 inline mr-1" />Zone {z}</th>)}
-                  <th className="p-4 whitespace-nowrap text-right pr-6"><Settings className="w-3.5 h-3.5 inline mr-1" /> Actions</th>
+              <thead className="sticky top-0 z-40 bg-green-50 shadow-sm">
+                <tr className="text-xs font-medium text-[#475569] uppercase tracking-wider">
+                  <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><LayoutGrid className="w-3.5 h-3.5 shrink-0" /><span>Courier</span></div></th>
+                  <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><Truck className="w-3.5 h-3.5 shrink-0" /><span>Courier Services</span></div></th>
+                  {ZONES.map(z => <th key={z} className="py-2 px-3 whitespace-nowrap text-center"><div className="flex items-center justify-center gap-1.5"><MapPin className="w-3.5 h-3.5 shrink-0" /><span>Zone {z}</span></div></th>)}
+                  <th className="py-2 px-3 whitespace-nowrap text-right"><div className="flex items-center justify-end gap-1.5"><Settings className="w-3.5 h-3.5 shrink-0" /><span>Actions</span></div></th>
                 </tr>
               </thead>
               <tbody className="text-[11px] text-[#475569] font-bold">
-                {!loading && paginatedData.map(row => (
-                  <tr key={row._id} className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors">
+                {!loading && paginatedData.map((row, idx) => (
+                  <tr key={row._id} className={`border-b border-[#E2E8F0] transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]'}`}>
                     <td className="p-4">
                       <div className="flex items-center gap-3">
                         <div className="w-12 h-12 flex items-center justify-center shrink-0">

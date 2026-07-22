@@ -119,23 +119,23 @@ export function CRMEscalations() {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[950px]">
             <thead>
-              <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-xs uppercase tracking-wider font-medium text-[#64748B]">
-                <th className="p-3 pl-4">Ticket ID</th>
-                <th className="p-3">Seller</th>
-                <th className="p-3">AWB</th>
-                <th className="p-3">Courier</th>
-                <th className="p-3">Category</th>
-                <th className="p-3">Priority</th>
-                <th className="p-3">Status</th>
-                <th className="p-3">SLA</th>
-                <th className="p-3">Assigned To</th>
-                <th className="p-3">Created</th>
-                <th className="p-3">Last Updated</th>
+              <tr className="bg-green-50 border-b border-[#E2E8F0] text-xs uppercase tracking-wider font-medium text-[#475569]">
+                <th className="py-2 px-3">Ticket ID</th>
+                <th className="py-2 px-3">Seller</th>
+                <th className="py-2 px-3">AWB</th>
+                <th className="py-2 px-3">Courier</th>
+                <th className="py-2 px-3">Category</th>
+                <th className="py-2 px-3">Priority</th>
+                <th className="py-2 px-3">Status</th>
+                <th className="py-2 px-3">SLA</th>
+                <th className="py-2 px-3">Assigned To</th>
+                <th className="py-2 px-3">Created</th>
+                <th className="py-2 px-3">Last Updated</th>
               </tr>
             </thead>
             <tbody className="text-xs text-[#475569]">
               {paginated.map((ticket, i) => (
-                <tr key={i} className={`border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors cursor-pointer ${ticket.breached && ticket.status !== 'Resolved' && ticket.status !== 'Closed' ? 'bg-red-50/30' : ''}`}>
+                <tr key={i} className={`border-b border-[#E2E8F0] transition-colors cursor-pointer ${ticket.breached && ticket.status !== 'Resolved' && ticket.status !== 'Closed' ? 'bg-red-50/30' : (i % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]')}`}>
                   <td className="p-3 pl-4 font-bold text-[#0F172A] font-mono text-[11px]">{ticket.id}</td>
                   <td className="p-3 font-medium">{ticket.seller}</td>
                   <td className="p-3 font-mono text-[10px] text-[#00A86B]">{ticket.awb.slice(0, 14)}...</td>

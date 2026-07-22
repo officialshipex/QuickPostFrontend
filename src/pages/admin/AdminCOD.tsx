@@ -758,7 +758,7 @@ export function AdminCOD() {
     <tr><td colSpan={cols} className="p-8 text-center text-[#64748B] font-medium">{msg}</td></tr>
   );
 
-  const thBase = 'p-3 whitespace-nowrap text-xs font-medium text-[#00A86B] uppercase tracking-wider';
+  const thBase = 'py-2 px-3 whitespace-nowrap text-xs font-medium text-[#475569] uppercase tracking-wider';
 
   return (
     <AdminLayout>
@@ -1145,9 +1145,9 @@ export function AdminCOD() {
             )}
             <div className="hidden md:block flex-1 overflow-y-auto overflow-x-auto no-scrollbar">
               <table className="w-full text-left border-collapse min-w-[900px]">
-                <thead className="sticky top-0 z-30 bg-[#E6F5F1] shadow-sm">
+                <thead className="sticky top-0 z-30 bg-green-50 shadow-sm">
                   <tr>
-                    <th className="p-3 w-10">
+                    <th className="py-2 px-3 w-10">
                       <input type="checkbox" checked={selectedOrders.length === paginatedOrders.length && paginatedOrders.length > 0} onChange={toggleAll} className="rounded accent-[#00A86B] w-3.5 h-3.5" />
                     </th>
                     {isAdminView && <th className={thBase}><User className="w-3.5 h-3.5 inline mr-1" />User Details</th>}
@@ -1160,32 +1160,32 @@ export function AdminCOD() {
                 <tbody className="text-[11px] text-[#475569]">
                   {paginatedOrders.length === 0 ? (
                     <EmptyRow cols={isAdminView ? 6 : 5} msg="No COD orders found" />
-                  ) : paginatedOrders.map(order => (
-                    <tr key={order.id} className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors">
-                      <td className="p-3">
+                  ) : paginatedOrders.map((order, idx) => (
+                    <tr key={order.id} className={`border-b border-[#E2E8F0] transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]'}`}>
+                      <td className="p-4">
                         <input type="checkbox" checked={selectedOrders.includes(order.id)} onChange={() => toggleSelect(order.id)} className="rounded accent-[#00A86B] w-3.5 h-3.5" />
                       </td>
                       {isAdminView && (
-                        <td className="p-3">
+                        <td className="p-4">
                           <div className="text-[11px] font-semibold text-[#00A86B]">{order.userId}</div>
                           <TruncatedText text={order.userName} maxLength={20} className="text-sm font-semibold text-[#0F172A] mt-0.5 max-w-[160px]" />
                           <TruncatedText text={order.userEmail} maxLength={25} className="text-xs font-normal text-[#94A3B8] max-w-[180px]" />
                         </td>
                       )}
-                      <td className="p-3">
+                      <td className="p-4">
                         {order.orderID ? renderCopyable(order.orderID, 'Order ID', "text-xs font-semibold text-[#00A86B] cursor-pointer") : <div className="text-xs font-semibold text-[#00A86B]">—</div>}
                       </td>
-                      <td className="p-3">
+                      <td className="p-4">
                         <div className="text-xs font-semibold text-[#00A86B]">{order.courier}</div>
                         <div className="text-xs font-normal text-[#94A3B8] mt-0.5">Delivered On : {withOrdinalSuffix(order.date)}</div>
                         <div className="mt-0.5">
                           {order.awb ? renderCopyable(order.awb, 'AWB', "text-xs font-semibold text-[#00A86B] hover:underline cursor-pointer") : <div className="text-xs font-semibold text-[#00A86B]">—</div>}
                         </div>
                       </td>
-                      <td className="p-3">
+                      <td className="p-4">
                         <div className="font-normal text-[#0F172A] text-xs">{fmtCurrency(order.codAmount)}</div>
                       </td>
-                      <td className="p-3">
+                      <td className="p-4">
                         <span className={getStatusBadgeClass(order.status)}>{order.status}</span>
                       </td>
                     </tr>
@@ -1366,9 +1366,9 @@ export function AdminCOD() {
             )}
             <div className="hidden md:block flex-1 overflow-y-auto overflow-x-auto no-scrollbar">
               <table className="w-full text-left border-collapse min-w-[1200px]">
-                <thead className="sticky top-0 z-30 bg-[#E6F5F1] shadow-sm">
+                <thead className="sticky top-0 z-30 bg-green-50 shadow-sm">
                   <tr>
-                    <th className="p-3 w-10">
+                    <th className="py-2 px-3 w-10">
                       <input type="checkbox" checked={selectedCodOrders.length === filteredSellerRemittanceList.length && filteredSellerRemittanceList.length > 0} onChange={toggleAllCod} className="rounded accent-[#00A86B] w-3.5 h-3.5" />
                     </th>
                     {isAdminView && <th className={thBase}><User className="w-3.5 h-3.5 inline mr-1" />User</th>}
@@ -1385,18 +1385,18 @@ export function AdminCOD() {
                 <tbody className="text-[11px] text-[#475569]">
                   {filteredSellerRemittanceList.length === 0 ? (
                     <EmptyRow cols={isAdminView ? 10 : 9} msg="No seller remittance records found" />
-                  ) : filteredSellerRemittanceList.map(order => (
-                    <tr key={order.id || order.awb} className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors">
-                      <td className="p-3">
+                  ) : filteredSellerRemittanceList.map((order, idx) => (
+                    <tr key={order.id || order.awb} className={`border-b border-[#E2E8F0] transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]'}`}>
+                      <td className="p-4">
                         <input type="checkbox" checked={selectedCodOrders.includes(order.awb)} onChange={() => toggleSelectCod(order.awb)} className="rounded accent-[#00A86B] w-3.5 h-3.5" />
                       </td>
                       {isAdminView && (
-                        <td className="p-3">
+                        <td className="p-4">
                           <TruncatedText text={order.userName} maxLength={20} className="text-sm font-semibold text-[#0F172A] max-w-[160px]" />
                           <TruncatedText text={order.userEmail} maxLength={25} className="text-xs font-normal text-[#94A3B8] max-w-[180px]" />
                         </td>
                       )}
-                      <td className="p-3">
+                      <td className="p-4">
                         {order.awb ? (
                           <div className="flex items-center gap-1.5 group/copy w-max">
                             <TruncatedText text={order.awb} maxLength={6} className="text-xs font-semibold text-[#00A86B] cursor-default" />
@@ -1431,7 +1431,7 @@ export function AdminCOD() {
                       <td className="p-3 font-normal text-xs text-[#64748B]">{fmtCurrency(order.adjustedAmount)}</td>
                       <td className="p-3 font-normal text-xs text-red-700">{fmtCurrency(order.earlyCodCharges)}</td>
                       <td className="p-3 font-normal text-xs text-[#00A86B]">{fmtCurrency(order.remittanceAmount)}</td>
-                      <td className="p-3">
+                      <td className="p-4">
                         <span className={getStatusBadgeClass(order.status)}>{order.status}</span>
                       </td>
                     </tr>
@@ -1614,9 +1614,9 @@ export function AdminCOD() {
             )}
             <div className="hidden md:block flex-1 overflow-y-auto overflow-x-auto no-scrollbar">
               <table className="w-full text-left border-collapse min-w-[900px]">
-                <thead className="sticky top-0 z-30 bg-[#E6F5F1] shadow-sm">
+                <thead className="sticky top-0 z-30 bg-green-50 shadow-sm">
                   <tr>
-                    <th className="p-3 w-10">
+                    <th className="py-2 px-3 w-10">
                       <input type="checkbox" checked={selectedCourierCodOrders.length === filteredCourierRemittanceList.length && filteredCourierRemittanceList.length > 0} onChange={toggleAllCourierCod} className="rounded accent-[#00A86B] w-3.5 h-3.5" />
                     </th>
                     {isAdminView && <th className={thBase}><User className="w-3.5 h-3.5 inline mr-1" />User Details</th>}
@@ -1629,32 +1629,32 @@ export function AdminCOD() {
                 <tbody className="text-[11px] text-[#475569]">
                   {filteredCourierRemittanceList.length === 0 ? (
                     <EmptyRow cols={isAdminView ? 6 : 5} msg="No courier remittance records found" />
-                  ) : filteredCourierRemittanceList.map(order => (
-                    <tr key={order.id} className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors">
-                      <td className="p-3">
+                  ) : filteredCourierRemittanceList.map((order, idx) => (
+                    <tr key={order.id} className={`border-b border-[#E2E8F0] transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]'}`}>
+                      <td className="p-4">
                         <input type="checkbox" checked={selectedCourierCodOrders.includes(order.id)} onChange={() => toggleSelectCourierCod(order.id)} className="rounded accent-[#00A86B] w-3.5 h-3.5" />
                       </td>
                       {isAdminView && (
-                        <td className="p-3">
+                        <td className="p-4">
                           <div className="text-xs font-semibold text-[#00A86B]">{order.userId}</div>
                           <TruncatedText text={order.userName} maxLength={20} className="text-sm font-semibold text-[#0F172A] mt-0.5 max-w-[160px]" />
                           <TruncatedText text={order.userEmail} maxLength={25} className="text-xs font-normal text-[#94A3B8] max-w-[180px]" />
                         </td>
                       )}
-                      <td className="p-3">
+                      <td className="p-4">
                         {order.orderID ? renderCopyable(order.orderID, 'Order ID', "text-xs font-semibold text-[#00A86B] cursor-pointer") : <div className="text-xs font-semibold text-[#00A86B]">—</div>}
                       </td>
-                      <td className="p-3">
+                      <td className="p-4">
                         <div className="text-xs font-semibold text-[#00A86B]">{order.courierName}</div>
                         <div className="text-xs font-normal text-[#94A3B8] mt-0.5">Delivered On : {withOrdinalSuffix(order.date)}</div>
                         <div className="mt-0.5">
                           {order.awb ? renderCopyable(order.awb, 'AWB', "text-xs font-semibold text-[#00A86B] hover:underline cursor-pointer", () => navigate('/admin/tracking', { state: { awb: order.awb } })) : <div className="text-xs font-semibold text-[#00A86B]">—</div>}
                         </div>
                       </td>
-                      <td className="p-3">
+                      <td className="p-4">
                         <div className="font-normal text-[#0F172A] text-xs">{fmtCurrency(order.codAmount)}</div>
                       </td>
-                      <td className="p-3">
+                      <td className="p-4">
                         <span className={getStatusBadgeClass(order.status)}>{order.status}</span>
                       </td>
                     </tr>
