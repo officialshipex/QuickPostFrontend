@@ -209,6 +209,8 @@ export function AdminProfile() {
           ...prev,
           name: fresh.fullname || prev.name,
           email: fresh.email || prev.email,
+          id: String(fresh.userId || fresh._id || prev.id),
+          regDate: fmtProfileDate(fresh.createdAt) || prev.regDate,
           phone: fresh.phoneNumber || prev.phone,
           business: fresh.company || prev.business,
           balance: fmtProfileCurrency(fresh.walletAmount),

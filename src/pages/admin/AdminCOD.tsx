@@ -17,10 +17,14 @@ import { useTableLoader } from '../../hooks/useTableLoader';
 import { usePagination, DesktopPagination } from '../../hooks/usePagination';
 import { useMobilePaginationBar } from '../../hooks/useMobilePaginationBar';
 
-const MAIN_TABS = [
+const ADMIN_TABS = [
   { name: 'All COD Orders' },
   { name: 'Seller COD Remittance' },
-  { name: 'Courier COD Remittance' }
+  { name: 'Courier COD Remittance' },
+];
+
+const USER_TABS = [
+  { name: 'COD Remittance' },
 ];
 
 // Data mapping helpers â€" field names must match exact API response keys
@@ -131,8 +135,9 @@ const formatCreatedAt = (rawDate: string) => {
 
 export function AdminCOD() {
   const navigate = useNavigate();
-  const { isAdmin, adminTab, loadingAdminTab } = useAdminTab();
+  const { isAdmin, adminTab, loadingAdminTab, currentUserId } = useAdminTab();
   const isAdminView = isAdmin && adminTab;
+  const MAIN_TABS = isAdminView ? ADMIN_TABS : USER_TABS;
 
   // Global search from layout
   const [globalSearchQuery, setGlobalSearchQuery] = useState(
@@ -159,7 +164,9 @@ export function AdminCOD() {
     }
     setActiveTab(tab);
   };
-  useEffect(() => { if (!isAdminView && activeTab !== 'All COD Orders') setActiveTab('All COD Orders'); }, [isAdminView]);
+  useEffect(() => {
+    if (!isAdminView) setActiveTab('COD Remittance');
+  }, [isAdminView]);
 
   // Handle browser back/forward button: switch to the previous tab instead of leaving the page
   useEffect(() => {
@@ -190,7 +197,7 @@ export function AdminCOD() {
   }, [activeTab]);
   const handleRefresh = () => {
     if (activeTab === 'All COD Orders') fetchCodOrders(currentPage);
-    else if (activeTab === 'Seller COD Remittance') fetchSellerRemittance(sellerPage);
+    else if (activeTab === 'Seller COD Remittance' || activeTab === 'COD Remittance') fetchSellerRemittance(sellerPage);
     else fetchCourierRemittance(courierPage);
   };
 
@@ -405,7 +412,11 @@ export function AdminCOD() {
     setIsLoading(true);
     try {
       const params: Record<string, any> = { page, limit: sellerRowsPerPage };
-      if (isAdminView && sellerUserMongoId) params.selectedUserId = sellerUserMongoId;
+      if (isAdminView) {
+        if (sellerUserMongoId) params.selectedUserId = sellerUserMongoId;
+      } else if (currentUserId) {
+        params.selectedUserId = currentUserId;
+      }
       if (sellerRemittanceId) params.remittanceIdFilter = sellerRemittanceId;
       if (codDateStart) params.startDate = toISOStart(codDateStart);
       if (codDateEnd) params.endDate = toISOEnd(codDateEnd);
@@ -427,7 +438,7 @@ export function AdminCOD() {
     } finally {
       setIsLoading(false);
     }
-  }, [sellerUserMongoId, sellerRemittanceId, codDateStart, codDateEnd, selectedCodStatuses, isAdminView, sellerRowsPerPage]);
+  }, [sellerUserMongoId, sellerRemittanceId, codDateStart, codDateEnd, selectedCodStatuses, isAdminView, currentUserId, sellerRowsPerPage]);
 
   const fetchCourierRemittance = useCallback(async (page: number) => {
     setIsLoading(true);
@@ -471,7 +482,8 @@ export function AdminCOD() {
     setCurrentPage(1); setSellerPage(1); setCourierPage(1);
     switch (activeTab) {
       case 'All COD Orders': fetchCodOrders(1); break;
-      case 'Seller COD Remittance': fetchSellerRemittance(1); break;
+      case 'Seller COD Remittance':
+      case 'COD Remittance': fetchSellerRemittance(1); break;
       case 'Courier COD Remittance': fetchCourierRemittance(1); break;
     }
   }, [activeTab, loadingAdminTab]);
@@ -484,7 +496,7 @@ export function AdminCOD() {
   }, [codRowsPerPage]);
 
   useEffect(() => {
-    if (!loadingAdminTab && activeTab === 'Seller COD Remittance') {
+    if (!loadingAdminTab && (activeTab === 'Seller COD Remittance' || activeTab === 'COD Remittance')) {
       setSellerPage(1); fetchSellerRemittance(1);
     }
   }, [sellerRowsPerPage]);
@@ -840,7 +852,7 @@ export function AdminCOD() {
           )}
 
           {/* Mobile Filters + Action Row — Seller COD Remittance */}
-          {activeTab === 'Seller COD Remittance' && (
+          {(activeTab === 'Seller COD Remittance' || activeTab === 'COD Remittance') && (
             <div className="md:hidden px-4 py-3 border-b border-[#E2E8F0] flex items-center justify-between bg-white gap-2">
               <button
                 onClick={() => setIsMobileSellerFiltersOpen(true)}
@@ -870,7 +882,7 @@ export function AdminCOD() {
                         <button onClick={() => { handleExportBankTemplate(); setShowMobileSellerActionMenu(false); }} disabled={bankExportLoading} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] flex items-center gap-2"><FileText className="w-4 h-4 text-blue-500" />{bankExportLoading ? 'Generating…' : 'Export Bank Template'}</button>
                         <button onClick={() => { handleOpenBankResponseUpload(); setShowMobileSellerActionMenu(false); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] flex items-center gap-2"><Upload className="w-4 h-4 text-orange-500" />Upload Bank Response</button>
                         <div className="border-t border-[#E2E8F0] my-1" />
-                        <button onClick={() => { setShowMobileSellerActionMenu(false); handleTransferCOD('seller'); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#00A86B] hover:bg-[#F0FDF4] flex items-center gap-2"><Send className="w-4 h-4" />Transfer COD</button>
+                        {isAdminView && <button onClick={() => { setShowMobileSellerActionMenu(false); handleTransferCOD('seller'); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#00A86B] hover:bg-[#F0FDF4] flex items-center gap-2"><Send className="w-4 h-4" />Transfer COD</button>}
                       </motion.div>
                     )}
                   </AnimatePresence>
@@ -922,7 +934,7 @@ export function AdminCOD() {
             </div>
           )}
 
-          {activeTab === 'Seller COD Remittance' && (
+          {(activeTab === 'Seller COD Remittance' || activeTab === 'COD Remittance') && (
             <>
               <div className="hidden md:flex p-4 border-b border-[#E2E8F0] bg-[#F8FAFC]/30 flex-nowrap overflow-x-auto gap-4 no-scrollbar">
                 <div className="flex-1 min-w-[200px] bg-[#F0F9FF] rounded-xl p-3 border border-[#E0F2FE] flex items-center gap-3">
@@ -1300,7 +1312,7 @@ export function AdminCOD() {
         )}
 
         {/* Seller COD Remittance Tab */}
-        {activeTab === 'Seller COD Remittance' && (
+        {(activeTab === 'Seller COD Remittance' || activeTab === 'COD Remittance') && (
           <>
             {/* Filter Bar — desktop only */}
             <div className="hidden md:flex py-3 px-6 border-b border-[#CBD5F5] flex-wrap items-center gap-3 bg-[#F8FAFC]/50 shrink-0">
@@ -1352,7 +1364,7 @@ export function AdminCOD() {
                     <button onClick={handleExportBankTemplate} disabled={bankExportLoading} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A] flex items-center gap-2"><FileText className="w-4 h-4 text-blue-500" />{bankExportLoading ? 'Generating…' : 'Export Bank Template'}</button>
                     <button onClick={handleOpenBankResponseUpload} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A] flex items-center gap-2"><Upload className="w-4 h-4 text-orange-500" />Upload Bank Response</button>
                     <div className="border-t border-[#E2E8F0] my-1" />
-                    <button onClick={() => { setShowActionMenu(false); handleTransferCOD('seller'); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#00A86B] hover:bg-[#F0FDF4] flex items-center gap-2"><Send className="w-4 h-4" />Transfer COD</button>
+                    {isAdminView && <button onClick={() => { setShowActionMenu(false); handleTransferCOD('seller'); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#00A86B] hover:bg-[#F0FDF4] flex items-center gap-2"><Send className="w-4 h-4" />Transfer COD</button>}
                   </div>
                 )}
               </div>
@@ -1360,7 +1372,7 @@ export function AdminCOD() {
             {selectedCodOrders.length > 0 && (
               <div className="hidden md:flex px-4 py-2 bg-emerald-50 border-b border-emerald-100 items-center gap-3 shrink-0">
                 <span className="text-xs font-bold text-emerald-700">{selectedCodOrders.length} selected</span>
-                <button onClick={() => handleTransferCOD('seller')} className="h-7 px-3 rounded-md bg-[#00A86B] text-white text-xs font-bold shadow-sm hover:bg-[#009B63]">Transfer COD</button>
+                {isAdminView && <button onClick={() => handleTransferCOD('seller')} className="h-7 px-3 rounded-md bg-[#00A86B] text-white text-xs font-bold shadow-sm hover:bg-[#009B63]">Transfer COD</button>}
                 <button onClick={() => setSelectedCodOrders([])} className="text-xs text-[#64748B] hover:text-red-500">Clear</button>
               </div>
             )}
@@ -2315,7 +2327,7 @@ export function AdminCOD() {
           type={activeTab === 'Courier COD Remittance' ? 'courier' : 'seller'}
           onClose={() => { setShowTransferModal(false); setTransferUserId(''); setTransferIds([]); }}
           onSuccess={() => {
-            if (activeTab === 'Seller COD Remittance') fetchSellerRemittance(sellerPage);
+            if ((activeTab === 'Seller COD Remittance' || activeTab === 'COD Remittance')) fetchSellerRemittance(sellerPage);
             else if (activeTab === 'Courier COD Remittance') fetchCourierRemittance(courierPage);
           }}
         />

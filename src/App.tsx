@@ -220,6 +220,7 @@ function App() {
               <Route path="/user/ndr" element={<AdminNDR />} />
               <Route path="/user/ndr/:tabSlug" element={<AdminNDR />} />
               <Route path="/user/wallet" element={<AdminWallet />} />
+              <Route path="/user/cod" element={<AdminCOD />} />
               <Route path="/user/reports" element={<AdminReports />} />
               <Route path="/user/weight-discrepancy" element={<AdminWeightDiscrepancy />} />
               <Route path="/user/weight-discrepancy/:tabSlug" element={<AdminWeightDiscrepancy />} />

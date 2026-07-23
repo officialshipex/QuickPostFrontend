@@ -76,7 +76,7 @@ const MENU_GROUPS: MenuGroup[] = [
     icon: Wallet,
     items: [
       { name: 'Wallet', path: '/admin/wallet', icon: Wallet },
-      { name: 'COD', path: '/admin/cod', icon: Banknote, adminOnly: true },
+      { name: 'COD', path: '/admin/cod', icon: Banknote },
     ]
   },
   {

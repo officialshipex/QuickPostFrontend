@@ -412,7 +412,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                     <span className="text-[10px] font-medium text-[#64748B]">System Role</span>
                   </div>
                 </div>
-                <Link to="/admin/profile" className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A]" onClick={() => setShowProfileMenu(false)}>
+                <Link to={isAdmin ? '/admin/profile' : '/user/profile'} className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A]" onClick={() => setShowProfileMenu(false)}>
                   <User className="w-3.5 h-3.5" /> My Profile
                 </Link>
                 <button
@@ -904,7 +904,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                   <p className="text-[13px] font-bold text-[#0F172A] truncate">{userEmail || '—'}</p>
                 </div>
                 
-                <Link to="/admin/profile" className="flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors" onClick={() => setShowProfileMenu(false)}>
+                <Link to={isAdmin ? '/admin/profile' : '/user/profile'} className="flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors" onClick={() => setShowProfileMenu(false)}>
                   <User className="w-4 h-4 text-[#94A3B8]" /> Profile
                 </Link>
 
