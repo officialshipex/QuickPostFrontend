@@ -113,7 +113,8 @@ function GlobalOrderClickInterceptor() {
           headerText.includes('admin') ||
           headerText.includes('manager') ||
           headerText.includes('ticket') ||
-          headerText.includes('referral')
+          headerText.includes('referral') ||
+          headerText.includes('remittance')
         ) {
           return;
         }

@@ -49,9 +49,15 @@ const mapSellerRemittance = (item: any) => ({
   awb: String(item.remittanceId || ''),   // awb field holds remittanceId for selection
   userName: item.user?.name || '',
   userEmail: item.user?.email || '',
-  date: item.date
-    ? new Date(item.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
-    : 'N/A',
+  date: (() => {
+    const raw = item.date;
+    if (!raw) return 'N/A';
+    const d = new Date(raw);
+    if (isNaN(d.getTime())) return 'N/A';
+    const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return `${DAYS[d.getDay()]}, ${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+  })(),
   paymentMethod: item.remittanceMethod || 'N/A',
   utr: item.utr ? String(item.utr) : 'N/A',
   totalCodAmount: (Number(item.codAvailable) || 0) + (Number(item.adjustedAmount) || 0),
@@ -412,16 +418,13 @@ export function AdminCOD() {
     setIsLoading(true);
     try {
       const params: Record<string, any> = { page, limit: sellerRowsPerPage };
-      if (isAdminView) {
-        if (sellerUserMongoId) params.selectedUserId = sellerUserMongoId;
-      } else if (currentUserId) {
-        params.selectedUserId = currentUserId;
-      }
+      if (isAdminView && sellerUserMongoId) params.selectedUserId = sellerUserMongoId;
       if (sellerRemittanceId) params.remittanceIdFilter = sellerRemittanceId;
       if (codDateStart) params.startDate = toISOStart(codDateStart);
       if (codDateEnd) params.endDate = toISOEnd(codDateEnd);
       if (selectedCodStatuses.length === 1) params.statusFilter = selectedCodStatuses[0];
-      const res = await apiClient.get('/cod/getAdminCodRemitanceData', { params });
+      const endpoint = isAdminView ? '/cod/getAdminCodRemitanceData' : '/cod/getUserCodRemittanceData';
+      const res = await apiClient.get(endpoint, { params });
       setSellerRemittanceList((res.data.results || []).map(mapSellerRemittance));
       setSellerRemittanceTotal(res.data.totalPages ? res.data.totalPages * sellerRowsPerPage : (res.data.total || 0));
       if (res.data.summary) {
@@ -879,8 +882,8 @@ export function AdminCOD() {
                         className="absolute right-0 top-full mt-2 w-[200px] bg-white rounded-xl shadow-[0_8px_28px_-6px_rgba(0,0,0,0.15)] border border-[#E2E8F0] py-1.5 z-50 origin-top-right"
                       >
                         <button onClick={() => { const rows = sellerRemittanceList.filter(r => selectedCodOrders.includes(r.awb)); handleExportCsv(rows, 'seller_remittances.csv'); setShowMobileSellerActionMenu(false); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] flex items-center gap-2"><Download className="w-4 h-4 text-[#00A86B]" />Export Data</button>
-                        <button onClick={() => { handleExportBankTemplate(); setShowMobileSellerActionMenu(false); }} disabled={bankExportLoading} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] flex items-center gap-2"><FileText className="w-4 h-4 text-blue-500" />{bankExportLoading ? 'Generating…' : 'Export Bank Template'}</button>
-                        <button onClick={() => { handleOpenBankResponseUpload(); setShowMobileSellerActionMenu(false); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] flex items-center gap-2"><Upload className="w-4 h-4 text-orange-500" />Upload Bank Response</button>
+                        {isAdminView && <button onClick={() => { handleExportBankTemplate(); setShowMobileSellerActionMenu(false); }} disabled={bankExportLoading} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] flex items-center gap-2"><FileText className="w-4 h-4 text-blue-500" />{bankExportLoading ? 'Generating…' : 'Export Bank Template'}</button>}
+                        {isAdminView && <button onClick={() => { handleOpenBankResponseUpload(); setShowMobileSellerActionMenu(false); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] flex items-center gap-2"><Upload className="w-4 h-4 text-orange-500" />Upload Bank Response</button>}
                         <div className="border-t border-[#E2E8F0] my-1" />
                         {isAdminView && <button onClick={() => { setShowMobileSellerActionMenu(false); handleTransferCOD('seller'); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#00A86B] hover:bg-[#F0FDF4] flex items-center gap-2"><Send className="w-4 h-4" />Transfer COD</button>}
                       </motion.div>
@@ -1361,9 +1364,9 @@ export function AdminCOD() {
                 {showActionMenu && selectedCodOrders.length > 0 && (
                   <div className="absolute right-0 top-full mt-2 w-[200px] bg-white rounded-xl shadow-lg border border-[#E2E8F0] py-2 z-50">
                     <button onClick={() => { const rows = sellerRemittanceList.filter(r => selectedCodOrders.includes(r.awb)); handleExportCsv(rows, 'seller_remittances.csv'); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A] flex items-center gap-2"><Download className="w-4 h-4 text-[#00A86B]" />Export Data</button>
-                    <button onClick={handleExportBankTemplate} disabled={bankExportLoading} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A] flex items-center gap-2"><FileText className="w-4 h-4 text-blue-500" />{bankExportLoading ? 'Generating…' : 'Export Bank Template'}</button>
-                    <button onClick={handleOpenBankResponseUpload} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A] flex items-center gap-2"><Upload className="w-4 h-4 text-orange-500" />Upload Bank Response</button>
-                    <div className="border-t border-[#E2E8F0] my-1" />
+                    {isAdminView && <button onClick={handleExportBankTemplate} disabled={bankExportLoading} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A] flex items-center gap-2"><FileText className="w-4 h-4 text-blue-500" />{bankExportLoading ? 'Generating…' : 'Export Bank Template'}</button>}
+                    {isAdminView && <button onClick={handleOpenBankResponseUpload} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A] flex items-center gap-2"><Upload className="w-4 h-4 text-orange-500" />Upload Bank Response</button>}
+                    {isAdminView && <div className="border-t border-[#E2E8F0] my-1" />}
                     {isAdminView && <button onClick={() => { setShowActionMenu(false); handleTransferCOD('seller'); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#00A86B] hover:bg-[#F0FDF4] flex items-center gap-2"><Send className="w-4 h-4" />Transfer COD</button>}
                   </div>
                 )}
@@ -1410,18 +1413,25 @@ export function AdminCOD() {
                       )}
                       <td className="p-4">
                         {order.awb ? (
-                          <div className="flex items-center gap-1.5 group/copy w-max">
-                            <TruncatedText text={order.awb} maxLength={6} className="text-xs font-semibold text-[#00A86B] cursor-default" />
+                          <div className="flex items-center gap-1.5 group/copy">
                             <button
+                              onClick={(e) => { e.stopPropagation(); openRemittanceDetail(order.awb); }}
+                              className="text-xs font-semibold text-[#00A86B] hover:underline cursor-pointer max-w-[90px] truncate text-left"
+                              title={order.awb}
+                            >
+                              {order.awb}
+                            </button>
+                            {/* <button
                               onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(order.awb); showToast('success', 'Remittance ID copied!'); }}
-                              className="opacity-100 md:opacity-0 md:group-hover/copy:opacity-100 transition-opacity focus:outline-none"
+                              className="opacity-100 md:opacity-0 md:group-hover/copy:opacity-100 transition-opacity focus:outline-none shrink-0"
                               title="Copy Remittance ID"
                             >
                               <Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" />
-                            </button>
+                            </button> */}
                           </div>
-                        ) : <div className="text-xs font-semibold text-[#00A86B]">—</div>}
-                        <div className="text-xs font-normal text-[#94A3B8] mt-0.5">{order.paymentMethod}</div>
+                        ) : 
+                        <div className="text-xs font-semibold text-[#00A86B]">—</div>}
+                        {/* <div className="text-xs font-normal text-[#94A3B8] mt-0.5">{order.paymentMethod}</div> */}
                         <div className="text-xs font-normal text-[#94A3B8]">{order.date}</div>
                       </td>
                       <td className="p-3 font-normal text-xs text-[#00A86B]">
@@ -1490,7 +1500,9 @@ export function AdminCOD() {
                                   <Banknote className="w-4 h-4 text-[#94A3B8]" />
                                 </div>
                                 <div className="min-w-0">
-                                  <div className="text-[12px] font-semibold text-[#0F172A]">COD Remittance</div>
+                                  <button onClick={() => openRemittanceDetail(order.awb)} className="text-[12px] font-semibold text-[#00A86B] hover:underline cursor-pointer text-left">
+                                    {order.awb || 'COD Remittance'}
+                                  </button>
                                   <div className="text-[11px] font-normal text-[#94A3B8] mt-0.5">Remitted on: {withOrdinalSuffix(order.date)}</div>
                                 </div>
                               </div>
