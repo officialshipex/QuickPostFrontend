@@ -251,7 +251,7 @@ export function AdminPickupManifest({ isAdminView }: Props) {
       </div>
 
       {/* ── Filter Row — desktop only ── */}
-      <div className="hidden md:flex p-3 border-b border-[#E2E8F0] flex-wrap items-center gap-2.5 bg-[#F8FAFC]/50 shrink-0">
+      <div className="hidden md:flex py-3 px-6 border-b border-[#CBD5F5] flex-wrap items-center gap-3 bg-[#F8FAFC]/50 shrink-0">
 
         {/* User search — admin view only */}
         {isAdminView && (
@@ -327,11 +327,11 @@ export function AdminPickupManifest({ isAdminView }: Props) {
           onDateChange={(s, e) => { setDateStart(s); setDateEnd(e); }}
         />
 
-        <button onClick={handleApply} className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm cursor-pointer">
-          Apply
+        <button onClick={handleApply} className="py-2 px-4 shrink-0 rounded-[32px] bg-[#009D64] border border-[#009D64] text-white text-xs font-medium leading-[18px] hover:bg-[#008a57] transition-colors cursor-pointer">
+          Apply Filters
         </button>
         {hasActiveFilters && (
-          <button onClick={handleClear} className="h-9 px-3 shrink-0 rounded-lg border border-red-200 text-red-500 text-xs font-bold hover:bg-red-50 transition-colors cursor-pointer">
+          <button onClick={handleClear} className="py-2 px-4 shrink-0 rounded-[32px] border border-red-200 text-red-500 text-xs font-medium leading-[18px] hover:bg-red-50 transition-colors cursor-pointer">
             Clear All
           </button>
         )}
@@ -340,7 +340,7 @@ export function AdminPickupManifest({ isAdminView }: Props) {
           <button
             onClick={() => selectedManifests.length > 0 && setShowActionMenu(v => !v)}
             disabled={selectedManifests.length === 0}
-            className={`h-9 pl-4 pr-8 rounded-full border text-xs flex items-center font-bold relative transition-colors ${selectedManifests.length === 0 ? 'border-[#E2E8F0] bg-[#F8FAFC] text-[#CBD5E1] cursor-not-allowed' : 'border-[#E2E8F0] bg-white text-[#475569] shadow-sm hover:bg-[#F8FAFC]'}`}
+            className={`py-2 pl-4 pr-8 rounded-[32px] border text-xs leading-[18px] flex items-center font-medium relative transition-colors ${selectedManifests.length === 0 ? 'border-[#E2E8F0] bg-[#F8FAFC] text-[#CBD5E1] cursor-not-allowed' : 'border-[#03C27D] bg-white text-[#64748B] hover:bg-[#F0FDF9] cursor-pointer'}`}
           >
             Action
             <ChevronDown className="w-3.5 h-3.5 absolute right-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
@@ -358,8 +358,8 @@ export function AdminPickupManifest({ isAdminView }: Props) {
         {loading && <TableLoader />}
           <table className="w-full text-left border-collapse">
             <thead className="sticky top-0 z-40 bg-green-50 shadow-sm">
-              <tr className="text-xs font-medium text-[#475569] uppercase tracking-wider">
-                <th className="py-2 px-3 w-10">
+              <tr className="text-xs font-medium text-[#64748B] uppercase tracking-wider">
+                <th className="py-2 px-3 w-10 rounded-l-lg">
                   <input type="checkbox" checked={selectedManifests.length === filteredManifests.length && filteredManifests.length > 0} onChange={toggleAll} className="rounded border-[#00A86B] accent-[#00A86B] w-3.5 h-3.5" />
                 </th>
                 {isAdminView && <th className="py-2 px-3 whitespace-nowrap">User</th>}
@@ -370,7 +370,7 @@ export function AdminPickupManifest({ isAdminView }: Props) {
                 <th className="py-2 px-3 whitespace-nowrap">Ageing</th>
                 <th className="py-2 px-3 whitespace-nowrap">Shipments</th>
                 <th className="py-2 px-3 whitespace-nowrap">Status</th>
-                <th className="py-2 px-3 whitespace-nowrap">Actions</th>
+                <th className="py-2 px-3 whitespace-nowrap rounded-r-lg">Actions</th>
               </tr>
             </thead>
             <tbody className="text-[11px] text-[#475569]">
@@ -381,7 +381,7 @@ export function AdminPickupManifest({ isAdminView }: Props) {
                   </td>
                 </tr>
               ) : paginatedManifests.map((m, idx) => (
-                <tr key={m._id} className={`border-b border-[#E2E8F0] transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]'}`}>
+                <tr key={m._id} className={`border-b border-[#E2E8F0] transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]/20'}`}>
                   <td className="p-3">
                     <input type="checkbox" checked={selectedManifests.includes(m._id)} onChange={() => toggleOne(m._id)} className="rounded border-gray-300 accent-[#00A86B] w-3.5 h-3.5" />
                   </td>

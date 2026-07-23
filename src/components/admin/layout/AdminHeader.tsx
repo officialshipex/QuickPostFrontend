@@ -23,6 +23,10 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showQuickActions, setShowQuickActions] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [orderSearchResults, setOrderSearchResults] = useState<any[]>([]);
+  const [orderSearchLoading, setOrderSearchLoading] = useState(false);
+  const [showOrderSearchResults, setShowOrderSearchResults] = useState(false);
+  const orderSearchRef = useRef<HTMLDivElement>(null);
   const [showDateDropdown, setShowDateDropdown] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [isCustomMode, setIsCustomMode] = useState(false);
@@ -144,14 +148,6 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const [codTab, setCodTab] = useState(((window as any).__adminCodTab || '') as string);
-  useEffect(() => {
-    const handler = (e: Event) => setCodTab((e as CustomEvent).detail || '');
-    window.addEventListener('admin-cod-tab-change', handler);
-    setCodTab((window as any).__adminCodTab || '');
-    return () => window.removeEventListener('admin-cod-tab-change', handler);
-  }, []);
-
   const isSetupPage = [
     '/admin/users',
     '/admin/roles',
@@ -170,79 +166,78 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
     '/admin/announcement',
     '/admin/notification',
     '/admin/couriers',
-    '/admin/rate-card'
+    '/admin/rate-card',
+    '/internal-crm'
   ].some((path) => location.pathname === path || location.pathname.startsWith(path + '/'));
 
   // KYC is a self-contained onboarding flow — the page-context search/date/quick-action tools don't apply there.
   const isKycPage = location.pathname === '/admin/kyc' || location.pathname.startsWith('/admin/kyc/');
 
-  const ORDERS_TAB_PLACEHOLDER: Record<string, string> = {
-    'new': "Search new orders by AWB or Order ID (Press '/')",
-    'ready-to-ship': "Search ready-to-ship orders by AWB or Order ID (Press '/')",
-    'pickup-manifest': "Search pickups by Pickup ID (Press '/')",
-    'in-transit': "Search in-transit orders by AWB or Order ID (Press '/')",
-    'delivered': "Search delivered orders by AWB or Order ID (Press '/')",
-    'out-for-delivery': "Search out-for-delivery orders by AWB or Order ID (Press '/')",
-    'cancelled': "Search cancelled orders by AWB or Order ID (Press '/')",
-    'lost': "Search lost orders by AWB or Order ID (Press '/')",
-    'damaged': "Search damaged orders by AWB or Order ID (Press '/')",
-    'rto-initiated': "Search RTO initiated orders by AWB or Order ID (Press '/')",
-    'rto-in-transit': "Search RTO in-transit orders by AWB or Order ID (Press '/')",
-    'rto-delivered': "Search RTO delivered orders by AWB or Order ID (Press '/')",
-    'rto-lost': "Search RTO lost orders by AWB or Order ID (Press '/')",
-    'rto-damaged': "Search RTO damaged orders by AWB or Order ID (Press '/')",
-    'all': "Search all orders by AWB or Order ID (Press '/')",
-  };
-
-  const getSearchPlaceholder = () => {
-    if (location.pathname.startsWith('/admin/orders/')) {
-      const tabSlug = location.pathname.slice('/admin/orders/'.length);
-      return ORDERS_TAB_PLACEHOLDER[tabSlug] || "Search AWB or Order ID...";
-    }
-    if (location.pathname.startsWith('/admin/weight-discrepancy/')) {
-      return "Search weight discrepancies by name, email, or AWB (Press '/')";
-    }
-    if (location.pathname === '/admin/couriers' || location.pathname.startsWith('/admin/couriers/')) {
-      return "Search by courier name (Press '/')";
-    }
-    if (location.pathname === '/admin/rate-card' || location.pathname.startsWith('/admin/rate-card/')) {
-      return "Search rate cards by courier name (Press '/')";
-    }
-    const path = location.pathname;
-    switch (path) {
-      case '/admin/users': return "Search users by name, email or role (Press '/')";
-      case '/admin/roles': return "Search roles by name (Press '/')";
-      case '/admin/allocate-sellers': return "Search sellers or account managers (Press '/')";
-      case '/admin/status-map': return "Search status mappings (Press '/')";
-      case '/admin/edd-mapping': return "Search EDD rules (Press '/')";
-      case '/admin/epd-mapping': return "Search EPD rules (Press '/')";
-      case '/admin/orders': return "Search new orders by AWB or Order ID (Press '/')";
-      case '/admin/ndr': return "Search NDR by name, email, phone or AWB (Press '/')";
-      case '/admin/weight-discrepancy': return "Search weight discrepancies by name, email, or AWB (Press '/')";
-      case '/admin/cod':
-        switch (codTab) {
-          case 'Seller COD Remittance': return "Search by user, remittance ID or UTR (Press '/')";
-          case 'Courier COD Remittance': return "Search by user, order ID or AWB (Press '/')";
-          default: return "Search COD orders by user, order ID or AWB (Press '/')";
-        }
-      case '/admin/wallet': return "Search transactions by user or remark (Press '/')";
-      case '/admin/referral': return "Search referrals by name, user ID, email or contact (Press '/')";
-      case '/admin/support': return "Search support tickets by ID, AWB or customer (Press '/')";
-      case '/admin/accounts': return "Search admin accounts by name, email or role (Press '/')";
-      case '/admin/announcement': return "Search announcements by title or message (Press '/')";
-      case '/admin/notification': return "Search notifications by user, title or content (Press '/')";
-      default: return "Search shipments, vendors, or users (Press '/')";
-    }
-  };
+  // ─── Global navbar search — always searches Orders, regardless of the current page ──
+  // The "Search by" behavior never changes; only the placeholder hint cycles through
+  // the fields it matches against, so the user always knows what they can type.
+  const ORDER_SEARCH_FIELDS = [
+    'receiver email',
+    'receiver mobile',
+    'courier service name',
+    'order ID',
+    'AWB number',
+    'pickup name',
+    'pickup mobile',
+    'pickup email',
+  ];
+  // "Search by " is always a fixed, unchanging prefix — only the field name after it rolls/cycles,
+  // sliding vertically into place (like an odometer) rather than typing letter-by-letter.
+  const SEARCH_BY_PREFIX = 'Search by ';
+  const [placeholderIndex, setPlaceholderIndex] = useState(0);
 
   useEffect(() => {
-    if (isSetupPage) {
-      const q = (window as any).__adminSearchQuery || '';
-      setSearchQuery(q);
-    } else {
-      setSearchQuery('');
+    if (searchQuery) return; // don't roll while the user is actively typing
+    const interval = setInterval(() => {
+      setPlaceholderIndex((i) => (i + 1) % ORDER_SEARCH_FIELDS.length);
+    }, 2200);
+    return () => clearInterval(interval);
+  }, [searchQuery]);
+
+  // Debounced live search against Orders — fires from any page, never just Orders itself.
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setOrderSearchResults([]);
+      setOrderSearchLoading(false);
+      return;
     }
-  }, [location.pathname, isSetupPage]);
+    setOrderSearchLoading(true);
+    const timer = setTimeout(async () => {
+      try {
+        const res = await apiClient.get('/admin/filterEmployeeOrders', {
+          params: { page: 1, limit: 8, searchQuery: searchQuery.trim() },
+        });
+        setOrderSearchResults(res.data?.orders || []);
+      } catch {
+        setOrderSearchResults([]);
+      } finally {
+        setOrderSearchLoading(false);
+      }
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Close the results dropdown on outside click.
+  useEffect(() => {
+    const handleOutside = (e: MouseEvent) => {
+      if (orderSearchRef.current && !orderSearchRef.current.contains(e.target as Node)) {
+        setShowOrderSearchResults(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
+  }, []);
+
+  const goToOrder = (order: any) => {
+    setShowOrderSearchResults(false);
+    setSearchQuery('');
+    navigate(`/admin/orders/all?orderId=${encodeURIComponent(order.orderId || order._id)}`);
+  };
 
   const dropdownVariants: any = {
     hidden: { opacity: 0, scale: 0.95, y: 10 },
@@ -446,34 +441,95 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
         </Link>
       </div>
 
-      {/* Middle Section - Search */}
+      {/* Middle Section - Search — global Orders search, available from every page */}
       <div className="flex-1 flex items-center justify-center min-w-0">
         {!isKycPage && (
-        <div className="hidden md:flex items-center relative w-full max-w-lg group">
-          <Search className="w-4 h-4 absolute left-3.5 text-[#94A3B8] group-focus-within:text-[#00A86B] transition-colors duration-300" />
-          <input 
-            type="text" 
-            placeholder={getSearchPlaceholder()} 
+        <div ref={orderSearchRef} className="hidden md:flex items-center relative w-full max-w-lg group">
+          <Search className="w-4 h-4 absolute left-3.5 text-[#94A3B8] group-focus-within:text-[#00A86B] transition-colors duration-300 z-10" />
+          <input
+            type="text"
             value={searchQuery}
             onChange={(e) => {
-              const val = e.target.value;
-              setSearchQuery(val);
-              if (isSetupPage) {
-                (window as any).__adminSearchQuery = val;
-                window.dispatchEvent(new CustomEvent('admin-search', { detail: val }));
-              }
+              setSearchQuery(e.target.value);
+              setShowOrderSearchResults(true);
             }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && searchQuery.trim() && !isSetupPage) {
-                navigate(`/admin/order-tracking?id=${searchQuery.trim()}`);
-                setSearchQuery('');
-              }
-            }}
-            className="w-full h-10 pl-10 pr-12 rounded-[14px] border border-[#E2E8F0] bg-[#F8FAFC]/50 text-sm focus:outline-none focus:ring-2 focus:ring-[#00A86B]/20 focus:border-[#00A86B] transition-all text-[#0F172A] placeholder:text-[#94A3B8] font-medium shadow-[0_2px_6px_rgba(0,0,0,0.02)] hover:border-[#CBD5E1]"
+            onFocus={() => { if (searchQuery.trim()) setShowOrderSearchResults(true); }}
+            className="w-full h-10 pl-10 pr-12 rounded-full border border-[#E2E8F0] bg-[#F8FAFC]/50 text-sm focus:outline-none focus:ring-2 focus:ring-[#00A86B]/20 focus:border-[#00A86B] transition-all text-[#0F172A] font-medium shadow-[0_2px_6px_rgba(0,0,0,0.02)] hover:border-[#CBD5E1]"
           />
-          <div className="absolute right-3 px-1.5 py-0.5 rounded-md bg-white border border-[#E2E8F0] shadow-sm text-[10px] font-bold text-[#94A3B8]">
-            ⌘K
-          </div>
+          {!searchQuery && (
+            <div className="absolute left-10 flex items-center gap-1 overflow-hidden pointer-events-none text-sm font-medium text-[#94A3B8] whitespace-nowrap">
+              <span>{SEARCH_BY_PREFIX.trim()}</span>
+              <span className="relative inline-block h-5 overflow-hidden align-middle">
+                <AnimatePresence mode="wait">
+                  <motion.span
+                    key={placeholderIndex}
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    exit={{ y: -20, opacity: 0 }}
+                    transition={{ duration: 0.35, ease: 'easeInOut' }}
+                    className="block"
+                  >
+                    {ORDER_SEARCH_FIELDS[placeholderIndex]}...
+                  </motion.span>
+                </AnimatePresence>
+              </span>
+            </div>
+          )}
+          {searchQuery ? (
+            <button
+              onClick={() => { setSearchQuery(''); setShowOrderSearchResults(false); }}
+              className="absolute right-3 text-[#94A3B8] hover:text-[#64748B]"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          ) : (
+            <div className="absolute right-3 px-1.5 py-0.5 rounded-md bg-white border border-[#E2E8F0] shadow-sm text-[10px] font-bold text-[#94A3B8]">
+              ⌘K
+            </div>
+          )}
+
+          <AnimatePresence>
+            {showOrderSearchResults && searchQuery.trim() && (
+              <motion.div
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.15 }}
+                className="absolute left-0 right-0 top-full mt-2 bg-white rounded-2xl shadow-[0_20px_40px_-12px_rgba(0,0,0,0.15),0_0_0_1px_rgba(0,0,0,0.05)] overflow-hidden z-[110] max-h-[360px] overflow-y-auto"
+              >
+                {orderSearchLoading ? (
+                  <div className="px-4 py-6 flex items-center justify-center gap-2 text-[#94A3B8]">
+                    <div className="w-4 h-4 border-2 border-[#00A86B] border-t-transparent rounded-full animate-spin" />
+                    <span className="text-xs font-semibold">Searching orders…</span>
+                  </div>
+                ) : orderSearchResults.length === 0 ? (
+                  <div className="px-4 py-6 text-center">
+                    <p className="text-xs font-semibold text-[#94A3B8]">No matching orders found</p>
+                  </div>
+                ) : (
+                  orderSearchResults.map((o: any, i: number) => (
+                    <button
+                      key={o._id || o.orderId || i}
+                      onClick={() => goToOrder(o)}
+                      className="w-full flex items-center justify-between gap-3 px-4 py-3 hover:bg-[#F8FAFC] transition-colors text-left border-b border-[#F1F5F9] last:border-0"
+                    >
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-[#00A86B]">{o.orderId}</span>
+                          {o.awb_number && <span className="text-[10px] text-[#94A3B8] font-mono truncate">{o.awb_number}</span>}
+                        </div>
+                        <p className="text-[11px] text-[#64748B] truncate mt-0.5">
+                          {o.receiverAddress?.contactName || o.userId?.fullname || '—'}
+                          {o.receiverAddress?.email ? ` · ${o.receiverAddress.email}` : ''}
+                        </p>
+                      </div>
+                      <span className="text-[10px] font-semibold text-[#475569] bg-slate-100 px-2 py-0.5 rounded-full shrink-0">{o.status || 'New'}</span>
+                    </button>
+                  ))
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
         )}
       </div>
@@ -491,7 +547,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                 setShowDateDropdown(!showDateDropdown);
                 setIsCustomMode(false);
               }}
-              className="hidden lg:flex items-center gap-2 px-4 h-10 rounded-[14px] border border-[#E2E8F0] text-xs font-semibold text-[#475569] cursor-pointer hover:bg-[#F8FAFC] hover:border-[#CBD5E1] transition-all bg-white shadow-sm focus:outline-none"
+              className="hidden lg:flex items-center gap-2 px-4 h-10 rounded-full border border-[#E2E8F0] text-xs font-semibold text-[#475569] cursor-pointer hover:bg-[#F8FAFC] hover:border-[#CBD5E1] transition-all bg-white shadow-sm focus:outline-none"
             >
               <Calendar className="w-4 h-4 text-[#94A3B8]" /> {filters.dateRange.label} <ChevronDown className="w-3.5 h-3.5 text-[#94A3B8]" />
             </motion.button>
@@ -604,22 +660,30 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
         )}
 
         {/* Wallet Balance */}
-        <div 
+        <div
           className="relative"
           onMouseEnter={() => setShowWalletHover(true)}
           onMouseLeave={() => setShowWalletHover(false)}
         >
-          <motion.button 
-            whileHover={{ scale: 1.03 }} 
-            whileTap={{ scale: 0.97 }}
-            onClick={() => {
-              setShowRechargeModal(true);
-              setShowWalletHover(false);
-            }}
-            className={`h-10 px-4 rounded-[14px] text-white text-sm font-semibold flex items-center gap-2 transition-all cursor-pointer focus:outline-none ${walletBalance < 0 ? 'bg-gradient-to-b from-[#F87171] to-[#EF4444] shadow-[0_4px_12px_rgba(239,68,68,0.25),inset_0_1px_1px_rgba(255,255,255,0.2)] border border-[#DC2626]' : 'bg-gradient-to-b from-[#00b876] to-[#00A86B] shadow-[0_4px_12px_rgba(0,168,107,0.25),inset_0_1px_1px_rgba(255,255,255,0.2)] border border-[#009B63]'}`}
-          >
-            <Wallet className="w-4 h-4 text-white/95" /> ₹{walletBalance.toLocaleString('en-IN')}
-          </motion.button>
+          <div className={`h-10 pl-3.5 pr-1 rounded-full text-white flex items-center gap-2 shadow-sm ${walletBalance < 0 ? 'bg-[#EF4444]' : 'bg-[#03C27D]'}`}>
+            <button
+              type="button"
+              onClick={() => setShowWalletHover(v => !v)}
+              className="flex items-center gap-2 focus:outline-none"
+            >
+              <Wallet className="w-4 h-4 text-white" />
+              <span className="text-sm font-bold tabular-nums">₹{walletBalance.toLocaleString('en-IN', { maximumFractionDigits: 2, minimumFractionDigits: 2 })}</span>
+            </button>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setShowRechargeModal(true)}
+              aria-label="Recharge wallet"
+              className={`w-7 h-7 rounded-full flex items-center justify-center text-white text-base leading-none font-medium transition-colors focus:outline-none ${walletBalance < 0 ? 'bg-[#DC2626] hover:bg-[#B91C1C]' : 'bg-[#008757] hover:bg-[#00754a]'}`}
+            >
+              +
+            </motion.button>
+          </div>
 
           <AnimatePresence>
             {showWalletHover && (

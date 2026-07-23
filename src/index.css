@@ -29,6 +29,26 @@
   scrollbar-width: none !important;
 }
 
+/* ── Sticky table headers: fix the gap caused by a bordered <tr> ──
+   Every main data table's sticky header row uses `border border-[#B9EFDB]`
+   on the <tr>. In a border-collapse table this border sits OUTSIDE the
+   row's painted content box rather than inside it, so the sticky <thead>'s
+   pinned box ends up shorter than the visible border+background suggest —
+   leaving a thin gap right under the header where the scrolling body shows
+   through. Box-shadow paints inside the element's own box (never escapes
+   it), so swapping the border for an equivalent inset box-shadow removes
+   the gap without touching any table markup. */
+thead.sticky tr.border-\[\#B9EFDB\] {
+  border: none;
+  box-shadow: inset 0 1px 0 0 #B9EFDB, inset 0 -1px 0 0 #B9EFDB;
+}
+thead.sticky tr.border-\[\#B9EFDB\] > th:first-child {
+  box-shadow: inset 0 1px 0 0 #B9EFDB, inset 0 -1px 0 0 #B9EFDB, inset 1px 0 0 0 #B9EFDB;
+}
+thead.sticky tr.border-\[\#B9EFDB\] > th:last-child {
+  box-shadow: inset 0 1px 0 0 #B9EFDB, inset 0 -1px 0 0 #B9EFDB, inset -1px 0 0 0 #B9EFDB;
+}
+
 /* ======================================================
    GLASSMORPHISM DROPDOWN & DATE FILTER SYSTEM
    Professional, industry-grade filter components
@@ -73,24 +93,38 @@
   100% { transform: scale(1); opacity: 1; }
 }
 
-/* ---- TRIGGER BUTTON ---- */
+/* ---- TRIGGER BUTTON (Figma "filter pill" spec) ---- */
+/* ---- EVEN FILTER GRID — used by CRM pages to force every filter pill
+   (search inputs, GlassDropdown, GlassDateFilter) to share the exact same
+   width within a CSS grid row, instead of hugging their own content. ---- */
+.filter-grid > * {
+  min-width: 0;
+  width: 100%;
+}
+.filter-grid .glass-dropdown-trigger {
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
 .glass-dropdown-trigger {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 0 12px;
+  gap: 12px;
+  padding: 8px 16px;
   height: 36px;
-  width: 100%;
-  border-radius: 10px;
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(248, 250, 252, 0.7));
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  width: max-content;
+  min-width: 129px;
+  box-sizing: border-box;
+  border-radius: 32px;
+  border: 1px solid #E2E8F0;
+  background: #FFFFFF;
+  font-family: 'Inter', sans-serif;
   font-size: 12px;
-  font-weight: 600;
-  color: #475569;
+  line-height: 18px;
+  font-weight: 500;
+  color: #64748B;
   cursor: pointer;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.2s ease;
   white-space: nowrap;
   position: relative;
   overflow: hidden;
@@ -101,45 +135,43 @@
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: linear-gradient(135deg, rgba(0, 168, 107, 0.0), rgba(0, 168, 107, 0.0));
+  background: linear-gradient(135deg, rgba(3, 194, 125, 0.0), rgba(3, 194, 125, 0.0));
   transition: background 0.3s ease;
   pointer-events: none;
 }
 
 .glass-dropdown-trigger:hover {
-  border-color: rgba(0, 168, 107, 0.3);
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(240, 253, 244, 0.6));
-  box-shadow: 0 2px 12px rgba(0, 168, 107, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04);
+  border-color: #03C27D;
   color: #0F172A;
-  transform: translateY(-1px);
 }
 
 .glass-dropdown-trigger:hover::before {
-  background: linear-gradient(135deg, rgba(0, 168, 107, 0.03), rgba(0, 168, 107, 0.06));
+  background: linear-gradient(135deg, rgba(3, 194, 125, 0.03), rgba(3, 194, 125, 0.06));
 }
 
-/* ---- GLASS SEARCH INPUT ---- */
+/* ---- GLASS SEARCH INPUT (Figma "filter pill" spec) ---- */
 .glass-search-input {
   display: flex;
   align-items: center;
-  padding: 0 12px;
-  height: 36px;
-  border-radius: 10px;
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(248, 250, 252, 0.7));
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  gap: 12px;
+  padding: 8px 16px;
+  height: auto;
+  border-radius: 32px;
+  border: 1px solid #E2E8F0;
+  background: #FFFFFF;
+  font-family: 'Inter', sans-serif;
   font-size: 12px;
-  font-weight: 600;
+  line-height: 18px;
+  font-weight: 500;
   color: #0F172A;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.2s ease;
   outline: none;
   cursor: pointer;
 }
 
 .glass-search-input::placeholder {
-  font-weight: 700;
-  color: #94A3B8;
+  font-weight: 500;
+  color: #64748B;
   transition: color 0.2s ease;
 }
 
@@ -148,17 +180,14 @@
   color: #64748B;
 }
 
-.glass-search-input:hover, 
+.glass-search-input:hover,
 .glass-search-input:focus {
-  border-color: rgba(0, 168, 107, 0.4);
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(240, 253, 244, 0.6));
-  box-shadow: 0 2px 12px rgba(0, 168, 107, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04);
-  transform: translateY(-1px);
+  border-color: #03C27D;
 }
 
 .glass-search-input:focus {
-  box-shadow: 0 0 0 2px rgba(0, 168, 107, 0.15), 0 2px 12px rgba(0, 168, 107, 0.08);
-  border-color: rgba(0, 168, 107, 0.6);
+  box-shadow: 0 0 0 2px rgba(3, 194, 125, 0.15);
+  border-color: #03C27D;
   cursor: text;
 }
 
@@ -166,30 +195,34 @@
 .glass-dropdown-icon {
   display: flex;
   align-items: center;
-  color: #94A3B8;
+  color: #64748B;
   transition: color 0.2s ease;
 }
 .glass-dropdown-trigger:hover .glass-dropdown-icon {
-  color: #00A86B;
+  color: #03C27D;
 }
 
 .glass-dropdown-icon-svg {
   width: 14px;
   height: 14px;
-  color: #94A3B8;
+  color: #64748B;
   transition: color 0.2s ease;
 }
 .glass-dropdown-trigger:hover .glass-dropdown-icon-svg {
-  color: #00A86B;
+  color: #03C27D;
 }
 
 .glass-dropdown-label {
   color: #64748B;
   transition: color 0.2s ease;
+  flex: 1;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .glass-dropdown-label.has-value {
   color: #0F172A;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .glass-dropdown-badge {
@@ -200,26 +233,26 @@
   height: 18px;
   padding: 0 5px;
   border-radius: 9999px;
-  background: linear-gradient(135deg, #00A86B, #00C77B);
+  background: linear-gradient(135deg, #03C27D, #059669);
   color: white;
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.02em;
   line-height: 1;
   animation: badgePop 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 1px 4px rgba(0, 168, 107, 0.3);
+  box-shadow: 0 1px 4px rgba(3, 194, 125, 0.3);
 }
 
 .glass-dropdown-chevron {
   width: 14px;
   height: 14px;
-  color: #94A3B8;
+  color: #64748B;
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), color 0.2s ease;
   flex-shrink: 0;
 }
 .glass-dropdown-chevron.rotate {
   transform: rotate(180deg);
-  color: #00A86B;
+  color: #03C27D;
 }
 .glass-dropdown-trigger:hover .glass-dropdown-chevron {
   color: #64748B;

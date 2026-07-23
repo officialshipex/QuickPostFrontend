@@ -91,7 +91,6 @@ export function AdminUsers() {
   const [selectedRateCards, setSelectedRateCards] = useState<string[]>([]);
   const [selectedWalletBalances, setSelectedWalletBalances] = useState<string[]>([]);
   const [selectedTiers, setSelectedTiers] = useState<string[]>([]);
-  const [selectedAccountManagers, setSelectedAccountManagers] = useState<string[]>([]);
   const [selectedUserTypes, setSelectedUserTypes] = useState<string[]>([]);
   const [dateStart, setDateStart] = useState('');
   const [dateEnd, setDateEnd] = useState('');
@@ -102,7 +101,6 @@ export function AdminUsers() {
   const [appliedRateCard, setAppliedRateCard] = useState<string[]>([]);
   const [appliedBalance, setAppliedBalance] = useState<string[]>([]);
   const [appliedTiers, setAppliedTiers] = useState<string[]>([]);
-  const [appliedAccountManagers, setAppliedAccountManagers] = useState<string[]>([]);
   const [appliedUserTypes, setAppliedUserTypes] = useState<string[]>([]);
   const [appliedDateStart, setAppliedDateStart] = useState('');
   const [appliedDateEnd, setAppliedDateEnd] = useState('');
@@ -236,7 +234,6 @@ export function AdminUsers() {
     setAppliedRateCard(selectedRateCards);
     setAppliedBalance(selectedWalletBalances);
     setAppliedTiers(selectedTiers);
-    setAppliedAccountManagers(selectedAccountManagers);
     setAppliedUserTypes(selectedUserTypes);
     setAppliedDateStart(dateStart);
     setAppliedDateEnd(dateEnd);
@@ -249,7 +246,6 @@ export function AdminUsers() {
     setSelectedRateCards([]);
     setSelectedWalletBalances([]);
     setSelectedTiers([]);
-    setSelectedAccountManagers([]);
     setSelectedUserTypes([]);
     setDateStart('');
     setDateEnd('');
@@ -258,7 +254,6 @@ export function AdminUsers() {
     setAppliedRateCard([]);
     setAppliedBalance([]);
     setAppliedTiers([]);
-    setAppliedAccountManagers([]);
     setAppliedUserTypes([]);
     setAppliedDateStart('');
     setAppliedDateEnd('');
@@ -268,7 +263,7 @@ export function AdminUsers() {
 
   // Matches Wallet's behavior: show "Clear All" as soon as a filter is picked (draft state),
   // not only after Apply — so it's visible the moment the user selects anything.
-  const hasActiveFilters = !!(searchQuery || selectedKycStatuses.length || selectedRateCards.length || selectedWalletBalances.length || selectedTiers.length || selectedAccountManagers.length || selectedUserTypes.length || (dateStart && dateEnd));
+  const hasActiveFilters = !!(searchQuery || selectedKycStatuses.length || selectedRateCards.length || selectedWalletBalances.length || selectedTiers.length || selectedUserTypes.length || (dateStart && dateEnd));
 
   // ─── Rate card modal ─────────────────────────────────────────────────────────
   const openRateCardModal = async (user: any) => {
@@ -334,19 +329,12 @@ export function AdminUsers() {
     { label: 'Individual', value: 'Individual' },
   ];
 
-  // Account manager names aren't a fixed enum — build the filter's options from whatever names
-  // have loaded on the current page/search, same as the existing "current data" driven filters.
-  const accountManagerFilterOptions = Array.from(
-    new Set(users.map(u => u.accountManagerName).filter(Boolean))
-  ).sort().map(name => ({ label: name, value: name }));
-
-  // Tier, Account Manager and User Type have no backend query params (all derived client-side),
+  // Tier and User Type have no backend query params (both derived client-side),
   // so they filter the already-fetched page in-memory rather than refetching.
   const filteredUsers = users.filter(u => {
     const matchesTier = appliedTiers.length === 0 || appliedTiers.includes(getTier(u.monthlyShipments ?? u.orderCount ?? 0));
-    const matchesAccountManager = appliedAccountManagers.length === 0 || appliedAccountManagers.includes(u.accountManagerName || '');
     const matchesUserType = appliedUserTypes.length === 0 || appliedUserTypes.includes(getUserType(u));
-    return matchesTier && matchesAccountManager && matchesUserType;
+    return matchesTier && matchesUserType;
   });
 
   return (
@@ -469,7 +457,7 @@ export function AdminUsers() {
           </div>
 
           {/* Filters Row — desktop only */}
-          <div className="hidden md:flex p-3 border-b border-[#E2E8F0] flex-wrap items-center gap-2.5 bg-white relative z-20">
+          <div className="hidden md:flex py-3 px-6 border-b border-[#CBD5F5] flex-wrap items-center gap-3 bg-white relative z-20">
             <input
               type="text"
               placeholder="User ID / Name / Email"
@@ -516,15 +504,6 @@ export function AdminUsers() {
             />
 
             <GlassDropdown
-              label="Account Manager"
-              options={accountManagerFilterOptions}
-              selected={selectedAccountManagers}
-              onChange={setSelectedAccountManagers}
-              placeholder="Search manager..."
-              icon={<User className="w-3.5 h-3.5" />}
-            />
-
-            <GlassDropdown
               label="User Type"
               options={USER_TYPE_OPTIONS}
               selected={selectedUserTypes}
@@ -542,14 +521,14 @@ export function AdminUsers() {
 
             <button
               onClick={applyFilters}
-              className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm flex items-center justify-center cursor-pointer"
+              className="py-2 px-4 shrink-0 rounded-[32px] bg-[#009D64] border border-[#009D64] text-white text-xs font-medium leading-[18px] hover:bg-[#008a57] transition-colors cursor-pointer"
             >
-              Apply
+              Apply Filters
             </button>
 
             {hasActiveFilters && (
               <button onClick={resetFilters}
-                className="h-9 px-3 shrink-0 rounded-lg border border-red-200 text-red-500 text-xs font-bold hover:bg-red-50 transition-colors">
+                className="py-2 px-4 shrink-0 rounded-[32px] border border-red-200 text-red-500 text-xs font-medium leading-[18px] hover:bg-red-50 transition-colors cursor-pointer">
                 Clear All
               </button>
             )}
@@ -557,7 +536,7 @@ export function AdminUsers() {
             <div className="relative shrink-0 ml-auto flex items-center action-dropdown-container">
               <button
                 onClick={() => setActionDropdownOpen(!actionDropdownOpen)}
-                className="h-9 pl-4 pr-8 rounded-full border border-[#E2E8F0] text-xs bg-white focus:outline-none flex items-center font-bold text-[#475569] shadow-sm hover:bg-[#F8FAFC] transition-colors cursor-pointer"
+                className="py-2 pl-4 pr-8 rounded-[32px] border border-[#03C27D] text-xs leading-[18px] bg-white focus:outline-none flex items-center font-medium relative text-[#64748B] hover:bg-[#F0FDF9] transition-colors cursor-pointer"
               >
                 Action
                 <ChevronDown className="w-3.5 h-3.5 absolute right-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
@@ -582,8 +561,8 @@ export function AdminUsers() {
             {isLoading && <TableLoader />}
             <table className="w-full text-left border-collapse min-w-[1300px]">
               <thead className="sticky top-0 z-40 bg-green-50 shadow-sm">
-                <tr className="text-xs font-medium text-[#475569] uppercase tracking-wider">
-                  <th className="py-2 px-3 w-10">
+                <tr className="text-xs font-medium text-[#64748B] uppercase tracking-wider">
+                  <th className="py-2 px-3 w-10 rounded-l-lg">
                     <input type="checkbox" checked={selectedIds.length === filteredUsers.length && filteredUsers.length > 0} onChange={toggleAll} className="rounded border-[#00A86B] accent-[#00A86B] w-3.5 h-3.5" />
                   </th>
                   <th className="py-2 px-3 whitespace-nowrap"><User className="w-3.5 h-3.5 inline mr-1" /> User Details</th>
@@ -594,7 +573,7 @@ export function AdminUsers() {
                   <th className="py-2 px-3 whitespace-nowrap"><User className="w-3.5 h-3.5 inline mr-1" /> Account Manager</th>
                   <th className="py-2 px-3 whitespace-nowrap"><Clock className="w-3.5 h-3.5 inline mr-1" /> Registration Date</th>
                   <th className="py-2 px-3 whitespace-nowrap"><MoreVertical className="w-3.5 h-3.5 inline mr-1" /> Order Activity</th>
-                  <th className="py-2 px-3 whitespace-nowrap text-right"><Settings className="w-3.5 h-3.5 inline mr-1" /> Actions</th>
+                  <th className="py-2 px-3 whitespace-nowrap text-right rounded-r-lg"><Settings className="w-3.5 h-3.5 inline mr-1" /> Actions</th>
                 </tr>
               </thead>
               <tbody className="text-[11px] text-[#475569]">
@@ -602,7 +581,7 @@ export function AdminUsers() {
                   const uid = String(user.id);
                   const kycLabel = user.kycStatus ? 'Verified' : 'Pending';
                   return (
-                    <tr key={uid} className={`border-b border-[#E2E8F0] transition-colors group ${uidx % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]'}`}>
+                    <tr key={uid} className={`border-b border-[#E2E8F0] transition-colors group ${uidx % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]/20'}`}>
                       <td className="p-3 align-top pt-4">
                         <input type="checkbox" checked={selectedIds.includes(uid)} onChange={() => toggleSelect(uid)} className="rounded border-gray-300 accent-[#00A86B] w-3.5 h-3.5" />
                       </td>
@@ -1035,20 +1014,6 @@ export function AdminUsers() {
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Account Manager</label>
-                  <select
-                    value={selectedAccountManagers[0] || ''}
-                    onChange={(e) => setSelectedAccountManagers(e.target.value ? [e.target.value] : [])}
-                    className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
-                  >
-                    <option value="">All Managers</option>
-                    {accountManagerFilterOptions.map(opt => (
-                      <option key={opt.value} value={opt.value}>{opt.label}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
                   <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">User Type</label>
                   <select
                     value={selectedUserTypes[0] || ''}
@@ -1072,7 +1037,7 @@ export function AdminUsers() {
                 </button>
                 <button
                   onClick={() => { applyFilters(); setIsMobileFiltersOpen(false); }}
-                  className="flex-1 h-11 rounded-full bg-[#00A86B] text-white text-sm font-bold hover:bg-[#009B63] transition-colors shadow-sm"
+                  className="flex-1 h-11 rounded-full bg-[#009D64] text-white text-sm font-bold hover:bg-[#009B63] transition-colors shadow-sm"
                 >
                   Apply Filters
                 </button>

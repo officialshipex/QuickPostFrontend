@@ -1129,7 +1129,7 @@ export function AdminWallet() {
           {activeTab === 'Shipping' && (
             <>
               {/* Desktop Filters Row */}
-              <div className="hidden md:flex p-3 border-b border-[#E2E8F0] flex-wrap items-center gap-2.5 bg-[#F8FAFC]/50">
+              <div className="hidden md:flex py-3 px-6 border-b border-[#CBD5F5] flex-wrap items-center gap-3 bg-[#F8FAFC]/50">
                 <input
                   type="text"
                   placeholder="Search by name, email, o..."
@@ -1182,29 +1182,23 @@ export function AdminWallet() {
 
                 <button
                   onClick={() => { setShippingPage(1); fetchShippingData(1); showToast('success', 'Shipping filters applied successfully!'); }}
-                  className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm flex items-center justify-center cursor-pointer"
+                  className="py-2 px-4 shrink-0 rounded-[32px] bg-[#009D64] border border-[#009D64] text-white text-xs font-medium leading-[18px] hover:bg-[#008a57] transition-colors cursor-pointer"
                 >
-                  Apply
+                  Apply Filters
                 </button>
 
                 {hasShippingFilters && (
                   <button onClick={clearShippingFilters}
-                    className="h-9 px-3 shrink-0 rounded-lg border border-red-200 text-red-500 text-xs font-bold hover:bg-red-50 transition-colors">
+                    className="py-2 px-4 shrink-0 rounded-[32px] border border-red-200 text-red-500 text-xs font-medium leading-[18px] hover:bg-red-50 transition-colors cursor-pointer">
                     Clear All
                   </button>
                 )}
 
                 <div className="relative shrink-0 ml-auto flex items-center gap-2">
-                  <button
-                    onClick={() => setIsRechargeModalOpen(true)}
-                    className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
-                  >
-                    <Plus className="w-3.5 h-3.5" /> Recharge Wallet
-                  </button>
                   <div className="relative action-dropdown-container">
                     <button
                       onClick={() => setShowShippingActionMenu(!showShippingActionMenu)}
-                      className="glass-dropdown-trigger w-auto px-4 justify-between min-w-[100px]"
+                      className="py-2 pl-4 pr-8 rounded-[32px] border border-[#03C27D] bg-white text-[#64748B] text-xs leading-[18px] flex items-center font-medium relative hover:bg-[#F0FDF9] transition-colors cursor-pointer"
                     >
                       Action
                       <ChevronDown className="w-3.5 h-3.5 absolute right-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
@@ -1233,6 +1227,14 @@ export function AdminWallet() {
                       </div>
                     )}
                   </div>
+                  <button
+                    onClick={() => setIsRechargeModalOpen(true)}
+                    aria-label="Recharge Wallet"
+                    className="w-9 h-9 rounded-[80px] border border-[#03C27D] flex items-center justify-center text-white shadow-sm transition-transform hover:scale-105"
+                    style={{ background: 'linear-gradient(180deg, #03C27D 0%, #059669 50%, #065F46 100%)' }}
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
 
@@ -1328,7 +1330,7 @@ export function AdminWallet() {
           {activeTab === 'Passbook' && (
             <>
               {/* Desktop Filters Row */}
-              <div className="hidden md:flex p-3 border-b border-[#E2E8F0] flex-wrap items-center gap-2.5 bg-[#F8FAFC]/50">
+              <div className="hidden md:flex py-3 px-6 border-b border-[#CBD5F5] flex-wrap items-center gap-3 bg-[#F8FAFC]/50">
                 <input
                   type="text"
                   placeholder="Search by name, email, o..."
@@ -1380,29 +1382,23 @@ export function AdminWallet() {
 
                 <button
                   onClick={() => { setPassbookPage(1); fetchPassbookData(1); showToast('success', 'Passbook filters applied successfully!'); }}
-                  className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm flex items-center justify-center cursor-pointer"
+                  className="py-2 px-4 shrink-0 rounded-[32px] bg-[#009D64] border border-[#009D64] text-white text-xs font-medium leading-[18px] hover:bg-[#008a57] transition-colors cursor-pointer"
                 >
-                  Apply
+                  Apply Filters
                 </button>
 
                 {hasPassbookFilters && (
                   <button onClick={clearPassbookFilters}
-                    className="h-9 px-3 shrink-0 rounded-lg border border-red-200 text-red-500 text-xs font-bold hover:bg-red-50 transition-colors">
+                    className="py-2 px-4 shrink-0 rounded-[32px] border border-red-200 text-red-500 text-xs font-medium leading-[18px] hover:bg-red-50 transition-colors cursor-pointer">
                     Clear All
                   </button>
                 )}
 
                 <div className="relative shrink-0 ml-auto flex items-center gap-2">
-                  <button
-                    onClick={() => setIsRechargeModalOpen(true)}
-                    className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
-                  >
-                    <Plus className="w-3.5 h-3.5" /> Recharge Wallet
-                  </button>
                   <div className="relative action-dropdown-container">
                     <button
                       onClick={() => setShowPassbookActionMenu(!showPassbookActionMenu)}
-                      className="glass-dropdown-trigger w-auto px-4 justify-between min-w-[100px]"
+                      className="py-2 pl-4 pr-8 rounded-[32px] border border-[#03C27D] bg-white text-[#64748B] text-xs leading-[18px] flex items-center font-medium relative hover:bg-[#F0FDF9] transition-colors cursor-pointer"
                     >
                       Action
                       <ChevronDown className="w-3.5 h-3.5 absolute right-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
@@ -1427,6 +1423,14 @@ export function AdminWallet() {
                       </div>
                     )}
                   </div>
+                  <button
+                    onClick={() => setIsRechargeModalOpen(true)}
+                    aria-label="Recharge Wallet"
+                    className="w-9 h-9 rounded-[80px] border border-[#03C27D] flex items-center justify-center text-white shadow-sm transition-transform hover:scale-105"
+                    style={{ background: 'linear-gradient(180deg, #03C27D 0%, #059669 50%, #065F46 100%)' }}
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
             </>
@@ -1435,7 +1439,7 @@ export function AdminWallet() {
           {activeTab === 'Wallet Recharge' && (
             <>
               {/* Desktop Filters Row */}
-              <div className="hidden md:flex p-3 border-b border-[#E2E8F0] flex-wrap items-center gap-2.5 bg-[#F8FAFC]/50">
+              <div className="hidden md:flex py-3 px-6 border-b border-[#CBD5F5] flex-wrap items-center gap-3 bg-[#F8FAFC]/50">
                 <input
                   type="text"
                   placeholder="Search by name, email, o..."
@@ -1479,29 +1483,23 @@ export function AdminWallet() {
 
                 <button
                   onClick={() => { setRechargePage(1); fetchRechargeData(1); showToast('success', 'Wallet Recharge filters applied successfully!'); }}
-                  className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm flex items-center justify-center cursor-pointer"
+                  className="py-2 px-4 shrink-0 rounded-[32px] bg-[#009D64] border border-[#009D64] text-white text-xs font-medium leading-[18px] hover:bg-[#008a57] transition-colors cursor-pointer"
                 >
-                  Apply
+                  Apply Filters
                 </button>
 
                 {hasRechargeFilters && (
                   <button onClick={clearRechargeFilters}
-                    className="h-9 px-3 shrink-0 rounded-lg border border-red-200 text-red-500 text-xs font-bold hover:bg-red-50 transition-colors">
+                    className="py-2 px-4 shrink-0 rounded-[32px] border border-red-200 text-red-500 text-xs font-medium leading-[18px] hover:bg-red-50 transition-colors cursor-pointer">
                     Clear All
                   </button>
                 )}
 
                 <div className="relative shrink-0 ml-auto flex items-center gap-2">
-                  <button
-                    onClick={() => setIsRechargeModalOpen(true)}
-                    className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
-                  >
-                    <Plus className="w-3.5 h-3.5" /> Recharge Wallet
-                  </button>
                   <div className="relative action-dropdown-container">
                     <button
                       onClick={() => setShowRechargeActionMenu(!showRechargeActionMenu)}
-                      className="glass-dropdown-trigger w-auto px-4 justify-between min-w-[100px]"
+                      className="py-2 pl-4 pr-8 rounded-[32px] border border-[#03C27D] bg-white text-[#64748B] text-xs leading-[18px] flex items-center font-medium relative hover:bg-[#F0FDF9] transition-colors cursor-pointer"
                     >
                       Action
                       <ChevronDown className="w-3.5 h-3.5 absolute right-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
@@ -1526,6 +1524,14 @@ export function AdminWallet() {
                       </div>
                     )}
                   </div>
+                  <button
+                    onClick={() => setIsRechargeModalOpen(true)}
+                    aria-label="Recharge Wallet"
+                    className="w-9 h-9 rounded-[80px] border border-[#03C27D] flex items-center justify-center text-white shadow-sm transition-transform hover:scale-105"
+                    style={{ background: 'linear-gradient(180deg, #03C27D 0%, #059669 50%, #065F46 100%)' }}
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
 
@@ -1587,7 +1593,7 @@ export function AdminWallet() {
           {activeTab === 'Invoices' && (
             <>
               {/* Desktop Filters Row */}
-              <div className="hidden md:flex p-3 border-b border-[#E2E8F0] flex-wrap items-center gap-2.5 bg-[#F8FAFC]/50">
+              <div className="hidden md:flex py-3 px-6 border-b border-[#CBD5F5] flex-wrap items-center gap-3 bg-[#F8FAFC]/50">
                 <input
                   type="text"
                   placeholder="Search by name, email, o..."
@@ -1623,32 +1629,24 @@ export function AdminWallet() {
 
                 <button
                   onClick={() => { setInvoicePage(1); fetchInvoiceData(1); showToast('success', 'Invoice filters applied successfully!'); }}
-                  className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm flex items-center justify-center cursor-pointer"
+                  className="py-2 px-4 shrink-0 rounded-[32px] bg-[#009D64] border border-[#009D64] text-white text-xs font-medium leading-[18px] hover:bg-[#008a57] transition-colors cursor-pointer"
                 >
-                  Apply
+                  Apply Filters
                 </button>
 
                 {hasInvoiceFilters && (
                   <button onClick={clearInvoiceFilters}
-                    className="h-9 px-3 shrink-0 rounded-lg border border-red-200 text-red-500 text-xs font-bold hover:bg-red-50 transition-colors">
+                    className="py-2 px-4 shrink-0 rounded-[32px] border border-red-200 text-red-500 text-xs font-medium leading-[18px] hover:bg-red-50 transition-colors cursor-pointer">
                     Clear All
                   </button>
                 )}
 
                 <div className="relative shrink-0 ml-auto flex items-center gap-2">
-                  {isAdminView && (
-                    <button
-                      onClick={() => setIsRechargeModalOpen(true)}
-                      className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
-                    >
-                      <Plus className="w-3.5 h-3.5" /> Recharge Wallet
-                    </button>
-                  )}
                   <div className="relative action-dropdown-container">
                     <button
                       onClick={() => selectedInvoiceOrders.length > 0 && setShowInvoiceActionMenu(!showInvoiceActionMenu)}
                       disabled={selectedInvoiceOrders.length === 0}
-                      className={`glass-dropdown-trigger w-auto px-4 justify-between min-w-[100px] ${selectedInvoiceOrders.length === 0 ? "opacity-40 cursor-not-allowed" : ""}`}
+                      className={`py-2 pl-4 pr-8 rounded-[32px] border text-xs leading-[18px] flex items-center font-medium relative transition-colors ${selectedInvoiceOrders.length === 0 ? 'border-[#E2E8F0] bg-[#F8FAFC] text-[#CBD5E1] cursor-not-allowed' : 'border-[#03C27D] bg-white text-[#64748B] hover:bg-[#F0FDF9] cursor-pointer'}`}
                     >
                       Action
                       <ChevronDown className="w-3.5 h-3.5 absolute right-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
@@ -1670,6 +1668,16 @@ export function AdminWallet() {
                       </div>
                     )}
                   </div>
+                  {isAdminView && (
+                    <button
+                      onClick={() => setIsRechargeModalOpen(true)}
+                      aria-label="Recharge Wallet"
+                      className="w-9 h-9 rounded-[80px] border border-[#03C27D] flex items-center justify-center text-white shadow-sm transition-transform hover:scale-105"
+                      style={{ background: 'linear-gradient(180deg, #03C27D 0%, #059669 50%, #065F46 100%)' }}
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -1741,51 +1749,51 @@ export function AdminWallet() {
               {/* Desktop Table */}
               <div className="hidden md:block flex-1 overflow-y-auto overflow-x-hidden w-full relative">
                 <table className="w-full text-left border-collapse min-w-full">
-                  <thead className="sticky top-0 z-20">
-                    <tr className="bg-green-50 text-xs font-medium text-[#475569] uppercase tracking-wider">
-                      <th className="py-2 px-3 w-10 text-left align-middle">
+                  <thead className="sticky top-0 z-20 bg-[#E6F9F2] shadow-sm">
+                    <tr className="text-xs leading-[18px] font-medium text-[#64748B] uppercase tracking-wider border border-[#B9EFDB]">
+                      <th className="py-2 px-4 w-10 text-left align-middle rounded-l-lg">
                         <input type="checkbox" checked={selectedOrders.length === filteredShippingData.length && filteredShippingData.length > 0} onChange={toggleAll} className="rounded border-[#00A86B] accent-[#00A86B] w-3.5 h-3.5" />
                       </th>
                       {isAdminView && (
-                        <th className="py-2 px-3 text-left align-middle whitespace-nowrap">
-                          <div className="flex items-center gap-1.5">
+                        <th className="py-2 px-4 text-left align-middle whitespace-nowrap">
+                          <div className="flex items-center gap-1">
                             <User className="w-3.5 h-3.5 shrink-0" />
                             <span>User Details</span>
                           </div>
                         </th>
                       )}
-                      <th className="py-2 px-3 text-left align-middle whitespace-nowrap">
-                        <div className="flex items-center gap-1.5">
+                      <th className="py-2 px-4 text-left align-middle whitespace-nowrap">
+                        <div className="flex items-center gap-1">
                           <Package className="w-3.5 h-3.5 shrink-0" />
                           <span>Order Details</span>
                         </div>
                       </th>
-                      <th className="py-2 px-3 text-left align-middle whitespace-nowrap">
-                        <div className="flex items-center gap-1.5">
+                      <th className="py-2 px-4 text-left align-middle whitespace-nowrap">
+                        <div className="flex items-center gap-1">
                           <Truck className="w-3.5 h-3.5 shrink-0" />
                           <span>Shipping Details</span>
                         </div>
                       </th>
-                      <th className="py-2 px-3 text-left align-middle whitespace-nowrap">
-                        <div className="flex items-center gap-1.5">
+                      <th className="py-2 px-4 text-left align-middle whitespace-nowrap">
+                        <div className="flex items-center gap-1">
                           <Banknote className="w-3.5 h-3.5 shrink-0" />
                           <span>Status</span>
                         </div>
                       </th>
-                      <th className="py-2 px-3 text-left align-middle whitespace-nowrap">
-                        <div className="flex items-center gap-1.5">
+                      <th className="py-2 px-4 text-left align-middle whitespace-nowrap">
+                        <div className="flex items-center gap-1">
                           <Package className="w-3.5 h-3.5 shrink-0" />
                           <span>Initial Weight</span>
                         </div>
                       </th>
-                      <th className="py-2 px-3 text-left align-middle whitespace-nowrap">
-                        <div className="flex items-center gap-1.5">
+                      <th className="py-2 px-4 text-left align-middle whitespace-nowrap">
+                        <div className="flex items-center gap-1">
                           <Package className="w-3.5 h-3.5 shrink-0" />
                           <span>Courier Weight</span>
                         </div>
                       </th>
-                      <th className="py-2 px-3 text-center align-middle whitespace-nowrap">
-                        <div className="flex items-center justify-center gap-1.5">
+                      <th className="py-2 px-4 text-center align-middle whitespace-nowrap rounded-r-lg">
+                        <div className="flex items-center justify-center gap-1">
                           <Settings className="w-3.5 h-3.5 shrink-0" />
                           <span>Actions</span>
                         </div>
@@ -1794,7 +1802,7 @@ export function AdminWallet() {
                   </thead>
                   <tbody className="text-[11px] text-[#475569]">
                     {paginatedShippingData.map((order, idx) => (
-                      <tr key={order.awb} className={`border-b border-[#E2E8F0] transition-colors group ${idx % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]'}`}>
+                      <tr key={order.awb} className={`border-b border-[#E2E8F0] transition-colors group ${idx % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]/20'}`}>
                         <td className="p-4">
                           <input type="checkbox" checked={selectedOrders.includes(order.awb)} onChange={() => toggleSelect(order.awb)} className="rounded border-gray-300 accent-[#00A86B] w-3.5 h-3.5" />
                         </td>
@@ -2069,57 +2077,57 @@ export function AdminWallet() {
               {/* Desktop Passbook Table */}
               <div className="hidden md:block flex-1 overflow-y-auto overflow-x-hidden w-full relative">
                 <table className="w-full text-left border-collapse min-w-full">
-                  <thead className="sticky top-0 z-20">
-                    <tr className="bg-green-50 text-xs font-medium text-[#475569] uppercase tracking-wider">
-                      <th className="py-2 px-3 w-10 text-left align-middle">
+                  <thead className="sticky top-0 z-20 bg-[#E6F9F2] shadow-sm">
+                    <tr className="text-xs leading-[18px] font-medium text-[#64748B] uppercase tracking-wider border border-[#B9EFDB]">
+                      <th className="py-2 px-4 w-10 text-left align-middle rounded-l-lg">
                         <input type="checkbox" checked={selectedPassbookOrders.length === filteredPassbookData.length && filteredPassbookData.length > 0} onChange={toggleAllPassbook} className="rounded border-[#00A86B] accent-[#00A86B] w-3.5 h-3.5" />
                       </th>
                       {isAdminView && (
-                        <th className="py-2 px-3 text-left align-middle whitespace-nowrap">
-                          <div className="flex items-center gap-1.5">
+                        <th className="py-2 px-4 text-left align-middle whitespace-nowrap">
+                          <div className="flex items-center gap-1">
                             <User className="w-3.5 h-3.5 shrink-0" />
                             <span>User</span>
                           </div>
                         </th>
                       )}
-                      <th className="py-2 px-3 text-left align-middle whitespace-nowrap">
-                        <div className="flex items-center gap-1.5">
+                      <th className="py-2 px-4 text-left align-middle whitespace-nowrap">
+                        <div className="flex items-center gap-1">
                           <Calendar className="w-3.5 h-3.5 shrink-0" />
                           <span>Date / Time</span>
                         </div>
                       </th>
-                      <th className="py-2 px-3 text-left align-middle whitespace-nowrap">
-                        <div className="flex items-center gap-1.5">
+                      <th className="py-2 px-4 text-left align-middle whitespace-nowrap">
+                        <div className="flex items-center gap-1">
                           <Truck className="w-3.5 h-3.5 shrink-0" />
                           <span>Shipment</span>
                         </div>
                       </th>
-                      <th className="py-2 px-3 text-left align-middle whitespace-nowrap">
-                        <div className="flex items-center gap-1.5">
+                      <th className="py-2 px-4 text-left align-middle whitespace-nowrap">
+                        <div className="flex items-center gap-1">
                           <FileText className="w-3.5 h-3.5 shrink-0" />
                           <span>Category</span>
                         </div>
                       </th>
-                      <th className="py-2 px-3 text-left align-middle whitespace-nowrap">
-                        <div className="flex items-center gap-1.5">
+                      <th className="py-2 px-4 text-left align-middle whitespace-nowrap">
+                        <div className="flex items-center gap-1">
                           <Banknote className="w-3.5 h-3.5 shrink-0" />
                           <span>Amount</span>
                         </div>
                       </th>
-                      <th className="py-2 px-3 text-left align-middle whitespace-nowrap">
-                        <div className="flex items-center gap-1.5">
+                      <th className="py-2 px-4 text-left align-middle whitespace-nowrap">
+                        <div className="flex items-center gap-1">
                           <Wallet className="w-3.5 h-3.5 shrink-0" />
                           <span>Balance</span>
                         </div>
                       </th>
-                      <th className="py-2 px-3 text-left align-middle whitespace-nowrap">
-                        <div className="flex items-center gap-1.5">
+                      <th className="py-2 px-4 text-left align-middle whitespace-nowrap">
+                        <div className="flex items-center gap-1">
                           <FileText className="w-3.5 h-3.5 shrink-0" />
                           <span>Description</span>
                         </div>
                       </th>
-                      <th className="py-2 px-3 text-center align-middle whitespace-nowrap">
-                        <div className="flex items-center justify-center gap-1.5">
+                      <th className="py-2 px-4 text-center align-middle whitespace-nowrap rounded-r-lg">
+                        <div className="flex items-center justify-center gap-1">
                           <Settings className="w-3.5 h-3.5 shrink-0" />
                           <span>Actions</span>
                         </div>
@@ -2128,7 +2136,7 @@ export function AdminWallet() {
                   </thead>
                   <tbody className="text-[11px] text-[#475569]">
                     {paginatedPassbookData.map((order, idx) => (
-                      <tr key={order.awb} className={`border-b border-[#E2E8F0] transition-colors group ${idx % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]'}`}>
+                      <tr key={order.awb} className={`border-b border-[#E2E8F0] transition-colors group ${idx % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]/20'}`}>
                         <td className="p-4">
                           <input type="checkbox" checked={selectedPassbookOrders.includes(order.awb)} onChange={() => toggleSelectPassbook(order.awb)} className="rounded border-gray-300 accent-[#00A86B] w-3.5 h-3.5" />
                         </td>
@@ -2367,45 +2375,45 @@ export function AdminWallet() {
               {/* Desktop Table */}
               <div className="hidden md:block flex-1 overflow-y-auto overflow-x-hidden w-full relative">
                 <table className="w-full text-left border-collapse min-w-full">
-                  <thead className="sticky top-0 z-20">
-                    <tr className="bg-green-50 text-xs font-medium text-[#475569] uppercase tracking-wider">
-                      <th className="py-2 px-3 w-10 text-left align-middle">
+                  <thead className="sticky top-0 z-20 bg-[#E6F9F2] shadow-sm">
+                    <tr className="text-xs leading-[18px] font-medium text-[#64748B] uppercase tracking-wider border border-[#B9EFDB]">
+                      <th className="py-2 px-4 w-10 text-left align-middle rounded-l-lg">
                         <input type="checkbox" checked={selectedRechargeOrders.length === filteredWalletRechargeData.length && filteredWalletRechargeData.length > 0} onChange={toggleAllRecharge} className="rounded border-[#00A86B] accent-[#00A86B] w-3.5 h-3.5" />
                       </th>
                       {isAdminView && (
-                        <th className="py-2 px-3 text-left align-middle whitespace-nowrap">
-                          <div className="flex items-center gap-1.5">
+                        <th className="py-2 px-4 text-left align-middle whitespace-nowrap">
+                          <div className="flex items-center gap-1">
                             <User className="w-3.5 h-3.5 shrink-0" />
                             <span>User</span>
                           </div>
                         </th>
                       )}
-                      <th className="py-2 px-3 text-left align-middle whitespace-nowrap">
-                        <div className="flex items-center gap-1.5">
+                      <th className="py-2 px-4 text-left align-middle whitespace-nowrap">
+                        <div className="flex items-center gap-1">
                           <Calendar className="w-3.5 h-3.5 shrink-0" />
                           <span>Date</span>
                         </div>
                       </th>
-                      <th className="py-2 px-3 text-left align-middle whitespace-nowrap">
-                        <div className="flex items-center gap-1.5">
+                      <th className="py-2 px-4 text-left align-middle whitespace-nowrap">
+                        <div className="flex items-center gap-1">
                           <FileText className="w-3.5 h-3.5 shrink-0" />
                           <span>Transaction ID</span>
                         </div>
                       </th>
-                      <th className="py-2 px-3 text-left align-middle whitespace-nowrap">
-                        <div className="flex items-center gap-1.5">
+                      <th className="py-2 px-4 text-left align-middle whitespace-nowrap">
+                        <div className="flex items-center gap-1">
                           <Banknote className="w-3.5 h-3.5 shrink-0" />
                           <span>Amount</span>
                         </div>
                       </th>
-                      <th className="py-2 px-3 text-left align-middle whitespace-nowrap">
-                        <div className="flex items-center gap-1.5">
+                      <th className="py-2 px-4 text-left align-middle whitespace-nowrap">
+                        <div className="flex items-center gap-1">
                           <Check className="w-3.5 h-3.5 shrink-0" />
                           <span>Status</span>
                         </div>
                       </th>
-                      <th className="py-2 px-3 text-left align-middle whitespace-nowrap">
-                        <div className="flex items-center gap-1.5">
+                      <th className="py-2 px-4 text-left align-middle whitespace-nowrap rounded-r-lg">
+                        <div className="flex items-center gap-1">
                           <FileText className="w-3.5 h-3.5 shrink-0" />
                           <span>Description</span>
                         </div>
@@ -2414,7 +2422,7 @@ export function AdminWallet() {
                   </thead>
                   <tbody className="text-[11px] text-[#475569]">
                     {paginatedRechargeData.map((recharge, idx) => (
-                      <tr key={recharge.transactionId} className={`border-b border-[#E2E8F0] transition-colors group ${idx % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]'}`}>
+                      <tr key={recharge.transactionId} className={`border-b border-[#E2E8F0] transition-colors group ${idx % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]/20'}`}>
                         <td className="p-4">
                           <input type="checkbox" checked={selectedRechargeOrders.includes(recharge.transactionId)} onChange={() => toggleSelectRecharge(recharge.transactionId)} className="rounded border-gray-300 accent-[#00A86B] w-3.5 h-3.5" />
                         </td>
@@ -2578,57 +2586,57 @@ export function AdminWallet() {
               )}
               <div className="hidden md:block flex-1 overflow-y-auto overflow-x-hidden w-full relative">
                 <table className="w-full text-left border-collapse min-w-full">
-                  <thead className="sticky top-0 z-20">
-                    <tr className="bg-green-50 text-xs font-medium text-[#475569] uppercase tracking-wider">
-                      <th className="py-2 px-3 w-10 text-left align-middle">
+                  <thead className="sticky top-0 z-20 bg-[#E6F9F2] shadow-sm">
+                    <tr className="text-xs leading-[18px] font-medium text-[#64748B] uppercase tracking-wider border border-[#B9EFDB]">
+                      <th className="py-2 px-4 w-10 text-left align-middle rounded-l-lg">
                         <input type="checkbox" checked={selectedInvoiceOrders.length === filteredInvoicesData.length && filteredInvoicesData.length > 0} onChange={toggleAllInvoices} className="rounded border-[#00A86B] accent-[#00A86B] w-3.5 h-3.5" />
                       </th>
                       {isAdminView && (
-                        <th className="py-2 px-3 text-left align-middle whitespace-nowrap">
-                          <div className="flex items-center gap-1.5">
+                        <th className="py-2 px-4 text-left align-middle whitespace-nowrap">
+                          <div className="flex items-center gap-1">
                             <User className="w-3.5 h-3.5 shrink-0" />
                             <span>User</span>
                           </div>
                         </th>
                       )}
-                      <th className="py-2 px-3 text-left align-middle whitespace-nowrap">
-                        <div className="flex items-center gap-1.5">
+                      <th className="py-2 px-4 text-left align-middle whitespace-nowrap">
+                        <div className="flex items-center gap-1">
                           <FileText className="w-3.5 h-3.5 shrink-0" />
                           <span>Invoice No.</span>
                         </div>
                       </th>
-                      <th className="py-2 px-3 text-left align-middle whitespace-nowrap">
-                        <div className="flex items-center gap-1.5">
+                      <th className="py-2 px-4 text-left align-middle whitespace-nowrap">
+                        <div className="flex items-center gap-1">
                           <Package className="w-3.5 h-3.5 shrink-0" />
                           <span>Shipments</span>
                         </div>
                       </th>
-                      <th className="py-2 px-3 text-left align-middle whitespace-nowrap">
-                        <div className="flex items-center gap-1.5">
+                      <th className="py-2 px-4 text-left align-middle whitespace-nowrap">
+                        <div className="flex items-center gap-1">
                           <Banknote className="w-3.5 h-3.5 shrink-0" />
                           <span>Amount</span>
                         </div>
                       </th>
-                      <th className="py-2 px-3 text-left align-middle whitespace-nowrap">
-                        <div className="flex items-center gap-1.5">
+                      <th className="py-2 px-4 text-left align-middle whitespace-nowrap">
+                        <div className="flex items-center gap-1">
                           <Calendar className="w-3.5 h-3.5 shrink-0" />
                           <span>Created Date</span>
                         </div>
                       </th>
-                      <th className="py-2 px-3 text-left align-middle whitespace-nowrap">
-                        <div className="flex items-center gap-1.5">
+                      <th className="py-2 px-4 text-left align-middle whitespace-nowrap">
+                        <div className="flex items-center gap-1">
                           <Calendar className="w-3.5 h-3.5 shrink-0" />
                           <span>Period</span>
                         </div>
                       </th>
-                      <th className="py-2 px-3 text-left align-middle whitespace-nowrap">
-                        <div className="flex items-center gap-1.5">
+                      <th className="py-2 px-4 text-left align-middle whitespace-nowrap">
+                        <div className="flex items-center gap-1">
                           <Check className="w-3.5 h-3.5 shrink-0" />
                           <span>Status</span>
                         </div>
                       </th>
-                      <th className="py-2 px-3 text-center align-middle whitespace-nowrap">
-                        <div className="flex items-center justify-center gap-1.5">
+                      <th className="py-2 px-4 text-center align-middle whitespace-nowrap rounded-r-lg">
+                        <div className="flex items-center justify-center gap-1">
                           <Settings className="w-3.5 h-3.5 shrink-0" />
                           <span>Actions</span>
                         </div>
@@ -2637,7 +2645,7 @@ export function AdminWallet() {
                   </thead>
                   <tbody className="text-[11px] text-[#475569]">
                     {paginatedInvoicesData.map((invoice, idx) => (
-                      <tr key={invoice.invoiceNumber} className={`border-b border-[#E2E8F0] transition-colors group ${idx % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]'}`}>
+                      <tr key={invoice.invoiceNumber} className={`border-b border-[#E2E8F0] transition-colors group ${idx % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]/20'}`}>
                         <td className="p-4">
                           <input type="checkbox" checked={selectedInvoiceOrders.includes(invoice.invoiceNumber)} onChange={() => toggleSelectInvoice(invoice.invoiceNumber)} className="rounded border-gray-300 accent-[#00A86B] w-3.5 h-3.5" />
                         </td>

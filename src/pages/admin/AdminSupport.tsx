@@ -324,7 +324,7 @@ export function AdminSupport() {
           </div>
 
         {/* Filter Row */}
-        <div className="p-4 border-b border-[#E2E8F0] flex flex-wrap justify-between items-center gap-3 bg-[#F8FAFC]/50">
+        <div className="py-3 px-6 border-b border-[#CBD5F5] flex flex-wrap justify-between items-center gap-3 bg-[#F8FAFC]/50">
           <div className="flex flex-wrap items-center gap-3">
             <input 
               type="text" 
@@ -380,20 +380,20 @@ export function AdminSupport() {
         <div className="flex-1 overflow-y-auto overflow-x-hidden w-full relative">
           <table className="w-full text-left border-collapse min-w-full">
             <thead>
-              <tr className="bg-green-50 text-xs font-medium text-[#475569] uppercase tracking-wider">
-                <th className="py-2 px-3"><User className="w-3.5 h-3.5 inline mr-1"/> Ticket ID</th>
+              <tr className="bg-green-50 text-xs font-medium text-[#64748B] uppercase tracking-wider">
+                <th className="py-2 px-3 rounded-l-lg"><User className="w-3.5 h-3.5 inline mr-1"/> Ticket ID</th>
                 <th className="py-2 px-3"><Package className="w-3.5 h-3.5 inline mr-1"/> AWB(s)</th>
                 <th className="py-2 px-3"><FileText className="w-3.5 h-3.5 inline mr-1"/> Subcategory</th>
                 <th className="py-2 px-3"><FileText className="w-3.5 h-3.5 inline mr-1"/> Ticket Status</th>
                 <th className="py-2 px-3"><Calendar className="w-3.5 h-3.5 inline mr-1"/> Resolution Due By</th>
                 <th className="py-2 px-3"><Calendar className="w-3.5 h-3.5 inline mr-1"/> Last Updated</th>
-                <th className="py-2 px-3 text-right"><User className="w-3.5 h-3.5 inline mr-1"/> Actions</th>
+                <th className="py-2 px-3 text-right rounded-r-lg"><User className="w-3.5 h-3.5 inline mr-1"/> Actions</th>
               </tr>
             </thead>
             <tbody className="text-[11px] text-[#475569]">
               {paginatedTickets.length > 0 ? (
                 paginatedTickets.map((ticket, i) => (
-                  <tr key={i} className={`border-b border-[#E2E8F0] transition-colors group ${i % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]'}`}>
+                  <tr key={i} className={`border-b border-[#E2E8F0] transition-colors group ${i % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]/20'}`}>
                     <td className="p-4 align-top pt-4 text-[#0F172A]">
                       <div className="text-xs font-semibold text-[#00A86B] mb-0.5">{ticket.id}</div>
                       <div className="table-date">{ticket.date}</div>

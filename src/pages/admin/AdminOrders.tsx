@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import { useNavigate, useParams, useLocation, useSearchParams } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
@@ -129,7 +129,7 @@ const STATUS_RIBBON_COLORS: Record<string, string> = {
 const getRibbonColor = (status: string) => STATUS_RIBBON_COLORS[status] || '#00A86B';
 
 const getStatusBadgeClass = (status: string) =>
-  `${STATUS_BADGE_STYLES[status] || 'bg-blue-50 text-blue-700 border-blue-200'} px-2.5 py-0.5 rounded-full border text-[10px] font-semibold uppercase tracking-wider whitespace-nowrap shadow-sm`;
+  `${STATUS_BADGE_STYLES[status] || 'bg-blue-50 text-blue-700 border-blue-200'} px-2.5 py-0.5 rounded-full border text-[10px] leading-4 font-semibold uppercase tracking-wider whitespace-nowrap shadow-sm`;
 
 // ─── Ageing (Pickup & Manifest tab) ───────────────────────────────────────────
 const calculateAgeingDays = (dateStr: string) => {
@@ -262,6 +262,31 @@ export function AdminOrders() {
     const tabFromUrl = (tabSlug && SLUG_TO_TAB[tabSlug]) || 'New';
     setActiveTab(prev => (prev === tabFromUrl ? prev : tabFromUrl));
   }, [tabSlug]);
+
+  // Deep-link support for the global navbar search: ?orderId=<id> opens that order's drawer directly.
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    const deepLinkOrderId = searchParams.get('orderId');
+    if (!deepLinkOrderId) return;
+    (async () => {
+      try {
+        const res = await apiClient.get('/admin/filterEmployeeOrders', {
+          params: { page: 1, limit: 1, orderId: deepLinkOrderId },
+        });
+        const raw = res.data?.orders || [];
+        if (raw.length > 0) setDrawerOrder(mapOrder(raw[0]));
+      } catch (err) {
+        console.error('Failed to open deep-linked order:', err);
+      } finally {
+        setSearchParams(prev => {
+          const next = new URLSearchParams(prev);
+          next.delete('orderId');
+          return next;
+        }, { replace: true });
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [showMore, setShowMore]     = useState(false);
   const moreRef                     = useRef<HTMLDivElement>(null);
@@ -776,7 +801,7 @@ export function AdminOrders() {
           )}
 
           {/* ── Filter Row — hidden for Pickup & Manifest (that tab has its own UI) ── */}
-          {!isPMTab && <div className="hidden md:flex p-3 border-b border-[#E2E8F0] flex-wrap items-center gap-2.5 bg-[#F8FAFC]/50">
+          {!isPMTab && <div className="orders-filter-bar hidden md:flex py-3 px-6 border-b border-[#CBD5F5] flex-wrap items-center gap-3 bg-[#F8FAFC]/50">
 
             {/* User search autocomplete — admin view only */}
             {isAdminView && (
@@ -879,11 +904,11 @@ export function AdminOrders() {
               onDateChange={(s, e) => { setDateStart(s); setDateEnd(e); }}
             />
 
-            <button onClick={handleApplyFilters} className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm cursor-pointer">
-              Apply
+            <button onClick={handleApplyFilters} className="py-2 px-4 shrink-0 rounded-[32px] bg-[#009D64] border border-[#009D64] text-white text-xs font-medium leading-[18px] hover:bg-[#008a57] transition-colors cursor-pointer">
+              Apply Filters
             </button>
             {hasActiveFilters && (
-              <button onClick={handleClearAllFilters} className="h-9 px-3 shrink-0 rounded-lg border border-red-200 text-red-500 text-xs font-bold hover:bg-red-50 transition-colors cursor-pointer">
+              <button onClick={handleClearAllFilters} className="py-2 px-4 shrink-0 rounded-[32px] border border-red-200 text-red-500 text-xs font-medium leading-[18px] hover:bg-red-50 transition-colors cursor-pointer">
                 Clear All
               </button>
             )}
@@ -893,7 +918,7 @@ export function AdminOrders() {
                 <button
                   onClick={() => selectedOrders.length > 0 && setShowActionMenu(v => !v)}
                   disabled={selectedOrders.length === 0}
-                  className={`h-9 pl-4 pr-8 rounded-full border text-xs flex items-center font-bold relative transition-colors ${selectedOrders.length === 0 ? 'border-[#E2E8F0] bg-[#F8FAFC] text-[#CBD5E1] cursor-not-allowed' : 'border-[#E2E8F0] bg-white text-[#475569] shadow-sm hover:bg-[#F8FAFC] cursor-pointer'}`}
+                  className={`py-2 pl-4 pr-8 rounded-[32px] border text-xs leading-[18px] flex items-center font-medium relative transition-colors ${selectedOrders.length === 0 ? 'border-[#E2E8F0] bg-[#F8FAFC] text-[#CBD5E1] cursor-not-allowed' : 'border-[#03C27D] bg-white text-[#64748B] hover:bg-[#F0FDF9] cursor-pointer'}`}
                 >
                   Action
                   <ChevronDown className="w-3.5 h-3.5 absolute right-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
@@ -907,10 +932,11 @@ export function AdminOrders() {
               {!isAdminView && (
                 <button
                   onClick={() => navigate('/user/add-order')}
-                  className="h-9 px-4 rounded-full bg-[#00A86B] flex items-center gap-2 text-white text-[13px] font-bold hover:bg-[#009B63] shadow-sm transition-colors"
+                  aria-label="Add Order"
+                  className="w-9 h-9 rounded-[80px] border border-[#03C27D] flex items-center justify-center text-white shadow-sm transition-transform hover:scale-105"
+                  style={{ background: 'linear-gradient(180deg, #03C27D 0%, #059669 50%, #065F46 100%)' }}
                 >
                   <PackagePlus className="w-4 h-4" />
-                  Add Order
                 </button>
               )}
             </div>
@@ -944,27 +970,27 @@ export function AdminOrders() {
           <div className="flex-1 overflow-auto w-full relative">
             {loading && <TableLoader />}
             <table className="w-full text-left border-collapse min-w-full">
-                <thead className="sticky top-0 z-40 bg-green-50 shadow-sm">
-                  <tr className="text-xs font-medium text-[#475569] uppercase tracking-wider">
-                    <th className="py-2 px-3 w-10">
+                <thead className="sticky top-0 z-40 bg-[#E6F9F2] shadow-sm">
+                  <tr className="text-xs leading-[18px] font-medium text-[#64748B] uppercase tracking-wider border border-[#B9EFDB]">
+                    <th className="py-2 px-4 w-10 rounded-l-lg">
                       <input type="checkbox" checked={selectedOrders.length === orders.length && orders.length > 0} onChange={toggleAll} className="rounded border-[#00A86B] accent-[#00A86B] w-3.5 h-3.5" />
                     </th>
 
                     {/* User column — admin view only */}
                     {isAdminView && (
-                      <th className="py-2 px-3 whitespace-nowrap">
-                        <div className="flex items-center gap-1.5"><User className="w-3.5 h-3.5 shrink-0" /><span>User</span></div>
+                      <th className="py-2 px-4 whitespace-nowrap w-[188px]">
+                        <div className="flex items-center gap-1"><User className="w-3.5 h-3.5 shrink-0" /><span>User</span></div>
                       </th>
                     )}
 
                     {isPMTab ? (
                       <>
-                        <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><Package className="w-3.5 h-3.5 shrink-0" /><span>Pickup ID</span></div></th>
-                        <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 shrink-0" /><span>Pickup</span></div></th>
-                        <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5 shrink-0" /><span>Pickup Date</span></div></th>
-                        <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><Layers className="w-3.5 h-3.5 shrink-0" /><span>Total / Picked</span></div></th>
-                        <th ref={ageingLegendRef} className="py-2 px-3 whitespace-nowrap relative cursor-pointer hover:bg-[#D1F0E8]" onClick={() => setShowAgeingLegend(!showAgeingLegend)}>
-                          <div className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 shrink-0" /><span>Ageing</span></div>
+                        <th className="py-2 px-4 whitespace-nowrap"><div className="flex items-center gap-1"><Package className="w-3.5 h-3.5 shrink-0" /><span>Pickup ID</span></div></th>
+                        <th className="py-2 px-4 whitespace-nowrap"><div className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5 shrink-0" /><span>Pickup</span></div></th>
+                        <th className="py-2 px-4 whitespace-nowrap"><div className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5 shrink-0" /><span>Pickup Date</span></div></th>
+                        <th className="py-2 px-4 whitespace-nowrap"><div className="flex items-center gap-1"><Layers className="w-3.5 h-3.5 shrink-0" /><span>Total / Picked</span></div></th>
+                        <th ref={ageingLegendRef} className="py-2 px-4 whitespace-nowrap relative cursor-pointer hover:bg-[#D1F0E8]" onClick={() => setShowAgeingLegend(!showAgeingLegend)}>
+                          <div className="flex items-center gap-1"><Clock className="w-3.5 h-3.5 shrink-0" /><span>Ageing</span></div>
                           {showAgeingLegend && (
                             <div className="absolute top-full left-0 mt-1 w-56 bg-white rounded-xl shadow-lg border border-[#E2E8F0] p-3 z-[100] normal-case tracking-normal">
                               <div className="text-[11px] font-bold text-[#0F172A] mb-2 pb-2 border-b border-[#E2E8F0]">Ageing Indicators</div>
@@ -980,23 +1006,23 @@ export function AdminOrders() {
                       </>
                     ) : (
                       <>
-                        <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 shrink-0" /><span>Order</span></div></th>
-                        <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><Package className="w-3.5 h-3.5 shrink-0" /><span>Product</span></div></th>
-                        <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><Package className="w-3.5 h-3.5 shrink-0" /><span>Package</span></div></th>
-                        <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><IndianRupee className="w-3.5 h-3.5 shrink-0" /><span>Payment</span></div></th>
-                        <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><User className="w-3.5 h-3.5 shrink-0" /><span>Customer</span></div></th>
-                        <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 shrink-0" /><span>Pickup</span></div></th>
+                        <th className="py-2 px-4 whitespace-nowrap w-[94px]"><div className="flex items-center gap-1"><Check className="w-3.5 h-3.5 shrink-0" /><span>Order</span></div></th>
+                        <th className="py-2 px-4 whitespace-nowrap w-[130px]"><div className="flex items-center gap-1"><Package className="w-3.5 h-3.5 shrink-0" /><span>Product</span></div></th>
+                        <th className="py-2 px-4 whitespace-nowrap w-[126px]"><div className="flex items-center gap-1"><Package className="w-3.5 h-3.5 shrink-0" /><span>Package</span></div></th>
+                        <th className="py-2 px-4 whitespace-nowrap w-[77px]"><div className="flex items-center gap-1"><IndianRupee className="w-3.5 h-3.5 shrink-0" /><span>Payment</span></div></th>
+                        <th className="py-2 px-4 whitespace-nowrap w-[117px]"><div className="flex items-center gap-1"><User className="w-3.5 h-3.5 shrink-0" /><span>Customer</span></div></th>
+                        <th className="py-2 px-4 whitespace-nowrap w-[108px]"><div className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5 shrink-0" /><span>Pickup</span></div></th>
                         {showShipmentCol && (
-                          <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><Truck className="w-3.5 h-3.5 shrink-0" /><span>Shipment</span></div></th>
+                          <th className="py-2 px-4 whitespace-nowrap"><div className="flex items-center gap-1"><Truck className="w-3.5 h-3.5 shrink-0" /><span>Shipment</span></div></th>
                         )}
                       </>
                     )}
 
-                    <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 shrink-0" /><span>Status</span></div></th>
+                    <th className="py-2 px-4 whitespace-nowrap w-[62px]"><div className="flex items-center gap-1"><Check className="w-3.5 h-3.5 shrink-0" /><span>Status</span></div></th>
                     {showLastUpdateCol && (
-                      <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><History className="w-3.5 h-3.5 shrink-0" /><span>Last Update</span></div></th>
+                      <th className="py-2 px-4 whitespace-nowrap"><div className="flex items-center gap-1"><History className="w-3.5 h-3.5 shrink-0" /><span>Last Update</span></div></th>
                     )}
-                    <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><Settings className="w-3.5 h-3.5 shrink-0" /><span>Actions</span></div></th>
+                    <th className="py-2 px-4 whitespace-nowrap rounded-r-lg w-[69px]"><div className="flex items-center gap-1"><Settings className="w-3.5 h-3.5 shrink-0" /><span>Actions</span></div></th>
                   </tr>
                 </thead>
                 <tbody className="text-[11px] text-[#475569]">
@@ -1007,19 +1033,21 @@ export function AdminOrders() {
                       </td>
                     </tr>
                   ) : paginatedOrders.map((order, _idx) => (
-                    <tr key={order._id} className={`border-b border-[#E2E8F0] transition-colors group ${_idx % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]'}`}>
+                    <tr key={order._id} className={`border-b border-[#E2E8F0] transition-colors group ${_idx % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]/20'}`}>
                       <td className="p-3">
                         <input type="checkbox" checked={selectedOrders.includes(order._id)} onChange={() => toggleSelect(order._id)} className="rounded border-gray-300 accent-[#00A86B] w-3.5 h-3.5" />
                       </td>
 
                       {/* User column — admin view only */}
                       {isAdminView && (
-                        <td className="p-3">
-                          <div className="text-xs font-semibold text-[#00A86B] hover:underline cursor-pointer" onClick={() => setDrawerOrder(order)}>
-                            {order.userUserId || order.orderId}
+                        <td className="p-3 w-[188px]">
+                          <div className="flex flex-col gap-1">
+                            <div className="text-[12px] leading-[18px] font-semibold text-[#009D64] hover:underline cursor-pointer" onClick={() => setDrawerOrder(order)}>
+                              {order.userUserId || order.orderId}
+                            </div>
+                            <TruncatedText text={order.userName} maxLength={20} className="text-[14px] leading-[20px] font-semibold text-[#1E293B] max-w-[156px]" />
+                            <TruncatedText text={order.userEmail} maxLength={25} className="text-[12px] leading-[18px] font-normal text-[#64748B] max-w-[156px]" />
                           </div>
-                          <TruncatedText text={order.userName} maxLength={20} className="text-sm font-semibold text-[#0F172A] mt-0.5 max-w-[140px]" />
-                          <TruncatedText text={order.userEmail} maxLength={25} className="text-xs font-normal text-[#94A3B8] max-w-[140px]" />
                         </td>
                       )}
 
@@ -1061,15 +1089,17 @@ export function AdminOrders() {
                         </>
                       ) : (
                         <>
-                          <td className="p-3">
-                            <div className="text-xs font-semibold text-[#00A86B] hover:underline cursor-pointer" onClick={() => setDrawerOrder(order)}>{order.orderId}</div>
-                            <div className="text-xs font-normal text-[#94A3B8] mt-0.5">{order.date}</div>
-                            <span className="px-2 py-0.5 rounded-full border border-blue-200 text-blue-600 font-semibold text-[10px] bg-blue-50/50 mt-1 inline-block uppercase">
-                              {order.channel === 'WooCommerce' ? 'Woo' : (order.channel || 'CUSTOM')}
-                            </span>
+                          <td className="p-3 w-[94px]">
+                            <div className="flex flex-col gap-1">
+                              <div className="text-[12px] leading-[18px] font-semibold text-[#009D64] hover:underline cursor-pointer" onClick={() => setDrawerOrder(order)}>{order.orderId}</div>
+                              <div className="text-[12px] leading-[18px] font-normal text-[#64748B]">{order.date}</div>
+                              <span className="px-2 py-0.5 rounded-full border border-blue-200 text-[#004AAD] font-semibold text-[10px] leading-4 bg-blue-50/50 inline-block uppercase w-fit">
+                                {order.channel === 'WooCommerce' ? 'Woo' : (order.channel || 'CUSTOM')}
+                              </span>
+                            </div>
                           </td>
                           <td
-                            className="p-3"
+                            className="p-3 w-[130px]"
                             onMouseEnter={(e) => {
                               if (order.products.length === 0) return;
                               const rect = e.currentTarget.getBoundingClientRect();
@@ -1077,32 +1107,40 @@ export function AdminOrders() {
                             }}
                             onMouseLeave={() => setProductHoverPos(prev => (prev?.id === order._id ? null : prev))}
                           >
-                            <div className="text-xs font-normal text-[#0F172A] truncate max-w-[140px] cursor-default">{order.productName || '—'}</div>
-                            <div className="text-xs font-normal text-[#64748B] mt-0.5 truncate max-w-[140px]">SKU: {order.sku || '—'}</div>
-                            <div className="text-xs font-normal text-[#64748B]">QTY: {order.qty}</div>
-                          </td>
-                          <td className="p-3 text-xs font-normal text-[#64748B]">
-                            <div className="text-[#0F172A] font-normal">Weight: {order.weight}</div>
-                            <div className="mt-0.5">L×W×H: {order.dimensions}</div>
-                            <div className="mt-0.5">Vol: {order.volWeight}</div>
-                          </td>
-                          <td className="p-3">
-                            <div className="text-xs font-normal text-[#0F172A] ml-[3px]">&#8377;{order.payment}</div>
-                            <span className="px-2 py-0.5 rounded-full border border-blue-200 text-blue-600 font-semibold text-[10px] bg-blue-50/50 mt-1 inline-block">{order.paymentType}</span>
-                          </td>
-                          <td className="p-3">
-                            <div
-                              className="text-xs font-normal text-[#0F172A] underline decoration-dotted underline-offset-2 hover:text-[#00A86B] cursor-help inline-block truncate max-w-[140px]"
-                              onMouseEnter={(e) => setHoveredCustomer({ rect: e.currentTarget.getBoundingClientRect(), name: order.customerName, address: order.customerAddress, city: order.customerCity, state: order.customerState, pinCode: order.customerPinCode, email: order.customerEmail })}
-                              onMouseLeave={() => setHoveredCustomer(null)}
-                            >
-                              {order.customerName}
+                            <div className="flex flex-col gap-1">
+                              <div className="text-[12px] leading-[18px] font-normal text-[#1E293B] underline truncate max-w-[120px] cursor-default">{order.productName || '—'}</div>
+                              <div className="text-[12px] leading-[18px] font-normal text-[#1E293B] truncate max-w-[120px]">SKU: {order.sku || '—'}</div>
+                              <div className="text-[12px] leading-[18px] font-normal text-[#1E293B]">QTY: {order.qty}</div>
                             </div>
-                            <div className="text-xs font-normal text-[#64748B] mt-0.5">{order.customerPhone}</div>
                           </td>
-                          <td className="p-3">
+                          <td className="p-3 w-[126px]">
+                            <div className="flex flex-col gap-1 text-[12px] leading-[18px] font-normal text-[#1E293B]">
+                              <div>Weight: {order.weight}</div>
+                              <div>L×W×H: {order.dimensions}</div>
+                              <div>Vol: {order.volWeight}</div>
+                            </div>
+                          </td>
+                          <td className="p-3 w-[77px]">
+                            <div className="flex flex-col gap-1">
+                              <div className="text-[12px] leading-[18px] font-normal text-[#64748B] ml-[3px]">&#8377;{order.payment}</div>
+                              <span className="px-2 py-0.5 rounded-full border border-blue-200 text-[#004AAD] font-semibold text-[10px] leading-4 bg-blue-50/50 inline-block w-fit">{order.paymentType}</span>
+                            </div>
+                          </td>
+                          <td className="p-3 w-[117px]">
+                            <div className="flex flex-col gap-1">
+                              <div
+                                className="text-[12px] leading-[18px] font-normal text-[#1E293B] underline decoration-dotted underline-offset-2 hover:text-[#00A86B] cursor-help inline-block truncate max-w-[110px]"
+                                onMouseEnter={(e) => setHoveredCustomer({ rect: e.currentTarget.getBoundingClientRect(), name: order.customerName, address: order.customerAddress, city: order.customerCity, state: order.customerState, pinCode: order.customerPinCode, email: order.customerEmail })}
+                                onMouseLeave={() => setHoveredCustomer(null)}
+                              >
+                                {order.customerName}
+                              </div>
+                              <div className="text-[12px] leading-[18px] font-normal text-[#64748B]">{order.customerPhone}</div>
+                            </div>
+                          </td>
+                          <td className="p-3 w-[108px]">
                             <div
-                              className="text-xs font-normal text-[#64748B] underline decoration-dotted underline-offset-2 hover:text-[#0F172A] cursor-help inline-block truncate max-w-[120px]"
+                              className="text-[12px] leading-[18px] font-normal text-[#1E293B] underline decoration-dotted underline-offset-2 hover:text-[#00A86B] cursor-help inline-block truncate max-w-[100px]"
                               onMouseEnter={(e) => setHoveredPickup({ id: order._id, rect: e.currentTarget.getBoundingClientRect(), name: order.pickupName, address: order.pickupAddressLine, city: order.pickupCity, state: order.pickupState, pinCode: order.pickupPinCode, phone: order.pickupPhone })}
                               onMouseLeave={() => setHoveredPickup(null)}
                             >
@@ -1111,15 +1149,17 @@ export function AdminOrders() {
                           </td>
                           {showShipmentCol && (
                             <td className="p-3">
-                              <div className="text-xs font-semibold text-[#00A86B]">{order.courier}</div>
-                              <div className="text-xs font-normal text-[#94A3B8] mt-0.5">Booked | {order.bookedDate}</div>
-                              <div className="text-xs font-semibold text-[#00A86B] underline mt-0.5 hover:text-[#009B63] cursor-pointer truncate max-w-[120px]">{order.awb}</div>
+                              <div className="flex flex-col gap-1">
+                                <div className="text-[12px] leading-[18px] font-semibold text-[#009D64]">{order.courier}</div>
+                                <div className="text-[12px] leading-[18px] font-normal text-[#1E293B]">Booked | {order.bookedDate}</div>
+                                <div className="text-[12px] leading-[18px] font-semibold text-[#009D64] underline hover:text-[#009B63] cursor-pointer truncate max-w-[120px]">{order.awb}</div>
+                              </div>
                             </td>
                           )}
                         </>
                       )}
 
-                      <td className="p-3">
+                      <td className="p-3 w-[62px]">
                         <span className={getStatusBadgeClass(order.status)}>{order.status}</span>
                       </td>
 
@@ -1145,7 +1185,7 @@ export function AdminOrders() {
                         </td>
                       )}
 
-                      <td className="p-3">
+                      <td className="p-3 w-[69px]">
                         <div className="flex items-center gap-2">
                           {isNewTab && (
                             <button

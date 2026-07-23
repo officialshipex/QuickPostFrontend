@@ -354,7 +354,7 @@ export function AdminStatusMap() {
           </div>
 
           {/* Filter and Action Row — desktop only */}
-          <div className="hidden md:flex p-4 border-b border-[#E2E8F0] flex-wrap gap-3 justify-between items-center bg-white">
+          <div className="hidden md:flex py-3 px-6 border-b border-[#CBD5F5] flex-wrap gap-3 justify-between items-center bg-white">
 
             <div className="flex flex-wrap items-center gap-3">
               {/* Search */}
@@ -422,20 +422,20 @@ export function AdminStatusMap() {
             {loading && <TableLoader />}
             <table className="w-full text-left border-collapse min-w-[600px]">
               <thead className="sticky top-0 z-40 bg-green-50 shadow-sm">
-                <tr className="text-xs font-medium text-[#475569] uppercase tracking-wider">
-                  <th className="py-2 px-3 whitespace-nowrap">
+                <tr className="text-xs font-medium text-[#64748B] uppercase tracking-wider">
+                  <th className="py-2 px-3 whitespace-nowrap rounded-l-lg">
                     <div className="flex items-center gap-1.5"><Briefcase className="w-3.5 h-3.5 shrink-0" /><span>Partner Name</span></div>
                   </th>
                   {rawColumns.map(col => (
                     <th key={col} className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1.5">{getColumnIcon(col)}<span>{col}</span></div></th>
                   ))}
-                  <th className="py-2 px-3 text-center whitespace-nowrap w-24"><div className="flex items-center justify-center gap-1.5"><Settings className="w-3.5 h-3.5 shrink-0" /><span>Actions</span></div></th>
+                  <th className="py-2 px-3 text-center whitespace-nowrap w-24 rounded-r-lg"><div className="flex items-center justify-center gap-1.5"><Settings className="w-3.5 h-3.5 shrink-0" /><span>Actions</span></div></th>
                 </tr>
               </thead>
               <tbody className="text-[11px] text-[#64748B] font-semibold">
 
                 {paginatedData.map((item, idx) => (
-                  <tr key={idx} className={`border-b border-[#E2E8F0] transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]'}`}>
+                  <tr key={idx} className={`border-b border-[#E2E8F0] transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]/20'}`}>
                     <td className="p-4">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 flex items-center justify-center shrink-0 bg-transparent">

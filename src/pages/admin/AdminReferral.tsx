@@ -130,10 +130,10 @@ function ReferralDetailsModal({ referral, onClose }: { referral: ReferralRow; on
               <table className="w-full border-collapse">
                 <thead className="bg-green-50 sticky top-0">
                   <tr className="border-b border-[#E2E8F0]">
-                    <th className={`py-2 px-3 text-left ${DTXT.label} text-[#475569]`}>User Details</th>
+                    <th className={`py-2 px-3 text-left ${DTXT.label} text-[#475569] rounded-l-lg`}>User Details</th>
                     <th className={`py-2 px-3 text-center ${DTXT.label} text-[#475569]`}>Orders</th>
                     <th className={`py-2 px-3 text-right ${DTXT.label} text-[#475569]`}>Shipping</th>
-                    <th className={`py-2 px-3 text-right ${DTXT.label} text-[#475569]`}>Commission</th>
+                    <th className={`py-2 px-3 text-right ${DTXT.label} text-[#475569] rounded-r-lg`}>Commission</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -456,7 +456,7 @@ export function AdminReferral() {
           </div>
 
           {/* Filters */}
-          <div className="p-3 border-b border-[#E2E8F0] flex flex-wrap items-center gap-2.5 bg-[#F8FAFC]/50 relative z-20">
+          <div className="py-3 px-6 border-b border-[#CBD5F5] flex flex-wrap items-center gap-3 bg-[#F8FAFC]/50 relative z-20">
             <input
               type="text"
               placeholder="Search by name, user ID or email"
@@ -486,14 +486,14 @@ export function AdminReferral() {
 
             <button
               onClick={applyFilters}
-              className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm flex items-center justify-center cursor-pointer"
+              className="py-2 px-4 shrink-0 rounded-[32px] bg-[#009D64] border border-[#009D64] text-white text-xs font-medium leading-[18px] hover:bg-[#008a57] transition-colors cursor-pointer"
             >
-              Apply
+              Apply Filters
             </button>
 
             {hasActiveFilters && (
               <button onClick={resetFilters}
-                className="h-9 px-3 shrink-0 rounded-lg border border-red-200 text-red-500 text-xs font-bold hover:bg-red-50 transition-colors">
+                className="py-2 px-4 shrink-0 rounded-[32px] border border-red-200 text-red-500 text-xs font-medium leading-[18px] hover:bg-red-50 transition-colors cursor-pointer">
                 Clear All
               </button>
             )}
@@ -502,10 +502,10 @@ export function AdminReferral() {
             <div className="relative shrink-0 ml-auto" ref={actionRef}>
               <button
                 onClick={() => setActionOpen(v => !v)}
-                className={`h-9 px-4 rounded-full border text-[11px] font-bold flex items-center gap-1.5 transition-colors ${
+                className={`py-2 px-4 rounded-[32px] border text-xs leading-[18px] flex items-center gap-1.5 font-medium transition-colors ${
                   selectedRows.length > 0
-                    ? 'border-[#00A86B] text-[#00A86B] hover:bg-[#E6F5F1]'
-                    : 'border-[#E2E8F0] text-[#64748B] hover:bg-[#F8FAFC]'
+                    ? 'border-[#03C27D] bg-white text-[#64748B] hover:bg-[#F0FDF9] cursor-pointer'
+                    : 'border-[#E2E8F0] bg-[#F8FAFC] text-[#CBD5E1] cursor-not-allowed'
                 }`}
               >
                 Actions
@@ -544,8 +544,8 @@ export function AdminReferral() {
             {loading && <TableLoader />}
             <table className="w-full text-left border-collapse min-w-[900px]">
               <thead className="sticky top-0 z-20 bg-green-50 shadow-sm">
-                <tr className="text-xs font-medium text-[#475569] uppercase tracking-wider">
-                  <th className="py-2 px-3 w-12 text-center">
+                <tr className="text-xs font-medium text-[#64748B] uppercase tracking-wider">
+                  <th className="py-2 px-3 w-12 text-center rounded-l-lg">
                     <input
                       type="checkbox"
                       onChange={toggleSelectAll}
@@ -571,7 +571,7 @@ export function AdminReferral() {
                   <th className="py-2 px-3 whitespace-nowrap">
                     <Calendar className="w-3.5 h-3.5 inline mr-1" />Period
                   </th>
-                  <th className="py-2 px-3 whitespace-nowrap text-right">
+                  <th className="py-2 px-3 whitespace-nowrap text-right rounded-r-lg">
                     <Settings className="w-3.5 h-3.5 inline mr-1" />Actions
                   </th>
                 </tr>
@@ -582,7 +582,7 @@ export function AdminReferral() {
                     <tr
                       key={row._id}
                       className={`border-b border-[#E2E8F0] transition-colors ${
-                        selectedRows.find(r => r._id === row._id) ? 'bg-green-50/40' : (ridx % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]')
+                        selectedRows.find(r => r._id === row._id) ? 'bg-green-50/40' : (ridx % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]/20')
                       }`}
                     >
                       <td className="p-4 text-center align-top">

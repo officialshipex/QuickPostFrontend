@@ -404,7 +404,7 @@ export function AdminRateCard() {
         )}
 
         {/* Filters & Actions — desktop */}
-        <div className="hidden md:flex p-3 border-b border-[#E2E8F0] flex-wrap items-center gap-2.5 bg-[#F8FAFC]/50">
+        <div className="hidden md:flex py-3 px-6 border-b border-[#CBD5F5] flex-wrap items-center gap-3 bg-[#F8FAFC]/50">
           <input
             type="text"
             placeholder="Search by courier name"
@@ -471,14 +471,14 @@ export function AdminRateCard() {
 
           <button
             onClick={applyFilters}
-            className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm flex items-center justify-center cursor-pointer"
+            className="py-2 px-4 shrink-0 rounded-[32px] bg-[#009D64] border border-[#009D64] text-white text-xs font-medium leading-[18px] hover:bg-[#008a57] transition-colors cursor-pointer"
           >
-            Apply
+            Apply Filters
           </button>
 
           {hasActiveFilters && (
             <button onClick={resetFilters}
-              className="h-9 px-3 shrink-0 rounded-lg border border-red-200 text-red-500 text-xs font-bold hover:bg-red-50 transition-colors">
+              className="py-2 px-4 shrink-0 rounded-[32px] border border-red-200 text-red-500 text-xs font-medium leading-[18px] hover:bg-red-50 transition-colors cursor-pointer">
               Clear All
             </button>
           )}
@@ -593,19 +593,19 @@ export function AdminRateCard() {
           <table className="w-full text-left border-collapse">
               <thead className="sticky top-0 z-20 bg-green-50 shadow-sm">
                 <tr className="border-b border-[#E2E8F0]">
-                  <th className="py-2 px-3 text-xs font-medium text-[#475569] uppercase tracking-wider w-20">
+                  <th className="py-2 px-3 text-xs font-medium text-[#64748B] uppercase tracking-wider w-20 rounded-l-lg">
                     <div className="flex items-center gap-1.5"><Hash className="w-3.5 h-3.5 shrink-0" /><span>S.NO.</span></div>
                   </th>
-                  <th className="py-2 px-3 text-xs font-medium text-[#475569] uppercase tracking-wider">
+                  <th className="py-2 px-3 text-xs font-medium text-[#64748B] uppercase tracking-wider">
                     <div className="flex items-center gap-1.5"><Truck className="w-3.5 h-3.5 shrink-0" /><span>COURIER NAME</span></div>
                   </th>
-                  <th className="py-2 px-3 text-xs font-medium text-[#475569] uppercase tracking-wider text-center">
+                  <th className="py-2 px-3 text-xs font-medium text-[#64748B] uppercase tracking-wider text-center">
                     <div className="flex items-center justify-center gap-1.5"><Filter className="w-3.5 h-3.5 shrink-0" /><span>TYPE</span></div>
                   </th>
-                  <th className="py-2 px-3 text-xs font-medium text-[#475569] uppercase tracking-wider text-center">
+                  <th className="py-2 px-3 text-xs font-medium text-[#64748B] uppercase tracking-wider text-center">
                     <div className="flex items-center justify-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 shrink-0" /><span>STATUS</span></div>
                   </th>
-                  <th className="py-2 px-3 text-xs font-medium text-[#475569] uppercase tracking-wider text-right">
+                  <th className="py-2 px-3 text-xs font-medium text-[#64748B] uppercase tracking-wider text-right rounded-r-lg">
                     <div className="flex items-center justify-end gap-1.5"><Layers className="w-3.5 h-3.5 shrink-0" /><span>SERVICES COUNT</span></div>
                   </th>
                 </tr>
@@ -621,7 +621,7 @@ export function AdminRateCard() {
                     return (
                       <React.Fragment key={provider._id}>
                         <tr
-                          className={`border-b border-[#E2E8F0] transition-colors cursor-pointer ${isExpanded ? 'bg-[#F8FAFC]' : index % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]'}`}
+                          className={`border-b border-[#E2E8F0] transition-colors cursor-pointer ${isExpanded ? 'bg-[#F8FAFC]' : index % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]/20'}`}
                           onClick={() => { setExpandedProviderId(isExpanded ? null : provider._id); setEditingProviderId(null); }}
                         >
                           <td className="py-4 px-6">
@@ -686,16 +686,16 @@ export function AdminRateCard() {
                                             <table className="w-full text-left border-collapse min-w-[1000px]">
                                               <thead>
                                                 <tr className="bg-green-50 border-b border-[#E2E8F0]">
-                                                  <th className="py-2 px-3 text-xs font-medium text-[#475569] uppercase tracking-wider">Courier Service</th>
-                                                  <th className="py-2 px-3 text-xs font-medium text-[#475569] uppercase tracking-wider">Mode</th>
-                                                  <th className="py-2 px-3 text-xs font-medium text-[#475569] uppercase tracking-wider">Weight (gm)</th>
-                                                  <th className="py-2 px-3 text-xs font-medium text-[#475569] uppercase tracking-wider">Zone A</th>
-                                                  <th className="py-2 px-3 text-xs font-medium text-[#475569] uppercase tracking-wider">Zone B</th>
-                                                  <th className="py-2 px-3 text-xs font-medium text-[#475569] uppercase tracking-wider">Zone C</th>
-                                                  <th className="py-2 px-3 text-xs font-medium text-[#475569] uppercase tracking-wider">Zone D</th>
-                                                  <th className="py-2 px-3 text-xs font-medium text-[#475569] uppercase tracking-wider">Zone E</th>
-                                                  <th className="py-2 px-3 text-xs font-medium text-[#475569] uppercase tracking-wider">COD</th>
-                                                  <th className="py-2 px-3 text-xs font-medium text-[#475569] uppercase tracking-wider">Status</th>
+                                                  <th className="py-2 px-3 text-xs font-medium text-[#64748B] uppercase tracking-wider rounded-l-lg">Courier Service</th>
+                                                  <th className="py-2 px-3 text-xs font-medium text-[#64748B] uppercase tracking-wider">Mode</th>
+                                                  <th className="py-2 px-3 text-xs font-medium text-[#64748B] uppercase tracking-wider">Weight (gm)</th>
+                                                  <th className="py-2 px-3 text-xs font-medium text-[#64748B] uppercase tracking-wider">Zone A</th>
+                                                  <th className="py-2 px-3 text-xs font-medium text-[#64748B] uppercase tracking-wider">Zone B</th>
+                                                  <th className="py-2 px-3 text-xs font-medium text-[#64748B] uppercase tracking-wider">Zone C</th>
+                                                  <th className="py-2 px-3 text-xs font-medium text-[#64748B] uppercase tracking-wider">Zone D</th>
+                                                  <th className="py-2 px-3 text-xs font-medium text-[#64748B] uppercase tracking-wider">Zone E</th>
+                                                  <th className="py-2 px-3 text-xs font-medium text-[#64748B] uppercase tracking-wider">COD</th>
+                                                  <th className="py-2 px-3 text-xs font-medium text-[#64748B] uppercase tracking-wider rounded-r-lg">Status</th>
                                                 </tr>
                                               </thead>
                                               <tbody className="divide-y divide-[#E2E8F0]">
