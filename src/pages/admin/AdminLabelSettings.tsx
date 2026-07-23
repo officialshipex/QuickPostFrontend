@@ -1,6 +1,7 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
+import { apiClient } from '../../services/apiClient';
 import { Check, Loader2, ImagePlus, X as XIcon } from 'lucide-react';
 
 const TXT = {
@@ -40,36 +41,66 @@ const DEFAULT_SETTINGS: LabelSettings = {
   hideRtoName: false,
   hideRtoMobile: false,
   hideHsn: false,
-  hideQty: true,
-  hideOrderAmount: true,
+  hideQty: false,
+  hideOrderAmount: false,
   hideSku: false,
-  hideTotalAmount: true,
-  hideProduct: true,
+  hideTotalAmount: false,
+  hideProduct: false,
 };
 
-const LABEL_SETTINGS_KEY = 'quickpost.labelSettings';
-const LABEL_SIZE_KEY = 'quickpost.labelSize';
-
-function loadSavedSettings(): LabelSettings {
-  try {
-    const raw = localStorage.getItem(LABEL_SETTINGS_KEY);
-    return raw ? { ...DEFAULT_SETTINGS, ...JSON.parse(raw) } : DEFAULT_SETTINGS;
-  } catch {
-    return DEFAULT_SETTINGS;
-  }
+// Map backend response → frontend state
+function fromBackend(data: any): LabelSettings {
+  const w = data.warehouseSettings || {};
+  const p = data.productDetails || {};
+  return {
+    showLogo: data.showLogoOnLabel ?? false,
+    hideCustomerMobile: data.hideCustomerMobile ?? false,
+    hideCustomerBarcode: data.hideOrderBarcode ?? false,
+    hideGstNumber: w.hideGstNumber ?? false,
+    hideRtoAddress: w.hideRTOAddress ?? false,
+    hidePickupMobile: w.hidePickupMobile ?? false,
+    hidePickupName: w.hidePickupName ?? false,
+    hidePickupAddress: w.hidePickupAddress ?? false,
+    hideRtoName: w.hideRTOName ?? false,
+    hideRtoMobile: w.hideRTOMobile ?? false,
+    hideHsn: p.hideHSN ?? false,
+    hideQty: p.hideQty ?? false,
+    hideOrderAmount: p.hideOrderAmount ?? false,
+    hideSku: p.hideSKU ?? false,
+    hideTotalAmount: p.hideTotalAmount ?? false,
+    hideProduct: p.hideProduct ?? false,
+  };
 }
 
-function loadSavedLabelSize(): 'a4' | 'thermal' {
-  try {
-    const raw = localStorage.getItem(LABEL_SIZE_KEY);
-    return raw === 'thermal' ? 'thermal' : 'a4';
-  } catch {
-    return 'a4';
-  }
+// Map frontend state → backend payload
+function toBackend(s: LabelSettings, logoUrl: string | null, labelSize: 'a4' | 'thermal') {
+  return {
+    showLogoOnLabel: s.showLogo,
+    logoUrl: logoUrl || '',
+    labelSize: labelSize === 'a4' ? 'A4' : 'thermal',
+    hideCustomerMobile: s.hideCustomerMobile,
+    hideOrderBarcode: s.hideCustomerBarcode,
+    warehouseSettings: {
+      hideGstNumber: s.hideGstNumber,
+      hideRTOAddress: s.hideRtoAddress,
+      hidePickupMobile: s.hidePickupMobile,
+      hidePickupName: s.hidePickupName,
+      hidePickupAddress: s.hidePickupAddress,
+      hideRTOName: s.hideRtoName,
+      hideRTOMobile: s.hideRtoMobile,
+    },
+    productDetails: {
+      hideHSN: s.hideHsn,
+      hideQty: s.hideQty,
+      hideOrderAmount: s.hideOrderAmount,
+      hideSKU: s.hideSku,
+      hideTotalAmount: s.hideTotalAmount,
+      hideProduct: s.hideProduct,
+    },
+  };
 }
 
-// Deterministic pseudo-barcode: bar widths are derived from each character's code point,
-// not randomly, so the same value always renders the same pattern (unlike index-based noise).
+// Deterministic pseudo-barcode
 function Barcode({ value, height = 36 }: { value: string; height?: number }) {
   const bars: { w: number; gap: number }[] = [];
   for (let i = 0; i < value.length; i++) {
@@ -78,7 +109,6 @@ function Barcode({ value, height = 36 }: { value: string; height?: number }) {
     bars.push({ w: ((code >> 4) % 3) + 1, gap: ((code >> 6) % 2) + 1 });
   }
   const totalWidth = bars.reduce((sum, b) => sum + b.w + b.gap, 0);
-
   return (
     <svg viewBox={`0 0 ${totalWidth} ${height}`} width={Math.min(totalWidth * 1.6, 160)} height={height} className="block">
       {(() => {
@@ -95,15 +125,8 @@ function Barcode({ value, height = 36 }: { value: string; height?: number }) {
 
 function CheckboxRow({ label, checked, onChange }: { label: string; checked: boolean; onChange: () => void }) {
   return (
-    <div
-      onClick={onChange}
-      className="flex items-center gap-2.5 cursor-pointer group select-none py-0.5"
-    >
-      <span
-        className={`w-[18px] h-[18px] rounded-[5px] border-2 flex items-center justify-center shrink-0 transition-all ${
-          checked ? 'bg-[#00A86B] border-[#00A86B]' : 'bg-white border-[#CBD5E1] group-hover:border-[#00A86B]'
-        }`}
-      >
+    <div onClick={onChange} className="flex items-center gap-2.5 cursor-pointer group select-none py-0.5">
+      <span className={`w-[18px] h-[18px] rounded-[5px] border-2 flex items-center justify-center shrink-0 transition-all ${checked ? 'bg-[#00A86B] border-[#00A86B]' : 'bg-white border-[#CBD5E1] group-hover:border-[#00A86B]'}`}>
         {checked && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
       </span>
       <span className={`${TXT.value} text-[#475569] group-hover:text-[#0F172A] transition-colors`}>{label}</span>
@@ -119,8 +142,7 @@ function LabelPreview({ settings, logoUrl }: { settings: LabelSettings; logoUrl:
       )}
       <p className={TXT.label}>To:</p>
       <p className="mt-1">narinder kaur</p>
-      <p>block c 14/2 new govind pura street no-8 near</p>
-      <p>gandhi park</p>
+      <p>block c 14/2 new govind pura street no-8 near gandhi park</p>
       <p>East Delhi, DELHI, 110051</p>
       {!settings.hideCustomerMobile && <p>MOBILE NO: 9718794406</p>}
 
@@ -155,18 +177,26 @@ function LabelPreview({ settings, logoUrl }: { settings: LabelSettings; logoUrl:
         </div>
       </div>
 
-      {(!settings.hideSku || !settings.hideHsn) && (
+      {(!settings.hideSku || !settings.hideProduct || !settings.hideHsn || !settings.hideQty || !settings.hideOrderAmount || !settings.hideTotalAmount) && (
         <table className="w-full border-collapse mt-3 text-[11px]">
           <thead>
             <tr className="bg-[#F1F5F9]">
-              {!settings.hideSku && <th className="border border-[#CBD5E1] px-2 py-1 text-left">SKU</th>}
-              {!settings.hideHsn && <th className="border border-[#CBD5E1] px-2 py-1 text-left">HSN</th>}
+              {!settings.hideSku        && <th className="border border-[#CBD5E1] px-2 py-1 text-left">SKU</th>}
+              {!settings.hideProduct    && <th className="border border-[#CBD5E1] px-2 py-1 text-left">Item Name</th>}
+              {!settings.hideHsn        && <th className="border border-[#CBD5E1] px-2 py-1 text-left">HSN</th>}
+              {!settings.hideQty        && <th className="border border-[#CBD5E1] px-2 py-1 text-left">Qty.</th>}
+              {!settings.hideOrderAmount && <th className="border border-[#CBD5E1] px-2 py-1 text-left">Unit Price</th>}
+              {!settings.hideTotalAmount && <th className="border border-[#CBD5E1] px-2 py-1 text-left">Total Amount</th>}
             </tr>
           </thead>
           <tbody>
             <tr>
-              {!settings.hideSku && <td className="border border-[#CBD5E1] px-2 py-1">1</td>}
-              {!settings.hideHsn && <td className="border border-[#CBD5E1] px-2 py-1">AAA</td>}
+              {!settings.hideSku        && <td className="border border-[#CBD5E1] px-2 py-1">SKU001</td>}
+              {!settings.hideProduct    && <td className="border border-[#CBD5E1] px-2 py-1">Sample Product</td>}
+              {!settings.hideHsn        && <td className="border border-[#CBD5E1] px-2 py-1">6204</td>}
+              {!settings.hideQty        && <td className="border border-[#CBD5E1] px-2 py-1">1</td>}
+              {!settings.hideOrderAmount && <td className="border border-[#CBD5E1] px-2 py-1">₹499</td>}
+              {!settings.hideTotalAmount && <td className="border border-[#CBD5E1] px-2 py-1">₹499</td>}
             </tr>
           </tbody>
         </table>
@@ -193,7 +223,6 @@ function LabelPreview({ settings, logoUrl }: { settings: LabelSettings; logoUrl:
       )}
 
       <div className="h-px bg-[#CBD5E1] my-3" />
-
       <p>This is a computer-generated document, hence does not require a signature.</p>
       <p><span className={TXT.label}>Note:</span> All disputes are subject to Delhi jurisdiction. Goods once sold will only be taken back or exchanged as per the store's exchange/return policy.</p>
     </div>
@@ -202,39 +231,92 @@ function LabelPreview({ settings, logoUrl }: { settings: LabelSettings; logoUrl:
 
 export function AdminLabelSettings() {
   const [activeTab, setActiveTab] = useState<'customization' | 'size'>('customization');
-  const [settings, setSettings] = useState<LabelSettings>(loadSavedSettings);
-  const [labelSize, setLabelSize] = useState<'a4' | 'thermal'>(loadSavedLabelSize);
+  const [settings, setSettings] = useState<LabelSettings>(DEFAULT_SETTINGS);
+  const [labelSize, setLabelSize] = useState<'a4' | 'thermal'>('a4');
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState('');
+
+  // Load settings from backend on mount
+  useEffect(() => {
+    apiClient.get('/label/getLabel')
+      .then(res => {
+        const data = res.data;
+        setSettings(fromBackend(data));
+        setLabelSize(data.labelSize === 'thermal' ? 'thermal' : 'a4');
+        if (data.logoUrl) {
+          setLogoUrl(data.logoUrl);
+          setLogoPreview(data.logoUrl);
+        }
+      })
+      .catch(() => {
+        // Use defaults if fetch fails
+      })
+      .finally(() => setLoading(false));
+  }, []);
 
   const toggle = (key: keyof LabelSettings) => setSettings(prev => ({ ...prev, [key]: !prev[key] }));
 
   const handleLogoChange = (file: File | null) => {
     if (!file) return;
-    const url = URL.createObjectURL(file);
-    setLogoUrl(prev => { if (prev) URL.revokeObjectURL(prev); return url; });
+    if (logoPreview && logoPreview.startsWith('blob:')) URL.revokeObjectURL(logoPreview);
+    const preview = URL.createObjectURL(file);
+    setLogoFile(file);
+    setLogoPreview(preview);
   };
 
   const removeLogo = () => {
-    setLogoUrl(prev => { if (prev) URL.revokeObjectURL(prev); return null; });
+    if (logoPreview && logoPreview.startsWith('blob:')) URL.revokeObjectURL(logoPreview);
+    setLogoFile(null);
+    setLogoPreview(null);
+    setLogoUrl(null);
     if (logoInputRef.current) logoInputRef.current.value = '';
   };
 
   const handleSave = async () => {
     setSaving(true);
-    // TODO: no label-settings backend endpoint exists yet — persisted to localStorage in the
-    // meantime so Save/reload actually works; swap in a real API call once the route is confirmed.
+    setError('');
     try {
-      localStorage.setItem(LABEL_SETTINGS_KEY, JSON.stringify(settings));
-      localStorage.setItem(LABEL_SIZE_KEY, labelSize);
-    } catch { /* storage unavailable — settings just won't persist across reloads */ }
-    await new Promise(res => setTimeout(res, 400));
-    setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+      let finalLogoUrl = logoUrl;
+
+      // Upload new logo if one was chosen
+      if (logoFile) {
+        const form = new FormData();
+        form.append('logo', logoFile);
+        const uploadRes = await apiClient.post('/label/uploadLogo', form, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        finalLogoUrl = uploadRes.data.logoUrl;
+        setLogoUrl(finalLogoUrl);
+        if (logoPreview && logoPreview.startsWith('blob:')) URL.revokeObjectURL(logoPreview);
+        setLogoPreview(finalLogoUrl);
+        setLogoFile(null);
+      }
+
+      await apiClient.post('/label/saveLabel', toBackend(settings, finalLogoUrl, labelSize));
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (err: any) {
+      setError(err?.response?.data?.message || 'Failed to save settings. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
+
+  if (loading) {
+    return (
+      <AdminLayout>
+        <div className="flex items-center justify-center h-48">
+          <Loader2 className="w-6 h-6 animate-spin text-[#00A86B]" />
+        </div>
+      </AdminLayout>
+    );
+  }
 
   return (
     <AdminLayout>
@@ -261,7 +343,7 @@ export function AdminLabelSettings() {
               key="customization"
               initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
               transition={{ duration: 0.15 }}
-              className="grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-4 items-start"
+              className="grid grid-cols-1 lg:grid-cols-[1fr_560px] gap-4 items-start"
             >
               {/* Left: settings form */}
               <div className="bg-white border border-[#E2E8F0] rounded-2xl p-6">
@@ -278,9 +360,9 @@ export function AdminLabelSettings() {
                         className="hidden"
                         onChange={(e) => handleLogoChange(e.target.files?.[0] || null)}
                       />
-                      {logoUrl ? (
+                      {logoPreview ? (
                         <div className="flex items-center gap-2.5">
-                          <img src={logoUrl} alt="Logo preview" className="h-10 max-w-[100px] object-contain border border-[#E2E8F0] rounded-lg p-1" />
+                          <img src={logoPreview} alt="Logo preview" className="h-10 max-w-[100px] object-contain border border-[#E2E8F0] rounded-lg p-1" />
                           <button
                             type="button"
                             onClick={() => logoInputRef.current?.click()}
@@ -288,11 +370,7 @@ export function AdminLabelSettings() {
                           >
                             Change
                           </button>
-                          <button
-                            type="button"
-                            onClick={removeLogo}
-                            className="text-[#94A3B8] hover:text-red-500 transition-colors"
-                          >
+                          <button type="button" onClick={removeLogo} className="text-[#94A3B8] hover:text-red-500 transition-colors">
                             <XIcon className="w-3.5 h-3.5" />
                           </button>
                         </div>
@@ -333,6 +411,8 @@ export function AdminLabelSettings() {
                   <CheckboxRow label="Hide Product" checked={settings.hideProduct} onChange={() => toggle('hideProduct')} />
                 </div>
 
+                {error && <p className={`${TXT.value} text-red-500 mb-3`}>{error}</p>}
+
                 <button
                   onClick={handleSave}
                   disabled={saving}
@@ -345,7 +425,7 @@ export function AdminLabelSettings() {
 
               {/* Right: live preview */}
               <div className="bg-white border border-[#E2E8F0] rounded-2xl p-4 lg:sticky lg:top-4">
-                <LabelPreview settings={settings} logoUrl={logoUrl} />
+                <LabelPreview settings={settings} logoUrl={logoPreview} />
               </div>
             </motion.div>
           ) : (
@@ -414,6 +494,8 @@ export function AdminLabelSettings() {
                   </div>
                 </button>
               </div>
+
+              {error && <p className={`${TXT.value} text-red-500 mt-4`}>{error}</p>}
 
               <button
                 onClick={handleSave}

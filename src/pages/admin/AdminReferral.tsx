@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { apiClient } from '../../services/apiClient';
+import { useAdminTab } from '../../context/AdminUserContext';
 import {
   RefreshCcw, User, Package, Truck, Wallet,
   Phone, Calendar, ChevronDown, X, Mail, Users, Download, Settings, MoreHorizontal,
@@ -181,6 +182,9 @@ function ReferralDetailsModal({ referral, onClose }: { referral: ReferralRow; on
 }
 
 export function AdminReferral() {
+  const { isAdmin, adminTab, currentUserId, loadingAdminTab } = useAdminTab();
+  const isAdminView = isAdmin && adminTab;
+
   const [referrals, setReferrals] = useState<ReferralRow[]>([]);
   const [summary, setSummary] = useState<Summary>({ totalUsers: 0, totalOrders: 0, totalCommission: 0, totalShipping: 0 });
   const [loading, setLoading] = useState(true);
@@ -228,6 +232,7 @@ export function AdminReferral() {
   const [transferError, setTransferError] = useState('');
 
   const fetchReferrals = useCallback(async () => {
+    if (loadingAdminTab) return;
     try {
       setLoading(true);
       const search = globalSearch || appliedSearch;
@@ -236,6 +241,9 @@ export function AdminReferral() {
           ...(appliedMonth[0] && { month: appliedMonth[0] }),
           ...(appliedYear[0] && { year: appliedYear[0] }),
           ...(search.trim() && { search: search.trim() }),
+          // Non-admin views (regular user login or admin switched to user mode)
+          // must pass referById so the backend only returns that user's data
+          ...(!isAdminView && currentUserId && { referById: currentUserId }),
           page,
           limit: rowsPerPage,
         },
@@ -250,7 +258,7 @@ export function AdminReferral() {
     } finally {
       setLoading(false);
     }
-  }, [globalSearch, appliedSearch, appliedMonth, appliedYear, page, rowsPerPage]);
+  }, [globalSearch, appliedSearch, appliedMonth, appliedYear, page, rowsPerPage, isAdminView, currentUserId, loadingAdminTab]);
 
   useEffect(() => { fetchReferrals(); }, [fetchReferrals]);
 

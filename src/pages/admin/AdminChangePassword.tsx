@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { apiClient } from '../../services/apiClient';
+import { useAdminTab } from '../../context/AdminUserContext';
 import { Lock, Eye, EyeOff, Check, X, Loader2, ShieldCheck } from 'lucide-react';
 
 const TXT = {
@@ -54,10 +55,10 @@ function PasswordField({
 }
 
 export function AdminChangePassword() {
-  const [currentPassword, setCurrentPassword] = useState('');
+  const { userEmail } = useAdminTab();
+
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [error, setError] = useState('');
@@ -71,26 +72,22 @@ export function AdminChangePassword() {
 
   const allRulesPass = passedRules.every(r => r.passed);
   const passwordsMatch = newPassword.length > 0 && newPassword === confirmPassword;
-  const canSubmit = currentPassword.length > 0 && allRulesPass && passwordsMatch && !saving;
+  const canSubmit = allRulesPass && passwordsMatch && !saving;
 
   const handleSubmit = async () => {
     setError('');
-    if (!currentPassword) { setError('Enter your current password.'); return; }
     if (!allRulesPass) { setError('New password does not meet all requirements.'); return; }
-    if (!passwordsMatch) { setError('New password and confirmation do not match.'); return; }
-    if (currentPassword === newPassword) { setError('New password must be different from the current password.'); return; }
+    if (!passwordsMatch) { setError('Passwords do not match.'); return; }
 
     setSaving(true);
     try {
-      // TODO: change-password backend endpoint is not yet finalized — swap in the real route once confirmed.
-      await apiClient.post('/user/changePassword', { currentPassword, newPassword });
+      await apiClient.post('/auth/changePasswordAdmin', { email: userEmail, newPassword });
       setSaved(true);
-      setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
       setTimeout(() => setSaved(false), 3000);
     } catch (err: any) {
-      setError(err?.response?.data?.message || 'Failed to update password. Please check your current password.');
+      setError(err?.response?.data?.message || 'Failed to update password. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -106,19 +103,11 @@ export function AdminChangePassword() {
             </div>
             <h1 className={`${TXT.title} text-[#0F172A]`}>Change Password</h1>
           </div>
-          <p className={`${TXT.value} text-[#94A3B8] mb-6 ml-[46px]`}>Update your account credentials</p>
+          <p className={`${TXT.value} text-[#94A3B8] mb-6 ml-[46px]`}>
+            Updating password for <span className="font-semibold text-[#475569]">{userEmail || '—'}</span>
+          </p>
 
           <div className="space-y-5">
-            <PasswordField
-              label="Current Password"
-              value={currentPassword}
-              onChange={setCurrentPassword}
-              show={showCurrent}
-              onToggleShow={() => setShowCurrent(v => !v)}
-              placeholder="Enter your current password"
-              autoComplete="current-password"
-            />
-
             <PasswordField
               label="New Password"
               value={newPassword}
