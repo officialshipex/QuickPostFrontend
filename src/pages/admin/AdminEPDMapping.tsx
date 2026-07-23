@@ -230,7 +230,7 @@ export function AdminEPDMapping() {
               <Plus className="w-4 h-4" /> Add Cutoff Time
             </button>
           </div>
-          <div className="hidden md:flex p-4 border-b border-[#E2E8F0] flex-wrap gap-3 justify-between items-center bg-white">
+          <div className="hidden md:flex py-3 px-6 border-b border-[#CBD5F5] flex-wrap gap-3 justify-between items-center bg-white">
             <div className="flex items-center gap-4">
               <div className="text-xs font-bold text-[#475569]">{filteredData.length} Records Found</div>
               <input type="text" placeholder="Search Courier Services" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
@@ -261,16 +261,16 @@ export function AdminEPDMapping() {
             {loading && <TableLoader />}
             <table className="w-full text-left border-collapse min-w-[700px]">
               <thead className="sticky top-0 z-40 bg-green-50 shadow-sm">
-                <tr className="text-xs font-medium text-[#475569] uppercase tracking-wider">
-                  <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><LayoutGrid className="w-3.5 h-3.5 shrink-0" /><span>Courier</span></div></th>
+                <tr className="text-xs font-medium text-[#64748B] uppercase tracking-wider">
+                  <th className="py-2 px-3 whitespace-nowrap rounded-l-lg"><div className="flex items-center gap-1.5"><LayoutGrid className="w-3.5 h-3.5 shrink-0" /><span>Courier</span></div></th>
                   <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><Truck className="w-3.5 h-3.5 shrink-0" /><span>Courier Services</span></div></th>
                   <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 shrink-0" /><span>Cutoff Time (IST)</span></div></th>
-                  <th className="py-2 px-3 whitespace-nowrap text-right"><div className="flex items-center justify-end gap-1.5"><Settings className="w-3.5 h-3.5 shrink-0" /><span>Actions</span></div></th>
+                  <th className="py-2 px-3 whitespace-nowrap text-right rounded-r-lg"><div className="flex items-center justify-end gap-1.5"><Settings className="w-3.5 h-3.5 shrink-0" /><span>Actions</span></div></th>
                 </tr>
               </thead>
               <tbody className="text-[11px] text-[#475569] font-bold">
                 {!loading && paginatedData.map((row, idx) => (
-                  <tr key={row._id} className={`border-b border-[#E2E8F0] transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]'}`}>
+                  <tr key={row._id} className={`border-b border-[#E2E8F0] transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]/20'}`}>
                     <td className="p-4">
                       <div className="flex items-center gap-3">
                         <div className="w-12 h-12 flex items-center justify-center shrink-0">

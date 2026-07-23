@@ -683,7 +683,7 @@ export function AdminWeightDiscrepancy() {
           </div>
 
           {/* ── Filter row ── */}
-          <div className="p-3 border-b border-[#E2E8F0] flex flex-wrap items-center gap-2.5 bg-[#F8FAFC]/50 relative z-50">
+          <div className="py-3 px-6 border-b border-[#CBD5F5] flex flex-wrap items-center gap-3 bg-[#F8FAFC]/50 relative z-50">
 
             {/* User search (admin only) — matches AdminOrders pattern */}
             {isAdminView && (
@@ -742,13 +742,13 @@ export function AdminWeightDiscrepancy() {
             />
 
             <button onClick={() => { setPage(1); fetchDiscrepancy(); }}
-              className="h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm cursor-pointer">
-              Apply
+              className="py-2 px-4 shrink-0 rounded-[32px] bg-[#009D64] border border-[#009D64] text-white text-xs font-medium leading-[18px] hover:bg-[#008a57] transition-colors cursor-pointer">
+              Apply Filters
             </button>
 
             {hasFilters && (
               <button onClick={clearFilters}
-                className="h-9 px-3 shrink-0 rounded-lg border border-red-200 text-red-500 text-xs font-bold hover:bg-red-50 transition-colors">
+                className="py-2 px-4 shrink-0 rounded-[32px] border border-red-200 text-red-500 text-xs font-medium leading-[18px] hover:bg-red-50 transition-colors cursor-pointer">
                 Clear All
               </button>
             )}
@@ -764,7 +764,7 @@ export function AdminWeightDiscrepancy() {
               {/* Actions dropdown — disabled until at least one row is selected */}
               <div className="relative" ref={actionMenuRef}>
                 <button onClick={() => selectedItems.length > 0 && setShowActionMenu(v => !v)} disabled={selectedItems.length === 0}
-                  className={`h-9 pl-4 pr-8 rounded-full border text-xs font-bold relative transition-colors flex items-center ${selectedItems.length > 0 ? 'border-[#00A86B] text-[#00A86B] bg-white hover:bg-[#F0FDF4] cursor-pointer' : 'border-[#E2E8F0] text-[#CBD5E1] bg-[#F8FAFC] cursor-not-allowed'}`}>
+                  className={`py-2 pl-4 pr-8 rounded-[32px] border text-xs leading-[18px] font-medium relative transition-colors flex items-center ${selectedItems.length > 0 ? 'border-[#03C27D] bg-white text-[#64748B] hover:bg-[#F0FDF9] cursor-pointer' : 'border-[#E2E8F0] bg-[#F8FAFC] text-[#CBD5E1] cursor-not-allowed'}`}>
                   Actions
                   <ChevronDown className="w-3.5 h-3.5 absolute right-3 top-1/2 -translate-y-1/2" />
                 </button>
@@ -815,8 +815,8 @@ export function AdminWeightDiscrepancy() {
             {loading && <TableLoader />}
             <table className="w-full text-left border-collapse min-w-full">
               <thead className="sticky top-0 z-40 bg-green-50 shadow-sm">
-                <tr className="text-xs font-medium text-[#475569] uppercase tracking-wider">
-                  <th className="py-2 px-3 w-10">
+                <tr className="text-xs font-medium text-[#64748B] uppercase tracking-wider">
+                  <th className="py-2 px-3 w-10 rounded-l-lg">
                     <input type="checkbox" className="rounded accent-[#00A86B] w-3.5 h-3.5"
                       checked={selectedItems.length === filteredOrders.length && filteredOrders.length > 0}
                       onChange={toggleAll} />
@@ -848,7 +848,7 @@ export function AdminWeightDiscrepancy() {
                     <div className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5" /><span>Status</span></div>
                   </th>
                   <th className="py-2 px-3 whitespace-nowrap text-center">Details</th>
-                  <th className="py-2 px-3 whitespace-nowrap text-center">Actions</th>
+                  <th className="py-2 px-3 whitespace-nowrap text-center rounded-r-lg">Actions</th>
                 </tr>
               </thead>
               <tbody className="text-[11px] text-[#475569]">
@@ -869,7 +869,7 @@ export function AdminWeightDiscrepancy() {
                     const isDisputeRaised = orderStatus === 'discrepancy raised';
 
                     return (
-                      <tr key={order._id || order.awbNumber || idx} className={`border-b border-[#E2E8F0] transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]'}`}>
+                      <tr key={order._id || order.awbNumber || idx} className={`border-b border-[#E2E8F0] transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]/20'}`}>
                         <td className="p-3">
                           <div className="flex flex-col items-start gap-1">
                             <input type="checkbox" className="rounded accent-[#00A86B] w-3.5 h-3.5"

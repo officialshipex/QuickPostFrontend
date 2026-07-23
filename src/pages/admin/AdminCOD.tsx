@@ -1147,14 +1147,14 @@ export function AdminCOD() {
               <table className="w-full text-left border-collapse min-w-[900px]">
                 <thead className="sticky top-0 z-30 bg-[#E6F9F2] shadow-sm">
                   <tr className="border border-[#B9EFDB]">
-                    <th className="py-2 px-4 w-10 rounded-l-lg ml-1">
+                    <th className="py-2 px-4 w-10 rounded-l-lg">
                       <input type="checkbox" checked={selectedOrders.length === paginatedOrders.length && paginatedOrders.length > 0} onChange={toggleAll} className="rounded accent-[#00A86B] w-3.5 h-3.5" />
                     </th>
                     {isAdminView && <th className={thBase}><User className="w-3.5 h-3.5 inline mr-1" />User Details</th>}
                     <th className={thBase}>Order Details</th>
                     <th className={thBase}><Truck className="w-3.5 h-3.5 inline mr-1" />Shipping Details</th>
                     <th className={thBase}><Banknote className="w-3.5 h-3.5 inline mr-1" />COD Amount</th>
-                    <th className={`${thBase} rounded-r-lg mr-1`}><Check className="w-3.5 h-3.5 inline mr-1" />Status</th>
+                    <th className={`${thBase} rounded-r-lg`}><Check className="w-3.5 h-3.5 inline mr-1" />Status</th>
                   </tr>
                 </thead>
                 <tbody className="text-[11px] text-[#475569]">
@@ -1368,7 +1368,7 @@ export function AdminCOD() {
               <table className="w-full text-left border-collapse min-w-[1200px]">
                 <thead className="sticky top-0 z-30 bg-[#E6F9F2] shadow-sm">
                   <tr className="border border-[#B9EFDB]">
-                    <th className="py-2 px-4 w-10 rounded-l-lg ml-1">
+                    <th className="py-2 px-4 w-10 rounded-l-lg">
                       <input type="checkbox" checked={selectedCodOrders.length === filteredSellerRemittanceList.length && filteredSellerRemittanceList.length > 0} onChange={toggleAllCod} className="rounded accent-[#00A86B] w-3.5 h-3.5" />
                     </th>
                     {isAdminView && <th className={thBase}><User className="w-3.5 h-3.5 inline mr-1" />User</th>}
@@ -1379,7 +1379,7 @@ export function AdminCOD() {
                     <th className={thBase}><Banknote className="w-3.5 h-3.5 inline mr-1" />Adjusted</th>
                     <th className={thBase}><Banknote className="w-3.5 h-3.5 inline mr-1" />Early COD Fee</th>
                     <th className={thBase}><Banknote className="w-3.5 h-3.5 inline mr-1" />Net Remittance</th>
-                    <th className={`${thBase} rounded-r-lg mr-1`}><Check className="w-3.5 h-3.5 inline mr-1" />Status</th>
+                    <th className={`${thBase} rounded-r-lg`}><Check className="w-3.5 h-3.5 inline mr-1" />Status</th>
                   </tr>
                 </thead>
                 <tbody className="text-[11px] text-[#475569]">
@@ -1616,14 +1616,14 @@ export function AdminCOD() {
               <table className="w-full text-left border-collapse min-w-[900px]">
                 <thead className="sticky top-0 z-30 bg-[#E6F9F2] shadow-sm">
                   <tr className="border border-[#B9EFDB]">
-                    <th className="py-2 px-4 w-10 rounded-l-lg ml-1">
+                    <th className="py-2 px-4 w-10 rounded-l-lg">
                       <input type="checkbox" checked={selectedCourierCodOrders.length === filteredCourierRemittanceList.length && filteredCourierRemittanceList.length > 0} onChange={toggleAllCourierCod} className="rounded accent-[#00A86B] w-3.5 h-3.5" />
                     </th>
                     {isAdminView && <th className={thBase}><User className="w-3.5 h-3.5 inline mr-1" />User Details</th>}
                     <th className={thBase}>Order Details</th>
                     <th className={thBase}><Truck className="w-3.5 h-3.5 inline mr-1" />Shipping Details</th>
                     <th className={thBase}><Banknote className="w-3.5 h-3.5 inline mr-1" />COD Amount</th>
-                    <th className={`${thBase} rounded-r-lg mr-1`}><Check className="w-3.5 h-3.5 inline mr-1" />Status</th>
+                    <th className={`${thBase} rounded-r-lg`}><Check className="w-3.5 h-3.5 inline mr-1" />Status</th>
                   </tr>
                 </thead>
                 <tbody className="text-[11px] text-[#475569]">

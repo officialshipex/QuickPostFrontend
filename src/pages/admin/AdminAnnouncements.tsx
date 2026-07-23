@@ -269,7 +269,7 @@ export function AdminAnnouncements() {
           </div>
 
           {/* Filter Row */}
-          <div className="p-4 border-b border-[#E2E8F0] flex flex-wrap gap-3 items-center bg-white">
+          <div className="py-3 px-6 border-b border-[#CBD5F5] flex flex-wrap gap-3 items-center bg-white">
             <div className="relative">
               <Search className="w-3.5 h-3.5 text-[#94A3B8] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
@@ -289,13 +289,13 @@ export function AdminAnnouncements() {
             {loading && <TableLoader />}
             <table className="w-full text-left border-collapse min-w-full">
               <thead className="sticky top-0 z-40 bg-green-50 shadow-sm">
-                <tr className="text-xs font-medium text-[#475569] uppercase tracking-wider">
-                  <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5 shrink-0" /><span>Created At</span></div></th>
+                <tr className="text-xs font-medium text-[#64748B] uppercase tracking-wider">
+                  <th className="py-2 px-3 whitespace-nowrap rounded-l-lg"><div className="flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5 shrink-0" /><span>Created At</span></div></th>
                   <th className="py-2 px-3"><div className="flex items-center gap-1.5"><MessageSquare className="w-3.5 h-3.5 shrink-0" /><span>Announcement Message</span></div></th>
                   <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 shrink-0" /><span>Time Period</span></div></th>
                   <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><Users className="w-3.5 h-3.5 shrink-0" /><span>User Scope</span></div></th>
                   <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><Activity className="w-3.5 h-3.5 shrink-0" /><span>Status</span></div></th>
-                  <th className="py-2 px-3 whitespace-nowrap text-center"><div className="flex items-center justify-center gap-1.5"><Settings className="w-3.5 h-3.5 shrink-0" /><span>Actions</span></div></th>
+                  <th className="py-2 px-3 whitespace-nowrap text-center rounded-r-lg"><div className="flex items-center justify-center gap-1.5"><Settings className="w-3.5 h-3.5 shrink-0" /><span>Actions</span></div></th>
                 </tr>
               </thead>
               <tbody className="text-[12px] text-[#475569]">
@@ -307,7 +307,7 @@ export function AdminAnnouncements() {
                   </tr>
                 ) : (
                   paginatedData.map((ann, idx) => (
-                    <tr key={ann._id} className={`border-b border-[#E2E8F0] transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]'}`}>
+                    <tr key={ann._id} className={`border-b border-[#E2E8F0] transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]/20'}`}>
                       <td className="p-4 align-top">
                         <div className="font-semibold text-[#0F172A] text-[12px]">{fmtDate(ann.createdAt)}</div>
                         <div className="text-[#94A3B8] text-[11px] mt-0.5">{fmtTime(ann.createdAt)}</div>

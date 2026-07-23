@@ -564,7 +564,7 @@ export function AdminDashboard() {
             <div className="hidden md:block bg-white rounded-xl border border-[#E2E8F0] shadow-sm overflow-hidden overflow-x-auto mb-6">
               <table className="w-full text-left border-collapse min-w-[960px]">
                 <thead>
-                  <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-[12px] uppercase tracking-wider font-medium text-[#475569]">
+                  <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-[12px] uppercase tracking-wider font-medium text-[#64748B]">
                     <th className="p-3 pl-4 w-8">#</th>
                     <th className="p-3">Seller Details</th>
                     <th className="p-3 text-center">Total Orders</th>
