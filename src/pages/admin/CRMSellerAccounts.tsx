@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
-import { Search, Download, Building2, CheckCircle2, AlertCircle, Clock, TrendingUp, Eye, MapPin } from 'lucide-react';
+import { Search, Download, Building2, CheckCircle2, AlertCircle, Clock, TrendingUp, Eye, MapPin, Phone, Tag, ShieldCheck, Wallet, UserCog, Calendar, Settings } from 'lucide-react';
 import { apiClient } from '../../services/apiClient';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
@@ -206,20 +206,20 @@ export function CRMSellerAccounts() {
           <div className="flex-1 overflow-auto w-full relative">
             {loading && <TableLoader />}
             <table className="w-full text-left border-collapse min-w-[900px]">
-              <thead className="sticky top-0 z-40 bg-green-50 shadow-sm">
+              <thead className="sticky top-0 z-40 bg-[#E6F9F2] shadow-sm">
                 <tr className="border-b border-[#E2E8F0] text-xs uppercase tracking-wider font-medium text-[#64748B]">
-                  <th className="py-2 px-3 text-left align-middle rounded-l-lg">Seller / ID</th>
-                  <th className="py-2 px-3 text-left align-middle">Contact</th>
-                  <th className="py-2 px-3 text-left align-middle">City</th>
-                  <th className="py-2 px-3 text-left align-middle">Plan</th>
-                  <th className="py-2 px-3 text-left align-middle">KYC</th>
-                  <th className="py-2 px-3 text-left align-middle">Account</th>
-                  <th className="py-2 px-3 text-right align-middle">Total Orders</th>
-                  <th className="py-2 px-3 text-right align-middle">Monthly Orders</th>
-                  <th className="py-2 px-3 text-right align-middle">Wallet</th>
-                  <th className="py-2 px-3 text-left align-middle">RM</th>
-                  <th className="py-2 px-3 text-left align-middle">Joined</th>
-                  <th className="py-2 px-3 text-center align-middle rounded-r-lg">Action</th>
+                  <th className="py-2 px-3 text-left align-middle rounded-l-lg"><div className="flex items-center gap-1"><Building2 className="w-3.5 h-3.5 shrink-0" /><span>Seller / ID</span></div></th>
+                  <th className="py-2 px-3 text-left align-middle"><div className="flex items-center gap-1"><Phone className="w-3.5 h-3.5 shrink-0" /><span>Contact</span></div></th>
+                  <th className="py-2 px-3 text-left align-middle"><div className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5 shrink-0" /><span>City</span></div></th>
+                  <th className="py-2 px-3 text-left align-middle"><div className="flex items-center gap-1"><Tag className="w-3.5 h-3.5 shrink-0" /><span>Plan</span></div></th>
+                  <th className="py-2 px-3 text-left align-middle"><div className="flex items-center gap-1"><ShieldCheck className="w-3.5 h-3.5 shrink-0" /><span>KYC</span></div></th>
+                  <th className="py-2 px-3 text-left align-middle"><div className="flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5 shrink-0" /><span>Account</span></div></th>
+                  <th className="py-2 px-3 text-right align-middle"><div className="flex items-center justify-end gap-1"><TrendingUp className="w-3.5 h-3.5 shrink-0" /><span>Total Orders</span></div></th>
+                  <th className="py-2 px-3 text-right align-middle"><div className="flex items-center justify-end gap-1"><TrendingUp className="w-3.5 h-3.5 shrink-0" /><span>Monthly Orders</span></div></th>
+                  <th className="py-2 px-3 text-right align-middle"><div className="flex items-center justify-end gap-1"><Wallet className="w-3.5 h-3.5 shrink-0" /><span>Wallet</span></div></th>
+                  <th className="py-2 px-3 text-left align-middle"><div className="flex items-center gap-1"><UserCog className="w-3.5 h-3.5 shrink-0" /><span>RM</span></div></th>
+                  <th className="py-2 px-3 text-left align-middle"><div className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5 shrink-0" /><span>Joined</span></div></th>
+                  <th className="py-2 px-3 text-center align-middle rounded-r-lg"><div className="flex items-center justify-center gap-1"><Settings className="w-3.5 h-3.5 shrink-0" /><span>Action</span></div></th>
                 </tr>
               </thead>
               <tbody className="text-xs text-[#475569]">

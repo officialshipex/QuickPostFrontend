@@ -470,7 +470,7 @@ export function AdminReports() {
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse min-w-[1200px]">
                   <thead>
-                    <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-[10px] uppercase tracking-wider font-bold text-[#64748B]">
+                    <tr className="bg-[#E6F9F2] border-b border-[#E2E8F0] text-[10px] uppercase tracking-wider font-bold text-[#64748B]">
                       <th className="p-4">Seller</th>
                       <th className="p-4">Plan</th>
                       <th className="p-4">Orders</th>
@@ -638,7 +638,7 @@ export function AdminReports() {
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-[10px] uppercase tracking-wider font-bold text-[#64748B]">
+                    <tr className="bg-[#E6F9F2] border-b border-[#E2E8F0] text-[10px] uppercase tracking-wider font-bold text-[#64748B]">
                       <th className="p-4">Date</th>
                       <th className="p-4">Type</th>
                       <th className="p-4">Amount</th>
@@ -669,7 +669,7 @@ export function AdminReports() {
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-[10px] uppercase tracking-wider font-bold text-[#64748B]">
+                    <tr className="bg-[#E6F9F2] border-b border-[#E2E8F0] text-[10px] uppercase tracking-wider font-bold text-[#64748B]">
                       <th className="p-4">Courier</th>
                       <th className="p-4">Shipments</th>
                       <th className="p-4">Delivered</th>
@@ -725,7 +725,7 @@ export function AdminReports() {
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse min-w-[1000px]">
                   <thead>
-                    <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-[10px] uppercase tracking-wider font-bold text-[#64748B]">
+                    <tr className="bg-[#E6F9F2] border-b border-[#E2E8F0] text-[10px] uppercase tracking-wider font-bold text-[#64748B]">
                       <th className="p-4">Courier</th>
                       <th className="p-4">Total Shipments</th>
                       <th className="p-4">Delivered</th>
@@ -790,7 +790,7 @@ export function AdminReports() {
                       </div>
                       <div className="flex-1 p-0 bg-white">
                         <table className="w-full text-left border-collapse h-full">
-                          <thead className="bg-[#F8FAFC]/30">
+                          <thead className="bg-[#E6F9F2]">
                             <tr className="border-b border-[#E2E8F0] text-[10px] uppercase tracking-wider font-bold text-[#64748B]">
                               <th className="p-4 pl-6">Zone</th>
                               <th className="p-4">Shipments</th>
@@ -860,7 +860,7 @@ export function AdminReports() {
                 <div className="bg-white/60 backdrop-blur-xl rounded-xl border border-white/50 shadow-sm overflow-hidden">
                   <table className="w-full text-left border-collapse">
                     <thead>
-                      <tr className="border-b border-[#E2E8F0]/60 text-[10px] uppercase tracking-wider font-bold text-[#64748B] bg-white/40 sticky top-0 backdrop-blur-md z-10">
+                      <tr className="border-b border-[#E2E8F0]/60 text-[10px] uppercase tracking-wider font-bold text-[#64748B] bg-[#E6F9F2] sticky top-0 backdrop-blur-md z-10">
                         <th className="p-4">Claim ID</th>
                         <th className="p-4">AWB Number</th>
                         <th className="p-4">Date Raised</th>

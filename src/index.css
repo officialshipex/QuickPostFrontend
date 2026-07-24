@@ -29,6 +29,12 @@
   scrollbar-width: none !important;
 }
 
+.thin-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+.thin-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.thin-scrollbar::-webkit-scrollbar-thumb { background: #E2E8F0; border-radius: 9999px; }
+.thin-scrollbar::-webkit-scrollbar-thumb:hover { background: #00A86B; }
+.thin-scrollbar { scrollbar-width: thin; scrollbar-color: #E2E8F0 transparent; }
+
 /* ── Sticky table headers: fix the gap caused by a bordered <tr> ──
    Every main data table's sticky header row uses `border border-[#B9EFDB]`
    on the <tr>. In a border-collapse table this border sits OUTSIDE the

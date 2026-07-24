@@ -372,7 +372,7 @@ export function AdminNotification() {
             {activeTab === 'logs' ? (
               <table className="w-full text-left border-collapse min-w-[1000px]">
                 <thead>
-                  <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-[10px] uppercase tracking-wider font-bold text-[#64748B]">
+                  <tr className="bg-[#E6F9F2] border-b border-[#E2E8F0] text-[10px] uppercase tracking-wider font-bold text-[#64748B]">
                     <th className="p-4 w-28">Log ID</th>
                     <th className="p-4 w-52">Recipient</th>
                     <th className="p-4 w-28">Channel</th>
@@ -442,7 +442,7 @@ export function AdminNotification() {
             ) : (
               <table className="w-full text-left border-collapse min-w-[1000px]">
                 <thead>
-                  <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-[10px] uppercase tracking-wider font-bold text-[#64748B]">
+                  <tr className="bg-[#E6F9F2] border-b border-[#E2E8F0] text-[10px] uppercase tracking-wider font-bold text-[#64748B]">
                     <th className="p-4 w-60">Template Name</th>
                     <th className="p-4 w-64">Trigger Event</th>
                     <th className="p-4 w-32">Channel</th>

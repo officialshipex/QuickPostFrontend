@@ -60,7 +60,7 @@ export function AdminRoles() {
       <div className="bg-white flex flex-col flex-1 min-h-0 overflow-hidden border-t border-[#E2E8F0]">
         <div className="flex-1 overflow-auto no-scrollbar relative">
           <table className="w-full text-left border-collapse min-w-[1000px]">
-            <thead className="sticky top-0 z-40 bg-green-50 shadow-sm">
+            <thead className="sticky top-0 z-40 bg-[#E6F9F2] shadow-sm">
               <tr className="text-xs font-medium text-[#64748B] uppercase tracking-wider">
                 <th className="py-2 px-3 w-16 text-center rounded-l-lg">Serial No.</th>
                 <th className="py-2 px-3 whitespace-nowrap"><Users className="w-3.5 h-3.5 inline mr-1"/> Employee Details</th>

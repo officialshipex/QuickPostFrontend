@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
-import { Search, UserPlus, Phone, TrendingUp, Clock, CheckCircle2, XCircle, Loader2, X, MapPin } from 'lucide-react';
+import { Search, UserPlus, Phone, TrendingUp, Clock, CheckCircle2, XCircle, Loader2, X, MapPin, Building2, Tag, Radio, IndianRupee, UserCog, History, CalendarClock, FileText } from 'lucide-react';
 import { apiClient } from '../../services/apiClient';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
@@ -202,18 +202,18 @@ export function CRMLeads() {
           <div className="flex-1 overflow-auto w-full relative">
             {loading && <TableLoader />}
             <table className="w-full text-left border-collapse min-w-[900px]">
-              <thead className="sticky top-0 z-40 bg-green-50 shadow-sm">
+              <thead className="sticky top-0 z-40 bg-[#E6F9F2] shadow-sm">
                 <tr className="border-b border-[#E2E8F0] text-xs uppercase tracking-wider font-medium text-[#64748B]">
-                  <th className="py-2 px-3 rounded-l-lg">Lead / Business</th>
-                  <th className="py-2 px-3">Contact</th>
-                  <th className="py-2 px-3">City</th>
-                  <th className="py-2 px-3">Stage</th>
-                  <th className="py-2 px-3">Source</th>
-                  <th className="py-2 px-3">Expected Volume</th>
-                  <th className="py-2 px-3">Assigned To</th>
-                  <th className="py-2 px-3">Last Activity</th>
-                  <th className="py-2 px-3">Follow-up</th>
-                  <th className="py-2 px-3 rounded-r-lg">Notes</th>
+                  <th className="py-2 px-3 rounded-l-lg"><div className="flex items-center gap-1"><Building2 className="w-3.5 h-3.5 shrink-0" /><span>Lead / Business</span></div></th>
+                  <th className="py-2 px-3"><div className="flex items-center gap-1"><Phone className="w-3.5 h-3.5 shrink-0" /><span>Contact</span></div></th>
+                  <th className="py-2 px-3"><div className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5 shrink-0" /><span>City</span></div></th>
+                  <th className="py-2 px-3"><div className="flex items-center gap-1"><Tag className="w-3.5 h-3.5 shrink-0" /><span>Stage</span></div></th>
+                  <th className="py-2 px-3"><div className="flex items-center gap-1"><Radio className="w-3.5 h-3.5 shrink-0" /><span>Source</span></div></th>
+                  <th className="py-2 px-3"><div className="flex items-center gap-1"><IndianRupee className="w-3.5 h-3.5 shrink-0" /><span>Expected Volume</span></div></th>
+                  <th className="py-2 px-3"><div className="flex items-center gap-1"><UserCog className="w-3.5 h-3.5 shrink-0" /><span>Assigned To</span></div></th>
+                  <th className="py-2 px-3"><div className="flex items-center gap-1"><History className="w-3.5 h-3.5 shrink-0" /><span>Last Activity</span></div></th>
+                  <th className="py-2 px-3"><div className="flex items-center gap-1"><CalendarClock className="w-3.5 h-3.5 shrink-0" /><span>Follow-up</span></div></th>
+                  <th className="py-2 px-3 rounded-r-lg"><div className="flex items-center gap-1"><FileText className="w-3.5 h-3.5 shrink-0" /><span>Notes</span></div></th>
                 </tr>
               </thead>
               <tbody className="text-xs text-[#475569]">

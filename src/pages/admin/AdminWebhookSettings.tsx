@@ -231,7 +231,7 @@ export function AdminWebhookSettings() {
                 {loading && <TableLoader />}
                 <table className="w-full text-left border-collapse min-w-[900px]">
                   <thead>
-                    <tr className="bg-[#00A86B] text-white">
+                    <tr className="bg-[#E6F9F2] text-[#0F172A]">
                       <th className={`px-4 py-3 ${TXT.label} whitespace-nowrap`}>Webhook ID</th>
                       <th className={`px-4 py-3 ${TXT.label} whitespace-nowrap`}>Updated On</th>
                       <th className={`px-4 py-3 ${TXT.label} whitespace-nowrap`}>URL</th>
@@ -337,7 +337,7 @@ export function AdminWebhookSettings() {
                 {loading && <TableLoader />}
                 <table className="w-full text-left border-collapse min-w-[1000px]">
                   <thead>
-                    <tr className="bg-[#00A86B] text-white">
+                    <tr className="bg-[#E6F9F2] text-[#0F172A]">
                       <th className={`px-4 py-3 ${TXT.label} whitespace-nowrap`}>Webhook ID</th>
                       <th className={`px-4 py-3 ${TXT.label} whitespace-nowrap`}>URL</th>
                       <th className={`px-4 py-3 ${TXT.label} whitespace-nowrap`}>Event</th>

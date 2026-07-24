@@ -348,7 +348,7 @@ export function TransferCODModal({ userId, selectedRemittanceIds, type = 'seller
                   <div className="overflow-x-auto no-scrollbar">
                     <table className="w-full text-left border-collapse min-w-[1000px]">
                       <thead>
-                        <tr className="bg-[#F8FAFC] text-[11px] font-bold text-[#475569] uppercase tracking-wider border-b border-[#E2E8F0]">
+                        <tr className="bg-[#E6F9F2] text-[11px] font-bold text-[#475569] uppercase tracking-wider border-b border-[#E2E8F0]">
                           <th className="py-4 px-5 whitespace-nowrap">Remittance ID</th>
                           <th className="py-4 px-5 whitespace-nowrap">Total COD Amount</th>
                           <th className="py-4 px-5 whitespace-nowrap">Credited to Wallet</th>

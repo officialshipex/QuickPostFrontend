@@ -169,7 +169,7 @@ export function AdminTracking() {
         {isLoading && !trackingData && (
           <div className="bg-white rounded-xl border border-[#E2E8F0] p-12 flex flex-col items-center justify-center text-[#64748B]">
             <Loader2 className="w-8 h-8 animate-spin text-[#00A86B] mb-4" />
-            <p className="font-medium">Fetching tracking details...</p>
+            <p className="text-[12px] leading-[18px] font-medium">Fetching tracking details...</p>
           </div>
         )}
 
@@ -177,7 +177,7 @@ export function AdminTracking() {
         {error && !isLoading && (
           <div className="bg-red-50 border border-red-200 rounded-xl p-6 flex items-center gap-3 text-red-700">
             <AlertCircle className="w-5 h-5 shrink-0" />
-            <p className="font-medium text-sm">{error}</p>
+            <p className="text-[12px] leading-[18px] font-medium">{error}</p>
           </div>
         )}
 
@@ -189,34 +189,34 @@ export function AdminTracking() {
             <div className="lg:col-span-3 bg-white rounded-xl border border-[#E2E8F0] shadow-[0_2px_10px_rgba(0,0,0,0.02)] h-fit overflow-hidden">
               <div className="px-5 py-4 border-b border-[#E2E8F0] bg-[#F8FAFC]/50 flex items-center gap-2">
                 <Package className="w-4 h-4 text-[#64748B]" />
-                <h2 className="text-[14px] font-bold text-[#0F172A]">Order Overview</h2>
+                <h2 className="text-[14px] leading-[20px] font-semibold text-[#0F172A]">Order Overview</h2>
               </div>
 
               <div className="p-5">
                 <div className="space-y-4 mb-5">
                   <div className="flex justify-between items-start border-b border-[#F1F5F9] pb-3">
-                    <p className="text-[12px] text-[#64748B] font-medium">Order ID</p>
-                    <p className="text-[13px] font-bold text-[#0F172A]">{trackingData.orderId}</p>
+                    <p className="text-[12px] leading-[18px] text-[#64748B] font-medium">Order ID</p>
+                    <p className="text-[12px] leading-[18px] font-semibold text-[#0F172A]">{trackingData.orderId}</p>
                   </div>
                   <div className="flex justify-between items-start border-b border-[#F1F5F9] pb-3">
-                    <p className="text-[12px] text-[#64748B] font-medium">Order Placed</p>
-                    <p className="text-[13px] font-bold text-[#0F172A]">{trackingData.orderDate}</p>
+                    <p className="text-[12px] leading-[18px] text-[#64748B] font-medium">Order Placed</p>
+                    <p className="text-[12px] leading-[18px] font-normal text-[#0F172A]">{trackingData.orderDate}</p>
                   </div>
                   <div className="flex justify-between items-start border-b border-[#F1F5F9] pb-3">
-                    <p className="text-[12px] text-[#64748B] font-medium">Payment Mode</p>
-                    <span className="px-2 py-0.5 bg-[#EFF6FF] text-[#2563EB] text-[11px] font-bold rounded">{trackingData.paymentMode}</span>
+                    <p className="text-[12px] leading-[18px] text-[#64748B] font-medium">Payment Mode</p>
+                    <span className="px-2 py-0.5 bg-[#EFF6FF] text-[#2563EB] text-[10px] leading-4 font-semibold rounded">{trackingData.paymentMode}</span>
                   </div>
                   <div className="flex justify-between items-start border-b border-[#F1F5F9] pb-3">
-                    <p className="text-[12px] text-[#64748B] font-medium">Order Amount</p>
-                    <p className="text-[13px] font-bold text-[#0F172A]">₹{trackingData.orderAmount.toFixed(2)}</p>
+                    <p className="text-[12px] leading-[18px] text-[#64748B] font-medium">Order Amount</p>
+                    <p className="text-[12px] leading-[18px] font-normal text-[#0F172A]">₹{trackingData.orderAmount.toFixed(2)}</p>
                   </div>
                 </div>
 
                 <div className="bg-[#FFFBEB] border border-[#FEF3C7] rounded-lg p-3">
-                  <p className="text-[11px] text-[#B45309] font-medium leading-relaxed mb-2">
+                  <p className="text-[12px] leading-[18px] text-[#B45309] font-normal mb-2">
                     To take any action and see complete buyer details, please verify yourself.
                   </p>
-                  <button className="text-[12px] font-bold text-[#D97706] hover:underline flex items-center gap-1">
+                  <button className="text-[12px] leading-[18px] font-bold text-[#D97706] hover:underline flex items-center gap-1">
                     Verify via OTP <Navigation className="w-3 h-3" />
                   </button>
                 </div>
@@ -236,15 +236,15 @@ export function AdminTracking() {
                     </span>
                     <h2 className="text-[18px] font-extrabold text-[#0F172A] tracking-tight">{trackingData.currentStatus}</h2>
                   </div>
-                  <p className="text-[13px] text-[#475569] font-medium flex items-center gap-1.5">
-                    <CalendarIcon className="w-3.5 h-3.5" /> Estimated Delivery: <span className="text-[#0F172A] font-bold">{trackingData.estimatedDelivery}</span>
+                  <p className="text-[12px] leading-[18px] text-[#475569] font-medium flex items-center gap-1.5">
+                    <CalendarIcon className="w-3.5 h-3.5" /> Estimated Delivery: <span className="text-[#0F172A] font-semibold">{trackingData.estimatedDelivery}</span>
                   </p>
                 </div>
 
                 <div className="flex items-center gap-3 bg-white px-3 py-2 rounded-lg border border-[#E2E8F0] shadow-sm">
                   <div className="text-right">
-                    <p className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Shipped Via</p>
-                    <p className="text-[12px] font-bold text-[#0F172A]">{trackingData.courierName}</p>
+                    <p className="text-[10px] leading-4 font-semibold text-[#64748B] uppercase tracking-wider">Shipped Via</p>
+                    <p className="text-[12px] leading-[18px] font-semibold text-[#0F172A]">{trackingData.courierName}</p>
                   </div>
                   <div className="w-px h-8 bg-[#E2E8F0]"></div>
                   <img src={trackingData.courierLogo} alt={trackingData.courierName} className="h-6 w-auto object-contain" />
@@ -255,11 +255,11 @@ export function AdminTracking() {
               <div className="p-6 flex-1 bg-white">
                 <div className="flex items-center gap-2 mb-5 pb-3 border-b border-[#F1F5F9]">
                   <MapPin className="w-4 h-4 text-[#00A86B]" />
-                  <h3 className="text-[14px] font-bold text-[#0F172A]">Tracking Journey</h3>
+                  <h3 className="text-[14px] leading-[20px] font-semibold text-[#0F172A]">Tracking Journey</h3>
                 </div>
 
                 {trackingData.events.length === 0 ? (
-                  <p className="text-center text-[13px] text-[#94A3B8] py-8">No tracking updates yet.</p>
+                  <p className="text-center text-[12px] leading-[18px] font-normal text-[#94A3B8] py-8">No tracking updates yet.</p>
                 ) : (
                   <div className="pl-2">
                     {trackingData.events.map((event, index, arr) => (
@@ -283,18 +283,18 @@ export function AdminTracking() {
                         {/* Timeline Content */}
                         <div className={`flex-1 ${event.active ? 'opacity-100' : 'opacity-75'}`}>
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-1 gap-1">
-                            <h4 className={`text-[14px] font-bold ${event.active ? 'text-[#00A86B]' : 'text-[#0F172A]'}`}>
+                            <h4 className={`text-[12px] leading-[18px] font-semibold ${event.active ? 'text-[#00A86B]' : 'text-[#0F172A]'}`}>
                               {event.status}
                             </h4>
-                            <span className="text-[12px] font-semibold text-[#64748B]">
+                            <span className="text-[12px] leading-[18px] font-medium text-[#64748B]">
                               {event.date} <span className="font-normal mx-1">•</span> {event.time}
                             </span>
                           </div>
-                          <p className="text-[13px] text-[#475569] leading-relaxed mb-1">
+                          <p className="text-[12px] leading-[18px] font-normal text-[#475569] mb-1">
                             {event.desc}
                           </p>
                           {event.location && (
-                            <p className="text-[12px] font-medium text-[#94A3B8] flex items-center gap-1">
+                            <p className="text-[12px] leading-[18px] font-normal text-[#94A3B8] flex items-center gap-1">
                               <MapPin className="w-3 h-3" /> {event.location}
                             </p>
                           )}

@@ -5,7 +5,7 @@ import { DesktopPagination } from '../../hooks/usePagination';
 import { apiClient } from '../../services/apiClient';
 import {
   Search, Download, RefreshCw, ChevronLeft, ChevronRight, ChevronDown,
-  Filter, Truck, RotateCcw, CheckCircle2, AlertTriangle, Clock, Package, MoreHorizontal, MapPin, Check, History, User, Settings, Flame, X, Loader2, Zap, IndianRupee, Calendar, Mail
+  Filter, Truck, RotateCcw, CheckCircle2, AlertTriangle, Clock, Package, MoreHorizontal, MapPin, Check, History, User, Settings, Flame, X, Loader2, Zap, IndianRupee, Calendar, Mail, FileText
 } from 'lucide-react';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
@@ -504,7 +504,7 @@ export function CRMShipmentListing() {
                     <div className="flex items-center gap-1"><User className="w-3.5 h-3.5 shrink-0"/><span>User</span></div>
                   </th>
                   <th className="py-2 px-4 text-left align-middle w-[94px]">
-                    <div className="flex items-center gap-1"><Check className="w-3.5 h-3.5 shrink-0"/><span>Order</span></div>
+                    <div className="flex items-center gap-1"><FileText className="w-3.5 h-3.5 shrink-0"/><span>Order</span></div>
                   </th>
                   <th className="py-2 px-4 text-left align-middle w-[130px]">
                     <div className="flex items-center gap-1"><Package className="w-3.5 h-3.5 shrink-0"/><span>Product</span></div>

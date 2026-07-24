@@ -6,13 +6,15 @@ import { DesktopPagination } from '../../hooks/usePagination';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { apiClient } from '../../services/apiClient';
 import { useAdminTab } from '../../context/AdminUserContext';
+import * as XLSX from 'xlsx';
 import {
   ChevronDown, RefreshCcw, Check, Package, User, Truck,
-  Upload, FileText, AlertTriangle, X, Search
+  Upload, FileText, AlertTriangle, X, Search, Download
 } from 'lucide-react';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
 import { TableLoader } from '../../components/ui/TableLoader';
+import { EmptyState } from '../../components/ui/EmptyState';
 import { TruncatedText } from '../../components/ui/TruncatedText';
 
 // ── Date helpers ──────────────────────────────────────────────────────────────
@@ -74,7 +76,7 @@ const BADGE: Record<string, string> = {
   declined:           'bg-red-50 text-red-700 border-red-200',
 };
 const badge = (s: string) =>
-  `${BADGE[(s || '').toLowerCase()] ?? 'bg-gray-50 text-gray-700 border-gray-200'} px-2.5 py-0.5 rounded-full border text-[10px] font-semibold uppercase tracking-wider whitespace-nowrap shadow-sm`;
+  `${BADGE[(s || '').toLowerCase()] ?? 'bg-gray-50 text-gray-700 border-gray-200'} px-2.5 py-0.5 rounded-full border text-[10px] leading-4 font-semibold uppercase tracking-wider whitespace-nowrap shadow-sm`;
 
 // ── Inline: Admin Accept Modal (admin accepts a raised dispute) ───────────────
 function AcceptModal({ awb, onClose, onDone }: { awb: string; onClose: () => void; onDone: () => void }) {
@@ -339,6 +341,28 @@ function DetailsModal({ text, imageUrl, onClose }: { text: string; imageUrl: str
   );
 }
 
+// ─── Excel export helpers ──────────────────────────────────────────────────────
+const discrepancyToSheetRows = (rows: any[]) => rows.map((o) => ({
+  'AWB':              o.awbNumber,
+  'Date':             o.createdAt ? new Date(o.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '',
+  'User':             o.user?.fullname || o.user?.name || '',
+  'User Email':       o.user?.email || '',
+  'Courier':          o.courierServiceName || '',
+  'Applied Weight (Kg)': o.enteredWeight?.applicableWeight ?? '',
+  'Charged Weight (Kg)': o.chargedWeight?.applicableWeight ?? '',
+  'Excess Weight (Kg)':  o.excessWeightCharges?.excessWeight ?? '',
+  'Excess Charges':      o.excessWeightCharges?.excessCharges ?? '',
+  'Pending Amount':      o.excessWeightCharges?.pendingAmount ?? '',
+  'Status':           o.adminStatus || o.status || '',
+}));
+
+const exportDiscrepancyToExcel = (rows: any[], filename: string) => {
+  const sheet = XLSX.utils.json_to_sheet(discrepancyToSheetRows(rows));
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, sheet, 'WeightDiscrepancy');
+  XLSX.writeFile(workbook, filename);
+};
+
 // ── Main Component ────────────────────────────────────────────────────────────
 export function AdminWeightDiscrepancy() {
   const { isAdmin, adminTab, currentUserId, loadingAdminTab } = useAdminTab();
@@ -458,25 +482,27 @@ export function AdminWeightDiscrepancy() {
   }, [isAdminView, userMongoId, currentUserId]);
 
   // ── Fetch discrepancies
+  // ── Shared params builder for discrepancy fetches/exports ──
+  const buildDiscrepancyParams = useCallback((pg: number, limit: number) => {
+    const params: Record<string, any> = { page: pg, limit };
+    if (TAB_STATUS[activeTab]) params.status = TAB_STATUS[activeTab];
+    if (selectedCouriers.length) params.courierService = selectedCouriers.join(',');
+
+    // isAdminView user filter
+    if (isAdminView && userMongoId) params.userSearch = userMongoId;
+    else if (!isAdminView && currentUserId) params.userSearch = currentUserId;
+
+    if (dateStart) params.fromDate = new Date(dateStart).toISOString();
+    if (dateEnd) params.toDate = new Date(dateEnd).toISOString();
+    if (searchInput.trim()) params[searchBy] = searchInput.trim();
+    if (globalSearchQuery) params.searchQuery = globalSearchQuery;
+    return params;
+  }, [activeTab, selectedCouriers, isAdminView, userMongoId, currentUserId, dateStart, dateEnd, searchInput, searchBy, globalSearchQuery]);
+
   const fetchDiscrepancy = useCallback(async () => {
     setLoading(true);
     try {
-      const params: Record<string, any> = {
-        page,
-        limit: rowsPerPage,
-      };
-      if (TAB_STATUS[activeTab]) params.status = TAB_STATUS[activeTab];
-      if (selectedCouriers.length) params.courierService = selectedCouriers.join(',');
-
-      // isAdminView user filter
-      if (isAdminView && userMongoId) params.userSearch = userMongoId;
-      else if (!isAdminView && currentUserId) params.userSearch = currentUserId;
-
-      if (dateStart) params.fromDate = new Date(dateStart).toISOString();
-      if (dateEnd) params.toDate = new Date(dateEnd).toISOString();
-      if (searchInput.trim()) params[searchBy] = searchInput.trim();
-      if (globalSearchQuery) params.searchQuery = globalSearchQuery;
-
+      const params = buildDiscrepancyParams(page, rowsPerPage);
       const res = await apiClient.get('/dispreancy/getAllDiscrepancy', { params });
       setOrders(res.data?.results || []);
       setTotal(res.data?.total || 0);
@@ -488,7 +514,37 @@ export function AdminWeightDiscrepancy() {
       }
     } catch { /* ignore */ }
     finally { setLoading(false); }
-  }, [activeTab, page, rowsPerPage, selectedCouriers, dateStart, dateEnd, searchInput, searchBy, userMongoId, isAdminView, currentUserId, globalSearchQuery]);
+  }, [buildDiscrepancyParams, page, rowsPerPage]);
+
+  // ── Excel export handlers ──
+  const [exportingExcel, setExportingExcel] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportScope, setExportScope] = useState<'page' | 'all'>('page');
+
+  const handleConfirmExport = async () => {
+    setExportingExcel(true);
+    try {
+      if (exportScope === 'page') {
+        exportDiscrepancyToExcel(orders, `WeightDiscrepancy-${activeTab}-Page${page}.xlsx`);
+      } else {
+        const PAGE_SIZE = 500;
+        const first = await apiClient.get('/dispreancy/getAllDiscrepancy', { params: buildDiscrepancyParams(1, PAGE_SIZE) });
+        let allRaw: any[] = first.data?.results || [];
+        const totalCount = first.data?.total || allRaw.length;
+        const pagesNeeded = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+        for (let p = 2; p <= pagesNeeded; p++) {
+          const res = await apiClient.get('/dispreancy/getAllDiscrepancy', { params: buildDiscrepancyParams(p, PAGE_SIZE) });
+          allRaw = allRaw.concat(res.data?.results || []);
+        }
+        exportDiscrepancyToExcel(allRaw, `WeightDiscrepancy-${activeTab}-All.xlsx`);
+      }
+    } catch (err) {
+      console.error('Failed to export weight discrepancy:', err);
+    } finally {
+      setExportingExcel(false);
+      setShowExportModal(false);
+    }
+  };
 
   useEffect(() => {
     setPage(1);
@@ -621,22 +677,23 @@ export function AdminWeightDiscrepancy() {
         {/* ── Tab bar ── */}
         <div className="bg-white border-b border-[#E2E8F0] relative z-50 shrink-0">
           <div className="flex justify-between items-center px-6 py-2 border-b border-[#E2E8F0] bg-white overflow-x-auto no-scrollbar">
-            <div className="flex gap-6 items-center shrink-0">
+            <div className="flex gap-1 items-center bg-[#F7FEFC] rounded-full p-1.5 shrink-0">
               {MAIN_TABS.map(tab => (
                 <button key={tab} onClick={() => handleTabChange(tab)}
-                  className={`relative py-3 text-[13px] font-bold transition-colors whitespace-nowrap flex items-center gap-1.5 ${
-                    activeTab === tab ? 'text-[#00A86B]' : 'text-[#64748B] hover:text-[#0F172A]'
+                  className={`relative px-4 py-2 text-[13px] font-bold transition-colors whitespace-nowrap rounded-full flex items-center gap-1.5 cursor-pointer ${
+                    activeTab === tab ? 'text-[#00A86B] underline underline-offset-4 decoration-2' : 'text-[#64748B] hover:text-[#0F172A]'
                   }`}>
                   {tab}
-                  {activeTab === tab && (
-                    <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#00A86B] rounded-t-full" />
-                  )}
                 </button>
               ))}
             </div>
-            <div className="flex items-center gap-3 shrink-0 ml-4">
+            <div className="flex items-center gap-2 shrink-0 ml-4">
+              <button onClick={() => setShowExportModal(true)} aria-label="Download Excel"
+                className="w-8 h-8 rounded-full border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC] cursor-pointer">
+                <Download className="w-4 h-4" />
+              </button>
               <button onClick={() => { fetchDiscrepancy(); fetchCounts(); }}
-                className="w-8 h-8 rounded-full border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC]">
+                className="w-8 h-8 rounded-full border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC] cursor-pointer">
                 <RefreshCcw className="w-4 h-4" />
               </button>
             </div>
@@ -814,7 +871,7 @@ export function AdminWeightDiscrepancy() {
           <div className="flex-1 overflow-auto w-full relative">
             {loading && <TableLoader />}
             <table className="w-full text-left border-collapse min-w-full">
-              <thead className="sticky top-0 z-40 bg-green-50 shadow-sm">
+              <thead className="sticky top-0 z-40 bg-[#E6F9F2] shadow-sm">
                 <tr className="text-xs font-medium text-[#64748B] uppercase tracking-wider">
                   <th className="py-2 px-3 w-10 rounded-l-lg">
                     <input type="checkbox" className="rounded accent-[#00A86B] w-3.5 h-3.5"
@@ -854,9 +911,8 @@ export function AdminWeightDiscrepancy() {
               <tbody className="text-[11px] text-[#475569]">
                 {filteredOrders.length === 0 ? (
                   <tr>
-                    <td colSpan={isAdminView ? 11 : 10}
-                      className="text-center py-16 text-sm text-gray-400">
-                      No discrepancies found
+                    <td colSpan={isAdminView ? 11 : 10}>
+                      <EmptyState title="No discrepancies found" subtitle="Try changing filters" />
                     </td>
                   </tr>
                 ) : (
@@ -902,7 +958,7 @@ export function AdminWeightDiscrepancy() {
                           }}
                           onMouseLeave={() => setProductHoverPos(prev => (prev?.id === order._id ? null : prev))}
                         >
-                          <div className="text-xs font-normal text-[#0F172A] truncate max-w-[140px] cursor-default">
+                          <div className="text-xs font-normal text-[#0F172A] underline decoration-dotted underline-offset-2 hover:text-[#00A86B] truncate max-w-[140px] cursor-help">
                             {products.map(p => p.name).filter(Boolean).join(', ') || '—'}
                           </div>
                           <div className="text-xs font-normal text-[#64748B] mt-0.5 truncate max-w-[140px]">
@@ -1096,6 +1152,51 @@ export function AdminWeightDiscrepancy() {
           document.body
         );
       })()}
+
+      {/* ── Excel Export Modal ── */}
+      {showExportModal && createPortal(
+        <div className="fixed inset-0 z-[300] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={() => !exportingExcel && setShowExportModal(false)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-[15px] font-semibold text-[#0F172A]">Download Excel</h3>
+              <button onClick={() => !exportingExcel && setShowExportModal(false)} className="w-7 h-7 rounded-full flex items-center justify-center text-[#94A3B8] hover:bg-[#F8FAFC]">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="space-y-3">
+              <label className="flex items-center gap-3 p-3 rounded-xl border border-[#E2E8F0] cursor-pointer hover:bg-[#F8FAFC] transition-colors has-[:checked]:border-[#03C27D] has-[:checked]:bg-[#F0FDF9]">
+                <input
+                  type="radio"
+                  name="exportScope"
+                  checked={exportScope === 'page'}
+                  onChange={() => setExportScope('page')}
+                  className="w-4 h-4 accent-[#00A86B]"
+                />
+                <span className="text-[13px] font-medium text-[#334155]">Current page only</span>
+              </label>
+              <label className="flex items-center gap-3 p-3 rounded-xl border border-[#E2E8F0] cursor-pointer hover:bg-[#F8FAFC] transition-colors has-[:checked]:border-[#03C27D] has-[:checked]:bg-[#F0FDF9]">
+                <input
+                  type="radio"
+                  name="exportScope"
+                  checked={exportScope === 'all'}
+                  onChange={() => setExportScope('all')}
+                  className="w-4 h-4 accent-[#00A86B]"
+                />
+                <span className="text-[13px] font-medium text-[#334155]">Entire tab ({activeTab})</span>
+              </label>
+            </div>
+            <button
+              onClick={handleConfirmExport}
+              disabled={exportingExcel}
+              className="mt-6 w-full py-2.5 rounded-full bg-[#009D64] text-white text-xs font-medium leading-[18px] hover:bg-[#008a57] transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {exportingExcel ? 'Exporting…' : 'Download'}
+            </button>
+          </div>
+        </div>,
+        document.body
+      )}
 
       {/* ── Modals ── */}
       {acceptModal.open && (

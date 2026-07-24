@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { usePagination, DesktopPagination } from '../../hooks/usePagination';
-import { Search, AlertCircle, Clock, CheckCircle2, XCircle, Plus } from 'lucide-react';
+import { Search, AlertCircle, Clock, CheckCircle2, XCircle, Plus, Hash, User, Truck, Tag, Flame, Timer, UserCog, Calendar, History } from 'lucide-react';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
 
@@ -177,19 +177,19 @@ export function CRMEscalations() {
 
           <div className="flex-1 overflow-auto w-full relative">
             <table className="w-full text-left border-collapse min-w-[950px]">
-              <thead className="sticky top-0 z-40 bg-green-50 shadow-sm">
+              <thead className="sticky top-0 z-40 bg-[#E6F9F2] shadow-sm">
                 <tr className="border-b border-[#E2E8F0] text-xs uppercase tracking-wider font-medium text-[#64748B]">
-                  <th className="py-2 px-3 rounded-l-lg">Ticket ID</th>
-                  <th className="py-2 px-3">Seller</th>
-                  <th className="py-2 px-3">AWB</th>
-                  <th className="py-2 px-3">Courier</th>
-                  <th className="py-2 px-3">Category</th>
-                  <th className="py-2 px-3">Priority</th>
-                  <th className="py-2 px-3">Status</th>
-                  <th className="py-2 px-3">SLA</th>
-                  <th className="py-2 px-3">Assigned To</th>
-                  <th className="py-2 px-3">Created</th>
-                  <th className="py-2 px-3 rounded-r-lg">Last Updated</th>
+                  <th className="py-2 px-3 rounded-l-lg"><div className="flex items-center gap-1"><Hash className="w-3.5 h-3.5 shrink-0" /><span>Ticket ID</span></div></th>
+                  <th className="py-2 px-3"><div className="flex items-center gap-1"><User className="w-3.5 h-3.5 shrink-0" /><span>Seller</span></div></th>
+                  <th className="py-2 px-3"><div className="flex items-center gap-1"><Tag className="w-3.5 h-3.5 shrink-0" /><span>AWB</span></div></th>
+                  <th className="py-2 px-3"><div className="flex items-center gap-1"><Truck className="w-3.5 h-3.5 shrink-0" /><span>Courier</span></div></th>
+                  <th className="py-2 px-3"><div className="flex items-center gap-1"><AlertCircle className="w-3.5 h-3.5 shrink-0" /><span>Category</span></div></th>
+                  <th className="py-2 px-3"><div className="flex items-center gap-1"><Flame className="w-3.5 h-3.5 shrink-0" /><span>Priority</span></div></th>
+                  <th className="py-2 px-3"><div className="flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5 shrink-0" /><span>Status</span></div></th>
+                  <th className="py-2 px-3"><div className="flex items-center gap-1"><Timer className="w-3.5 h-3.5 shrink-0" /><span>SLA</span></div></th>
+                  <th className="py-2 px-3"><div className="flex items-center gap-1"><UserCog className="w-3.5 h-3.5 shrink-0" /><span>Assigned To</span></div></th>
+                  <th className="py-2 px-3"><div className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5 shrink-0" /><span>Created</span></div></th>
+                  <th className="py-2 px-3 rounded-r-lg"><div className="flex items-center gap-1"><History className="w-3.5 h-3.5 shrink-0" /><span>Last Updated</span></div></th>
                 </tr>
               </thead>
               <tbody className="text-xs text-[#475569]">

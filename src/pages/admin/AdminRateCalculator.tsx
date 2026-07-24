@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
-import { Truck, Plane, MapPin, Loader2, ChevronDown, Info } from 'lucide-react';
+import { Truck, Plane, Loader2, ChevronDown, Info } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../../services/apiClient';
+import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 
 // ─── Carrier Logo ──────────────────────────────────────────────────────────────
 const getCarrierLogo = (name = '') => {
@@ -375,29 +376,21 @@ export function AdminRateCalculator() {
           </form>
 
           {/* Graphic */}
-          <div className="bg-white rounded-2xl border border-[#E2E8F0] p-6 shadow-sm flex flex-col items-center justify-center gap-6">
-            <div className="w-full relative px-4 py-6">
-              <div className="bg-[#F8FAFC] border border-dashed border-[#CBD5E1] rounded-xl p-4 text-center relative z-10 max-w-xs mx-auto">
-                <div className="flex items-center justify-center gap-1.5 text-[#2563EB] mb-1">
-                  <MapPin className="w-4 h-4" />
-                  <span className="text-[13px] font-bold">Pickup Location</span>
-                </div>
-                <div className="text-[13px] font-semibold text-[#0F172A]">
-                  {form.pickUpPincode || '______'}
-                </div>
-              </div>
+          <div className="relative bg-white rounded-2xl border border-[#E2E8F0] p-6 shadow-sm flex flex-col items-center justify-center gap-3 overflow-hidden min-h-[380px]">
+            {/* Soft accent glow behind the animation */}
+            <div className="absolute w-64 h-64 rounded-full bg-[#F0FDF4] blur-2xl pointer-events-none" />
 
-              <div className="absolute left-1/2 top-24 bottom-24 w-0 border-l-2 border-dashed border-[#94A3B8] -translate-x-1/2 z-0" />
+            <div className="relative w-full max-w-[380px]">
+              <DotLottieReact
+                src="https://lottie.host/5eb8a435-1c8e-4eba-b0d9-770defa8557d/wRv72wEB62.lottie"
+                loop
+                autoplay
+              />
+            </div>
 
-              <div className="bg-[#F8FAFC] border border-dashed border-[#CBD5E1] rounded-xl p-4 text-center relative z-10 max-w-xs mx-auto mt-12">
-                <div className="flex items-center justify-center gap-1.5 text-[#2563EB] mb-1">
-                  <MapPin className="w-4 h-4" />
-                  <span className="text-[13px] font-bold">Delivery Location</span>
-                </div>
-                <div className="text-[13px] font-semibold text-[#0F172A]">
-                  {form.deliveryPincode || '______'}
-                </div>
-              </div>
+            <div className="relative text-center">
+              <h3 className="text-[14px] font-bold text-[#0F172A]">Calculate rates in seconds</h3>
+              <p className="text-[12px] text-[#64748B] mt-0.5">Enter your shipment details to compare live courier rates</p>
             </div>
           </div>
         </div>
@@ -411,10 +404,10 @@ export function AdminRateCalculator() {
               </div>
 
               {/* Desktop table */}
-              <div className="hidden md:block overflow-x-auto">
+              <div className="hidden md:block overflow-x-auto max-h-[480px] overflow-y-auto thin-scrollbar">
                 <table className="w-full min-w-[700px]">
-                  <thead>
-                    <tr className="bg-[#00A86B] text-white text-[12px] font-bold">
+                  <thead className="sticky top-0 z-10">
+                    <tr className="bg-[#E6F9F2] text-[#0F172A] text-[12px] font-bold">
                       <th className="py-3 px-5 text-left">Courier</th>
                       <th className="py-3 px-5 text-center">Mode</th>
                       <th className="py-3 px-5 text-center">Charges</th>

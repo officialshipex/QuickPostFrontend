@@ -266,7 +266,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                 setShowProfileMenu(false);
                 setShowMobileWalletSummary(false);
               }}
-              className={`w-8 h-8 flex items-center justify-center rounded-full text-[#64748B] hover:bg-[#F8FAFC] transition-colors relative ${showNotifications ? 'bg-[#F8FAFC] text-[#0F172A]' : ''}`}
+              className={`w-8 h-8 flex items-center justify-center rounded-full text-[#64748B] hover:bg-[#F8FAFC] transition-colors relative cursor-pointer ${showNotifications ? 'bg-[#F8FAFC] text-[#0F172A]' : ''}`}
             >
               <Bell className="w-[18px] h-[18px]" />
               <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-[#EF4444] rounded-full" />
@@ -300,7 +300,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                 setShowProfileMenu(false);
                 setShowMobileWalletSummary(false);
               }}
-              className={`w-8 h-8 flex items-center justify-center rounded-full text-[#64748B] hover:bg-[#F8FAFC] transition-colors ${showQuickActions ? 'bg-[#F8FAFC] text-[#0F172A]' : ''}`}
+              className={`w-8 h-8 flex items-center justify-center rounded-full text-[#64748B] hover:bg-[#F8FAFC] transition-colors cursor-pointer ${showQuickActions ? 'bg-[#F8FAFC] text-[#0F172A]' : ''}`}
             >
               <Zap className="w-[18px] h-[18px]" />
             </button>
@@ -343,14 +343,14 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                   setShowQuickActions(false);
                   setShowProfileMenu(false);
                 }}
-                className="flex items-center gap-1 focus:outline-none"
+                className="flex items-center gap-1 focus:outline-none cursor-pointer"
               >
                 <Wallet className="w-3.5 h-3.5 shrink-0" />
                 <span>₹{walletBalance.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
               </button>
               <button
                 onClick={() => setShowRechargeModal(true)}
-                className="text-white/80 hover:text-white px-1 focus:outline-none"
+                className="text-white/80 hover:text-white px-1 focus:outline-none cursor-pointer"
                 aria-label="Recharge wallet"
               >
                 +
@@ -669,7 +669,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
             <button
               type="button"
               onClick={() => setShowWalletHover(v => !v)}
-              className="flex items-center gap-2 focus:outline-none"
+              className="flex items-center gap-2 focus:outline-none cursor-pointer"
             >
               <Wallet className="w-4 h-4 text-white" />
               <span className="text-sm font-bold tabular-nums">₹{walletBalance.toLocaleString('en-IN', { maximumFractionDigits: 2, minimumFractionDigits: 2 })}</span>
@@ -679,7 +679,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
               whileTap={{ scale: 0.95 }}
               onClick={() => setShowRechargeModal(true)}
               aria-label="Recharge wallet"
-              className={`w-7 h-7 rounded-full flex items-center justify-center text-white text-base leading-none font-medium transition-colors focus:outline-none ${walletBalance < 0 ? 'bg-[#DC2626] hover:bg-[#B91C1C]' : 'bg-[#008757] hover:bg-[#00754a]'}`}
+              className={`w-7 h-7 rounded-full flex items-center justify-center text-white text-base leading-none font-medium transition-colors focus:outline-none cursor-pointer ${walletBalance < 0 ? 'bg-[#DC2626] hover:bg-[#B91C1C]' : 'bg-[#008757] hover:bg-[#00754a]'}`}
             >
               +
             </motion.button>
@@ -734,7 +734,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
               whileTap={{ scale: 0.95 }}
               onClick={() => setShowQuickActions(!showQuickActions)}
               onBlur={() => setTimeout(() => setShowQuickActions(false), 200)}
-              className={`w-10 h-10 rounded-[14px] border flex items-center justify-center transition-all shadow-sm ${showQuickActions ? 'bg-[#F8FAFC] border-[#CBD5E1]' : 'bg-white border-[#E2E8F0] hover:bg-[#F8FAFC] hover:border-[#CBD5E1]'}`}
+              className={`w-10 h-10 rounded-[14px] border flex items-center justify-center transition-all shadow-sm cursor-pointer ${showQuickActions ? 'bg-[#F8FAFC] border-[#CBD5E1]' : 'bg-white border-[#E2E8F0] hover:bg-[#F8FAFC] hover:border-[#CBD5E1]'}`}
               title="Quick Actions"
             >
               <Zap className={`w-5 h-5 ${showQuickActions ? 'text-[#D97706]' : 'text-[#F59E0B]'}`} />
@@ -808,7 +808,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
             whileTap={{ scale: 0.95 }}
             onClick={() => setShowNotifications(!showNotifications)}
             onBlur={() => setTimeout(() => setShowNotifications(false), 200)}
-            className={`w-10 h-10 rounded-[14px] border flex items-center justify-center transition-all relative ${showNotifications ? 'bg-[#F8FAFC] border-[#CBD5E1] text-[#0F172A]' : 'bg-white border-[#E2E8F0] text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A]'}`}
+            className={`w-10 h-10 rounded-[14px] border flex items-center justify-center transition-all relative cursor-pointer ${showNotifications ? 'bg-[#F8FAFC] border-[#CBD5E1] text-[#0F172A]' : 'bg-white border-[#E2E8F0] text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A]'}`}
           >
             <Bell className="w-5 h-5" />
             {!!pendingAgreement && (
