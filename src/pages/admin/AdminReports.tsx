@@ -1,276 +1,410 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
-import { Download, Calendar, ChevronDown, ChevronLeft, Users, Truck, IndianRupee, Package, RotateCcw, AlertTriangle, CheckCircle2, Clock, TrendingUp, TrendingDown, Search, Wallet, Scale, FileText, MapPin, ShieldAlert, UserCheck, CreditCard, X } from 'lucide-react';
+import { useAdminTab } from '../../context/AdminUserContext';
+import { apiClient } from '../../services/apiClient';
+import { AnimatePresence, motion } from 'framer-motion';
+import {
+  Download, Calendar, ChevronDown, ChevronLeft, Users, Truck, IndianRupee,
+  Package, RotateCcw, AlertTriangle, CheckCircle2, Clock, Search, Wallet,
+  FileText, ShieldAlert, UserCheck, CreditCard, X, RefreshCw, Send,
+  TrendingUp, TrendingDown, Scale,
+} from 'lucide-react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { motion, AnimatePresence } from 'framer-motion';
 
-/* ══════════════════════════════════════════════════════════
-   SELLER DATA — Production-realistic for a logistics aggregator
-   ══════════════════════════════════════════════════════════ */
-const SELLERS = [
-  {
-    id: 1, name: 'SuperMart Pvt Ltd', contact: 'Rajesh Kumar', email: 'rajesh@supermart.in', phone: '+91 98765 43210',
-    joined: '12 Jan 2025', gstin: '27AABCS1429B1ZK', plan: 'Platinum', status: 'Active' as const, city: 'Mumbai', state: 'Maharashtra',
-    // Shipment Stats
-    totalOrders: 12450, delivered: 11200, rto: 620, ndr: 530, inTransit: 100, cancelled: 0,
-    lostDamaged: 18, outForDelivery: 82, rtoInTransit: 45,
-    deliveryRate: 89.96, rtoRate: 4.98, ndrRate: 4.26, avgDeliveryDays: 3.2,
-    // Financial
-    totalBilled: 4850000, totalRevenue: 4250000, pendingPayment: 186000, walletBalance: 124500,
-    codCollected: 1820000, codRemitted: 1640000, codPending: 180000, prepaid: 2430000,
-    avgOrderValue: 341, shippingChargesBilled: 3620000, weightDiscrepancyCharges: 48000,
-    // Weight Discrepancy
-    totalWeightDisputes: 84, disputesResolved: 62, disputesPending: 22, excessChargesCollected: 48000,
-    // Zones
-    zoneWise: [
-      { name: 'Zone A (Local)', value: 4200 }, { name: 'Zone B (Regional)', value: 3800 },
-      { name: 'Zone C (Metro)', value: 2400 }, { name: 'Zone D (ROI)', value: 1500 }, { name: 'Zone E (Special)', value: 550 },
-    ],
-    shipmentsByMode: [{ name: 'Surface', value: 8400 }, { name: 'Air', value: 4050 }],
-    ordersByPayment: [{ name: 'Prepaid', value: 7200 }, { name: 'COD', value: 5250 }],
-    topCouriers: [
-      { name: 'Delhivery', shipments: 5200, delivered: 4800, rto: 200, ndr: 150, avgDays: 2.8 },
-      { name: 'Ekart', shipments: 3800, delivered: 3500, rto: 180, ndr: 90, avgDays: 3.1 },
-      { name: 'XpressBees', shipments: 2100, delivered: 1900, rto: 140, ndr: 180, avgDays: 3.6 },
-      { name: 'Shadowfax', shipments: 1350, delivered: 1000, rto: 100, ndr: 110, avgDays: 4.1 },
-    ],
-    recentTransactions: [
-      { date: '15 Jun 2026', type: 'COD Remittance', amount: 84500, status: 'Completed' },
-      { date: '14 Jun 2026', type: 'Shipping Charge', amount: -12400, status: 'Deducted' },
-      { date: '13 Jun 2026', type: 'Wallet Recharge', amount: 50000, status: 'Completed' },
-      { date: '12 Jun 2026', type: 'Weight Discrepancy', amount: -2800, status: 'Deducted' },
-      { date: '10 Jun 2026', type: 'COD Remittance', amount: 96200, status: 'Completed' },
-      { date: '08 Jun 2026', type: 'Shipping Charge', amount: -18600, status: 'Deducted' },
-    ],
-  },
-  {
-    id: 2, name: 'Fashion Hub', contact: 'Priya Sharma', email: 'priya@fashionhub.in', phone: '+91 87654 32109',
-    joined: '04 Mar 2025', gstin: '07AAECF8462R1Z2', plan: 'Gold', status: 'Active' as const, city: 'Delhi', state: 'Delhi',
-    totalOrders: 8210, delivered: 7100, rto: 540, ndr: 420, inTransit: 150, cancelled: 0,
-    lostDamaged: 12, outForDelivery: 65, rtoInTransit: 38,
-    deliveryRate: 86.48, rtoRate: 6.58, ndrRate: 5.12, avgDeliveryDays: 3.8,
-    totalBilled: 2890000, totalRevenue: 2410000, pendingPayment: 142000, walletBalance: 84200,
-    codCollected: 1250000, codRemitted: 1080000, codPending: 170000, prepaid: 1160000,
-    avgOrderValue: 294, shippingChargesBilled: 2180000, weightDiscrepancyCharges: 32000,
-    totalWeightDisputes: 56, disputesResolved: 44, disputesPending: 12, excessChargesCollected: 32000,
-    zoneWise: [
-      { name: 'Zone A (Local)', value: 2800 }, { name: 'Zone B (Regional)', value: 2200 },
-      { name: 'Zone C (Metro)', value: 1800 }, { name: 'Zone D (ROI)', value: 1000 }, { name: 'Zone E (Special)', value: 410 },
-    ],
-    shipmentsByMode: [{ name: 'Surface', value: 5500 }, { name: 'Air', value: 2710 }],
-    ordersByPayment: [{ name: 'Prepaid', value: 3800 }, { name: 'COD', value: 4410 }],
-    topCouriers: [
-      { name: 'Delhivery', shipments: 3200, delivered: 2800, rto: 220, ndr: 130, avgDays: 3.2 },
-      { name: 'Shiprocket', shipments: 2800, delivered: 2500, rto: 180, ndr: 160, avgDays: 3.5 },
-      { name: 'DTDC', shipments: 2210, delivered: 1800, rto: 140, ndr: 130, avgDays: 4.4 },
-    ],
-    recentTransactions: [
-      { date: '15 Jun 2026', type: 'COD Remittance', amount: 62000, status: 'Completed' },
-      { date: '13 Jun 2026', type: 'Shipping Charge', amount: -8200, status: 'Deducted' },
-      { date: '11 Jun 2026', type: 'Wallet Recharge', amount: 30000, status: 'Completed' },
-      { date: '10 Jun 2026', type: 'Weight Discrepancy', amount: -1400, status: 'Deducted' },
-      { date: '08 Jun 2026', type: 'COD Remittance', amount: 71800, status: 'Completed' },
-      { date: '06 Jun 2026', type: 'Shipping Charge', amount: -9800, status: 'Deducted' },
-    ],
-  },
-  {
-    id: 3, name: 'ElectroWorld', contact: 'Amit Patel', email: 'amit@electroworld.in', phone: '+91 76543 21098',
-    joined: '18 Aug 2024', gstin: '24AABCE1234F1Z5', plan: 'Platinum', status: 'Active' as const, city: 'Ahmedabad', state: 'Gujarat',
-    totalOrders: 5600, delivered: 5180, rto: 220, ndr: 155, inTransit: 45, cancelled: 0,
-    lostDamaged: 8, outForDelivery: 30, rtoInTransit: 12,
-    deliveryRate: 92.50, rtoRate: 3.93, ndrRate: 2.77, avgDeliveryDays: 2.8,
-    totalBilled: 6200000, totalRevenue: 5580000, pendingPayment: 94000, walletBalance: 210800,
-    codCollected: 840000, codRemitted: 780000, codPending: 60000, prepaid: 4740000,
-    avgOrderValue: 996, shippingChargesBilled: 4820000, weightDiscrepancyCharges: 18000,
-    totalWeightDisputes: 24, disputesResolved: 22, disputesPending: 2, excessChargesCollected: 18000,
-    zoneWise: [
-      { name: 'Zone A (Local)', value: 1800 }, { name: 'Zone B (Regional)', value: 1500 },
-      { name: 'Zone C (Metro)', value: 1200 }, { name: 'Zone D (ROI)', value: 800 }, { name: 'Zone E (Special)', value: 300 },
-    ],
-    shipmentsByMode: [{ name: 'Surface', value: 2100 }, { name: 'Air', value: 3500 }],
-    ordersByPayment: [{ name: 'Prepaid', value: 4200 }, { name: 'COD', value: 1400 }],
-    topCouriers: [
-      { name: 'Delhivery', shipments: 2800, delivered: 2600, rto: 100, ndr: 60, avgDays: 2.4 },
-      { name: 'Ekart', shipments: 1800, delivered: 1700, rto: 80, ndr: 55, avgDays: 2.9 },
-      { name: 'XpressBees', shipments: 1000, delivered: 880, rto: 40, ndr: 40, avgDays: 3.4 },
-    ],
-    recentTransactions: [
-      { date: '16 Jun 2026', type: 'COD Remittance', amount: 48000, status: 'Completed' },
-      { date: '15 Jun 2026', type: 'Shipping Charge', amount: -22400, status: 'Deducted' },
-      { date: '14 Jun 2026', type: 'Wallet Recharge', amount: 100000, status: 'Completed' },
-      { date: '12 Jun 2026', type: 'COD Remittance', amount: 52000, status: 'Completed' },
-      { date: '10 Jun 2026', type: 'Shipping Charge', amount: -19200, status: 'Deducted' },
-      { date: '09 Jun 2026', type: 'Weight Discrepancy', amount: -4200, status: 'Deducted' },
-    ],
-  },
-  {
-    id: 4, name: 'Beauty Basics', contact: 'Neha Gupta', email: 'neha@beautybasics.in', phone: '+91 65432 10987',
-    joined: '22 Nov 2024', gstin: '09AABCB5643K1Z8', plan: 'Silver', status: 'Active' as const, city: 'Lucknow', state: 'Uttar Pradesh',
-    totalOrders: 4100, delivered: 3500, rto: 340, ndr: 210, inTransit: 50, cancelled: 0,
-    lostDamaged: 6, outForDelivery: 28, rtoInTransit: 16,
-    deliveryRate: 85.37, rtoRate: 8.29, ndrRate: 5.12, avgDeliveryDays: 4.1,
-    totalBilled: 1580000, totalRevenue: 1240000, pendingPayment: 118000, walletBalance: 45200,
-    codCollected: 620000, codRemitted: 520000, codPending: 100000, prepaid: 620000,
-    avgOrderValue: 302, shippingChargesBilled: 1120000, weightDiscrepancyCharges: 14000,
-    totalWeightDisputes: 38, disputesResolved: 28, disputesPending: 10, excessChargesCollected: 14000,
-    zoneWise: [
-      { name: 'Zone A (Local)', value: 1100 }, { name: 'Zone B (Regional)', value: 1200 },
-      { name: 'Zone C (Metro)', value: 900 }, { name: 'Zone D (ROI)', value: 600 }, { name: 'Zone E (Special)', value: 300 },
-    ],
-    shipmentsByMode: [{ name: 'Surface', value: 3200 }, { name: 'Air', value: 900 }],
-    ordersByPayment: [{ name: 'Prepaid', value: 2050 }, { name: 'COD', value: 2050 }],
-    topCouriers: [
-      { name: 'Ekart', shipments: 1800, delivered: 1500, rto: 180, ndr: 90, avgDays: 3.8 },
-      { name: 'Delhivery', shipments: 1400, delivered: 1200, rto: 100, ndr: 70, avgDays: 4.2 },
-      { name: 'Shadowfax', shipments: 900, delivered: 800, rto: 60, ndr: 50, avgDays: 4.6 },
-    ],
-    recentTransactions: [
-      { date: '14 Jun 2026', type: 'COD Remittance', amount: 28000, status: 'Completed' },
-      { date: '12 Jun 2026', type: 'Shipping Charge', amount: -5200, status: 'Deducted' },
-      { date: '10 Jun 2026', type: 'Wallet Recharge', amount: 15000, status: 'Completed' },
-      { date: '08 Jun 2026', type: 'Weight Discrepancy', amount: -1200, status: 'Deducted' },
-      { date: '06 Jun 2026', type: 'COD Remittance', amount: 32400, status: 'Completed' },
-      { date: '04 Jun 2026', type: 'Shipping Charge', amount: -6800, status: 'Deducted' },
-    ],
-  },
-  {
-    id: 5, name: 'Home Essentials', contact: 'Vikram Singh', email: 'vikram@homeessentials.in', phone: '+91 54321 09876',
-    joined: '05 May 2025', gstin: '06AABCH7891P1Z3', plan: 'Gold', status: 'Active' as const, city: 'Chandigarh', state: 'Punjab',
-    totalOrders: 3800, delivered: 3450, rto: 180, ndr: 130, inTransit: 40, cancelled: 0,
-    lostDamaged: 4, outForDelivery: 22, rtoInTransit: 14,
-    deliveryRate: 90.79, rtoRate: 4.74, ndrRate: 3.42, avgDeliveryDays: 3.5,
-    totalBilled: 2240000, totalRevenue: 1890000, pendingPayment: 74000, walletBalance: 67800,
-    codCollected: 910000, codRemitted: 830000, codPending: 80000, prepaid: 980000,
-    avgOrderValue: 497, shippingChargesBilled: 1780000, weightDiscrepancyCharges: 22000,
-    totalWeightDisputes: 32, disputesResolved: 26, disputesPending: 6, excessChargesCollected: 22000,
-    zoneWise: [
-      { name: 'Zone A (Local)', value: 1200 }, { name: 'Zone B (Regional)', value: 1000 },
-      { name: 'Zone C (Metro)', value: 800 }, { name: 'Zone D (ROI)', value: 500 }, { name: 'Zone E (Special)', value: 300 },
-    ],
-    shipmentsByMode: [{ name: 'Surface', value: 2800 }, { name: 'Air', value: 1000 }],
-    ordersByPayment: [{ name: 'Prepaid', value: 1900 }, { name: 'COD', value: 1900 }],
-    topCouriers: [
-      { name: 'Delhivery', shipments: 1600, delivered: 1500, rto: 60, ndr: 30, avgDays: 3.0 },
-      { name: 'XpressBees', shipments: 1200, delivered: 1100, rto: 70, ndr: 60, avgDays: 3.6 },
-      { name: 'Ekart', shipments: 1000, delivered: 850, rto: 50, ndr: 40, avgDays: 4.0 },
-    ],
-    recentTransactions: [
-      { date: '16 Jun 2026', type: 'COD Remittance', amount: 42000, status: 'Completed' },
-      { date: '14 Jun 2026', type: 'Shipping Charge', amount: -9400, status: 'Deducted' },
-      { date: '12 Jun 2026', type: 'Wallet Recharge', amount: 25000, status: 'Completed' },
-      { date: '10 Jun 2026', type: 'COD Remittance', amount: 38200, status: 'Completed' },
-      { date: '08 Jun 2026', type: 'Shipping Charge', amount: -11200, status: 'Deducted' },
-      { date: '06 Jun 2026', type: 'Weight Discrepancy', amount: -3200, status: 'Deducted' },
-    ],
-  },
-];
+// ─── Types ────────────────────────────────────────────────────────────────────
+interface SellerSummary {
+  _id: string; userId?: number; fullname: string; email: string; phoneNumber?: string;
+  company?: string; kycDone?: boolean; joinedAt?: string;
+  totalOrders: number; delivered: number; rto: number; ndr: number; cancelled: number;
+  totalBilled: number; codOrders: number; prepaidOrders: number; walletBalance: number;
+  deliveryRate: number; rtoRate: number; ndrRate: number;
+}
+interface SellerDetail extends SellerSummary {
+  inTransit: number; freightTotal: number; codCharges: number; gstTotal: number;
+  codAmount: number; gstTotal2?: number;
+  couriers: CourierItem[]; recentTransactions: TxnItem[];
+}
+interface CourierItem {
+  name: string; shipments: number; delivered: number; rto: number; ndr: number;
+  billed: number; deliveryRate: number; rtoRate: number;
+  totalShipments?: number; totalBilled?: number; inTransit?: number;
+  statusBreakdown?: { name: string; value: number }[];
+  codShipments?: number; prepaidShipments?: number;
+}
+interface TxnItem {
+  _id?: string; channelOrderId?: string; category: 'credit' | 'debit';
+  amount: number; balanceAfterTransaction?: number; description?: string; date: string; awb_number?: string;
+}
+interface PlatformSummary {
+  totalSellers: number; kycVerified: number; totalOrders: number;
+  delivered: number; rto: number; ndr: number; cancelled: number; inTransit: number;
+  totalBilled: number; codOrders: number; prepaidOrders: number; codAmount: number;
+  deliveryRate: number; rtoRate: number; ndrRate: number;
+  topRevenueSellers: { name: string; value: number }[];
+  topRtoSellers: { name: string; value: number }[];
+}
+interface MisReport {
+  _id: string; reportType: string; dateFilterType?: string; fromDate: string; toDate: string;
+  email?: string; status: 'pending' | 'completed' | 'failed'; downloadUrl?: string;
+  createdAt: string; selectedDescriptions?: string[];
+  user?: { _id: string; userId?: number; fullname?: string; email?: string };
+}
 
-/* ══════════════════════════════════════════════════════════
-   COURIER DATA (unchanged from before)
-   ══════════════════════════════════════════════════════════ */
-const COURIERS = [
-  {
-    id: 1, name: 'Delhivery', type: 'Domestic',
-    totalShipments: 842000, delivered: 784000, rto: 42000, ndr: 84000, inTransit: 32000,
-    revenueGenerated: 12000000, avgDeliveryDays: 3.1, deliveryRate: 93.11, rtoRate: 4.99,
-    shipmentsByZone: [
-      { name: 'Zone A', value: 280000 }, { name: 'Zone B', value: 240000 },
-      { name: 'Zone C', value: 180000 }, { name: 'Zone D', value: 92000 }, { name: 'Zone E', value: 50000 },
-    ],
-    shipmentsByMode: [{ name: 'Surface', value: 520000 }, { name: 'Air', value: 322000 }],
-    statusBreakdown: [
-      { name: 'Delivered', value: 784000 }, { name: 'In Transit', value: 32000 },
-      { name: 'RTO', value: 42000 }, { name: 'NDR', value: 84000 },
-    ],
-  },
-  {
-    id: 2, name: 'Ekart', type: 'Domestic',
-    totalShipments: 524000, delivered: 492000, rto: 18000, ndr: 45000, inTransit: 19000,
-    revenueGenerated: 8200000, avgDeliveryDays: 3.4, deliveryRate: 93.89, rtoRate: 3.44,
-    shipmentsByZone: [
-      { name: 'Zone A', value: 180000 }, { name: 'Zone B', value: 150000 },
-      { name: 'Zone C', value: 110000 }, { name: 'Zone D', value: 54000 }, { name: 'Zone E', value: 30000 },
-    ],
-    shipmentsByMode: [{ name: 'Surface', value: 340000 }, { name: 'Air', value: 184000 }],
-    statusBreakdown: [
-      { name: 'Delivered', value: 492000 }, { name: 'In Transit', value: 19000 },
-      { name: 'RTO', value: 18000 }, { name: 'NDR', value: 45000 },
-    ],
-  },
-  {
-    id: 3, name: 'XpressBees', type: 'Domestic',
-    totalShipments: 281000, delivered: 252000, rto: 22000, ndr: 35000, inTransit: 12000,
-    revenueGenerated: 4400000, avgDeliveryDays: 3.6, deliveryRate: 89.68, rtoRate: 7.83,
-    shipmentsByZone: [
-      { name: 'Zone A', value: 95000 }, { name: 'Zone B', value: 78000 },
-      { name: 'Zone C', value: 60000 }, { name: 'Zone D', value: 30000 }, { name: 'Zone E', value: 18000 },
-    ],
-    shipmentsByMode: [{ name: 'Surface', value: 190000 }, { name: 'Air', value: 91000 }],
-    statusBreakdown: [
-      { name: 'Delivered', value: 252000 }, { name: 'In Transit', value: 12000 },
-      { name: 'RTO', value: 22000 }, { name: 'NDR', value: 35000 },
-    ],
-  },
-  {
-    id: 4, name: 'Shadowfax', type: 'Domestic',
-    totalShipments: 152000, delivered: 138000, rto: 14000, ndr: 21000, inTransit: 9000,
-    revenueGenerated: 2400000, avgDeliveryDays: 3.9, deliveryRate: 90.79, rtoRate: 9.21,
-    shipmentsByZone: [
-      { name: 'Zone A', value: 52000 }, { name: 'Zone B', value: 42000 },
-      { name: 'Zone C', value: 32000 }, { name: 'Zone D', value: 16000 }, { name: 'Zone E', value: 10000 },
-    ],
-    shipmentsByMode: [{ name: 'Surface', value: 110000 }, { name: 'Air', value: 42000 }],
-    statusBreakdown: [
-      { name: 'Delivered', value: 138000 }, { name: 'In Transit', value: 9000 },
-      { name: 'RTO', value: 14000 }, { name: 'NDR', value: 21000 },
-    ],
-  },
-  {
-    id: 5, name: 'DTDC', type: 'Domestic',
-    totalShipments: 102000, delivered: 96000, rto: 5000, ndr: 12000, inTransit: 5000,
-    revenueGenerated: 1800000, avgDeliveryDays: 4.2, deliveryRate: 94.12, rtoRate: 4.90,
-    shipmentsByZone: [
-      { name: 'Zone A', value: 35000 }, { name: 'Zone B', value: 28000 },
-      { name: 'Zone C', value: 22000 }, { name: 'Zone D', value: 10000 }, { name: 'Zone E', value: 7000 },
-    ],
-    shipmentsByMode: [{ name: 'Surface', value: 72000 }, { name: 'Air', value: 30000 }],
-    statusBreakdown: [
-      { name: 'Delivered', value: 96000 }, { name: 'In Transit', value: 5000 },
-      { name: 'RTO', value: 5000 }, { name: 'NDR', value: 12000 },
-    ],
-  },
-];
-
-/* ── Constants ── */
-const PIE_COLORS = ['#00A86B', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4'];
-const STATUS_COLORS: Record<string, string> = { 'Delivered': '#00A86B', 'In Transit': '#3B82F6', 'RTO': '#EF4444', 'NDR': '#F59E0B' };
+// ─── Constants ────────────────────────────────────────────────────────────────
+const PIE_COLORS = ['#00A86B', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4', '#F97316'];
+const STATUS_COLORS: Record<string, string> = { Delivered: '#00A86B', 'In Transit': '#3B82F6', RTO: '#EF4444', NDR: '#F59E0B' };
 const DATE_RANGES = ['Last 7 Days', 'Last 30 Days', 'Last 3 Months', 'Last 6 Months', 'This Year'];
+const REPORT_TYPES = ['All', 'Delivered', 'RTO', 'Canceled', 'Pending Order', 'Passbook'];
+const DATE_FILTER_TYPES = ['Pickup Date', 'AWB Assigned Date'];
+const PASSBOOK_DESCS = [
+  'Freight Charges Applied', 'Freight Charges Received', 'Auto-accepted Weight Dispute charge',
+  'Weight Dispute Charges Applied', 'COD Charges Received', 'RTO Freight Charges Applied',
+  'Cancellation Refund', 'Recharge From Gateway(Razorpay)', 'Referral Commission Received',
+];
 
-function formatCurrency(v: number) {
-  return `₹${v.toLocaleString('en-IN')}`;
-}
-function formatNum(v: number) {
-  return v.toLocaleString('en-IN');
+const fc = (v: number) => `₹${(v || 0).toLocaleString('en-IN')}`;
+const fn = (v: number) => (v || 0).toLocaleString('en-IN');
+const fmtDate = (d?: string) => {
+  if (!d) return '—';
+  const dt = new Date(d);
+  return dt.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+};
+const fmtDateTime = (d?: string) => {
+  if (!d) return '—';
+  const dt = new Date(d);
+  return dt.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) +
+    ' ' + dt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+};
+
+// ─── GenerateReportModal ──────────────────────────────────────────────────────
+function GenerateReportModal({ open, onClose, prefillUserId, prefillUserName, isAdminView }: {
+  open: boolean; onClose: () => void;
+  prefillUserId?: string | null; prefillUserName?: string;
+  isAdminView: boolean;
+}) {
+  const [reportType, setReportType]         = useState('All');
+  const [dateFilterType, setDateFilterType] = useState('Pickup Date');
+  const [fromDate, setFromDate]             = useState('');
+  const [toDate, setToDate]                 = useState('');
+  const [email, setEmail]                   = useState('');
+  const [descs, setDescs]                   = useState<string[]>([]);
+  const [descOpen, setDescOpen]             = useState(false);
+  const [submitting, setSubmitting]         = useState(false);
+  const [result, setResult]                 = useState<{ ok: boolean; text: string } | null>(null);
+
+  useEffect(() => {
+    if (open) {
+      setReportType('All'); setDateFilterType('Pickup Date'); setFromDate(''); setToDate('');
+      setEmail(''); setDescs([]); setResult(null);
+    }
+  }, [open]);
+
+  const toggleDesc = (d: string) =>
+    setDescs(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d]);
+
+  const handleGenerate = async () => {
+    if (!fromDate || !toDate) { setResult({ ok: false, text: 'From date and to date are required' }); return; }
+    setSubmitting(true); setResult(null);
+    try {
+      const body: any = { reportType, fromDate: new Date(fromDate).toISOString(), toDate: new Date(toDate + 'T23:59:59').toISOString() };
+      if (reportType !== 'Passbook') body.dateFilterType = dateFilterType;
+      if (reportType === 'Passbook' && descs.length > 0) body.selectedDescriptions = descs;
+      if (email) body.email = email;
+      if (isAdminView && prefillUserId) body.userSearch = prefillUserId;
+      await apiClient.post('/mis-report/generate', body);
+      setResult({ ok: true, text: 'Report generation started! It will appear in the table below shortly.' });
+      setTimeout(() => onClose(), 2500);
+    } catch (e: any) { setResult({ ok: false, text: e?.response?.data?.error || 'Failed to start report' }); }
+    finally { setSubmitting(false); }
+  };
+
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        className="absolute inset-0 bg-[#0F172A]/40 backdrop-blur-sm" onClick={onClose} />
+      <motion.div initial={{ opacity: 0, scale: 0.95, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }}
+        className="relative z-10 w-full max-w-lg bg-white rounded-2xl shadow-2xl overflow-hidden">
+        <div className="flex items-center justify-between p-5 border-b border-[#E2E8F0] bg-[#F8FAFC]">
+          <div>
+            <h3 className="text-base font-bold text-[#0F172A]">Generate Report</h3>
+            {prefillUserName && <p className="text-xs text-[#64748B] mt-0.5">Seller: {prefillUserName}</p>}
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center text-[#64748B] hover:bg-[#E2E8F0]"><X className="w-4 h-4" /></button>
+        </div>
+        <div className="p-5 space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-[#475569] mb-1.5 uppercase tracking-wide">Report Type</label>
+              <select value={reportType} onChange={e => setReportType(e.target.value)}
+                className="w-full h-10 px-3 rounded-lg border border-[#E2E8F0] text-xs focus:outline-none focus:border-[#00A86B] bg-white">
+                {REPORT_TYPES.map(t => <option key={t}>{t}</option>)}
+              </select>
+            </div>
+            {reportType !== 'Passbook' && (
+              <div>
+                <label className="block text-xs font-bold text-[#475569] mb-1.5 uppercase tracking-wide">Date Filter By</label>
+                <select value={dateFilterType} onChange={e => setDateFilterType(e.target.value)}
+                  className="w-full h-10 px-3 rounded-lg border border-[#E2E8F0] text-xs focus:outline-none focus:border-[#00A86B] bg-white">
+                  {DATE_FILTER_TYPES.map(t => <option key={t}>{t}</option>)}
+                </select>
+              </div>
+            )}
+          </div>
+
+          {reportType === 'Passbook' && (
+            <div className="relative" onClick={() => setDescOpen(o => !o)}>
+              <label className="block text-xs font-bold text-[#475569] mb-1.5 uppercase tracking-wide">Transaction Descriptions</label>
+              <div className="w-full min-h-[40px] px-3 py-2 rounded-lg border border-[#E2E8F0] text-xs cursor-pointer flex flex-wrap gap-1.5 bg-white">
+                {descs.length === 0
+                  ? <span className="text-[#94A3B8] leading-6">All descriptions (leave empty)</span>
+                  : descs.map(d => (
+                    <span key={d} onClick={e => { e.stopPropagation(); toggleDesc(d); }}
+                      className="flex items-center gap-1 bg-[#F0FDF4] text-[#00A86B] border border-[#DCFCE7] px-2 py-0.5 rounded-md font-semibold">
+                      {d} <X className="w-3 h-3" />
+                    </span>
+                  ))}
+              </div>
+              {descOpen && (
+                <div className="absolute top-full left-0 w-full bg-white border border-[#E2E8F0] rounded-xl shadow-xl z-50 mt-1 max-h-44 overflow-y-auto">
+                  {PASSBOOK_DESCS.map(d => (
+                    <button key={d} type="button" onClick={e => { e.stopPropagation(); toggleDesc(d); }}
+                      className={`w-full text-left px-4 py-2.5 text-xs font-semibold transition-colors flex items-center gap-2 ${descs.includes(d) ? 'bg-[#F0FDF4] text-[#00A86B]' : 'text-[#475569] hover:bg-[#F8FAFC]'}`}>
+                      <span className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 ${descs.includes(d) ? 'bg-[#00A86B] border-[#00A86B]' : 'border-[#CBD5E1]'}`}>
+                        {descs.includes(d) && <CheckCircle2 className="w-3 h-3 text-white" />}
+                      </span>
+                      {d}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-[#475569] mb-1.5 uppercase tracking-wide">From Date</label>
+              <input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)}
+                className="w-full h-10 px-3 rounded-lg border border-[#E2E8F0] text-xs focus:outline-none focus:border-[#00A86B]" />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-[#475569] mb-1.5 uppercase tracking-wide">To Date</label>
+              <input type="date" value={toDate} onChange={e => setToDate(e.target.value)}
+                className="w-full h-10 px-3 rounded-lg border border-[#E2E8F0] text-xs focus:outline-none focus:border-[#00A86B]" />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-[#475569] mb-1.5 uppercase tracking-wide">Email Report To (optional)</label>
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Leave blank to skip email"
+              className="w-full h-10 px-3 rounded-lg border border-[#E2E8F0] text-xs focus:outline-none focus:border-[#00A86B]" />
+          </div>
+
+          <div className="bg-[#F8FAFC] rounded-xl border border-[#E2E8F0] p-3 text-[10px] text-[#64748B] font-medium">
+            Report generation may take 1–5 minutes depending on data size. Download link appears in the table once ready.
+          </div>
+
+          {result && (
+            <div className={`flex items-center gap-2 text-xs font-semibold p-3 rounded-xl ${result.ok ? 'bg-green-50 text-[#00A86B]' : 'bg-red-50 text-red-600'}`}>
+              {result.ok ? <CheckCircle2 className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />} {result.text}
+            </div>
+          )}
+        </div>
+        <div className="flex justify-end gap-3 p-5 border-t border-[#E2E8F0] bg-[#F8FAFC]">
+          <button onClick={onClose} className="px-4 py-2 rounded-xl text-xs font-bold text-[#64748B] hover:bg-[#E2E8F0] transition-colors">Cancel</button>
+          <button onClick={handleGenerate} disabled={submitting}
+            className="px-4 py-2 rounded-xl bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors disabled:opacity-60 flex items-center gap-1.5">
+            <FileText className="w-3.5 h-3.5" />{submitting ? 'Starting…' : 'Generate Report'}
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
 }
 
-/* ── Pie Chart Card ── */
+// ─── MisReportTable ───────────────────────────────────────────────────────────
+function MisReportTable({ userId, isAdminView }: {
+  userId: string | null; isAdminView: boolean;
+}) {
+  const [reports, setReports] = useState<MisReport[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const LIMIT = 20;
+
+  const fetchReports = useCallback(async () => {
+    if (!isAdminView && !userId) return;
+    setLoading(true);
+    try {
+      const params: any = { page, limit: LIMIT };
+      if (isAdminView && userId) params.userSearch = userId;
+      const res = await apiClient.get('/mis-report/list', { params });
+      setReports(res.data?.results || []);
+      setTotalPages(Math.ceil((res.data?.total || 0) / LIMIT));
+    } catch { setReports([]); }
+    finally { setLoading(false); }
+  }, [page, userId, isAdminView]);
+
+  useEffect(() => { fetchReports(); }, [fetchReports]);
+
+  const statusStyle = (s: string) =>
+    s === 'completed' ? 'bg-green-50 text-[#00A86B] border-green-200' :
+    s === 'pending'   ? 'bg-amber-50 text-amber-600 border-amber-200' :
+                        'bg-red-50 text-red-500 border-red-200';
+
+  const typeColor = (t: string) =>
+    t === 'Delivered' ? 'bg-green-50 text-[#00A86B]' :
+    t === 'RTO'       ? 'bg-red-50 text-red-500' :
+    t === 'Passbook'  ? 'bg-purple-50 text-purple-600' :
+    t === 'Canceled'  ? 'bg-orange-50 text-orange-500' :
+                        'bg-blue-50 text-blue-500';
+
+  return (
+    <div>
+      {isAdminView && (
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-sm font-bold text-[#0F172A] flex items-center gap-2">
+              <FileText className="w-4 h-4 text-[#00A86B]" />
+              {!userId ? 'All MIS Reports' : 'MIS Reports'}
+            </h3>
+            <p className="text-[10px] text-[#94A3B8] mt-0.5">Excel reports generated across all report types</p>
+          </div>
+          <button onClick={fetchReports} title="Refresh"
+            className={`w-8 h-8 flex items-center justify-center rounded-lg border border-[#E2E8F0] text-[#64748B] hover:text-[#00A86B] hover:border-[#00A86B] transition-colors ${loading ? 'animate-spin' : ''}`}>
+            <RefreshCw className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+      {!isAdminView && (
+        <div className="flex justify-end mb-4">
+          <button onClick={fetchReports} title="Refresh"
+            className={`w-8 h-8 flex items-center justify-center rounded-lg border border-[#E2E8F0] text-[#64748B] hover:text-[#00A86B] hover:border-[#00A86B] transition-colors ${loading ? 'animate-spin' : ''}`}>
+            <RefreshCw className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
+      <div className="bg-white border border-[#E2E8F0] rounded-2xl overflow-hidden shadow-sm">
+        <div className="hidden md:block overflow-x-auto">
+          <table className="w-full text-left min-w-[800px]">
+            <thead>
+              <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-[10px] uppercase tracking-wider font-bold text-[#64748B]">
+                <th className="px-4 py-3 w-10">#</th>
+                {isAdminView && !userId && <th className="px-4 py-3 w-36">User</th>}
+                <th className="px-4 py-3 w-32">Report Type</th>
+                <th className="px-4 py-3 w-28">Date Filter</th>
+                <th className="px-4 py-3 w-24">From</th>
+                <th className="px-4 py-3 w-24">To</th>
+                <th className="px-4 py-3">Email</th>
+                <th className="px-4 py-3 w-32">Generated At</th>
+                <th className="px-4 py-3 w-24 text-center">Status</th>
+                <th className="px-4 py-3 w-24 text-right">Download</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#F1F5F9]">
+              {loading ? (
+                <tr><td colSpan={10} className="text-center py-12 text-xs text-[#94A3B8]">Loading reports…</td></tr>
+              ) : reports.length === 0 ? (
+                <tr><td colSpan={10} className="text-center py-12 text-sm font-medium text-[#94A3B8]">No reports generated yet. Click "Generate Report" to create one.</td></tr>
+              ) : reports.map((r, i) => (
+                <tr key={r._id} className="hover:bg-[#F8FAFC] transition-colors">
+                  <td className="px-4 py-3 text-xs font-semibold text-[#94A3B8]">{(page - 1) * LIMIT + i + 1}</td>
+                  {isAdminView && !userId && (
+                    <td className="px-4 py-3">
+                      <div className="text-xs font-bold text-[#0F172A] truncate max-w-[130px]">{r.user?.fullname || '—'}</div>
+                      <div className="text-[10px] text-[#94A3B8] truncate">{r.user?.email}</div>
+                    </td>
+                  )}
+                  <td className="px-4 py-3">
+                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${typeColor(r.reportType)}`}>{r.reportType}</span>
+                  </td>
+                  <td className="px-4 py-3 text-xs text-[#64748B]">{r.dateFilterType || '—'}</td>
+                  <td className="px-4 py-3 text-xs font-semibold text-[#0F172A]">{fmtDate(r.fromDate)}</td>
+                  <td className="px-4 py-3 text-xs font-semibold text-[#0F172A]">{fmtDate(r.toDate)}</td>
+                  <td className="px-4 py-3 text-[11px] text-[#64748B] truncate max-w-[140px]">{r.email || '—'}</td>
+                  <td className="px-4 py-3 text-[11px] text-[#64748B]">{fmtDateTime(r.createdAt)}</td>
+                  <td className="px-4 py-3 text-center">
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border capitalize ${statusStyle(r.status)}`}>
+                      {r.status === 'pending' && <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse mr-1 align-middle" />}
+                      {r.status}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    {r.status === 'completed' && r.downloadUrl
+                      ? <a href={r.downloadUrl} target="_blank" rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-[11px] font-bold text-[#00A86B] hover:underline">
+                          <Download className="w-3.5 h-3.5" /> Download
+                        </a>
+                      : <span className="text-[11px] text-[#CBD5E1] font-semibold">{r.status === 'pending' ? 'Processing…' : '—'}</span>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Mobile */}
+        <div className="md:hidden divide-y divide-[#F1F5F9]">
+          {loading ? (
+            <div className="text-center py-10 text-xs text-[#94A3B8]">Loading…</div>
+          ) : reports.length === 0 ? (
+            <div className="text-center py-10 text-sm font-medium text-[#94A3B8]">No reports yet</div>
+          ) : reports.map((r, i) => (
+            <div key={r._id} className="p-4 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${typeColor(r.reportType)}`}>{r.reportType}</span>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border capitalize ${statusStyle(r.status)}`}>{r.status}</span>
+              </div>
+              <div className="text-[11px] text-[#64748B]">{fmtDate(r.fromDate)} → {fmtDate(r.toDate)} · {r.dateFilterType || '—'}</div>
+              <div className="text-[10px] text-[#94A3B8]">Generated: {fmtDateTime(r.createdAt)}</div>
+              {r.status === 'completed' && r.downloadUrl && (
+                <a href={r.downloadUrl} target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs font-bold text-[#00A86B] hover:underline">
+                  <Download className="w-3 h-3" /> Download
+                </a>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {totalPages > 1 && (
+          <div className="flex items-center justify-center gap-2 p-3 border-t border-[#E2E8F0]">
+            <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+              className="px-3 py-1.5 text-xs font-bold border border-[#E2E8F0] rounded-lg disabled:opacity-40 hover:bg-[#F8FAFC]">← Prev</button>
+            <span className="text-xs text-[#64748B] font-medium">Page {page} of {totalPages}</span>
+            <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+              className="px-3 py-1.5 text-xs font-bold border border-[#E2E8F0] rounded-lg disabled:opacity-40 hover:bg-[#F8FAFC]">Next →</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Shared UI components ─────────────────────────────────────────────────────
 function PieChartCard({ title, data, colors }: { title: string; data: { name: string; value: number }[]; colors?: string[] }) {
   const clrs = colors || PIE_COLORS;
   const total = data.reduce((s, d) => s + d.value, 0);
+  if (total === 0) return (
+    <div className="bg-white rounded-2xl border border-[#E2E8F0] p-5 shadow-sm h-full flex flex-col">
+      <h4 className="font-bold text-[13px] text-[#0F172A] mb-4">{title}</h4>
+      <div className="flex-1 flex items-center justify-center text-xs text-[#94A3B8]">No data yet</div>
+    </div>
+  );
   return (
     <div className="bg-white rounded-2xl border border-[#E2E8F0] p-5 shadow-sm h-full flex flex-col">
       <h4 className="font-bold text-[13px] text-[#0F172A] mb-4">{title}</h4>
-      <div className="flex-1 min-h-[260px] w-full flex items-center justify-center">
+      <div className="flex-1 min-h-[260px]">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie data={data} cx="50%" cy="45%" innerRadius={50} outerRadius={75} paddingAngle={3} dataKey="value" stroke="none">
               {data.map((_, i) => <Cell key={i} fill={clrs[i % clrs.length]} />)}
             </Pie>
-            <Tooltip
-              formatter={((value: any, name: any) => [`${Number(value).toLocaleString('en-IN')} (${((Number(value) / total) * 100).toFixed(1)}%)`, name]) as any}
-              contentStyle={{ borderRadius: '10px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.08)', fontSize: '12px', fontWeight: 600 }}
-            />
-            <Legend verticalAlign="bottom" wrapperStyle={{ paddingTop: '20px' }} iconType="circle" iconSize={8} formatter={(value: string) => <span className="text-[11px] font-semibold text-[#475569] ml-1">{value}</span>} />
+            <Tooltip formatter={((v: any, n: any) => [`${Number(v).toLocaleString('en-IN')} (${((Number(v) / total) * 100).toFixed(1)}%)`, n]) as any}
+              contentStyle={{ borderRadius: '10px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.08)', fontSize: '12px', fontWeight: 600 }} />
+            <Legend verticalAlign="bottom" wrapperStyle={{ paddingTop: '20px' }} iconType="circle" iconSize={8}
+              formatter={(v: string) => <span className="text-[11px] font-semibold text-[#475569] ml-1">{v}</span>} />
           </PieChart>
         </ResponsiveContainer>
       </div>
@@ -278,8 +412,10 @@ function PieChartCard({ title, data, colors }: { title: string; data: { name: st
   );
 }
 
-/* ── Stat Card ── */
-function StatCard({ label, value, icon: Icon, color, bg, trend, sub, onClick }: { label: string; value: string; icon: any; color: string; bg: string; trend?: { value: string; up: boolean }; sub?: string; onClick?: () => void }) {
+function StatCard({ label, value, icon: Icon, color, bg, trend, sub, onClick }: {
+  label: string; value: string; icon: any; color: string; bg: string;
+  trend?: { value: string; up: boolean }; sub?: string; onClick?: () => void;
+}) {
   return (
     <div onClick={onClick} className={`bg-white rounded-2xl border border-[#E2E8F0] p-5 shadow-sm transition-all ${onClick ? 'cursor-pointer hover:border-[#00A86B] hover:shadow-md hover:-translate-y-0.5' : 'hover:shadow-md'}`}>
       <div className="flex items-start justify-between mb-3">
@@ -288,8 +424,7 @@ function StatCard({ label, value, icon: Icon, color, bg, trend, sub, onClick }: 
         </div>
         {trend && (
           <div className={`flex items-center gap-1 text-[11px] font-bold ${trend.up ? 'text-green-600' : 'text-red-500'}`}>
-            {trend.up ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-            {trend.value}
+            {trend.up ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}{trend.value}
           </div>
         )}
       </div>
@@ -300,7 +435,6 @@ function StatCard({ label, value, icon: Icon, color, bg, trend, sub, onClick }: 
   );
 }
 
-/* ── Section Header ── */
 function SectionTitle({ icon: Icon, title }: { icon: any; title: string }) {
   return (
     <div className="flex items-center gap-2.5 mb-4 mt-2">
@@ -312,73 +446,206 @@ function SectionTitle({ icon: Icon, title }: { icon: any; title: string }) {
   );
 }
 
-/* ══════════════════════════════════════════════════════════
-   MAIN COMPONENT
-   ══════════════════════════════════════════════════════════ */
+// ─── AdminReports (main) ──────────────────────────────────────────────────────
 export function AdminReports() {
-  const [activeTab, setActiveTab] = useState<'seller' | 'courier'>('seller');
-  const [dateRange, setDateRange] = useState('Last 6 Months');
-  const [isDateOpen, setIsDateOpen] = useState(false);
-  const [selectedSellerId, setSelectedSellerId] = useState<number | null>(null);
-  const [sellerSearch, setSellerSearch] = useState('');
-  const [showClaimsModal, setShowClaimsModal] = useState(false);
-  const [enabledSellers, setEnabledSellers] = useState<Record<number, boolean>>({});
+  const { isAdmin, adminTab, currentUserId } = useAdminTab();
+  const isAdminView = isAdmin && adminTab;
 
-  const selectedSeller = useMemo(() => SELLERS.find(s => s.id === selectedSellerId) || null, [selectedSellerId]);
+  // Date range for admin header
+  const [dateRange, setDateRange]     = useState('Last 6 Months');
+  const [isDateOpen, setIsDateOpen]   = useState(false);
+  const [activeTab, setActiveTab]     = useState<'seller' | 'courier'>('seller');
+  const [sellerPage, setSellerPage]   = useState(1);
 
-  const isEnabled = selectedSeller ? (enabledSellers[selectedSeller.id] ?? (selectedSeller.status === 'Active')) : false;
+  // Seller search (same dropdown pattern as AdminOrders)
+  const [sellerQuery, setSellerQuery]           = useState('');
+  const [sellerSuggestions, setSellerSuggestions] = useState<any[]>([]);
+  const [sellerMongoId, setSellerMongoId]       = useState('');
 
-  const handleToggleEnable = () => {
-    if (selectedSeller) {
-      setEnabledSellers(prev => ({ ...prev, [selectedSeller.id]: !isEnabled }));
+  // Selected seller detail (uses _id string)
+  const [selectedSellerId, setSelectedSellerId] = useState<string | null>(null);
+
+  // Generate report modal
+  const [genOpen, setGenOpen]           = useState(false);
+  const [genUserId, setGenUserId]       = useState<string | null>(null);
+  const [genUserName, setGenUserName]   = useState('');
+
+  // API data
+  const [summary, setSummary]       = useState<PlatformSummary | null>(null);
+  const [sellers, setSellers]       = useState<SellerSummary[]>([]);
+  const [sellerTotal, setSellerTotal] = useState(0);
+  const [sellerTotalPages, setSellerTotalPages] = useState(0);
+  const [sellerDetail, setSellerDetail] = useState<SellerDetail | null>(null);
+  const [couriers, setCouriers]     = useState<CourierItem[]>([]);
+  const [courierTotals, setCourierTotals] = useState<any>(null);
+
+  const [loadingSummary, setLoadingSummary]   = useState(false);
+  const [loadingSellers, setLoadingSellers]   = useState(false);
+  const [loadingDetail, setLoadingDetail]     = useState(false);
+  const [loadingCouriers, setLoadingCouriers] = useState(false);
+  const [sellerError, setSellerError]         = useState<string | null>(null);
+  const [detailError, setDetailError]         = useState<string | null>(null);
+
+  // Refresh trigger for MIS table
+  const [misRefreshKey, setMisRefreshKey] = useState(0);
+
+  const getDateParams = useCallback(() => {
+    const now = new Date();
+    const toDate = now.toISOString();
+    let fromDate: string;
+    if      (dateRange === 'Last 7 Days')   fromDate = new Date(now.getTime() - 7   * 86400000).toISOString();
+    else if (dateRange === 'Last 30 Days')  fromDate = new Date(now.getTime() - 30  * 86400000).toISOString();
+    else if (dateRange === 'Last 3 Months') fromDate = new Date(now.getTime() - 90  * 86400000).toISOString();
+    else if (dateRange === 'Last 6 Months') fromDate = new Date(now.getTime() - 180 * 86400000).toISOString();
+    else if (dateRange === 'This Year')     fromDate = new Date(now.getFullYear(), 0, 1).toISOString();
+    else                                    fromDate = new Date(now.getTime() - 180 * 86400000).toISOString();
+    return { fromDate, toDate };
+  }, [dateRange]);
+
+  const fetchSummary = useCallback(async () => {
+    if (!isAdminView) return;
+    setLoadingSummary(true);
+    try {
+      const res = await apiClient.get('/admin-reports/summary', { params: getDateParams() });
+      setSummary(res.data?.data || null);
+    } catch { setSummary(null); }
+    finally { setLoadingSummary(false); }
+  }, [isAdminView, dateRange, getDateParams]);
+
+  const fetchSellers = useCallback(async () => {
+    if (!isAdminView) return;
+    setLoadingSellers(true); setSellerError(null);
+    try {
+      const params: any = { page: sellerPage, limit: 10, ...getDateParams() };
+      if (sellerMongoId) params.userId = sellerMongoId;
+      const res = await apiClient.get('/admin-reports/sellers', { params });
+      setSellers(res.data?.data || []);
+      setSellerTotal(res.data?.total || 0);
+      setSellerTotalPages(res.data?.totalPages || 0);
+    } catch (e: any) {
+      setSellers([]);
+      setSellerError(e?.response?.data?.error || e?.message || 'Failed to load sellers');
     }
+    finally { setLoadingSellers(false); }
+  }, [isAdminView, sellerPage, sellerMongoId, dateRange, getDateParams]);
+
+  const fetchSellerDetail = useCallback(async () => {
+    if (!isAdminView || !selectedSellerId) return;
+    setLoadingDetail(true); setDetailError(null);
+    try {
+      const res = await apiClient.get(`/admin-reports/sellers/${selectedSellerId}`);
+      setSellerDetail(res.data?.data || null);
+    } catch (e: any) {
+      setSellerDetail(null);
+      setDetailError(e?.response?.data?.error || e?.message || 'Failed to load seller data');
+    }
+    finally { setLoadingDetail(false); }
+  }, [isAdminView, selectedSellerId]);
+
+  const fetchCouriers = useCallback(async () => {
+    if (!isAdminView) return;
+    setLoadingCouriers(true);
+    try {
+      const res = await apiClient.get('/admin-reports/couriers', { params: getDateParams() });
+      setCouriers(res.data?.data || []);
+      setCourierTotals(res.data?.totals || null);
+    } catch { setCouriers([]); }
+    finally { setLoadingCouriers(false); }
+  }, [isAdminView, dateRange, getDateParams]);
+
+  useEffect(() => { fetchSummary(); }, [fetchSummary]);
+  useEffect(() => { fetchSellers(); }, [fetchSellers]);
+  useEffect(() => { fetchSellerDetail(); }, [fetchSellerDetail]);
+  useEffect(() => { if (activeTab === 'courier') fetchCouriers(); }, [activeTab, fetchCouriers]);
+
+  // Seller search autocomplete (same pattern as AdminOrders)
+  useEffect(() => {
+    if (!isAdminView || sellerQuery.trim().length < 2) { setSellerSuggestions([]); return; }
+    const t = setTimeout(async () => {
+      try {
+        const res = await apiClient.get(`/admin/searchUser?query=${encodeURIComponent(sellerQuery)}`);
+        setSellerSuggestions(res.data.users || []);
+      } catch { setSellerSuggestions([]); }
+    }, 300);
+    return () => clearTimeout(t);
+  }, [sellerQuery, isAdminView]);
+
+  const openGenerate = (userId?: string | null, userName?: string) => {
+    setGenUserId(userId || null);
+    setGenUserName(userName || '');
+    setGenOpen(true);
   };
 
-  /* ── Aggregated seller-level ── */
-  const totals = useMemo(() => {
-    return SELLERS.reduce((a, s) => ({
-      orders: a.orders + s.totalOrders,
-      delivered: a.delivered + s.delivered,
-      rto: a.rto + s.rto,
-      ndr: a.ndr + s.ndr,
-      revenue: a.revenue + s.totalRevenue,
-      billed: a.billed + s.totalBilled,
-      pending: a.pending + s.pendingPayment,
-      wallets: a.wallets + s.walletBalance,
-      cod: a.cod + s.codCollected,
-      codPending: a.codPending + s.codPending,
-      prepaid: a.prepaid + s.prepaid,
-      weightDisputes: a.weightDisputes + s.totalWeightDisputes,
-      disputesPending: a.disputesPending + s.disputesPending,
-      lostDamaged: a.lostDamaged + s.lostDamaged,
-    }), { orders: 0, delivered: 0, rto: 0, ndr: 0, revenue: 0, billed: 0, pending: 0, wallets: 0, cod: 0, codPending: 0, prepaid: 0, weightDisputes: 0, disputesPending: 0, lostDamaged: 0 });
-  }, []);
+  // Pie chart data from summary
+  const orderStatusPie = useMemo(() => summary ? [
+    { name: 'Delivered', value: summary.delivered },
+    { name: 'RTO', value: summary.rto },
+    { name: 'NDR', value: summary.ndr },
+    { name: 'In Transit', value: summary.inTransit },
+    { name: 'Cancelled', value: summary.cancelled },
+  ].filter(d => d.value > 0) : [], [summary]);
 
-  const sellerOrderStatusPie = useMemo(() => [
-    { name: 'Delivered', value: totals.delivered }, { name: 'RTO', value: totals.rto },
-    { name: 'NDR', value: totals.ndr }, { name: 'Lost/Damaged', value: totals.lostDamaged },
-  ], [totals]);
+  const paymentPie = useMemo(() => summary ? [
+    { name: 'Prepaid', value: summary.prepaidOrders },
+    { name: 'COD', value: summary.codOrders },
+  ].filter(d => d.value > 0) : [], [summary]);
 
-  const sellerRevenuePie = useMemo(() => SELLERS.map(s => ({ name: s.name, value: s.totalRevenue })), []);
+  const sellerRevenuePie = useMemo(() => summary?.topRevenueSellers || [], [summary]);
+  const sellerRtoPie     = useMemo(() => summary?.topRtoSellers     || [], [summary]);
 
-  const sellerRtoPie = useMemo(() => SELLERS.map(s => ({ name: s.name, value: s.rto })), []);
+  const courierShipmentPie = useMemo(() =>
+    couriers.filter(c => c.totalShipments || c.shipments).slice(0, 6)
+      .map(c => ({ name: c.name, value: c.totalShipments || c.shipments || 0 })),
+  [couriers]);
 
-  const sellerPaymentPie = useMemo(() => [{ name: 'Prepaid', value: totals.prepaid }, { name: 'COD', value: totals.cod }], [totals]);
+  const courierStatusPie = useMemo(() => courierTotals ? [
+    { name: 'Delivered', value: courierTotals.delivered || 0 },
+    { name: 'RTO', value: courierTotals.rto || 0 },
+    { name: 'NDR', value: courierTotals.ndr || 0 },
+  ].filter(d => d.value > 0) : [], [courierTotals]);
 
-  const filteredSellers = useMemo(() => SELLERS.filter(s => s.name.toLowerCase().includes(sellerSearch.toLowerCase())), [sellerSearch]);
+  // ── User view (non-admin) ──────────────────────────────────────────────────
+  if (!isAdminView) {
+    return (
+      <AdminLayout>
+        <div className="max-w-[1400px] mx-auto pb-10">
+          <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4 mb-6">
+            <div>
+              <h2 className="text-xl font-bold text-[#0F172A] flex items-center gap-2">
+                <FileText className="w-5 h-5 text-[#00A86B]" /> MIS Reports
+              </h2>
+              <p className="text-xs text-[#64748B] mt-1">Generate and download Excel reports for your shipments and transactions.</p>
+            </div>
+            <button onClick={() => openGenerate(null, '')}
+              className="h-9 px-4 rounded-xl bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors flex items-center gap-1.5 shadow-sm shrink-0">
+              <FileText className="w-3.5 h-3.5" /> Generate Report
+            </button>
+          </div>
+          <MisReportTable
+            key={misRefreshKey}
+            userId={currentUserId}
+            isAdminView={false}
+          />
+        </div>
+        <AnimatePresence>
+          {genOpen && (
+            <GenerateReportModal open
+              onClose={() => { setGenOpen(false); setMisRefreshKey(k => k + 1); }}
+              prefillUserId={null} prefillUserName={undefined} isAdminView={false} />
+          )}
+        </AnimatePresence>
+      </AdminLayout>
+    );
+  }
 
-  /* ── Courier aggregated ── */
-  const courierShipmentPie = useMemo(() => COURIERS.map(c => ({ name: c.name, value: c.totalShipments })), []);
-  const courierStatusPie = useMemo(() => {
-    const d = COURIERS.reduce((a, c) => ({ del: a.del + c.delivered, transit: a.transit + c.inTransit, rto: a.rto + c.rto, ndr: a.ndr + c.ndr }), { del: 0, transit: 0, rto: 0, ndr: 0 });
-    return [{ name: 'Delivered', value: d.del }, { name: 'In Transit', value: d.transit }, { name: 'RTO', value: d.rto }, { name: 'NDR', value: d.ndr }];
-  }, []);
+  // ── Admin view ────────────────────────────────────────────────────────────
+  const sd = sellerDetail;
 
   return (
     <AdminLayout>
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto pb-10">
 
-        {/* ── Header ── */}
+        {/* Header */}
         <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-6">
           <div>
             <h2 className="text-xl font-bold text-[#0F172A]">Analytics & Intelligence</h2>
@@ -386,529 +653,455 @@ export function AdminReports() {
           </div>
           <div className="flex gap-2 items-center">
             <div className="relative">
-              <button onClick={() => setIsDateOpen(!isDateOpen)} className={`flex items-center gap-2 px-4 h-9 rounded-lg border text-xs font-semibold transition-all ${isDateOpen ? 'border-[#00A86B] text-[#00A86B] ring-1 ring-[#00A86B]/20' : 'border-[#E2E8F0] text-[#475569] hover:border-[#00A86B]'}`}>
+              <button onClick={() => setIsDateOpen(!isDateOpen)}
+                className={`flex items-center gap-2 px-4 h-9 rounded-lg border text-xs font-semibold transition-all ${isDateOpen ? 'border-[#00A86B] text-[#00A86B] ring-1 ring-[#00A86B]/20' : 'border-[#E2E8F0] text-[#475569] hover:border-[#00A86B]'}`}>
                 <Calendar className="w-4 h-4" /> {dateRange} <ChevronDown className="w-3 h-3" />
               </button>
               <AnimatePresence>
                 {isDateOpen && (
                   <>
                     <div className="fixed inset-0 z-10" onClick={() => setIsDateOpen(false)} />
-                    <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.12 }} className="absolute right-0 top-[calc(100%+6px)] bg-white border border-[#E2E8F0] rounded-xl shadow-lg z-20 py-1 min-w-[180px]">
+                    <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
+                      className="absolute right-0 top-[calc(100%+6px)] bg-white border border-[#E2E8F0] rounded-xl shadow-lg z-20 py-1 min-w-[180px]">
                       {DATE_RANGES.map(r => (
-                        <button key={r} onClick={() => { setDateRange(r); setIsDateOpen(false); }} className={`w-full text-left px-4 py-2.5 text-[12px] font-semibold transition-colors ${dateRange === r ? 'bg-[#F0FDF4] text-[#00A86B]' : 'text-[#475569] hover:bg-[#F8FAFC]'}`}>{r}</button>
+                        <button key={r} onClick={() => { setDateRange(r); setIsDateOpen(false); }}
+                          className={`w-full text-left px-4 py-2.5 text-[12px] font-semibold transition-colors ${dateRange === r ? 'bg-[#F0FDF4] text-[#00A86B]' : 'text-[#475569] hover:bg-[#F8FAFC]'}`}>{r}</button>
                       ))}
                     </motion.div>
                   </>
                 )}
               </AnimatePresence>
             </div>
-            <button className="h-9 px-4 rounded-lg bg-[#00A86B] text-white text-xs font-semibold flex items-center gap-2 hover:bg-[#009B63] transition-colors shadow-sm">
-              <Download className="w-4 h-4" /> Export Report
-            </button>
           </div>
         </div>
 
-        {/* ── Tab Switcher ── */}
+        {/* Tab switcher */}
         <div className="border-b border-[#E2E8F0] mb-6">
           <div className="flex gap-8">
-            <button onClick={() => { setActiveTab('seller'); setSelectedSellerId(null); }} className={`flex items-center gap-2 px-1 py-4 text-sm font-bold transition-colors ${activeTab === 'seller' ? 'text-[#00A86B] border-b-2 border-[#00A86B]' : 'text-[#64748B] hover:text-[#0F172A]'}`}>
-              <Users className="w-4 h-4" /> Seller Performance
-            </button>
-            <button onClick={() => { setActiveTab('courier'); setSelectedSellerId(null); }} className={`flex items-center gap-2 px-1 py-4 text-sm font-bold transition-colors ${activeTab === 'courier' ? 'text-[#00A86B] border-b-2 border-[#00A86B]' : 'text-[#64748B] hover:text-[#0F172A]'}`}>
-              <Truck className="w-4 h-4" /> Courier Performance
-            </button>
+            {(['seller', 'courier'] as const).map(tab => (
+              <button key={tab} onClick={() => { setActiveTab(tab); setSelectedSellerId(null); }}
+                className={`flex items-center gap-2 px-1 py-4 text-sm font-bold transition-colors ${activeTab === tab ? 'text-[#00A86B] border-b-2 border-[#00A86B]' : 'text-[#64748B] hover:text-[#0F172A]'}`}>
+                {tab === 'seller' ? <Users className="w-4 h-4" /> : <Truck className="w-4 h-4" />}
+                {tab === 'seller' ? 'Seller Performance' : 'Courier Performance'}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* ══════════════════════════════════════════════════════════
-           SELLER TAB — OVERVIEW
-           ══════════════════════════════════════════════════════════ */}
-        {activeTab === 'seller' && !selectedSeller && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }}>
+        {/* ══ SELLER TAB — OVERVIEW ══════════════════════════════════════════ */}
+        {activeTab === 'seller' && !selectedSellerId && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            {/* Summary KPIs */}
+            {loadingSummary ? (
+              <div className="h-24 flex items-center justify-center text-xs text-[#94A3B8]">Loading analytics…</div>
+            ) : summary && (
+              <>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                  <StatCard label="Total Sellers" value={fn(summary.totalSellers)} icon={UserCheck} color="text-blue-500" bg="bg-blue-50" sub={`${summary.kycVerified} KYC verified`} />
+                  <StatCard label="Total Billed" value={fc(summary.totalBilled)} icon={FileText} color="text-indigo-500" bg="bg-indigo-50" sub="Shipping + surcharges" />
+                  <StatCard label="Total Orders" value={fn(summary.totalOrders)} icon={Package} color="text-purple-500" bg="bg-purple-50" />
+                  <StatCard label="COD Amount" value={fc(summary.codAmount)} icon={CreditCard} color="text-amber-600" bg="bg-amber-50" />
+                </div>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                  <StatCard label="Delivery Rate" value={`${summary.deliveryRate}%`} icon={CheckCircle2} color="text-emerald-500" bg="bg-emerald-50" />
+                  <StatCard label="RTO Rate" value={`${summary.rtoRate}%`} icon={RotateCcw} color="text-red-500" bg="bg-red-50" />
+                  <StatCard label="NDR Rate" value={`${summary.ndrRate}%`} icon={AlertTriangle} color="text-orange-500" bg="bg-orange-50" />
+                  <StatCard label="Prepaid / COD Split" value={`${summary.prepaidOrders} / ${summary.codOrders}`} icon={IndianRupee} color="text-cyan-500" bg="bg-cyan-50" sub="Orders" />
+                </div>
 
-            {/* Row 1: Platform Health KPIs */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-              <StatCard label="Active Sellers" value={SELLERS.filter(s => s.status === 'Active').length.toString()} icon={UserCheck} color="text-blue-500" bg="bg-blue-50" sub={`${SELLERS.length} total registered`} />
-              <StatCard label="Total Billed" value={formatCurrency(totals.billed)} icon={FileText} color="text-indigo-500" bg="bg-indigo-50" trend={{ value: '+14.2%', up: true }} sub="Shipping + surcharges" />
-              <StatCard label="Revenue Collected" value={formatCurrency(totals.revenue)} icon={IndianRupee} color="text-green-500" bg="bg-green-50" trend={{ value: '+12.4%', up: true }} />
-              <StatCard label="Outstanding Payments" value={formatCurrency(totals.pending)} icon={Clock} color="text-orange-500" bg="bg-orange-50" sub="Due from sellers" />
-            </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5 mb-6">
+                  <PieChartCard title="Order Status" data={orderStatusPie} colors={['#00A86B', '#EF4444', '#F59E0B', '#3B82F6', '#94A3B8']} />
+                  <PieChartCard title="Payment Mode" data={paymentPie} colors={['#3B82F6', '#F59E0B']} />
+                  <PieChartCard title="Revenue by Seller" data={sellerRevenuePie} />
+                  <PieChartCard title="RTO by Seller" data={sellerRtoPie} colors={['#EF4444', '#F97316', '#F59E0B', '#FB923C', '#FBBF24', '#FDE68A']} />
+                </div>
+              </>
+            )}
 
-            {/* Row 2: Operational KPIs */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-              <StatCard label="Total Orders" value={formatNum(totals.orders)} icon={Package} color="text-purple-500" bg="bg-purple-50" trend={{ value: '+8.2%', up: true }} />
-              <StatCard label="Platform Delivery Rate" value={`${((totals.delivered / totals.orders) * 100).toFixed(1)}%`} icon={CheckCircle2} color="text-emerald-500" bg="bg-emerald-50" />
-              <StatCard label="Platform RTO Rate" value={`${((totals.rto / totals.orders) * 100).toFixed(1)}%`} icon={RotateCcw} color="text-red-500" bg="bg-red-50" trend={{ value: '-0.8%', up: true }} />
-              <StatCard label="Total Wallet Balance" value={formatCurrency(totals.wallets)} icon={Wallet} color="text-cyan-500" bg="bg-cyan-50" sub="Across all sellers" />
-            </div>
-
-            {/* Row 3: COD + Risk KPIs */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-              <StatCard label="COD Collected" value={formatCurrency(totals.cod)} icon={CreditCard} color="text-amber-600" bg="bg-amber-50" />
-              <StatCard label="COD Pending Remittance" value={formatCurrency(totals.codPending)} icon={AlertTriangle} color="text-orange-500" bg="bg-orange-50" sub="Awaiting settlement" />
-              <StatCard label="Weight Disputes" value={totals.weightDisputes.toString()} icon={Scale} color="text-rose-500" bg="bg-rose-50" sub={`${totals.disputesPending} unresolved`} />
-              <StatCard label="Lost / Damaged" value={totals.lostDamaged.toString()} icon={ShieldAlert} color="text-gray-500" bg="bg-gray-100" sub="Across all sellers" />
-            </div>
-
-            {/* Pie Charts — 4 across */}
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5 mb-6">
-              <PieChartCard title="Order Status Distribution" data={sellerOrderStatusPie} colors={['#00A86B', '#EF4444', '#F59E0B', '#94A3B8']} />
-              <PieChartCard title="Payment Mode Split" data={sellerPaymentPie} colors={['#3B82F6', '#F59E0B']} />
-              <PieChartCard title="Revenue by Seller" data={sellerRevenuePie} />
-              <PieChartCard title="RTO by Seller" data={sellerRtoPie} colors={['#EF4444', '#F97316', '#F59E0B', '#FB923C', '#FBBF24']} />
-            </div>
-
-            {/* Seller Table */}
-            <div className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
+            {/* Seller table */}
+            <div className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden mb-8">
               <div className="p-5 border-b border-[#E2E8F0] bg-[#F8FAFC] flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                 <h3 className="font-bold text-sm text-[#0F172A]">Seller-wise Detailed Report</h3>
                 <div className="relative max-w-xs w-full">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8]" />
-                  <input type="text" placeholder="Search sellers..." value={sellerSearch} onChange={e => setSellerSearch(e.target.value)} className="w-full h-9 pl-10 pr-4 border border-[#E2E8F0] rounded-lg text-xs outline-none focus:border-[#00A86B] text-[#0F172A]" />
+                  <input
+                    placeholder="Search seller by name or email…"
+                    value={sellerQuery}
+                    onChange={e => {
+                      setSellerQuery(e.target.value);
+                      if (!e.target.value.trim()) { setSellerMongoId(''); setSellerSuggestions([]); setSellerPage(1); }
+                    }}
+                    className="w-full h-9 pl-10 pr-8 border border-[#E2E8F0] rounded-lg text-xs outline-none focus:border-[#00A86B]"
+                  />
+                  {sellerQuery && (
+                    <button onClick={() => { setSellerQuery(''); setSellerMongoId(''); setSellerSuggestions([]); setSellerPage(1); }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-[#94A3B8] hover:text-[#475569]">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                  {sellerSuggestions.length > 0 && !sellerMongoId && (
+                    <div className="absolute left-0 top-full mt-1 bg-white border border-[#E2E8F0] rounded-xl shadow-xl z-50 w-72 max-h-52 overflow-y-auto py-1">
+                      {sellerSuggestions.map((u: any) => (
+                        <button key={u._id} type="button"
+                          onClick={() => {
+                            setSellerMongoId(u._id);
+                            setSellerQuery(`${u.fullname || ''} (${u.email})`);
+                            setSellerSuggestions([]);
+                            setSellerPage(1);
+                          }}
+                          className="w-full text-left px-3 py-2 hover:bg-[#F0FDF4] flex items-start gap-2">
+                          <div className="w-6 h-6 rounded-full bg-[#F0FDF4] text-[#00A86B] flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">
+                            {(u.fullname || u.email || '?').charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <div className="text-xs font-semibold text-[#0F172A]">{u.fullname || '—'}</div>
+                            <div className="text-[10px] text-[#94A3B8]">{u.email}</div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse min-w-[1200px]">
+                <table className="w-full text-left border-collapse min-w-[1100px]">
                   <thead>
                     <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-[10px] uppercase tracking-wider font-bold text-[#64748B]">
                       <th className="p-4">Seller</th>
-                      <th className="p-4">Plan</th>
                       <th className="p-4">Orders</th>
                       <th className="p-4">Billed</th>
-                      <th className="p-4">Pending</th>
                       <th className="p-4">Wallet</th>
-                      <th className="p-4">Delivered</th>
+                      <th className="p-4">Delivered %</th>
                       <th className="p-4">RTO %</th>
                       <th className="p-4">NDR %</th>
-                      <th className="p-4">COD Pending</th>
-                      <th className="p-4">Wt. Disputes</th>
+                      <th className="p-4">COD / Prepaid</th>
                       <th className="p-4 text-right">Action</th>
                     </tr>
                   </thead>
                   <tbody className="text-xs font-semibold text-[#475569]">
-                    {filteredSellers.map(s => (
-                      <tr key={s.id} className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors">
+                    {loadingSellers ? (
+                      <tr><td colSpan={9} className="text-center py-12 text-[#94A3B8]">Loading sellers…</td></tr>
+                    ) : sellerError ? (
+                      <tr><td colSpan={9} className="text-center py-12 text-red-500 text-xs font-semibold">{sellerError}</td></tr>
+                    ) : sellers.length === 0 ? (
+                      <tr><td colSpan={9} className="text-center py-12 text-[#94A3B8]">No sellers found</td></tr>
+                    ) : sellers.map(s => (
+                      <tr key={s._id} className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors">
                         <td className="p-4">
                           <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-[#10B981]/10 text-[#00A86B] flex items-center justify-center font-bold text-xs">{s.name.charAt(0)}</div>
+                            <div className="w-8 h-8 rounded-full bg-[#10B981]/10 text-[#00A86B] flex items-center justify-center font-bold text-xs shrink-0">
+                              {(s.fullname || s.email || '?').charAt(0).toUpperCase()}
+                            </div>
                             <div>
-                              <div className="font-semibold text-[#0F172A] text-[14px]">{s.name}</div>
-                              <div className="text-[10px] text-[#94A3B8] font-medium">{s.city}, {s.state}</div>
+                              <div className="font-semibold text-[#0F172A] text-sm">{s.fullname || '—'}</div>
+                              <div className="text-[10px] text-[#94A3B8]">{s.email}</div>
                             </div>
                           </div>
                         </td>
+                        <td className="p-4 text-sm text-[#0F172A]">{fn(s.totalOrders)}</td>
+                        <td className="p-4 text-sm text-[#0F172A]">{fc(s.totalBilled)}</td>
+                        <td className="p-4 text-[#00A86B] text-sm">{fc(s.walletBalance)}</td>
                         <td className="p-4">
-                          <span className={`px-2 py-1 rounded-md text-[10px] font-bold ${s.plan === 'Platinum' ? 'bg-purple-50 text-purple-600' : s.plan === 'Gold' ? 'bg-amber-50 text-amber-600' : 'bg-gray-100 text-gray-600'}`}>{s.plan}</span>
+                          <span className={`px-2 py-1 rounded-md text-sm ${s.deliveryRate >= 90 ? 'bg-green-50 text-green-600' : s.deliveryRate >= 80 ? 'bg-yellow-50 text-yellow-600' : 'bg-red-50 text-red-600'}`}>{s.deliveryRate}%</span>
                         </td>
-                        <td className="p-4 font-normal text-[14px]">{s.totalOrders.toLocaleString('en-IN')}</td>
-                        <td className="p-4 font-normal text-[14px] text-[#0F172A]">{formatCurrency(s.totalBilled)}</td>
-                        <td className="p-4 font-normal text-[14px]">
-                          <span className={`${s.pendingPayment > 100000 ? 'text-red-500' : 'text-[#475569]'}`}>{formatCurrency(s.pendingPayment)}</span>
-                        </td>
-                        <td className="p-4 text-[#00A86B] font-normal text-[14px]">{formatCurrency(s.walletBalance)}</td>
-                        <td className="p-4 font-normal text-[14px]">
-                          <span className={`px-2 py-1 rounded-md text-[14px] font-normal ${s.deliveryRate >= 90 ? 'bg-green-50 text-green-600' : s.deliveryRate >= 85 ? 'bg-yellow-50 text-yellow-600' : 'bg-red-50 text-red-600'}`}>{s.deliveryRate}%</span>
-                        </td>
-                        <td className="p-4 font-normal text-[14px]">
-                          <span className={`${s.rtoRate > 6 ? 'text-red-500 font-normal' : 'text-[#475569]'}`}>{s.rtoRate}%</span>
-                        </td>
-                        <td className="p-4 font-normal text-[14px]">
-                          <span className={`${s.ndrRate > 5 ? 'text-orange-500 font-normal' : 'text-[#475569]'}`}>{s.ndrRate}%</span>
-                        </td>
-                        <td className="p-4 font-normal text-[14px]">
-                          <span className={`${s.codPending > 100000 ? 'text-orange-500 font-normal' : 'text-[#475569]'}`}>{formatCurrency(s.codPending)}</span>
-                        </td>
-                        <td className="p-4 font-normal text-[14px]">
-                          <span className={`${s.disputesPending > 10 ? 'text-red-500 font-normal' : 'text-[#475569]'}`}>{s.disputesPending} open</span>
-                        </td>
+                        <td className="p-4"><span className={s.rtoRate > 6 ? 'text-red-500' : ''}>{s.rtoRate}%</span></td>
+                        <td className="p-4"><span className={s.ndrRate > 5 ? 'text-orange-500' : ''}>{s.ndrRate}%</span></td>
+                        <td className="p-4 text-sm">{fn(s.codOrders)} / {fn(s.prepaidOrders)}</td>
                         <td className="p-4 text-right">
-                          <button onClick={() => setSelectedSellerId(s.id)} className="text-[#00A86B] hover:text-[#009B63] font-bold text-[11px] hover:underline transition-colors">View Report →</button>
+                          <button onClick={() => { setSelectedSellerId(s._id); setSellerDetail(null); setLoadingDetail(true); }}
+                            className="text-[#00A86B] hover:text-[#009B63] font-bold text-[11px] hover:underline transition-colors">
+                            View Report →
+                          </button>
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
+              {sellerTotalPages > 1 && (
+                <div className="flex items-center justify-between p-4 border-t border-[#E2E8F0] bg-[#F8FAFC]">
+                  <span className="text-xs text-[#64748B]">Showing {sellers.length} of {fn(sellerTotal)} sellers</span>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => setSellerPage(p => Math.max(1, p - 1))} disabled={sellerPage === 1}
+                      className="px-3 py-1.5 text-xs font-bold border border-[#E2E8F0] rounded-lg disabled:opacity-40">← Prev</button>
+                    <span className="text-xs font-medium text-[#64748B]">Page {sellerPage} of {sellerTotalPages}</span>
+                    <button onClick={() => setSellerPage(p => Math.min(sellerTotalPages, p + 1))} disabled={sellerPage === sellerTotalPages}
+                      className="px-3 py-1.5 text-xs font-bold border border-[#E2E8F0] rounded-lg disabled:opacity-40">Next →</button>
+                  </div>
+                </div>
+              )}
             </div>
+
+            {/* MIS Reports table at bottom of seller overview */}
+            <MisReportTable
+              key={`admin-mis-${misRefreshKey}`}
+              userId={null}
+              isAdminView={true}
+            />
           </motion.div>
         )}
 
-        {/* ══════════════════════════════════════════════════════════
-           INDIVIDUAL SELLER REPORT
-           ══════════════════════════════════════════════════════════ */}
-        {activeTab === 'seller' && selectedSeller && (
-          <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.2 }}>
-
-            {/* Back */}
-            <button onClick={() => setSelectedSellerId(null)} className="flex items-center gap-2 text-sm font-semibold text-[#64748B] hover:text-[#00A86B] transition-colors mb-5">
+        {/* ══ INDIVIDUAL SELLER DETAIL ════════════════════════════════════════ */}
+        {activeTab === 'seller' && selectedSellerId && (
+          <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
+            <button onClick={() => setSelectedSellerId(null)}
+              className="flex items-center gap-2 text-sm font-semibold text-[#64748B] hover:text-[#00A86B] transition-colors mb-5">
               <ChevronLeft className="w-4 h-4" /> Back to All Sellers
             </button>
 
-            {/* ── SECTION 1: Seller Profile Header ── */}
-            <div className="bg-white rounded-2xl border border-[#E2E8F0] p-6 mb-6 shadow-sm">
-              <div className="flex flex-col lg:flex-row lg:items-start gap-5">
-                <div className="w-14 h-14 rounded-2xl bg-[#10B981]/10 text-[#00A86B] flex items-center justify-center font-extrabold text-xl shrink-0">{selectedSeller.name.charAt(0)}</div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-3 mb-1">
-                    <h3 className="text-lg font-extrabold text-[#0F172A]">{selectedSeller.name}</h3>
-                    <span className={`px-2.5 py-0.5 rounded-full text-[12px] font-bold ${selectedSeller.plan === 'Platinum' ? 'bg-purple-100 text-purple-700' : selectedSeller.plan === 'Gold' ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-700'}`}>{selectedSeller.plan} Plan</span>
-                    <span className="px-2.5 py-0.5 rounded-full text-[12px] font-bold bg-green-100 text-green-700">{selectedSeller.status}</span>
-                    <span className="px-2.5 py-0.5 rounded-full text-[12px] font-bold bg-[#F1F5F9] text-[#64748B] border border-[#E2E8F0]">ID: #QP-S{selectedSeller.id.toString().padStart(4, '0')}</span>
-                    <span className="px-2.5 py-0.5 rounded-full text-[12px] font-bold bg-blue-50 text-blue-600 border border-blue-100 flex items-center gap-1">
-                      <CheckCircle2 className="w-3.5 h-3.5" /> KYC Verified
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-x-8 gap-y-2 mt-3 text-[14px] font-normal text-[#64748B]">
-                    <div><span className="text-[#94A3B8]">Contact:</span> {selectedSeller.contact}</div>
-                    <div><span className="text-[#94A3B8]">Email:</span> {selectedSeller.email}</div>
-                    <div><span className="text-[#94A3B8]">Phone:</span> {selectedSeller.phone}</div>
-                    <div><span className="text-[#94A3B8]">Joined:</span> {selectedSeller.joined}</div>
-                    <div><span className="text-[#94A3B8]">GSTIN:</span> {selectedSeller.gstin}</div>
-                    <div><span className="text-[#94A3B8]">Location:</span> {selectedSeller.city}, {selectedSeller.state}</div>
-                    <div><span className="text-[#94A3B8]">Avg Order Value:</span> ₹{selectedSeller.avgOrderValue}</div>
-                    <div><span className="text-[#94A3B8]">Avg Delivery:</span> {selectedSeller.avgDeliveryDays} days</div>
-                  </div>
-                </div>
-                <div className="flex flex-col items-end gap-3 shrink-0">
-                  <div className="flex items-center gap-2 px-3 py-1.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg transition-colors">
-                    <span className={`text-[11px] font-bold ${isEnabled ? 'text-[#00A86B]' : 'text-red-500'}`}>{isEnabled ? 'Seller Enabled' : 'Seller Disabled'}</span>
-                    <label className="relative inline-flex items-center cursor-pointer ml-1">
-                      <input type="checkbox" className="sr-only peer" checked={isEnabled} onChange={handleToggleEnable} />
-                      <div className="w-9 h-5 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#00A86B]"></div>
-                    </label>
-                  </div>
-                  <button className="h-9 w-full px-4 rounded-lg border border-[#E2E8F0] text-xs font-semibold text-[#475569] flex items-center justify-center gap-2 hover:bg-[#F8FAFC] transition-colors">
-                    <Download className="w-4 h-4" /> Export Report
-                  </button>
-                </div>
+            {loadingDetail ? (
+              <div className="text-center py-20 text-sm text-[#94A3B8]">Loading seller data…</div>
+            ) : detailError ? (
+              <div className="text-center py-20">
+                <p className="text-sm text-red-500 font-semibold mb-3">{detailError}</p>
+                <button onClick={() => fetchSellerDetail()} className="text-xs text-[#00A86B] font-bold hover:underline">Retry</button>
               </div>
-            </div>
-
-            {/* ── SECTION 2: Financial Summary ── */}
-            <SectionTitle icon={IndianRupee} title="Financial Summary" />
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-              <StatCard label="Total Billed" value={formatCurrency(selectedSeller.totalBilled)} icon={FileText} color="text-indigo-500" bg="bg-indigo-50" sub="Shipping + Weight charges" />
-              <StatCard label="Revenue Collected" value={formatCurrency(selectedSeller.totalRevenue)} icon={IndianRupee} color="text-green-500" bg="bg-green-50" />
-              <StatCard label="Pending Payment" value={formatCurrency(selectedSeller.pendingPayment)} icon={Clock} color="text-orange-500" bg="bg-orange-50" sub="Due from seller" />
-              <StatCard label="Wallet Balance" value={formatCurrency(selectedSeller.walletBalance)} icon={Wallet} color="text-cyan-500" bg="bg-cyan-50" />
-            </div>
-
-            {/* ── SECTION 3: Shipment Operations ── */}
-            <SectionTitle icon={Package} title="Shipment Operations" />
-            <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-9 gap-3 mb-6">
-              {[
-                { label: 'Total Shipments', value: selectedSeller.totalOrders, color: 'text-[#0F172A]' },
-                { label: 'Delivered', value: selectedSeller.delivered, color: 'text-green-600' },
-                { label: 'In Transit', value: selectedSeller.inTransit, color: 'text-blue-500' },
-                { label: 'Out for Delivery', value: selectedSeller.outForDelivery, color: 'text-sky-500' },
-                { label: 'RTO', value: selectedSeller.rto, color: 'text-red-500' },
-                { label: 'RTO In Transit', value: selectedSeller.rtoInTransit, color: 'text-rose-400' },
-                { label: 'NDR', value: selectedSeller.ndr, color: 'text-orange-500' },
-                { label: 'Lost/Damaged', value: selectedSeller.lostDamaged, color: 'text-gray-500' },
-                { label: 'Delivery %', value: selectedSeller.deliveryRate, color: selectedSeller.deliveryRate >= 90 ? 'text-green-600' : 'text-yellow-600', isPercent: true },
-              ].map((item, i) => (
-                <div key={i} className="bg-white rounded-xl border border-[#E2E8F0] p-3 text-center">
-                  <div className={`text-base font-extrabold ${item.color}`}>{(item as any).isPercent ? `${item.value}%` : (item.value as number).toLocaleString('en-IN')}</div>
-                  <div className="text-[9px] font-semibold text-[#94A3B8] mt-0.5 leading-tight">{item.label}</div>
-                </div>
-              ))}
-            </div>
-
-            {/* Pie charts: Mode + Payment + Zone */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6">
-              <PieChartCard title="Shipments by Mode" data={selectedSeller.shipmentsByMode} colors={['#3B82F6', '#8B5CF6']} />
-              <PieChartCard title="Orders by Payment" data={selectedSeller.ordersByPayment} colors={['#00A86B', '#F59E0B']} />
-              <PieChartCard title="Zone-wise Distribution" data={selectedSeller.zoneWise} />
-            </div>
-
-            {/* ── SECTION 4: COD & Billing ── */}
-            <SectionTitle icon={CreditCard} title="COD & Billing" />
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-              <StatCard label="COD Collected" value={formatCurrency(selectedSeller.codCollected)} icon={IndianRupee} color="text-amber-600" bg="bg-amber-50" />
-              <StatCard label="COD Remitted" value={formatCurrency(selectedSeller.codRemitted)} icon={CheckCircle2} color="text-green-500" bg="bg-green-50" />
-              <StatCard label="COD Pending" value={formatCurrency(selectedSeller.codPending)} icon={AlertTriangle} color="text-orange-500" bg="bg-orange-50" sub="Awaiting remittance" />
-              <StatCard label="Weight Discrepancy" value={formatCurrency(selectedSeller.weightDiscrepancyCharges)} icon={Scale} color="text-rose-500" bg="bg-rose-50" sub={`${selectedSeller.disputesPending} disputes pending`} onClick={() => setShowClaimsModal(true)} />
-            </div>
-
-            {/* Recent Transactions */}
-            <div className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden mb-6">
-              <div className="p-5 border-b border-[#E2E8F0] bg-[#F8FAFC]">
-                <h4 className="font-bold text-sm text-[#0F172A]">Recent Transactions</h4>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-[10px] uppercase tracking-wider font-bold text-[#64748B]">
-                      <th className="p-4">Date</th>
-                      <th className="p-4">Type</th>
-                      <th className="p-4">Amount</th>
-                      <th className="p-4">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="text-xs font-semibold text-[#475569]">
-                    {selectedSeller.recentTransactions.map((tx, i) => (
-                      <tr key={i} className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors">
-                        <td className="p-4 font-normal text-[14px] text-[#64748B]">{tx.date}</td>
-                        <td className="p-4 font-normal text-[14px] text-[#0F172A]">{tx.type}</td>
-                        <td className={`p-4 font-normal text-[14px] ${tx.amount >= 0 ? 'text-green-600' : 'text-red-500'}`}>
-                          {tx.amount >= 0 ? '+' : ''}{formatCurrency(Math.abs(tx.amount))}
-                        </td>
-                        <td className="p-4">
-                          <span className={`px-2 py-1 rounded-md text-[10px] font-bold ${tx.status === 'Completed' ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-500'}`}>{tx.status}</span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* ── SECTION 5: Courier Performance for this Seller ── */}
-            <SectionTitle icon={Truck} title="Courier-wise Performance" />
-            <div className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden mb-6">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-[10px] uppercase tracking-wider font-bold text-[#64748B]">
-                      <th className="p-4">Courier</th>
-                      <th className="p-4">Shipments</th>
-                      <th className="p-4">Delivered</th>
-                      <th className="p-4">RTO %</th>
-                      <th className="p-4">NDR</th>
-                      <th className="p-4">Avg TAT</th>
-                      <th className="p-4">Delivery %</th>
-                    </tr>
-                  </thead>
-                  <tbody className="text-xs font-semibold text-[#475569]">
-                    {selectedSeller.topCouriers.map((c, i) => {
-                      const delRate = ((c.delivered / c.shipments) * 100).toFixed(1);
-                      return (
-                        <tr key={i} className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors">
-                          <td className="p-4 font-semibold text-[14px] text-[#0F172A]">{c.name}</td>
-                          <td className="p-4 font-normal text-[14px]">{c.shipments.toLocaleString('en-IN')}</td>
-                          <td className="p-4 font-normal text-[14px] text-green-600">{c.delivered.toLocaleString('en-IN')}</td>
-                          <td className="p-4 font-normal text-[14px] text-red-500">{c.rto.toLocaleString('en-IN')}</td>
-                          <td className="p-4 font-normal text-[14px] text-orange-500">{c.ndr.toLocaleString('en-IN')}</td>
-                          <td className="p-4 font-normal text-[14px]">{c.avgDays} days</td>
-                          <td className="p-4 font-normal text-[14px]">
-                            <span className={`px-2 py-1 rounded-md text-[14px] font-normal ${parseFloat(delRate) >= 90 ? 'bg-green-50 text-green-600' : parseFloat(delRate) >= 85 ? 'bg-yellow-50 text-yellow-600' : 'bg-red-50 text-red-600'}`}>{delRate}%</span>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </motion.div>
-        )}
-
-        {/* ══════════════════════════════════════════════════════════
-           COURIER TAB (unchanged)
-           ══════════════════════════════════════════════════════════ */}
-        {activeTab === 'courier' && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }}>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-              <StatCard label="Total Shipments" value={formatNum(COURIERS.reduce((a, c) => a + c.totalShipments, 0))} icon={Truck} color="text-blue-500" bg="bg-blue-50" trend={{ value: '+6.8%', up: true }} />
-              <StatCard label="Revenue Generated" value={formatCurrency(COURIERS.reduce((a, c) => a + c.revenueGenerated, 0))} icon={IndianRupee} color="text-green-500" bg="bg-green-50" trend={{ value: '+11.2%', up: true }} />
-              <StatCard label="Avg Delivery Rate" value={`${(COURIERS.reduce((a, c) => a + c.deliveryRate, 0) / COURIERS.length).toFixed(1)}%`} icon={CheckCircle2} color="text-emerald-500" bg="bg-emerald-50" />
-              <StatCard label="Avg RTO Rate" value={`${(COURIERS.reduce((a, c) => a + c.rtoRate, 0) / COURIERS.length).toFixed(1)}%`} icon={RotateCcw} color="text-red-500" bg="bg-red-50" trend={{ value: '-1.2%', up: true }} />
-            </div>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-              <PieChartCard title="Shipment Share by Courier" data={courierShipmentPie} />
-              <PieChartCard title="Overall Status Distribution" data={courierStatusPie} colors={[STATUS_COLORS['Delivered'], STATUS_COLORS['In Transit'], STATUS_COLORS['RTO'], STATUS_COLORS['NDR']]} />
-            </div>
-            <div className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden mb-6">
-              <div className="p-5 border-b border-[#E2E8F0] bg-[#F8FAFC]">
-                <h3 className="font-bold text-sm text-[#0F172A]">Courier Performance Report</h3>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse min-w-[1000px]">
-                  <thead>
-                    <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-[10px] uppercase tracking-wider font-bold text-[#64748B]">
-                      <th className="p-4">Courier</th>
-                      <th className="p-4">Total Shipments</th>
-                      <th className="p-4">Delivered</th>
-                      <th className="p-4">In Transit</th>
-                      <th className="p-4">RTO %</th>
-                      <th className="p-4">NDR</th>
-                      <th className="p-4">Delivery %</th>
-                      <th className="p-4">Avg TAT</th>
-                      <th className="p-4">Revenue</th>
-                    </tr>
-                  </thead>
-                  <tbody className="text-xs font-semibold text-[#475569]">
-                    {COURIERS.map(c => (
-                      <tr key={c.id} className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors">
-                        <td className="p-4 font-semibold text-[14px] text-[#0F172A]">{c.name}</td>
-                        <td className="p-4 font-normal text-[14px]">{c.totalShipments.toLocaleString('en-IN')}</td>
-                        <td className="p-4 font-normal text-[14px] text-green-600">{c.delivered.toLocaleString('en-IN')}</td>
-                        <td className="p-4 font-normal text-[14px] text-blue-500">{c.inTransit.toLocaleString('en-IN')}</td>
-                        <td className="p-4 font-normal text-[14px] text-red-500">{c.rto.toLocaleString('en-IN')}</td>
-                        <td className="p-4 font-normal text-[14px] text-orange-500">{c.ndr.toLocaleString('en-IN')}</td>
-                        <td className="p-4 font-normal text-[14px]">
-                          <span className={`px-2 py-1 rounded-md text-[14px] font-normal ${c.deliveryRate >= 93 ? 'bg-green-50 text-green-600' : c.deliveryRate >= 90 ? 'bg-yellow-50 text-yellow-600' : 'bg-red-50 text-red-600'}`}>{c.deliveryRate}%</span>
-                        </td>
-                        <td className="p-4 font-normal text-[14px]">{c.avgDeliveryDays} days</td>
-                        <td className="p-4 font-normal text-[14px] text-[#00A86B]">{formatCurrency(c.revenueGenerated)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-            <div className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden mb-6">
-              <div className="p-5 border-b border-[#E2E8F0] bg-[#F8FAFC]">
-                <h3 className="font-bold text-sm text-[#0F172A]">Courier Zone Distribution</h3>
-              </div>
-              <div className="overflow-y-auto max-h-[500px] p-6 space-y-6 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300/80 hover:[&::-webkit-scrollbar-thumb]:bg-slate-400 [&::-webkit-scrollbar-thumb]:rounded-full">
-                {COURIERS.map(c => {
-                  const total = c.shipmentsByZone.reduce((acc, z) => acc + z.value, 0);
-                  return (
-                    <div key={c.id} className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm hover:shadow-md transition-shadow overflow-hidden flex flex-col md:flex-row group">
-                      <div className="bg-[#F8FAFC] group-hover:bg-white transition-colors border-b md:border-b-0 md:border-r border-[#E2E8F0] p-6 flex flex-col items-center justify-center w-full md:w-64 shrink-0 relative overflow-hidden">
-                        {/* Decorative background element */}
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-[#00A86B]/10 to-transparent rounded-bl-full opacity-50 -mr-10 -mt-10 pointer-events-none"></div>
-                        
-                        <div className="relative w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-sm border border-[#E2E8F0] overflow-hidden mb-4 z-10">
-                           <img 
-                             src={(c as any).logo || `/brands/${c.name.toLowerCase().replace(/ /g, '_')}.png`} 
-                             alt={c.name} 
-                             className="w-full h-full object-contain p-4 transition-transform group-hover:scale-110" 
-                             onError={(e) => {
-                               // Fallback if image fails to load
-                               e.currentTarget.style.display = 'none';
-                               e.currentTarget.nextElementSibling?.classList.remove('hidden');
-                             }}
-                           />
-                           <div className="hidden w-full h-full flex items-center justify-center bg-gradient-to-br from-[#0F172A] to-[#1E293B] text-white text-3xl font-black tracking-tighter absolute inset-0">
-                             {c.name.substring(0, 2).toUpperCase()}
-                           </div>
-                        </div>
-                        <h4 className="font-extrabold text-lg text-[#0F172A] text-center z-10">{c.name}</h4>
-                        <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-widest mt-2 px-3 py-1 bg-white rounded-full border border-[#E2E8F0] z-10">{c.type}</span>
+            ) : !sd ? (
+              <div className="text-center py-20 text-sm text-[#94A3B8]">No data available for this seller</div>
+            ) : (
+              <>
+                {/* Profile header */}
+                <div className="bg-white rounded-2xl border border-[#E2E8F0] p-6 mb-6 shadow-sm">
+                  <div className="flex flex-col lg:flex-row lg:items-start gap-5">
+                    <div className="w-14 h-14 rounded-2xl bg-[#F0FDF4] flex items-center justify-center font-extrabold text-xl text-[#00A86B] shrink-0">
+                      {(sd.fullname || sd.email || '?').charAt(0).toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-3 mb-2">
+                        <h3 className="text-lg font-extrabold text-[#0F172A]">{sd.fullname || '—'}</h3>
+                        {sd.kycDone && (
+                          <span className="text-[10px] font-bold bg-green-50 text-[#00A86B] border border-green-200 px-2 py-0.5 rounded-full">KYC Verified</span>
+                        )}
+                        {sd.userId && <span className="text-[10px] font-bold bg-[#F8FAFC] text-[#64748B] border border-[#E2E8F0] px-2 py-0.5 rounded-full">ID #{sd.userId}</span>}
                       </div>
-                      <div className="flex-1 p-0 bg-white">
-                        <table className="w-full text-left border-collapse h-full">
-                          <thead className="bg-[#F8FAFC]/30">
-                            <tr className="border-b border-[#E2E8F0] text-[10px] uppercase tracking-wider font-bold text-[#64748B]">
-                              <th className="p-4 pl-6">Zone</th>
-                              <th className="p-4">Shipments</th>
-                              <th className="p-4 pr-6">Share %</th>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-2 text-xs text-[#64748B]">
+                        {[
+                          ['Email', sd.email],
+                          ['Phone', sd.phoneNumber || '—'],
+                          ['Company', sd.company || '—'],
+                          ['Joined', fmtDate(sd.joinedAt)],
+                        ].map(([k, v]) => (
+                          <div key={k}><span className="font-bold text-[#0F172A]">{k}: </span>{v}</div>
+                        ))}
+                      </div>
+                    </div>
+                    <button onClick={() => openGenerate(sd._id, sd.fullname || sd.email)}
+                      className="shrink-0 h-9 px-4 rounded-xl bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors flex items-center gap-1.5 shadow-sm">
+                      <FileText className="w-3.5 h-3.5" /> Generate Report
+                    </button>
+                  </div>
+                </div>
+
+                {/* Financial summary */}
+                <SectionTitle icon={IndianRupee} title="Financial Summary" />
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                  <StatCard label="Total Billed" value={fc(sd.totalBilled)} icon={FileText} color="text-indigo-500" bg="bg-indigo-50" />
+                  <StatCard label="Freight Charges" value={fc(sd.freightTotal)} icon={Truck} color="text-blue-500" bg="bg-blue-50" />
+                  <StatCard label="COD Charges" value={fc(sd.codCharges)} icon={CreditCard} color="text-amber-600" bg="bg-amber-50" />
+                  <StatCard label="Wallet Balance" value={fc(sd.walletBalance)} icon={Wallet} color="text-cyan-500" bg="bg-cyan-50" />
+                </div>
+
+                {/* Shipment operations */}
+                <SectionTitle icon={Package} title="Shipment Operations" />
+                <div className="grid grid-cols-3 md:grid-cols-5 gap-3 mb-6">
+                  {[
+                    { label: 'Total', value: fn(sd.totalOrders), color: 'text-[#0F172A]' },
+                    { label: 'Delivered', value: fn(sd.delivered), color: 'text-[#00A86B]' },
+                    { label: 'In Transit', value: fn(sd.inTransit), color: 'text-blue-500' },
+                    { label: 'RTO', value: fn(sd.rto), color: 'text-red-500' },
+                    { label: 'NDR', value: fn(sd.ndr), color: 'text-amber-500' },
+                    { label: 'Cancelled', value: fn(sd.cancelled), color: 'text-[#94A3B8]' },
+                    { label: 'Delivery Rate', value: `${sd.deliveryRate}%`, color: 'text-[#00A86B]' },
+                    { label: 'RTO Rate', value: `${sd.rtoRate}%`, color: 'text-red-500' },
+                    { label: 'NDR Rate', value: `${sd.ndrRate}%`, color: 'text-amber-500' },
+                  ].map(m => (
+                    <div key={m.label} className="bg-white rounded-xl border border-[#E2E8F0] p-3 text-center shadow-sm">
+                      <div className={`text-lg font-extrabold ${m.color}`}>{m.value}</div>
+                      <div className="text-[10px] font-semibold text-[#64748B] mt-0.5">{m.label}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Pie charts */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6">
+                  <PieChartCard title="Order Status" data={[
+                    { name: 'Delivered', value: sd.delivered }, { name: 'RTO', value: sd.rto },
+                    { name: 'NDR', value: sd.ndr }, { name: 'In Transit', value: sd.inTransit },
+                    { name: 'Cancelled', value: sd.cancelled },
+                  ].filter(d => d.value > 0)} colors={['#00A86B', '#EF4444', '#F59E0B', '#3B82F6', '#94A3B8']} />
+                  <PieChartCard title="Payment Mode" data={[
+                    { name: 'Prepaid', value: sd.prepaidOrders }, { name: 'COD', value: sd.codOrders },
+                  ].filter(d => d.value > 0)} colors={['#3B82F6', '#F59E0B']} />
+                  <PieChartCard title="Courier Share" data={sd.couriers.slice(0, 5).map(c => ({ name: c.name, value: c.shipments }))} />
+                </div>
+
+                {/* Courier-wise performance */}
+                {sd.couriers.length > 0 && (
+                  <>
+                    <SectionTitle icon={Truck} title="Courier-wise Performance" />
+                    <div className="bg-white border border-[#E2E8F0] rounded-2xl overflow-hidden shadow-sm mb-6">
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left min-w-[700px]">
+                          <thead>
+                            <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-[10px] uppercase tracking-wider font-bold text-[#64748B]">
+                              <th className="px-4 py-3">Courier</th>
+                              <th className="px-4 py-3">Shipments</th>
+                              <th className="px-4 py-3">Delivered</th>
+                              <th className="px-4 py-3">RTO</th>
+                              <th className="px-4 py-3">NDR</th>
+                              <th className="px-4 py-3">Billed</th>
+                              <th className="px-4 py-3">Delivery %</th>
+                              <th className="px-4 py-3">RTO %</th>
                             </tr>
                           </thead>
-                          <tbody className="text-xs font-semibold text-[#475569]">
-                            {c.shipmentsByZone.map((z, idx) => (
-                              <tr key={idx} className="border-b last:border-0 border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors">
-                                <td className="p-4 pl-6 font-normal text-[14px]">{z.name}</td>
-                                <td className="p-4 font-normal text-[14px] text-[#0F172A]">{z.value.toLocaleString('en-IN')}</td>
-                                <td className="p-4 pr-6 font-normal text-[14px]">
-                                  <div className="flex items-center gap-3">
-                                    <span className="w-12 font-normal text-[14px] text-[#0F172A] text-right">{((z.value / total) * 100).toFixed(1)}%</span>
-                                    <div className="flex-1 max-w-[150px] h-2.5 bg-[#E2E8F0] rounded-full overflow-hidden shadow-inner">
-                                      <div className="h-full bg-gradient-to-r from-[#00A86B] to-[#10B981] rounded-full" style={{ width: `${(z.value / total) * 100}%` }}></div>
-                                    </div>
-                                  </div>
+                          <tbody className="divide-y divide-[#F1F5F9] text-xs font-semibold text-[#475569]">
+                            {sd.couriers.map(c => (
+                              <tr key={c.name} className="hover:bg-[#F8FAFC]">
+                                <td className="px-4 py-3 font-bold text-[#0F172A]">{c.name}</td>
+                                <td className="px-4 py-3">{fn(c.shipments)}</td>
+                                <td className="px-4 py-3 text-[#00A86B]">{fn(c.delivered)}</td>
+                                <td className="px-4 py-3 text-red-500">{fn(c.rto)}</td>
+                                <td className="px-4 py-3 text-amber-500">{fn(c.ndr)}</td>
+                                <td className="px-4 py-3">{fc(c.billed)}</td>
+                                <td className="px-4 py-3">
+                                  <span className={`${c.deliveryRate >= 90 ? 'text-[#00A86B]' : c.deliveryRate >= 80 ? 'text-amber-500' : 'text-red-500'}`}>{c.deliveryRate}%</span>
                                 </td>
+                                <td className="px-4 py-3"><span className={c.rtoRate > 6 ? 'text-red-500' : ''}>{c.rtoRate}%</span></td>
                               </tr>
                             ))}
                           </tbody>
                         </table>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            </div>
+                  </>
+                )}
+
+                {/* Recent transactions */}
+                {sd.recentTransactions.length > 0 && (
+                  <>
+                    <SectionTitle icon={CreditCard} title="Recent Wallet Transactions" />
+                    <div className="bg-white border border-[#E2E8F0] rounded-2xl overflow-hidden shadow-sm mb-6">
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left min-w-[600px]">
+                          <thead>
+                            <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-[10px] uppercase tracking-wider font-bold text-[#64748B]">
+                              <th className="px-4 py-3">Date</th>
+                              <th className="px-4 py-3">AWB / Ref</th>
+                              <th className="px-4 py-3">Description</th>
+                              <th className="px-4 py-3">Type</th>
+                              <th className="px-4 py-3">Amount</th>
+                              <th className="px-4 py-3">Balance After</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-[#F1F5F9] text-xs">
+                            {sd.recentTransactions.map((t, i) => (
+                              <tr key={i} className="hover:bg-[#F8FAFC]">
+                                <td className="px-4 py-3 text-[#64748B]">{fmtDate(t.date)}</td>
+                                <td className="px-4 py-3 font-mono text-[11px] text-[#64748B]">{t.awb_number || t.channelOrderId || '—'}</td>
+                                <td className="px-4 py-3 text-[#475569] max-w-[180px] truncate" title={t.description}>{t.description || '—'}</td>
+                                <td className="px-4 py-3">
+                                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${t.category === 'credit' ? 'bg-green-50 text-[#00A86B] border-green-200' : 'bg-red-50 text-red-500 border-red-200'}`}>{t.category}</span>
+                                </td>
+                                <td className={`px-4 py-3 font-bold text-sm ${t.category === 'credit' ? 'text-[#00A86B]' : 'text-red-500'}`}>
+                                  {t.category === 'credit' ? '+' : '−'}{fc(t.amount)}
+                                </td>
+                                <td className="px-4 py-3 font-semibold text-[#0F172A]">{t.balanceAfterTransaction !== undefined ? fc(t.balanceAfterTransaction) : '—'}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* MIS report table scoped to this seller */}
+                <MisReportTable
+                  key={`seller-mis-${selectedSellerId}-${misRefreshKey}`}
+                  userId={selectedSellerId}
+                  isAdminView={true}
+                />
+              </>
+            )}
+          </motion.div>
+        )}
+
+        {/* ══ COURIER TAB ═════════════════════════════════════════════════════ */}
+        {activeTab === 'courier' && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            {loadingCouriers ? (
+              <div className="text-center py-16 text-sm text-[#94A3B8]">Loading courier data…</div>
+            ) : (
+              <>
+                {/* Summary KPIs */}
+                {courierTotals && (
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                    <StatCard label="Total Shipments" value={fn(courierTotals.totalShipments || 0)} icon={Package} color="text-purple-500" bg="bg-purple-50" />
+                    <StatCard label="Total Delivered" value={fn(courierTotals.delivered || 0)} icon={CheckCircle2} color="text-emerald-500" bg="bg-emerald-50" />
+                    <StatCard label="Total RTO" value={fn(courierTotals.rto || 0)} icon={RotateCcw} color="text-red-500" bg="bg-red-50" />
+                    <StatCard label="Active Couriers" value={couriers.length.toString()} icon={Truck} color="text-blue-500" bg="bg-blue-50" />
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
+                  <PieChartCard title="Shipment Share by Courier" data={courierShipmentPie} />
+                  <PieChartCard title="Overall Status Distribution" data={courierStatusPie} colors={['#00A86B', '#EF4444', '#F59E0B']} />
+                </div>
+
+                {/* Courier table */}
+                {couriers.length > 0 && (
+                  <div className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
+                    <div className="p-5 border-b border-[#E2E8F0] bg-[#F8FAFC]">
+                      <h3 className="font-bold text-sm text-[#0F172A]">Courier Performance</h3>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left min-w-[800px]">
+                        <thead>
+                          <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-[10px] uppercase tracking-wider font-bold text-[#64748B]">
+                            <th className="p-4">Courier</th>
+                            <th className="p-4">Total Shipments</th>
+                            <th className="p-4">Delivered</th>
+                            <th className="p-4">In Transit</th>
+                            <th className="p-4">RTO</th>
+                            <th className="p-4">NDR</th>
+                            <th className="p-4">Total Billed</th>
+                            <th className="p-4">Delivery %</th>
+                            <th className="p-4">RTO %</th>
+                          </tr>
+                        </thead>
+                        <tbody className="text-xs font-semibold text-[#475569] divide-y divide-[#F1F5F9]">
+                          {couriers.map(c => (
+                            <tr key={c.name} className="hover:bg-[#F8FAFC] transition-colors">
+                              <td className="p-4 font-bold text-[#0F172A] text-sm">{c.name}</td>
+                              <td className="p-4">{fn(c.totalShipments || 0)}</td>
+                              <td className="p-4 text-[#00A86B]">{fn(c.delivered || 0)}</td>
+                              <td className="p-4 text-blue-500">{fn(c.inTransit || 0)}</td>
+                              <td className="p-4 text-red-500">{fn(c.rto || 0)}</td>
+                              <td className="p-4 text-amber-500">{fn(c.ndr || 0)}</td>
+                              <td className="p-4">{fc(c.totalBilled || 0)}</td>
+                              <td className="p-4">
+                                <span className={`${(c.deliveryRate || 0) >= 90 ? 'text-[#00A86B]' : (c.deliveryRate || 0) >= 80 ? 'text-amber-500' : 'text-red-500'}`}>{c.deliveryRate || 0}%</span>
+                              </td>
+                              <td className="p-4"><span className={(c.rtoRate || 0) > 6 ? 'text-red-500' : ''}>{c.rtoRate || 0}%</span></td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
           </motion.div>
         )}
 
       </div>
 
-      {/* ══════════════════════════════════════════════════════════
-         CLAIMS MODAL (GLASSMORPHISM)
-         ══════════════════════════════════════════════════════════ */}
+      {/* Generate Report Modal */}
       <AnimatePresence>
-        {showClaimsModal && selectedSeller && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
-            <motion.div 
-              initial={{ opacity: 0 }} 
-              animate={{ opacity: 1 }} 
-              exit={{ opacity: 0 }} 
-              className="absolute inset-0 bg-[#0F172A]/40 backdrop-blur-sm" 
-              onClick={() => setShowClaimsModal(false)}
-            />
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="relative w-full max-w-4xl bg-white/80 backdrop-blur-2xl border border-white/60 shadow-2xl rounded-2xl overflow-hidden flex flex-col max-h-[85vh]"
-            >
-              {/* Header */}
-              <div className="flex items-center justify-between p-5 border-b border-white/30 bg-white/40">
-                <div>
-                  <h3 className="text-lg font-bold text-[#0F172A]">Weight Discrepancy Claims</h3>
-                  <p className="text-[11px] font-semibold text-[#64748B] mt-0.5">Seller: {selectedSeller.name} • {selectedSeller.disputesPending} Pending Disputes</p>
-                </div>
-                <button onClick={() => setShowClaimsModal(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-white/50 text-[#475569] hover:bg-white/80 hover:text-[#0F172A] transition-all border border-white/40">
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-              
-              {/* Body */}
-              <div className="flex-1 overflow-y-auto p-5 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300/80 hover:[&::-webkit-scrollbar-thumb]:bg-slate-400 [&::-webkit-scrollbar-thumb]:rounded-full">
-                <div className="bg-white/60 backdrop-blur-xl rounded-xl border border-white/50 shadow-sm overflow-hidden">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="border-b border-[#E2E8F0]/60 text-[10px] uppercase tracking-wider font-bold text-[#64748B] bg-white/40 sticky top-0 backdrop-blur-md z-10">
-                        <th className="p-4">Claim ID</th>
-                        <th className="p-4">AWB Number</th>
-                        <th className="p-4">Date Raised</th>
-                        <th className="p-4">Applied / Charged Wt.</th>
-                        <th className="p-4 text-right">Disputed Amount</th>
-                        <th className="p-4 text-center">Status</th>
-                        <th className="p-4 text-right">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody className="text-xs font-semibold text-[#475569]">
-                      {[
-                        { id: 'WD-78901', awb: '147852369012', date: '18 Jun 2026', appWt: '0.5 kg', chgWt: '1.5 kg', amt: 120, status: 'Pending' },
-                        { id: 'WD-78892', awb: '147852369044', date: '16 Jun 2026', appWt: '1.0 kg', chgWt: '2.0 kg', amt: 180, status: 'Resolved' },
-                        { id: 'WD-78845', awb: '147852369088', date: '12 Jun 2026', appWt: '2.5 kg', chgWt: '5.0 kg', amt: 450, status: 'Rejected' },
-                        { id: 'WD-78810', awb: '147852369105', date: '10 Jun 2026', appWt: '0.2 kg', chgWt: '1.0 kg', amt: 85, status: 'Pending' },
-                        { id: 'WD-78799', awb: '147852369150', date: '05 Jun 2026', appWt: '1.5 kg', chgWt: '2.5 kg', amt: 150, status: 'Resolved' },
-                        { id: 'WD-78780', awb: '147852369190', date: '04 Jun 2026', appWt: '0.5 kg', chgWt: '1.0 kg', amt: 60, status: 'Resolved' },
-                        { id: 'WD-78765', awb: '147852369211', date: '02 Jun 2026', appWt: '3.0 kg', chgWt: '4.5 kg', amt: 220, status: 'Rejected' },
-                        { id: 'WD-78740', awb: '147852369255', date: '01 Jun 2026', appWt: '1.0 kg', chgWt: '3.0 kg', amt: 300, status: 'Pending' },
-                        { id: 'WD-78712', awb: '147852369299', date: '28 May 2026', appWt: '0.5 kg', chgWt: '2.0 kg', amt: 180, status: 'Resolved' },
-                        { id: 'WD-78695', awb: '147852369330', date: '25 May 2026', appWt: '2.0 kg', chgWt: '2.5 kg', amt: 50, status: 'Resolved' },
-                      ].map((c, i) => (
-                        <tr key={i} className="border-b border-[#E2E8F0]/40 hover:bg-white/50 transition-colors">
-                          <td className="p-4 font-normal text-[14px] text-[#0F172A]">#{c.id}</td>
-                          <td className="p-4 font-normal text-[14px] text-[#3B82F6] hover:underline cursor-pointer">{c.awb}</td>
-                          <td className="p-4 font-normal text-[14px]">{c.date}</td>
-                          <td className="p-4 font-normal text-[14px]">
-                            <div className="flex items-center gap-2">
-                              <span className="bg-emerald-50/80 text-emerald-600 px-1.5 py-0.5 rounded text-[10px] border border-emerald-100">{c.appWt}</span>
-                              <span className="text-[#94A3B8]">&rarr;</span>
-                              <span className="bg-rose-50/80 text-rose-600 px-1.5 py-0.5 rounded text-[10px] border border-rose-100">{c.chgWt}</span>
-                            </div>
-                          </td>
-                          <td className="p-4 text-right font-normal text-[14px] text-[#0F172A]">₹{c.amt}</td>
-                          <td className="p-4 text-center">
-                            <span className={`px-2 py-1 rounded-md text-[10px] font-bold ${c.status === 'Pending' ? 'bg-amber-100/80 text-amber-700' : c.status === 'Resolved' ? 'bg-emerald-100/80 text-emerald-700' : 'bg-red-100/80 text-red-700'}`}>{c.status}</span>
-                          </td>
-                          <td className="p-4 text-right">
-                            <button className="text-[#00A86B] font-bold text-[11px] hover:text-[#009B63] transition-colors">View Docs</button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </motion.div>
-          </div>
+        {genOpen && (
+          <GenerateReportModal open onClose={() => { setGenOpen(false); setMisRefreshKey(k => k + 1); }}
+            prefillUserId={genUserId} prefillUserName={genUserName} isAdminView={isAdminView} />
         )}
       </AnimatePresence>
 
