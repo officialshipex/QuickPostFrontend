@@ -21,6 +21,21 @@ const fmt = (d: string) =>
 const fmtTime = (d: string) =>
   d ? new Date(d).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
 
+const calcAgeingDays = (dateStr: string) => {
+  const start = new Date(dateStr); start.setHours(0, 0, 0, 0);
+  const end   = new Date();        end.setHours(0, 0, 0, 0);
+  let count = 0; const cur = new Date(start);
+  while (cur < end) { if (cur.getDay() !== 0) count++; cur.setDate(cur.getDate() + 1); }
+  return count;
+};
+
+const renderManifestAgeing = (dateStr: string) => {
+  const days = calcAgeingDays(dateStr);
+  if (days <= 1) return <div className="flex items-center gap-1 text-emerald-600 text-xs"><CheckCircle2 className="w-3.5 h-3.5" /><span>On schedule</span></div>;
+  if (days <= 3) return <div className="flex items-center gap-1 text-amber-600 text-xs"><Clock className="w-3.5 h-3.5" /><span>{days}d pending</span></div>;
+  return <div className="flex items-center gap-1 text-rose-600 text-xs font-bold"><Clock className="w-3.5 h-3.5" /><span>{days}d overdue</span></div>;
+};
+
 interface Props {
   isAdminView: boolean;
 }
@@ -421,9 +436,24 @@ export function AdminPickupManifest({ isAdminView }: Props) {
 
                   <td className="p-3 text-xs font-normal text-[#64748B]">{fmt(m.pickupDate)}</td>
 
-                  <td className="p-3 text-xs text-[#CBD5E1]">—</td>
+                  <td className="p-3">
+                    {(() => {
+                      const orders = m.orderIds || [];
+                      const total  = orders.length;
+                      const NOT_PICKED = ['new', 'Booked', 'Ready To Ship', 'Not Picked', 'Cancelled'];
+                      const picked = orders.filter((o: any) => !NOT_PICKED.includes(o.status)).length;
+                      return (
+                        <>
+                          <div className="text-xs font-bold text-[#0F172A]">{total} / {picked}</div>
+                          <div className="text-[9px] text-[#94A3B8] uppercase font-semibold">total / picked</div>
+                        </>
+                      );
+                    })()}
+                  </td>
 
-                  <td className="p-3 text-xs text-[#CBD5E1]">—</td>
+                  <td className="p-3">
+                    {m.createdAt ? renderManifestAgeing(m.createdAt) : <span className="text-[#CBD5E1] text-xs">—</span>}
+                  </td>
 
                   <td className="p-3">
                     <div className="text-xs font-bold text-[#0F172A]">{(m.orderIds || []).length}</div>

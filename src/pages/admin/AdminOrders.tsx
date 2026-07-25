@@ -208,8 +208,9 @@ const mapOrder = (o: any) => {
     courier:        o.courierServiceName || '—',
     bookedDate:     o.shipmentCreatedAt ? new Date(o.shipmentCreatedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—',
     status:         o.status || 'New',
-    lastUpdateEvent:o.lastUpdateEvent || lastTracking?.status || '',
-    lastUpdateDate: lastTracking?.StatusDateTime || null,
+    lastUpdateEvent:  o.lastUpdateEvent || lastTracking?.status || '',
+    lastUpdateLocation: lastTracking?.StatusLocation || '',
+    lastUpdateDate:   lastTracking?.StatusDateTime || null,
     totalPackages:  o.totalPackages || 1,
     pickedPackages: o.pickedPackages || 0,
     pickupId:       o.pickupId || `PID${o.orderId}`,
@@ -1234,17 +1235,17 @@ export function AdminOrders() {
 
                       {showLastUpdateCol && (
                         <td className="p-3 w-[160px]">
-                          {order.lastUpdateEvent ? (
+                          {order.lastUpdateDate ? (
                             <div className="flex flex-col gap-0.5">
-                              <div className="flex items-center gap-1.5">
-                                <div className="w-2 h-2 rounded-full bg-[#00A86B] shrink-0" />
-                                <span className="font-semibold text-[#0F172A] text-[11px] truncate max-w-[120px]">{order.lastUpdateEvent}</span>
-                              </div>
-                              {order.lastUpdateDate && (
-                                <span className="text-[10px] text-[#64748B] pl-3.5">
-                                  {new Date(order.lastUpdateDate).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                                </span>
+                              {order.lastUpdateLocation && (
+                                <div className="flex items-center gap-1.5">
+                                  <div className="w-2 h-2 rounded-full bg-[#00A86B] shrink-0" />
+                                  <span className="font-semibold text-[#0F172A] text-[11px] truncate max-w-[120px]">{order.lastUpdateLocation}</span>
+                                </div>
                               )}
+                              <span className="text-[10px] text-[#64748B] pl-3.5">
+                                {new Date(order.lastUpdateDate).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                              </span>
                             </div>
                           ) : (
                             <button onClick={() => fetchOrders(page)} className="text-[10px] font-bold text-[#00A86B] hover:underline flex items-center gap-1">
