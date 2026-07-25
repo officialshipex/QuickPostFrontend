@@ -560,7 +560,7 @@ export function AdminUsers() {
           <div className="flex-1 overflow-auto w-full relative">
             {isLoading && <TableLoader />}
             <table className="w-full text-left border-collapse min-w-[1300px]">
-              <thead className="sticky top-0 z-40 bg-green-50 shadow-sm">
+              <thead className="sticky top-0 z-40 bg-[#E6F9F2] shadow-sm">
                 <tr className="text-xs font-medium text-[#64748B] uppercase tracking-wider">
                   <th className="py-2 px-3 w-10 rounded-l-lg">
                     <input type="checkbox" checked={selectedIds.length === filteredUsers.length && filteredUsers.length > 0} onChange={toggleAll} className="rounded border-[#00A86B] accent-[#00A86B] w-3.5 h-3.5" />

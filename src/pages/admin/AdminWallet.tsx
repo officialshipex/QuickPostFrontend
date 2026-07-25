@@ -12,6 +12,7 @@ import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
 import { GlassSingleSelect } from '../../components/ui/GlassSingleSelect';
 import { useTableLoader } from '../../hooks/useTableLoader';
 import { TableLoader } from '../../components/ui/TableLoader';
+import { EmptyState } from '../../components/ui/EmptyState';
 import { TruncatedText } from '../../components/ui/TruncatedText';
 import { RechargeWalletModal } from '../../components/ui/RechargeWalletModal';
 
@@ -145,7 +146,7 @@ const STATUS_BADGE_STYLES: Record<string, string> = {
 
 const getStatusBadgeClass = (status: string) => {
   const normalized = status || '';
-  return `${STATUS_BADGE_STYLES[normalized] || 'bg-blue-50 text-blue-700 border-blue-200'} px-2.5 py-0.5 rounded-full border text-[10px] font-semibold font-sans uppercase tracking-wider whitespace-nowrap shadow-sm`;
+  return `${STATUS_BADGE_STYLES[normalized] || 'bg-blue-50 text-blue-700 border-blue-200'} px-2.5 py-0.5 rounded-full border text-[10px] leading-4 font-semibold font-sans uppercase tracking-wider whitespace-nowrap shadow-sm`;
 };
 
 
@@ -1099,18 +1100,15 @@ export function AdminWallet() {
 
           {/* Top Header Row — Tabs */}
           <div className="flex justify-between items-center px-4 md:px-6 py-2 border-b border-[#E2E8F0] bg-white">
-            <div className="flex gap-4 md:gap-6 items-center shrink-0 overflow-x-auto no-scrollbar">
+            <div className="flex gap-1 items-center bg-[#F7FEFC] rounded-full p-1.5 shrink-0 overflow-x-auto no-scrollbar">
               {MAIN_TABS.map((tab) => (
                 <button
                   key={tab.name}
                   onClick={() => setActiveTab(tab.name)}
-                  className={`relative py-3 text-[13px] font-bold transition-colors whitespace-nowrap flex items-center gap-1.5 ${activeTab === tab.name ? 'text-[#00A86B]' : 'text-[#64748B] hover:text-[#0F172A]'
+                  className={`relative px-4 py-2 text-[13px] font-bold transition-colors whitespace-nowrap rounded-full flex items-center gap-1.5 cursor-pointer ${activeTab === tab.name ? 'text-[#00A86B] underline underline-offset-4 decoration-2' : 'text-[#64748B] hover:text-[#0F172A]'
                     }`}
                 >
                   {tab.name}
-                  {activeTab === tab.name && (
-                    <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#00A86B] rounded-t-full" />
-                  )}
                 </button>
               ))}
             </div>
@@ -1854,8 +1852,8 @@ export function AdminWallet() {
                     ))}
                     {paginatedShippingData.length === 0 && (
                       <tr>
-                        <td colSpan={isAdminView ? 8 : 7} className="p-8 text-center text-[#64748B] font-medium">
-                          No shipping records found matching your criteria.
+                        <td colSpan={isAdminView ? 8 : 7}>
+                          <EmptyState title="No shipping records found" />
                         </td>
                       </tr>
                     )}
@@ -1882,9 +1880,7 @@ export function AdminWallet() {
               {/* Mobile Card Layout */}
               <div className="md:hidden flex-1 overflow-y-auto">
                 {paginatedShippingData.length === 0 ? (
-                  <div className="p-8 text-center text-[#64748B] font-medium text-sm">
-                    No shipping records found.
-                  </div>
+                  <EmptyState title="No shipping records found" />
                 ) : (
                   <div className="p-4 space-y-4 bg-[#F8FAFC]">
                     {paginatedShippingData.map((order) => {
@@ -2192,8 +2188,8 @@ export function AdminWallet() {
                     ))}
                     {paginatedPassbookData.length === 0 && (
                       <tr>
-                        <td colSpan={isAdminView ? 10 : 9} className="p-8 text-center text-[#64748B] font-medium">
-                          No passbook records found matching your criteria.
+                        <td colSpan={isAdminView ? 10 : 9}>
+                          <EmptyState title="No passbook records found" />
                         </td>
                       </tr>
                     )}
@@ -2232,9 +2228,7 @@ export function AdminWallet() {
                 )}
 
                 {paginatedPassbookData.length === 0 ? (
-                  <div className="p-8 text-center text-[#64748B] font-medium text-sm">
-                    No passbook records found.
-                  </div>
+                  <EmptyState title="No passbook records found" />
                 ) : (
                   <div className="p-4 space-y-4 bg-[#F8FAFC]">
                     {paginatedPassbookData.map((order) => {
@@ -2456,8 +2450,8 @@ export function AdminWallet() {
                     ))}
                     {paginatedRechargeData.length === 0 && (
                       <tr>
-                        <td colSpan={isAdminView ? 7 : 6} className="p-8 text-center text-[#64748B] font-medium">
-                          No recharge transactions found matching your criteria.
+                        <td colSpan={isAdminView ? 7 : 6}>
+                          <EmptyState title="No recharge transactions found" />
                         </td>
                       </tr>
                     )}
@@ -2484,9 +2478,7 @@ export function AdminWallet() {
               {/* Mobile Card Layout */}
               <div className="md:hidden flex-1 overflow-y-auto">
                 {paginatedRechargeData.length === 0 ? (
-                  <div className="p-8 text-center text-[#64748B] font-medium text-sm">
-                    No recharge transactions found.
-                  </div>
+                  <EmptyState title="No recharge transactions found" />
                 ) : (
                   <div className="p-4 space-y-4 bg-[#F8FAFC]">
                     {paginatedRechargeData.map((recharge) => {
@@ -2703,8 +2695,8 @@ export function AdminWallet() {
                     ))}
                     {paginatedInvoicesData.length === 0 && (
                       <tr>
-                        <td colSpan={isAdminView ? 9 : 8} className="p-8 text-center text-[#64748B] font-medium">
-                          No invoice records found matching your criteria.
+                        <td colSpan={isAdminView ? 9 : 8}>
+                          <EmptyState title="No invoice records found" />
                         </td>
                       </tr>
                     )}
@@ -2731,9 +2723,7 @@ export function AdminWallet() {
               {/* Mobile Card Layout */}
               <div className="md:hidden flex-1 overflow-y-auto">
                 {paginatedInvoicesData.length === 0 ? (
-                  <div className="p-8 text-center text-[#64748B] font-medium text-sm">
-                    No invoice records found.
-                  </div>
+                  <EmptyState title="No invoice records found" />
                 ) : (
                   <div className="p-4 space-y-4 bg-[#F8FAFC]">
                     {paginatedInvoicesData.map((invoice) => {
@@ -3392,7 +3382,7 @@ export function AdminWallet() {
                 <div className="border border-slate-100 rounded-xl overflow-hidden">
                   <table className="w-full text-left text-xs border-collapse">
                     <thead className="sticky top-0 z-20">
-                      <tr className="bg-slate-50 border-b border-slate-100 text-slate-500 font-bold uppercase text-[9px] tracking-wider">
+                      <tr className="bg-[#E6F9F2] border-b border-slate-100 text-slate-500 font-bold uppercase text-[9px] tracking-wider">
                         <th className="p-3">Description</th>
                         <th className="p-3 text-right">Shipments</th>
                         <th className="p-3 text-right">Amount</th>
@@ -3765,7 +3755,7 @@ export function AdminWallet() {
                       setIsMobileFiltersOpen(false);
                       showToast('success', 'Filters applied successfully!');
                     }}
-                    className="flex-1 h-11 rounded-xl bg-[#00A86B] text-white text-sm font-bold hover:bg-[#009B63]"
+                    className="flex-1 h-11 rounded-xl bg-[#009D64] text-white text-sm font-bold hover:bg-[#009B63]"
                   >
                     Apply Filters
                   </button>

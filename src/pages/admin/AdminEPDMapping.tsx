@@ -260,7 +260,7 @@ export function AdminEPDMapping() {
           <div className="flex-1 overflow-auto w-full relative">
             {loading && <TableLoader />}
             <table className="w-full text-left border-collapse min-w-[700px]">
-              <thead className="sticky top-0 z-40 bg-green-50 shadow-sm">
+              <thead className="sticky top-0 z-40 bg-[#E6F9F2] shadow-sm">
                 <tr className="text-xs font-medium text-[#64748B] uppercase tracking-wider">
                   <th className="py-2 px-3 whitespace-nowrap rounded-l-lg"><div className="flex items-center gap-1.5"><LayoutGrid className="w-3.5 h-3.5 shrink-0" /><span>Courier</span></div></th>
                   <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1.5"><Truck className="w-3.5 h-3.5 shrink-0" /><span>Courier Services</span></div></th>

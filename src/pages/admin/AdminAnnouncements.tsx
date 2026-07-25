@@ -271,13 +271,14 @@ export function AdminAnnouncements() {
           {/* Filter Row */}
           <div className="py-3 px-6 border-b border-[#CBD5F5] flex flex-wrap gap-3 items-center bg-white">
             <div className="relative">
-              <Search className="w-3.5 h-3.5 text-[#94A3B8] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <Search className="w-3.5 h-3.5 text-[#94A3B8] absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="text"
-                placeholder="Search announcements..."
+                placeholder="Search by message..."
                 value={searchTerm}
                 onChange={(e) => { setSearchTerm(e.target.value.toLowerCase()); setCurrentPage(1); }}
-                className="glass-search-input pl-8 w-[220px] shrink-0"
+                className="glass-search-input w-[220px] shrink-0"
+                style={{ paddingLeft: '2rem', paddingRight: '1rem' }}
               />
             </div>
           </div>
@@ -288,7 +289,7 @@ export function AdminAnnouncements() {
           <div className="hidden md:block flex-1 overflow-auto w-full relative">
             {loading && <TableLoader />}
             <table className="w-full text-left border-collapse min-w-full">
-              <thead className="sticky top-0 z-40 bg-green-50 shadow-sm">
+              <thead className="sticky top-0 z-40 bg-[#E6F9F2] shadow-sm">
                 <tr className="text-xs font-medium text-[#64748B] uppercase tracking-wider">
                   <th className="py-2 px-3 whitespace-nowrap rounded-l-lg"><div className="flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5 shrink-0" /><span>Created At</span></div></th>
                   <th className="py-2 px-3"><div className="flex items-center gap-1.5"><MessageSquare className="w-3.5 h-3.5 shrink-0" /><span>Announcement Message</span></div></th>

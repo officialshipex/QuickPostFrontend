@@ -586,7 +586,7 @@ export function AdminProfile() {
                 <div className="overflow-x-auto border border-[#E2E8F0] rounded-[10px]">
                   <table className="w-full text-center border-collapse">
                     <thead>
-                      <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0]">
+                      <tr className="bg-[#E6F9F2] border-b border-[#E2E8F0]">
                         {['Provider', 'Service', 'Mode', 'Weight', 'Zone A', 'Zone B', 'Zone C', 'Zone D', 'Zone E', 'COD'].map(h => (
                           <th key={h} className={`px-3 py-2.5 ${TXT.label} text-[#64748B] whitespace-nowrap`}>{h}</th>
                         ))}

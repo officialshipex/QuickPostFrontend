@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { TableLoader } from '../../components/ui/TableLoader';
+import { EmptyState } from '../../components/ui/EmptyState';
 import { TruncatedText } from '../../components/ui/TruncatedText';
 import { DesktopPagination } from '../../hooks/usePagination';
 
@@ -128,7 +129,7 @@ function ReferralDetailsModal({ referral, onClose }: { referral: ReferralRow; on
             </div>
             <div className="max-h-[280px] overflow-y-auto border border-[#E2E8F0] rounded-[8px]">
               <table className="w-full border-collapse">
-                <thead className="bg-green-50 sticky top-0">
+                <thead className="bg-[#E6F9F2] sticky top-0">
                   <tr className="border-b border-[#E2E8F0]">
                     <th className={`py-2 px-3 text-left ${DTXT.label} text-[#475569] rounded-l-lg`}>User Details</th>
                     <th className={`py-2 px-3 text-center ${DTXT.label} text-[#475569]`}>Orders</th>
@@ -156,8 +157,8 @@ function ReferralDetailsModal({ referral, onClose }: { referral: ReferralRow; on
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={4} className={`py-8 text-center text-[#94A3B8] ${DTXT.value}`}>
-                        No sub-user data available
+                      <td colSpan={4}>
+                        <EmptyState title="No sub-user data available" size={160} />
                       </td>
                     </tr>
                   )}
@@ -543,7 +544,7 @@ export function AdminReferral() {
           <div className="flex-1 overflow-auto w-full relative">
             {loading && <TableLoader />}
             <table className="w-full text-left border-collapse min-w-[900px]">
-              <thead className="sticky top-0 z-20 bg-green-50 shadow-sm">
+              <thead className="sticky top-0 z-20 bg-[#E6F9F2] shadow-sm">
                 <tr className="text-xs font-medium text-[#64748B] uppercase tracking-wider">
                   <th className="py-2 px-3 w-12 text-center rounded-l-lg">
                     <input
@@ -635,8 +636,8 @@ export function AdminReferral() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={8} className="p-12 text-center text-[#94A3B8] font-medium text-[13px]">
-                      No referral data found for the selected filters.
+                    <td colSpan={8}>
+                      <EmptyState title="No referral data found" />
                     </td>
                   </tr>
                 )}

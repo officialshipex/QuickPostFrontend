@@ -383,9 +383,9 @@ export function AdminRateCard() {
         <div className="bg-white relative z-50 shrink-0">
 
         {/* Header Tab */}
-        <div className="px-4 md:px-6 border-b border-[#E2E8F0]">
-          <div className="flex gap-6 md:gap-8 overflow-x-auto no-scrollbar">
-            <button className="px-1 py-4 text-sm font-bold text-[#00A86B] border-b-2 border-[#00A86B] whitespace-nowrap">
+        <div className="px-4 md:px-6 py-2 border-b border-[#E2E8F0]">
+          <div className="flex gap-1 items-center bg-[#F7FEFC] rounded-full p-1.5 w-fit overflow-x-auto no-scrollbar">
+            <button className="px-4 py-2 text-[13px] font-bold text-[#00A86B] underline underline-offset-4 decoration-2 rounded-full whitespace-nowrap">
               Rate Card Management
             </button>
           </div>
@@ -591,7 +591,7 @@ export function AdminRateCard() {
           <div className="flex-1 overflow-y-auto overflow-x-hidden w-full relative">
           {loading && <TableLoader />}
           <table className="w-full text-left border-collapse">
-              <thead className="sticky top-0 z-20 bg-green-50 shadow-sm">
+              <thead className="sticky top-0 z-20 bg-[#E6F9F2] shadow-sm">
                 <tr className="border-b border-[#E2E8F0]">
                   <th className="py-2 px-3 text-xs font-medium text-[#64748B] uppercase tracking-wider w-20 rounded-l-lg">
                     <div className="flex items-center gap-1.5"><Hash className="w-3.5 h-3.5 shrink-0" /><span>S.NO.</span></div>
@@ -685,7 +685,7 @@ export function AdminRateCard() {
                                           <div className="overflow-x-auto">
                                             <table className="w-full text-left border-collapse min-w-[1000px]">
                                               <thead>
-                                                <tr className="bg-green-50 border-b border-[#E2E8F0]">
+                                                <tr className="bg-[#E6F9F2] border-b border-[#E2E8F0]">
                                                   <th className="py-2 px-3 text-xs font-medium text-[#64748B] uppercase tracking-wider rounded-l-lg">Courier Service</th>
                                                   <th className="py-2 px-3 text-xs font-medium text-[#64748B] uppercase tracking-wider">Mode</th>
                                                   <th className="py-2 px-3 text-xs font-medium text-[#64748B] uppercase tracking-wider">Weight (gm)</th>
@@ -1064,7 +1064,7 @@ export function AdminRateCard() {
                   Reset All
                 </button>
                 <button onClick={() => { applyFilters(); setIsMobileFiltersOpen(false); }}
-                  className="flex-1 h-11 rounded-full bg-[#00A86B] text-white text-sm font-bold hover:bg-[#009B63] transition-colors shadow-sm">
+                  className="flex-1 h-11 rounded-full bg-[#009D64] text-white text-sm font-bold hover:bg-[#009B63] transition-colors shadow-sm">
                   Apply Filters
                 </button>
               </div>

@@ -5,15 +5,17 @@ import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { apiClient } from '../../services/apiClient';
 import { getToken } from '../../utils/session';
 import { PDFDocument } from 'pdf-lib';
+import * as XLSX from 'xlsx';
 import { useAdminTab } from '../../context/AdminUserContext';
 import {
   Search, ChevronDown, RefreshCcw, Check, IndianRupee, Package,
   User, Settings, MapPin, X, Truck,
-  AlertTriangle, Mail
+  AlertTriangle, Mail, FileText, Download
 } from 'lucide-react';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
 import { TableLoader } from '../../components/ui/TableLoader';
+import { EmptyState } from '../../components/ui/EmptyState';
 import { TruncatedText } from '../../components/ui/TruncatedText';
 import { NdrActionModal } from './NdrActionModal';
 import { NdrStatusModal } from './NdrStatusModal';
@@ -120,6 +122,36 @@ const mapOrder = (o: any) => {
     userEmail:     o.userId?.email || '',
     userUserId:    o.userId?.userId || '',
   };
+};
+
+// ─── Excel export helpers ──────────────────────────────────────────────────────
+const ordersToSheetRows = (rows: any[]) => rows.map((o) => ({
+  'Order ID':        o.orderId,
+  'AWB':             o.awb,
+  'Date':            o.date,
+  'Customer Name':   o.customerName,
+  'Customer Phone':  o.customerPhone,
+  'Customer City':   o.customerCity,
+  'Customer State':  o.customerState,
+  'Pincode':         o.customerPinCode,
+  'Product':         o.productName,
+  'SKU':             o.sku,
+  'Qty':             o.qty,
+  'Payment Type':    o.paymentType,
+  'Amount':          o.payment,
+  'Courier':         o.courier,
+  'Status':          o.status,
+  'NDR Status':      o.ndrStatus,
+  'NDR Attempts':    o.ndrAttempts,
+  'Last NDR Reason': o.lastNdrReason,
+  'Pickup Name':     o.pickupName,
+}));
+
+const exportOrdersToExcel = (rows: any[], filename: string) => {
+  const sheet = XLSX.utils.json_to_sheet(ordersToSheetRows(rows));
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, sheet, 'NDR');
+  XLSX.writeFile(workbook, filename);
 };
 
 // ─── Download helpers ──────────────────────────────────────────────────────────
@@ -230,22 +262,27 @@ export function AdminNDR() {
   }, [userQuery, isAdminView]);
 
   // ── Fetch orders ──
+  // ── Shared params builder for NDR fetches/exports ──
+  const buildOrderParams = useCallback((pg: number, limit: number) => {
+    const tabParams = TAB_PARAMS[activeTab] || { status: 'Undelivered' };
+    const params: Record<string, any> = { page: pg, limit, ...tabParams };
+    if (orderId)                       params.orderId             = orderId;
+    if (awbNumber)                     params.awbNumber           = awbNumber;
+    if (selectedCouriers.length)       params.courierServiceName  = selectedCouriers.join(',');
+    if (selectedPaymentTypes.length)   params.paymentType         = selectedPaymentTypes.join(',');
+    if (selectedPickups.length)        params.pickupContactName   = selectedPickups.join(',');
+    if (dateStart)                     params.startDate           = dateStart;
+    if (dateEnd)                       params.endDate             = dateEnd;
+    if (isAdminView && userMongoId)     params.userId = userMongoId;
+    else if (!isAdminView && currentUserId) params.userId = currentUserId;
+    if (globalSearchQuery)             params.searchQuery         = globalSearchQuery;
+    return params;
+  }, [activeTab, orderId, awbNumber, selectedCouriers, selectedPaymentTypes, selectedPickups, dateStart, dateEnd, userMongoId, globalSearchQuery, isAdminView, currentUserId]);
+
   const fetchOrders = useCallback(async (pg = page) => {
     setLoading(true);
     try {
-      const tabParams = TAB_PARAMS[activeTab] || { status: 'Undelivered' };
-      const params: Record<string, any> = { page: pg, limit: rowsPerPage, ...tabParams };
-      if (orderId)                       params.orderId             = orderId;
-      if (awbNumber)                     params.awbNumber           = awbNumber;
-      if (selectedCouriers.length)       params.courierServiceName  = selectedCouriers.join(',');
-      if (selectedPaymentTypes.length)   params.paymentType         = selectedPaymentTypes.join(',');
-      if (selectedPickups.length)        params.pickupContactName   = selectedPickups.join(',');
-      if (dateStart)                     params.startDate           = dateStart;
-      if (dateEnd)                       params.endDate             = dateEnd;
-      if (isAdminView && userMongoId)     params.userId = userMongoId;
-      else if (!isAdminView && currentUserId) params.userId = currentUserId;
-      if (globalSearchQuery)             params.searchQuery         = globalSearchQuery;
-
+      const params = buildOrderParams(pg, rowsPerPage);
       const res = await apiClient.get('/admin/filterNdrOrdersForEmployee', { params });
       const raw: any[] = res.data?.orders || [];
       setOrders(raw.map(mapOrder));
@@ -265,7 +302,37 @@ export function AdminNDR() {
     } finally {
       setLoading(false);
     }
-  }, [activeTab, page, orderId, awbNumber, selectedCouriers, selectedPaymentTypes, selectedPickups, dateStart, dateEnd, userMongoId, globalSearchQuery, isAdminView, rowsPerPage, currentUserId]);
+  }, [buildOrderParams, page, rowsPerPage]);
+
+  // ── Excel export handlers ──
+  const [exportingExcel, setExportingExcel] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportScope, setExportScope] = useState<'page' | 'all'>('page');
+
+  const handleConfirmExport = async () => {
+    setExportingExcel(true);
+    try {
+      if (exportScope === 'page') {
+        exportOrdersToExcel(orders, `NDR-${activeTab}-Page${page}.xlsx`);
+      } else {
+        const PAGE_SIZE = 500;
+        const first = await apiClient.get('/admin/filterNdrOrdersForEmployee', { params: buildOrderParams(1, PAGE_SIZE) });
+        let allRaw: any[] = first.data?.orders || [];
+        const total = first.data?.totalOrders || first.data?.totalRecords || allRaw.length;
+        const pagesNeeded = Math.max(1, Math.ceil(total / PAGE_SIZE));
+        for (let p = 2; p <= pagesNeeded; p++) {
+          const res = await apiClient.get('/admin/filterNdrOrdersForEmployee', { params: buildOrderParams(p, PAGE_SIZE) });
+          allRaw = allRaw.concat(res.data?.orders || []);
+        }
+        exportOrdersToExcel(allRaw.map(mapOrder), `NDR-${activeTab}-All.xlsx`);
+      }
+    } catch (err) {
+      console.error('Failed to export NDR orders:', err);
+    } finally {
+      setExportingExcel(false);
+      setShowExportModal(false);
+    }
+  };
 
   useEffect(() => {
     if (loadingAdminTab) return;
@@ -437,18 +504,23 @@ export function AdminNDR() {
         <div className="bg-white relative z-50 shrink-0">
           <div className="flex items-center px-6 py-2 border-b border-[#E2E8F0]">
             <div className="flex items-center flex-1 min-w-0">
-              <div className="flex gap-5 items-center overflow-x-auto no-scrollbar">
-                {TABS.map(tab => (
-                  <button key={tab} onClick={() => handleTabChange(tab)}
-                    className={`relative py-3 text-[13px] font-bold transition-colors whitespace-nowrap ${activeTab === tab ? 'text-[#00A86B]' : 'text-[#64748B] hover:text-[#0F172A]'}`}>
-                    {tab}
-                    {activeTab === tab && <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#00A86B] rounded-t-full" />}
-                  </button>
-                ))}
+              <div className="flex gap-1 items-center min-w-0 bg-[#F7FEFC] rounded-full p-1.5">
+                <div className="flex gap-1 items-center overflow-x-auto no-scrollbar min-w-0">
+                  {TABS.map(tab => (
+                    <button key={tab} onClick={() => handleTabChange(tab)}
+                      className={`relative px-4 py-2 text-[13px] font-bold transition-colors whitespace-nowrap rounded-full cursor-pointer ${activeTab === tab ? 'text-[#00A86B] underline underline-offset-4 decoration-2' : 'text-[#64748B] hover:text-[#0F172A]'}`}>
+                      {tab}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
+            <button onClick={() => setShowExportModal(true)} aria-label="Download Excel"
+              className="w-8 h-8 rounded-full border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC] shrink-0 ml-4 cursor-pointer">
+              <Download className="w-4 h-4" />
+            </button>
             <button onClick={() => fetchOrders(page)}
-              className="w-8 h-8 rounded-full border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC] shrink-0 ml-4">
+              className="w-8 h-8 rounded-full border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC] shrink-0 ml-2 cursor-pointer">
               <RefreshCcw className="w-4 h-4" />
             </button>
           </div>
@@ -578,7 +650,7 @@ export function AdminNDR() {
                         <div className="flex items-center gap-1"><User className="w-3.5 h-3.5 shrink-0" /><span>User</span></div>
                       </th>
                     )}
-                    <th className="py-2 px-4 whitespace-nowrap"><div className="flex items-center gap-1"><Check className="w-3.5 h-3.5 shrink-0" /><span>Order</span></div></th>
+                    <th className="py-2 px-4 whitespace-nowrap"><div className="flex items-center gap-1"><FileText className="w-3.5 h-3.5 shrink-0" /><span>Order</span></div></th>
                     <th className="py-2 px-4 whitespace-nowrap"><div className="flex items-center gap-1"><Package className="w-3.5 h-3.5 shrink-0" /><span>Product</span></div></th>
                     <th className="py-2 px-4 whitespace-nowrap"><div className="flex items-center gap-1"><IndianRupee className="w-3.5 h-3.5 shrink-0" /><span>Payment</span></div></th>
                     <th className="py-2 px-4 whitespace-nowrap"><div className="flex items-center gap-1"><User className="w-3.5 h-3.5 shrink-0" /><span>Customer</span></div></th>
@@ -594,8 +666,8 @@ export function AdminNDR() {
                 <tbody className="text-[11px] text-[#475569]">
                   {orders.length === 0 ? (
                     <tr>
-                      <td colSpan={colCount()} className="p-10 text-center text-[#64748B] font-medium">
-                        No orders found for <span className="font-bold text-[#0F172A]">{activeTab}</span>
+                      <td colSpan={colCount()}>
+                        <EmptyState title="No NDR orders found" subtitle="Try changing filters" />
                       </td>
                     </tr>
                   ) : orders.map((order, idx) => (
@@ -633,7 +705,7 @@ export function AdminNDR() {
                         }}
                         onMouseLeave={() => setProductHoverPos(prev => (prev?.id === order._id ? null : prev))}
                       >
-                        <div className="text-[#0F172A] text-[12px] font-normal truncate max-w-[140px] cursor-default">{order.productName || '—'}</div>
+                        <div className="text-[#0F172A] text-[12px] font-normal underline decoration-dotted underline-offset-2 hover:text-[#00A86B] truncate max-w-[140px] cursor-help">{order.productName || '—'}</div>
                         <div className="text-[#64748B] text-[12px] font-normal mt-0.5 truncate max-w-[140px]">SKU: {order.sku || '—'}</div>
                         <div className="text-[#64748B] text-[12px] font-normal mt-0.5">QTY: {order.qty}</div>
                       </td>
@@ -835,6 +907,51 @@ export function AdminNDR() {
           document.body
         );
       })()}
+
+      {/* ── Excel Export Modal ── */}
+      {showExportModal && createPortal(
+        <div className="fixed inset-0 z-[300] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={() => !exportingExcel && setShowExportModal(false)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-[15px] font-semibold text-[#0F172A]">Download Excel</h3>
+              <button onClick={() => !exportingExcel && setShowExportModal(false)} className="w-7 h-7 rounded-full flex items-center justify-center text-[#94A3B8] hover:bg-[#F8FAFC]">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="space-y-3">
+              <label className="flex items-center gap-3 p-3 rounded-xl border border-[#E2E8F0] cursor-pointer hover:bg-[#F8FAFC] transition-colors has-[:checked]:border-[#03C27D] has-[:checked]:bg-[#F0FDF9]">
+                <input
+                  type="radio"
+                  name="exportScope"
+                  checked={exportScope === 'page'}
+                  onChange={() => setExportScope('page')}
+                  className="w-4 h-4 accent-[#00A86B]"
+                />
+                <span className="text-[13px] font-medium text-[#334155]">Current page only</span>
+              </label>
+              <label className="flex items-center gap-3 p-3 rounded-xl border border-[#E2E8F0] cursor-pointer hover:bg-[#F8FAFC] transition-colors has-[:checked]:border-[#03C27D] has-[:checked]:bg-[#F0FDF9]">
+                <input
+                  type="radio"
+                  name="exportScope"
+                  checked={exportScope === 'all'}
+                  onChange={() => setExportScope('all')}
+                  className="w-4 h-4 accent-[#00A86B]"
+                />
+                <span className="text-[13px] font-medium text-[#334155]">Entire tab ({activeTab})</span>
+              </label>
+            </div>
+            <button
+              onClick={handleConfirmExport}
+              disabled={exportingExcel}
+              className="mt-6 w-full py-2.5 rounded-full bg-[#009D64] text-white text-xs font-medium leading-[18px] hover:bg-[#008a57] transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {exportingExcel ? 'Exporting…' : 'Download'}
+            </button>
+          </div>
+        </div>,
+        document.body
+      )}
 
       {/* ── Modals ── */}
       {actionModalOrder && (

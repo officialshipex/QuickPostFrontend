@@ -48,7 +48,8 @@ interface B2BPackage {
 export function AdminAddOrder() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { isAdminView } = useAdminTab();
+  const { isAdmin, adminTab } = useAdminTab();
+  const isAdminView = isAdmin && adminTab;
   const cloneId = searchParams.get('cloneId');
   const updateId = searchParams.get('updateId');
   const isUpdate = !!updateId;

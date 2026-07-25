@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
+import { EmptyState } from '../../components/ui/EmptyState';
 
 const MOCK_TICKETS = [
   {
@@ -304,12 +305,12 @@ export function AdminSupport() {
         <div className="bg-white relative z-50 shrink-0">
           {/* Top Header Row (Tabs + Global Search) */}
           <div className="flex justify-between items-center px-6 py-2 border-b border-[#E2E8F0] bg-white">
-            <div className="flex gap-6 shrink-0">
+            <div className="flex gap-1 items-center bg-[#F7FEFC] rounded-full p-1.5 shrink-0">
               {['New', 'Open', 'Awaiting Response', 'Closed', 'All'].map(s => (
-                <button 
-                  key={s} 
-                  onClick={() => setActiveTab(s)} 
-                  className={`text-[13px] font-bold py-2.5 border-b-[3px] transition-colors ${activeTab === s ? 'border-[#00A86B] text-[#00A86B]' : 'border-transparent text-[#64748B] hover:text-[#0F172A]'}`}
+                <button
+                  key={s}
+                  onClick={() => setActiveTab(s)}
+                  className={`px-4 py-2 text-[13px] font-bold rounded-full transition-colors whitespace-nowrap cursor-pointer ${activeTab === s ? 'text-[#00A86B] underline underline-offset-4 decoration-2' : 'text-[#64748B] hover:text-[#0F172A]'}`}
                 >
                   {s}
                 </button>
@@ -380,7 +381,7 @@ export function AdminSupport() {
         <div className="flex-1 overflow-y-auto overflow-x-hidden w-full relative">
           <table className="w-full text-left border-collapse min-w-full">
             <thead>
-              <tr className="bg-green-50 text-xs font-medium text-[#64748B] uppercase tracking-wider">
+              <tr className="bg-[#E6F9F2] text-xs font-medium text-[#64748B] uppercase tracking-wider">
                 <th className="py-2 px-3 rounded-l-lg"><User className="w-3.5 h-3.5 inline mr-1"/> Ticket ID</th>
                 <th className="py-2 px-3"><Package className="w-3.5 h-3.5 inline mr-1"/> AWB(s)</th>
                 <th className="py-2 px-3"><FileText className="w-3.5 h-3.5 inline mr-1"/> Subcategory</th>
@@ -438,8 +439,8 @@ export function AdminSupport() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={7} className="p-8 text-center text-[#94A3B8] font-medium">
-                    No tickets found matching the selected filters.
+                  <td colSpan={7}>
+                    <EmptyState title="No tickets found" />
                   </td>
                 </tr>
               )}

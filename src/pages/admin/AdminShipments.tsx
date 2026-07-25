@@ -87,7 +87,7 @@ export function AdminShipments() {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-[10px] uppercase tracking-wider font-bold text-[#64748B]">
+              <tr className="bg-[#E6F9F2] border-b border-[#E2E8F0] text-[10px] uppercase tracking-wider font-bold text-[#64748B]">
                 <th className="p-4">AWB</th>
                 <th className="p-4">Order ID</th>
                 <th className="p-4">Courier</th>

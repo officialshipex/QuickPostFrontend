@@ -8,6 +8,7 @@ import { AddServiceModal } from '../../components/admin/couriers/AddServiceModal
 import { AddCourierModal } from '../../components/admin/couriers/AddCourierModal';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { TableLoader } from '../../components/ui/TableLoader';
+import { EmptyState } from '../../components/ui/EmptyState';
 import { apiClient } from '../../services/apiClient';
 
 const STATUS_OPTIONS = [
@@ -240,17 +241,17 @@ export function AdminCouriers() {
         <div className="bg-white relative z-50 shrink-0">
 
         {/* Header Tabs */}
-        <div className="px-4 md:px-6 border-b border-[#E2E8F0]">
-          <div className="flex gap-6 md:gap-8 overflow-x-auto no-scrollbar">
+        <div className="px-4 md:px-6 py-2 border-b border-[#E2E8F0]">
+          <div className="flex gap-1 items-center bg-[#F7FEFC] rounded-full p-1.5 w-fit overflow-x-auto no-scrollbar">
             <button
               onClick={() => handleTabChange('couriers')}
-              className={`px-1 py-4 text-sm font-bold transition-colors whitespace-nowrap ${activeTab === 'couriers' ? 'text-[#00A86B] border-b-2 border-[#00A86B]' : 'text-[#64748B] hover:text-[#0F172A]'}`}
+              className={`px-4 py-2 text-[13px] font-bold transition-colors whitespace-nowrap rounded-full cursor-pointer ${activeTab === 'couriers' ? 'text-[#00A86B] underline underline-offset-4 decoration-2' : 'text-[#64748B] hover:text-[#0F172A]'}`}
             >
               Couriers
             </button>
             <button
               onClick={() => handleTabChange('services')}
-              className={`px-1 py-4 text-sm font-bold transition-colors whitespace-nowrap ${activeTab === 'services' ? 'text-[#00A86B] border-b-2 border-[#00A86B]' : 'text-[#64748B] hover:text-[#0F172A]'}`}
+              className={`px-4 py-2 text-[13px] font-bold transition-colors whitespace-nowrap rounded-full cursor-pointer ${activeTab === 'services' ? 'text-[#00A86B] underline underline-offset-4 decoration-2' : 'text-[#64748B] hover:text-[#0F172A]'}`}
             >
               Courier Services
             </button>
@@ -337,7 +338,7 @@ export function AdminCouriers() {
           <div className="flex-1 overflow-y-auto overflow-x-hidden w-full relative">
           {loading && <TableLoader />}
           <table className="w-full text-left border-collapse">
-            <thead className="sticky top-0 z-20 bg-green-50 shadow-sm">
+            <thead className="sticky top-0 z-20 bg-[#E6F9F2] shadow-sm">
               <tr className="border-b border-[#E2E8F0]">
                 <th className="py-2 px-3 text-xs font-medium text-[#64748B] uppercase tracking-wider w-20 rounded-l-lg">
                   <div className="flex items-center gap-1.5"><Hash className="w-3.5 h-3.5 shrink-0" /><span>S.NO.</span></div>
@@ -568,8 +569,8 @@ export function AdminCouriers() {
                   })
                 ) : (
                   <tr>
-                    <td colSpan={5} className="py-12 text-center">
-                      <div className="text-sm font-semibold text-[#64748B]">No couriers found</div>
+                    <td colSpan={5}>
+                      <EmptyState title="No couriers found" />
                     </td>
                   </tr>
                 )}

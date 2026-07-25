@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
-import { Search, Truck, CheckCircle2, TrendingUp, TrendingDown, MapPin } from 'lucide-react';
+import { Search, Truck, CheckCircle2, TrendingUp, TrendingDown, MapPin, Tag, Gauge, Clock, AlertTriangle, RotateCcw, Package, Weight, UserCog } from 'lucide-react';
 import { apiClient } from '../../services/apiClient';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { TableLoader } from '../../components/ui/TableLoader';
@@ -140,20 +140,20 @@ export function CRMCourierPartners() {
           <div className="flex-1 overflow-auto w-full relative">
             {loading && <TableLoader />}
             <table className="w-full text-left border-collapse min-w-[1000px]">
-              <thead className="sticky top-0 z-40 bg-green-50 shadow-sm">
+              <thead className="sticky top-0 z-40 bg-[#E6F9F2] shadow-sm">
                 <tr className="border-b border-[#E2E8F0] text-xs uppercase tracking-wider font-medium text-[#64748B]">
-                  <th className="py-2 px-3 rounded-l-lg">Courier</th>
-                  <th className="py-2 px-3">Type</th>
-                  <th className="py-2 px-3">Coverage</th>
-                  <th className="py-2 px-3">Status</th>
-                  <th className="py-2 px-3">Delivery Rate</th>
-                  <th className="py-2 px-3">Avg Days</th>
-                  <th className="py-2 px-3">NDR Rate</th>
-                  <th className="py-2 px-3">RTO Rate</th>
-                  <th className="py-2 px-3">Active AWBs</th>
-                  <th className="py-2 px-3">SLA Breaches</th>
-                  <th className="py-2 px-3">Weight Cap</th>
-                  <th className="py-2 px-3 rounded-r-lg">RM</th>
+                  <th className="py-2 px-3 rounded-l-lg"><div className="flex items-center gap-1"><Truck className="w-3.5 h-3.5 shrink-0" /><span>Courier</span></div></th>
+                  <th className="py-2 px-3"><div className="flex items-center gap-1"><Tag className="w-3.5 h-3.5 shrink-0" /><span>Type</span></div></th>
+                  <th className="py-2 px-3"><div className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5 shrink-0" /><span>Coverage</span></div></th>
+                  <th className="py-2 px-3"><div className="flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5 shrink-0" /><span>Status</span></div></th>
+                  <th className="py-2 px-3"><div className="flex items-center gap-1"><Gauge className="w-3.5 h-3.5 shrink-0" /><span>Delivery Rate</span></div></th>
+                  <th className="py-2 px-3"><div className="flex items-center gap-1"><Clock className="w-3.5 h-3.5 shrink-0" /><span>Avg Days</span></div></th>
+                  <th className="py-2 px-3"><div className="flex items-center gap-1"><AlertTriangle className="w-3.5 h-3.5 shrink-0" /><span>NDR Rate</span></div></th>
+                  <th className="py-2 px-3"><div className="flex items-center gap-1"><RotateCcw className="w-3.5 h-3.5 shrink-0" /><span>RTO Rate</span></div></th>
+                  <th className="py-2 px-3"><div className="flex items-center gap-1"><Package className="w-3.5 h-3.5 shrink-0" /><span>Active AWBs</span></div></th>
+                  <th className="py-2 px-3"><div className="flex items-center gap-1"><TrendingDown className="w-3.5 h-3.5 shrink-0" /><span>SLA Breaches</span></div></th>
+                  <th className="py-2 px-3"><div className="flex items-center gap-1"><Weight className="w-3.5 h-3.5 shrink-0" /><span>Weight Cap</span></div></th>
+                  <th className="py-2 px-3 rounded-r-lg"><div className="flex items-center gap-1"><UserCog className="w-3.5 h-3.5 shrink-0" /><span>RM</span></div></th>
                 </tr>
               </thead>
               <tbody className="text-xs text-[#475569]">

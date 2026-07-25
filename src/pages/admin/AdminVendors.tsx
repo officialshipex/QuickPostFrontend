@@ -933,7 +933,7 @@ export function AdminVendors() {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse min-w-[1000px]">
               <thead>
-                <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-[10px] uppercase tracking-wider font-extrabold text-[#64748B]">
+                <tr className="bg-[#E6F9F2] border-b border-[#E2E8F0] text-[10px] uppercase tracking-wider font-extrabold text-[#64748B]">
                   <th className="p-4 w-12 text-center">
                     <input 
                       type="checkbox" 

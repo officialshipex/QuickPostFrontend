@@ -4,6 +4,7 @@ import { apiClient } from '../../services/apiClient';
 import { getToken } from '../../utils/session';
 import {
   Search, ChevronDown, MapPin, Truck, X, Download, Filter,
+  User, Hash, Calendar, Package, Clock, CheckCircle2, Settings,
 } from 'lucide-react';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
@@ -357,20 +358,20 @@ export function AdminPickupManifest({ isAdminView }: Props) {
       <div className="hidden md:block flex-1 overflow-y-auto overflow-x-hidden min-h-0 relative">
         {loading && <TableLoader />}
           <table className="w-full text-left border-collapse">
-            <thead className="sticky top-0 z-40 bg-green-50 shadow-sm">
+            <thead className="sticky top-0 z-40 bg-[#E6F9F2] shadow-sm">
               <tr className="text-xs font-medium text-[#64748B] uppercase tracking-wider">
                 <th className="py-2 px-3 w-10 rounded-l-lg">
                   <input type="checkbox" checked={selectedManifests.length === filteredManifests.length && filteredManifests.length > 0} onChange={toggleAll} className="rounded border-[#00A86B] accent-[#00A86B] w-3.5 h-3.5" />
                 </th>
-                {isAdminView && <th className="py-2 px-3 whitespace-nowrap">User</th>}
-                <th className="py-2 px-3 whitespace-nowrap">Pickup ID</th>
-                <th className="py-2 px-3 whitespace-nowrap">Pickup Address</th>
-                <th className="py-2 px-3 whitespace-nowrap">Pickup Date</th>
-                <th className="py-2 px-3 whitespace-nowrap">Total/Picked</th>
-                <th className="py-2 px-3 whitespace-nowrap">Ageing</th>
-                <th className="py-2 px-3 whitespace-nowrap">Shipments</th>
-                <th className="py-2 px-3 whitespace-nowrap">Status</th>
-                <th className="py-2 px-3 whitespace-nowrap rounded-r-lg">Actions</th>
+                {isAdminView && <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1"><User className="w-3.5 h-3.5 shrink-0"/><span>User</span></div></th>}
+                <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1"><Hash className="w-3.5 h-3.5 shrink-0"/><span>Pickup ID</span></div></th>
+                <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5 shrink-0"/><span>Pickup Address</span></div></th>
+                <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5 shrink-0"/><span>Pickup Date</span></div></th>
+                <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1"><Package className="w-3.5 h-3.5 shrink-0"/><span>Total/Picked</span></div></th>
+                <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1"><Clock className="w-3.5 h-3.5 shrink-0"/><span>Ageing</span></div></th>
+                <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1"><Truck className="w-3.5 h-3.5 shrink-0"/><span>Shipments</span></div></th>
+                <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5 shrink-0"/><span>Status</span></div></th>
+                <th className="py-2 px-3 whitespace-nowrap rounded-r-lg"><div className="flex items-center gap-1"><Settings className="w-3.5 h-3.5 shrink-0"/><span>Actions</span></div></th>
               </tr>
             </thead>
             <tbody className="text-[11px] text-[#475569]">
@@ -685,7 +686,7 @@ export function AdminPickupManifest({ isAdminView }: Props) {
                 </button>
                 <button
                   onClick={() => { handleApply(); setIsMobileFiltersOpen(false); }}
-                  className="flex-1 h-11 rounded-full bg-[#00A86B] text-white text-sm font-bold hover:bg-[#009B63] transition-colors shadow-sm"
+                  className="flex-1 h-11 rounded-full bg-[#009D64] text-white text-sm font-bold hover:bg-[#009B63] transition-colors shadow-sm"
                 >
                   Apply Filters
                 </button>

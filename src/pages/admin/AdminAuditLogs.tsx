@@ -57,7 +57,7 @@ export function AdminAuditLogs() {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-[10px] uppercase tracking-wider font-bold text-[#64748B]">
+              <tr className="bg-[#E6F9F2] border-b border-[#E2E8F0] text-[10px] uppercase tracking-wider font-bold text-[#64748B]">
                 <th className="p-4">Timestamp</th>
                 <th className="p-4">User</th>
                 <th className="p-4">Category</th>

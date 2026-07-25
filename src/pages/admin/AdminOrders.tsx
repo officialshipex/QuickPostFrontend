@@ -6,16 +6,18 @@ import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { apiClient } from '../../services/apiClient';
 import { getToken } from '../../utils/session';
 import { PDFDocument } from 'pdf-lib';
+import * as XLSX from 'xlsx';
 import {
   Search, ChevronDown, RefreshCcw, Send, Calendar, Check, MoreHorizontal,
   IndianRupee, Package, User, Settings, MapPin, X, Truck, CreditCard,
   CheckCircle2, Clock, AlertTriangle, Flame, History, Layers, RefreshCw, Mail,
-  Filter, Copy, PackagePlus
+  Filter, Copy, PackagePlus, FileText, Download
 } from 'lucide-react';
 import { TransferCODModal } from '../../components/ui/TransferCODModal';
 import { usePagination, DesktopPagination } from '../../hooks/usePagination';
 import { useMobilePaginationBar } from '../../hooks/useMobilePaginationBar';
 import { TableLoader } from '../../components/ui/TableLoader';
+import { EmptyState } from '../../components/ui/EmptyState';
 import { TruncatedText } from '../../components/ui/TruncatedText';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
@@ -237,6 +239,35 @@ const downloadBlob = async (path: string, filename: string) => {
   window.URL.revokeObjectURL(blobUrl);
 };
 
+// ─── Excel export helpers ──────────────────────────────────────────────────────
+const ordersToSheetRows = (rows: any[]) => rows.map((o) => ({
+  'Order ID':        o.orderId,
+  'AWB':             o.awb,
+  'Date':            o.date,
+  'Customer Name':   o.customerName,
+  'Customer Phone':  o.customerPhone,
+  'Customer City':   o.customerCity,
+  'Customer State':  o.customerState,
+  'Pincode':         o.customerPinCode,
+  'Product':         o.productName,
+  'SKU':             o.sku,
+  'Qty':             o.qty,
+  'Weight':          o.weight,
+  'Payment Type':    o.paymentType,
+  'Amount':          o.payment,
+  'Courier':         o.courier,
+  'Status':          o.status,
+  'Pickup Name':     o.pickupName,
+  'Pickup City':     o.pickupCity,
+}));
+
+const exportOrdersToExcel = (rows: any[], filename: string) => {
+  const sheet = XLSX.utils.json_to_sheet(ordersToSheetRows(rows));
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, sheet, 'Orders');
+  XLSX.writeFile(workbook, filename);
+};
+
 // ─── Payment type dropdown options ────────────────────────────────────────────
 const PAYMENT_TYPE_OPTIONS = [
   { label: 'Prepaid',     value: 'Prepaid' },
@@ -399,27 +430,32 @@ export function AdminOrders() {
     return () => clearTimeout(t);
   }, [userQuery, isAdminView]);
 
+  // ── Shared params builder for order fetches/exports ──
+  const buildOrderParams = useCallback((pg: number, limit: number) => {
+    const statuses = STATUS_FOR_TAB[activeTab] || [];
+    const params: Record<string, any> = {
+      page:  pg,
+      limit,
+    };
+    if (statuses.length > 0)          params.status               = statuses;
+    if (orderId)                       params.orderId              = orderId;
+    if (awbNumber)                     params.awbNumber            = awbNumber;
+    if (selectedCouriers.length > 0)   params.courierServiceName   = selectedCouriers.join(',');
+    if (selectedPaymentTypes.length > 0) params.paymentType        = selectedPaymentTypes.join(',');
+    if (selectedPickupAddresses.length > 0) params.pickupContactName = selectedPickupAddresses.join(',');
+    if (dateStart)                     params.startDate            = dateStart;
+    if (dateEnd)                       params.endDate              = dateEnd;
+    if (isAdminView && userMongoId) { params.userId = userMongoId; params.selectedUserId = userMongoId; params.userSearch = userMongoId; }
+    else if (!isAdminView && currentUserId) params.userId = currentUserId;
+    if (globalSearchQuery)             params.searchQuery          = globalSearchQuery;
+    return params;
+  }, [activeTab, orderId, awbNumber, selectedCouriers, selectedPaymentTypes, selectedPickupAddresses, dateStart, dateEnd, userMongoId, globalSearchQuery, isAdmin, isAdminView, currentUserId]);
+
   // ── Fetch orders from API ──
   const fetchOrders = useCallback(async (pg = page) => {
     setLoading(true);
     try {
-      const statuses = STATUS_FOR_TAB[activeTab] || [];
-      const params: Record<string, any> = {
-        page:  pg,
-        limit: rowsPerPage,
-      };
-      if (statuses.length > 0)          params.status               = statuses;
-      if (orderId)                       params.orderId              = orderId;
-      if (awbNumber)                     params.awbNumber            = awbNumber;
-      if (selectedCouriers.length > 0)   params.courierServiceName   = selectedCouriers.join(',');
-      if (selectedPaymentTypes.length > 0) params.paymentType        = selectedPaymentTypes.join(',');
-      if (selectedPickupAddresses.length > 0) params.pickupContactName = selectedPickupAddresses.join(',');
-      if (dateStart)                     params.startDate            = dateStart;
-      if (dateEnd)                       params.endDate              = dateEnd;
-      if (isAdminView && userMongoId) { params.userId = userMongoId; params.selectedUserId = userMongoId; params.userSearch = userMongoId; }
-      else if (!isAdminView && currentUserId) params.userId = currentUserId;
-      if (globalSearchQuery)             params.searchQuery          = globalSearchQuery;
-
+      const params = buildOrderParams(pg, rowsPerPage);
       const res = await apiClient.get('/admin/filterEmployeeOrders', { params });
       const raw = res.data?.orders || [];
       setOrders(raw.map(mapOrder));
@@ -438,7 +474,37 @@ export function AdminOrders() {
     } finally {
       setLoading(false);
     }
-  }, [activeTab, page, orderId, awbNumber, selectedCouriers, selectedPaymentTypes, selectedPickupAddresses, dateStart, dateEnd, userMongoId, globalSearchQuery, isAdmin, isAdminView, currentUserId, rowsPerPage]);
+  }, [buildOrderParams, page, rowsPerPage]);
+
+  // ── Excel export handlers ──
+  const [exportingExcel, setExportingExcel] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportScope, setExportScope] = useState<'page' | 'all'>('page');
+
+  const handleConfirmExport = async () => {
+    setExportingExcel(true);
+    try {
+      if (exportScope === 'page') {
+        exportOrdersToExcel(orders, `Orders-${activeTab}-Page${page}.xlsx`);
+      } else {
+        const PAGE_SIZE = 500;
+        const first = await apiClient.get('/admin/filterEmployeeOrders', { params: buildOrderParams(1, PAGE_SIZE) });
+        let allRaw: any[] = first.data?.orders || [];
+        const total = first.data?.totalOrders || first.data?.totalRecords || allRaw.length;
+        const pagesNeeded = Math.max(1, Math.ceil(total / PAGE_SIZE));
+        for (let p = 2; p <= pagesNeeded; p++) {
+          const res = await apiClient.get('/admin/filterEmployeeOrders', { params: buildOrderParams(p, PAGE_SIZE) });
+          allRaw = allRaw.concat(res.data?.orders || []);
+        }
+        exportOrdersToExcel(allRaw.map(mapOrder), `Orders-${activeTab}-All.xlsx`);
+      }
+    } catch (err) {
+      console.error('Failed to export orders:', err);
+    } finally {
+      setExportingExcel(false);
+      setShowExportModal(false);
+    }
+  };
 
   // ── Per-order action handlers ──
   const handleLabel = async (id: string) => {
@@ -709,40 +775,44 @@ export function AdminOrders() {
           <div className="flex items-center px-4 md:px-6 py-2 border-b border-[#E2E8F0]">
             {/* Left group: scrollable main tabs + More button side by side */}
             <div className="flex items-center flex-1 min-w-0 gap-4 md:gap-5">
-              <div className="flex gap-4 md:gap-5 items-center overflow-x-auto no-scrollbar min-w-0">
-                {MAIN_TABS.map((tab) => (
+              <div className="flex gap-1 items-center min-w-0 bg-[#F7FEFC] rounded-full p-1.5">
+                <div className="flex gap-1 items-center overflow-x-auto no-scrollbar min-w-0">
+                  {MAIN_TABS.map((tab) => (
+                    <button
+                      key={tab}
+                      onClick={() => handleTabChange(tab)}
+                      className={`relative px-4 py-2 text-[13px] font-bold transition-colors whitespace-nowrap rounded-full cursor-pointer ${activeTab === tab ? 'text-[#00A86B] underline underline-offset-4 decoration-2' : 'text-[#64748B] hover:text-[#0F172A]'}`}
+                    >
+                      {tab}
+                    </button>
+                  ))}
+                </div>
+                {/* More button — inside the pill, shrink-0 keeps it always visible (not pushed off-screen on mobile) */}
+                <div className="relative shrink-0" ref={moreRef}>
                   <button
-                    key={tab}
-                    onClick={() => handleTabChange(tab)}
-                    className={`relative py-3 text-[13px] font-bold transition-colors whitespace-nowrap ${activeTab === tab ? 'text-[#00A86B]' : 'text-[#64748B] hover:text-[#0F172A]'}`}
+                    onClick={() => setShowMore(!showMore)}
+                    className={`px-4 py-2 text-[13px] font-bold flex items-center gap-1 transition-colors whitespace-nowrap rounded-full cursor-pointer ${MORE_TABS.includes(activeTab) ? 'text-[#00A86B] underline underline-offset-4 decoration-2' : 'text-[#64748B] hover:text-[#0F172A]'}`}
                   >
-                    {tab}
-                    {activeTab === tab && <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#00A86B] rounded-t-full" />}
+                    {MORE_TABS.includes(activeTab) ? activeTab : 'More'} <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showMore ? 'rotate-180' : ''}`} />
                   </button>
-                ))}
-              </div>
-              {/* More button — outside overflow-x-auto so its dropdown is never clipped, and shrink-0 keeps it always visible (not pushed off-screen on mobile) */}
-              <div className="relative shrink-0" ref={moreRef}>
-                <button
-                  onClick={() => setShowMore(!showMore)}
-                  className={`py-3 text-[13px] font-bold flex items-center gap-1 transition-colors whitespace-nowrap ${MORE_TABS.includes(activeTab) ? 'text-[#00A86B]' : 'text-[#64748B] hover:text-[#0F172A]'}`}
-                >
-                  {MORE_TABS.includes(activeTab) ? activeTab : 'More'} <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showMore ? 'rotate-180' : ''}`} />
-                </button>
-                {showMore && (
-                  <div className="absolute top-full right-0 md:left-0 md:right-auto mt-1 w-48 bg-white rounded-xl shadow-xl border border-[#E2E8F0] overflow-hidden z-[200] max-h-[60vh] overflow-y-auto">
-                    {MORE_TABS.map(tab => (
-                      <button key={tab} onClick={() => handleTabChange(tab)}
-                        className={`w-full text-left px-4 py-2.5 text-sm font-medium hover:bg-[#F8FAFC] transition-colors ${activeTab === tab ? 'text-[#00A86B] bg-[#00A86B]/5' : 'text-[#475569]'}`}>
-                        {tab}
-                      </button>
-                    ))}
-                  </div>
-                )}
+                  {showMore && (
+                    <div className="absolute top-full right-0 md:left-0 md:right-auto mt-1 w-48 bg-white rounded-xl shadow-xl border border-[#E2E8F0] overflow-hidden z-[200] max-h-[60vh] overflow-y-auto">
+                      {MORE_TABS.map(tab => (
+                        <button key={tab} onClick={() => handleTabChange(tab)}
+                          className={`w-full text-left px-4 py-2.5 text-sm font-medium hover:bg-[#F8FAFC] transition-colors ${activeTab === tab ? 'text-[#00A86B] bg-[#00A86B]/5' : 'text-[#475569]'}`}>
+                          {tab}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-            {/* Refresh on the right */}
-            <button onClick={() => fetchOrders(page)} className="hidden md:flex w-8 h-8 rounded-full border border-[#E2E8F0] items-center justify-center text-[#64748B] hover:bg-[#F8FAFC] shrink-0 ml-4">
+            {/* Download + Refresh on the right */}
+            <button onClick={() => setShowExportModal(true)} aria-label="Download Excel" className="hidden md:flex w-8 h-8 rounded-full border border-[#E2E8F0] items-center justify-center text-[#64748B] hover:bg-[#F8FAFC] shrink-0 ml-4 cursor-pointer">
+              <Download className="w-4 h-4" />
+            </button>
+            <button onClick={() => fetchOrders(page)} className="hidden md:flex w-8 h-8 rounded-full border border-[#E2E8F0] items-center justify-center text-[#64748B] hover:bg-[#F8FAFC] shrink-0 ml-2 cursor-pointer">
               <RefreshCcw className="w-4 h-4" />
             </button>
           </div>
@@ -1006,7 +1076,7 @@ export function AdminOrders() {
                       </>
                     ) : (
                       <>
-                        <th className="py-2 px-4 whitespace-nowrap w-[94px]"><div className="flex items-center gap-1"><Check className="w-3.5 h-3.5 shrink-0" /><span>Order</span></div></th>
+                        <th className="py-2 px-4 whitespace-nowrap w-[94px]"><div className="flex items-center gap-1"><FileText className="w-3.5 h-3.5 shrink-0" /><span>Order</span></div></th>
                         <th className="py-2 px-4 whitespace-nowrap w-[130px]"><div className="flex items-center gap-1"><Package className="w-3.5 h-3.5 shrink-0" /><span>Product</span></div></th>
                         <th className="py-2 px-4 whitespace-nowrap w-[126px]"><div className="flex items-center gap-1"><Package className="w-3.5 h-3.5 shrink-0" /><span>Package</span></div></th>
                         <th className="py-2 px-4 whitespace-nowrap w-[77px]"><div className="flex items-center gap-1"><IndianRupee className="w-3.5 h-3.5 shrink-0" /><span>Payment</span></div></th>
@@ -1028,8 +1098,8 @@ export function AdminOrders() {
                 <tbody className="text-[11px] text-[#475569]">
                   {paginatedOrders.length === 0 ? (
                     <tr>
-                      <td colSpan={colCount()} className="p-10 text-center text-[#64748B] font-medium">
-                        No orders found for <span className="font-bold text-[#0F172A]">{activeTab}</span>
+                      <td colSpan={colCount()}>
+                        <EmptyState title="No orders found" subtitle="Try changing filters" />
                       </td>
                     </tr>
                   ) : paginatedOrders.map((order, _idx) => (
@@ -1108,7 +1178,7 @@ export function AdminOrders() {
                             onMouseLeave={() => setProductHoverPos(prev => (prev?.id === order._id ? null : prev))}
                           >
                             <div className="flex flex-col gap-1">
-                              <div className="text-[12px] leading-[18px] font-normal text-[#1E293B] underline truncate max-w-[120px] cursor-default">{order.productName || '—'}</div>
+                              <div className="text-[12px] leading-[18px] font-normal text-[#1E293B] underline decoration-dotted underline-offset-2 hover:text-[#00A86B] truncate max-w-[120px] cursor-help">{order.productName || '—'}</div>
                               <div className="text-[12px] leading-[18px] font-normal text-[#1E293B] truncate max-w-[120px]">SKU: {order.sku || '—'}</div>
                               <div className="text-[12px] leading-[18px] font-normal text-[#1E293B]">QTY: {order.qty}</div>
                             </div>
@@ -1234,9 +1304,7 @@ export function AdminOrders() {
           <div className="md:hidden flex-1 overflow-y-auto bg-[#F8FAFC] relative">
             {loading && <TableLoader />}
             {paginatedOrders.length === 0 ? (
-              <div className="p-8 text-center text-[#64748B] font-medium text-sm">
-                No orders found for <span className="font-bold text-[#0F172A]">{activeTab}</span>
-              </div>
+              <EmptyState />
             ) : (
               <div className="p-4 space-y-4">
                 {paginatedOrders.map((order) => {
@@ -1520,7 +1588,7 @@ export function AdminOrders() {
                   </button>
                   <button
                     onClick={() => { handleApplyFilters(); setIsMobileFiltersOpen(false); }}
-                    className="flex-1 h-11 rounded-full bg-[#00A86B] text-white text-sm font-bold hover:bg-[#009B63] transition-colors shadow-sm"
+                    className="flex-1 h-11 rounded-full bg-[#009D64] text-white text-sm font-bold hover:bg-[#009B63] transition-colors shadow-sm"
                   >
                     Apply Filters
                   </button>
@@ -1544,6 +1612,51 @@ export function AdminOrders() {
           )}
         </AnimatePresence>
 
+        {/* ── Excel Export Modal ── */}
+        {showExportModal && createPortal(
+          <div className="fixed inset-0 z-[300] flex items-center justify-center">
+            <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={() => !exportingExcel && setShowExportModal(false)} />
+            <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-[15px] font-semibold text-[#0F172A]">Download Excel</h3>
+                <button onClick={() => !exportingExcel && setShowExportModal(false)} className="w-7 h-7 rounded-full flex items-center justify-center text-[#94A3B8] hover:bg-[#F8FAFC]">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="space-y-3">
+                <label className="flex items-center gap-3 p-3 rounded-xl border border-[#E2E8F0] cursor-pointer hover:bg-[#F8FAFC] transition-colors has-[:checked]:border-[#03C27D] has-[:checked]:bg-[#F0FDF9]">
+                  <input
+                    type="radio"
+                    name="exportScope"
+                    checked={exportScope === 'page'}
+                    onChange={() => setExportScope('page')}
+                    className="w-4 h-4 accent-[#00A86B]"
+                  />
+                  <span className="text-[13px] font-medium text-[#334155]">Current page only</span>
+                </label>
+                <label className="flex items-center gap-3 p-3 rounded-xl border border-[#E2E8F0] cursor-pointer hover:bg-[#F8FAFC] transition-colors has-[:checked]:border-[#03C27D] has-[:checked]:bg-[#F0FDF9]">
+                  <input
+                    type="radio"
+                    name="exportScope"
+                    checked={exportScope === 'all'}
+                    onChange={() => setExportScope('all')}
+                    className="w-4 h-4 accent-[#00A86B]"
+                  />
+                  <span className="text-[13px] font-medium text-[#334155]">Entire tab ({activeTab})</span>
+                </label>
+              </div>
+              <button
+                onClick={handleConfirmExport}
+                disabled={exportingExcel}
+                className="mt-6 w-full py-2.5 rounded-full bg-[#009D64] text-white text-xs font-medium leading-[18px] hover:bg-[#008a57] transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {exportingExcel ? 'Exporting…' : 'Download'}
+              </button>
+            </div>
+          </div>,
+          document.body
+        )}
+
         {/* ── Order Detail Drawer ── */}
         {drawerOrder && (
           <div className="fixed inset-0 z-[100] flex">
@@ -1551,7 +1664,7 @@ export function AdminOrders() {
             <div className="absolute right-0 top-0 h-full w-full max-w-lg bg-white shadow-2xl overflow-y-auto">
               <div className="sticky top-0 bg-white z-10 p-6 border-b border-[#E2E8F0] flex justify-between items-center">
                 <div>
-                  <h3 className="text-lg font-bold text-[#0F172A]">Order #{drawerOrder.orderId}</h3>
+                  <h3 className="text-[14px] leading-[20px] font-semibold text-[#0F172A]">Order #{drawerOrder.orderId}</h3>
                   <span className={getStatusBadgeClass(drawerOrder.status) + ' mt-1 inline-block'}>{drawerOrder.status}</span>
                 </div>
                 <button onClick={() => setDrawerOrder(null)} className="w-8 h-8 rounded-lg border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC]">
@@ -1561,41 +1674,41 @@ export function AdminOrders() {
               <div className="p-6 space-y-6">
                 {isAdminView && (
                   <div>
-                    <h4 className="text-xs font-bold text-[#64748B] uppercase tracking-wide mb-3">Seller Details</h4>
+                    <h4 className="text-[10px] leading-4 font-semibold text-[#64748B] uppercase tracking-wide mb-3">Seller Details</h4>
                     <div className="bg-[#F8FAFC] rounded-xl p-4 space-y-2">
-                      <div className="flex justify-between"><span className="text-xs text-[#64748B]">Name</span><span className="text-xs font-bold text-[#0F172A]">{drawerOrder.userName}</span></div>
-                      <div className="flex justify-between"><span className="text-xs text-[#64748B]">Email</span><span className="text-xs font-bold text-[#0F172A]">{drawerOrder.userEmail}</span></div>
+                      <div className="flex justify-between"><span className="text-[12px] leading-[18px] font-medium text-[#64748B]">Name</span><span className="text-[12px] leading-[18px] font-normal text-[#0F172A]">{drawerOrder.userName}</span></div>
+                      <div className="flex justify-between"><span className="text-[12px] leading-[18px] font-medium text-[#64748B]">Email</span><span className="text-[12px] leading-[18px] font-normal text-[#0F172A]">{drawerOrder.userEmail}</span></div>
                     </div>
                   </div>
                 )}
                 <div>
-                  <h4 className="text-xs font-bold text-[#64748B] uppercase tracking-wide mb-3">Customer Details</h4>
+                  <h4 className="text-[10px] leading-4 font-semibold text-[#64748B] uppercase tracking-wide mb-3">Customer Details</h4>
                   <div className="bg-[#F8FAFC] rounded-xl p-4 space-y-2">
-                    <div className="flex justify-between"><span className="text-xs text-[#64748B]">Name</span><span className="text-xs font-bold text-[#0F172A]">{drawerOrder.customerName}</span></div>
-                    <div className="flex justify-between"><span className="text-xs text-[#64748B]">Phone</span><span className="text-xs font-bold text-[#0F172A]">{drawerOrder.customerPhone}</span></div>
+                    <div className="flex justify-between"><span className="text-[12px] leading-[18px] font-medium text-[#64748B]">Name</span><span className="text-[12px] leading-[18px] font-normal text-[#0F172A]">{drawerOrder.customerName}</span></div>
+                    <div className="flex justify-between"><span className="text-[12px] leading-[18px] font-medium text-[#64748B]">Phone</span><span className="text-[12px] leading-[18px] font-normal text-[#0F172A]">{drawerOrder.customerPhone}</span></div>
                   </div>
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold text-[#64748B] uppercase tracking-wide mb-3">Shipment Details</h4>
+                  <h4 className="text-[10px] leading-4 font-semibold text-[#64748B] uppercase tracking-wide mb-3">Shipment Details</h4>
                   <div className="bg-[#F8FAFC] rounded-xl p-4 space-y-2">
-                    <div className="flex justify-between"><span className="text-xs text-[#64748B]">Pickup</span><span className="text-xs font-bold text-[#0F172A]">{drawerOrder.pickupName}</span></div>
-                    {drawerOrder.awb && <div className="flex justify-between"><span className="text-xs text-[#64748B]">AWB</span><span className="text-xs font-bold text-[#00A86B]">{drawerOrder.awb}</span></div>}
-                    {drawerOrder.courier && <div className="flex justify-between"><span className="text-xs text-[#64748B]">Courier</span><span className="text-xs font-bold text-[#00A86B]">{drawerOrder.courier}</span></div>}
-                    <div className="flex justify-between"><span className="text-xs text-[#64748B]">Date</span><span className="text-xs font-bold text-[#0F172A]">{drawerOrder.date}</span></div>
+                    <div className="flex justify-between"><span className="text-[12px] leading-[18px] font-medium text-[#64748B]">Pickup</span><span className="text-[12px] leading-[18px] font-normal text-[#0F172A]">{drawerOrder.pickupName}</span></div>
+                    {drawerOrder.awb && <div className="flex justify-between"><span className="text-[12px] leading-[18px] font-medium text-[#64748B]">AWB</span><span className="text-[12px] leading-[18px] font-normal text-[#00A86B]">{drawerOrder.awb}</span></div>}
+                    {drawerOrder.courier && <div className="flex justify-between"><span className="text-[12px] leading-[18px] font-medium text-[#64748B]">Courier</span><span className="text-[12px] leading-[18px] font-normal text-[#00A86B]">{drawerOrder.courier}</span></div>}
+                    <div className="flex justify-between"><span className="text-[12px] leading-[18px] font-medium text-[#64748B]">Date</span><span className="text-[12px] leading-[18px] font-normal text-[#0F172A]">{drawerOrder.date}</span></div>
                   </div>
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold text-[#64748B] uppercase tracking-wide mb-3">Product</h4>
+                  <h4 className="text-[10px] leading-4 font-semibold text-[#64748B] uppercase tracking-wide mb-3">Product</h4>
                   <div className="border border-[#E2E8F0] rounded-xl p-3 flex gap-3 items-center">
                     <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
                       <Package className="w-5 h-5 text-gray-400" />
                     </div>
                     <div className="flex-1">
-                      <div className="text-xs font-bold text-[#0F172A]">{drawerOrder.productName}</div>
-                      <div className="text-[10px] text-[#64748B]">SKU: {drawerOrder.sku} | Qty: {drawerOrder.qty}</div>
-                      <div className="text-[10px] text-[#64748B]">{drawerOrder.weight} | {drawerOrder.dimensions}</div>
+                      <div className="text-[14px] leading-[20px] font-semibold text-[#0F172A]">{drawerOrder.productName}</div>
+                      <div className="text-[12px] leading-[18px] font-normal text-[#64748B]">SKU: {drawerOrder.sku} | Qty: {drawerOrder.qty}</div>
+                      <div className="text-[12px] leading-[18px] font-normal text-[#64748B]">{drawerOrder.weight} | {drawerOrder.dimensions}</div>
                     </div>
-                    <div className="text-xs font-bold text-[#0F172A]">&#8377;{drawerOrder.payment}</div>
+                    <div className="text-[14px] leading-[20px] font-semibold text-[#0F172A]">&#8377;{drawerOrder.payment}</div>
                   </div>
                 </div>
               </div>

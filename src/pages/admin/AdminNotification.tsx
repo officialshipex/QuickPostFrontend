@@ -621,7 +621,7 @@ function AICallingTab({ settings, targetUserId, onUpdate }: { settings: NotifSet
                   </td>
                   <td className="px-4 py-3 text-center">
                     {log.orderUpdated
-                      ? <CheckCircle className="w-4 h-4 text-[#00A86B] mx-auto" title="Order updated" />
+                      ? <span title="Order updated"><CheckCircle className="w-4 h-4 text-[#00A86B] mx-auto" /></span>
                       : <span className="text-[#CBD5E1] text-xs">—</span>}
                   </td>
                 </tr>

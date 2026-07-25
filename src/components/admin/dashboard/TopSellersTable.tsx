@@ -18,7 +18,7 @@ export function TopSellersTable() {
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse">
           <thead>
-            <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-[#64748B] text-[10px] uppercase tracking-wider font-bold">
+            <tr className="bg-[#E6F9F2] border-b border-[#E2E8F0] text-[#64748B] text-[10px] uppercase tracking-wider font-bold">
               <th className="p-4">Seller Name</th>
               <th className="p-4">Orders</th>
               <th className="p-4">Revenue</th>

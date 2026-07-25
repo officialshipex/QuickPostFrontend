@@ -180,7 +180,7 @@ function LabelPreview({ settings, logoUrl }: { settings: LabelSettings; logoUrl:
       {(!settings.hideSku || !settings.hideProduct || !settings.hideHsn || !settings.hideQty || !settings.hideOrderAmount || !settings.hideTotalAmount) && (
         <table className="w-full border-collapse mt-3 text-[11px]">
           <thead>
-            <tr className="bg-[#F1F5F9]">
+            <tr className="bg-[#E6F9F2]">
               {!settings.hideSku        && <th className="border border-[#CBD5E1] px-2 py-1 text-left">SKU</th>}
               {!settings.hideProduct    && <th className="border border-[#CBD5E1] px-2 py-1 text-left">Item Name</th>}
               {!settings.hideHsn        && <th className="border border-[#CBD5E1] px-2 py-1 text-left">HSN</th>}

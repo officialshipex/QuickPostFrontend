@@ -12,6 +12,7 @@ import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
 import { TruncatedText } from '../../components/ui/TruncatedText';
 import { TableLoader } from '../../components/ui/TableLoader';
+import { EmptyState } from '../../components/ui/EmptyState';
 import { TransferCODModal } from '../../components/ui/TransferCODModal';
 import { useTableLoader } from '../../hooks/useTableLoader';
 import { usePagination, DesktopPagination } from '../../hooks/usePagination';
@@ -93,7 +94,7 @@ const STATUS_BADGE_STYLES: Record<string, string> = {
 
 const getStatusBadgeClass = (status: string) => {
   const normalized = status || '';
-  return `${STATUS_BADGE_STYLES[normalized] || 'bg-blue-50 text-blue-700 border-blue-200'} px-2.5 py-0.5 rounded-full border text-[10px] font-semibold uppercase tracking-wider whitespace-nowrap shadow-sm`;
+  return `${STATUS_BADGE_STYLES[normalized] || 'bg-blue-50 text-blue-700 border-blue-200'} px-2.5 py-0.5 rounded-full border text-[10px] leading-4 font-semibold uppercase tracking-wider whitespace-nowrap shadow-sm`;
 };
 
 const fmtCurrency = (n: any) =>
@@ -770,7 +771,7 @@ export function AdminCOD() {
     </tr>
   );
   const EmptyRow = ({ cols, msg }: { cols: number; msg: string }) => (
-    <tr><td colSpan={cols} className="p-8 text-center text-[#64748B] font-medium">{msg}</td></tr>
+    <tr><td colSpan={cols}><EmptyState title={msg} /></td></tr>
   );
 
   const thBase = 'py-2 px-4 whitespace-nowrap text-xs leading-[18px] font-medium text-[#64748B] uppercase tracking-wider';
@@ -796,19 +797,16 @@ export function AdminCOD() {
         {/* Tab Navigation */}
         <div className="bg-white relative z-50 shrink-0">
           <div className="flex justify-between items-center px-4 md:px-6 py-2 border-b border-[#E2E8F0] overflow-x-auto no-scrollbar">
-            <div className="flex gap-4 md:gap-6 items-center shrink-0">
+            <div className="flex gap-1 items-center bg-[#F7FEFC] rounded-full p-1.5 shrink-0">
               {(isAdminView ? MAIN_TABS : MAIN_TABS.filter(t => t.name === 'All COD Orders')).map(tab => (
                 <button
                   key={tab.name}
                   onClick={() => handleTabChange(tab.name)}
-                  className={`relative py-3 text-[13px] font-bold transition-colors whitespace-nowrap flex items-center gap-1.5 ${
-                    activeTab === tab.name ? 'text-[#00A86B]' : 'text-[#64748B] hover:text-[#0F172A]'
+                  className={`relative px-4 py-2 text-[13px] font-bold transition-colors whitespace-nowrap rounded-full flex items-center gap-1.5 cursor-pointer ${
+                    activeTab === tab.name ? 'text-[#00A86B] underline underline-offset-4 decoration-2' : 'text-[#64748B] hover:text-[#0F172A]'
                   }`}
                 >
                   {tab.name}
-                  {activeTab === tab.name && (
-                    <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#00A86B] rounded-t-full" />
-                  )}
                 </button>
               ))}
             </div>
@@ -1166,7 +1164,7 @@ export function AdminCOD() {
                       <input type="checkbox" checked={selectedOrders.length === paginatedOrders.length && paginatedOrders.length > 0} onChange={toggleAll} className="rounded accent-[#00A86B] w-3.5 h-3.5" />
                     </th>
                     {isAdminView && <th className={thBase}><User className="w-3.5 h-3.5 inline mr-1" />User Details</th>}
-                    <th className={thBase}>Order Details</th>
+                    <th className={thBase}><FileText className="w-3.5 h-3.5 inline mr-1" />Order Details</th>
                     <th className={thBase}><Truck className="w-3.5 h-3.5 inline mr-1" />Shipping Details</th>
                     <th className={thBase}><Banknote className="w-3.5 h-3.5 inline mr-1" />COD Amount</th>
                     <th className={`${thBase} rounded-r-lg`}><Check className="w-3.5 h-3.5 inline mr-1" />Status</th>
@@ -1223,7 +1221,7 @@ export function AdminCOD() {
             <div className="md:hidden flex flex-col flex-1 min-h-0 bg-[#F8FAFC]">
               <div className="flex-1 overflow-y-auto">
                 {paginatedOrders.length === 0 ? (
-                  <div className="p-8 text-center text-[#64748B] font-medium text-sm">No COD orders found</div>
+                  <EmptyState title="No COD orders found" />
                 ) : (
                   <div className="p-4 space-y-4">
                     {paginatedOrders.map((order) => {
@@ -1476,7 +1474,7 @@ export function AdminCOD() {
             <div className="md:hidden flex flex-col flex-1 min-h-0 bg-[#F8FAFC]">
               <div className="flex-1 overflow-y-auto">
                 {filteredSellerRemittanceList.length === 0 ? (
-                  <div className="p-8 text-center text-[#64748B] font-medium text-sm">No seller remittance records found</div>
+                  <EmptyState title="No seller remittance records found" />
                 ) : (
                   <div className="p-4 space-y-4">
                     {filteredSellerRemittanceList.map((order) => {
@@ -1644,7 +1642,7 @@ export function AdminCOD() {
                       <input type="checkbox" checked={selectedCourierCodOrders.length === filteredCourierRemittanceList.length && filteredCourierRemittanceList.length > 0} onChange={toggleAllCourierCod} className="rounded accent-[#00A86B] w-3.5 h-3.5" />
                     </th>
                     {isAdminView && <th className={thBase}><User className="w-3.5 h-3.5 inline mr-1" />User Details</th>}
-                    <th className={thBase}>Order Details</th>
+                    <th className={thBase}><FileText className="w-3.5 h-3.5 inline mr-1" />Order Details</th>
                     <th className={thBase}><Truck className="w-3.5 h-3.5 inline mr-1" />Shipping Details</th>
                     <th className={thBase}><Banknote className="w-3.5 h-3.5 inline mr-1" />COD Amount</th>
                     <th className={`${thBase} rounded-r-lg`}><Check className="w-3.5 h-3.5 inline mr-1" />Status</th>
@@ -1701,7 +1699,7 @@ export function AdminCOD() {
             <div className="md:hidden flex flex-col flex-1 min-h-0 bg-[#F8FAFC]">
               <div className="flex-1 overflow-y-auto">
                 {filteredCourierRemittanceList.length === 0 ? (
-                  <div className="p-8 text-center text-[#64748B] font-medium text-sm">No courier remittance records found</div>
+                  <EmptyState title="No courier remittance records found" />
                 ) : (
                   <div className="p-4 space-y-4">
                     {filteredCourierRemittanceList.map((order) => {
@@ -1910,7 +1908,7 @@ export function AdminCOD() {
                       </span>
                     </div>
                     <table className="w-full text-left border-collapse min-w-[600px] text-[12px]">
-                      <thead className="bg-[#E6F5F1] sticky top-0 z-10">
+                      <thead className="bg-[#E6F9F2] sticky top-0 z-10">
                         <tr>
                           <th className="px-3 py-2 text-[10px] font-bold text-[#00A86B] uppercase">Order ID</th>
                           <th className="px-3 py-2 text-[10px] font-bold text-[#00A86B] uppercase">Courier</th>
