@@ -236,7 +236,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
   const goToOrder = (order: any) => {
     setShowOrderSearchResults(false);
     setSearchQuery('');
-    navigate(`/admin/orders/all?orderId=${encodeURIComponent(order.orderId || order._id)}`);
+    navigate(`/admin/order-tracking?id=${encodeURIComponent(String(order._id))}`);
   };
 
   const dropdownVariants: any = {

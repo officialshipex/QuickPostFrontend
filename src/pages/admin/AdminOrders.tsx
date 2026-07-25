@@ -316,8 +316,7 @@ export function AdminOrders() {
         }, { replace: true });
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [showMore, setShowMore]     = useState(false);
   const moreRef                     = useRef<HTMLDivElement>(null);
