@@ -10,6 +10,7 @@ interface AdminLayoutProps {
 export function AdminLayout({ children }: AdminLayoutProps) {
   const location = useLocation();
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const isImpersonating = !!localStorage.getItem('admin_token_backup');
 
   const showHeader =
     location.pathname.startsWith('/admin/') ||
@@ -22,7 +23,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         isMobileOpen={isMobileSidebarOpen}
         onMobileClose={() => setIsMobileSidebarOpen(false)}
       />
-      <div className="flex-1 flex flex-col min-w-0 md:ml-[68px]">
+      <div className={`flex-1 flex flex-col min-w-0 md:ml-[68px] ${isImpersonating ? 'pt-8' : ''}`}>
         {showHeader && (
           <AdminHeader onMobileMenuToggle={() => setIsMobileSidebarOpen(true)} />
         )}

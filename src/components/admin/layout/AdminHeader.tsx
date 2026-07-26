@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { Search, LogOut, Bell, User, Building2, Calendar, ChevronDown, Shield, Zap, Calculator, PackagePlus, Wallet, Check, X, Menu, Upload, Users } from 'lucide-react';
 import { useAuth } from '../../../hooks/useAuth';
 import { apiClient } from '../../../services/apiClient';
-import { getToken } from '../../../utils/session';
+import { getToken, setToken } from '../../../utils/session';
 import { useAdminTab } from '../../../context/AdminUserContext';
 import { useDashboardFilters } from '../../../context/DashboardFilterContext';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -89,7 +89,8 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
       if (res.data.success) {
         const currentToken = getToken();
         if (currentToken) localStorage.setItem('admin_token_backup', currentToken);
-        window.location.href = `/login?token=${res.data.token}`;
+        setToken(res.data.token);
+        window.location.href = '/user/dashboard';
       }
     } catch (e) {
       console.error('adminLoginAsUser error:', e);
@@ -143,6 +144,17 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
   const showToast = (message: string) => {
     setToast(message);
     setTimeout(() => setToast(null), 3000);
+  };
+
+  const isImpersonating = !!localStorage.getItem('admin_token_backup');
+
+  const handleReturnToAdmin = () => {
+    const backup = localStorage.getItem('admin_token_backup');
+    if (backup) {
+      setToken(backup);
+      localStorage.removeItem('admin_token_backup');
+      window.location.href = '/admin/dashboard';
+    }
   };
 
   const location = useLocation();
@@ -247,8 +259,23 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
 
   return (
     <>
+      {/* Impersonation Banner */}
+      {isImpersonating && (
+        <div className="fixed top-0 left-0 right-0 z-[1000] bg-gradient-to-r from-orange-600 to-orange-500 text-white h-8 px-4 shadow-md flex items-center justify-center gap-3">
+          <Shield className="w-3.5 h-3.5 animate-pulse" />
+          <span className="text-[11px] font-semibold tracking-wide uppercase">Impersonation Mode Active</span>
+          <button
+            onClick={handleReturnToAdmin}
+            className="ml-2 flex items-center gap-1.5 bg-white/20 hover:bg-white/30 rounded-full px-3 py-0.5 text-[11px] font-semibold transition-colors"
+          >
+            <LogOut className="w-3 h-3" />
+            Return to Admin
+          </button>
+        </div>
+      )}
+
       {/* Mobile Top Bar — visible only on mobile */}
-      <div className="md:hidden bg-white border-b border-[#E2E8F0] px-4 py-3 flex items-center justify-between sticky top-0 z-[100] shadow-sm">
+      <div className={`md:hidden bg-white border-b border-[#E2E8F0] px-4 py-3 flex items-center justify-between sticky ${isImpersonating ? 'top-8' : 'top-0'} z-[100] shadow-sm`}>
         <button
           onClick={onMobileMenuToggle}
           className="w-9 h-9 flex items-center justify-center rounded-lg text-[#475569] hover:bg-[#F8FAFC] transition-colors"
@@ -428,7 +455,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
       </div>
 
       {/* Desktop Header — hidden on mobile */}
-      <header className="hidden md:flex bg-white/80 backdrop-blur-xl border-b border-[#E2E8F0]/60 h-[72px] px-6 items-center gap-6 sticky top-0 z-[100] shadow-[0_4px_24px_-12px_rgba(0,0,0,0.05)]">
+      <header className={`hidden md:flex bg-white/80 backdrop-blur-xl border-b border-[#E2E8F0]/60 h-[72px] px-6 items-center gap-6 sticky ${isImpersonating ? 'top-8' : 'top-0'} z-[100] shadow-[0_4px_24px_-12px_rgba(0,0,0,0.05)]`}>
       
       {/* Left Section - Logo & Portal Name */}
       <div className="flex items-center shrink-0">
