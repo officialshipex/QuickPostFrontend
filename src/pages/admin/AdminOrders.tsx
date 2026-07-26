@@ -1048,7 +1048,7 @@ export function AdminOrders() {
 
                     {/* User column — admin view only */}
                     {isAdminView && (
-                      <th className="py-2 px-4 whitespace-nowrap w-[188px]">
+                      <th className="py-2 px-4 whitespace-nowrap">
                         <div className="flex items-center gap-1"><User className="w-3.5 h-3.5 shrink-0" /><span>User</span></div>
                       </th>
                     )}
@@ -1076,23 +1076,23 @@ export function AdminOrders() {
                       </>
                     ) : (
                       <>
-                        <th className="py-2 px-4 whitespace-nowrap w-[94px]"><div className="flex items-center gap-1"><FileText className="w-3.5 h-3.5 shrink-0" /><span>Order</span></div></th>
-                        <th className="py-2 px-4 whitespace-nowrap w-[130px]"><div className="flex items-center gap-1"><Package className="w-3.5 h-3.5 shrink-0" /><span>Product</span></div></th>
-                        <th className="py-2 px-4 whitespace-nowrap w-[126px]"><div className="flex items-center gap-1"><Package className="w-3.5 h-3.5 shrink-0" /><span>Package</span></div></th>
-                        <th className="py-2 px-4 whitespace-nowrap w-[77px]"><div className="flex items-center gap-1"><IndianRupee className="w-3.5 h-3.5 shrink-0" /><span>Payment</span></div></th>
-                        <th className="py-2 px-4 whitespace-nowrap w-[117px]"><div className="flex items-center gap-1"><User className="w-3.5 h-3.5 shrink-0" /><span>Customer</span></div></th>
-                        <th className="py-2 px-4 whitespace-nowrap w-[108px]"><div className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5 shrink-0" /><span>Pickup</span></div></th>
+                        <th className="py-2 px-4 whitespace-nowrap"><div className="flex items-center gap-1"><FileText className="w-3.5 h-3.5 shrink-0" /><span>Order</span></div></th>
+                        <th className="py-2 px-4 whitespace-nowrap"><div className="flex items-center gap-1"><Package className="w-3.5 h-3.5 shrink-0" /><span>Product</span></div></th>
+                        <th className="py-2 px-4 whitespace-nowrap"><div className="flex items-center gap-1"><Package className="w-3.5 h-3.5 shrink-0" /><span>Package</span></div></th>
+                        <th className="py-2 px-4 whitespace-nowrap"><div className="flex items-center gap-1"><IndianRupee className="w-3.5 h-3.5 shrink-0" /><span>Payment</span></div></th>
+                        <th className="py-2 px-4 whitespace-nowrap"><div className="flex items-center gap-1"><User className="w-3.5 h-3.5 shrink-0" /><span>Customer</span></div></th>
+                        <th className="py-2 px-4 whitespace-nowrap"><div className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5 shrink-0" /><span>Pickup</span></div></th>
                         {showShipmentCol && (
                           <th className="py-2 px-4 whitespace-nowrap"><div className="flex items-center gap-1"><Truck className="w-3.5 h-3.5 shrink-0" /><span>Shipment</span></div></th>
                         )}
                       </>
                     )}
 
-                    <th className="py-2 px-4 whitespace-nowrap w-[62px]"><div className="flex items-center gap-1"><Check className="w-3.5 h-3.5 shrink-0" /><span>Status</span></div></th>
+                    <th className="py-2 px-4 whitespace-nowrap"><div className="flex items-center gap-1"><Check className="w-3.5 h-3.5 shrink-0" /><span>Status</span></div></th>
                     {showLastUpdateCol && (
                       <th className="py-2 px-4 whitespace-nowrap"><div className="flex items-center gap-1"><History className="w-3.5 h-3.5 shrink-0" /><span>Last Update</span></div></th>
                     )}
-                    <th className="py-2 px-4 whitespace-nowrap rounded-r-lg w-[69px]"><div className="flex items-center gap-1"><Settings className="w-3.5 h-3.5 shrink-0" /><span>Actions</span></div></th>
+                    <th className="py-2 px-4 whitespace-nowrap rounded-r-lg"><div className="flex items-center gap-1"><Settings className="w-3.5 h-3.5 shrink-0" /><span>Actions</span></div></th>
                   </tr>
                 </thead>
                 <tbody className="text-[11px] text-[#475569]">
@@ -1110,7 +1110,7 @@ export function AdminOrders() {
 
                       {/* User column — admin view only */}
                       {isAdminView && (
-                        <td className="p-3 w-[188px]">
+                        <td className="p-3">
                           <div className="flex flex-col gap-1">
                             <div className="text-[12px] leading-[18px] font-semibold text-[#009D64] hover:underline cursor-pointer" onClick={() => setDrawerOrder(order)}>
                               {order.userUserId || order.orderId}
@@ -1159,7 +1159,7 @@ export function AdminOrders() {
                         </>
                       ) : (
                         <>
-                          <td className="p-3 w-[94px]">
+                          <td className="p-3">
                             <div className="flex flex-col gap-1">
                               <div className="text-[12px] leading-[18px] font-semibold text-[#009D64] hover:underline cursor-pointer" onClick={() => setDrawerOrder(order)}>{order.orderId}</div>
                               <div className="text-[12px] leading-[18px] font-normal text-[#64748B]">{order.date}</div>
@@ -1169,7 +1169,7 @@ export function AdminOrders() {
                             </div>
                           </td>
                           <td
-                            className="p-3 w-[130px]"
+                            className="p-3"
                             onMouseEnter={(e) => {
                               if (order.products.length === 0) return;
                               const rect = e.currentTarget.getBoundingClientRect();
@@ -1183,20 +1183,20 @@ export function AdminOrders() {
                               <div className="text-[12px] leading-[18px] font-normal text-[#1E293B]">QTY: {order.qty}</div>
                             </div>
                           </td>
-                          <td className="p-3 w-[126px]">
+                          <td className="p-3">
                             <div className="flex flex-col gap-1 text-[12px] leading-[18px] font-normal text-[#1E293B]">
                               <div>Weight: {order.weight}</div>
                               <div>L×W×H: {order.dimensions}</div>
                               <div>Vol: {order.volWeight}</div>
                             </div>
                           </td>
-                          <td className="p-3 w-[77px]">
+                          <td className="p-3">
                             <div className="flex flex-col gap-1">
                               <div className="text-[12px] leading-[18px] font-normal text-[#64748B] ml-[3px]">&#8377;{order.payment}</div>
                               <span className="px-2 py-0.5 rounded-full border border-blue-200 text-[#004AAD] font-semibold text-[10px] leading-4 bg-blue-50/50 inline-block w-fit">{order.paymentType}</span>
                             </div>
                           </td>
-                          <td className="p-3 w-[117px]">
+                          <td className="p-3">
                             <div className="flex flex-col gap-1">
                               <div
                                 className="text-[12px] leading-[18px] font-normal text-[#1E293B] underline decoration-dotted underline-offset-2 hover:text-[#00A86B] cursor-help inline-block truncate max-w-[110px]"
@@ -1208,7 +1208,7 @@ export function AdminOrders() {
                               <div className="text-[12px] leading-[18px] font-normal text-[#64748B]">{order.customerPhone}</div>
                             </div>
                           </td>
-                          <td className="p-3 w-[108px]">
+                          <td className="p-3">
                             <div
                               className="text-[12px] leading-[18px] font-normal text-[#1E293B] underline decoration-dotted underline-offset-2 hover:text-[#00A86B] cursor-help inline-block truncate max-w-[100px]"
                               onMouseEnter={(e) => setHoveredPickup({ id: order._id, rect: e.currentTarget.getBoundingClientRect(), name: order.pickupName, address: order.pickupAddressLine, city: order.pickupCity, state: order.pickupState, pinCode: order.pickupPinCode, phone: order.pickupPhone })}
@@ -1229,12 +1229,12 @@ export function AdminOrders() {
                         </>
                       )}
 
-                      <td className="p-3 w-[62px]">
+                      <td className="p-3">
                         <span className={getStatusBadgeClass(order.status)}>{order.status}</span>
                       </td>
 
                       {showLastUpdateCol && (
-                        <td className="p-3 w-[160px]">
+                        <td className="p-3">
                           {order.lastUpdateEvent ? (
                             <div className="flex flex-col gap-0.5">
                               <div className="flex items-center gap-1.5">
@@ -1255,7 +1255,7 @@ export function AdminOrders() {
                         </td>
                       )}
 
-                      <td className="p-3 w-[69px]">
+                      <td className="p-3">
                         <div className="flex items-center gap-2">
                           {isNewTab && (
                             <button
