@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Search, LogOut, Bell, User, Building2, Calendar, ChevronDown, Shield, Zap, Calculator, PackagePlus, Wallet, Check, X, Menu, Upload, Users } from 'lucide-react';
 import { useAuth } from '../../../hooks/useAuth';
@@ -236,7 +236,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
   const goToOrder = (order: any) => {
     setShowOrderSearchResults(false);
     setSearchQuery('');
-    navigate(`/admin/orders/all?orderId=${encodeURIComponent(order.orderId || order._id)}`);
+    navigate(`/admin/order-tracking?id=${encodeURIComponent(String(order._id))}`);
   };
 
   const dropdownVariants: any = {
@@ -315,7 +315,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                   <Link to="/admin/add-order" className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A]" onClick={() => setShowQuickActions(false)}>
                     <PackagePlus className="w-3.5 h-3.5" /> Add an Order
                   </Link>
-                  <button className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] text-left w-full" onClick={() => { setShowBulkModal(true); setBulkStep(1); setBulkFile(null); setShowQuickActions(false); }}>
+                  <button className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] text-left w-full" onClick={() => { setShowBulkModal(true); setShowQuickActions(false); }}>
                     <Upload className="w-3.5 h-3.5" /> Bulk Import
                   </button>
                   <Link to="/admin/rate-calculator" className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A]" onClick={() => setShowQuickActions(false)}>

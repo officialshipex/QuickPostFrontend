@@ -938,133 +938,94 @@ export function AdminReports() {
                   <PieChartCard title="Courier Share" data={sd.couriers.slice(0, 5).map(c => ({ name: c.name, value: c.shipments }))} />
                 </div>
 
-            {/* ── SECTION 4: COD & Billing ── */}
-            <SectionTitle icon={CreditCard} title="COD & Billing" />
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-              <StatCard label="COD Amount" value={fc(sd.codAmount)} icon={IndianRupee} color="text-amber-600" bg="bg-amber-50" />
-              <StatCard label="COD Charges" value={fc(sd.codCharges)} icon={CheckCircle2} color="text-green-500" bg="bg-green-50" />
-              <StatCard label="GST Total" value={fc(sd.gstTotal)} icon={AlertTriangle} color="text-orange-500" bg="bg-orange-50" />
-              <StatCard label="Weight Discrepancy Claims" value="View" icon={Scale} color="text-rose-500" bg="bg-rose-50" sub="Click to view claims" onClick={() => setShowClaimsModal(true)} />
-            </div>
+                {/* Courier-wise performance */}
+                {sd.couriers.length > 0 && (
+                  <>
+                    <SectionTitle icon={Truck} title="Courier-wise Performance" />
+                    <div className="bg-white border border-[#E2E8F0] rounded-2xl overflow-hidden shadow-sm mb-6">
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left min-w-[700px]">
+                          <thead>
+                            <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-[10px] uppercase tracking-wider font-bold text-[#64748B]">
+                              <th className="px-4 py-3">Courier</th>
+                              <th className="px-4 py-3">Shipments</th>
+                              <th className="px-4 py-3">Delivered</th>
+                              <th className="px-4 py-3">RTO</th>
+                              <th className="px-4 py-3">NDR</th>
+                              <th className="px-4 py-3">Billed</th>
+                              <th className="px-4 py-3">Delivery %</th>
+                              <th className="px-4 py-3">RTO %</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-[#F1F5F9] text-xs font-semibold text-[#475569]">
+                            {sd.couriers.map(c => (
+                              <tr key={c.name} className="hover:bg-[#F8FAFC]">
+                                <td className="px-4 py-3 font-bold text-[#0F172A]">{c.name}</td>
+                                <td className="px-4 py-3">{fn(c.shipments)}</td>
+                                <td className="px-4 py-3 text-[#00A86B]">{fn(c.delivered)}</td>
+                                <td className="px-4 py-3 text-red-500">{fn(c.rto)}</td>
+                                <td className="px-4 py-3 text-amber-500">{fn(c.ndr)}</td>
+                                <td className="px-4 py-3">{fc(c.billed)}</td>
+                                <td className="px-4 py-3">
+                                  <span className={`${c.deliveryRate >= 90 ? 'text-[#00A86B]' : c.deliveryRate >= 80 ? 'text-amber-500' : 'text-red-500'}`}>{c.deliveryRate}%</span>
+                                </td>
+                                <td className="px-4 py-3"><span className={c.rtoRate > 6 ? 'text-red-500' : ''}>{c.rtoRate}%</span></td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </>
+                )}
 
-            {/* Recent Transactions */}
-            <div className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden mb-6">
-              <div className="p-5 border-b border-[#E2E8F0] bg-[#F8FAFC]">
-                <h4 className="font-bold text-sm text-[#0F172A]">Recent Transactions</h4>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-[10px] uppercase tracking-wider font-bold text-[#64748B]">
-                      <th className="p-4">Date</th>
-                      <th className="p-4">Description</th>
-                      <th className="p-4">Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody className="text-xs font-semibold text-[#475569]">
-                    {sd.recentTransactions.map((tx, i) => (
-                      <tr key={i} className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors">
-                        <td className="p-4 font-normal text-[14px] text-[#64748B]">{tx.date}</td>
-                        <td className="p-4 font-normal text-[14px] text-[#0F172A]">{tx.description || tx.channelOrderId || '—'}</td>
-                        <td className={`p-4 font-normal text-[14px] ${tx.category === 'credit' ? 'text-green-600' : 'text-red-500'}`}>
-                          {tx.category === 'credit' ? '+' : '-'}{fc(Math.abs(tx.amount))}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+                {/* Recent transactions */}
+                {sd.recentTransactions.length > 0 && (
+                  <>
+                    <SectionTitle icon={CreditCard} title="Recent Wallet Transactions" />
+                    <div className="bg-white border border-[#E2E8F0] rounded-2xl overflow-hidden shadow-sm mb-6">
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left min-w-[600px]">
+                          <thead>
+                            <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-[10px] uppercase tracking-wider font-bold text-[#64748B]">
+                              <th className="px-4 py-3">Date</th>
+                              <th className="px-4 py-3">AWB / Ref</th>
+                              <th className="px-4 py-3">Description</th>
+                              <th className="px-4 py-3">Type</th>
+                              <th className="px-4 py-3">Amount</th>
+                              <th className="px-4 py-3">Balance After</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-[#F1F5F9] text-xs">
+                            {sd.recentTransactions.map((t, i) => (
+                              <tr key={i} className="hover:bg-[#F8FAFC]">
+                                <td className="px-4 py-3 text-[#64748B]">{fmtDate(t.date)}</td>
+                                <td className="px-4 py-3 font-mono text-[11px] text-[#64748B]">{t.awb_number || t.channelOrderId || '—'}</td>
+                                <td className="px-4 py-3 text-[#475569] max-w-[180px] truncate" title={t.description}>{t.description || '—'}</td>
+                                <td className="px-4 py-3">
+                                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${t.category === 'credit' ? 'bg-green-50 text-[#00A86B] border-green-200' : 'bg-red-50 text-red-500 border-red-200'}`}>{t.category}</span>
+                                </td>
+                                <td className={`px-4 py-3 font-bold text-sm ${t.category === 'credit' ? 'text-[#00A86B]' : 'text-red-500'}`}>
+                                  {t.category === 'credit' ? '+' : '−'}{fc(t.amount)}
+                                </td>
+                                <td className="px-4 py-3 font-semibold text-[#0F172A]">{t.balanceAfterTransaction !== undefined ? fc(t.balanceAfterTransaction) : '—'}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </>
+                )}
 
-            {/* ── SECTION 5: Courier Performance for this Seller ── */}
-            <SectionTitle icon={Truck} title="Courier-wise Performance" />
-            <div className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden mb-6">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-[10px] uppercase tracking-wider font-bold text-[#64748B]">
-                      <th className="p-4">Courier</th>
-                      <th className="p-4">Shipments</th>
-                      <th className="p-4">Delivered</th>
-                      <th className="p-4">RTO %</th>
-                      <th className="p-4">NDR</th>
-                      <th className="p-4">Delivery %</th>
-                    </tr>
-                  </thead>
-                  <tbody className="text-xs font-semibold text-[#475569]">
-                    {sd.couriers.map((c, i) => {
-                      return (
-                        <tr key={i} className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors">
-                          <td className="p-4 font-semibold text-[14px] text-[#0F172A]">{c.name}</td>
-                          <td className="p-4 font-normal text-[14px]">{c.shipments.toLocaleString('en-IN')}</td>
-                          <td className="p-4 font-normal text-[14px] text-green-600">{c.delivered.toLocaleString('en-IN')}</td>
-                          <td className="p-4 font-normal text-[14px] text-red-500">{c.rto.toLocaleString('en-IN')}</td>
-                          <td className="p-4 font-normal text-[14px] text-orange-500">{c.ndr.toLocaleString('en-IN')}</td>
-                          <td className="p-4 font-normal text-[14px]">
-                            <span className={`px-2 py-1 rounded-md text-[14px] font-normal ${c.deliveryRate >= 90 ? 'bg-green-50 text-green-600' : c.deliveryRate >= 85 ? 'bg-yellow-50 text-yellow-600' : 'bg-red-50 text-red-600'}`}>{c.deliveryRate}%</span>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+                {/* MIS report table scoped to this seller */}
+                <MisReportTable
+                  key={`seller-mis-${selectedSellerId}-${misRefreshKey}`}
+                  userId={selectedSellerId}
+                  isAdminView={true}
+                />
               </>
             )}
-          </motion.div>
-        )}
-
-        {/* ══ COURIER TAB ═════════════════════════════════════════════════════ */}
-        {activeTab === 'courier' && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }}>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-              <StatCard label="Total Shipments" value={fn(couriers.reduce((a, c) => a + (c.totalShipments || c.shipments || 0), 0))} icon={Truck} color="text-blue-500" bg="bg-blue-50" />
-              <StatCard label="Total Billed" value={fc(couriers.reduce((a, c) => a + (c.totalBilled || c.billed || 0), 0))} icon={IndianRupee} color="text-green-500" bg="bg-green-50" />
-              <StatCard label="Avg Delivery Rate" value={couriers.length ? `${(couriers.reduce((a, c) => a + c.deliveryRate, 0) / couriers.length).toFixed(1)}%` : '0%'} icon={CheckCircle2} color="text-emerald-500" bg="bg-emerald-50" />
-              <StatCard label="Avg RTO Rate" value={couriers.length ? `${(couriers.reduce((a, c) => a + c.rtoRate, 0) / couriers.length).toFixed(1)}%` : '0%'} icon={RotateCcw} color="text-red-500" bg="bg-red-50" />
-            </div>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-              <PieChartCard title="Shipment Share by Courier" data={courierShipmentPie} />
-              <PieChartCard title="Overall Status Distribution" data={courierStatusPie} colors={[STATUS_COLORS['Delivered'], STATUS_COLORS['In Transit'], STATUS_COLORS['RTO'], STATUS_COLORS['NDR']]} />
-            </div>
-            <div className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden mb-6">
-              <div className="p-5 border-b border-[#E2E8F0] bg-[#F8FAFC]">
-                <h3 className="font-bold text-sm text-[#0F172A]">Courier Performance Report</h3>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse min-w-[1000px]">
-                  <thead>
-                    <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-[10px] uppercase tracking-wider font-bold text-[#64748B]">
-                      <th className="p-4">Courier</th>
-                      <th className="p-4">Total Shipments</th>
-                      <th className="p-4">Delivered</th>
-                      <th className="p-4">In Transit</th>
-                      <th className="p-4">RTO %</th>
-                      <th className="p-4">NDR</th>
-                      <th className="p-4">Delivery %</th>
-                      <th className="p-4">Billed</th>
-                    </tr>
-                  </thead>
-                  <tbody className="text-xs font-semibold text-[#475569]">
-                    {couriers.map((c, i) => (
-                      <tr key={i} className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors">
-                        <td className="p-4 font-semibold text-[14px] text-[#0F172A]">{c.name}</td>
-                        <td className="p-4 font-normal text-[14px]">{(c.totalShipments ?? c.shipments).toLocaleString('en-IN')}</td>
-                        <td className="p-4 font-normal text-[14px] text-green-600">{c.delivered.toLocaleString('en-IN')}</td>
-                        <td className="p-4 font-normal text-[14px] text-blue-500">{(c.inTransit ?? 0).toLocaleString('en-IN')}</td>
-                        <td className="p-4 font-normal text-[14px] text-red-500">{c.rto.toLocaleString('en-IN')}</td>
-                        <td className="p-4 font-normal text-[14px] text-orange-500">{c.ndr.toLocaleString('en-IN')}</td>
-                        <td className="p-4 font-normal text-[14px]">
-                          <span className={`px-2 py-1 rounded-md text-[14px] font-normal ${c.deliveryRate >= 93 ? 'bg-green-50 text-green-600' : c.deliveryRate >= 90 ? 'bg-yellow-50 text-yellow-600' : 'bg-red-50 text-red-600'}`}>{c.deliveryRate}%</span>
-                        </td>
-                        <td className="p-4 font-normal text-[14px] text-[#00A86B]">{fc(c.totalBilled ?? c.billed)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
           </motion.div>
         )}
 
@@ -1072,86 +1033,9 @@ export function AdminReports() {
 
       {/* Generate Report Modal */}
       <AnimatePresence>
-        {showClaimsModal && sd && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
-            <motion.div 
-              initial={{ opacity: 0 }} 
-              animate={{ opacity: 1 }} 
-              exit={{ opacity: 0 }} 
-              className="absolute inset-0 bg-[#0F172A]/40 backdrop-blur-sm" 
-              onClick={() => setShowClaimsModal(false)}
-            />
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="relative w-full max-w-4xl bg-white/80 backdrop-blur-2xl border border-white/60 shadow-2xl rounded-2xl overflow-hidden flex flex-col max-h-[85vh]"
-            >
-              {/* Header */}
-              <div className="flex items-center justify-between p-5 border-b border-white/30 bg-white/40">
-                <div>
-                  <h3 className="text-lg font-bold text-[#0F172A]">Weight Discrepancy Claims</h3>
-                  <p className="text-[11px] font-semibold text-[#64748B] mt-0.5">Seller: {sd.fullname || sd.email}</p>
-                </div>
-                <button onClick={() => setShowClaimsModal(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-white/50 text-[#475569] hover:bg-white/80 hover:text-[#0F172A] transition-all border border-white/40">
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-              
-              {/* Body */}
-              <div className="flex-1 overflow-y-auto p-5 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300/80 hover:[&::-webkit-scrollbar-thumb]:bg-slate-400 [&::-webkit-scrollbar-thumb]:rounded-full">
-                <div className="bg-white/60 backdrop-blur-xl rounded-xl border border-white/50 shadow-sm overflow-hidden">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="border-b border-[#E2E8F0]/60 text-[10px] uppercase tracking-wider font-bold text-[#64748B] bg-white/40 sticky top-0 backdrop-blur-md z-10">
-                        <th className="p-4">Claim ID</th>
-                        <th className="p-4">AWB Number</th>
-                        <th className="p-4">Date Raised</th>
-                        <th className="p-4">Applied / Charged Wt.</th>
-                        <th className="p-4 text-right">Disputed Amount</th>
-                        <th className="p-4 text-center">Status</th>
-                        <th className="p-4 text-right">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody className="text-xs font-semibold text-[#475569]">
-                      {[
-                        { id: 'WD-78901', awb: '147852369012', date: '18 Jun 2026', appWt: '0.5 kg', chgWt: '1.5 kg', amt: 120, status: 'Pending' },
-                        { id: 'WD-78892', awb: '147852369044', date: '16 Jun 2026', appWt: '1.0 kg', chgWt: '2.0 kg', amt: 180, status: 'Resolved' },
-                        { id: 'WD-78845', awb: '147852369088', date: '12 Jun 2026', appWt: '2.5 kg', chgWt: '5.0 kg', amt: 450, status: 'Rejected' },
-                        { id: 'WD-78810', awb: '147852369105', date: '10 Jun 2026', appWt: '0.2 kg', chgWt: '1.0 kg', amt: 85, status: 'Pending' },
-                        { id: 'WD-78799', awb: '147852369150', date: '05 Jun 2026', appWt: '1.5 kg', chgWt: '2.5 kg', amt: 150, status: 'Resolved' },
-                        { id: 'WD-78780', awb: '147852369190', date: '04 Jun 2026', appWt: '0.5 kg', chgWt: '1.0 kg', amt: 60, status: 'Resolved' },
-                        { id: 'WD-78765', awb: '147852369211', date: '02 Jun 2026', appWt: '3.0 kg', chgWt: '4.5 kg', amt: 220, status: 'Rejected' },
-                        { id: 'WD-78740', awb: '147852369255', date: '01 Jun 2026', appWt: '1.0 kg', chgWt: '3.0 kg', amt: 300, status: 'Pending' },
-                        { id: 'WD-78712', awb: '147852369299', date: '28 May 2026', appWt: '0.5 kg', chgWt: '2.0 kg', amt: 180, status: 'Resolved' },
-                        { id: 'WD-78695', awb: '147852369330', date: '25 May 2026', appWt: '2.0 kg', chgWt: '2.5 kg', amt: 50, status: 'Resolved' },
-                      ].map((c, i) => (
-                        <tr key={i} className="border-b border-[#E2E8F0]/40 hover:bg-white/50 transition-colors">
-                          <td className="p-4 font-normal text-[14px] text-[#0F172A]">#{c.id}</td>
-                          <td className="p-4 font-normal text-[14px] text-[#3B82F6] hover:underline cursor-pointer">{c.awb}</td>
-                          <td className="p-4 font-normal text-[14px]">{c.date}</td>
-                          <td className="p-4 font-normal text-[14px]">
-                            <div className="flex items-center gap-2">
-                              <span className="bg-emerald-50/80 text-emerald-600 px-1.5 py-0.5 rounded text-[10px] border border-emerald-100">{c.appWt}</span>
-                              <span className="text-[#94A3B8]">&rarr;</span>
-                              <span className="bg-rose-50/80 text-rose-600 px-1.5 py-0.5 rounded text-[10px] border border-rose-100">{c.chgWt}</span>
-                            </div>
-                          </td>
-                          <td className="p-4 text-right font-normal text-[14px] text-[#0F172A]">₹{c.amt}</td>
-                          <td className="p-4 text-center">
-                            <span className={`px-2 py-1 rounded-md text-[10px] font-bold ${c.status === 'Pending' ? 'bg-amber-100/80 text-amber-700' : c.status === 'Resolved' ? 'bg-emerald-100/80 text-emerald-700' : 'bg-red-100/80 text-red-700'}`}>{c.status}</span>
-                          </td>
-                          <td className="p-4 text-right">
-                            <button className="text-[#00A86B] font-bold text-[11px] hover:text-[#009B63] transition-colors">View Docs</button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </motion.div>
-          </div>
+        {genOpen && (
+          <GenerateReportModal open onClose={() => { setGenOpen(false); setMisRefreshKey(k => k + 1); }}
+            prefillUserId={genUserId} prefillUserName={genUserName} isAdminView={isAdminView} />
         )}
       </AnimatePresence>
 
