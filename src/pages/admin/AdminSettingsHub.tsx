@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import {
-  User, ShieldCheck, Lock, Tag, CreditCard, Users, MessageCircle, Activity, ChevronRight,
+  User, ShieldCheck, Lock, Tag, CreditCard, Users, MessageCircle, Activity, FileText, ChevronRight,
 } from 'lucide-react';
 
 interface SettingsCard {
@@ -21,6 +21,7 @@ const SETTINGS_CARDS: SettingsCard[] = [
   { title: 'Invite & Earn', description: 'Invite your friends and earn rewards', icon: Users, path: '/user/referral' },
   { title: 'Notification Settings', description: 'Manage Notification for status update', icon: MessageCircle, path: '/user/notification' },
   { title: 'Webhook', description: 'Manage your webhooks and logs', icon: Activity, path: '/user/settings/webhook' },
+  { title: 'Agreement', description: 'Read and accept platform agreements', icon: FileText, path: '/user/settings/agreement' },
 ];
 
 export function AdminSettingsHub() {

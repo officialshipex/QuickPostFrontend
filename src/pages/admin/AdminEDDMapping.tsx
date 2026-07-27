@@ -257,7 +257,7 @@ export function AdminEDDMapping() {
               onClick={() => { setAddForm({ couriers: [], serviceNames: [], zoneA: '', zoneB: '', zoneC: '', zoneD: '', zoneE: '' }); setIsAddOpen(true); }}
               className="h-9 px-4 rounded-[14px] bg-[#00A86B] text-white text-[12px] font-bold hover:bg-[#009B63] transition-colors shadow-sm flex items-center gap-1.5 cursor-pointer"
             >
-              <Plus className="w-4 h-4" /> Add Rule
+              <Plus className="w-4 h-4" /> Add Estimate Date
             </button>
           </div>
           <div className="hidden md:flex py-3 px-6 border-b border-[#CBD5F5] flex-wrap gap-3 justify-between items-center bg-white">
@@ -281,7 +281,7 @@ export function AdminEDDMapping() {
               onClick={() => { setAddForm({ couriers: [], serviceNames: [], zoneA: '', zoneB: '', zoneC: '', zoneD: '', zoneE: '' }); setIsAddOpen(true); }}
               className="h-10 px-4 rounded-xl bg-[#00A86B] text-white text-[12px] font-bold shadow-sm flex items-center gap-1.5 shrink-0 whitespace-nowrap active:bg-[#009B63] transition-colors"
             >
-              Add Estimate Date
+              <Plus className="w-4 h-4" /> Add Estimate Date
             </button>
           </div>
         </div>
