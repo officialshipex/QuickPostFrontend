@@ -3,13 +3,16 @@ import { apiClient } from '../../services/apiClient';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
+import { getCourierLogo } from '../../utils/courierLogo';
 import { useAdminTab } from '../../context/AdminUserContext';
+import { useUserSearchFilter } from '../../hooks/filters/useUserSearchFilter';
 import {
   ChevronDown, RefreshCcw, Check, User, Truck, Banknote, Clock, Upload, Download,
   Wallet, Send, MinusCircle, FileText, AlertCircle, CheckCircle2, X, Package, Search, Filter, Copy
 } from 'lucide-react';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
+import { useDateRangeFilter } from '../../hooks/filters/useDateRangeFilter';
 import { TruncatedText } from '../../components/ui/TruncatedText';
 import { TableLoader } from '../../components/ui/TableLoader';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -111,19 +114,6 @@ const withOrdinalSuffix = (dateStr: string) => {
     : (day % 10 === 2 && day !== 12) ? 'nd'
     : (day % 10 === 3 && day !== 13) ? 'rd' : 'th';
   return `${day}${suffix}${match[2]}`;
-};
-
-const getCourierLogo = (partner: string) => {
-  const p = (partner || '').toUpperCase();
-  if (p.includes('DELHIVERY')) return '/brands/delhivery.png';
-  if (p.includes('BLUEDART') || p.includes('BLUE DART')) return '/brands/bluedart.png';
-  if (p.includes('EKART')) return '/brands/ekart.png';
-  if (p.includes('XPRESSBEES')) return '/brands/xpressbees.png';
-  if (p.includes('SHREE MARUTI')) return '/brands/shree_maruti.jpg';
-  if (p.includes('DTDC')) return '/brands/dtdc.png';
-  if (p.includes('SHADOWFAX')) return '/brands/shadowfax.png';
-  if (p.includes('AMAZON')) return '/brands/amazon.png';
-  return `https://ui-avatars.com/api/?name=${encodeURIComponent(partner || '?')}&background=f8fafc&color=0f172a&bold=true&font-size=0.4`;
 };
 
 // "Created At: 13th Apr 2026 | 12hr:60min:09sec" — elapsed time since order creation, live-formatted on each render.
@@ -232,16 +222,17 @@ export function AdminCOD() {
     </div>
   );
 
-  const [codUserQuery, setCodUserQuery] = useState('');
-  const [codUserSuggestions, setCodUserSuggestions] = useState<any[]>([]);
-  const [codUserMongoId, setCodUserMongoId] = useState('');
+  const {
+    userQuery: codUserQuery, userMongoId: codUserMongoId, userSuggestions: codUserSuggestions,
+    setUserQuery: setCodUserQuery, setUserMongoId: setCodUserMongoId, setUserSuggestions: setCodUserSuggestions,
+    onQueryChange: onCodUserQueryChange, selectUser: selectCodUserSuggestion, clearUser: clearCodUserFilter,
+  } = useUserSearchFilter(isAdminView);
   const [codOrderId, setCodOrderId] = useState('');
   const [codAwb, setCodAwb] = useState('');
   const [codOrdersList, setCodOrdersList] = useState<any[]>([]);
   const [codOrdersTotal, setCodOrdersTotal] = useState(0);
   const [codSummary, setCodSummary] = useState({ totalCODAmount: 0, paidCODAmount: 0, pendingCODAmount: 0 });
-  const [dateStart, setDateStart] = useState('');
-  const [dateEnd, setDateEnd] = useState('');
+  const { dateStart, dateEnd, setDateStart, setDateEnd, onDateChange } = useDateRangeFilter();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
   const [selectedCouriers, setSelectedCouriers] = useState<string[]>([]);
@@ -252,17 +243,18 @@ export function AdminCOD() {
   const [remittanceSearchTerm, setRemittanceSearchTerm] = useState('');
   const [selectedUtrs, setSelectedUtrs] = useState<string[]>([]);
   const [selectedCodStatuses, setSelectedCodStatuses] = useState<string[]>([]);
-  const [codDateStart, setCodDateStart] = useState('');
-  const [codDateEnd, setCodDateEnd] = useState('');
+  const { dateStart: codDateStart, dateEnd: codDateEnd, setDateStart: setCodDateStart, setDateEnd: setCodDateEnd, onDateChange: onCodDateChange } = useDateRangeFilter();
   const [selectedCodOrders, setSelectedCodOrders] = useState<string[]>([]);
   const [bankExportLoading, setBankExportLoading] = useState(false);
   const [showBankResponseUpload, setShowBankResponseUpload] = useState(false);
   const [bankResponseUploading, setBankResponseUploading] = useState(false);
   const [selectedBankFile, setSelectedBankFile] = useState<File | null>(null);
   const bankFileInputRef = useRef<HTMLInputElement>(null);
-  const [sellerUserQuery, setSellerUserQuery] = useState('');
-  const [sellerUserSuggestions, setSellerUserSuggestions] = useState<any[]>([]);
-  const [sellerUserMongoId, setSellerUserMongoId] = useState('');
+  const {
+    userQuery: sellerUserQuery, userMongoId: sellerUserMongoId, userSuggestions: sellerUserSuggestions,
+    setUserQuery: setSellerUserQuery, setUserMongoId: setSellerUserMongoId, setUserSuggestions: setSellerUserSuggestions,
+    onQueryChange: onSellerUserQueryChange, selectUser: selectSellerUserSuggestion, clearUser: clearSellerUserFilter,
+  } = useUserSearchFilter(isAdminView);
   const [sellerRemittanceList, setSellerRemittanceList] = useState<any[]>([]);
   const [sellerRemittanceTotal, setSellerRemittanceTotal] = useState(0);
   const [sellerSummary, setSellerSummary] = useState({
@@ -288,13 +280,14 @@ export function AdminCOD() {
   const [selectedCourierCodStatuses, setSelectedCourierCodStatuses] = useState<string[]>([]);
   const [courierCourierOptions, setCourierCourierOptions] = useState<{ label: string; value: string }[]>([]);
   const [selectedCourierCouriers, setSelectedCourierCouriers] = useState<string[]>([]);
-  const [courierCodDateStart, setCourierCodDateStart] = useState('');
-  const [courierCodDateEnd, setCourierCodDateEnd] = useState('');
+  const { dateStart: courierCodDateStart, dateEnd: courierCodDateEnd, setDateStart: setCourierCodDateStart, setDateEnd: setCourierCodDateEnd, onDateChange: onCourierCodDateChange } = useDateRangeFilter();
   const [selectedCourierCodOrders, setSelectedCourierCodOrders] = useState<string[]>([]);
   const [showCourierActionMenu, setShowCourierActionMenu] = useState(false);
-  const [courierUserQuery, setCourierUserQuery] = useState('');
-  const [courierUserSuggestions, setCourierUserSuggestions] = useState<any[]>([]);
-  const [courierUserMongoId, setCourierUserMongoId] = useState('');
+  const {
+    userQuery: courierUserQuery, userMongoId: courierUserMongoId, userSuggestions: courierUserSuggestions,
+    setUserQuery: setCourierUserQuery, setUserMongoId: setCourierUserMongoId, setUserSuggestions: setCourierUserSuggestions,
+    onQueryChange: onCourierUserQueryChange, selectUser: selectCourierUserSuggestion, clearUser: clearCourierUserFilter,
+  } = useUserSearchFilter(isAdminView);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -529,23 +522,7 @@ export function AdminCOD() {
     return () => window.removeEventListener('pageshow', handlePageShow);
   }, [currentPage, fetchCodOrders]);
 
-  // User search debounce effects
-  const makeUserSearchEffect = (query: string, setSuggestions: (v: any[]) => void) => {
-    if (!isAdminView || query.trim().length < 2) { setSuggestions([]); return; }
-    const timer = setTimeout(async () => {
-      try {
-        const res = await apiClient.get(`/admin/searchUser?query=${encodeURIComponent(query)}`);
-        setSuggestions(res.data.users || []);
-      } catch { setSuggestions([]); }
-    }, 300);
-    return () => clearTimeout(timer);
-  };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => makeUserSearchEffect(codUserQuery, setCodUserSuggestions), [codUserQuery, isAdminView]);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => makeUserSearchEffect(sellerUserQuery, setSellerUserSuggestions), [sellerUserQuery, isAdminView]);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => makeUserSearchEffect(courierUserQuery, setCourierUserSuggestions), [courierUserQuery, isAdminView]);
+  // User search debounce — handled per-tab by useUserSearchFilter
 
   // Export data (All COD / Courier)
   const handleExportCsv = (rows: any[], filename: string) => {
@@ -704,7 +681,7 @@ export function AdminCOD() {
   const clearCodOrderFilters = () => {
     setCodOrderId(''); setCodAwb(''); setSelectedStatuses([]); setSelectedCouriers([]);
     setDateStart(''); setDateEnd('');
-    if (isAdminView) { setCodUserQuery(''); setCodUserSuggestions([]); setCodUserMongoId(''); }
+    if (isAdminView) { clearCodUserFilter(); }
     setCurrentPage(1);
     fetchCodOrders(1);
   };
@@ -712,7 +689,7 @@ export function AdminCOD() {
 
   const clearSellerRemittanceFilters = () => {
     setSellerRemittanceId(''); setSelectedCodStatuses([]); setCodDateStart(''); setCodDateEnd('');
-    if (isAdminView) { setSellerUserQuery(''); setSellerUserSuggestions([]); setSellerUserMongoId(''); }
+    if (isAdminView) { clearSellerUserFilter(); }
     setSellerPage(1);
     fetchSellerRemittance(1);
   };
@@ -721,7 +698,7 @@ export function AdminCOD() {
   const clearCourierRemittanceFilters = () => {
     setCourierOrderId(''); setCourierAwb(''); setSelectedCourierCodStatuses([]); setSelectedCourierCouriers([]);
     setCourierCodDateStart(''); setCourierCodDateEnd('');
-    if (isAdminView) { setCourierUserQuery(''); setCourierUserSuggestions([]); setCourierUserMongoId(''); }
+    if (isAdminView) { clearCourierUserFilter(); }
     setCourierPage(1);
     fetchCourierRemittance(1);
   };
@@ -1107,7 +1084,7 @@ export function AdminCOD() {
                 <div className="relative shrink-0">
                   <div className="relative">
                     <input type="text" placeholder="Search user..." value={codUserQuery}
-                      onChange={e => { setCodUserQuery(e.target.value); if (!e.target.value.trim()) { setCodUserMongoId(''); setCodUserSuggestions([]); } }}
+                      onChange={e => onCodUserQueryChange(e.target.value)}
                       className="glass-search-input w-[160px]" style={{ paddingLeft: '2rem', paddingRight: '2rem' }} />
                     <Search className="w-3.5 h-3.5 text-[#94A3B8] absolute left-2.5 top-1/2 -translate-y-1/2" />
                     {codUserMongoId && <CheckCircle2 className="w-3.5 h-3.5 text-[#00A86B] absolute right-2.5 top-1/2 -translate-y-1/2" />}
@@ -1115,7 +1092,7 @@ export function AdminCOD() {
                   {codUserSuggestions.length > 0 && !codUserMongoId && (
                     <div className="absolute left-0 top-full mt-1 bg-white border border-[#E2E8F0] rounded-xl shadow-xl z-50 w-64 max-h-52 overflow-y-auto py-1">
                       {codUserSuggestions.map((u: any) => (
-                        <button key={u._id} type="button" onClick={() => { setCodUserMongoId(u._id); setCodUserQuery(`${u.fullname} (${u.email})`); setCodUserSuggestions([]); }}
+                        <button key={u._id} type="button" onClick={() => selectCodUserSuggestion(u)}
                           className="w-full text-left px-3 py-2 hover:bg-[#F0FDF4] flex items-start gap-2">
                           <div className="flex-1 min-w-0">
                             <div className="text-[11px] font-bold text-slate-800 truncate">{u.fullname}</div>
@@ -1134,7 +1111,7 @@ export function AdminCOD() {
                 className="glass-search-input w-[130px] shrink-0" />
               <GlassDropdown label="Status" options={STATUS_OPTIONS} selected={selectedStatuses} onChange={setSelectedStatuses} placeholder="Status..." icon={<CheckCircle2 className="w-3.5 h-3.5" />} />
               <GlassDropdown label="Courier" options={codCourierOptions} selected={selectedCouriers} onChange={setSelectedCouriers} placeholder="Courier..." icon={<Truck className="w-3.5 h-3.5" />} />
-              <GlassDateFilter startDate={dateStart} endDate={dateEnd} onDateChange={(s, e) => { setDateStart(s); setDateEnd(e); }} />
+              <GlassDateFilter startDate={dateStart} endDate={dateEnd} onDateChange={onDateChange} />
               <button onClick={() => { setCurrentPage(1); fetchCodOrders(1); }}
                 className="py-2 px-4 shrink-0 rounded-[32px] bg-[#009D64] border border-[#009D64] text-white text-xs font-medium leading-[18px] hover:bg-[#008a57] transition-colors cursor-pointer">Apply Filters</button>
               {hasCodOrderFilters && (
@@ -1321,7 +1298,7 @@ export function AdminCOD() {
                 <div className="relative shrink-0">
                   <div className="relative">
                     <input type="text" placeholder="Search user..." value={sellerUserQuery}
-                      onChange={e => { setSellerUserQuery(e.target.value); if (!e.target.value.trim()) { setSellerUserMongoId(''); setSellerUserSuggestions([]); } }}
+                      onChange={e => onSellerUserQueryChange(e.target.value)}
                       className="glass-search-input w-[160px]" style={{ paddingLeft: '2rem', paddingRight: '2rem' }} />
                     <Search className="w-3.5 h-3.5 text-[#94A3B8] absolute left-2.5 top-1/2 -translate-y-1/2" />
                     {sellerUserMongoId && <CheckCircle2 className="w-3.5 h-3.5 text-[#00A86B] absolute right-2.5 top-1/2 -translate-y-1/2" />}
@@ -1329,7 +1306,7 @@ export function AdminCOD() {
                   {sellerUserSuggestions.length > 0 && !sellerUserMongoId && (
                     <div className="absolute left-0 top-full mt-1 bg-white border border-[#E2E8F0] rounded-xl shadow-xl z-50 w-64 max-h-52 overflow-y-auto py-1">
                       {sellerUserSuggestions.map((u: any) => (
-                        <button key={u._id} type="button" onClick={() => { setSellerUserMongoId(u._id); setSellerUserQuery(`${u.fullname} (${u.email})`); setSellerUserSuggestions([]); }}
+                        <button key={u._id} type="button" onClick={() => selectSellerUserSuggestion(u)}
                           className="w-full text-left px-3 py-2 hover:bg-[#F0FDF4] flex items-start gap-2">
                           <div className="flex-1 min-w-0">
                             <div className="text-[11px] font-bold text-slate-800 truncate">{u.fullname}</div>
@@ -1345,7 +1322,7 @@ export function AdminCOD() {
               <input type="text" placeholder="Remittance ID" value={sellerRemittanceId} onChange={e => setSellerRemittanceId(e.target.value)}
                 className="glass-search-input w-[140px] shrink-0" />
               <GlassDropdown label="Status" options={STATUS_OPTIONS} selected={selectedCodStatuses} onChange={setSelectedCodStatuses} placeholder="Status..." icon={<CheckCircle2 className="w-3.5 h-3.5" />} />
-              <GlassDateFilter startDate={codDateStart} endDate={codDateEnd} onDateChange={(s, e) => { setCodDateStart(s); setCodDateEnd(e); }} />
+              <GlassDateFilter startDate={codDateStart} endDate={codDateEnd} onDateChange={onCodDateChange} />
               <button onClick={() => { setSellerPage(1); fetchSellerRemittance(1); }}
                 className="py-2 px-4 shrink-0 rounded-[32px] bg-[#009D64] border border-[#009D64] text-white text-xs font-medium leading-[18px] hover:bg-[#008a57] transition-colors cursor-pointer">Apply Filters</button>
               {hasSellerRemittanceFilters && (
@@ -1577,7 +1554,7 @@ export function AdminCOD() {
                 <div className="relative shrink-0">
                   <div className="relative">
                     <input type="text" placeholder="Search user..." value={courierUserQuery}
-                      onChange={e => { setCourierUserQuery(e.target.value); if (!e.target.value.trim()) { setCourierUserMongoId(''); setCourierUserSuggestions([]); } }}
+                      onChange={e => onCourierUserQueryChange(e.target.value)}
                       className="glass-search-input w-[160px]" style={{ paddingLeft: '2rem', paddingRight: '2rem' }} />
                     <Search className="w-3.5 h-3.5 text-[#94A3B8] absolute left-2.5 top-1/2 -translate-y-1/2" />
                     {courierUserMongoId && <CheckCircle2 className="w-3.5 h-3.5 text-[#00A86B] absolute right-2.5 top-1/2 -translate-y-1/2" />}
@@ -1585,7 +1562,7 @@ export function AdminCOD() {
                   {courierUserSuggestions.length > 0 && !courierUserMongoId && (
                     <div className="absolute left-0 top-full mt-1 bg-white border border-[#E2E8F0] rounded-xl shadow-xl z-50 w-64 max-h-52 overflow-y-auto py-1">
                       {courierUserSuggestions.map((u: any) => (
-                        <button key={u._id} type="button" onClick={() => { setCourierUserMongoId(u._id); setCourierUserQuery(`${u.fullname} (${u.email})`); setCourierUserSuggestions([]); }}
+                        <button key={u._id} type="button" onClick={() => selectCourierUserSuggestion(u)}
                           className="w-full text-left px-3 py-2 hover:bg-[#F0FDF4] flex items-start gap-2">
                           <div className="flex-1 min-w-0">
                             <div className="text-[11px] font-bold text-slate-800 truncate">{u.fullname}</div>
@@ -1604,7 +1581,7 @@ export function AdminCOD() {
                 className="glass-search-input w-[130px] shrink-0" />
               <GlassDropdown label="Status" options={STATUS_OPTIONS} selected={selectedCourierCodStatuses} onChange={setSelectedCourierCodStatuses} placeholder="Status..." icon={<CheckCircle2 className="w-3.5 h-3.5" />} />
               <GlassDropdown label="Courier" options={courierCourierOptions} selected={selectedCourierCouriers} onChange={setSelectedCourierCouriers} placeholder="Courier..." icon={<Truck className="w-3.5 h-3.5" />} />
-              <GlassDateFilter startDate={courierCodDateStart} endDate={courierCodDateEnd} onDateChange={(s, e) => { setCourierCodDateStart(s); setCourierCodDateEnd(e); }} />
+              <GlassDateFilter startDate={courierCodDateStart} endDate={courierCodDateEnd} onDateChange={onCourierCodDateChange} />
               <button onClick={() => { setCourierPage(1); fetchCourierRemittance(1); }}
                 className="py-2 px-4 shrink-0 rounded-[32px] bg-[#009D64] border border-[#009D64] text-white text-xs font-medium leading-[18px] hover:bg-[#008a57] transition-colors cursor-pointer">Apply Filters</button>
               {hasCourierRemittanceFilters && (
@@ -1990,7 +1967,7 @@ export function AdminCOD() {
                     className="w-full [&_.glass-dropdown-trigger]:w-full [&_.glass-dropdown-trigger]:h-11"
                     startDate={dateStart}
                     endDate={dateEnd}
-                    onDateChange={(s, e) => { setDateStart(s); setDateEnd(e); }}
+                    onDateChange={onDateChange}
                   />
                 </div>
 
@@ -2001,13 +1978,13 @@ export function AdminCOD() {
                       type="text"
                       placeholder="Search user..."
                       value={codUserQuery}
-                      onChange={(e) => { setCodUserQuery(e.target.value); if (!e.target.value.trim()) { setCodUserMongoId(''); setCodUserSuggestions([]); } }}
+                      onChange={(e) => onCodUserQueryChange(e.target.value)}
                       className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
                     />
                     {codUserSuggestions.length > 0 && !codUserMongoId && (
                       <div className="mt-1 bg-white border border-[#E2E8F0] rounded-xl shadow-lg max-h-52 overflow-y-auto py-1">
                         {codUserSuggestions.map((u: any) => (
-                          <button key={u._id} type="button" onClick={() => { setCodUserMongoId(u._id); setCodUserQuery(`${u.fullname} (${u.email})`); setCodUserSuggestions([]); }}
+                          <button key={u._id} type="button" onClick={() => selectCodUserSuggestion(u)}
                             className="w-full text-left px-3 py-2 hover:bg-[#F0FDF4] flex items-start gap-2">
                             <div className="flex-1 min-w-0">
                               <div className="text-[12px] font-bold text-slate-800 truncate">{u.fullname}</div>
@@ -2122,7 +2099,7 @@ export function AdminCOD() {
                     className="w-full [&_.glass-dropdown-trigger]:w-full [&_.glass-dropdown-trigger]:h-11"
                     startDate={codDateStart}
                     endDate={codDateEnd}
-                    onDateChange={(s, e) => { setCodDateStart(s); setCodDateEnd(e); }}
+                    onDateChange={onCodDateChange}
                   />
                 </div>
 
@@ -2133,13 +2110,13 @@ export function AdminCOD() {
                       type="text"
                       placeholder="Search user..."
                       value={sellerUserQuery}
-                      onChange={(e) => { setSellerUserQuery(e.target.value); if (!e.target.value.trim()) { setSellerUserMongoId(''); setSellerUserSuggestions([]); } }}
+                      onChange={(e) => onSellerUserQueryChange(e.target.value)}
                       className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
                     />
                     {sellerUserSuggestions.length > 0 && !sellerUserMongoId && (
                       <div className="mt-1 bg-white border border-[#E2E8F0] rounded-xl shadow-lg max-h-52 overflow-y-auto py-1">
                         {sellerUserSuggestions.map((u: any) => (
-                          <button key={u._id} type="button" onClick={() => { setSellerUserMongoId(u._id); setSellerUserQuery(`${u.fullname} (${u.email})`); setSellerUserSuggestions([]); }}
+                          <button key={u._id} type="button" onClick={() => selectSellerUserSuggestion(u)}
                             className="w-full text-left px-3 py-2 hover:bg-[#F0FDF4] flex items-start gap-2">
                             <div className="flex-1 min-w-0">
                               <div className="text-[12px] font-bold text-slate-800 truncate">{u.fullname}</div>
@@ -2229,7 +2206,7 @@ export function AdminCOD() {
                     className="w-full [&_.glass-dropdown-trigger]:w-full [&_.glass-dropdown-trigger]:h-11"
                     startDate={courierCodDateStart}
                     endDate={courierCodDateEnd}
-                    onDateChange={(s, e) => { setCourierCodDateStart(s); setCourierCodDateEnd(e); }}
+                    onDateChange={onCourierCodDateChange}
                   />
                 </div>
 
@@ -2240,13 +2217,13 @@ export function AdminCOD() {
                       type="text"
                       placeholder="Search user..."
                       value={courierUserQuery}
-                      onChange={(e) => { setCourierUserQuery(e.target.value); if (!e.target.value.trim()) { setCourierUserMongoId(''); setCourierUserSuggestions([]); } }}
+                      onChange={(e) => onCourierUserQueryChange(e.target.value)}
                       className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
                     />
                     {courierUserSuggestions.length > 0 && !courierUserMongoId && (
                       <div className="mt-1 bg-white border border-[#E2E8F0] rounded-xl shadow-lg max-h-52 overflow-y-auto py-1">
                         {courierUserSuggestions.map((u: any) => (
-                          <button key={u._id} type="button" onClick={() => { setCourierUserMongoId(u._id); setCourierUserQuery(`${u.fullname} (${u.email})`); setCourierUserSuggestions([]); }}
+                          <button key={u._id} type="button" onClick={() => selectCourierUserSuggestion(u)}
                             className="w-full text-left px-3 py-2 hover:bg-[#F0FDF4] flex items-start gap-2">
                             <div className="flex-1 min-w-0">
                               <div className="text-[12px] font-bold text-slate-800 truncate">{u.fullname}</div>

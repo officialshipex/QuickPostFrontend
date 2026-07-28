@@ -7,9 +7,14 @@ import {
   Download, Calendar, ChevronDown, ChevronLeft, Users, Truck, IndianRupee,
   Package, RotateCcw, AlertTriangle, CheckCircle2, Clock, Search, Wallet,
   FileText, ShieldAlert, UserCheck, CreditCard, X, RefreshCw, Send,
-  TrendingUp, TrendingDown, Scale,
+  TrendingUp, TrendingDown, Scale, Settings, Mail, Hash, MapPin, Phone, Crown,
 } from 'lucide-react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { TruncatedText } from '../../components/ui/TruncatedText';
+import { TableLoader } from '../../components/ui/TableLoader';
+import { DesktopPagination, usePagination } from '../../hooks/usePagination';
+import { getTier, getTierBadgeClass } from '../../hooks/useTier';
+import { getCourierLogo } from '../../utils/courierLogo';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface SellerSummary {
@@ -23,6 +28,10 @@ interface SellerDetail extends SellerSummary {
   inTransit: number; freightTotal: number; codCharges: number; gstTotal: number;
   codAmount: number; gstTotal2?: number;
   couriers: CourierItem[]; recentTransactions: TxnItem[];
+  // Not guaranteed by the API yet — render with a fallback until the backend adds them.
+  plan?: string; status?: string; enabled?: boolean;
+  gstin?: string; city?: string; state?: string;
+  avgOrderValue?: number; avgDeliveryDays?: number;
 }
 interface CourierItem {
   name: string; shipments: number; delivered: number; rto: number; ndr: number;
@@ -229,21 +238,24 @@ function MisReportTable({ userId, isAdminView }: {
   const [reports, setReports] = useState<MisReport[]>([]);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(0);
-  const LIMIT = 20;
+  const [rowsPerPage, setRowsPerPage] = useState(20);
+  const [totalReports, setTotalReports] = useState(0);
+  const totalPages = Math.ceil(totalReports / rowsPerPage);
 
   const fetchReports = useCallback(async () => {
     if (!isAdminView && !userId) return;
     setLoading(true);
     try {
-      const params: any = { page, limit: LIMIT };
+      const params: any = { page, limit: rowsPerPage };
       if (isAdminView && userId) params.userSearch = userId;
       const res = await apiClient.get('/mis-report/list', { params });
       setReports(res.data?.results || []);
-      setTotalPages(Math.ceil((res.data?.total || 0) / LIMIT));
+      setTotalReports(res.data?.total || 0);
     } catch { setReports([]); }
     finally { setLoading(false); }
-  }, [page, userId, isAdminView]);
+  }, [page, rowsPerPage, userId, isAdminView]);
+
+  useEffect(() => { setPage(1); }, [rowsPerPage]);
 
   useEffect(() => { fetchReports(); }, [fetchReports]);
 
@@ -286,51 +298,54 @@ function MisReportTable({ userId, isAdminView }: {
       )}
 
       <div className="bg-white border border-[#E2E8F0] rounded-2xl overflow-hidden shadow-sm">
-        <div className="hidden md:block overflow-x-auto">
-          <table className="w-full text-left min-w-[800px]">
-            <thead>
-              <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-[10px] uppercase tracking-wider font-bold text-[#64748B]">
-                <th className="px-4 py-3 w-10">#</th>
-                {isAdminView && !userId && <th className="px-4 py-3 w-36">User</th>}
-                <th className="px-4 py-3 w-32">Report Type</th>
-                <th className="px-4 py-3 w-28">Date Filter</th>
-                <th className="px-4 py-3 w-24">From</th>
-                <th className="px-4 py-3 w-24">To</th>
-                <th className="px-4 py-3">Email</th>
-                <th className="px-4 py-3 w-32">Generated At</th>
-                <th className="px-4 py-3 w-24 text-center">Status</th>
-                <th className="px-4 py-3 w-24 text-right">Download</th>
+        <div className="hidden md:block relative overflow-auto no-scrollbar max-h-[560px]">
+          {loading && <TableLoader />}
+          <table className="w-full text-left border-collapse">
+            <thead className="sticky top-0 z-10 bg-[#E6F9F2] shadow-sm">
+              <tr className="text-xs leading-[18px] font-medium text-[#64748B] uppercase tracking-wider border border-[#B9EFDB]">
+                <th className="py-2 px-4"><div className="flex items-center gap-1"><Hash className="w-3.5 h-3.5 shrink-0" /><span>#</span></div></th>
+                {isAdminView && !userId && <th className="py-2 px-4"><div className="flex items-center gap-1"><Users className="w-3.5 h-3.5 shrink-0" /><span>User</span></div></th>}
+                <th className="py-2 px-4"><div className="flex items-center gap-1"><FileText className="w-3.5 h-3.5 shrink-0" /><span>Report Type</span></div></th>
+                <th className="py-2 px-4"><div className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5 shrink-0" /><span>Date Filter</span></div></th>
+                <th className="py-2 px-4"><div className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5 shrink-0" /><span>From</span></div></th>
+                <th className="py-2 px-4"><div className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5 shrink-0" /><span>To</span></div></th>
+                <th className="py-2 px-4"><div className="flex items-center gap-1"><Mail className="w-3.5 h-3.5 shrink-0" /><span>Email</span></div></th>
+                <th className="py-2 px-4"><div className="flex items-center gap-1"><Clock className="w-3.5 h-3.5 shrink-0" /><span>Generated At</span></div></th>
+                <th className="py-2 px-4 text-center"><div className="flex items-center justify-center gap-1"><CheckCircle2 className="w-3.5 h-3.5 shrink-0" /><span>Status</span></div></th>
+                <th className="py-2 px-4 text-right"><div className="flex items-center justify-end gap-1"><Download className="w-3.5 h-3.5 shrink-0" /><span>Download</span></div></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#F1F5F9]">
+            <tbody>
               {loading ? (
                 <tr><td colSpan={10} className="text-center py-12 text-xs text-[#94A3B8]">Loading reports…</td></tr>
               ) : reports.length === 0 ? (
                 <tr><td colSpan={10} className="text-center py-12 text-sm font-medium text-[#94A3B8]">No reports generated yet. Click "Generate Report" to create one.</td></tr>
               ) : reports.map((r, i) => (
-                <tr key={r._id} className="hover:bg-[#F8FAFC] transition-colors">
-                  <td className="px-4 py-3 text-xs font-semibold text-[#94A3B8]">{(page - 1) * LIMIT + i + 1}</td>
+                <tr key={r._id} className={`border-b border-[#E2E8F0] transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]/20'}`}>
+                  <td className="p-3 text-xs font-semibold text-[#94A3B8]">{(page - 1) * rowsPerPage + i + 1}</td>
                   {isAdminView && !userId && (
-                    <td className="px-4 py-3">
-                      <div className="text-xs font-bold text-[#0F172A] truncate max-w-[130px]">{r.user?.fullname || '—'}</div>
-                      <div className="text-[10px] text-[#94A3B8] truncate">{r.user?.email}</div>
+                    <td className="p-3 max-w-[180px]">
+                      <TruncatedText text={r.user?.fullname || '—'} maxLength={22} className="text-[14px] leading-[20px] font-semibold text-[#0F172A]" />
+                      <TruncatedText text={r.user?.email || '—'} maxLength={26} className="text-[12px] leading-[18px] font-normal text-[#64748B]" />
                     </td>
                   )}
-                  <td className="px-4 py-3">
-                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${typeColor(r.reportType)}`}>{r.reportType}</span>
+                  <td className="p-3">
+                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-semibold ${typeColor(r.reportType)}`}>{r.reportType}</span>
                   </td>
-                  <td className="px-4 py-3 text-xs text-[#64748B]">{r.dateFilterType || '—'}</td>
-                  <td className="px-4 py-3 text-xs font-semibold text-[#0F172A]">{fmtDate(r.fromDate)}</td>
-                  <td className="px-4 py-3 text-xs font-semibold text-[#0F172A]">{fmtDate(r.toDate)}</td>
-                  <td className="px-4 py-3 text-[11px] text-[#64748B] truncate max-w-[140px]">{r.email || '—'}</td>
-                  <td className="px-4 py-3 text-[11px] text-[#64748B]">{fmtDateTime(r.createdAt)}</td>
-                  <td className="px-4 py-3 text-center">
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border capitalize ${statusStyle(r.status)}`}>
+                  <td className="p-3 text-[12px] font-normal text-[#64748B]">{r.dateFilterType || '—'}</td>
+                  <td className="p-3 text-[12px] font-normal text-[#0F172A]">{fmtDate(r.fromDate)}</td>
+                  <td className="p-3 text-[12px] font-normal text-[#0F172A]">{fmtDate(r.toDate)}</td>
+                  <td className="p-3 max-w-[160px]">
+                    <TruncatedText text={r.email || '—'} maxLength={16} className="text-[12px] leading-[18px] font-normal text-[#64748B]" tooltipAlign="right" />
+                  </td>
+                  <td className="p-3 text-[12px] font-normal text-[#64748B]">{fmtDateTime(r.createdAt)}</td>
+                  <td className="p-3 text-center">
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border capitalize ${statusStyle(r.status)}`}>
                       {r.status === 'pending' && <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse mr-1 align-middle" />}
                       {r.status}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="p-3 text-right">
                     {r.status === 'completed' && r.downloadUrl
                       ? <a href={r.downloadUrl} target="_blank" rel="noopener noreferrer"
                           className="inline-flex items-center gap-1 text-[11px] font-bold text-[#00A86B] hover:underline">
@@ -368,8 +383,18 @@ function MisReportTable({ userId, isAdminView }: {
           ))}
         </div>
 
+        <DesktopPagination
+          page={page}
+          setPage={setPage}
+          totalPages={totalPages}
+          rowsPerPage={rowsPerPage}
+          setRowsPerPage={setRowsPerPage}
+          startIndex={totalReports === 0 ? 0 : (page - 1) * rowsPerPage + 1}
+          endIndex={Math.min(page * rowsPerPage, totalReports)}
+          totalItems={totalReports}
+        />
         {totalPages > 1 && (
-          <div className="flex items-center justify-center gap-2 p-3 border-t border-[#E2E8F0]">
+          <div className="md:hidden flex items-center justify-center gap-2 p-3 border-t border-[#E2E8F0]">
             <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
               className="px-3 py-1.5 text-xs font-bold border border-[#E2E8F0] rounded-lg disabled:opacity-40 hover:bg-[#F8FAFC]">← Prev</button>
             <span className="text-xs text-[#64748B] font-medium">Page {page} of {totalPages}</span>
@@ -387,16 +412,16 @@ function PieChartCard({ title, data, colors }: { title: string; data: { name: st
   const clrs = colors || PIE_COLORS;
   const total = data.reduce((s, d) => s + d.value, 0);
   if (total === 0) return (
-    <div className="bg-white rounded-2xl border border-[#E2E8F0] p-5 shadow-sm h-full flex flex-col">
-      <h4 className="font-bold text-[13px] text-[#0F172A] mb-4">{title}</h4>
-      <div className="flex-1 flex items-center justify-center text-xs text-[#94A3B8]">No data yet</div>
+    <div className="bg-white rounded-2xl border border-[#E2E8F0] p-5 shadow-sm flex flex-col">
+      <h4 className="text-[16px] font-normal leading-[24px] text-[#0F172A] mb-4">{title}</h4>
+      <div className="min-h-[260px] flex items-center justify-center text-xs text-[#94A3B8]">No data yet</div>
     </div>
   );
   return (
-    <div className="bg-white rounded-2xl border border-[#E2E8F0] p-5 shadow-sm h-full flex flex-col">
-      <h4 className="font-bold text-[13px] text-[#0F172A] mb-4">{title}</h4>
-      <div className="flex-1 h-[260px]">
-        <ResponsiveContainer width="100%" height="100%">
+    <div className="bg-white rounded-2xl border border-[#E2E8F0] p-5 shadow-sm flex flex-col">
+      <h4 className="text-[16px] font-normal leading-[24px] text-[#0F172A] mb-4">{title}</h4>
+      <div className="min-h-[260px]">
+        <ResponsiveContainer width="100%" height={260}>
           <PieChart>
             <Pie data={data} cx="50%" cy="45%" innerRadius={50} outerRadius={75} paddingAngle={3} dataKey="value" stroke="none">
               {data.map((_, i) => <Cell key={i} fill={clrs[i % clrs.length]} />)}
@@ -428,8 +453,8 @@ function StatCard({ label, value, icon: Icon, color, bg, trend, sub, onClick }: 
           </div>
         )}
       </div>
-      <div className="text-xl font-extrabold text-[#0F172A] leading-tight">{value}</div>
-      <div className="text-[11px] font-semibold text-[#64748B] mt-1">{label}</div>
+      <div className="text-[24px] font-bold leading-[32px] text-[#0F172A]">{value}</div>
+      <div className="text-[16px] font-normal leading-[24px] text-[#64748B] mt-1">{label}</div>
       {sub && <div className="text-[10px] font-medium text-[#94A3B8] mt-0.5">{sub}</div>}
     </div>
   );
@@ -456,11 +481,19 @@ export function AdminReports() {
   const [isDateOpen, setIsDateOpen]   = useState(false);
   const [activeTab, setActiveTab]     = useState<'seller' | 'courier'>('seller');
   const [sellerPage, setSellerPage]   = useState(1);
+  const [sellerRowsPerPage, setSellerRowsPerPage] = useState(10);
 
   // Seller search (same dropdown pattern as AdminOrders)
   const [sellerQuery, setSellerQuery]           = useState('');
+  const [debouncedSellerQuery, setDebouncedSellerQuery] = useState('');
   const [sellerSuggestions, setSellerSuggestions] = useState<any[]>([]);
   const [sellerMongoId, setSellerMongoId]       = useState('');
+
+  // Debounce free-text seller search so it filters the table without requiring a suggestion click
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSellerQuery(sellerQuery.trim()), 400);
+    return () => clearTimeout(t);
+  }, [sellerQuery]);
 
   // Selected seller detail (uses _id string)
   const [selectedSellerId, setSelectedSellerId] = useState<string | null>(null);
@@ -485,6 +518,8 @@ export function AdminReports() {
   const [loadingCouriers, setLoadingCouriers] = useState(false);
   const [sellerError, setSellerError]         = useState<string | null>(null);
   const [detailError, setDetailError]         = useState<string | null>(null);
+  const [summaryError, setSummaryError]       = useState<string | null>(null);
+  const [courierError, setCourierError]       = useState<string | null>(null);
 
   // Refresh trigger for MIS table
   const [misRefreshKey, setMisRefreshKey] = useState(0);
@@ -507,11 +542,14 @@ export function AdminReports() {
 
   const fetchSummary = useCallback(async () => {
     if (!isAdminView) return;
-    setLoadingSummary(true);
+    setLoadingSummary(true); setSummaryError(null);
     try {
       const res = await apiClient.get('/admin-reports/summary', { params: getDateParams() });
       setSummary(res.data?.data || null);
-    } catch { setSummary(null); }
+    } catch (e: any) {
+      setSummary(null);
+      setSummaryError(e?.response?.data?.error || e?.message || 'Failed to load analytics summary');
+    }
     finally { setLoadingSummary(false); }
   }, [isAdminView, dateRange, getDateParams]);
 
@@ -519,8 +557,9 @@ export function AdminReports() {
     if (!isAdminView) return;
     setLoadingSellers(true); setSellerError(null);
     try {
-      const params: any = { page: sellerPage, limit: 10, ...getDateParams() };
+      const params: any = { page: sellerPage, limit: sellerRowsPerPage, ...getDateParams() };
       if (sellerMongoId) params.userId = sellerMongoId;
+      else if (debouncedSellerQuery) params.search = debouncedSellerQuery;
       const res = await apiClient.get('/admin-reports/sellers', { params });
       setSellers(res.data?.data || []);
       setSellerTotal(res.data?.total || 0);
@@ -530,7 +569,11 @@ export function AdminReports() {
       setSellerError(e?.response?.data?.error || e?.message || 'Failed to load sellers');
     }
     finally { setLoadingSellers(false); }
-  }, [isAdminView, sellerPage, sellerMongoId, dateRange, getDateParams]);
+  }, [isAdminView, sellerPage, sellerRowsPerPage, sellerMongoId, debouncedSellerQuery, dateRange, getDateParams]);
+
+  useEffect(() => { setSellerPage(1); }, [sellerRowsPerPage]);
+
+  useEffect(() => { setSellerPage(1); }, [debouncedSellerQuery, sellerMongoId]);
 
   const fetchSellerDetail = useCallback(async () => {
     if (!isAdminView || !selectedSellerId) return;
@@ -547,12 +590,15 @@ export function AdminReports() {
 
   const fetchCouriers = useCallback(async () => {
     if (!isAdminView) return;
-    setLoadingCouriers(true);
+    setLoadingCouriers(true); setCourierError(null);
     try {
       const res = await apiClient.get('/admin-reports/couriers', { params: getDateParams() });
       setCouriers(res.data?.data || []);
       setCourierTotals(res.data?.totals || null);
-    } catch { setCouriers([]); }
+    } catch (e: any) {
+      setCouriers([]);
+      setCourierError(e?.response?.data?.error || e?.message || 'Failed to load courier analytics');
+    }
     finally { setLoadingCouriers(false); }
   }, [isAdminView, dateRange, getDateParams]);
 
@@ -643,51 +689,48 @@ export function AdminReports() {
 
   // ── Admin view ────────────────────────────────────────────────────────────
   const sd = sellerDetail;
+  const sdCouriersPagination = usePagination({ data: sd?.couriers || [], perPage: 10 });
+  const sdTxnsPagination = usePagination({ data: sd?.recentTransactions || [], perPage: 10 });
 
   return (
     <AdminLayout>
-      <div className="max-w-7xl mx-auto pb-10">
+      <div className="max-w-[1600px] mx-auto pb-10">
 
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-6">
-          <div>
-            <h2 className="text-xl font-bold text-[#0F172A]">Analytics & Intelligence</h2>
-            <p className="text-xs text-[#64748B] mt-1">Detailed analytics for sellers and couriers across QuickPost.</p>
-          </div>
-          <div className="flex gap-2 items-center">
-            <div className="relative">
-              <button onClick={() => setIsDateOpen(!isDateOpen)}
-                className={`flex items-center gap-2 px-4 h-9 rounded-lg border text-xs font-semibold transition-all ${isDateOpen ? 'border-[#00A86B] text-[#00A86B] ring-1 ring-[#00A86B]/20' : 'border-[#E2E8F0] text-[#475569] hover:border-[#00A86B]'}`}>
-                <Calendar className="w-4 h-4" /> {dateRange} <ChevronDown className="w-3 h-3" />
-              </button>
-              <AnimatePresence>
-                {isDateOpen && (
-                  <>
-                    <div className="fixed inset-0 z-10" onClick={() => setIsDateOpen(false)} />
-                    <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
-                      className="absolute right-0 top-[calc(100%+6px)] bg-white border border-[#E2E8F0] rounded-xl shadow-lg z-20 py-1 min-w-[180px]">
-                      {DATE_RANGES.map(r => (
-                        <button key={r} onClick={() => { setDateRange(r); setIsDateOpen(false); }}
-                          className={`w-full text-left px-4 py-2.5 text-[12px] font-semibold transition-colors ${dateRange === r ? 'bg-[#F0FDF4] text-[#00A86B]' : 'text-[#475569] hover:bg-[#F8FAFC]'}`}>{r}</button>
-                      ))}
-                    </motion.div>
-                  </>
-                )}
-              </AnimatePresence>
-            </div>
-          </div>
+        <div className="mb-4">
+          <h2 className="text-xl font-bold text-[#0F172A] ml-[3px]">Analytics & Intelligence</h2>
         </div>
 
-        {/* Tab switcher */}
-        <div className="border-b border-[#E2E8F0] mb-6">
-          <div className="flex gap-8">
+        {/* Tab switcher + Date filter */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-5">
+          <div className="flex gap-1 items-center bg-[#F7FEFC] rounded-full p-1.5 w-fit">
             {(['seller', 'courier'] as const).map(tab => (
               <button key={tab} onClick={() => { setActiveTab(tab); setSelectedSellerId(null); }}
-                className={`flex items-center gap-2 px-1 py-4 text-sm font-bold transition-colors ${activeTab === tab ? 'text-[#00A86B] border-b-2 border-[#00A86B]' : 'text-[#64748B] hover:text-[#0F172A]'}`}>
-                {tab === 'seller' ? <Users className="w-4 h-4" /> : <Truck className="w-4 h-4" />}
+                className={`px-4 py-2 text-[13px] font-bold rounded-full flex items-center gap-1.5 whitespace-nowrap transition-colors cursor-pointer ${activeTab === tab ? 'text-[#00A86B] underline underline-offset-4 decoration-2' : 'text-[#64748B] hover:text-[#0F172A]'}`}>
+                {tab === 'seller' ? <Users className="w-3.5 h-3.5 shrink-0" /> : <Truck className="w-3.5 h-3.5 shrink-0" />}
                 {tab === 'seller' ? 'Seller Performance' : 'Courier Performance'}
               </button>
             ))}
+          </div>
+          <div className="relative">
+            <button onClick={() => setIsDateOpen(!isDateOpen)}
+              className={`flex items-center gap-2 px-4 h-9 rounded-full border text-xs font-medium transition-all cursor-pointer ${isDateOpen ? 'border-[#00A86B] text-[#00A86B] ring-1 ring-[#00A86B]/20' : 'border-[#E2E8F0] text-[#475569] hover:border-[#00A86B]'}`}>
+              <Calendar className="w-3.5 h-3.5" /> {dateRange} <ChevronDown className="w-3 h-3" />
+            </button>
+            <AnimatePresence>
+              {isDateOpen && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setIsDateOpen(false)} />
+                  <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
+                    className="absolute right-0 top-[calc(100%+6px)] bg-white border border-[#E2E8F0] rounded-xl shadow-lg z-20 py-1 min-w-[180px]">
+                    {DATE_RANGES.map(r => (
+                      <button key={r} onClick={() => { setDateRange(r); setIsDateOpen(false); }}
+                        className={`w-full text-left px-4 py-2.5 text-[12px] font-semibold transition-colors cursor-pointer ${dateRange === r ? 'bg-[#F0FDF4] text-[#00A86B]' : 'text-[#475569] hover:bg-[#F8FAFC]'}`}>{r}</button>
+                    ))}
+                  </motion.div>
+                </>
+              )}
+            </AnimatePresence>
           </div>
         </div>
 
@@ -696,7 +739,9 @@ export function AdminReports() {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
             {/* Summary KPIs */}
             {loadingSummary ? (
-              <div className="h-24 flex items-center justify-center text-xs text-[#94A3B8]">Loading analytics…</div>
+              <div className="relative h-40"><TableLoader /></div>
+            ) : summaryError ? (
+              <div className="h-24 flex items-center justify-center text-xs text-red-500 font-semibold">{summaryError}</div>
             ) : summary && (
               <>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
@@ -705,14 +750,14 @@ export function AdminReports() {
                   <StatCard label="Total Orders" value={fn(summary.totalOrders)} icon={Package} color="text-purple-500" bg="bg-purple-50" />
                   <StatCard label="COD Amount" value={fc(summary.codAmount)} icon={CreditCard} color="text-amber-600" bg="bg-amber-50" />
                 </div>
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                   <StatCard label="Delivery Rate" value={`${summary.deliveryRate}%`} icon={CheckCircle2} color="text-emerald-500" bg="bg-emerald-50" />
                   <StatCard label="RTO Rate" value={`${summary.rtoRate}%`} icon={RotateCcw} color="text-red-500" bg="bg-red-50" />
                   <StatCard label="NDR Rate" value={`${summary.ndrRate}%`} icon={AlertTriangle} color="text-orange-500" bg="bg-orange-50" />
                   <StatCard label="Prepaid / COD Split" value={`${summary.prepaidOrders} / ${summary.codOrders}`} icon={IndianRupee} color="text-cyan-500" bg="bg-cyan-50" sub="Orders" />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5 mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-5">
                   <PieChartCard title="Order Status" data={orderStatusPie} colors={['#00A86B', '#EF4444', '#F59E0B', '#3B82F6', '#94A3B8']} />
                   <PieChartCard title="Payment Mode" data={paymentPie} colors={['#3B82F6', '#F59E0B']} />
                   <PieChartCard title="Revenue by Seller" data={sellerRevenuePie} />
@@ -723,7 +768,7 @@ export function AdminReports() {
 
             {/* Seller table */}
             <div className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden mb-8">
-              <div className="p-5 border-b border-[#E2E8F0] bg-[#F8FAFC] flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+              <div className="p-4 border-b border-[#E2E8F0] bg-[#F8FAFC] flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                 <h3 className="font-bold text-sm text-[#0F172A]">Seller-wise Detailed Report</h3>
                 <div className="relative max-w-xs w-full">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8]" />
@@ -766,53 +811,51 @@ export function AdminReports() {
                   )}
                 </div>
               </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse min-w-[1100px]">
-                  <thead>
-                    <tr className="bg-[#E6F9F2] border-b border-[#E2E8F0] text-[10px] uppercase tracking-wider font-bold text-[#64748B]">
-                      <th className="p-4">Seller</th>
-                      <th className="p-4">Orders</th>
-                      <th className="p-4">Billed</th>
-                      <th className="p-4">Wallet</th>
-                      <th className="p-4">Delivered %</th>
-                      <th className="p-4">RTO %</th>
-                      <th className="p-4">NDR %</th>
-                      <th className="p-4">COD / Prepaid</th>
-                      <th className="p-4 text-right">Action</th>
+              <div className="relative overflow-auto no-scrollbar max-h-[560px]">
+                {loadingSellers && <TableLoader />}
+                <table className="w-full text-left border-collapse">
+                  <thead className="sticky top-0 z-10 bg-[#E6F9F2] shadow-sm">
+                    <tr className="text-xs leading-[18px] font-medium text-[#64748B] uppercase tracking-wider border border-[#B9EFDB]">
+                      <th className="py-2 px-4"><div className="flex items-center gap-1"><Hash className="w-3.5 h-3.5 shrink-0" /><span>#</span></div></th>
+                      <th className="py-2 px-4"><div className="flex items-center gap-1"><Users className="w-3.5 h-3.5 shrink-0" /><span>Seller</span></div></th>
+                      <th className="py-2 px-4"><div className="flex items-center gap-1"><Package className="w-3.5 h-3.5 shrink-0" /><span>Orders</span></div></th>
+                      <th className="py-2 px-4"><div className="flex items-center gap-1"><IndianRupee className="w-3.5 h-3.5 shrink-0" /><span>Billed</span></div></th>
+                      <th className="py-2 px-4"><div className="flex items-center gap-1"><Wallet className="w-3.5 h-3.5 shrink-0" /><span>Wallet</span></div></th>
+                      <th className="py-2 px-4"><div className="flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5 shrink-0" /><span>Delivered %</span></div></th>
+                      <th className="py-2 px-4"><div className="flex items-center gap-1"><RotateCcw className="w-3.5 h-3.5 shrink-0" /><span>RTO %</span></div></th>
+                      <th className="py-2 px-4"><div className="flex items-center gap-1"><AlertTriangle className="w-3.5 h-3.5 shrink-0" /><span>NDR %</span></div></th>
+                      <th className="py-2 px-4"><div className="flex items-center gap-1"><CreditCard className="w-3.5 h-3.5 shrink-0" /><span>COD / Prepaid</span></div></th>
+                      <th className="py-2 px-4 text-right"><div className="flex items-center justify-end gap-1"><Settings className="w-3.5 h-3.5 shrink-0" /><span>Action</span></div></th>
                     </tr>
                   </thead>
-                  <tbody className="text-xs font-semibold text-[#475569]">
+                  <tbody>
                     {loadingSellers ? (
-                      <tr><td colSpan={9} className="text-center py-12 text-[#94A3B8]">Loading sellers…</td></tr>
+                      <tr><td colSpan={10} className="text-center py-12 text-xs text-[#94A3B8]">Loading sellers…</td></tr>
                     ) : sellerError ? (
-                      <tr><td colSpan={9} className="text-center py-12 text-red-500 text-xs font-semibold">{sellerError}</td></tr>
+                      <tr><td colSpan={10} className="text-center py-12 text-xs font-semibold text-red-500">{sellerError}</td></tr>
                     ) : sellers.length === 0 ? (
-                      <tr><td colSpan={9} className="text-center py-12 text-[#94A3B8]">No sellers found</td></tr>
-                    ) : sellers.map(s => (
-                      <tr key={s._id} className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors">
-                        <td className="p-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-[#10B981]/10 text-[#00A86B] flex items-center justify-center font-bold text-xs shrink-0">
-                              {(s.fullname || s.email || '?').charAt(0).toUpperCase()}
-                            </div>
-                            <div>
-                              <div className="font-semibold text-[#0F172A] text-sm">{s.fullname || '—'}</div>
-                              <div className="text-[10px] text-[#94A3B8]">{s.email}</div>
-                            </div>
+                      <tr><td colSpan={10} className="text-center py-12 text-xs text-[#94A3B8]">No sellers found</td></tr>
+                    ) : sellers.map((s, i) => (
+                      <tr key={s._id} className={`border-b border-[#E2E8F0] transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]/20'}`}>
+                        <td className="p-3 text-xs font-semibold text-[#94A3B8]">{(sellerPage - 1) * sellerRowsPerPage + i + 1}</td>
+                        <td className="p-3 max-w-[220px]">
+                          <div className="min-w-0">
+                            <TruncatedText text={s.fullname || '—'} maxLength={22} className="text-[14px] leading-[20px] font-semibold text-[#0F172A]" />
+                            <TruncatedText text={s.email || '—'} maxLength={28} className="text-[12px] leading-[18px] font-normal text-[#64748B]" />
                           </div>
                         </td>
-                        <td className="p-4 text-sm text-[#0F172A]">{fn(s.totalOrders)}</td>
-                        <td className="p-4 text-sm text-[#0F172A]">{fc(s.totalBilled)}</td>
-                        <td className="p-4 text-[#00A86B] text-sm">{fc(s.walletBalance)}</td>
-                        <td className="p-4">
-                          <span className={`px-2 py-1 rounded-md text-sm ${s.deliveryRate >= 90 ? 'bg-green-50 text-green-600' : s.deliveryRate >= 80 ? 'bg-yellow-50 text-yellow-600' : 'bg-red-50 text-red-600'}`}>{s.deliveryRate}%</span>
+                        <td className="p-3 text-[12px] font-normal text-[#0F172A]">{fn(s.totalOrders)}</td>
+                        <td className="p-3 text-[12px] font-normal text-[#0F172A]">{fc(s.totalBilled)}</td>
+                        <td className="p-3 text-[12px] font-normal text-[#00A86B]">{fc(s.walletBalance)}</td>
+                        <td className="p-3">
+                          <span className={`px-2 py-0.5 rounded-full text-[12px] font-normal ${s.deliveryRate >= 90 ? 'bg-green-50 text-green-600' : s.deliveryRate >= 80 ? 'bg-yellow-50 text-yellow-600' : 'bg-red-50 text-red-600'}`}>{s.deliveryRate}%</span>
                         </td>
-                        <td className="p-4"><span className={s.rtoRate > 6 ? 'text-red-500' : ''}>{s.rtoRate}%</span></td>
-                        <td className="p-4"><span className={s.ndrRate > 5 ? 'text-orange-500' : ''}>{s.ndrRate}%</span></td>
-                        <td className="p-4 text-sm">{fn(s.codOrders)} / {fn(s.prepaidOrders)}</td>
-                        <td className="p-4 text-right">
+                        <td className="p-3 text-[12px] font-normal"><span className={s.rtoRate > 6 ? 'text-red-500' : 'text-[#0F172A]'}>{s.rtoRate}%</span></td>
+                        <td className="p-3 text-[12px] font-normal"><span className={s.ndrRate > 5 ? 'text-orange-500' : 'text-[#0F172A]'}>{s.ndrRate}%</span></td>
+                        <td className="p-3 text-[12px] font-normal text-[#0F172A]">{fn(s.codOrders)} / {fn(s.prepaidOrders)}</td>
+                        <td className="p-3 text-right">
                           <button onClick={() => { setSelectedSellerId(s._id); setSellerDetail(null); setLoadingDetail(true); }}
-                            className="text-[#00A86B] hover:text-[#009B63] font-bold text-[11px] hover:underline transition-colors">
+                            className="text-[#00A86B] hover:text-[#009B63] font-bold text-[11px] hover:underline transition-colors cursor-pointer">
                             View Report →
                           </button>
                         </td>
@@ -821,8 +864,18 @@ export function AdminReports() {
                   </tbody>
                 </table>
               </div>
+              <DesktopPagination
+                page={sellerPage}
+                setPage={setSellerPage}
+                totalPages={sellerTotalPages}
+                rowsPerPage={sellerRowsPerPage}
+                setRowsPerPage={setSellerRowsPerPage}
+                startIndex={sellerTotal === 0 ? 0 : (sellerPage - 1) * sellerRowsPerPage + 1}
+                endIndex={Math.min(sellerPage * sellerRowsPerPage, sellerTotal)}
+                totalItems={sellerTotal}
+              />
               {sellerTotalPages > 1 && (
-                <div className="flex items-center justify-between p-4 border-t border-[#E2E8F0] bg-[#F8FAFC]">
+                <div className="md:hidden flex items-center justify-between p-4 border-t border-[#E2E8F0] bg-[#F8FAFC]">
                   <span className="text-xs text-[#64748B]">Showing {sellers.length} of {fn(sellerTotal)} sellers</span>
                   <div className="flex items-center gap-2">
                     <button onClick={() => setSellerPage(p => Math.max(1, p - 1))} disabled={sellerPage === 1}
@@ -872,26 +925,44 @@ export function AdminReports() {
                     <div className="flex-1 min-w-0">
                       <div className="flex flex-wrap items-center gap-3 mb-2">
                         <h3 className="text-lg font-extrabold text-[#0F172A]">{sd.fullname || '—'}</h3>
-                        {sd.kycDone && (
-                          <span className="text-[10px] font-bold bg-green-50 text-[#00A86B] border border-green-200 px-2 py-0.5 rounded-full">KYC Verified</span>
+                        {sd.plan && (
+                          <span className="text-[10px] font-bold bg-purple-50 text-purple-600 border border-purple-200 px-2 py-0.5 rounded-full flex items-center gap-1"><Crown className="w-3 h-3" />{sd.plan}</span>
                         )}
-                        {sd.userId && <span className="text-[10px] font-bold bg-[#F8FAFC] text-[#64748B] border border-[#E2E8F0] px-2 py-0.5 rounded-full">ID #{sd.userId}</span>}
+                        <span className={`text-[12px] font-semibold px-2 py-0.5 rounded-full border ${sd.status === 'Active' || sd.enabled !== false ? 'bg-green-50 text-[#00A86B] border-green-200' : 'bg-red-50 text-red-500 border-red-200'}`}>
+                          {sd.status || (sd.enabled === false ? 'Inactive' : 'Active')}
+                        </span>
+                        {sd.kycDone && (
+                          <span className="text-[12px] font-semibold bg-green-50 text-[#00A86B] border border-green-200 px-2 py-0.5 rounded-full">KYC Verified</span>
+                        )}
+                        {sd.userId && <span className="text-[12px] font-semibold bg-[#F8FAFC] text-[#64748B] border border-[#E2E8F0] px-2 py-0.5 rounded-full">ID: #QP-S{String(sd.userId).padStart(4, '0')}</span>}
+                        <span className={`text-[12px] font-semibold ${getTierBadgeClass(getTier(sd.totalOrders ?? 0))}`}>{getTier(sd.totalOrders ?? 0)} Tier</span>
                       </div>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-2 text-xs text-[#64748B]">
-                        {[
-                          ['Email', sd.email],
-                          ['Phone', sd.phoneNumber || '—'],
-                          ['Company', sd.company || '—'],
-                          ['Joined', fmtDate(sd.joinedAt)],
-                        ].map(([k, v]) => (
-                          <div key={k}><span className="font-bold text-[#0F172A]">{k}: </span>{v}</div>
-                        ))}
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-2">
+                        <div className="flex items-center gap-1"><Users className="w-3 h-3 shrink-0 text-[#94A3B8]" /><span className="text-[14px] font-normal text-[#94A3B8]">Contact: </span><span className="text-[12px] font-normal text-[#0F172A]">{sd.fullname || '—'}</span></div>
+                        <div className="flex items-center gap-1"><Mail className="w-3 h-3 shrink-0 text-[#94A3B8]" /><span className="text-[14px] font-normal text-[#94A3B8]">Email: </span><span className="text-[12px] font-normal text-[#0F172A]">{sd.email || '—'}</span></div>
+                        <div className="flex items-center gap-1"><Phone className="w-3 h-3 shrink-0 text-[#94A3B8]" /><span className="text-[14px] font-normal text-[#94A3B8]">Phone: </span><span className="text-[12px] font-normal text-[#0F172A]">{sd.phoneNumber || '—'}</span></div>
+                        <div className="flex items-center gap-1"><Calendar className="w-3 h-3 shrink-0 text-[#94A3B8]" /><span className="text-[14px] font-normal text-[#94A3B8]">Joined: </span><span className="text-[12px] font-normal text-[#0F172A]">{fmtDate(sd.joinedAt)}</span></div>
+                        <div className="flex items-center gap-1"><ShieldAlert className="w-3 h-3 shrink-0 text-[#94A3B8]" /><span className="text-[14px] font-normal text-[#94A3B8]">GSTIN: </span><span className="text-[12px] font-normal text-[#0F172A]">{sd.gstin || '—'}</span></div>
+                        <div className="flex items-center gap-1"><MapPin className="w-3 h-3 shrink-0 text-[#94A3B8]" /><span className="text-[14px] font-normal text-[#94A3B8]">Location: </span><span className="text-[12px] font-normal text-[#0F172A]">{[sd.city, sd.state].filter(Boolean).join(', ') || '—'}</span></div>
+                        <div className="flex items-center gap-1"><IndianRupee className="w-3 h-3 shrink-0 text-[#94A3B8]" /><span className="text-[14px] font-normal text-[#94A3B8]">Avg Order Value: </span><span className="text-[12px] font-normal text-[#0F172A]">{sd.avgOrderValue != null ? fc(sd.avgOrderValue) : '—'}</span></div>
+                        <div className="flex items-center gap-1"><Clock className="w-3 h-3 shrink-0 text-[#94A3B8]" /><span className="text-[14px] font-normal text-[#94A3B8]">Avg Delivery: </span><span className="text-[12px] font-normal text-[#0F172A]">{sd.avgDeliveryDays != null ? `${sd.avgDeliveryDays} days` : '—'}</span></div>
                       </div>
                     </div>
-                    <button onClick={() => openGenerate(sd._id, sd.fullname || sd.email)}
-                      className="shrink-0 h-9 px-4 rounded-xl bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors flex items-center gap-1.5 shadow-sm">
-                      <FileText className="w-3.5 h-3.5" /> Generate Report
-                    </button>
+                    <div className="flex flex-col items-end gap-2 shrink-0">
+                      <button onClick={() => openGenerate(sd._id, sd.fullname || sd.email)}
+                        className="h-9 px-4 rounded-xl bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors flex items-center gap-1.5 shadow-sm cursor-pointer">
+                        <FileText className="w-3.5 h-3.5" /> Generate Report
+                      </button>
+                      <label className="flex items-center gap-2 cursor-pointer select-none">
+                        <span className="text-[12px] font-semibold text-[#64748B]">{sd.enabled === false ? 'Disabled' : 'Enabled'}</span>
+                        <span className="relative inline-flex items-center">
+                          <input type="checkbox" className="sr-only peer" checked={sd.enabled !== false}
+                            onChange={() => setSellerDetail(prev => prev ? { ...prev, enabled: prev.enabled === false ? true : false } : prev)} />
+                          <span className="w-9 h-5 bg-[#E2E8F0] rounded-full peer peer-checked:bg-[#00A86B] transition-all block" />
+                          <span className="absolute left-1 top-1 bg-white w-3 h-3 rounded-full transition-transform peer-checked:translate-x-4 shadow-sm" />
+                        </span>
+                      </label>
+                    </div>
                   </div>
                 </div>
 
@@ -943,38 +1014,53 @@ export function AdminReports() {
                   <>
                     <SectionTitle icon={Truck} title="Courier-wise Performance" />
                     <div className="bg-white border border-[#E2E8F0] rounded-2xl overflow-hidden shadow-sm mb-6">
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-left min-w-[700px]">
-                          <thead>
-                            <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-[10px] uppercase tracking-wider font-bold text-[#64748B]">
-                              <th className="px-4 py-3">Courier</th>
-                              <th className="px-4 py-3">Shipments</th>
-                              <th className="px-4 py-3">Delivered</th>
-                              <th className="px-4 py-3">RTO</th>
-                              <th className="px-4 py-3">NDR</th>
-                              <th className="px-4 py-3">Billed</th>
-                              <th className="px-4 py-3">Delivery %</th>
-                              <th className="px-4 py-3">RTO %</th>
+                      <div className="relative overflow-auto no-scrollbar max-h-[560px]">
+                        <table className="w-full text-left border-collapse">
+                          <thead className="sticky top-0 z-10 bg-[#E6F9F2] shadow-sm">
+                            <tr className="text-xs leading-[18px] font-medium text-[#64748B] uppercase tracking-wider border border-[#B9EFDB]">
+                              <th className="py-2 px-4"><div className="flex items-center gap-1"><Hash className="w-3.5 h-3.5 shrink-0" /><span>#</span></div></th>
+                              <th className="py-2 px-4"><div className="flex items-center gap-1"><Truck className="w-3.5 h-3.5 shrink-0" /><span>Courier</span></div></th>
+                              <th className="py-2 px-4"><div className="flex items-center gap-1"><Package className="w-3.5 h-3.5 shrink-0" /><span>Shipments</span></div></th>
+                              <th className="py-2 px-4"><div className="flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5 shrink-0" /><span>Delivered</span></div></th>
+                              <th className="py-2 px-4"><div className="flex items-center gap-1"><RotateCcw className="w-3.5 h-3.5 shrink-0" /><span>RTO</span></div></th>
+                              <th className="py-2 px-4"><div className="flex items-center gap-1"><AlertTriangle className="w-3.5 h-3.5 shrink-0" /><span>NDR</span></div></th>
+                              <th className="py-2 px-4"><div className="flex items-center gap-1"><IndianRupee className="w-3.5 h-3.5 shrink-0" /><span>Billed</span></div></th>
+                              <th className="py-2 px-4"><div className="flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5 shrink-0" /><span>Delivery %</span></div></th>
+                              <th className="py-2 px-4"><div className="flex items-center gap-1"><RotateCcw className="w-3.5 h-3.5 shrink-0" /><span>RTO %</span></div></th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-[#F1F5F9] text-xs font-semibold text-[#475569]">
-                            {sd.couriers.map(c => (
-                              <tr key={c.name} className="hover:bg-[#F8FAFC]">
-                                <td className="px-4 py-3 font-bold text-[#0F172A]">{c.name}</td>
-                                <td className="px-4 py-3">{fn(c.shipments)}</td>
-                                <td className="px-4 py-3 text-[#00A86B]">{fn(c.delivered)}</td>
-                                <td className="px-4 py-3 text-red-500">{fn(c.rto)}</td>
-                                <td className="px-4 py-3 text-amber-500">{fn(c.ndr)}</td>
-                                <td className="px-4 py-3">{fc(c.billed)}</td>
-                                <td className="px-4 py-3">
+                          <tbody>
+                            {sdCouriersPagination.paginatedData.map((c, i) => (
+                              <tr key={c.name} className={`border-b border-[#E2E8F0] transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]/20'}`}>
+                                <td className="p-3 text-xs font-semibold text-[#94A3B8]">{sdCouriersPagination.startIndex + i}</td>
+                                <td className="p-3">
+                                  <img src={getCourierLogo(c.name)} alt={c.name} className="w-20 h-8 rounded object-contain object-left shrink-0"
+                                    onError={(e) => { (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(c.name)}&background=f8fafc&color=0f172a&bold=true&font-size=0.4`; }} />
+                                </td>
+                                <td className="p-3 text-[13px] font-normal text-[#0F172A]">{fn(c.shipments)}</td>
+                                <td className="p-3 text-[13px] font-normal text-[#00A86B]">{fn(c.delivered)}</td>
+                                <td className="p-3 text-[13px] font-normal text-red-500">{fn(c.rto)}</td>
+                                <td className="p-3 text-[13px] font-normal text-amber-500">{fn(c.ndr)}</td>
+                                <td className="p-3 text-[13px] font-normal text-[#0F172A]">{fc(c.billed)}</td>
+                                <td className="p-3 text-[13px] font-normal">
                                   <span className={`${c.deliveryRate >= 90 ? 'text-[#00A86B]' : c.deliveryRate >= 80 ? 'text-amber-500' : 'text-red-500'}`}>{c.deliveryRate}%</span>
                                 </td>
-                                <td className="px-4 py-3"><span className={c.rtoRate > 6 ? 'text-red-500' : ''}>{c.rtoRate}%</span></td>
+                                <td className="p-3 text-[13px] font-normal"><span className={c.rtoRate > 6 ? 'text-red-500' : 'text-[#0F172A]'}>{c.rtoRate}%</span></td>
                               </tr>
                             ))}
                           </tbody>
                         </table>
                       </div>
+                      <DesktopPagination
+                        page={sdCouriersPagination.page}
+                        setPage={sdCouriersPagination.setPage}
+                        totalPages={sdCouriersPagination.totalPages}
+                        rowsPerPage={sdCouriersPagination.rowsPerPage}
+                        setRowsPerPage={sdCouriersPagination.setRowsPerPage}
+                        startIndex={sdCouriersPagination.startIndex}
+                        endIndex={sdCouriersPagination.endIndex}
+                        totalItems={sdCouriersPagination.totalItems}
+                      />
                     </div>
                   </>
                 )}
@@ -984,36 +1070,48 @@ export function AdminReports() {
                   <>
                     <SectionTitle icon={CreditCard} title="Recent Wallet Transactions" />
                     <div className="bg-white border border-[#E2E8F0] rounded-2xl overflow-hidden shadow-sm mb-6">
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-left min-w-[600px]">
-                          <thead>
-                            <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-[10px] uppercase tracking-wider font-bold text-[#64748B]">
-                              <th className="px-4 py-3">Date</th>
-                              <th className="px-4 py-3">AWB / Ref</th>
-                              <th className="px-4 py-3">Description</th>
-                              <th className="px-4 py-3">Type</th>
-                              <th className="px-4 py-3">Amount</th>
-                              <th className="px-4 py-3">Balance After</th>
+                      <div className="relative overflow-auto no-scrollbar max-h-[560px]">
+                        <table className="w-full text-left border-collapse">
+                          <thead className="sticky top-0 z-10 bg-[#E6F9F2] shadow-sm">
+                            <tr className="text-xs leading-[18px] font-medium text-[#64748B] uppercase tracking-wider border border-[#B9EFDB]">
+                              <th className="py-2 px-4"><div className="flex items-center gap-1"><Hash className="w-3.5 h-3.5 shrink-0" /><span>#</span></div></th>
+                              <th className="py-2 px-4"><div className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5 shrink-0" /><span>Date</span></div></th>
+                              <th className="py-2 px-4"><div className="flex items-center gap-1"><Hash className="w-3.5 h-3.5 shrink-0" /><span>AWB / Ref</span></div></th>
+                              <th className="py-2 px-4"><div className="flex items-center gap-1"><FileText className="w-3.5 h-3.5 shrink-0" /><span>Description</span></div></th>
+                              <th className="py-2 px-4"><div className="flex items-center gap-1"><CreditCard className="w-3.5 h-3.5 shrink-0" /><span>Type</span></div></th>
+                              <th className="py-2 px-4"><div className="flex items-center gap-1"><IndianRupee className="w-3.5 h-3.5 shrink-0" /><span>Amount</span></div></th>
+                              <th className="py-2 px-4"><div className="flex items-center gap-1"><Wallet className="w-3.5 h-3.5 shrink-0" /><span>Balance After</span></div></th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-[#F1F5F9] text-xs">
-                            {sd.recentTransactions.map((t, i) => (
-                              <tr key={i} className="hover:bg-[#F8FAFC]">
-                                <td className="px-4 py-3 text-[#64748B]">{fmtDate(t.date)}</td>
-                                <td className="px-4 py-3 font-mono text-[11px] text-[#64748B]">{t.awb_number || t.channelOrderId || '—'}</td>
-                                <td className="px-4 py-3 text-[#475569] max-w-[180px] truncate" title={t.description}>{t.description || '—'}</td>
-                                <td className="px-4 py-3">
-                                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${t.category === 'credit' ? 'bg-green-50 text-[#00A86B] border-green-200' : 'bg-red-50 text-red-500 border-red-200'}`}>{t.category}</span>
+                          <tbody>
+                            {sdTxnsPagination.paginatedData.map((t, i) => (
+                              <tr key={i} className={`border-b border-[#E2E8F0] transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]/20'}`}>
+                                <td className="p-3 text-xs font-semibold text-[#94A3B8]">{sdTxnsPagination.startIndex + i}</td>
+                                <td className="p-3 text-[13px] font-normal text-[#64748B]">{fmtDate(t.date)}</td>
+                                <td className="p-3 text-[13px] font-normal text-[#64748B]">{t.awb_number || t.channelOrderId || '—'}</td>
+                                <td className="p-3 text-[13px] font-normal text-[#475569] max-w-[180px] truncate" title={t.description}>{t.description || '—'}</td>
+                                <td className="p-3">
+                                  <span className={`px-2 py-0.5 rounded-full text-[12px] font-normal border ${t.category === 'credit' ? 'bg-green-50 text-[#00A86B] border-green-200' : 'bg-red-50 text-red-500 border-red-200'}`}>{t.category}</span>
                                 </td>
-                                <td className={`px-4 py-3 font-bold text-sm ${t.category === 'credit' ? 'text-[#00A86B]' : 'text-red-500'}`}>
+                                <td className={`p-3 text-[13px] font-normal ${t.category === 'credit' ? 'text-[#00A86B]' : 'text-red-500'}`}>
                                   {t.category === 'credit' ? '+' : '−'}{fc(t.amount)}
                                 </td>
-                                <td className="px-4 py-3 font-semibold text-[#0F172A]">{t.balanceAfterTransaction !== undefined ? fc(t.balanceAfterTransaction) : '—'}</td>
+                                <td className="p-3 text-[13px] font-normal text-[#0F172A]">{t.balanceAfterTransaction !== undefined ? fc(t.balanceAfterTransaction) : '—'}</td>
                               </tr>
                             ))}
                           </tbody>
                         </table>
                       </div>
+                      <DesktopPagination
+                        page={sdTxnsPagination.page}
+                        setPage={sdTxnsPagination.setPage}
+                        totalPages={sdTxnsPagination.totalPages}
+                        rowsPerPage={sdTxnsPagination.rowsPerPage}
+                        setRowsPerPage={sdTxnsPagination.setRowsPerPage}
+                        startIndex={sdTxnsPagination.startIndex}
+                        endIndex={sdTxnsPagination.endIndex}
+                        totalItems={sdTxnsPagination.totalItems}
+                      />
                     </div>
                   </>
                 )}
@@ -1033,13 +1131,15 @@ export function AdminReports() {
         {activeTab === 'courier' && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
             {loadingCouriers ? (
-              <div className="h-24 flex items-center justify-center text-xs text-[#94A3B8]">Loading analytics…</div>
+              <div className="relative h-40"><TableLoader /></div>
+            ) : courierError ? (
+              <div className="h-24 flex items-center justify-center text-xs text-red-500 font-semibold">{courierError}</div>
             ) : couriers.length === 0 ? (
               <div className="h-24 flex items-center justify-center text-xs text-[#94A3B8]">No courier data yet</div>
             ) : (
               <>
                 {/* KPIs */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                   <StatCard label="Total Shipments" value={fn(courierTotals?.totalShipments || courierTotals?.shipments)} icon={Package} color="text-[#0F172A]" bg="bg-slate-50" />
                   <StatCard label="Delivered" value={fn(courierTotals?.delivered)} icon={CheckCircle2} color="text-emerald-500" bg="bg-emerald-50" />
                   <StatCard label="RTO" value={fn(courierTotals?.rto)} icon={RotateCcw} color="text-red-500" bg="bg-red-50" />
@@ -1047,39 +1147,47 @@ export function AdminReports() {
                 </div>
 
                 {/* Pie charts */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
                   <PieChartCard title="Shipment Share by Courier" data={courierShipmentPie} />
                   <PieChartCard title="Status Breakdown" data={courierStatusPie} colors={['#00A86B', '#EF4444', '#F59E0B']} />
                 </div>
 
                 {/* Courier-wise performance table */}
-                <SectionTitle icon={Truck} title="Courier-wise Performance" />
-                <div className="bg-white border border-[#E2E8F0] rounded-2xl overflow-hidden shadow-sm mb-6">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left min-w-[700px]">
-                      <thead>
-                        <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-[10px] uppercase tracking-wider font-bold text-[#64748B]">
-                          <th className="px-4 py-3">Courier</th>
-                          <th className="px-4 py-3">Shipments</th>
-                          <th className="px-4 py-3">Delivered</th>
-                          <th className="px-4 py-3">RTO</th>
-                          <th className="px-4 py-3">NDR</th>
-                          <th className="px-4 py-3">Billed</th>
-                          <th className="px-4 py-3">Delivery %</th>
-                          <th className="px-4 py-3">RTO %</th>
+                <div className="bg-white border border-[#E2E8F0] rounded-2xl overflow-hidden shadow-sm mb-8">
+                  <div className="p-4 border-b border-[#E2E8F0] bg-[#F8FAFC]">
+                    <h3 className="font-bold text-sm text-[#0F172A] flex items-center gap-2"><Truck className="w-4 h-4 text-[#00A86B]" />Courier-wise Performance</h3>
+                  </div>
+                  <div className="relative overflow-auto no-scrollbar max-h-[560px]">
+                    {loadingCouriers && <TableLoader />}
+                    <table className="w-full text-left border-collapse">
+                      <thead className="sticky top-0 z-10 bg-[#E6F9F2] shadow-sm">
+                        <tr className="text-xs leading-[18px] font-medium text-[#64748B] uppercase tracking-wider border border-[#B9EFDB]">
+                          <th className="py-2 px-4"><div className="flex items-center gap-1"><Hash className="w-3.5 h-3.5 shrink-0" /><span>#</span></div></th>
+                          <th className="py-2 px-4"><div className="flex items-center gap-1"><Truck className="w-3.5 h-3.5 shrink-0" /><span>Courier</span></div></th>
+                          <th className="py-2 px-4"><div className="flex items-center gap-1"><Package className="w-3.5 h-3.5 shrink-0" /><span>Shipments</span></div></th>
+                          <th className="py-2 px-4"><div className="flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5 shrink-0" /><span>Delivered</span></div></th>
+                          <th className="py-2 px-4"><div className="flex items-center gap-1"><RotateCcw className="w-3.5 h-3.5 shrink-0" /><span>RTO</span></div></th>
+                          <th className="py-2 px-4"><div className="flex items-center gap-1"><AlertTriangle className="w-3.5 h-3.5 shrink-0" /><span>NDR</span></div></th>
+                          <th className="py-2 px-4"><div className="flex items-center gap-1"><IndianRupee className="w-3.5 h-3.5 shrink-0" /><span>Billed</span></div></th>
+                          <th className="py-2 px-4"><div className="flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5 shrink-0" /><span>Delivery %</span></div></th>
+                          <th className="py-2 px-4"><div className="flex items-center gap-1"><RotateCcw className="w-3.5 h-3.5 shrink-0" /><span>RTO %</span></div></th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-[#F1F5F9] text-xs font-semibold text-[#475569]">
-                        {couriers.map(c => (
-                          <tr key={c.name} className="hover:bg-[#F8FAFC]">
-                            <td className="px-4 py-3 font-bold text-[#0F172A]">{c.name}</td>
-                            <td className="px-4 py-3">{fn(c.totalShipments || c.shipments)}</td>
-                            <td className="px-4 py-3 text-[#00A86B]">{fn(c.delivered)}</td>
-                            <td className="px-4 py-3 text-red-500">{fn(c.rto)}</td>
-                            <td className="px-4 py-3 text-amber-500">{fn(c.ndr)}</td>
-                            <td className="px-4 py-3">{fc(c.totalBilled || c.billed)}</td>
-                            <td className="px-4 py-3">{c.deliveryRate}%</td>
-                            <td className="px-4 py-3">{c.rtoRate}%</td>
+                      <tbody>
+                        {couriers.map((c, i) => (
+                          <tr key={c.name} className={`border-b border-[#E2E8F0] transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]/20'}`}>
+                            <td className="p-3 text-xs font-semibold text-[#94A3B8]">{i + 1}</td>
+                            <td className="p-3">
+                              <img src={getCourierLogo(c.name)} alt={c.name} className="w-20 h-8 rounded object-contain object-left shrink-0"
+                                onError={(e) => { (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(c.name)}&background=f8fafc&color=0f172a&bold=true&font-size=0.4`; }} />
+                            </td>
+                            <td className="p-3 text-[13px] font-normal text-[#0F172A]">{fn(c.totalShipments || c.shipments)}</td>
+                            <td className="p-3 text-[13px] font-normal text-[#00A86B]">{fn(c.delivered)}</td>
+                            <td className="p-3 text-[13px] font-normal text-red-500">{fn(c.rto)}</td>
+                            <td className="p-3 text-[13px] font-normal text-amber-500">{fn(c.ndr)}</td>
+                            <td className="p-3 text-[13px] font-normal text-[#0F172A]">{fc(c.totalBilled || c.billed)}</td>
+                            <td className="p-3 text-[13px] font-normal text-[#0F172A]">{c.deliveryRate}%</td>
+                            <td className="p-3 text-[13px] font-normal text-[#0F172A]">{c.rtoRate}%</td>
                           </tr>
                         ))}
                       </tbody>

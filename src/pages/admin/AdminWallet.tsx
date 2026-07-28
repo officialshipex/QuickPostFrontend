@@ -6,9 +6,11 @@ import { useAdminTab } from '../../context/AdminUserContext';
 import { apiClient } from '../../services/apiClient';
 import { usePagination, DesktopPagination } from '../../hooks/usePagination';
 import { useMobilePaginationBar } from '../../hooks/useMobilePaginationBar';
+import { useUserSearchFilter } from '../../hooks/filters/useUserSearchFilter';
 import { Search, ChevronDown, RefreshCcw, Calendar, Check, Package, User, Truck, Banknote, Clock, Upload, Download, MoreVertical, Wallet, ArrowDownCircle, ArrowUpCircle, FileText, Plus, TrendingUp, ChevronLeft, ChevronRight, MinusCircle, Send, Eye, AlertCircle, CheckCircle2, X, CreditCard, Filter, Layers, Hash, CalendarDays, Bot, Settings, Copy } from 'lucide-react';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
+import { useDateRangeFilter } from '../../hooks/filters/useDateRangeFilter';
 import { GlassSingleSelect } from '../../components/ui/GlassSingleSelect';
 import { useTableLoader } from '../../hooks/useTableLoader';
 import { TableLoader } from '../../components/ui/TableLoader';
@@ -269,18 +271,26 @@ export function AdminWallet() {
   const [invoicePage, setInvoicePage] = useState(1);
 
   // Per-tab user search state
-  const [shipUserQuery, setShipUserQuery] = useState('');
-  const [shipUserSuggestions, setShipUserSuggestions] = useState<any[]>([]);
-  const [shipUserMongoId, setShipUserMongoId] = useState('');
-  const [pbUserQuery, setPbUserQuery] = useState('');
-  const [pbUserSuggestions, setPbUserSuggestions] = useState<any[]>([]);
-  const [pbUserMongoId, setPbUserMongoId] = useState('');
-  const [rcUserQuery, setRcUserQuery] = useState('');
-  const [rcUserSuggestions, setRcUserSuggestions] = useState<any[]>([]);
-  const [rcUserMongoId, setRcUserMongoId] = useState('');
-  const [invUserQuery, setInvUserQuery] = useState('');
-  const [invUserSuggestions, setInvUserSuggestions] = useState<any[]>([]);
-  const [invUserMongoId, setInvUserMongoId] = useState('');
+  const {
+    userQuery: shipUserQuery, userMongoId: shipUserMongoId,
+    setUserQuery: setShipUserQuery, setUserMongoId: setShipUserMongoId, setUserSuggestions: setShipUserSuggestions,
+    clearUser: clearShipUserFilter,
+  } = useUserSearchFilter(isAdminView);
+  const {
+    userQuery: pbUserQuery, userMongoId: pbUserMongoId,
+    setUserQuery: setPbUserQuery, setUserMongoId: setPbUserMongoId, setUserSuggestions: setPbUserSuggestions,
+    clearUser: clearPbUserFilter,
+  } = useUserSearchFilter(isAdminView);
+  const {
+    userQuery: rcUserQuery, userMongoId: rcUserMongoId,
+    setUserQuery: setRcUserQuery, setUserMongoId: setRcUserMongoId, setUserSuggestions: setRcUserSuggestions,
+    clearUser: clearRcUserFilter,
+  } = useUserSearchFilter(isAdminView);
+  const {
+    userQuery: invUserQuery, userMongoId: invUserMongoId,
+    setUserQuery: setInvUserQuery, setUserMongoId: setInvUserMongoId, setUserSuggestions: setInvUserSuggestions,
+    clearUser: clearInvUserFilter,
+  } = useUserSearchFilter(isAdminView);
 
   // Top header pickup mobile filter
   const [headerMobileSearch, setHeaderMobileSearch] = useState('');
@@ -292,8 +302,7 @@ export function AdminWallet() {
   const [searchTypeId, setSearchTypeId] = useState('');
   const [selectedCouriers, setSelectedCouriers] = useState<string[]>([]);
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
-  const [shippingDateStart, setShippingDateStart] = useState('');
-  const [shippingDateEnd, setShippingDateEnd] = useState('');
+  const { dateStart: shippingDateStart, dateEnd: shippingDateEnd, setDateStart: setShippingDateStart, setDateEnd: setShippingDateEnd, onDateChange: onShippingDateChange } = useDateRangeFilter();
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
 
   // Passbook Filters State
@@ -303,8 +312,7 @@ export function AdminWallet() {
 
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedDescriptions, setSelectedDescriptions] = useState<string[]>([]);
-  const [passbookDateStart, setPassbookDateStart] = useState('');
-  const [passbookDateEnd, setPassbookDateEnd] = useState('');
+  const { dateStart: passbookDateStart, dateEnd: passbookDateEnd, setDateStart: setPassbookDateStart, setDateEnd: setPassbookDateEnd, onDateChange: onPassbookDateChange } = useDateRangeFilter();
   const [selectedPassbookOrders, setSelectedPassbookOrders] = useState<string[]>([]);
 
   // Wallet Recharge Filters State
@@ -312,16 +320,14 @@ export function AdminWallet() {
   const [rechargeTxnId, setRechargeTxnId] = useState('');
   const [selectedPaymentMethods, setSelectedPaymentMethods] = useState<string[]>([]);
   const [selectedRechargeStatuses, setSelectedRechargeStatuses] = useState<string[]>([]);
-  const [rechargeDateStart, setRechargeDateStart] = useState('');
-  const [rechargeDateEnd, setRechargeDateEnd] = useState('');
+  const { dateStart: rechargeDateStart, dateEnd: rechargeDateEnd, setDateStart: setRechargeDateStart, setDateEnd: setRechargeDateEnd, onDateChange: onRechargeDateChange } = useDateRangeFilter();
   const [selectedRechargeOrders, setSelectedRechargeOrders] = useState<string[]>([]);
 
   // Invoices Filters State
   const [invoiceSearchTerm, setInvoiceSearchTerm] = useState('');
   const [selectedMonths, setSelectedMonths] = useState<string[]>([]);
   const [selectedYears, setSelectedYears] = useState<string[]>([]);
-  const [invoiceDateStart, setInvoiceDateStart] = useState('');
-  const [invoiceDateEnd, setInvoiceDateEnd] = useState('');
+  const { dateStart: invoiceDateStart, dateEnd: invoiceDateEnd, setDateStart: setInvoiceDateStart, setDateEnd: setInvoiceDateEnd, onDateChange: onInvoiceDateChange } = useDateRangeFilter();
   const [selectedInvoiceOrders, setSelectedInvoiceOrders] = useState<string[]>([]);
 
   // Clear tab-specific filters when navigating away from them to prevent filters from persisting
@@ -722,7 +728,7 @@ export function AdminWallet() {
     setSearchTerm(''); setSelectedSearchTypes([]); setSearchTypeId('');
     setSelectedCouriers([]); setSelectedStatuses([]);
     setShippingDateStart(''); setShippingDateEnd('');
-    if (isAdminView) { setShipUserQuery(''); setShipUserSuggestions([]); setShipUserMongoId(''); }
+    if (isAdminView) { clearShipUserFilter(); }
     setShippingPage(1);
     fetchShippingData(1);
   };
@@ -732,7 +738,7 @@ export function AdminWallet() {
     setPassbookSearchTerm(''); setPassbookOrderId(''); setPassbookAwb('');
     setSelectedCategories([]); setSelectedDescriptions([]);
     setPassbookDateStart(''); setPassbookDateEnd('');
-    if (isAdminView) { setPbUserQuery(''); setPbUserSuggestions([]); setPbUserMongoId(''); }
+    if (isAdminView) { clearPbUserFilter(); }
     setPassbookPage(1);
     fetchPassbookData(1);
   };
@@ -742,7 +748,7 @@ export function AdminWallet() {
     setRechargeSearchTerm(''); setRechargeTxnId('');
     setSelectedPaymentMethods([]); setSelectedRechargeStatuses([]);
     setRechargeDateStart(''); setRechargeDateEnd('');
-    if (isAdminView) { setRcUserQuery(''); setRcUserSuggestions([]); setRcUserMongoId(''); }
+    if (isAdminView) { clearRcUserFilter(); }
     setRechargePage(1);
     fetchRechargeData(1);
   };
@@ -751,7 +757,7 @@ export function AdminWallet() {
   const clearInvoiceFilters = () => {
     setInvoiceSearchTerm(''); setSelectedMonths([]); setSelectedYears([]);
     setInvoiceDateStart(''); setInvoiceDateEnd('');
-    if (isAdminView) { setInvUserQuery(''); setInvUserSuggestions([]); setInvUserMongoId(''); }
+    if (isAdminView) { clearInvUserFilter(); }
     setInvoicePage(1);
     fetchInvoiceData(1);
   };
@@ -782,28 +788,7 @@ export function AdminWallet() {
     return () => clearTimeout(timer);
   }, [upbUpdAwb, upbTab]);
 
-  // Filter bar user search (admin only) — one effect per tab
-  const makeUserSearchEffect = (
-    query: string,
-    setSuggestions: (v: any[]) => void,
-  ) => {
-    if (!isAdminView || query.trim().length < 2) { setSuggestions([]); return; }
-    const timer = setTimeout(async () => {
-      try {
-        const res = await apiClient.get(`/admin/searchUser?query=${encodeURIComponent(query)}`);
-        setSuggestions(res.data.users || []);
-      } catch (_) { setSuggestions([]); }
-    }, 300);
-    return () => clearTimeout(timer);
-  };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => makeUserSearchEffect(shipUserQuery, setShipUserSuggestions), [shipUserQuery, isAdminView]);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => makeUserSearchEffect(pbUserQuery, setPbUserSuggestions), [pbUserQuery, isAdminView]);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => makeUserSearchEffect(rcUserQuery, setRcUserSuggestions), [rcUserQuery, isAdminView]);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => makeUserSearchEffect(invUserQuery, setInvUserSuggestions), [invUserQuery, isAdminView]);
+  // Filter bar user search (admin only) — now handled per-tab by useUserSearchFilter
 
   // ── End API Fetch Functions ────────────────────────────────────────────
 
@@ -1175,7 +1160,7 @@ export function AdminWallet() {
                   align="right"
                   startDate={shippingDateStart}
                   endDate={shippingDateEnd}
-                  onDateChange={(s, e) => { setShippingDateStart(s); setShippingDateEnd(e); }}
+                  onDateChange={onShippingDateChange}
                 />
 
                 <button
@@ -1375,7 +1360,7 @@ export function AdminWallet() {
                   align="right"
                   startDate={passbookDateStart}
                   endDate={passbookDateEnd}
-                  onDateChange={(s, e) => { setPassbookDateStart(s); setPassbookDateEnd(e); }}
+                  onDateChange={onPassbookDateChange}
                 />
 
                 <button
@@ -1476,7 +1461,7 @@ export function AdminWallet() {
                   align="right"
                   startDate={rechargeDateStart}
                   endDate={rechargeDateEnd}
-                  onDateChange={(s, e) => { setRechargeDateStart(s); setRechargeDateEnd(e); }}
+                  onDateChange={onRechargeDateChange}
                 />
 
                 <button
@@ -1622,7 +1607,7 @@ export function AdminWallet() {
                   align="right"
                   startDate={invoiceDateStart}
                   endDate={invoiceDateEnd}
-                  onDateChange={(s, e) => { setInvoiceDateStart(s); setInvoiceDateEnd(e); }}
+                  onDateChange={onInvoiceDateChange}
                 />
 
                 <button
@@ -3551,7 +3536,7 @@ export function AdminWallet() {
                         className="w-full [&_.glass-dropdown-trigger]:w-full [&_.glass-dropdown-trigger]:h-11"
                         startDate={passbookDateStart}
                         endDate={passbookDateEnd}
-                        onDateChange={(s, e) => { setPassbookDateStart(s); setPassbookDateEnd(e); }}
+                        onDateChange={onPassbookDateChange}
                       />
                     </div>
 
@@ -3626,7 +3611,7 @@ export function AdminWallet() {
                         className="w-full [&_.glass-dropdown-trigger]:w-full [&_.glass-dropdown-trigger]:h-11"
                         startDate={rechargeDateStart}
                         endDate={rechargeDateEnd}
-                        onDateChange={(s, e) => { setRechargeDateStart(s); setRechargeDateEnd(e); }}
+                        onDateChange={onRechargeDateChange}
                       />
                     </div>
 
@@ -3690,7 +3675,7 @@ export function AdminWallet() {
                         className="w-full [&_.glass-dropdown-trigger]:w-full [&_.glass-dropdown-trigger]:h-11"
                         startDate={invoiceDateStart}
                         endDate={invoiceDateEnd}
-                        onDateChange={(s, e) => { setInvoiceDateStart(s); setInvoiceDateEnd(e); }}
+                        onDateChange={onInvoiceDateChange}
                       />
                     </div>
 

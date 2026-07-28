@@ -1,16 +1,20 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { useNavigate } from 'react-router-dom';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { DesktopPagination } from '../../hooks/usePagination';
 import { apiClient } from '../../services/apiClient';
 import {
   Search, Download, RefreshCw, ChevronLeft, ChevronRight, ChevronDown,
-  Filter, Truck, RotateCcw, CheckCircle2, AlertTriangle, Clock, Package, MoreHorizontal, MapPin, Check, History, User, Settings, Flame, X, Loader2, Zap, IndianRupee, Calendar, Mail, FileText
+  Filter, Truck, RotateCcw, CheckCircle2, AlertTriangle, Clock, Package, MoreHorizontal, MapPin, Check, History, User, Settings, Flame, X, Loader2, Zap, IndianRupee, Calendar, Mail, FileText, Copy
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
 import { TruncatedText } from '../../components/ui/TruncatedText';
 import { TableLoader } from '../../components/ui/TableLoader';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { useMobilePaginationBar } from '../../hooks/useMobilePaginationBar';
 
 const COURIER_OPTS = ['Delhivery', 'Ekart', 'XpressBees', 'Shadowfax', 'DTDC', 'BlueDart', 'Ecom Express'];
 const STATUS_OPTS = ['Booked', 'Picked Up', 'In Transit', 'Out for Delivery', 'Delivered', 'RTO Initiated', 'RTO Delivered', 'Lost'];
@@ -29,6 +33,18 @@ const STATUS_STYLES: Record<string, string> = {
   'RTO Delivered': 'bg-emerald-50 text-emerald-700 border-emerald-200',
   'Lost': 'bg-slate-100 text-slate-500 border-slate-200',
 };
+
+const STATUS_RIBBON_COLORS: Record<string, string> = {
+  'Booked': '#64748B',
+  'Picked Up': '#4F46E5',
+  'In Transit': '#0284C7',
+  'Out for Delivery': '#D97706',
+  'Delivered': '#059669',
+  'RTO Initiated': '#EA580C',
+  'RTO Delivered': '#059669',
+  'Lost': '#94A3B8',
+};
+const getRibbonColor = (status: string) => STATUS_RIBBON_COLORS[status] || '#00A86B';
 
 interface TrackingEvent {
   date: string;
@@ -139,6 +155,7 @@ const populateTrackingFromOrders = (rawOrders: any[]): Record<string, TrackingEv
 };
 
 export function CRMShipmentListing() {
+  const navigate = useNavigate();
   const [selectedCouriers, setSelectedCouriers] = useState<string[]>([]);
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
   const [selectedChannels, setSelectedChannels] = useState<string[]>([]);
@@ -155,6 +172,17 @@ export function CRMShipmentListing() {
   const [dateTo, setDateTo] = useState('');
 
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
+  const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
+  const [copiedAwb, setCopiedAwb] = useState<string | null>(null);
+  const [copyToast, setCopyToast] = useState<string | null>(null);
+  const handleCopyAwb = (awb: string) => {
+    navigator.clipboard.writeText(awb).then(() => {
+      setCopiedAwb(awb);
+      setCopyToast(awb);
+      setTimeout(() => setCopiedAwb(prev => (prev === awb ? null : prev)), 1500);
+      setTimeout(() => setCopyToast(prev => (prev === awb ? null : prev)), 2000);
+    });
+  };
   const [openActionId, setOpenActionId] = useState<string | null>(null);
   const [showLastUpdate, setShowLastUpdate] = useState(false);
   const [showAgeingLegend, setShowAgeingLegend] = useState(false);
@@ -258,6 +286,14 @@ export function CRMShipmentListing() {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
+  // Close tap-triggered mobile tooltips (product/pickup) on any outside tap
+  useEffect(() => {
+    if (!productHoverPos && !hoveredPickup) return;
+    const handler = () => { setProductHoverPos(null); setHoveredPickup(null); };
+    document.addEventListener('pointerdown', handler);
+    return () => document.removeEventListener('pointerdown', handler);
+  }, [productHoverPos, hoveredPickup]);
+
   const hasActiveFilters = selectedCouriers.length > 0 || selectedStatuses.length > 0 || selectedChannels.length > 0 || selectedOrderTypes.length > 0 || selectedPickupAddrs.length > 0 || userDetails || orderId || productSpecs || packageSpecs || forwardAwb || rtoAwb || (dateFrom && dateTo);
 
   const handleClearAllFilters = () => {
@@ -321,34 +357,69 @@ export function CRMShipmentListing() {
 
   return (
     <AdminLayout>
+      {/* Copy Toast */}
+      <AnimatePresence>
+        {copyToast && (
+          <motion.div
+            initial={{ opacity: 0, y: -16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -16 }}
+            className="fixed top-5 left-1/2 -translate-x-1/2 z-[9999] flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg text-[13px] font-semibold text-white bg-[#00A86B]"
+          >
+            <Check className="w-4 h-4" /> AWB {copyToast} copied
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="flex flex-col h-[calc(100vh-72px)] -m-4 md:-m-6 bg-white overflow-hidden">
         {/* Header Section */}
-        <div className="bg-white shrink-0 py-3 px-6 border-b border-[#CBD5F5]">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-3">
-            <div>
-              <div className="flex items-center gap-2">
+        <div className="bg-[#F8FAFC]/50 shrink-0 py-3 px-6 border-b border-[#CBD5F5]">
+          <div className="flex flex-row items-center justify-between gap-3 mb-3">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="text-xl font-bold text-[#0F172A]">Shipment Listing</h2>
                 <span className="text-[10px] font-bold bg-[#00A86B]/10 text-[#00A86B] px-2 py-0.5 rounded-full">INTERNAL CRM</span>
               </div>
-              <p className="text-xs text-[#64748B] mt-0.5">AWB-level details — view, filter and manage all shipments across couriers.</p>
+              <p className="hidden md:block text-xs text-[#64748B] mt-0.5">AWB-level details — view, filter and manage all shipments across couriers.</p>
             </div>
-            <div className="flex gap-2">
-              <button onClick={() => fetchRef.current(pageRef.current, rowsPerPageRef.current)} className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-[#E2E8F0] text-xs font-semibold text-[#64748B] hover:bg-[#F8FAFC] transition-colors">
-                <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> Refresh
+            <div className="flex gap-2 shrink-0">
+              <button onClick={() => fetchRef.current(pageRef.current, rowsPerPageRef.current)} className="flex items-center justify-center gap-1.5 w-9 h-9 md:w-auto md:h-auto md:px-3 md:py-2 rounded-full md:rounded-lg border border-[#E2E8F0] text-xs font-semibold text-[#64748B] hover:bg-[#F8FAFC] transition-colors shrink-0">
+                <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> <span className="hidden md:inline">Refresh</span>
               </button>
               <button
                 onClick={handleExport}
                 disabled={selectedOrders.length === 0}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors shadow-sm ${selectedOrders.length > 0 ? 'bg-[#00A86B] text-white hover:bg-[#009960] cursor-pointer' : 'bg-[#E2E8F0] text-[#94A3B8] cursor-not-allowed opacity-60'}`}
+                className={`flex items-center justify-center gap-1.5 w-9 h-9 md:w-auto md:h-auto md:px-3 md:py-2 rounded-full md:rounded-lg text-xs font-semibold transition-colors shadow-sm shrink-0 ${selectedOrders.length > 0 ? 'bg-[#00A86B] text-white hover:bg-[#009960] cursor-pointer' : 'bg-[#E2E8F0] text-[#94A3B8] cursor-not-allowed opacity-60'}`}
               >
                 <Download className="w-3.5 h-3.5" />
-                Export{selectedOrders.length > 0 ? ` (${selectedOrders.length})` : ''}
+                <span className="hidden md:inline">Export{selectedOrders.length > 0 ? ` (${selectedOrders.length})` : ''}</span>
               </button>
             </div>
           </div>
 
+          {/* Mobile Filters trigger */}
+          <div className="md:hidden flex items-center gap-2 mt-1 w-full">
+            {selectedOrders.length > 0 && (
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-[11px] font-bold text-blue-700 whitespace-nowrap">{selectedOrders.length} selected</span>
+                <button className="h-7 px-2.5 rounded-md bg-white border border-blue-200 text-[11px] font-bold text-blue-700 shadow-sm hover:bg-blue-50 transition-colors whitespace-nowrap">Export</button>
+              </div>
+            )}
+            <div className="flex items-center gap-2 ml-auto shrink-0">
+              <button
+                onClick={() => setIsMobileFiltersOpen(true)}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#00A86B] text-white text-[12px] font-bold shadow-sm whitespace-nowrap"
+              >
+                <Filter className="w-3.5 h-3.5" /> Filters
+              </button>
+              {hasActiveFilters && (
+                <span className="text-[11px] font-bold text-[#00A86B] bg-[#F0FDF4] border border-[#00A86B]/20 px-2.5 py-1 rounded-full whitespace-nowrap">Active</span>
+              )}
+            </div>
+          </div>
+
           {/* Filter Row — evenly distributed 2-row grid, uniform pill sizes */}
-          <div className="filter-grid grid grid-cols-6 gap-3 mt-3">
+          <div className="filter-grid hidden md:grid grid-cols-6 gap-3 mt-3">
             <div className="relative">
               <input type="text" placeholder="Search user..." value={userDetails} onChange={e => setUserDetails(e.target.value)} className="glass-search-input w-full" />
               <Search className="w-3.5 h-3.5 text-[#94A3B8] absolute right-2.5 top-1/2 -translate-y-1/2" />
@@ -467,7 +538,7 @@ export function CRMShipmentListing() {
 
         {/* Toolbar */}
         {selectedOrders.length > 0 && (
-          <div className="bg-white shrink-0 px-6 py-2.5 border-b border-[#E2E8F0] flex items-center justify-end gap-4">
+          <div className="hidden md:flex bg-white shrink-0 px-6 py-2.5 border-b border-[#E2E8F0] items-center justify-end gap-4">
             <div className="flex items-center gap-3 animate-fade-in shrink-0">
               <span className="text-xs font-bold text-blue-700">{selectedOrders.length} selected</span>
               <button className="h-8 px-3 rounded-md bg-white border border-blue-200 text-xs font-bold text-blue-700 shadow-sm hover:bg-blue-50 transition-colors">Export Selection</button>
@@ -475,50 +546,35 @@ export function CRMShipmentListing() {
           </div>
         )}
 
-        {/* Table Area */}
-        <div className="bg-white flex flex-col flex-1 min-h-0 overflow-hidden">
+        {/* Table Area — desktop */}
+        <div className="hidden md:flex bg-white flex-col flex-1 min-h-0 overflow-hidden">
           <div className="flex-1 overflow-auto w-full relative no-scrollbar">
             {loading && <TableLoader />}
-            <table className={`text-left border-collapse w-full ${showLastUpdate ? 'min-w-[1600px]' : 'min-w-[1400px]'}`}>
-              <colgroup>
-                <col style={{ width: '36px' }} />
-                <col style={{ width: '10%' }} />
-                <col style={{ width: '10%' }} />
-                <col style={{ width: '11%' }} />
-                <col style={{ width: '10%' }} />
-                <col style={{ width: '9%' }} />
-                <col style={{ width: '9%' }} />
-                <col style={{ width: '9%' }} />
-                <col style={{ width: '10%' }} />
-                <col style={{ width: '8%' }} />
-                <col style={{ width: '10%' }} />
-                {showLastUpdate && <col style={{ width: '180px' }} />}
-                <col style={{ width: '80px' }} />
-              </colgroup>
+            <table className="text-left border-collapse w-full min-w-full">
               <thead className="sticky top-0 z-40 shadow-sm bg-[#E6F9F2]">
                 <tr className="text-xs leading-[18px] font-medium text-[#64748B] uppercase tracking-wider border border-[#B9EFDB] whitespace-nowrap">
                   <th className="py-2 px-4 w-10 rounded-l-lg">
                     <input type="checkbox" checked={selectedOrders.length === paginated.length && paginated.length > 0} onChange={toggleAll} className="rounded border-[#00A86B] accent-[#00A86B] w-3.5 h-3.5" />
                   </th>
-                  <th className="py-2 px-4 text-left align-middle w-[188px]">
+                  <th className="py-2 px-4 text-left align-middle">
                     <div className="flex items-center gap-1"><User className="w-3.5 h-3.5 shrink-0"/><span>User</span></div>
                   </th>
-                  <th className="py-2 px-4 text-left align-middle w-[94px]">
+                  <th className="py-2 px-4 text-left align-middle">
                     <div className="flex items-center gap-1"><FileText className="w-3.5 h-3.5 shrink-0"/><span>Order</span></div>
                   </th>
-                  <th className="py-2 px-4 text-left align-middle w-[130px]">
+                  <th className="py-2 px-4 text-left align-middle">
                     <div className="flex items-center gap-1"><Package className="w-3.5 h-3.5 shrink-0"/><span>Product</span></div>
                   </th>
-                  <th className="py-2 px-4 text-left align-middle w-[126px]">
+                  <th className="py-2 px-4 text-left align-middle">
                     <div className="flex items-center gap-1"><Package className="w-3.5 h-3.5 shrink-0"/><span>Package</span></div>
                   </th>
-                  <th className="py-2 px-4 text-left align-middle w-[77px]">
+                  <th className="py-2 px-4 text-left align-middle">
                     <div className="flex items-center gap-1"><IndianRupee className="w-3.5 h-3.5 shrink-0"/><span>Payment</span></div>
                   </th>
-                  <th className="py-2 px-4 text-left align-middle w-[117px]">
+                  <th className="py-2 px-4 text-left align-middle">
                     <div className="flex items-center gap-1"><User className="w-3.5 h-3.5 shrink-0"/><span>Customer</span></div>
                   </th>
-                  <th className="py-2 px-4 text-left align-middle w-[108px]">
+                  <th className="py-2 px-4 text-left align-middle">
                     <div className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5 shrink-0"/><span>Pickup</span></div>
                   </th>
                   <th className="py-2 px-4 text-left align-middle">
@@ -542,7 +598,7 @@ export function CRMShipmentListing() {
                       </div>
                     )}
                   </th>
-                  <th className="py-2 px-4 text-left align-middle w-[62px]">
+                  <th className="py-2 px-4 text-left align-middle">
                     <div className="flex items-center gap-1">
                       <Check className="w-3.5 h-3.5 shrink-0"/>
                       <span>Status</span>
@@ -564,7 +620,7 @@ export function CRMShipmentListing() {
                       </div>
                     </th>
                   )}
-                  <th className="py-2 px-4 text-left align-middle rounded-r-lg w-[69px]">
+                  <th className="py-2 px-4 text-left align-middle rounded-r-lg">
                     <div className="flex items-center gap-1"><Settings className="w-3.5 h-3.5 shrink-0"/><span>Actions</span></div>
                   </th>
                 </tr>
@@ -575,14 +631,14 @@ export function CRMShipmentListing() {
                     <td className="px-2 py-3 text-center align-middle">
                       <input type="checkbox" checked={selectedOrders.includes(row.awb)} onChange={() => toggleSelect(row.awb)} className="rounded border-gray-300 accent-[#00A86B] w-3.5 h-3.5" />
                     </td>
-                    <td className="p-3 w-[188px]">
+                    <td className="p-3">
                       <div className="flex flex-col gap-1">
                         <div className="text-[12px] leading-[18px] font-semibold text-[#009D64]">{row.companyId}</div>
                         <TruncatedText text={row.seller} maxLength={20} className="text-[14px] leading-[20px] font-semibold text-[#1E293B] max-w-[156px]" />
                         <TruncatedText text={row.email} maxLength={25} className="text-[12px] leading-[18px] font-normal text-[#64748B] max-w-[156px]" />
                       </div>
                     </td>
-                    <td className="p-3 w-[94px]">
+                    <td className="p-3">
                       <div className="flex flex-col gap-1">
                         <div className="text-[12px] leading-[18px] font-semibold text-[#009D64] hover:underline cursor-pointer">{row.orderId}</div>
                         <div className="text-[12px] leading-[18px] font-normal text-[#64748B]">{new Date(row.manifestDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
@@ -592,7 +648,7 @@ export function CRMShipmentListing() {
                       </div>
                     </td>
                     <td
-                      className="p-3 w-[130px]"
+                      className="p-3"
                       onMouseEnter={(e) => {
                         if (row.products.length === 0) return;
                         const rect = e.currentTarget.getBoundingClientRect();
@@ -606,20 +662,20 @@ export function CRMShipmentListing() {
                         <div className="text-[12px] leading-[18px] font-normal text-[#1E293B]">QTY: {row.qty || 1}</div>
                       </div>
                     </td>
-                    <td className="p-3 w-[126px]">
+                    <td className="p-3">
                       <div className="flex flex-col gap-1 text-[12px] leading-[18px] font-normal text-[#1E293B]">
                         <div>Weight: {row.weight || '—'}</div>
                         <div>L×W×H: {row.dimensions || '—'}</div>
                         <div>Vol: {row.volWeight || '—'}</div>
                       </div>
                     </td>
-                    <td className="p-3 w-[77px]">
+                    <td className="p-3">
                       <div className="flex flex-col gap-1">
                         <div className="text-[12px] leading-[18px] font-normal text-[#64748B]">{row.shipmentValue}</div>
                         <span className="px-2 py-0.5 rounded-full border border-blue-200 text-[#004AAD] font-semibold text-[10px] leading-4 bg-blue-50/50 inline-block w-fit">{row.paymentMode}</span>
                       </div>
                     </td>
-                    <td className="p-3 w-[117px]">
+                    <td className="p-3">
                       <div className="flex flex-col gap-1">
                         <div
                           className="text-[12px] leading-[18px] font-normal text-[#1E293B] underline decoration-dotted underline-offset-2 hover:text-[#00A86B] cursor-help inline-block truncate max-w-[110px]"
@@ -631,7 +687,7 @@ export function CRMShipmentListing() {
                         <div className="text-[12px] leading-[18px] font-normal text-[#64748B]">{row.customerPhone}</div>
                       </div>
                     </td>
-                    <td className="p-3 w-[108px]">
+                    <td className="p-3">
                       <div
                         className="text-[12px] leading-[18px] font-normal text-[#1E293B] underline decoration-dotted underline-offset-2 hover:text-[#00A86B] cursor-help inline-block truncate max-w-[100px]"
                         onMouseEnter={(e) => setHoveredPickup({ id: row.awb, rect: e.currentTarget.getBoundingClientRect(), name: row.pickupName, address: row.pickupAddressLine, city: row.pickupCity, state: row.pickupState, pinCode: row.pickupPinCode, phone: row.pickupPhone })}
@@ -650,7 +706,7 @@ export function CRMShipmentListing() {
                     <td className="px-2 py-3 text-left align-middle">
                       {renderAgeing(row.manifestDate)}
                     </td>
-                    <td className="p-3 w-[62px]">
+                    <td className="p-3">
                       <span className={`px-2.5 py-0.5 rounded-full border ${STATUS_STYLES[row.status] || 'bg-blue-50 text-blue-700 border-blue-200'} text-[10px] leading-4 font-semibold uppercase tracking-wider whitespace-nowrap shadow-sm`}>
                         {row.status}
                       </span>
@@ -706,8 +762,8 @@ export function CRMShipmentListing() {
                             className="absolute right-0 top-full mt-1 w-40 bg-white rounded-xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1)] border border-[#E2E8F0] py-2 z-[60]"
                             onClick={(e) => e.stopPropagation()}
                           >
-                            <button className="w-full text-left px-4 py-2 text-[12px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors" onClick={() => alert('Redirecting to order details...')}>View Details</button>
-                            <button className="w-full text-left px-4 py-2 text-[12px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors" onClick={() => alert('Opening live tracking modal...')}>Track Shipment</button>
+                            <button className="w-full text-left px-4 py-2 text-[12px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors" onClick={() => navigate(`/admin/order-tracking?id=${row.orderId}`)}>View Details</button>
+                            <button className="w-full text-left px-4 py-2 text-[12px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors" onClick={() => navigate(`/admin/order-tracking?id=${row.orderId}`)}>Track Shipment</button>
                             <button className="w-full text-left px-4 py-2 text-[12px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors" onClick={() => alert('Downloading Proof of Delivery (POD)...')}>Download POD</button>
                             <button className="w-full text-left px-4 py-2 text-[12px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors" onClick={() => alert('Opening Support Ticket Escalation dialog...')}>Raise Ticket</button>
                           </div>
@@ -749,7 +805,259 @@ export function CRMShipmentListing() {
             />
           )}
         </div>
+
+        {/* Mobile Card List */}
+        <div className="md:hidden flex-1 overflow-y-auto bg-[#F8FAFC] relative">
+          {loading && <TableLoader />}
+          {paginated.length === 0 ? (
+            <EmptyState title="No shipments found" subtitle="Try changing filters" />
+          ) : (
+            <div className="p-4 space-y-4">
+              {paginated.map((row, idx) => {
+                const accent = getRibbonColor(row.status);
+                return (
+                  <div key={row.awb || idx} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
+                    <div
+                      className="absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide"
+                      style={{ background: accent, clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}
+                    >
+                      {row.status}
+                    </div>
+
+                    <div className="pt-8 px-4 pb-4">
+                      <div className="flex items-center justify-between mb-3 gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <input type="checkbox" checked={selectedOrders.includes(row.awb)} onChange={() => toggleSelect(row.awb)} className="rounded border-gray-300 accent-[#00A86B] w-4 h-4 shrink-0" />
+                          <span className="text-[#64748B] font-medium text-[12px]">{row.companyId}</span>
+                        </div>
+                        <span className="text-[12px] font-semibold text-[#009D64]">{row.orderId}</span>
+                      </div>
+
+                      <div className="rounded-xl p-3 mb-3 bg-white" style={{ border: `1px solid ${accent}` }}>
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <TruncatedText text={row.seller} maxLength={24} className="text-[14px] leading-[20px] font-semibold text-[#1E293B]" />
+                            <TruncatedText text={row.email} maxLength={28} className="text-[12px] leading-[18px] font-normal text-[#64748B]" />
+                          </div>
+                          <div className="text-right shrink-0">
+                            <div className="text-[12px] font-semibold text-[#0F172A]">{row.shipmentValue}</div>
+                            <span className="px-2 py-0.5 rounded-full border border-blue-200 text-[#004AAD] font-semibold text-[10px] leading-4 bg-blue-50/50 inline-block w-fit mt-0.5">{row.paymentMode}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-start justify-between mb-3 px-1 gap-2">
+                        <span
+                          className="text-[12px] font-medium text-[#0F172A] underline decoration-dotted underline-offset-2 truncate flex-1 cursor-help"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (row.products.length === 0) return;
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            setProductHoverPos({ id: row.awb, top: rect.bottom + 4, left: rect.left });
+                          }}
+                        >
+                          {row.productName || '—'}
+                        </span>
+                        <span className="text-[11px] font-medium text-[#64748B] shrink-0">QTY: {row.qty}</span>
+                      </div>
+
+                      <div className="flex items-start justify-between bg-[#F8FAFC] rounded-xl px-3 py-2.5 mb-3 gap-2">
+                        <div className="min-w-0">
+                          <div className="text-[10px] font-normal text-[#94A3B8] uppercase tracking-wider">Courier</div>
+                          <div className="text-[12px] font-medium text-[#0F172A] mt-0.5">{row.courier}</div>
+                          <div className="flex items-center gap-1 mt-0.5">
+                            <span className="text-[11px] text-[#64748B]">{row.awb}</span>
+                            <button onClick={() => handleCopyAwb(row.awb)} className="text-[#94A3B8] hover:text-[#00A86B] transition-colors shrink-0">
+                              {copiedAwb === row.awb ? <Check className="w-3 h-3 text-[#00A86B]" /> : <Copy className="w-3 h-3" />}
+                            </button>
+                          </div>
+                        </div>
+                        <div className="text-right min-w-0">
+                          <div className="text-[10px] font-normal text-[#94A3B8] uppercase tracking-wider">Pickup</div>
+                          <div
+                            className="text-[12px] font-medium text-[#0F172A] mt-0.5 underline decoration-dotted underline-offset-2 cursor-help truncate"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setHoveredPickup({ id: row.awb, rect: e.currentTarget.getBoundingClientRect(), name: row.pickupName, address: row.pickupAddressLine, city: row.pickupCity, state: row.pickupState, pinCode: row.pickupPinCode, phone: row.pickupPhone });
+                            }}
+                          >
+                            {row.pickupAddr || '—'}
+                          </div>
+                          <div className="text-[11px] text-[#64748B] mt-0.5">{renderAgeing(row.manifestDate)}</div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => navigate(`/admin/order-tracking?id=${row.orderId}`)} className="flex-1 py-2.5 rounded-xl bg-[#1e40af] text-white text-[12px] font-bold flex items-center justify-center gap-1.5 hover:bg-[#1e3a8a] transition-colors">
+                          View Details
+                        </button>
+                        <div className="relative shrink-0">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setOpenActionId(openActionId === row.awb ? null : row.awb); }}
+                            className="w-10 h-10 rounded-full border border-[#E2E8F0] text-[#64748B] bg-white flex items-center justify-center"
+                          >
+                            <MoreHorizontal className="w-4 h-4" />
+                          </button>
+                          {openActionId === row.awb && (
+                            <div className="absolute right-0 top-full mt-1 w-44 bg-white rounded-xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.15)] border border-[#E2E8F0] py-2 z-[60] text-left" onClick={(e) => e.stopPropagation()}>
+                              <button className="w-full text-left px-4 py-2 text-[12px] font-medium text-[#475569] hover:bg-[#F8FAFC]" onClick={() => navigate(`/admin/order-tracking?id=${row.orderId}`)}>Track Shipment</button>
+                              <button className="w-full text-left px-4 py-2 text-[12px] font-medium text-[#475569] hover:bg-[#F8FAFC]" onClick={() => { alert('Downloading Proof of Delivery (POD)...'); setOpenActionId(null); }}>Download POD</button>
+                              <button className="w-full text-left px-4 py-2 text-[12px] font-medium text-[#475569] hover:bg-[#F8FAFC]" onClick={() => { alert('Opening Support Ticket Escalation dialog...'); setOpenActionId(null); }}>Raise Ticket</button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {useMobilePaginationBar({
+            page, setPage, totalPages, rowsPerPage, setRowsPerPage,
+            startIndex, endIndex, totalItems: totalCount,
+          })}
+        </div>
       </div>
+
+      {/* Mobile Filters Bottom Sheet */}
+      <AnimatePresence>
+        {isMobileFiltersOpen && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[140] md:hidden flex items-end justify-center"
+            onClick={() => setIsMobileFiltersOpen(false)}
+          >
+            <motion.div
+              initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="bg-white rounded-t-3xl border-t border-[#E2E8F0] shadow-2xl w-full max-h-[80vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="px-6 py-4 border-b border-[#E2E8F0] flex items-center justify-between sticky top-0 bg-white z-10">
+                <h3 className="font-bold text-slate-800 text-base flex items-center gap-2">
+                  <Filter className="w-5 h-5 text-[#00A86B]" /> Filters
+                </h3>
+                <button onClick={() => setIsMobileFiltersOpen(false)} className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Search User</label>
+                  <input type="text" value={userDetails} onChange={e => setUserDetails(e.target.value)} placeholder="Search user..."
+                    className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]" />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Order ID</label>
+                  <input type="text" value={orderId} onChange={e => setOrderId(e.target.value)} placeholder="Search order..."
+                    className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]" />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">SKU / Item</label>
+                  <input type="text" value={productSpecs} onChange={e => setProductSpecs(e.target.value)} placeholder="Search SKU / item..."
+                    className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]" />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Weight / Dimensions</label>
+                  <input type="text" value={packageSpecs} onChange={e => setPackageSpecs(e.target.value)} placeholder="Search weight / dims..."
+                    className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]" />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Forward AWB</label>
+                  <input type="text" value={forwardAwb} onChange={e => setForwardAwb(e.target.value)} placeholder="Search FWD AWB..."
+                    className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]" />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">RTO AWB</label>
+                  <input type="text" value={rtoAwb} onChange={e => setRtoAwb(e.target.value)} placeholder="Search RTO AWB..."
+                    className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]" />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Pickup Address</label>
+                  <select
+                    value={selectedPickupAddrs[0] || ''}
+                    onChange={(e) => setSelectedPickupAddrs(e.target.value ? [e.target.value] : [])}
+                    className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
+                  >
+                    <option value="">All Pickup Addresses</option>
+                    {PICKUP_ADDR_OPTS.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Status</label>
+                  <select
+                    value={selectedStatuses[0] || ''}
+                    onChange={(e) => setSelectedStatuses(e.target.value ? [e.target.value] : [])}
+                    className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
+                  >
+                    <option value="">All Statuses</option>
+                    {STATUS_OPTS.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Courier</label>
+                  <select
+                    value={selectedCouriers[0] || ''}
+                    onChange={(e) => setSelectedCouriers(e.target.value ? [e.target.value] : [])}
+                    className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
+                  >
+                    <option value="">All Couriers</option>
+                    {COURIER_OPTS.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Channel</label>
+                  <select
+                    value={selectedChannels[0] || ''}
+                    onChange={(e) => setSelectedChannels(e.target.value ? [e.target.value] : [])}
+                    className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
+                  >
+                    <option value="">All Channels</option>
+                    {CHANNEL_OPTS.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Order Type</label>
+                  <select
+                    value={selectedOrderTypes[0] || ''}
+                    onChange={(e) => setSelectedOrderTypes(e.target.value ? [e.target.value] : [])}
+                    className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
+                  >
+                    <option value="">All Types</option>
+                    {ORDER_TYPE_OPTS.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Date Range</label>
+                  <GlassDateFilter
+                    className="w-full [&_.glass-dropdown-trigger]:w-full [&_.glass-dropdown-trigger]:h-11"
+                    startDate={dateFrom}
+                    endDate={dateTo}
+                    onDateChange={(s, e) => { setDateFrom(s); setDateTo(e); }}
+                  />
+                </div>
+              </div>
+
+              <div className="px-6 py-4 border-t border-[#E2E8F0] flex items-center gap-3 sticky bottom-0 bg-white">
+                <button
+                  onClick={() => { handleClearAllFilters(); setIsMobileFiltersOpen(false); }}
+                  className="flex-1 h-11 rounded-full border border-[#E2E8F0] text-[#475569] text-sm font-bold hover:bg-[#F8FAFC] transition-colors"
+                >
+                  Reset All
+                </button>
+                <button
+                  onClick={() => { handleApplyFilters(); setIsMobileFiltersOpen(false); }}
+                  className="flex-1 h-11 rounded-full bg-[#009D64] text-white text-sm font-bold hover:bg-[#009B63] transition-colors shadow-sm"
+                >
+                  Apply Filters
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Fixed Tooltip for Tracking Last Update */}
       {hoveredTracking && (
@@ -778,10 +1086,10 @@ export function CRMShipmentListing() {
       {hoveredPickup && (() => {
         const showBelow = hoveredPickup.rect.top < 260;
         return (
-          <div className="fixed z-[9999] pointer-events-none bg-[#0F172A] text-white text-xs p-3 rounded-xl shadow-xl w-64"
+          <div className="fixed z-[9999] pointer-events-none bg-[#0F172A] text-white text-[11px] md:text-xs p-2.5 md:p-3 rounded-xl shadow-xl w-52 md:w-64"
             style={{
               top: showBelow ? hoveredPickup.rect.bottom + 10 : hoveredPickup.rect.top - 10,
-              left: Math.min(Math.max(hoveredPickup.rect.left + hoveredPickup.rect.width / 2, 140), window.innerWidth - 140),
+              left: Math.min(Math.max(hoveredPickup.rect.left + hoveredPickup.rect.width / 2, 112), window.innerWidth - 112),
               transform: showBelow ? 'translate(-50%, 0)' : 'translate(-50%, -100%)',
             }}>
             <div className="font-bold flex items-center gap-1.5 mb-1.5"><MapPin className="w-3.5 h-3.5 text-[#00A86B] shrink-0" />{hoveredPickup.name}</div>
@@ -844,13 +1152,13 @@ export function CRMShipmentListing() {
         const grandTotal = hoveredOrder.products.reduce((s: number, p: any) => s + p.total, 0);
         return createPortal(
           <div
-            className="fixed z-[999] w-[320px] bg-white border border-[#E2E8F0] rounded-xl shadow-[0_4px_24px_-4px_rgba(0,0,0,0.15)] p-3 pointer-events-none"
+            className="fixed z-[999] w-[260px] md:w-[320px] bg-white border border-[#E2E8F0] rounded-xl shadow-[0_4px_24px_-4px_rgba(0,0,0,0.15)] p-2 md:p-3 pointer-events-none"
             style={{
               top: productHoverPos.top,
-              left: Math.max(4, Math.min(productHoverPos.left, window.innerWidth - 336)),
+              left: Math.max(4, Math.min(productHoverPos.left, window.innerWidth - 276)),
             }}
           >
-            <table className="w-full text-[11px] border-collapse">
+            <table className="w-full text-[10px] md:text-[11px] border-collapse">
               <thead>
                 <tr className="text-[#64748B] border-b border-[#E2E8F0]">
                   <th className="text-left font-semibold pb-1.5 pr-2">Name</th>

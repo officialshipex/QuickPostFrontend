@@ -6,6 +6,7 @@ import { DesktopPagination } from '../../hooks/usePagination';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { apiClient } from '../../services/apiClient';
 import { useAdminTab } from '../../context/AdminUserContext';
+import { useUserSearchFilter } from '../../hooks/filters/useUserSearchFilter';
 import * as XLSX from 'xlsx';
 import {
   ChevronDown, RefreshCcw, Check, Package, User, Truck,
@@ -13,6 +14,7 @@ import {
 } from 'lucide-react';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
+import { useDateRangeFilter } from '../../hooks/filters/useDateRangeFilter';
 import { TableLoader } from '../../components/ui/TableLoader';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { TruncatedText } from '../../components/ui/TruncatedText';
@@ -404,10 +406,14 @@ export function AdminWeightDiscrepancy() {
   const [searchInput, setSearchInput] = useState('');
   const [searchBy] = useState('awbNumber');
   const [selectedCouriers, setSelectedCouriers] = useState<string[]>([]);
-  const [dateStart, setDateStart] = useState('');
-  const [dateEnd, setDateEnd] = useState('');
-  const [userMongoId, setUserMongoId] = useState('');
-  const [userSearchText, setUserSearchText] = useState('');
+  const { dateStart, dateEnd, setDateStart, setDateEnd, onDateChange } = useDateRangeFilter();
+  const {
+    userQuery: userSearchText, userMongoId, userSuggestions: userResults,
+    setUserQuery: setUserSearchText, setUserMongoId, setUserSuggestions: setUserResults,
+    onQueryChange: onUserSearchTextChange,
+    selectUser: selectUserSuggestion,
+    clearUser: clearUserSearchFilter,
+  } = useUserSearchFilter(isAdminView);
 
   // ── Global search (navbar search bar) ──
   const [globalSearchQuery, setGlobalSearchQuery] = useState((window as any).__adminSearchQuery?.toLowerCase() || '');
@@ -419,7 +425,6 @@ export function AdminWeightDiscrepancy() {
     window.addEventListener('admin-search', fn);
     return () => window.removeEventListener('admin-search', fn);
   }, []);
-  const [userResults, setUserResults] = useState<any[]>([]);
 
   // ── Selection
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
@@ -557,31 +562,9 @@ export function AdminWeightDiscrepancy() {
   useEffect(() => { setPage(1); setSelectedItems([]); }, [activeTab]);
 
   // ── User search (admin only) — matches AdminOrders pattern
-  const userSearchTimeout = useRef<number | undefined>(undefined);
-  const handleUserInput = (v: string) => {
-    setUserSearchText(v);
-    if (!v.trim()) { setUserMongoId(''); setUserResults([]); return; }
-    if (userMongoId) return; // already selected, don't re-search
-    clearTimeout(userSearchTimeout.current);
-    userSearchTimeout.current = setTimeout(async () => {
-      try {
-        const res = await apiClient.get(`/admin/searchUser?query=${encodeURIComponent(v)}`);
-        setUserResults(res.data?.users || []);
-      } catch { setUserResults([]); }
-    }, 300);
-  };
-  const selectUser = (u: any) => {
-    setUserMongoId(u._id);
-    setUserSearchText(`${u.fullname} (${u.email})`);
-    setUserResults([]);
-    setPage(1);
-  };
-  const clearUserFilter = () => {
-    setUserMongoId('');
-    setUserSearchText('');
-    setUserResults([]);
-    setPage(1);
-  };
+  const handleUserInput = (v: string) => onUserSearchTextChange(v);
+  const selectUser = (u: any) => { selectUserSuggestion(u); setPage(1); };
+  const clearUserFilter = () => { clearUserSearchFilter(); setPage(1); };
 
   // ── Client-side refinement by navbar search — guarantees the header search bar
   // works even if the backend doesn't support the `searchQuery` param on this endpoint.
@@ -748,7 +731,7 @@ export function AdminWeightDiscrepancy() {
                 <div className="relative">
                   <input type="text" placeholder="Search user..."
                     value={userSearchText}
-                    onChange={e => { handleUserInput(e.target.value); if (!e.target.value.trim()) { setUserMongoId(''); setUserResults([]); } }}
+                    onChange={e => handleUserInput(e.target.value)}
                     className="glass-search-input w-[170px]" style={{ paddingLeft: '2rem', paddingRight: '1.75rem' }} />
                   <Search className="w-3.5 h-3.5 text-[#94A3B8] absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                   {userMongoId && (
@@ -795,7 +778,7 @@ export function AdminWeightDiscrepancy() {
               align="right"
               startDate={dateStart}
               endDate={dateEnd}
-              onDateChange={(s, e) => { setDateStart(s); setDateEnd(e); setPage(1); }}
+              onDateChange={(s, e) => { onDateChange(s, e); setPage(1); }}
             />
 
             <button onClick={() => { setPage(1); fetchDiscrepancy(); }}

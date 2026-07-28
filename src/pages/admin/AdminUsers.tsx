@@ -9,10 +9,12 @@ import {
 } from 'lucide-react';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
+import { useDateRangeFilter } from '../../hooks/filters/useDateRangeFilter';
 import { TableLoader } from '../../components/ui/TableLoader';
 import { TruncatedText } from '../../components/ui/TruncatedText';
 import { DesktopPagination } from '../../hooks/usePagination';
 import { useMobilePaginationBar } from '../../hooks/useMobilePaginationBar';
+import { getTier } from '../../hooks/useTier';
 import { apiClient } from '../../services/apiClient';
 
 const STATUS_BADGE_STYLES: Record<string, string> = {
@@ -29,16 +31,6 @@ const STATUS_BADGE_STYLES: Record<string, string> = {
 const getStatusBadgeClass = (status: string) => {
   const normalized = status || '';
   return `${STATUS_BADGE_STYLES[normalized] || 'bg-blue-50 text-blue-700 border-blue-200'} px-2.5 py-0.5 rounded-full border text-[10px] font-semibold uppercase tracking-wider whitespace-nowrap shadow-sm`;
-};
-
-// Tier is derived from monthly shipment volume — thresholds per the tier table (Silver 0–1,000 … Titanium 10,000+).
-const getTier = (monthlyShipments: number): string => {
-  const n = monthlyShipments || 0;
-  if (n >= 10001) return 'Titanium';
-  if (n >= 6001) return 'Diamond';
-  if (n >= 3001) return 'Platinum';
-  if (n >= 1001) return 'Gold';
-  return 'Silver';
 };
 
 // Prefers a real backend field if present; otherwise infers from GST/company data already on the user record.
@@ -92,8 +84,7 @@ export function AdminUsers() {
   const [selectedWalletBalances, setSelectedWalletBalances] = useState<string[]>([]);
   const [selectedTiers, setSelectedTiers] = useState<string[]>([]);
   const [selectedUserTypes, setSelectedUserTypes] = useState<string[]>([]);
-  const [dateStart, setDateStart] = useState('');
-  const [dateEnd, setDateEnd] = useState('');
+  const { dateStart, dateEnd, setDateStart, setDateEnd, onDateChange } = useDateRangeFilter();
 
   // ─── Applied filters (trigger API call) ────────────────────────────────────
   const [appliedSearch, setAppliedSearch] = useState('');
@@ -516,7 +507,7 @@ export function AdminUsers() {
               align="right"
               startDate={dateStart}
               endDate={dateEnd}
-              onDateChange={(s, e) => { setDateStart(s); setDateEnd(e); }}
+              onDateChange={onDateChange}
             />
 
             <button
@@ -942,7 +933,7 @@ export function AdminUsers() {
                     className="w-full [&_.glass-dropdown-trigger]:w-full [&_.glass-dropdown-trigger]:h-11"
                     startDate={dateStart}
                     endDate={dateEnd}
-                    onDateChange={(s, e) => { setDateStart(s); setDateEnd(e); }}
+                    onDateChange={onDateChange}
                   />
                 </div>
 

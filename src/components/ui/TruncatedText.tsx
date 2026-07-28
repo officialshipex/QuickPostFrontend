@@ -5,9 +5,11 @@ interface TruncatedTextProps {
   maxLength: number;
   className?: string;
   tooltipClassName?: string;
+  /** Which side of the container the tooltip aligns to. Use 'right' when the element sits near the right edge of a table so the tooltip doesn't bleed into the next column. */
+  tooltipAlign?: 'left' | 'right';
 }
 
-export function TruncatedText({ text, maxLength, className = '', tooltipClassName = '' }: TruncatedTextProps) {
+export function TruncatedText({ text, maxLength, className = '', tooltipClassName = '', tooltipAlign = 'left' }: TruncatedTextProps) {
   const [tapOpen, setTapOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -37,7 +39,7 @@ export function TruncatedText({ text, maxLength, className = '', tooltipClassNam
       onClick={(e) => { e.stopPropagation(); setTapOpen(v => !v); }}
     >
       <div className="truncate cursor-default">{truncated}</div>
-      <div className={`absolute left-0 bottom-full mb-2 transition-all duration-200 z-[60] ${
+      <div className={`absolute ${tooltipAlign === 'right' ? 'right-0' : 'left-0'} bottom-full mb-2 transition-all duration-200 z-[60] ${
         tapOpen
           ? 'opacity-100 visible translate-y-0'
           : 'opacity-0 invisible translate-y-1 group-hover/tooltip:opacity-100 group-hover/tooltip:visible group-hover/tooltip:translate-y-0'
@@ -45,7 +47,7 @@ export function TruncatedText({ text, maxLength, className = '', tooltipClassNam
         <div className={`bg-slate-800 text-white text-[11px] font-normal tracking-normal py-1.5 px-3 rounded-md shadow-xl whitespace-nowrap ${tooltipClassName}`}>
           {text}
         </div>
-        <div className="w-2.5 h-2.5 bg-slate-800 rotate-45 absolute -bottom-1 left-4"></div>
+        <div className={`w-2.5 h-2.5 bg-slate-800 rotate-45 absolute -bottom-1 ${tooltipAlign === 'right' ? 'right-4' : 'left-4'}`}></div>
       </div>
     </div>
   );

@@ -1,11 +1,19 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
-import { Search, UserPlus, Phone, TrendingUp, Clock, CheckCircle2, XCircle, Loader2, X, MapPin, Building2, Tag, Radio, IndianRupee, UserCog, History, CalendarClock, FileText } from 'lucide-react';
+import { Search, UserPlus, Phone, TrendingUp, Clock, CheckCircle2, XCircle, Loader2, X, MapPin, Building2, Tag, Radio, IndianRupee, UserCog, History, CalendarClock, FileText, Filter } from 'lucide-react';
 import { apiClient } from '../../services/apiClient';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
 import { TableLoader } from '../../components/ui/TableLoader';
+import { EmptyState } from '../../components/ui/EmptyState';
 import { usePagination, DesktopPagination } from '../../hooks/usePagination';
+import { useMobilePaginationBar } from '../../hooks/useMobilePaginationBar';
+
+const STAGE_RIBBON: Record<string, string> = {
+  'New Lead': '#2563EB', 'Contacted': '#7C3AED', 'Demo Scheduled': '#D97706',
+  'Proposal Sent': '#EA580C', 'Negotiation': '#DB2777', 'Converted': '#059669', 'Lost': '#DC2626',
+};
 
 const STAGES = ['All', 'New Lead', 'Contacted', 'Demo Scheduled', 'Proposal Sent', 'Negotiation', 'Converted', 'Lost'];
 const SOURCES = ['All Sources', 'Website', 'Referral', 'Cold Call', 'LinkedIn', 'Event', 'Partner'];
@@ -35,6 +43,7 @@ export function CRMLeads() {
   const [summary, setSummary] = useState({ total: 0, new: 0, inProgress: 0, converted: 0, lost: 0, conversionRate: '0.0' });
   const [loading, setLoading] = useState(false);
 
+  const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [form, setForm] = useState({ ...EMPTY_FORM });
   const [saving, setSaving] = useState(false);
@@ -150,7 +159,14 @@ export function CRMLeads() {
 
         <div className="bg-white flex flex-col flex-1 min-h-0 overflow-hidden border-t border-[#E2E8F0]">
           <div className="py-3 px-6 border-b border-[#CBD5F5] shrink-0">
-            <div className="filter-grid grid grid-cols-3 gap-3">
+            <div className="md:hidden flex items-center gap-2 mb-2">
+              <button onClick={() => setIsMobileFiltersOpen(true)} className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#00A86B] text-white text-[12px] font-bold shadow-sm">
+                <Filter className="w-3.5 h-3.5" /> Filters
+              </button>
+              {hasActiveFilters && <span className="text-[11px] font-bold text-[#00A86B] bg-[#F0FDF4] border border-[#00A86B]/20 px-2.5 py-1 rounded-full">Active</span>}
+              <span className="text-xs text-[#64748B] ml-auto">{totalCount} leads</span>
+            </div>
+            <div className="filter-grid hidden md:grid grid-cols-3 gap-3">
               <div className="relative">
                 <input type="text" placeholder="Search leads..." value={search} onChange={e => setSearch(e.target.value)} className="glass-search-input w-full" />
                 <Search className="w-3.5 h-3.5 text-[#94A3B8] absolute right-2.5 top-1/2 -translate-y-1/2" />
@@ -199,7 +215,7 @@ export function CRMLeads() {
             </div>
           </div>
 
-          <div className="flex-1 overflow-auto w-full relative">
+          <div className="hidden md:block flex-1 overflow-auto w-full relative">
             {loading && <TableLoader />}
             <table className="w-full text-left border-collapse min-w-[900px]">
               <thead className="sticky top-0 z-40 bg-[#E6F9F2] shadow-sm">
@@ -261,8 +277,134 @@ export function CRMLeads() {
             endIndex={endIndex}
             totalItems={displayLeads.length}
           />
+
+          {/* Mobile Card List */}
+          <div className="md:hidden flex-1 overflow-y-auto bg-[#F8FAFC] relative">
+            {loading && <TableLoader />}
+            {paginatedData.length === 0 ? (
+              <EmptyState title="No leads found" subtitle="Try changing filters" />
+            ) : (
+              <div className="p-4 space-y-4">
+                {paginatedData.map((lead, i) => {
+                  const accent = STAGE_RIBBON[lead.stage] || '#00A86B';
+                  return (
+                    <div key={i} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
+                      <div className="absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide"
+                        style={{ background: accent, clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}>
+                        {lead.stage}
+                      </div>
+                      <div className="pt-8 px-4 pb-4">
+                        <div className="rounded-xl p-3 mb-3 bg-white" style={{ border: `1px solid ${accent}` }}>
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0 flex-1">
+                              <div className="text-[14px] leading-[20px] font-semibold text-[#1E293B] truncate">{lead.businessName}</div>
+                              <div className="text-[12px] leading-[18px] font-normal text-[#64748B]">{lead.contactName}</div>
+                              <div className="text-[11px] text-[#94A3B8] font-mono mt-0.5">{lead.leadId}</div>
+                            </div>
+                            <span className="text-[11px] font-medium text-[#64748B] shrink-0 flex items-center gap-1"><Phone className="w-3 h-3" />{lead.phone}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-start justify-between mb-3 px-1 gap-2">
+                          <span className="text-[12px] font-medium text-[#0F172A] flex-1">{lead.city || '—'}</span>
+                          <span className="text-[11px] font-medium text-[#64748B] shrink-0">{lead.source}</span>
+                        </div>
+
+                        <div className="flex items-start justify-between bg-[#F8FAFC] rounded-xl px-3 py-2.5 mb-3 gap-2">
+                          <div className="min-w-0">
+                            <div className="text-[10px] font-normal text-[#94A3B8] uppercase tracking-wider">Expected Volume</div>
+                            <div className="text-[12px] font-medium text-[#0F172A] mt-0.5">{lead.expectedVolume ? `${lead.expectedVolume} orders/mo` : '—'}</div>
+                            <div className="text-[10px] font-normal text-[#94A3B8] uppercase tracking-wider mt-2">Assigned To</div>
+                            <div className="text-[12px] font-medium text-[#0F172A] mt-0.5">{lead.assignedTo || '—'}</div>
+                          </div>
+                          <div className="text-right min-w-0">
+                            <div className="text-[10px] font-normal text-[#94A3B8] uppercase tracking-wider">Follow-up</div>
+                            <div className={`text-[12px] font-medium mt-0.5 ${lead.followUpDate && new Date(lead.followUpDate) <= new Date() ? 'text-red-500' : 'text-[#0F172A]'}`}>
+                              {lead.followUpDate ? new Date(lead.followUpDate).toISOString().split('T')[0] : '—'}
+                            </div>
+                            <div className="text-[10px] font-normal text-[#94A3B8] uppercase tracking-wider mt-2">Last Activity</div>
+                            <div className="text-[12px] font-medium text-[#0F172A] mt-0.5">{lead.lastActivityDate ? new Date(lead.lastActivityDate).toISOString().split('T')[0] : '—'}</div>
+                          </div>
+                        </div>
+
+                        {lead.notes && (
+                          <div className="text-[11px] text-[#64748B] px-1 mb-1 line-clamp-2">{lead.notes}</div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            {useMobilePaginationBar({ page, setPage, totalPages, rowsPerPage, setRowsPerPage, startIndex, endIndex, totalItems: displayLeads.length })}
+          </div>
         </div>
       </div>
+
+      {/* Mobile Filters Bottom Sheet */}
+      <AnimatePresence>
+        {isMobileFiltersOpen && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[140] md:hidden flex items-end justify-center"
+            onClick={() => setIsMobileFiltersOpen(false)}
+          >
+            <motion.div
+              initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="bg-white rounded-t-3xl border-t border-[#E2E8F0] shadow-2xl w-full max-h-[80vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="px-6 py-4 border-b border-[#E2E8F0] flex items-center justify-between sticky top-0 bg-white z-10">
+                <h3 className="font-bold text-slate-800 text-base flex items-center gap-2"><Filter className="w-5 h-5 text-[#00A86B]" /> Filters</h3>
+                <button onClick={() => setIsMobileFiltersOpen(false)} className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Search</label>
+                  <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search leads..."
+                    className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]" />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Source</label>
+                  <select value={source} onChange={(e) => setSource(e.target.value)}
+                    className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white">
+                    {SOURCES.map(o => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">City</label>
+                  <select value={cityFilter[0] || ''} onChange={(e) => setCityFilter(e.target.value ? [e.target.value] : [])}
+                    className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white">
+                    <option value="">All Cities</option>
+                    {cityOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Date Range</label>
+                  <GlassDateFilter
+                    className="w-full [&_.glass-dropdown-trigger]:w-full [&_.glass-dropdown-trigger]:h-11"
+                    startDate={dateFrom} endDate={dateTo}
+                    onDateChange={(s, e) => { setDateFrom(s); setDateTo(e); }}
+                  />
+                </div>
+              </div>
+              <div className="px-6 py-4 border-t border-[#E2E8F0] flex items-center gap-3 sticky bottom-0 bg-white">
+                <button onClick={() => { handleClearAllFilters(); setIsMobileFiltersOpen(false); }}
+                  className="flex-1 h-11 rounded-full border border-[#E2E8F0] text-[#475569] text-sm font-bold hover:bg-[#F8FAFC] transition-colors">
+                  Reset All
+                </button>
+                <button onClick={() => { handleApplyFilters(); setIsMobileFiltersOpen(false); }}
+                  className="flex-1 h-11 rounded-full bg-[#009D64] text-white text-sm font-bold hover:bg-[#009B63] transition-colors shadow-sm">
+                  Apply Filters
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Add Lead Modal */}
       {showAddModal && (

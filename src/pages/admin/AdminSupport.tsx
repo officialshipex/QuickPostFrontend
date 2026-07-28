@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
+import { useDateRangeFilter } from '../../hooks/filters/useDateRangeFilter';
 import { EmptyState } from '../../components/ui/EmptyState';
 
 const MOCK_TICKETS = [
@@ -180,8 +181,7 @@ export function AdminSupport() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSubcategories, setSelectedSubcategories] = useState<string[]>([]);
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
-  const [dateStart, setDateStart] = useState('');
-  const [dateEnd, setDateEnd] = useState('');
+  const { dateStart, dateEnd, setDateStart, setDateEnd, onDateChange } = useDateRangeFilter();
   const [selectedSort, setSelectedSort] = useState<string[]>(['Most Recently Created']);
   const [globalSearchQuery, setGlobalSearchQuery] = useState((window as any).__adminSearchQuery?.toLowerCase() || '');
 
@@ -357,7 +357,7 @@ export function AdminSupport() {
               align="right"
               startDate={dateStart}
               endDate={dateEnd}
-              onDateChange={(s, e) => { setDateStart(s); setDateEnd(e); }}
+              onDateChange={onDateChange}
             />
 
             <GlassDropdown

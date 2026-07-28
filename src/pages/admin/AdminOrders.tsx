@@ -16,6 +16,8 @@ import {
 import { TransferCODModal } from '../../components/ui/TransferCODModal';
 import { usePagination, DesktopPagination } from '../../hooks/usePagination';
 import { useMobilePaginationBar } from '../../hooks/useMobilePaginationBar';
+import { useUserSearchFilter } from '../../hooks/filters/useUserSearchFilter';
+import { useDateRangeFilter } from '../../hooks/filters/useDateRangeFilter';
 import { TableLoader } from '../../components/ui/TableLoader';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { TruncatedText } from '../../components/ui/TruncatedText';
@@ -348,17 +350,14 @@ export function AdminOrders() {
   const [selectedPaymentTypes,   setSelectedPaymentTypes]  = useState<string[]>([]);
   const [selectedPickupAddresses,setSelectedPickupAddresses] = useState<string[]>([]);
   const [selectedCouriers,       setSelectedCouriers]      = useState<string[]>([]);
-  const [dateStart,              setDateStart]             = useState('');
-  const [dateEnd,                setDateEnd]               = useState('');
+  const { dateStart, dateEnd, setDateStart, setDateEnd, onDateChange: onOrderDateChange } = useDateRangeFilter();
 
   // ── Dynamic options from API ──
   const [courierOptions,  setCourierOptions]  = useState<{ label: string; value: string }[]>([]);
   const [pickupOptions,   setPickupOptions]   = useState<{ label: string; value: string }[]>([]);
 
   // ── User search (admin-only) ──
-  const [userQuery,       setUserQuery]       = useState('');
-  const [userSuggestions, setUserSuggestions] = useState<any[]>([]);
-  const [userMongoId,     setUserMongoId]     = useState('');
+  const { userQuery, userSuggestions, userMongoId, setUserQuery, setUserMongoId, setUserSuggestions, onQueryChange: onUserQueryChange, selectUser: selectUserSuggestion, clearUser: clearUserFilter } = useUserSearchFilter(isAdminView);
 
   // ── Filter refresh trigger (incremented on apply/clear so useEffect re-fetches with latest state) ──
   const [refreshTrigger,   setRefreshTrigger]   = useState(0);
@@ -417,18 +416,6 @@ export function AdminOrders() {
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
-
-  // ── User search debounce (admin-only) ──
-  useEffect(() => {
-    if (!isAdminView || userQuery.trim().length < 2) { setUserSuggestions([]); return; }
-    const t = setTimeout(async () => {
-      try {
-        const res = await apiClient.get(`/admin/searchUser?query=${encodeURIComponent(userQuery)}`);
-        setUserSuggestions(res.data.users || []);
-      } catch { setUserSuggestions([]); }
-    }, 300);
-    return () => clearTimeout(t);
-  }, [userQuery, isAdminView]);
 
   // ── Shared params builder for order fetches/exports ──
   const buildOrderParams = useCallback((pg: number, limit: number) => {
@@ -881,16 +868,13 @@ export function AdminOrders() {
                     type="text"
                     placeholder="Search user..."
                     value={userQuery}
-                    onChange={(e) => {
-                      setUserQuery(e.target.value);
-                      if (!e.target.value.trim()) { setUserMongoId(''); setUserSuggestions([]); }
-                    }}
+                    onChange={(e) => onUserQueryChange(e.target.value)}
                     className="glass-search-input w-[160px]"
                     style={{ paddingLeft: '2rem', paddingRight: '2rem' }}
                   />
                   <Search className="w-3.5 h-3.5 text-[#94A3B8] absolute left-2.5 top-1/2 -translate-y-1/2" />
                   {userMongoId && (
-                    <button onClick={() => { setUserQuery(''); setUserMongoId(''); setUserSuggestions([]); }}
+                    <button onClick={clearUserFilter}
                       className="absolute right-2 top-1/2 -translate-y-1/2 text-[#94A3B8] hover:text-red-500">
                       <X className="w-3 h-3" />
                     </button>
@@ -900,7 +884,7 @@ export function AdminOrders() {
                   <div className="absolute left-0 top-full mt-1 bg-white border border-[#E2E8F0] rounded-xl shadow-xl z-50 w-64 max-h-52 overflow-y-auto py-1">
                     {userSuggestions.map((u: any) => (
                       <button key={u._id} type="button"
-                        onClick={() => { setUserMongoId(u._id); setUserQuery(`${u.fullname} (${u.email})`); setUserSuggestions([]); }}
+                        onClick={() => selectUserSuggestion(u)}
                         className="w-full text-left px-3 py-2 hover:bg-[#F0FDF4] flex items-start gap-2">
                         <div className="flex-1 min-w-0">
                           <div className="text-[11px] font-bold text-slate-800 truncate">{u.fullname}</div>
@@ -971,7 +955,7 @@ export function AdminOrders() {
               align="right"
               startDate={dateStart}
               endDate={dateEnd}
-              onDateChange={(s, e) => { setDateStart(s); setDateEnd(e); }}
+              onDateChange={onOrderDateChange}
             />
 
             <button onClick={handleApplyFilters} className="py-2 px-4 shrink-0 rounded-[32px] bg-[#009D64] border border-[#009D64] text-white text-xs font-medium leading-[18px] hover:bg-[#008a57] transition-colors cursor-pointer">
@@ -1161,7 +1145,7 @@ export function AdminOrders() {
                         <>
                           <td className="p-3">
                             <div className="flex flex-col gap-1">
-                              <div className="text-[12px] leading-[18px] font-semibold text-[#009D64] hover:underline cursor-pointer" onClick={() => setDrawerOrder(order)}>{order.orderId}</div>
+                              <div className="text-[12px] leading-[18px] font-semibold text-[#009D64] hover:underline cursor-pointer" onClick={() => navigate(`${isAdminView ? '/admin' : '/user'}/order-tracking?id=${order.orderId}`)}>{order.orderId}</div>
                               <div className="text-[12px] leading-[18px] font-normal text-[#64748B]">{order.date}</div>
                               <span className="px-2 py-0.5 rounded-full border border-blue-200 text-[#004AAD] font-semibold text-[10px] leading-4 bg-blue-50/50 inline-block uppercase w-fit">
                                 {order.channel === 'WooCommerce' ? 'Woo' : (order.channel || 'CUSTOM')}
@@ -1234,7 +1218,7 @@ export function AdminOrders() {
                       </td>
 
                       {showLastUpdateCol && (
-                        <td className="p-3 w-[160px]">
+                        <td className="p-3">
                           {order.lastUpdateDate ? (
                             <div className="flex flex-col gap-0.5">
                               {order.lastUpdateLocation && (
@@ -1420,7 +1404,7 @@ export function AdminOrders() {
                           </button>
                         ) : (
                           <button
-                            onClick={() => setDrawerOrder(order)}
+                            onClick={() => navigate(`${isAdminView ? '/admin' : '/user'}/order-tracking?id=${order.orderId}`)}
                             className="flex-1 py-2.5 rounded-xl bg-[#1e40af] text-white text-[12px] font-bold flex items-center justify-center gap-1.5 hover:bg-[#1e3a8a] transition-colors"
                           >
                             View Details
@@ -1493,7 +1477,7 @@ export function AdminOrders() {
                       className="w-full [&_.glass-dropdown-trigger]:w-full [&_.glass-dropdown-trigger]:h-11"
                       startDate={dateStart}
                       endDate={dateEnd}
-                      onDateChange={(s, e) => { setDateStart(s); setDateEnd(e); }}
+                      onDateChange={onOrderDateChange}
                     />
                   </div>
 

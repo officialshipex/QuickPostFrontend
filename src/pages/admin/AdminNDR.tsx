@@ -7,6 +7,7 @@ import { getToken } from '../../utils/session';
 import { PDFDocument } from 'pdf-lib';
 import * as XLSX from 'xlsx';
 import { useAdminTab } from '../../context/AdminUserContext';
+import { useUserSearchFilter } from '../../hooks/filters/useUserSearchFilter';
 import {
   Search, ChevronDown, RefreshCcw, Check, IndianRupee, Package,
   User, Settings, MapPin, X, Truck,
@@ -14,6 +15,7 @@ import {
 } from 'lucide-react';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
+import { useDateRangeFilter } from '../../hooks/filters/useDateRangeFilter';
 import { TableLoader } from '../../components/ui/TableLoader';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { TruncatedText } from '../../components/ui/TruncatedText';
@@ -200,8 +202,7 @@ export function AdminNDR() {
   const [selectedPaymentTypes, setSelectedPaymentTypes] = useState<string[]>([]);
   const [selectedPickups,      setSelectedPickups]      = useState<string[]>([]);
   const [selectedCouriers,     setSelectedCouriers]     = useState<string[]>([]);
-  const [dateStart,            setDateStart]            = useState('');
-  const [dateEnd,              setDateEnd]              = useState('');
+  const { dateStart, dateEnd, setDateStart, setDateEnd, onDateChange } = useDateRangeFilter();
   const [refreshTrigger,       setRefreshTrigger]       = useState(0);
 
   // ── Dynamic options ──
@@ -209,9 +210,13 @@ export function AdminNDR() {
   const [pickupOptions,  setPickupOptions]  = useState<{ label: string; value: string }[]>([]);
 
   // ── User search (admin-only) ──
-  const [userQuery,       setUserQuery]       = useState('');
-  const [userSuggestions, setUserSuggestions] = useState<any[]>([]);
-  const [userMongoId,     setUserMongoId]     = useState('');
+  const {
+    userQuery, userSuggestions, userMongoId,
+    setUserQuery, setUserMongoId, setUserSuggestions,
+    onQueryChange: onUserQueryChange,
+    selectUser: selectUserSuggestion,
+    clearUser: clearUserFilter,
+  } = useUserSearchFilter(isAdminView);
 
   // ── UI state ──
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
@@ -248,18 +253,6 @@ export function AdminNDR() {
     document.addEventListener('mousedown', fn);
     return () => document.removeEventListener('mousedown', fn);
   }, []);
-
-  // ── User search debounce ──
-  useEffect(() => {
-    if (!isAdminView || userQuery.trim().length < 2) { setUserSuggestions([]); return; }
-    const t = setTimeout(async () => {
-      try {
-        const res = await apiClient.get(`/admin/searchUser?query=${encodeURIComponent(userQuery)}`);
-        setUserSuggestions(res.data.users || []);
-      } catch { setUserSuggestions([]); }
-    }, 300);
-    return () => clearTimeout(t);
-  }, [userQuery, isAdminView]);
 
   // ── Fetch orders ──
   // ── Shared params builder for NDR fetches/exports ──
@@ -353,7 +346,7 @@ export function AdminNDR() {
     setSelectedOrders([]);
     setOrderId(''); setAwbNumber(''); setSelectedPaymentTypes([]); setSelectedPickups([]);
     setSelectedCouriers([]); setDateStart(''); setDateEnd('');
-    if (isAdminView) { setUserQuery(''); setUserSuggestions([]); setUserMongoId(''); }
+    if (isAdminView) { clearUserFilter(); }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
@@ -365,7 +358,7 @@ export function AdminNDR() {
   const handleClearAllFilters = () => {
     setOrderId(''); setAwbNumber(''); setSelectedPaymentTypes([]); setSelectedPickups([]);
     setSelectedCouriers([]); setDateStart(''); setDateEnd('');
-    if (isAdminView) { setUserQuery(''); setUserSuggestions([]); setUserMongoId(''); }
+    if (isAdminView) { clearUserFilter(); }
     setPage(1); setRefreshTrigger(t => t + 1);
   };
 
@@ -534,11 +527,11 @@ export function AdminNDR() {
                 <div className="relative">
                   <input type="text" placeholder="Search user..."
                     value={userQuery}
-                    onChange={e => { setUserQuery(e.target.value); if (!e.target.value.trim()) { setUserMongoId(''); setUserSuggestions([]); } }}
+                    onChange={e => onUserQueryChange(e.target.value)}
                     className="glass-search-input w-[160px]" style={{ paddingLeft: '2rem', paddingRight: '2rem' }} />
                   <Search className="w-3.5 h-3.5 text-[#94A3B8] absolute left-2.5 top-1/2 -translate-y-1/2" />
                   {userMongoId && (
-                    <button onClick={() => { setUserQuery(''); setUserMongoId(''); setUserSuggestions([]); }}
+                    <button onClick={() => clearUserFilter()}
                       className="absolute right-2 top-1/2 -translate-y-1/2 text-[#94A3B8] hover:text-red-500">
                       <X className="w-3 h-3" />
                     </button>
@@ -548,7 +541,7 @@ export function AdminNDR() {
                   <div className="absolute left-0 top-full mt-1 bg-white border border-[#E2E8F0] rounded-xl shadow-xl z-50 w-64 max-h-52 overflow-y-auto py-1">
                     {userSuggestions.map((u: any) => (
                       <button key={u._id} type="button"
-                        onClick={() => { setUserMongoId(u._id); setUserQuery(`${u.fullname} (${u.email})`); setUserSuggestions([]); }}
+                        onClick={() => selectUserSuggestion(u)}
                         className="w-full text-left px-3 py-2 hover:bg-[#F0FDF4] flex items-start gap-2">
                         <div className="flex-1 min-w-0">
                           <div className="text-[11px] font-bold text-slate-800 truncate">{u.fullname}</div>
@@ -585,7 +578,7 @@ export function AdminNDR() {
               placeholder="Search courier..." icon={<Truck className="w-3.5 h-3.5" />} />
 
             <GlassDateFilter align="right" startDate={dateStart} endDate={dateEnd}
-              onDateChange={(s, e) => { setDateStart(s); setDateEnd(e); }} />
+              onDateChange={onDateChange} />
 
             <button onClick={handleApplyFilters}
               className="py-2 px-4 shrink-0 rounded-[32px] bg-[#009D64] border border-[#009D64] text-white text-xs font-medium leading-[18px] hover:bg-[#008a57] transition-colors cursor-pointer">

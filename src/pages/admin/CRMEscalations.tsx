@@ -1,9 +1,16 @@
 import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { usePagination, DesktopPagination } from '../../hooks/usePagination';
-import { Search, AlertCircle, Clock, CheckCircle2, XCircle, Plus, Hash, User, Truck, Tag, Flame, Timer, UserCog, Calendar, History } from 'lucide-react';
+import { useMobilePaginationBar } from '../../hooks/useMobilePaginationBar';
+import { Search, AlertCircle, Clock, CheckCircle2, XCircle, Plus, Hash, User, Truck, Tag, Flame, Timer, UserCog, Calendar, History, Filter, X } from 'lucide-react';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
+import { EmptyState } from '../../components/ui/EmptyState';
+
+const PRIORITY_RIBBON: Record<string, string> = {
+  'Critical': '#DC2626', 'High': '#EA580C', 'Medium': '#D97706', 'Low': '#2563EB',
+};
 
 const PRIORITIES = ['All', 'Critical', 'High', 'Medium', 'Low'];
 const CATEGORIES = ['All Categories', 'Lost Shipment', 'Delayed Delivery', 'Wrong Delivery', 'Billing Dispute', 'Pickup Failure', 'Damaged Goods', 'COD Discrepancy', 'Tech Issue'];
@@ -47,6 +54,7 @@ export function CRMEscalations() {
   const [category, setCategory] = useState('All Categories');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
   // usePagination initialization below filtered definition
 
   const filtered = MOCK_TICKETS.filter(t => {
@@ -128,7 +136,14 @@ export function CRMEscalations() {
 
         <div className="bg-white flex flex-col flex-1 min-h-0 overflow-hidden border-t border-[#E2E8F0]">
           <div className="py-3 px-6 border-b border-[#CBD5F5] shrink-0">
-            <div className="filter-grid grid grid-cols-3 gap-3">
+            <div className="md:hidden flex items-center gap-2 mb-2">
+              <button onClick={() => setIsMobileFiltersOpen(true)} className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#00A86B] text-white text-[12px] font-bold shadow-sm">
+                <Filter className="w-3.5 h-3.5" /> Filters
+              </button>
+              {hasActiveFilters && <span className="text-[11px] font-bold text-[#00A86B] bg-[#F0FDF4] border border-[#00A86B]/20 px-2.5 py-1 rounded-full">Active</span>}
+              <span className="text-xs text-[#64748B] ml-auto">{filtered.length} tickets</span>
+            </div>
+            <div className="filter-grid hidden md:grid grid-cols-3 gap-3">
               <div className="relative">
                 <input type="text" placeholder="Search ticket, AWB, seller..." value={search} onChange={e => setSearch(e.target.value)} className="glass-search-input w-full" />
                 <Search className="w-3.5 h-3.5 text-[#94A3B8] absolute right-2.5 top-1/2 -translate-y-1/2" />
@@ -175,7 +190,7 @@ export function CRMEscalations() {
             </div>
           </div>
 
-          <div className="flex-1 overflow-auto w-full relative">
+          <div className="hidden md:block flex-1 overflow-auto w-full relative">
             <table className="w-full text-left border-collapse min-w-[950px]">
               <thead className="sticky top-0 z-40 bg-[#E6F9F2] shadow-sm">
                 <tr className="border-b border-[#E2E8F0] text-xs uppercase tracking-wider font-medium text-[#64748B]">
@@ -233,8 +248,125 @@ export function CRMEscalations() {
             endIndex={endIndex}
             totalItems={filtered.length}
           />
+
+          {/* Mobile Card List */}
+          <div className="md:hidden flex-1 overflow-y-auto bg-[#F8FAFC] relative">
+            {paginated.length === 0 ? (
+              <EmptyState title="No escalations found" subtitle="Try changing filters" />
+            ) : (
+              <div className="p-4 space-y-4">
+                {paginated.map((ticket, i) => {
+                  const accent = PRIORITY_RIBBON[ticket.priority] || '#00A86B';
+                  const isBreached = ticket.breached && ticket.status !== 'Resolved' && ticket.status !== 'Closed';
+                  return (
+                    <div key={i} className={`relative bg-white rounded-2xl border shadow-sm overflow-hidden ${isBreached ? 'border-red-200' : 'border-[#E2E8F0]'}`}>
+                      <div className="absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide"
+                        style={{ background: accent, clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}>
+                        {ticket.priority}
+                      </div>
+                      <div className="pt-8 px-4 pb-4">
+                        <div className="flex items-center justify-between mb-3 gap-2">
+                          <span className="text-[12px] font-bold text-[#0F172A] font-mono">{ticket.id}</span>
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${STATUS_STYLES[ticket.status]}`}>{ticket.status}</span>
+                        </div>
+
+                        <div className="rounded-xl p-3 mb-3 bg-white" style={{ border: `1px solid ${accent}` }}>
+                          <div className="text-[14px] leading-[20px] font-semibold text-[#1E293B]">{ticket.seller}</div>
+                          <div className="text-[12px] leading-[18px] font-normal text-[#64748B]">{ticket.category}</div>
+                          <div className="text-[11px] text-[#94A3B8] font-mono mt-0.5">{ticket.awb}</div>
+                        </div>
+
+                        <div className="flex items-start justify-between mb-3 px-1 gap-2">
+                          <span className="text-[12px] font-medium text-[#0F172A] flex-1 flex items-center gap-1"><Truck className="w-3 h-3" />{ticket.courier}</span>
+                          <span className={`text-[11px] font-medium shrink-0 flex items-center gap-1 ${ticket.breached ? 'text-red-500' : 'text-[#64748B]'}`}>
+                            {isBreached && <AlertCircle className="w-3 h-3" />}{ticket.slaHours}h SLA
+                          </span>
+                        </div>
+
+                        <div className="flex items-start justify-between bg-[#F8FAFC] rounded-xl px-3 py-2.5 mb-3 gap-2">
+                          <div className="min-w-0">
+                            <div className="text-[10px] font-normal text-[#94A3B8] uppercase tracking-wider">Assigned To</div>
+                            <div className="text-[12px] font-medium text-[#0F172A] mt-0.5">{ticket.assignedTo}</div>
+                          </div>
+                          <div className="text-right min-w-0">
+                            <div className="text-[10px] font-normal text-[#94A3B8] uppercase tracking-wider">Created / Updated</div>
+                            <div className="text-[12px] font-medium text-[#0F172A] mt-0.5">{ticket.createdAt} / {ticket.updatedAt}</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            {useMobilePaginationBar({ page, setPage, totalPages, rowsPerPage, setRowsPerPage, startIndex, endIndex, totalItems: filtered.length })}
+          </div>
         </div>
       </div>
+
+      {/* Mobile Filters Bottom Sheet */}
+      <AnimatePresence>
+        {isMobileFiltersOpen && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[140] md:hidden flex items-end justify-center"
+            onClick={() => setIsMobileFiltersOpen(false)}
+          >
+            <motion.div
+              initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="bg-white rounded-t-3xl border-t border-[#E2E8F0] shadow-2xl w-full max-h-[80vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="px-6 py-4 border-b border-[#E2E8F0] flex items-center justify-between sticky top-0 bg-white z-10">
+                <h3 className="font-bold text-slate-800 text-base flex items-center gap-2"><Filter className="w-5 h-5 text-[#00A86B]" /> Filters</h3>
+                <button onClick={() => setIsMobileFiltersOpen(false)} className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Search</label>
+                  <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search ticket, AWB, seller..."
+                    className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]" />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Status</label>
+                  <select value={ticketStatus} onChange={(e) => setTicketStatus(e.target.value)}
+                    className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white">
+                    {TICKET_STATUSES.map(o => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Category</label>
+                  <select value={category} onChange={(e) => setCategory(e.target.value)}
+                    className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white">
+                    {CATEGORIES.map(o => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Date Range</label>
+                  <GlassDateFilter
+                    className="w-full [&_.glass-dropdown-trigger]:w-full [&_.glass-dropdown-trigger]:h-11"
+                    startDate={dateFrom} endDate={dateTo}
+                    onDateChange={(s, e) => { setDateFrom(s); setDateTo(e); }}
+                  />
+                </div>
+              </div>
+              <div className="px-6 py-4 border-t border-[#E2E8F0] flex items-center gap-3 sticky bottom-0 bg-white">
+                <button onClick={() => { handleClearAllFilters(); setIsMobileFiltersOpen(false); }}
+                  className="flex-1 h-11 rounded-full border border-[#E2E8F0] text-[#475569] text-sm font-bold hover:bg-[#F8FAFC] transition-colors">
+                  Reset All
+                </button>
+                <button onClick={() => setIsMobileFiltersOpen(false)}
+                  className="flex-1 h-11 rounded-full bg-[#009D64] text-white text-sm font-bold hover:bg-[#009B63] transition-colors shadow-sm">
+                  Apply Filters
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </AdminLayout>
   );
 }

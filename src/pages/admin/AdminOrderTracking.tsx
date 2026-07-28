@@ -4,179 +4,16 @@ import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { apiClient } from '../../services/apiClient';
 import { getToken } from '../../utils/session';
 import { ShipOrderModal } from '../../components/admin/orders/ShipOrderModal';
+import {
+  ArrowLeft, AlertTriangle, Copy, Check, Truck, ClipboardList, MapPin, Navigation,
+  Package, Receipt, Map, History, X, Phone, Clock, Home, Info, FileText,
+} from 'lucide-react';
 
-// Tabler-style custom SVG icons to guarantee rendering without external CDNs
-interface TablerIconProps {
-  name: string;
-  size?: number;
-  color?: string;
-  className?: string;
-}
-
-function TablerIcon({ name, size = 16, color = 'currentColor', className = '' }: TablerIconProps) {
-  const getSvgPath = () => {
-    switch (name) {
-      case 'arrow-left':
-        return <path d="M5 12l14 0M5 12l6 6M5 12l6 -6" />;
-      case 'history':
-        return (
-          <>
-            <path d="M12 8l0 4l2 2" />
-            <path d="M3.05 11a9 9 0 1 1 .5 4m-.5 5v-5h5" />
-          </>
-        );
-      case 'x':
-        return <path d="M18 6l-12 12m0 -12l12 12" />;
-      case 'copy':
-        return (
-          <>
-            <path d="M8 8m0 2a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-8a2 2 0 0 1 -2 -2z" />
-            <path d="M16 8v-2a2 2 0 0 0 -2 -2h-8a2 2 0 0 0 -2 2v8a2 2 0 0 0 2 2h2" />
-          </>
-        );
-      case 'check':
-        return <path d="M5 12l5 5l10 -10" />;
-      case 'truck':
-        return (
-          <>
-            <path d="M7 17m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
-            <path d="M17 17m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
-            <path d="M5 17h-2v-11a1 1 0 0 1 1 -1h9v12m-4 0h6m4 0h2v-6h-8m0 -5h5l3 5" />
-          </>
-        );
-      case 'clipboard-list':
-        return (
-          <>
-            <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" />
-            <path d="M9 3m0 2a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v0a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2z" />
-            <path d="M9 12l.01 0M13 12l2 0M9 16l.01 0M13 16l2 0" />
-          </>
-        );
-      case 'map-pin-up':
-        return (
-          <>
-            <path d="M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" />
-            <path d="M12 21c-4 -4 -7 -7.5 -7 -11a7 7 0 1 1 14 0c0 1.5 -.5 3 -1.5 4.5" />
-            <path d="M19 22v-6M19 16l3 3M19 16l-3 3" />
-          </>
-        );
-      case 'map-pin':
-        return (
-          <>
-            <path d="M9 11a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" />
-            <path d="M17.657 16.657l-4.243 4.243a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 1 1 11.314 0z" />
-          </>
-        );
-      case 'package':
-        return (
-          <>
-            <path d="M12 3l8 4.5l0 9l-8 4.5l-8 -4.5l0 -9l8 -4.5" />
-            <path d="M12 12l8 -4.5" />
-            <path d="M12 12l0 9" />
-            <path d="M12 12l-8 -4.5" />
-            <path d="M16 5.25l-8 4.5" />
-          </>
-        );
-      case 'box':
-        return (
-          <>
-            <path d="M12 3l8 4.5l0 9l-8 4.5l-8 -4.5l0 -9l8 -4.5" />
-            <path d="M12 12l8 -4.5" />
-            <path d="M12 12l0 9" />
-            <path d="M12 12l-8 -4.5" />
-          </>
-        );
-      case 'receipt':
-        return (
-          <>
-            <path d="M5 21v-16a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v16l-3 -2l-2 2l-3 -2l-2 2l-3 -2l-3 2" />
-            <path d="M9 7l6 0M9 11l6 0M9 15l4 0" />
-          </>
-        );
-      case 'alert-triangle':
-        return (
-          <>
-            <path d="M12 9v4" />
-            <path d="M12 17h.01" />
-            <path d="M5 19h14a2 2 0 0 0 1.84 -2.75l-7.1 -12.25a2 2 0 0 0 -3.5 0l-7.1 12.25a2 2 0 0 0 1.75 2.75" />
-          </>
-        );
-      case 'map-2':
-        return (
-          <>
-            <path d="M12 18.5l-3 -1.5l-6 3v-13l6 -3l6 3l6 -3v7.5" />
-            <path d="M9 4v13" />
-            <path d="M15 7v5.5" />
-            <path d="M18 18m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" />
-            <path d="M20.2 20.2l1.8 1.8" />
-          </>
-        );
-      case 'calendar-check':
-        return (
-          <>
-            <path d="M11.5 21h-5.5a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v6" />
-            <path d="M16 3v4" />
-            <path d="M8 3v4" />
-            <path d="M4 11h16" />
-            <path d="M15 19l2 2l4 -4" />
-          </>
-        );
-      case 'download':
-        return (
-          <>
-            <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2" />
-            <path d="M7 11l5 5l5 -5" />
-            <path d="M12 4l0 12" />
-          </>
-        );
-      case 'file-text':
-        return (
-          <>
-            <path d="M14 3v4a1 1 0 0 0 1 1h4" />
-            <path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z" />
-            <path d="M9 9l1 0M9 13l6 0M9 17l6 0" />
-          </>
-        );
-      case 'phone':
-        return <path d="M5 4h4l2 5l-2.5 1.5a11 11 0 0 0 5 5l1.5 -2.5l5 2v4a2 2 0 0 1 -2 2a16 16 0 0 1 -15 -15a2 2 0 0 1 2 -2" />;
-      case 'info-circle':
-        return (
-          <>
-            <path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0" />
-            <path d="M12 9h.01" />
-            <path d="M11 12h1v4h1" />
-          </>
-        );
-      case 'upload':
-        return (
-          <>
-            <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2" />
-            <path d="M7 9l5 -5l5 5" />
-            <path d="M12 4l0 12" />
-          </>
-        );
-      default:
-        return null;
-    }
-  };
-
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke={color}
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={`ti ti-${name} ${className}`}
-    >
-      {getSvgPath()}
-    </svg>
-  );
-}
+// Milestone timeline icons are looked up dynamically by name (see getMilestonesFromStatus).
+const MILESTONE_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  'check': Check, 'x': X, 'truck': Truck, 'package': Package, 'map-pin': MapPin,
+  'alert-triangle': AlertTriangle, 'file-text': FileText, 'home': Home,
+};
 
 // ── API Types ──────────────────────────────────────────────────────────────────
 
@@ -706,16 +543,16 @@ export function AdminOrderTracking() {
   if (loading) {
     return (
       <AdminLayout>
-        <div className="bg-[#F8F9FA] min-h-screen pb-10" style={{ fontFamily: 'Roboto, sans-serif' }}>
-          <div className="w-full bg-white border-b border-[#E5E5E5] px-6 py-4 flex items-center gap-3">
-            <button onClick={() => window.history.back()} className="p-1 rounded-md text-[#5F5E5A] hover:text-[#1D9E75]">
-              <TablerIcon name="arrow-left" size={18} />
+        <div className="bg-[#F8FAFC] min-h-screen pb-10" style={{ fontFamily: 'Roboto, sans-serif' }}>
+          <div className="w-full bg-white border-b border-[#E2E8F0] px-6 py-4 flex items-center gap-3">
+            <button onClick={() => window.history.back()} className="p-1 rounded-md text-[#64748B] hover:text-[#00A86B]">
+              <ArrowLeft className="w-[18px] h-[18px]" />
             </button>
             <div className="h-5 w-48 bg-slate-200 rounded animate-pulse" />
           </div>
           <div className="max-w-[1400px] mx-auto px-6 pt-6 grid grid-cols-1 lg:grid-cols-[65%_35%] gap-5">
             {[1, 2, 3, 4, 5].map(i => (
-              <div key={i} className="bg-white rounded-xl border border-[#E5E5E5] p-5 shadow-sm h-40 animate-pulse" />
+              <div key={i} className="bg-white rounded-xl border border-[#E2E8F0] p-5 shadow-sm h-40 animate-pulse" />
             ))}
           </div>
         </div>
@@ -727,18 +564,18 @@ export function AdminOrderTracking() {
   if (error) {
     return (
       <AdminLayout>
-        <div className="bg-[#F8F9FA] min-h-screen flex flex-col" style={{ fontFamily: 'Roboto, sans-serif' }}>
-          <div className="w-full bg-white border-b border-[#E5E5E5] px-6 py-4 flex items-center gap-3">
-            <button onClick={() => window.history.back()} className="p-1 rounded-md text-[#5F5E5A] hover:text-[#1D9E75]">
-              <TablerIcon name="arrow-left" size={18} />
+        <div className="bg-[#F8FAFC] min-h-screen flex flex-col" style={{ fontFamily: 'Roboto, sans-serif' }}>
+          <div className="w-full bg-white border-b border-[#E2E8F0] px-6 py-4 flex items-center gap-3">
+            <button onClick={() => window.history.back()} className="p-1 rounded-md text-[#64748B] hover:text-[#00A86B]">
+              <ArrowLeft className="w-[18px] h-[18px]" />
             </button>
-            <span className="text-[14px] leading-[20px] font-semibold text-[#1A1A1A]">Order Details</span>
+            <span className="text-[14px] leading-[20px] font-semibold text-[#0F172A]">Order Details</span>
           </div>
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center">
-              <div className="flex justify-center mb-3 text-[#E24B4A]"><TablerIcon name="alert-triangle" size={36} color="#E24B4A" /></div>
-              <div className="text-[14px] leading-[20px] font-semibold text-[#1A1A1A] mb-1">{error}</div>
-              <button onClick={() => window.location.reload()} className="mt-4 bg-[#1D9E75] text-white text-[13px] font-bold py-2 px-5 rounded-lg hover:bg-[#0F6E56] transition-colors">
+              <div className="flex justify-center mb-3 text-red-500"><AlertTriangle className="w-9 h-9 text-red-500" /></div>
+              <div className="text-[14px] leading-[20px] font-semibold text-[#0F172A] mb-1">{error}</div>
+              <button onClick={() => window.location.reload()} className="mt-4 bg-[#00A86B] text-white text-[13px] font-bold py-2 px-5 rounded-lg hover:bg-[#009B63] transition-colors">
                 Try Again
               </button>
             </div>
@@ -753,9 +590,9 @@ export function AdminOrderTracking() {
     <AdminLayout>
       <style>{`
         @keyframes pulseRing {
-          0% { box-shadow: 0 0 0 4px rgba(29, 158, 117, 0.25); }
-          50% { box-shadow: 0 0 0 10px rgba(29, 158, 117, 0); }
-          100% { box-shadow: 0 0 0 4px rgba(29, 158, 117, 0.25); }
+          0% { box-shadow: 0 0 0 4px rgba(0, 168, 107, 0.25); }
+          50% { box-shadow: 0 0 0 10px rgba(0, 168, 107, 0); }
+          100% { box-shadow: 0 0 0 4px rgba(0, 168, 107, 0.25); }
         }
         .pulse-active { animation: pulseRing 2s ease-in-out infinite; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
@@ -763,51 +600,51 @@ export function AdminOrderTracking() {
         .thin-scrollbar::-webkit-scrollbar { width: 5px; }
         .thin-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .thin-scrollbar::-webkit-scrollbar-thumb { background: #E2E8F0; border-radius: 9999px; }
-        .thin-scrollbar::-webkit-scrollbar-thumb:hover { background: #1D9E75; }
+        .thin-scrollbar::-webkit-scrollbar-thumb:hover { background: #00A86B; }
         .thin-scrollbar { scrollbar-width: thin; scrollbar-color: #E2E8F0 transparent; }
       `}</style>
 
-      <div ref={containerRef} className="bg-[#F8F9FA] text-[#1A1A1A] min-h-screen pb-10" style={{ fontFamily: 'Roboto, sans-serif' }}>
+      <div ref={containerRef} className="bg-[#F8FAFC] text-[#0F172A] min-h-screen pb-10" style={{ fontFamily: 'Roboto, sans-serif' }}>
 
         {/* ── PAGE HEADER ─────────────────────────────────────────────────────── */}
-        <div className="w-full bg-white border-b border-[#E5E5E5] px-6 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="w-full bg-white border-b border-[#E2E8F0] px-6 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div className="flex flex-wrap items-center gap-3">
-            <button onClick={() => window.history.back()} className="flex items-center justify-center p-1 rounded-md text-[#5F5E5A] hover:text-[#1D9E75] hover:bg-slate-50 transition-colors" title="Back">
-              <TablerIcon name="arrow-left" size={18} />
+            <button onClick={() => window.history.back()} className="flex items-center justify-center p-1 rounded-md text-[#64748B] hover:text-[#00A86B] hover:bg-slate-50 transition-colors" title="Back">
+              <ArrowLeft className="w-[18px] h-[18px]" />
             </button>
             <div className="flex items-baseline">
-              <span className="text-[12px] leading-[18px] font-medium text-[#5F5E5A]">Order ID</span>
-              <span className="text-[14px] leading-[20px] font-semibold text-[#1A1A1A] ml-1.5">{displayOrderId}</span>
+              <span className="text-[12px] leading-[18px] font-medium text-[#64748B]">Order ID</span>
+              <span className="text-[14px] leading-[20px] font-semibold text-[#0F172A] ml-1.5">{displayOrderId}</span>
             </div>
             <div className={`text-[12px] leading-[18px] font-medium px-3 py-1 rounded-full border ${statusBadgeClass}`}>
               {rawStatus}
             </div>
-            <button onClick={handleCopyOrderId} className={`p-1.5 rounded-md transition-colors ${copiedId ? 'text-[#1D9E75] bg-emerald-50' : 'text-[#9FB5AB] hover:text-[#1D9E75] hover:bg-slate-50'}`} title="Copy Order ID">
-              <TablerIcon name="copy" size={14} color={copiedId ? '#1D9E75' : '#9FB5AB'} />
+            <button onClick={handleCopyOrderId} className={`p-1.5 rounded-md transition-colors ${copiedId ? 'text-[#00A86B] bg-emerald-50' : 'text-[#94A3B8] hover:text-[#00A86B] hover:bg-slate-50'}`} title="Copy Order ID">
+              <Copy className="w-3.5 h-3.5" />
             </button>
           </div>
           <div className="flex items-center gap-3 w-full sm:w-auto relative">
-            <button onClick={() => primaryAction()} className="flex-1 sm:flex-none bg-[#1D9E75] hover:bg-[#0F6E56] text-white text-[14px] font-bold py-2.5 px-6 rounded-lg shadow-sm transition-all">
+            <button onClick={() => primaryAction()} className="flex-1 sm:flex-none bg-[#00A86B] hover:bg-[#009B63] text-white text-[14px] font-bold py-2.5 px-6 rounded-lg shadow-sm transition-all">
               {primaryText}
             </button>
             <div className="relative">
               <button
                 onClick={(e) => { e.stopPropagation(); setIsHeaderDropdownOpen(!isHeaderDropdownOpen); }}
-                className="border border-[#E5E5E5] hover:bg-[#F4F6F5] rounded-lg w-9 h-9 flex items-center justify-center text-slate-600 transition-all focus:outline-none"
+                className="border border-[#E2E8F0] hover:bg-[#F4F6F5] rounded-lg w-9 h-9 flex items-center justify-center text-slate-600 transition-all focus:outline-none"
                 title="More Actions"
               >
                 <span className="font-bold text-[14px] leading-[8px] -mt-1.5">...</span>
               </button>
               {isHeaderDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-48 bg-white border border-[#E5E5E5] rounded-xl shadow-lg overflow-hidden z-[105] py-1">
+                <div className="absolute right-0 mt-2 w-48 bg-white border border-[#E2E8F0] rounded-xl shadow-lg overflow-hidden z-[105] py-1">
                   {dropdownOptions.map((opt, i) => (
                     <React.Fragment key={i}>
                       {i > 0 && opt.isDanger && (
-                        <div className="border-t border-[#E5E5E5] my-1" />
+                        <div className="border-t border-[#E2E8F0] my-1" />
                       )}
                       <button
                         onClick={() => { opt.action(); setIsHeaderDropdownOpen(false); }}
-                        className={`w-full text-left px-4 py-2.5 text-[13px] hover:bg-[#F8F9FA] transition-colors ${opt.isDanger ? 'font-medium text-[#E24B4A] hover:bg-red-50/50' : 'font-normal text-[#1A1A1A]'}`}
+                        className={`w-full text-left px-4 py-2.5 text-[13px] hover:bg-[#F8FAFC] transition-colors ${opt.isDanger ? 'font-medium text-red-500 hover:bg-red-50/50' : 'font-normal text-[#0F172A]'}`}
                       >
                         {opt.label}
                       </button>
@@ -820,7 +657,7 @@ export function AdminOrderTracking() {
         </div>
 
         {/* ── MILESTONE TIMELINE STRIP ─────────────────────────────────────────── */}
-        <div className="w-full bg-white border-b border-[#E5E5E5] px-8 py-6 mb-6">
+        <div className="w-full bg-white border-b border-[#E2E8F0] px-8 py-6 mb-6">
 
           {/* Desktop */}
           <div className="hidden md:block relative w-full px-6">
@@ -828,7 +665,7 @@ export function AdminOrderTracking() {
               {milestones.slice(0, -1).map((m, i) => (
                 <div key={i} className="flex-1 relative h-full">
                   <svg className="w-full h-[2px] overflow-visible" preserveAspectRatio="none">
-                    <line x1="0" y1="1" x2="100%" y2="1" stroke={m.status === 'completed' ? '#1D9E75' : '#D4E4DC'} strokeWidth="2" strokeDasharray={m.status === 'completed' ? '1' : '4 4'} pathLength="1" className="timeline-line-segment" />
+                    <line x1="0" y1="1" x2="100%" y2="1" stroke={m.status === 'completed' ? '#00A86B' : '#E2E8F0'} strokeWidth="2" strokeDasharray={m.status === 'completed' ? '1' : '4 4'} pathLength="1" className="timeline-line-segment" />
                   </svg>
                 </div>
               ))}
@@ -838,16 +675,17 @@ export function AdminOrderTracking() {
                 const isCompleted = m.status === 'completed';
                 const isActive = m.status === 'active';
                 const isPending = m.status === 'pending';
+                const MilestoneIcon = MILESTONE_ICONS[m.icon] || Package;
                 return (
                   <div key={i} className="flex flex-col items-center text-center w-[12%] milestone-circle-container">
                     <div className="h-8 flex items-center justify-center">
-                      {isCompleted && <div className="w-7 h-7 rounded-full bg-[#1D9E75] flex items-center justify-center text-white shadow-sm"><TablerIcon name="check" size={14} color="#ffffff" /></div>}
-                      {isActive && <div className="w-8 h-8 rounded-full bg-[#1D9E75] flex items-center justify-center text-white pulse-active relative z-10"><TablerIcon name={m.icon} size={14} color="#ffffff" /></div>}
-                      {isPending && <div className="w-7 h-7 rounded-full bg-white border-2 border-[#D4E4DC] flex items-center justify-center"><TablerIcon name={m.icon} size={14} color="#C5D5D0" /></div>}
+                      {isCompleted && <div className="w-7 h-7 rounded-full bg-[#00A86B] flex items-center justify-center text-white shadow-sm"><Check className="w-3.5 h-3.5" /></div>}
+                      {isActive && <div className="w-8 h-8 rounded-full bg-[#00A86B] flex items-center justify-center text-white pulse-active relative z-10"><MilestoneIcon className="w-3.5 h-3.5" /></div>}
+                      {isPending && <div className="w-7 h-7 rounded-full bg-white border-2 border-[#E2E8F0] flex items-center justify-center"><MilestoneIcon className="w-3.5 h-3.5 text-[#CBD5E1]" /></div>}
                     </div>
                     <div className="mt-3">
-                      <div className={`text-[12px] leading-[18px] ${isCompleted ? 'font-medium text-[#1A1A1A]' : isActive ? 'font-bold text-[#1D9E75]' : 'font-normal text-[#9FB5AB]'}`}>{m.name}</div>
-                      <div className="text-[12px] leading-[18px] font-normal text-[#5F5E5A] mt-0.5">{m.date}</div>
+                      <div className={`text-[12px] leading-[18px] ${isCompleted ? 'font-medium text-[#0F172A]' : isActive ? 'font-bold text-[#00A86B]' : 'font-normal text-[#94A3B8]'}`}>{m.name}</div>
+                      <div className="text-[12px] leading-[18px] font-normal text-[#64748B] mt-0.5">{m.date}</div>
                     </div>
                   </div>
                 );
@@ -857,23 +695,24 @@ export function AdminOrderTracking() {
 
           {/* Mobile */}
           <div className="block md:hidden relative pl-8 py-2">
-            <div className="absolute left-[15px] top-4 bottom-4 w-[2px] border-l border-dashed border-[#D4E4DC] z-0" />
-            <div className="absolute left-[15px] top-4 h-[60%] w-[2px] border-l border-solid border-[#1D9E75] z-0" />
+            <div className="absolute left-[15px] top-4 bottom-4 w-[2px] border-l border-dashed border-[#E2E8F0] z-0" />
+            <div className="absolute left-[15px] top-4 h-[60%] w-[2px] border-l border-solid border-[#00A86B] z-0" />
             <div className="flex flex-col gap-6">
               {milestones.map((m, i) => {
                 const isCompleted = m.status === 'completed';
                 const isActive = m.status === 'active';
                 const isPending = m.status === 'pending';
+                const MilestoneIcon = MILESTONE_ICONS[m.icon] || Package;
                 return (
                   <div key={i} className="flex items-start gap-4 relative z-10 milestone-circle-container">
                     <div className="w-8 h-8 flex items-center justify-center shrink-0">
-                      {isCompleted && <div className="w-7 h-7 rounded-full bg-[#1D9E75] flex items-center justify-center text-white shadow-sm"><TablerIcon name="check" size={14} color="#ffffff" /></div>}
-                      {isActive && <div className="w-8 h-8 rounded-full bg-[#1D9E75] flex items-center justify-center text-white pulse-active relative z-10"><TablerIcon name={m.icon} size={14} color="#ffffff" /></div>}
-                      {isPending && <div className="w-7 h-7 rounded-full bg-white border-2 border-[#D4E4DC] flex items-center justify-center"><TablerIcon name={m.icon} size={14} color="#C5D5D0" /></div>}
+                      {isCompleted && <div className="w-7 h-7 rounded-full bg-[#00A86B] flex items-center justify-center text-white shadow-sm"><Check className="w-3.5 h-3.5" /></div>}
+                      {isActive && <div className="w-8 h-8 rounded-full bg-[#00A86B] flex items-center justify-center text-white pulse-active relative z-10"><MilestoneIcon className="w-3.5 h-3.5" /></div>}
+                      {isPending && <div className="w-7 h-7 rounded-full bg-white border-2 border-[#E2E8F0] flex items-center justify-center"><MilestoneIcon className="w-3.5 h-3.5 text-[#CBD5E1]" /></div>}
                     </div>
                     <div className="pt-0.5">
-                      <div className={`text-[12px] leading-[18px] ${isCompleted ? 'font-medium text-[#1A1A1A]' : isActive ? 'font-bold text-[#1D9E75]' : 'font-normal text-[#9FB5AB]'}`}>{m.name}</div>
-                      <div className="text-[12px] leading-[18px] font-normal text-[#5F5E5A] mt-0.5">{m.date}</div>
+                      <div className={`text-[12px] leading-[18px] ${isCompleted ? 'font-medium text-[#0F172A]' : isActive ? 'font-bold text-[#00A86B]' : 'font-normal text-[#94A3B8]'}`}>{m.name}</div>
+                      <div className="text-[12px] leading-[18px] font-normal text-[#64748B] mt-0.5">{m.date}</div>
                     </div>
                   </div>
                 );
@@ -889,42 +728,42 @@ export function AdminOrderTracking() {
           <div className="flex flex-col gap-5 min-w-0">
 
             {/* SECTION 1: ORDER DETAILS */}
-            <div className="bg-white rounded-xl border border-[#E5E5E5] p-5 shadow-sm left-col-card">
-              <div className="flex items-center gap-2.5 border-b border-[#F0F0F0] pb-3 mb-4">
-                <div className="w-8 h-8 rounded-full bg-[#E1F5EE] flex items-center justify-center shrink-0">
-                  <TablerIcon name="clipboard-list" size={16} color="#1D9E75" />
+            <div className="bg-white rounded-xl border border-[#E2E8F0] p-5 shadow-sm left-col-card">
+              <div className="flex items-center gap-2.5 border-b border-[#E2E8F0] pb-3 mb-4">
+                <div className="w-8 h-8 rounded-full bg-[#F0FDF4] flex items-center justify-center shrink-0">
+                  <ClipboardList className="w-4 h-4 text-[#00A86B]" />
                 </div>
-                <h3 className="text-[14px] leading-[20px] font-semibold text-[#1A1A1A]">Order Details</h3>
+                <h3 className="text-[14px] leading-[20px] font-semibold text-[#0F172A]">Order Details</h3>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <div>
-                  <label className="block text-[12px] leading-[18px] font-medium text-[#9FB5AB] uppercase tracking-wider">Creation Date</label>
-                  <div className="text-[12px] leading-[18px] font-normal text-[#1A1A1A] mt-0.5">
+                  <label className="block text-[12px] leading-[18px] font-medium text-[#94A3B8] uppercase tracking-wider">Creation Date</label>
+                  <div className="text-[12px] leading-[18px] font-normal text-[#0F172A] mt-0.5">
                     <div>{formatDate(order?.createdAt)}</div>
                     {order?.createdAt && (
-                      <div className="text-[12px] leading-[18px] text-[#5F5E5A] font-normal mt-0.5">
+                      <div className="text-[12px] leading-[18px] text-[#64748B] font-normal mt-0.5">
                         {new Date(order.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}
                       </div>
                     )}
                   </div>
                 </div>
                 <div>
-                  <label className="block text-[12px] leading-[18px] font-medium text-[#9FB5AB] uppercase tracking-wider">Channel</label>
+                  <label className="block text-[12px] leading-[18px] font-medium text-[#94A3B8] uppercase tracking-wider">Channel</label>
                   <div className="mt-1">
-                    <span className="bg-[#E1F5EE] text-[#0F6E56] text-[12px] leading-[18px] font-normal px-2.5 py-0.5 rounded">
+                    <span className="bg-[#F0FDF4] text-[#009B63] text-[12px] leading-[18px] font-normal px-2.5 py-0.5 rounded">
                       {(order?.channel || 'CUSTOM').toUpperCase()}{order?.channelId ? ` (${order.channelId})` : ''}
                     </span>
                   </div>
                 </div>
                 <div>
-                  <label className="block text-[12px] leading-[18px] font-medium text-[#9FB5AB] uppercase tracking-wider">Payment Amount</label>
-                  <div className="text-[12px] leading-[18px] font-normal text-[#1A1A1A] mt-0.5">
+                  <label className="block text-[12px] leading-[18px] font-medium text-[#94A3B8] uppercase tracking-wider">Payment Amount</label>
+                  <div className="text-[12px] leading-[18px] font-normal text-[#0F172A] mt-0.5">
                     {order?.paymentDetails?.amount != null ? `₹${order.paymentDetails.amount.toLocaleString('en-IN')}` : '—'}
                   </div>
                 </div>
                 <div>
-                  <label className="block text-[12px] leading-[18px] font-medium text-[#9FB5AB] uppercase tracking-wider">Payment Method</label>
-                  <div className="text-[12px] leading-[18px] font-normal text-[#1A1A1A] mt-0.5">{order?.paymentDetails?.method || '—'}</div>
+                  <label className="block text-[12px] leading-[18px] font-medium text-[#94A3B8] uppercase tracking-wider">Payment Method</label>
+                  <div className="text-[12px] leading-[18px] font-normal text-[#0F172A] mt-0.5">{order?.paymentDetails?.method || '—'}</div>
                 </div>
               </div>
             </div>
@@ -933,93 +772,93 @@ export function AdminOrderTracking() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
 
               {/* SECTION 2: PICKUP DETAILS */}
-              <div className="bg-white rounded-xl border border-[#E5E5E5] p-5 shadow-sm left-col-card">
-                <div className="flex items-center gap-2.5 border-b border-[#F0F0F0] pb-3 mb-4">
-                  <div className="w-8 h-8 rounded-full bg-[#E1F5EE] flex items-center justify-center shrink-0">
-                    <TablerIcon name="map-pin-up" size={16} color="#1D9E75" />
+              <div className="bg-white rounded-xl border border-[#E2E8F0] p-5 shadow-sm left-col-card">
+                <div className="flex items-center gap-2.5 border-b border-[#E2E8F0] pb-3 mb-4">
+                  <div className="w-8 h-8 rounded-full bg-[#F0FDF4] flex items-center justify-center shrink-0">
+                    <Navigation className="w-4 h-4 text-[#00A86B]" />
                   </div>
-                  <h3 className="text-[14px] leading-[20px] font-semibold text-[#1A1A1A]">Pickup Details</h3>
+                  <h3 className="text-[14px] leading-[20px] font-semibold text-[#0F172A]">Pickup Details</h3>
                 </div>
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-[12px] leading-[18px] font-medium text-[#9FB5AB] uppercase tracking-wider">Name</label>
-                      <div className="text-[12px] leading-[18px] font-normal text-[#1A1A1A] mt-0.5">{order?.pickupAddress?.contactName || '—'}</div>
+                      <label className="block text-[12px] leading-[18px] font-medium text-[#94A3B8] uppercase tracking-wider">Name</label>
+                      <div className="text-[12px] leading-[18px] font-normal text-[#0F172A] mt-0.5">{order?.pickupAddress?.contactName || '—'}</div>
                     </div>
                     <div>
-                      <label className="block text-[12px] leading-[18px] font-medium text-[#9FB5AB] uppercase tracking-wider">Mobile No</label>
-                      <div className="text-[12px] leading-[18px] font-normal text-[#1A1A1A] mt-0.5">{order?.pickupAddress?.phoneNumber || '—'}</div>
+                      <label className="block text-[12px] leading-[18px] font-medium text-[#94A3B8] uppercase tracking-wider">Mobile No</label>
+                      <div className="text-[12px] leading-[18px] font-normal text-[#0F172A] mt-0.5">{order?.pickupAddress?.phoneNumber || '—'}</div>
                     </div>
                     <div>
-                      <label className="block text-[12px] leading-[18px] font-medium text-[#9FB5AB] uppercase tracking-wider">Email</label>
-                      <div className="text-[12px] leading-[18px] font-normal text-[#1A1A1A] mt-0.5 overflow-hidden text-ellipsis whitespace-nowrap" title={order?.pickupAddress?.email}>
-                        {order?.pickupAddress?.email || <span className="text-[#C5D5D0]">—</span>}
+                      <label className="block text-[12px] leading-[18px] font-medium text-[#94A3B8] uppercase tracking-wider">Email</label>
+                      <div className="text-[12px] leading-[18px] font-normal text-[#0F172A] mt-0.5 overflow-hidden text-ellipsis whitespace-nowrap" title={order?.pickupAddress?.email}>
+                        {order?.pickupAddress?.email || <span className="text-[#CBD5E1]">—</span>}
                       </div>
                     </div>
                     <div>
-                      <label className="block text-[12px] leading-[18px] font-medium text-[#9FB5AB] uppercase tracking-wider">Pincode</label>
-                      <div className="text-[12px] leading-[18px] font-normal text-[#1A1A1A] mt-0.5">{order?.pickupAddress?.pinCode || '—'}</div>
+                      <label className="block text-[12px] leading-[18px] font-medium text-[#94A3B8] uppercase tracking-wider">Pincode</label>
+                      <div className="text-[12px] leading-[18px] font-normal text-[#0F172A] mt-0.5">{order?.pickupAddress?.pinCode || '—'}</div>
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4 border-t border-[#F5F5F5] pt-3">
                     <div>
-                      <label className="block text-[12px] leading-[18px] font-medium text-[#9FB5AB] uppercase tracking-wider">State</label>
-                      <div className="text-[12px] leading-[18px] font-normal text-[#1A1A1A] mt-0.5">{order?.pickupAddress?.state || '—'}</div>
+                      <label className="block text-[12px] leading-[18px] font-medium text-[#94A3B8] uppercase tracking-wider">State</label>
+                      <div className="text-[12px] leading-[18px] font-normal text-[#0F172A] mt-0.5">{order?.pickupAddress?.state || '—'}</div>
                     </div>
                     <div>
-                      <label className="block text-[12px] leading-[18px] font-medium text-[#9FB5AB] uppercase tracking-wider">City</label>
-                      <div className="text-[12px] leading-[18px] font-normal text-[#1A1A1A] mt-0.5">{order?.pickupAddress?.city || '—'}</div>
+                      <label className="block text-[12px] leading-[18px] font-medium text-[#94A3B8] uppercase tracking-wider">City</label>
+                      <div className="text-[12px] leading-[18px] font-normal text-[#0F172A] mt-0.5">{order?.pickupAddress?.city || '—'}</div>
                     </div>
                   </div>
                   <div className="border-t border-[#F5F5F5] pt-3">
-                    <label className="block text-[12px] leading-[18px] font-medium text-[#9FB5AB] uppercase tracking-wider">Address</label>
-                    <div className="text-[12px] leading-[18px] font-normal text-[#1A1A1A] mt-0.5 leading-relaxed">{order?.pickupAddress?.address || '—'}</div>
+                    <label className="block text-[12px] leading-[18px] font-medium text-[#94A3B8] uppercase tracking-wider">Address</label>
+                    <div className="text-[12px] leading-[18px] font-normal text-[#0F172A] mt-0.5 leading-relaxed">{order?.pickupAddress?.address || '—'}</div>
                   </div>
                 </div>
               </div>
 
               {/* SECTION 3: RECEIVER DETAILS */}
-              <div className="bg-white rounded-xl border border-[#E5E5E5] p-5 shadow-sm left-col-card">
-                <div className="flex items-center gap-2.5 border-b border-[#F0F0F0] pb-3 mb-4">
-                  <div className="w-8 h-8 rounded-full bg-[#E1F5EE] flex items-center justify-center shrink-0">
-                    <TablerIcon name="map-pin" size={16} color="#1D9E75" />
+              <div className="bg-white rounded-xl border border-[#E2E8F0] p-5 shadow-sm left-col-card">
+                <div className="flex items-center gap-2.5 border-b border-[#E2E8F0] pb-3 mb-4">
+                  <div className="w-8 h-8 rounded-full bg-[#F0FDF4] flex items-center justify-center shrink-0">
+                    <MapPin className="w-4 h-4 text-[#00A86B]" />
                   </div>
-                  <h3 className="text-[14px] leading-[20px] font-semibold text-[#1A1A1A]">Receiver Details</h3>
+                  <h3 className="text-[14px] leading-[20px] font-semibold text-[#0F172A]">Receiver Details</h3>
                 </div>
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-[12px] leading-[18px] font-medium text-[#9FB5AB] uppercase tracking-wider">Name</label>
-                      <div className="text-[12px] leading-[18px] font-normal text-[#1A1A1A] mt-0.5">{order?.receiverAddress?.contactName || '—'}</div>
+                      <label className="block text-[12px] leading-[18px] font-medium text-[#94A3B8] uppercase tracking-wider">Name</label>
+                      <div className="text-[12px] leading-[18px] font-normal text-[#0F172A] mt-0.5">{order?.receiverAddress?.contactName || '—'}</div>
                     </div>
                     <div>
-                      <label className="block text-[12px] leading-[18px] font-medium text-[#9FB5AB] uppercase tracking-wider">Mobile No</label>
-                      <div className="text-[12px] leading-[18px] font-normal text-[#1A1A1A] mt-0.5">{order?.receiverAddress?.phoneNumber || '—'}</div>
+                      <label className="block text-[12px] leading-[18px] font-medium text-[#94A3B8] uppercase tracking-wider">Mobile No</label>
+                      <div className="text-[12px] leading-[18px] font-normal text-[#0F172A] mt-0.5">{order?.receiverAddress?.phoneNumber || '—'}</div>
                     </div>
                     <div>
-                      <label className="block text-[12px] leading-[18px] font-medium text-[#9FB5AB] uppercase tracking-wider">Email</label>
-                      <div className="text-[12px] leading-[18px] font-normal text-[#1A1A1A] mt-0.5">
-                        {order?.receiverAddress?.email || <span className="text-[#C5D5D0]">—</span>}
+                      <label className="block text-[12px] leading-[18px] font-medium text-[#94A3B8] uppercase tracking-wider">Email</label>
+                      <div className="text-[12px] leading-[18px] font-normal text-[#0F172A] mt-0.5">
+                        {order?.receiverAddress?.email || <span className="text-[#CBD5E1]">—</span>}
                       </div>
                     </div>
                     <div>
-                      <label className="block text-[12px] leading-[18px] font-medium text-[#9FB5AB] uppercase tracking-wider">Pincode</label>
-                      <div className="text-[12px] leading-[18px] font-normal text-[#1A1A1A] mt-0.5">{order?.receiverAddress?.pinCode || '—'}</div>
+                      <label className="block text-[12px] leading-[18px] font-medium text-[#94A3B8] uppercase tracking-wider">Pincode</label>
+                      <div className="text-[12px] leading-[18px] font-normal text-[#0F172A] mt-0.5">{order?.receiverAddress?.pinCode || '—'}</div>
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4 border-t border-[#F5F5F5] pt-3">
                     <div>
-                      <label className="block text-[12px] leading-[18px] font-medium text-[#9FB5AB] uppercase tracking-wider">State</label>
-                      <div className="text-[12px] leading-[18px] font-normal text-[#1A1A1A] mt-0.5">{order?.receiverAddress?.state || '—'}</div>
+                      <label className="block text-[12px] leading-[18px] font-medium text-[#94A3B8] uppercase tracking-wider">State</label>
+                      <div className="text-[12px] leading-[18px] font-normal text-[#0F172A] mt-0.5">{order?.receiverAddress?.state || '—'}</div>
                     </div>
                     <div>
-                      <label className="block text-[12px] leading-[18px] font-medium text-[#9FB5AB] uppercase tracking-wider">City</label>
-                      <div className="text-[12px] leading-[18px] font-normal text-[#1A1A1A] mt-0.5">{order?.receiverAddress?.city || '—'}</div>
+                      <label className="block text-[12px] leading-[18px] font-medium text-[#94A3B8] uppercase tracking-wider">City</label>
+                      <div className="text-[12px] leading-[18px] font-normal text-[#0F172A] mt-0.5">{order?.receiverAddress?.city || '—'}</div>
                     </div>
                   </div>
                   <div className="border-t border-[#F5F5F5] pt-3">
-                    <label className="block text-[12px] leading-[18px] font-medium text-[#9FB5AB] uppercase tracking-wider">Address</label>
-                    <div className="text-[12px] leading-[18px] font-normal text-[#1A1A1A] mt-0.5 leading-relaxed">{order?.receiverAddress?.address || '—'}</div>
+                    <label className="block text-[12px] leading-[18px] font-medium text-[#94A3B8] uppercase tracking-wider">Address</label>
+                    <div className="text-[12px] leading-[18px] font-normal text-[#0F172A] mt-0.5 leading-relaxed">{order?.receiverAddress?.address || '—'}</div>
                   </div>
                 </div>
               </div>
@@ -1029,36 +868,36 @@ export function AdminOrderTracking() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
 
               {/* SECTION 4: PACKAGE DETAILS */}
-              <div className="bg-white rounded-xl border border-[#E5E5E5] p-5 shadow-sm left-col-card">
-                <div className="flex items-center gap-2.5 border-b border-[#F0F0F0] pb-3 mb-4">
-                  <div className="w-8 h-8 rounded-full bg-[#E1F5EE] flex items-center justify-center shrink-0">
-                    <TablerIcon name="package" size={16} color="#1D9E75" />
+              <div className="bg-white rounded-xl border border-[#E2E8F0] p-5 shadow-sm left-col-card">
+                <div className="flex items-center gap-2.5 border-b border-[#E2E8F0] pb-3 mb-4">
+                  <div className="w-8 h-8 rounded-full bg-[#F0FDF4] flex items-center justify-center shrink-0">
+                    <Package className="w-4 h-4 text-[#00A86B]" />
                   </div>
-                  <h3 className="text-[14px] leading-[20px] font-semibold text-[#1A1A1A]">Package Details</h3>
+                  <h3 className="text-[14px] leading-[20px] font-semibold text-[#0F172A]">Package Details</h3>
                 </div>
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-[12px] leading-[18px] font-medium text-[#9FB5AB] uppercase tracking-wider">Order Type</label>
-                      <div className="text-[12px] leading-[18px] font-normal text-[#1A1A1A] mt-0.5">B2C</div>
+                      <label className="block text-[12px] leading-[18px] font-medium text-[#94A3B8] uppercase tracking-wider">Order Type</label>
+                      <div className="text-[12px] leading-[18px] font-normal text-[#0F172A] mt-0.5">B2C</div>
                     </div>
                     <div>
-                      <label className="block text-[12px] leading-[18px] font-medium text-[#9FB5AB] uppercase tracking-wider">Dead Weight</label>
-                      <div className="text-[12px] leading-[18px] font-normal text-[#1A1A1A] mt-0.5">
+                      <label className="block text-[12px] leading-[18px] font-medium text-[#94A3B8] uppercase tracking-wider">Dead Weight</label>
+                      <div className="text-[12px] leading-[18px] font-normal text-[#0F172A] mt-0.5">
                         {order?.packageDetails?.deadWeight != null ? `${order.packageDetails.deadWeight} KG` : '—'}
                       </div>
                     </div>
                     <div>
-                      <label className="block text-[12px] leading-[18px] font-medium text-[#9FB5AB] uppercase tracking-wider">Dimensions (L×W×H)</label>
-                      <div className="text-[12px] leading-[18px] font-normal text-[#1A1A1A] mt-0.5">
+                      <label className="block text-[12px] leading-[18px] font-medium text-[#94A3B8] uppercase tracking-wider">Dimensions (L×W×H)</label>
+                      <div className="text-[12px] leading-[18px] font-normal text-[#0F172A] mt-0.5">
                         {order?.packageDetails?.volumetricWeight
                           ? `${order.packageDetails.volumetricWeight.length ?? '—'} × ${order.packageDetails.volumetricWeight.width ?? '—'} × ${order.packageDetails.volumetricWeight.height ?? '—'} cm`
                           : '—'}
                       </div>
                     </div>
                     <div>
-                      <label className="block text-[12px] leading-[18px] font-medium text-[#9FB5AB] uppercase tracking-wider">Volumetric Weight</label>
-                      <div className="text-[12px] leading-[18px] font-normal text-[#1A1A1A] mt-0.5">
+                      <label className="block text-[12px] leading-[18px] font-medium text-[#94A3B8] uppercase tracking-wider">Volumetric Weight</label>
+                      <div className="text-[12px] leading-[18px] font-normal text-[#0F172A] mt-0.5">
                         {(() => {
                           const vw = order?.packageDetails?.volumetricWeight;
                           if (vw?.length && vw?.width && vw?.height)
@@ -1071,22 +910,22 @@ export function AdminOrderTracking() {
                   </div>
                   <div className="grid grid-cols-2 gap-4 border-t border-[#F5F5F5] pt-3">
                     <div>
-                      <label className="text-[12px] leading-[18px] font-medium text-[#9FB5AB] uppercase tracking-wider flex items-center gap-1.5">
+                      <label className="text-[12px] leading-[18px] font-medium text-[#94A3B8] uppercase tracking-wider flex items-center gap-1.5">
                         Applicable Weight
                         <div className="relative group cursor-pointer inline-flex items-center">
-                          <span className="text-[#9FB5AB] hover:text-[#1A1A1A]"><TablerIcon name="info-circle" size={12} /></span>
-                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-[#1A1A1A] text-white text-[12px] font-normal rounded-lg py-1.5 px-3 whitespace-nowrap shadow-md z-30 pointer-events-none">
+                          <span className="text-[#94A3B8] hover:text-[#0F172A]"><Info className="w-3 h-3" /></span>
+                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-[#0F172A] text-white text-[12px] font-normal rounded-lg py-1.5 px-3 whitespace-nowrap shadow-md z-30 pointer-events-none">
                             Higher of dead weight and volumetric weight
                           </div>
                         </div>
                       </label>
-                      <div className="text-[12px] leading-[18px] font-normal text-[#1A1A1A] mt-0.5">
+                      <div className="text-[12px] leading-[18px] font-normal text-[#0F172A] mt-0.5">
                         {order?.packageDetails?.applicableWeight != null ? `${order.packageDetails.applicableWeight} KG` : '—'}
                       </div>
                     </div>
                     <div>
-                      <label className="block text-[12px] leading-[18px] font-medium text-[#9FB5AB] uppercase tracking-wider">Charged Weight</label>
-                      <div className="text-[12px] leading-[18px] font-normal text-[#1A1A1A] mt-0.5">
+                      <label className="block text-[12px] leading-[18px] font-medium text-[#94A3B8] uppercase tracking-wider">Charged Weight</label>
+                      <div className="text-[12px] leading-[18px] font-normal text-[#0F172A] mt-0.5">
                         {discrepancy?.chargedWeight != null
                           ? `${discrepancy.chargedWeight} KG`
                           : order?.packageDetails?.applicableWeight != null
@@ -1099,23 +938,23 @@ export function AdminOrderTracking() {
               </div>
 
               {/* SECTION 5: PRODUCT DETAILS */}
-              <div className="bg-white rounded-xl border border-[#E5E5E5] p-5 shadow-sm left-col-card flex flex-col">
-                <div className="flex items-center gap-2.5 border-b border-[#F0F0F0] pb-3 mb-4">
-                  <div className="w-8 h-8 rounded-full bg-[#E1F5EE] flex items-center justify-center shrink-0">
-                    <TablerIcon name="box" size={16} color="#1D9E75" />
+              <div className="bg-white rounded-xl border border-[#E2E8F0] p-5 shadow-sm left-col-card flex flex-col">
+                <div className="flex items-center gap-2.5 border-b border-[#E2E8F0] pb-3 mb-4">
+                  <div className="w-8 h-8 rounded-full bg-[#F0FDF4] flex items-center justify-center shrink-0">
+                    <Package className="w-4 h-4 text-[#00A86B]" />
                   </div>
-                  <h3 className="text-[14px] leading-[20px] font-semibold text-[#1A1A1A]">Product Details</h3>
+                  <h3 className="text-[14px] leading-[20px] font-semibold text-[#0F172A]">Product Details</h3>
                 </div>
                 <div className="overflow-x-auto no-scrollbar flex-1">
                   <table className="w-full text-left border-collapse min-w-[300px]">
                     <thead>
-                      <tr className="bg-[#E6F9F2] border-b border-[#F0F0F0] text-[10px] leading-4 uppercase tracking-wider font-semibold text-[#9FB5AB]">
+                      <tr className="bg-[#E6F9F2] border-b border-[#E2E8F0] text-[10px] leading-4 uppercase tracking-wider font-semibold text-[#94A3B8]">
                         <th className="pb-3">Product Name</th>
                         <th className="pb-3 text-center">Qty</th>
                         <th className="pb-3 text-right">Price</th>
                       </tr>
                     </thead>
-                    <tbody className="text-[12px] leading-[18px] font-normal text-[#1A1A1A]">
+                    <tbody className="text-[12px] leading-[18px] font-normal text-[#0F172A]">
                       {(order?.productDetails || []).map((p, i) => (
                         <tr key={i} className="border-b last:border-0 border-[#F5F5F5]">
                           <td className="py-3 font-medium">{p.name || '—'}</td>
@@ -1124,14 +963,14 @@ export function AdminOrderTracking() {
                         </tr>
                       ))}
                       {(!order?.productDetails || order.productDetails.length === 0) && (
-                        <tr><td colSpan={3} className="py-3 text-center text-[#9FB5AB]">No products found</td></tr>
+                        <tr><td colSpan={3} className="py-3 text-center text-[#94A3B8]">No products found</td></tr>
                       )}
                     </tbody>
                   </table>
                 </div>
-                <div className="flex justify-end items-center gap-2.5 border-t border-[#F0F0F0] pt-4 mt-2">
-                  <span className="text-[12px] leading-[18px] font-medium text-[#1A1A1A]">Total Amount:</span>
-                  <span className="text-[12px] leading-[18px] font-bold text-[#1D9E75]">
+                <div className="flex justify-end items-center gap-2.5 border-t border-[#E2E8F0] pt-4 mt-2">
+                  <span className="text-[12px] leading-[18px] font-medium text-[#0F172A]">Total Amount:</span>
+                  <span className="text-[12px] leading-[18px] font-bold text-[#00A86B]">
                     ₹{(order?.productDetails || [])
                       .reduce((s, p) => s + (p.unitPrice || 0) * (p.quantity || 1), 0)
                       .toLocaleString('en-IN', { minimumFractionDigits: 2 })}
@@ -1141,20 +980,20 @@ export function AdminOrderTracking() {
             </div>
 
             {/* SECTION 6: CHARGES BREAKDOWN */}
-            <div className="bg-white rounded-xl border border-[#E5E5E5] p-5 shadow-sm left-col-card">
-              <div className="flex items-center gap-2.5 border-b border-[#F0F0F0] pb-3 mb-4">
-                <div className="w-8 h-8 rounded-full bg-[#E1F5EE] flex items-center justify-center shrink-0">
-                  <TablerIcon name="receipt" size={16} color="#1D9E75" />
+            <div className="bg-white rounded-xl border border-[#E2E8F0] p-5 shadow-sm left-col-card">
+              <div className="flex items-center gap-2.5 border-b border-[#E2E8F0] pb-3 mb-4">
+                <div className="w-8 h-8 rounded-full bg-[#F0FDF4] flex items-center justify-center shrink-0">
+                  <Receipt className="w-4 h-4 text-[#00A86B]" />
                 </div>
-                <h3 className="text-[14px] leading-[20px] font-semibold text-[#1A1A1A]">Charges Breakdown</h3>
+                <h3 className="text-[14px] leading-[20px] font-semibold text-[#0F172A]">Charges Breakdown</h3>
               </div>
 
               {/* Tab selector */}
               <div className="bg-[#F4F6F5] p-1 rounded-xl flex gap-1 mb-5">
-                <button onClick={() => setChargesTab('billed')} className={`flex-1 py-2 text-center text-[13px] font-medium transition-all ${chargesTab === 'billed' ? 'bg-white rounded-lg shadow-[0_1px_3px_rgba(0,0,0,0.08)] text-[#1A1A1A]' : 'text-[#9FB5AB] hover:text-[#1A1A1A]'}`}>
+                <button onClick={() => setChargesTab('billed')} className={`flex-1 py-2 text-center text-[13px] font-medium transition-all ${chargesTab === 'billed' ? 'bg-white rounded-lg shadow-[0_1px_3px_rgba(0,0,0,0.08)] text-[#0F172A]' : 'text-[#94A3B8] hover:text-[#0F172A]'}`}>
                   Billed Charges
                 </button>
-                <button onClick={() => setChargesTab('dispute')} className={`flex-1 py-2 text-center text-[13px] font-medium transition-all flex items-center justify-center gap-1.5 ${chargesTab === 'dispute' ? 'bg-white rounded-lg shadow-[0_1px_3px_rgba(0,0,0,0.08)] text-[#1A1A1A]' : 'text-[#9FB5AB] hover:text-[#1A1A1A]'}`}>
+                <button onClick={() => setChargesTab('dispute')} className={`flex-1 py-2 text-center text-[13px] font-medium transition-all flex items-center justify-center gap-1.5 ${chargesTab === 'dispute' ? 'bg-white rounded-lg shadow-[0_1px_3px_rgba(0,0,0,0.08)] text-[#0F172A]' : 'text-[#94A3B8] hover:text-[#0F172A]'}`}>
                   Weight Dispute
                   {isDisputeRaised && <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" />}
                 </button>
@@ -1164,41 +1003,41 @@ export function AdminOrderTracking() {
               {chargesTab === 'billed' && (
                 <div className="space-y-0.5">
                   <div className="flex justify-between items-center py-2.5 border-b border-[#F4F6F5]">
-                    <span className="text-[12px] leading-[18px] font-medium text-[#5F5E5A]">Base Freight Charge</span>
-                    <span className="text-[12px] leading-[18px] font-normal text-[#1A1A1A]">
+                    <span className="text-[12px] leading-[18px] font-medium text-[#64748B]">Base Freight Charge</span>
+                    <span className="text-[12px] leading-[18px] font-normal text-[#0F172A]">
                       {order?.priceBreakup?.freight != null ? `₹${order.priceBreakup.freight.toFixed(2)}` : '—'}
                     </span>
                   </div>
                   <div className="flex justify-between items-center py-2.5 border-b border-[#F4F6F5]">
-                    <span className="text-[12px] leading-[18px] font-medium text-[#5F5E5A]">COD Handling Charge</span>
-                    <span className="text-[12px] leading-[18px] font-normal text-[#1A1A1A]">
+                    <span className="text-[12px] leading-[18px] font-medium text-[#64748B]">COD Handling Charge</span>
+                    <span className="text-[12px] leading-[18px] font-normal text-[#0F172A]">
                       {order?.priceBreakup?.cod != null ? `₹${order.priceBreakup.cod.toFixed(2)}` : '—'}
                     </span>
                   </div>
                   <div className="flex justify-between items-center py-2.5 border-b border-[#F4F6F5]">
-                    <span className="text-[12px] leading-[18px] font-medium text-[#5F5E5A]">Reverse Pickup Charge</span>
-                    <span className="text-[12px] leading-[18px] font-normal text-[#C5D5D0]">—</span>
+                    <span className="text-[12px] leading-[18px] font-medium text-[#64748B]">Reverse Pickup Charge</span>
+                    <span className="text-[12px] leading-[18px] font-normal text-[#CBD5E1]">—</span>
                   </div>
                   {discrepancy && (
                     <div className="flex justify-between items-center py-2.5 border-b border-[#F4F6F5]">
                       <div className="flex items-center">
-                        <span className="text-[12px] leading-[18px] font-medium text-[#5F5E5A]">Weight Discrepancy Charge</span>
+                        <span className="text-[12px] leading-[18px] font-medium text-[#64748B]">Weight Discrepancy Charge</span>
                         {isDisputeRaised && <span className="bg-[#FFF3E0] text-[#E65100] text-[10px] leading-4 font-medium px-2 py-0.5 rounded ml-2">Disputed</span>}
                       </div>
-                      <span className="text-[12px] leading-[18px] font-normal text-[#1A1A1A]">
+                      <span className="text-[12px] leading-[18px] font-normal text-[#0F172A]">
                         {discrepancy.excessWeightCharges != null ? `₹${discrepancy.excessWeightCharges.toFixed(2)}` : '—'}
                       </span>
                     </div>
                   )}
                   <div className="flex justify-between items-center py-2.5 border-b border-[#F4F6F5]">
-                    <span className="text-[12px] leading-[18px] font-medium text-[#5F5E5A]">GST (18%)</span>
-                    <span className="text-[12px] leading-[18px] font-normal text-[#1A1A1A]">
+                    <span className="text-[12px] leading-[18px] font-medium text-[#64748B]">GST (18%)</span>
+                    <span className="text-[12px] leading-[18px] font-normal text-[#0F172A]">
                       {order?.priceBreakup?.gst != null ? `₹${order.priceBreakup.gst.toFixed(2)}` : '—'}
                     </span>
                   </div>
-                  <div className="border-t border-dashed border-[#E5E5E5] pt-3 mt-3 flex justify-between items-center">
-                    <span className="text-[14px] leading-[20px] font-bold text-[#1A1A1A]">Total Billed</span>
-                    <span className="text-[14px] leading-[20px] font-bold text-[#1D9E75]">
+                  <div className="border-t border-dashed border-[#E2E8F0] pt-3 mt-3 flex justify-between items-center">
+                    <span className="text-[14px] leading-[20px] font-bold text-[#0F172A]">Total Billed</span>
+                    <span className="text-[14px] leading-[20px] font-bold text-[#00A86B]">
                       {order?.priceBreakup?.total != null ? `₹${order.priceBreakup.total.toFixed(2)}` : '—'}
                     </span>
                   </div>
@@ -1212,8 +1051,8 @@ export function AdminOrderTracking() {
                     <>
                       <div className="bg-[#FFF8E8] border border-[#FAC775] rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-sm">
                         <div className="flex items-center gap-2.5">
-                          <div className="text-[#854F0B] shrink-0"><TablerIcon name="alert-triangle" size={18} color="#854F0B" /></div>
-                          <span className="text-[12px] leading-[18px] font-normal text-[#633806]">
+                          <div className="text-amber-700 shrink-0"><AlertTriangle className="w-[18px] h-[18px] text-amber-700" /></div>
+                          <span className="text-[12px] leading-[18px] font-normal text-amber-800">
                             {isDisputeRaised
                               ? `Dispute raised. Status: ${discrepancy.clientStatus}.`
                               : 'Weight discrepancy detected on this shipment.'}
@@ -1222,12 +1061,12 @@ export function AdminOrderTracking() {
                         {!isDisputeRaised ? (
                           <button
                             onClick={() => setShowRaiseDisputeModal(true)}
-                            className="border border-[#EF9F27] bg-[#FAEEDA] hover:bg-[#F5E2C4] text-[#633806] text-[12px] font-medium py-1.5 px-3.5 rounded-lg transition-colors shrink-0"
+                            className="border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-800 text-[12px] font-medium py-1.5 px-3.5 rounded-lg transition-colors shrink-0"
                           >
                             Raise Dispute
                           </button>
                         ) : (
-                          <span className="bg-[#E1F5EE] text-[#0F6E56] text-[10px] leading-4 font-semibold px-3 py-1 rounded-full border border-[#BCE8D8] shrink-0">
+                          <span className="bg-[#F0FDF4] text-[#009B63] text-[10px] leading-4 font-semibold px-3 py-1 rounded-full border border-[#BCE8D8] shrink-0">
                             Dispute Raised
                           </span>
                         )}
@@ -1236,17 +1075,17 @@ export function AdminOrderTracking() {
                       <div className="overflow-x-auto no-scrollbar">
                         <table className="w-full text-left border-collapse min-w-[450px]">
                           <thead>
-                            <tr className="bg-[#E6F9F2] border-b border-[#F4F6F5] text-[10px] leading-4 uppercase tracking-wider font-semibold text-[#9FB5AB]">
+                            <tr className="bg-[#E6F9F2] border-b border-[#F4F6F5] text-[10px] leading-4 uppercase tracking-wider font-semibold text-[#94A3B8]">
                               <th className="pb-3">Metric</th>
                               <th className="pb-3">Seller Declared</th>
                               <th className="pb-3">Courier Claimed</th>
                             </tr>
                           </thead>
-                          <tbody className="text-[12px] leading-[18px] font-normal text-[#1A1A1A]">
+                          <tbody className="text-[12px] leading-[18px] font-normal text-[#0F172A]">
                             <tr className="border-b border-[#F4F6F5]">
                               <td className="py-3">Dead Weight</td>
                               <td className="py-3">{order?.packageDetails?.deadWeight != null ? `${order.packageDetails.deadWeight} KG` : '—'}</td>
-                              <td className="py-3 text-[#E24B4A]">{discrepancy.enteredWeight != null ? `${discrepancy.enteredWeight} KG` : '—'}</td>
+                              <td className="py-3 text-red-500">{discrepancy.enteredWeight != null ? `${discrepancy.enteredWeight} KG` : '—'}</td>
                             </tr>
                             <tr className="border-b border-[#F4F6F5]">
                               <td className="py-3">Dimensions</td>
@@ -1255,22 +1094,22 @@ export function AdminOrderTracking() {
                                   ? `${order.packageDetails.volumetricWeight.length ?? '—'}×${order.packageDetails.volumetricWeight.width ?? '—'}×${order.packageDetails.volumetricWeight.height ?? '—'}cm`
                                   : '—'}
                               </td>
-                              <td className="py-3 text-[#E24B4A]">{discrepancy.chargeDimension || '—'}</td>
+                              <td className="py-3 text-red-500">{discrepancy.chargeDimension || '—'}</td>
                             </tr>
                             <tr className="border-b border-[#F4F6F5]">
                               <td className="py-3">Vol. Weight</td>
                               <td className="py-3">{(() => { const vw = order?.packageDetails?.volumetricWeight; if (vw?.length && vw?.width && vw?.height) return `${((vw.length * vw.width * vw.height) / 5000).toFixed(2)} KG`; if (vw?.calculatedWeight != null) return `${vw.calculatedWeight} KG`; return '—'; })()}</td>
-                              <td className="py-3 text-[#E24B4A]">—</td>
+                              <td className="py-3 text-red-500">—</td>
                             </tr>
                             <tr className="border-b border-[#F4F6F5]">
                               <td className="py-3">Charged Weight</td>
                               <td className="py-3">{order?.packageDetails?.applicableWeight != null ? `${order.packageDetails.applicableWeight} KG` : '—'}</td>
-                              <td className="py-3 text-[#E24B4A]">{discrepancy.chargedWeight != null ? `${discrepancy.chargedWeight} KG` : '—'}</td>
+                              <td className="py-3 text-red-500">{discrepancy.chargedWeight != null ? `${discrepancy.chargedWeight} KG` : '—'}</td>
                             </tr>
                             <tr className="border-b last:border-0 border-[#F4F6F5]">
                               <td className="py-3 font-semibold">Charges</td>
                               <td className="py-3 font-semibold">{order?.priceBreakup?.freight != null ? `₹${order.priceBreakup.freight.toFixed(2)}` : '—'}</td>
-                              <td className="py-3 font-semibold text-[#E24B4A]">{discrepancy.excessWeightCharges != null ? `₹${discrepancy.excessWeightCharges.toFixed(2)}` : '—'}</td>
+                              <td className="py-3 font-semibold text-red-500">{discrepancy.excessWeightCharges != null ? `₹${discrepancy.excessWeightCharges.toFixed(2)}` : '—'}</td>
                             </tr>
                           </tbody>
                         </table>
@@ -1278,12 +1117,12 @@ export function AdminOrderTracking() {
                     </>
                   ) : (
                     <div className="py-10 text-center">
-                      <div className="flex justify-center mb-3 text-[#9FB5AB]"><TablerIcon name="check" size={32} color="#9FB5AB" /></div>
-                      <div className="text-[14px] leading-[20px] font-semibold text-[#1A1A1A] mb-1">No Weight Discrepancy</div>
-                      <div className="text-[12px] leading-[18px] font-normal text-[#5F5E5A]">No discrepancy detected for this shipment.</div>
+                      <div className="flex justify-center mb-3 text-[#94A3B8]"><Check className="w-8 h-8 text-[#94A3B8]" /></div>
+                      <div className="text-[14px] leading-[20px] font-semibold text-[#0F172A] mb-1">No Weight Discrepancy</div>
+                      <div className="text-[12px] leading-[18px] font-normal text-[#64748B]">No discrepancy detected for this shipment.</div>
                     </div>
                   )}
-                  <div className="text-[12px] leading-[18px] font-normal text-[#9FB5AB]">
+                  <div className="text-[12px] leading-[18px] font-normal text-[#94A3B8]">
                     Dispute resolution typically takes 5–7 working days.
                   </div>
                 </div>
@@ -1296,40 +1135,40 @@ export function AdminOrderTracking() {
           <div className="flex flex-col lg:sticky lg:top-5 gap-4 min-w-0">
 
             {/* WIDGET 1: SHIPPING DETAILS */}
-            <div className="bg-white rounded-xl border border-[#E5E5E5] p-5 shadow-sm right-col-widget">
-              <div className="flex items-center gap-2.5 border-b border-[#F0F0F0] pb-3 mb-4">
-                <div className="w-8 h-8 rounded-full bg-[#E1F5EE] flex items-center justify-center shrink-0">
-                  <TablerIcon name="truck" size={16} color="#1D9E75" />
+            <div className="bg-white rounded-xl border border-[#E2E8F0] p-5 shadow-sm right-col-widget">
+              <div className="flex items-center gap-2.5 border-b border-[#E2E8F0] pb-3 mb-4">
+                <div className="w-8 h-8 rounded-full bg-[#F0FDF4] flex items-center justify-center shrink-0">
+                  <Truck className="w-4 h-4 text-[#00A86B]" />
                 </div>
-                <h3 className="text-[14px] leading-[20px] font-semibold text-[#1A1A1A]">Shipping Details</h3>
+                <h3 className="text-[14px] leading-[20px] font-semibold text-[#0F172A]">Shipping Details</h3>
               </div>
               <div className="space-y-3">
                 <div className="flex justify-between items-center text-[12px] leading-[18px]">
-                  <span className="font-medium text-[#5F5E5A]">Pickup ID</span>
-                  <span className="font-semibold text-[#1A1A1A] font-mono">{order?.pickupId || '—'}</span>
+                  <span className="font-medium text-[#64748B]">Pickup ID</span>
+                  <span className="font-semibold text-[#0F172A] font-mono">{order?.pickupId || '—'}</span>
                 </div>
                 <div className="flex justify-between items-center text-[12px] leading-[18px] border-t border-[#F5F5F5] pt-3">
-                  <span className="font-medium text-[#5F5E5A]">Courier Partner</span>
+                  <span className="font-medium text-[#64748B]">Courier Partner</span>
                   <div className="flex items-center gap-2">
                     {courierName !== '—' && <CourierLogo name={courierName} size="md" />}
-                    <span className="font-semibold text-[#1A1A1A]">{courierName}</span>
+                    <span className="font-semibold text-[#0F172A]">{courierName}</span>
                   </div>
                 </div>
                 <div className="flex justify-between items-center text-[12px] leading-[18px] border-t border-[#F5F5F5] pt-3">
-                  <span className="font-medium text-[#5F5E5A]">Scheduled On</span>
-                  <span className="font-normal text-[#1A1A1A]">{order?.shipmentCreatedAt ? formatDate(order.shipmentCreatedAt, true) : '—'}</span>
+                  <span className="font-medium text-[#64748B]">Scheduled On</span>
+                  <span className="font-normal text-[#0F172A]">{order?.shipmentCreatedAt ? formatDate(order.shipmentCreatedAt, true) : '—'}</span>
                 </div>
                 <div className="flex justify-between items-center text-[12px] leading-[18px] border-t border-[#F5F5F5] pt-3">
-                  <span className="font-medium text-[#5F5E5A]">Picked On</span>
-                  <span className="font-normal text-[#1A1A1A]">{order?.pickupDate ? formatDate(order.pickupDate, true) : '—'}</span>
+                  <span className="font-medium text-[#64748B]">Picked On</span>
+                  <span className="font-normal text-[#0F172A]">{order?.pickupDate ? formatDate(order.pickupDate, true) : '—'}</span>
                 </div>
                 <div className="flex justify-between items-center text-[12px] leading-[18px] border-t border-[#F5F5F5] pt-3">
-                  <span className="font-medium text-[#5F5E5A]">Estimated Delivery Date</span>
-                  <span className="font-normal text-[#1A1A1A]">{order?.estimatedDeliveryDate ? formatDate(order.estimatedDeliveryDate) : '—'}</span>
+                  <span className="font-medium text-[#64748B]">Estimated Delivery Date</span>
+                  <span className="font-normal text-[#0F172A]">{order?.estimatedDeliveryDate ? formatDate(order.estimatedDeliveryDate) : '—'}</span>
                 </div>
                 <div className="flex justify-between items-center text-[12px] leading-[18px] border-t border-[#F5F5F5] pt-3">
-                  <span className="font-medium text-[#5F5E5A]">Delivered On</span>
-                  <span className="font-normal text-[#1A1A1A]">
+                  <span className="font-medium text-[#64748B]">Delivered On</span>
+                  <span className="font-normal text-[#0F172A]">
                     {orderStatus === 'delivered' ? (() => {
                       const last = [...(order?.tracking || [])].filter(t => t.StatusDateTime).slice(-1)[0];
                       if (!last?.StatusDateTime) return '—';
@@ -1340,10 +1179,10 @@ export function AdminOrderTracking() {
                 </div>
                 {order?.paymentDetails?.method === 'COD' && (
                   <div className="flex justify-between items-center text-[12px] leading-[18px] border-t border-[#F5F5F5] pt-3">
-                    <span className="font-medium text-[#5F5E5A]">COD Status</span>
+                    <span className="font-medium text-[#64748B]">COD Status</span>
                     {order.codProcessed
-                      ? <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] leading-4 font-semibold px-2.5 py-0.5 rounded-full"><TablerIcon name="check" size={10} color="#059669" /> COD Paid</span>
-                      : <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-700 border border-amber-200 text-[10px] leading-4 font-semibold px-2.5 py-0.5 rounded-full"><TablerIcon name="clock" size={10} color="#d97706" /> COD Pending</span>
+                      ? <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] leading-4 font-semibold px-2.5 py-0.5 rounded-full"><Check className="w-2.5 h-2.5 text-emerald-600" /> COD Paid</span>
+                      : <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-700 border border-amber-200 text-[10px] leading-4 font-semibold px-2.5 py-0.5 rounded-full"><Clock className="w-2.5 h-2.5 text-amber-600" /> COD Pending</span>
                     }
                   </div>
                 )}
@@ -1351,36 +1190,36 @@ export function AdminOrderTracking() {
             </div>
 
             {/* WIDGET 2: TRACKING DETAILS */}
-            <div className="bg-white rounded-xl border border-[#E5E5E5] p-5 shadow-sm right-col-widget">
-              <div className="flex items-center gap-2.5 border-b border-[#F0F0F0] pb-3 mb-4">
-                <div className="w-8 h-8 rounded-full bg-[#E1F5EE] flex items-center justify-center shrink-0">
-                  <TablerIcon name="map-2" size={16} color="#1D9E75" />
+            <div className="bg-white rounded-xl border border-[#E2E8F0] p-5 shadow-sm right-col-widget">
+              <div className="flex items-center gap-2.5 border-b border-[#E2E8F0] pb-3 mb-4">
+                <div className="w-8 h-8 rounded-full bg-[#F0FDF4] flex items-center justify-center shrink-0">
+                  <Map className="w-4 h-4 text-[#00A86B]" />
                 </div>
-                <h3 className="text-[14px] leading-[20px] font-semibold text-[#1A1A1A]">Tracking Details</h3>
+                <h3 className="text-[14px] leading-[20px] font-semibold text-[#0F172A]">Tracking Details</h3>
               </div>
 
               {/* AWB block */}
               <div className="flex items-center justify-between bg-slate-50 rounded-xl p-3 mb-5">
                 <div>
-                  <div className="text-[10px] leading-4 font-semibold text-[#9FB5AB] uppercase tracking-wider">AWB Number</div>
-                  <div className="text-[12px] leading-[18px] font-bold text-[#1A1A1A] mt-0.5 tracking-wide font-mono">{awbNumber}</div>
+                  <div className="text-[10px] leading-4 font-semibold text-[#94A3B8] uppercase tracking-wider">AWB Number</div>
+                  <div className="text-[12px] leading-[18px] font-bold text-[#0F172A] mt-0.5 tracking-wide font-mono">{awbNumber}</div>
                 </div>
                 <div className="flex items-center gap-2">
                   {courierName !== '—' && (
-                    <span className="text-[#1A1A1A] text-[12px] leading-[18px] font-medium px-2.5 py-1 rounded-md shrink-0 flex items-center gap-1.5 bg-transparent">
+                    <span className="text-[#0F172A] text-[12px] leading-[18px] font-medium px-2.5 py-1 rounded-md shrink-0 flex items-center gap-1.5 bg-transparent">
                       <CourierLogo name={courierName} size="sm" />
                       {courierName}
                     </span>
                   )}
-                  <button onClick={handleCopyAwb} className={`p-1.5 rounded-md transition-colors ${copiedAwb ? 'text-[#1D9E75] bg-emerald-50' : 'text-[#9FB5AB] hover:text-[#1D9E75] hover:bg-slate-100'}`} title="Copy AWB Number">
-                    <TablerIcon name="copy" size={13} color={copiedAwb ? '#1D9E75' : '#9FB5AB'} />
+                  <button onClick={handleCopyAwb} className={`p-1.5 rounded-md transition-colors ${copiedAwb ? 'text-[#00A86B] bg-emerald-50' : 'text-[#94A3B8] hover:text-[#00A86B] hover:bg-slate-100'}`} title="Copy AWB Number">
+                    <Copy className="w-3 h-3" />
                   </button>
                 </div>
               </div>
 
               {/* Tracking timeline */}
               <div className="relative pl-8 py-1 overflow-y-auto pr-2 thin-scrollbar" style={{ maxHeight: '190px' }}>
-                <div className="absolute left-[15px] top-3 bottom-3 w-[2px] bg-[#E1F5EE] z-0" />
+                <div className="absolute left-[15px] top-3 bottom-3 w-[2px] bg-[#F0FDF4] z-0" />
                 <div className="space-y-6 relative z-10">
                   {(() => {
                     const trackingEntries = [...(order?.tracking || [])]
@@ -1393,20 +1232,20 @@ export function AdminOrderTracking() {
                           <div key={i} className="relative flex items-start gap-4 tracking-timeline-entry">
                             <div className="absolute -left-[22px] top-1">
                               {i === 0
-                                ? <div className="w-3 h-3 rounded-full bg-[#1D9E75] pulse-active border-2 border-white relative z-10" />
-                                : <div className="w-2.5 h-2.5 rounded-full bg-[#1D9E75] border-2 border-white relative z-10" />}
+                                ? <div className="w-3 h-3 rounded-full bg-[#00A86B] pulse-active border-2 border-white relative z-10" />
+                                : <div className="w-2.5 h-2.5 rounded-full bg-[#00A86B] border-2 border-white relative z-10" />}
                             </div>
                             <div>
-                              <div className={`text-[12px] leading-[18px] ${i === 0 ? 'font-bold' : 'font-semibold'} text-[#1A1A1A]`}>{t.Instructions}</div>
-                              <div className="text-[12px] leading-[18px] font-normal text-[#5F5E5A] mt-0.5">{date}</div>
-                              <div className="text-[12px] leading-[18px] font-normal text-[#5F5E5A]">{time}</div>
-                              {t.StatusLocation && <div className="text-[12px] leading-[18px] font-normal text-[#9FB5AB] mt-0.5">{t.StatusLocation}</div>}
+                              <div className={`text-[12px] leading-[18px] ${i === 0 ? 'font-bold' : 'font-semibold'} text-[#0F172A]`}>{t.Instructions}</div>
+                              <div className="text-[12px] leading-[18px] font-normal text-[#64748B] mt-0.5">{date}</div>
+                              <div className="text-[12px] leading-[18px] font-normal text-[#64748B]">{time}</div>
+                              {t.StatusLocation && <div className="text-[12px] leading-[18px] font-normal text-[#94A3B8] mt-0.5">{t.StatusLocation}</div>}
                             </div>
                           </div>
                         );
                       })
                     ) : (
-                      <div className="text-center py-4 text-[12px] leading-[18px] font-normal text-[#9FB5AB]">No tracking updates yet</div>
+                      <div className="text-center py-4 text-[12px] leading-[18px] font-normal text-[#94A3B8]">No tracking updates yet</div>
                     );
                   })()}
                 </div>
@@ -1417,34 +1256,34 @@ export function AdminOrderTracking() {
             {(order?.status === 'Undelivered' || order?.ndrStatus === 'Undelivered' || order?.ndrStatus === 'Action_Requested') && (() => {
               const ndrButtonsEnabled = order?.ndrStatus === 'Undelivered' && order?.reattempt === true;
               return (
-              <div className="bg-white rounded-xl border border-[#E5E5E5] p-5 shadow-sm right-col-widget">
-                <div className="flex items-center gap-2.5 border-b border-[#F0F0F0] pb-3 mb-4">
+              <div className="bg-white rounded-xl border border-[#E2E8F0] p-5 shadow-sm right-col-widget">
+                <div className="flex items-center gap-2.5 border-b border-[#E2E8F0] pb-3 mb-4">
                   <div className="w-8 h-8 rounded-full bg-amber-50 flex items-center justify-center shrink-0">
-                    <TablerIcon name="alert-triangle" size={16} color="#EF9F27" />
+                    <AlertTriangle className="w-4 h-4 text-amber-500" />
                   </div>
-                  <h3 className="text-[14px] leading-[20px] font-semibold text-[#1A1A1A]">NDR Actions & History</h3>
+                  <h3 className="text-[14px] leading-[20px] font-semibold text-[#0F172A]">NDR Actions & History</h3>
                 </div>
                 <div className="space-y-3.5">
                   <div className="flex justify-between items-center text-[12px] leading-[18px]">
-                    <span className="font-medium text-[#5F5E5A]">NDR Status</span>
+                    <span className="font-medium text-[#64748B]">NDR Status</span>
                     <span className="text-[10px] leading-4 font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded-full border bg-amber-50 text-amber-700 border-amber-200">
                       {order.ndrStatus}
                     </span>
                   </div>
                   {order.ndrReason && (
                     <div className="text-[12px] leading-[18px] border-t border-[#F5F5F5] pt-3">
-                      <div className="font-medium text-[#5F5E5A]">Reason for Non-Delivery</div>
-                      <div className="font-normal text-[#1A1A1A] mt-1 bg-slate-50 border border-slate-100 rounded-lg p-2.5 text-[12px] leading-[18px]">
+                      <div className="font-medium text-[#64748B]">Reason for Non-Delivery</div>
+                      <div className="font-normal text-[#0F172A] mt-1 bg-slate-50 border border-slate-100 rounded-lg p-2.5 text-[12px] leading-[18px]">
                         {typeof order.ndrReason === 'string' ? order.ndrReason : (order.ndrReason?.reason || '—')}
                       </div>
                     </div>
                   )}
                   {order.ndrHistory && order.ndrHistory.length > 0 && (
                     <div className="flex items-center gap-2 text-[12px] leading-[18px] border-t border-[#F5F5F5] pt-3 flex-wrap">
-                      <span className="font-medium text-[#5F5E5A] shrink-0">Attempt Count:</span>
-                      <span className="font-normal text-[#1A1A1A]">{order.ndrHistory.length} / 3 attempts</span>
-                      <button onClick={() => setShowNdrHistory(true)} className="text-[11px] font-bold text-[#1D9E75] hover:text-[#0F6E56] flex items-center gap-1 shrink-0 ml-1.5 bg-[#E1F5EE] px-2 py-0.5 rounded transition-colors">
-                        <TablerIcon name="history" size={11} color="#1D9E75" />
+                      <span className="font-medium text-[#64748B] shrink-0">Attempt Count:</span>
+                      <span className="font-normal text-[#0F172A]">{order.ndrHistory.length} / 3 attempts</span>
+                      <button onClick={() => setShowNdrHistory(true)} className="text-[11px] font-bold text-[#00A86B] hover:text-[#009B63] flex items-center gap-1 shrink-0 ml-1.5 bg-[#F0FDF4] px-2 py-0.5 rounded transition-colors">
+                        <History className="w-[11px] h-[11px] text-[#00A86B]" />
                         <span>History</span>
                       </button>
                     </div>
@@ -1458,7 +1297,7 @@ export function AdminOrderTracking() {
                     <button
                       disabled={!ndrButtonsEnabled}
                       onClick={() => setToastMessage(`Re-attempt instruction submitted to ${courierName}!`)}
-                      className={`w-full text-[12px] font-bold py-2 rounded-lg transition-colors focus:outline-none ${ndrButtonsEnabled ? 'bg-[#1D9E75] hover:bg-[#0F6E56] text-white cursor-pointer' : 'bg-[#E2E8F0] text-[#94A3B8] cursor-not-allowed'}`}
+                      className={`w-full text-[12px] font-bold py-2 rounded-lg transition-colors focus:outline-none ${ndrButtonsEnabled ? 'bg-[#00A86B] hover:bg-[#009B63] text-white cursor-pointer' : 'bg-[#E2E8F0] text-[#94A3B8] cursor-not-allowed'}`}
                     >
                       Request Re-attempt
                     </button>
@@ -1473,7 +1312,7 @@ export function AdminOrderTracking() {
                       <button
                         disabled={!ndrButtonsEnabled}
                         onClick={() => { setNewPhoneNumber(order.receiverAddress?.phoneNumber || ''); setShowUpdateInfoModal(true); }}
-                        className={`text-[12px] font-semibold py-2 rounded-lg transition-colors focus:outline-none ${ndrButtonsEnabled ? 'border border-[#E5E5E5] hover:bg-[#F8F9FA] text-[#5F5E5A] cursor-pointer' : 'border border-[#E2E8F0] bg-[#F8FAFC] text-[#94A3B8] cursor-not-allowed'}`}
+                        className={`text-[12px] font-semibold py-2 rounded-lg transition-colors focus:outline-none ${ndrButtonsEnabled ? 'border border-[#E2E8F0] hover:bg-[#F8FAFC] text-[#64748B] cursor-pointer' : 'border border-[#E2E8F0] bg-[#F8FAFC] text-[#94A3B8] cursor-not-allowed'}`}
                       >
                         Update Info
                       </button>
@@ -1491,33 +1330,33 @@ export function AdminOrderTracking() {
       {/* ── NDR HISTORY MODAL ───────────────────────────────────────────────────── */}
       {showNdrHistory && (
         <div className="fixed inset-0 bg-[#000000]/40 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl border border-[#E5E5E5] w-full max-w-md shadow-2xl overflow-hidden animate-fade-in">
-            <div className="px-5 py-4 border-b border-[#F0F0F0] flex justify-between items-center bg-slate-50">
+          <div className="bg-white rounded-2xl border border-[#E2E8F0] w-full max-w-md shadow-2xl overflow-hidden animate-fade-in">
+            <div className="px-5 py-4 border-b border-[#E2E8F0] flex justify-between items-center bg-slate-50">
               <div className="flex items-center gap-2">
-                <TablerIcon name="history" size={16} color="#1D9E75" />
-                <h3 className="text-[14px] leading-[20px] font-semibold text-[#1A1A1A]">NDR Lifecycle History</h3>
+                <History className="w-4 h-4 text-[#00A86B]" />
+                <h3 className="text-[14px] leading-[20px] font-semibold text-[#0F172A]">NDR Lifecycle History</h3>
               </div>
-              <button onClick={() => setShowNdrHistory(false)} className="text-[#9FB5AB] hover:text-[#1A1A1A] p-1.5 rounded-md hover:bg-slate-200 transition-colors focus:outline-none">
-                <TablerIcon name="x" size={14} />
+              <button onClick={() => setShowNdrHistory(false)} className="text-[#94A3B8] hover:text-[#0F172A] p-1.5 rounded-md hover:bg-slate-200 transition-colors focus:outline-none">
+                <X className="w-3.5 h-3.5" />
               </button>
             </div>
             <div className="p-5 max-h-[300px] overflow-y-auto pr-1">
-              <div className="relative pl-6 space-y-5 border-l-2 border-[#E1F5EE]">
+              <div className="relative pl-6 space-y-5 border-l-2 border-[#F0FDF4]">
                 {(order?.ndrHistory || []).map((h, i) => (
                   <div key={i} className="relative">
-                    <div className="absolute -left-[31px] top-1.5 w-2 h-2 rounded-full bg-[#1D9E75] border border-white" />
-                    <div className="text-[12px] leading-[18px] font-semibold text-[#1A1A1A]">{h.action || h.status || 'NDR Update'}</div>
-                    {h.date && <div className="text-[12px] leading-[18px] font-normal text-[#5F5E5A] mt-0.5">{formatDate(h.date, true)}</div>}
-                    {h.reason && <div className="text-[12px] leading-[18px] font-normal text-[#9FB5AB] mt-0.5">Reason: {h.reason}</div>}
+                    <div className="absolute -left-[31px] top-1.5 w-2 h-2 rounded-full bg-[#00A86B] border border-white" />
+                    <div className="text-[12px] leading-[18px] font-semibold text-[#0F172A]">{h.action || h.status || 'NDR Update'}</div>
+                    {h.date && <div className="text-[12px] leading-[18px] font-normal text-[#64748B] mt-0.5">{formatDate(h.date, true)}</div>}
+                    {h.reason && <div className="text-[12px] leading-[18px] font-normal text-[#94A3B8] mt-0.5">Reason: {h.reason}</div>}
                   </div>
                 ))}
                 {(!order?.ndrHistory || order.ndrHistory.length === 0) && (
-                  <div className="text-[12px] leading-[18px] font-normal text-[#9FB5AB] text-center py-4">No history available</div>
+                  <div className="text-[12px] leading-[18px] font-normal text-[#94A3B8] text-center py-4">No history available</div>
                 )}
               </div>
             </div>
-            <div className="px-5 py-3.5 bg-slate-50 border-t border-[#F0F0F0] flex justify-end">
-              <button onClick={() => setShowNdrHistory(false)} className="bg-[#1D9E75] hover:bg-[#0F6E56] text-white text-[12px] font-bold py-1.5 px-4 rounded-lg transition-colors shadow-sm focus:outline-none">
+            <div className="px-5 py-3.5 bg-slate-50 border-t border-[#E2E8F0] flex justify-end">
+              <button onClick={() => setShowNdrHistory(false)} className="bg-[#00A86B] hover:bg-[#009B63] text-white text-[12px] font-bold py-1.5 px-4 rounded-lg transition-colors shadow-sm focus:outline-none">
                 Close
               </button>
             </div>
@@ -1528,35 +1367,35 @@ export function AdminOrderTracking() {
       {/* ── UPDATE INFO MODAL ───────────────────────────────────────────────────── */}
       {showUpdateInfoModal && (
         <div className="fixed inset-0 bg-[#000000]/40 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl border border-[#E5E5E5] w-full max-w-sm shadow-2xl overflow-hidden animate-fade-in">
-            <div className="px-5 py-4 border-b border-[#F0F0F0] flex justify-between items-center bg-slate-50">
+          <div className="bg-white rounded-2xl border border-[#E2E8F0] w-full max-w-sm shadow-2xl overflow-hidden animate-fade-in">
+            <div className="px-5 py-4 border-b border-[#E2E8F0] flex justify-between items-center bg-slate-50">
               <div className="flex items-center gap-2">
-                <TablerIcon name="phone" size={16} color="#1D9E75" />
-                <h3 className="text-[14px] leading-[20px] font-semibold text-[#1A1A1A]">Update Alternate Contact</h3>
+                <Phone className="w-4 h-4 text-[#00A86B]" />
+                <h3 className="text-[14px] leading-[20px] font-semibold text-[#0F172A]">Update Alternate Contact</h3>
               </div>
-              <button onClick={() => setShowUpdateInfoModal(false)} className="text-[#9FB5AB] hover:text-[#1A1A1A] p-1.5 rounded-md hover:bg-slate-200 transition-colors focus:outline-none">
-                <TablerIcon name="x" size={14} />
+              <button onClick={() => setShowUpdateInfoModal(false)} className="text-[#94A3B8] hover:text-[#0F172A] p-1.5 rounded-md hover:bg-slate-200 transition-colors focus:outline-none">
+                <X className="w-3.5 h-3.5" />
               </button>
             </div>
             <div className="p-5 space-y-4">
               <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] leading-4 font-semibold text-[#5F5E5A] uppercase tracking-wider">Alternate Phone Number</label>
+                <label className="text-[10px] leading-4 font-semibold text-[#64748B] uppercase tracking-wider">Alternate Phone Number</label>
                 <input
                   type="tel"
                   value={newPhoneNumber}
                   onChange={(e) => setNewPhoneNumber(e.target.value)}
-                  className="w-full h-10 px-3.5 rounded-xl border border-[#E5E5E5] text-[13px] bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[#1D9E75]/20 focus:border-[#1D9E75] transition-all font-mono"
+                  className="w-full h-10 px-3.5 rounded-xl border border-[#E2E8F0] text-[13px] bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[#00A86B]/20 focus:border-[#00A86B] transition-all font-mono"
                   placeholder="Enter 10-digit mobile number"
                 />
               </div>
             </div>
-            <div className="px-5 py-3.5 bg-slate-50 border-t border-[#F0F0F0] flex justify-end gap-2">
-              <button onClick={() => setShowUpdateInfoModal(false)} className="border border-[#E5E5E5] bg-white hover:bg-slate-50 text-[#5F5E5A] text-[12px] font-bold py-1.5 px-4 rounded-lg transition-colors focus:outline-none">
+            <div className="px-5 py-3.5 bg-slate-50 border-t border-[#E2E8F0] flex justify-end gap-2">
+              <button onClick={() => setShowUpdateInfoModal(false)} className="border border-[#E2E8F0] bg-white hover:bg-slate-50 text-[#64748B] text-[12px] font-bold py-1.5 px-4 rounded-lg transition-colors focus:outline-none">
                 Cancel
               </button>
               <button
                 onClick={() => { setShowUpdateInfoModal(false); setToastMessage(`Alternate number updated. Instructions sent to ${courierName}!`); }}
-                className="bg-[#1D9E75] hover:bg-[#0F6E56] text-white text-[12px] font-bold py-1.5 px-4 rounded-lg transition-colors shadow-sm focus:outline-none"
+                className="bg-[#00A86B] hover:bg-[#009B63] text-white text-[12px] font-bold py-1.5 px-4 rounded-lg transition-colors shadow-sm focus:outline-none"
               >
                 Save Changes
               </button>
@@ -1568,23 +1407,23 @@ export function AdminOrderTracking() {
       {/* ── RAISE DISPUTE MODAL ─────────────────────────────────────────────────── */}
       {showRaiseDisputeModal && (
         <div className="fixed inset-0 bg-[#000000]/40 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl border border-[#E5E5E5] w-full max-w-md shadow-2xl overflow-hidden animate-fade-in">
-            <div className="px-5 py-4 border-b border-[#F0F0F0] flex justify-between items-center bg-slate-50">
+          <div className="bg-white rounded-2xl border border-[#E2E8F0] w-full max-w-md shadow-2xl overflow-hidden animate-fade-in">
+            <div className="px-5 py-4 border-b border-[#E2E8F0] flex justify-between items-center bg-slate-50">
               <div className="flex items-center gap-2">
-                <TablerIcon name="alert-triangle" size={16} color="#EF9F27" />
-                <h3 className="text-[14px] leading-[20px] font-semibold text-[#1A1A1A]">Raise Weight Dispute</h3>
+                <AlertTriangle className="w-4 h-4 text-amber-500" />
+                <h3 className="text-[14px] leading-[20px] font-semibold text-[#0F172A]">Raise Weight Dispute</h3>
               </div>
-              <button onClick={() => { setShowRaiseDisputeModal(false); setDisputeError(null); }} className="text-[#9FB5AB] hover:text-[#1A1A1A] p-1.5 rounded-md hover:bg-slate-200 transition-colors focus:outline-none">
-                <TablerIcon name="x" size={14} />
+              <button onClick={() => { setShowRaiseDisputeModal(false); setDisputeError(null); }} className="text-[#94A3B8] hover:text-[#0F172A] p-1.5 rounded-md hover:bg-slate-200 transition-colors focus:outline-none">
+                <X className="w-3.5 h-3.5" />
               </button>
             </div>
             <div className="p-5 space-y-4">
               <div className="bg-slate-50 rounded-lg p-3 flex justify-between items-center text-[12px] leading-[18px]">
-                <span className="font-medium text-[#5F5E5A]">AWB Number</span>
-                <span className="font-mono font-semibold text-[#1A1A1A]">{awbNumber}</span>
+                <span className="font-medium text-[#64748B]">AWB Number</span>
+                <span className="font-mono font-semibold text-[#0F172A]">{awbNumber}</span>
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] leading-4 font-semibold text-[#5F5E5A] uppercase tracking-wider">
+                <label className="text-[10px] leading-4 font-semibold text-[#64748B] uppercase tracking-wider">
                   Dispute Reason <span className="text-red-500">*</span>
                 </label>
                 <textarea
@@ -1592,18 +1431,18 @@ export function AdminOrderTracking() {
                   onChange={(e) => setDisputeText(e.target.value)}
                   rows={4}
                   placeholder="Describe the weight discrepancy (e.g. actual weight, courier claimed weight, supporting details...)"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] text-[13px] bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[#1D9E75]/20 focus:border-[#1D9E75] transition-all resize-none"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#E2E8F0] text-[13px] bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[#00A86B]/20 focus:border-[#00A86B] transition-all resize-none"
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] leading-4 font-semibold text-[#5F5E5A] uppercase tracking-wider">
-                  Supporting Document <span className="text-[#9FB5AB] font-normal normal-case">(optional)</span>
+                <label className="text-[10px] leading-4 font-semibold text-[#64748B] uppercase tracking-wider">
+                  Supporting Document <span className="text-[#94A3B8] font-normal normal-case">(optional)</span>
                 </label>
                 <input
                   type="file"
                   accept="image/*,.pdf"
                   onChange={(e) => setDisputeFile(e.target.files?.[0] || null)}
-                  className="w-full text-[13px] text-[#5F5E5A] file:mr-4 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[12px] file:font-semibold file:bg-[#E1F5EE] file:text-[#0F6E56] hover:file:bg-[#BCE8D8] cursor-pointer"
+                  className="w-full text-[13px] text-[#64748B] file:mr-4 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[12px] file:font-semibold file:bg-[#F0FDF4] file:text-[#009B63] hover:file:bg-[#BCE8D8] cursor-pointer"
                 />
               </div>
               {disputeError && (
@@ -1612,11 +1451,11 @@ export function AdminOrderTracking() {
                 </div>
               )}
             </div>
-            <div className="px-5 py-3.5 bg-slate-50 border-t border-[#F0F0F0] flex justify-end gap-2">
-              <button onClick={() => { setShowRaiseDisputeModal(false); setDisputeError(null); }} className="border border-[#E5E5E5] bg-white hover:bg-slate-50 text-[#5F5E5A] text-[12px] font-bold py-1.5 px-4 rounded-lg transition-colors focus:outline-none">
+            <div className="px-5 py-3.5 bg-slate-50 border-t border-[#E2E8F0] flex justify-end gap-2">
+              <button onClick={() => { setShowRaiseDisputeModal(false); setDisputeError(null); }} className="border border-[#E2E8F0] bg-white hover:bg-slate-50 text-[#64748B] text-[12px] font-bold py-1.5 px-4 rounded-lg transition-colors focus:outline-none">
                 Cancel
               </button>
-              <button onClick={handleRaiseDispute} disabled={isSubmittingDispute} className="bg-[#1D9E75] hover:bg-[#0F6E56] disabled:opacity-60 text-white text-[12px] font-bold py-1.5 px-5 rounded-lg transition-colors shadow-sm focus:outline-none">
+              <button onClick={handleRaiseDispute} disabled={isSubmittingDispute} className="bg-[#00A86B] hover:bg-[#009B63] disabled:opacity-60 text-white text-[12px] font-bold py-1.5 px-5 rounded-lg transition-colors shadow-sm focus:outline-none">
                 {isSubmittingDispute ? 'Submitting...' : 'Submit Dispute'}
               </button>
             </div>
@@ -1638,13 +1477,13 @@ export function AdminOrderTracking() {
 
       {/* ── TOAST ───────────────────────────────────────────────────────────────── */}
       {toastMessage && (
-        <div className="fixed bottom-5 right-5 z-[210] bg-[#1A1A1A] text-white text-[13px] px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2.5 animate-fade-in">
-          <div className="w-5 h-5 rounded-full bg-[#1D9E75] flex items-center justify-center shrink-0">
-            <TablerIcon name="check" size={10} color="#FFFFFF" />
+        <div className="fixed bottom-5 right-5 z-[210] bg-[#0F172A] text-white text-[13px] px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2.5 animate-fade-in">
+          <div className="w-5 h-5 rounded-full bg-[#00A86B] flex items-center justify-center shrink-0">
+            <Check className="w-2.5 h-2.5 text-white" />
           </div>
           <span className="font-medium">{toastMessage}</span>
           <button onClick={() => setToastMessage(null)} className="text-white/50 hover:text-white ml-2 focus:outline-none">
-            <TablerIcon name="x" size={10} />
+            <X className="w-2.5 h-2.5" />
           </button>
         </div>
       )}

@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { apiClient } from '../../services/apiClient';
-import { FileText, Upload, Download, X, Plus, CheckCircle2 } from 'lucide-react';
+import { FileText, Upload, Download, X, Plus, CheckCircle2, Hash, Calendar } from 'lucide-react';
+import { TableLoader } from '../../components/ui/TableLoader';
 
 interface Agreement {
   _id: string;
@@ -90,73 +91,74 @@ export function AdminAgreement() {
         )}
       </AnimatePresence>
 
-      <div className="max-w-[1400px] mx-auto pb-10">
+      <div className="flex flex-col h-[calc(100vh-72px)] -m-4 md:-m-6 bg-white">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-[20px] font-bold text-[#0F172A]">Agreement</h1>
-            <p className="text-[12px] text-[#64748B] mt-0.5">Upload and manage platform agreements</p>
+        <div className="bg-white relative z-50 shrink-0">
+          <div className="flex items-center justify-between px-4 md:px-6 py-2 border-b border-[#E2E8F0]">
+            <div>
+              <h1 className="text-[15px] font-bold text-[#0F172A]">Agreement</h1>
+              <p className="text-[11px] text-[#64748B]">Upload and manage platform agreements</p>
+            </div>
+            <button
+              onClick={() => setShowModal(true)}
+              className="flex items-center gap-2 h-9 px-4 rounded-[14px] bg-[#00A86B] text-white text-[12px] font-bold hover:bg-[#009B63] transition-colors shadow-sm cursor-pointer"
+            >
+              <Plus className="w-4 h-4" /> Upload Agreement
+            </button>
           </div>
-          <button
-            onClick={() => setShowModal(true)}
-            className="flex items-center gap-2 h-9 px-4 rounded-[14px] bg-[#00A86B] text-white text-[12px] font-bold hover:bg-[#009B63] transition-colors shadow-sm"
-          >
-            <Plus className="w-4 h-4" /> Upload Agreement
-          </button>
         </div>
 
         {/* Desktop Table */}
-        <div className="hidden md:block bg-white rounded-2xl border border-[#E2E8F0] overflow-hidden shadow-sm">
-          <table className="min-w-full">
-            <thead>
-              <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0]">
-                {['S.No', 'Version Name', 'File Name', 'Created At', 'Download'].map(h => (
-                  <th key={h} className="px-5 py-3.5 text-left text-[11px] font-bold text-[#64748B] uppercase tracking-wide">
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={5} className="text-center py-20">
-                    <div className="w-7 h-7 border-[3px] border-[#E2E8F0] border-t-[#00A86B] rounded-full animate-spin mx-auto" />
-                  </td>
+        <div className="hidden md:flex bg-white flex-col flex-1 min-h-0 overflow-hidden border-t border-[#E2E8F0]">
+          <div className="flex-1 overflow-auto w-full relative">
+            {loading && <TableLoader />}
+            <table className="w-full text-left border-collapse min-w-full">
+              <thead className="sticky top-0 z-40 bg-[#E6F9F2] shadow-sm">
+                <tr className="text-xs leading-[18px] font-medium text-[#64748B] uppercase tracking-wider border border-[#B9EFDB]">
+                  <th className="py-2 px-4 rounded-l-lg"><div className="flex items-center gap-1"><Hash className="w-3.5 h-3.5 shrink-0" /><span>S.No</span></div></th>
+                  <th className="py-2 px-4"><div className="flex items-center gap-1"><FileText className="w-3.5 h-3.5 shrink-0" /><span>Version Name</span></div></th>
+                  <th className="py-2 px-4"><div className="flex items-center gap-1"><FileText className="w-3.5 h-3.5 shrink-0" /><span>File Name</span></div></th>
+                  <th className="py-2 px-4"><div className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5 shrink-0" /><span>Created At</span></div></th>
+                  <th className="py-2 px-4 rounded-r-lg"><div className="flex items-center gap-1"><Download className="w-3.5 h-3.5 shrink-0" /><span>Download</span></div></th>
                 </tr>
-              ) : agreements.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="text-center py-20">
-                    <FileText className="w-8 h-8 text-[#CBD5E1] mx-auto mb-2" />
-                    <p className="text-[13px] font-semibold text-[#94A3B8]">No agreements uploaded yet</p>
-                  </td>
-                </tr>
-              ) : (
-                agreements.map((ag, i) => (
-                  <tr key={ag._id} className="border-b border-[#F1F5F9] hover:bg-[#F8FAFC] transition-colors">
-                    <td className="px-5 py-3.5 text-[13px] text-[#64748B]">{i + 1}</td>
-                    <td className="px-5 py-3.5 text-[13px] font-semibold text-[#0F172A]">{ag.versionName}</td>
-                    <td className="px-5 py-3.5 text-[12px] text-[#64748B] max-w-[220px] truncate">{ag.fileName}</td>
-                    <td className="px-5 py-3.5 text-[12px] text-[#64748B]">{fmtDate(ag.createdAt)}</td>
-                    <td className="px-5 py-3.5">
-                      <a
-                        href={ag.fileUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-[#00A86B] hover:underline"
-                      >
-                        <Download className="w-3.5 h-3.5" /> Download
-                      </a>
+              </thead>
+              <tbody>
+                {!loading && agreements.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="text-center py-20">
+                      <FileText className="w-8 h-8 text-[#CBD5E1] mx-auto mb-2" />
+                      <p className="text-[13px] font-semibold text-[#94A3B8]">No agreements uploaded yet</p>
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : (
+                  agreements.map((ag, i) => (
+                    <tr key={ag._id} className={`border-b border-[#E2E8F0] transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]/20'}`}>
+                      <td className="py-2 px-4 text-xs font-semibold text-[#94A3B8]">{i + 1}</td>
+                      <td className="py-2 px-4 text-left text-[13px] font-semibold text-[#0F172A]">{ag.versionName}</td>
+                      <td className="py-2 px-4 text-[12px] font-normal text-[#64748B]">
+                        <span className="block max-w-[220px] truncate">{ag.fileName}</span>
+                      </td>
+                      <td className="py-2 px-4 text-[12px] font-normal text-[#64748B]">{fmtDate(ag.createdAt)}</td>
+                      <td className="py-2 px-4">
+                        <a
+                          href={ag.fileUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-[#00A86B] hover:underline cursor-pointer"
+                        >
+                          <Download className="w-3.5 h-3.5" /> Download
+                        </a>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
 
         {/* Mobile Cards */}
-        <div className="md:hidden space-y-3">
+        <div className="md:hidden overflow-y-auto flex-1 space-y-3 px-4 py-4">
           {loading ? (
             <div className="flex justify-center py-20">
               <div className="w-7 h-7 border-[3px] border-[#E2E8F0] border-t-[#00A86B] rounded-full animate-spin" />

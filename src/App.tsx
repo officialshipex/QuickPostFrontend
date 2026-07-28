@@ -119,7 +119,15 @@ function GlobalOrderClickInterceptor() {
           headerText.includes('remittance') ||
           headerText.includes('transaction') ||
           headerText.includes('refer') ||
-          headerText.includes('contact')
+          headerText.includes('contact') ||
+          headerText.includes('shipment') ||
+          headerText.includes('delivered') ||
+          headerText.includes('rto') ||
+          headerText.includes('ndr') ||
+          headerText.includes('billed') ||
+          headerText.includes('%') ||
+          headerText.includes('rate') ||
+          headerText.includes('courier')
         ) {
           return;
         }
