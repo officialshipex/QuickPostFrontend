@@ -1819,7 +1819,7 @@ export function AdminWallet() {
                         <td className="p-4">
                           <div className="text-xs font-semibold text-[#00A86B]">{order.courier}</div>
                           <div className="table-date mt-0.5">Booked On : {order.bookedDate}</div>
-                          {renderCopyable(order.awb, 'AWB', "text-[12px] font-semibold font-sans text-[#00A86B] underline decoration-solid underline-offset-2 mt-0.5 hover:text-[#009B63] cursor-pointer", () => navigate('/admin/tracking', { state: { awb: order.awb } }))}
+                          {renderCopyable(order.awb, 'AWB', "text-[12px] font-semibold font-sans text-[#00A86B] cursor-pointer hover:underline mt-0.5")}
                         </td>
                         <td className="p-4">
                           <div className="text-[12px] font-normal font-sans text-[#0F172A]">₹{order.statusAmount}</div>
@@ -2422,7 +2422,7 @@ export function AdminWallet() {
                         </td>
                         {isAdminView && (
                           <td className="p-4">
-                            <div className="text-xs font-semibold text-[#00A86B] cursor-pointer hover:underline">{recharge.userId}</div>
+                            <div className="text-xs font-semibold text-[#00A86B]">{recharge.userId}</div>
                             <TruncatedText text={recharge.userName} maxLength={20} className="text-[14px] font-semibold font-sans text-[#0F172A] mt-0.5 max-w-[160px]" />
                             <TruncatedText text={recharge.userEmail} maxLength={25} className="text-[12px] font-normal font-sans text-[#94A3B8] max-w-[180px]" />
                           </td>
@@ -2432,7 +2432,7 @@ export function AdminWallet() {
                           <div className="table-date mt-0.5">{recharge.time}</div>
                         </td>
                         <td className="p-4">
-                          <div className="text-[12px] font-semibold font-sans text-[#00A86B]">{recharge.transactionId}</div>
+                          {renderCopyable(recharge.transactionId, 'Transaction ID')}
                         </td>
                         <td className="p-4">
                           <div className="text-[#0F172A] text-[12px] font-normal font-sans">₹{recharge.amount.toFixed(2)}</div>
@@ -2534,7 +2534,7 @@ export function AdminWallet() {
                             <div className="flex items-center justify-between bg-[#F8FAFC] rounded-xl px-3 py-2.5">
                               <div className="min-w-0">
                                 <div className="text-[12px] font-normal text-[#94A3B8] uppercase tracking-wider font-sans">Transaction ID</div>
-                                <div className="text-[12px] font-semibold text-[#00A86B] mt-0.5 truncate font-sans">{recharge.transactionId}</div>
+                                {renderCopyable(recharge.transactionId, 'Transaction ID', 'text-[12px] font-semibold text-[#00A86B] mt-0.5 font-sans')}
                               </div>
                               <div className="text-center shrink-0">
                                 <div className="text-[12px] font-normal text-[#94A3B8] uppercase tracking-wider font-sans">Amount Details</div>

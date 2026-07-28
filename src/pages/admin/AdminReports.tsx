@@ -395,7 +395,7 @@ function PieChartCard({ title, data, colors }: { title: string; data: { name: st
   return (
     <div className="bg-white rounded-2xl border border-[#E2E8F0] p-5 shadow-sm h-full flex flex-col">
       <h4 className="font-bold text-[13px] text-[#0F172A] mb-4">{title}</h4>
-      <div className="flex-1 min-h-[260px]">
+      <div className="flex-1 h-[260px]">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie data={data} cx="50%" cy="45%" innerRadius={50} outerRadius={75} paddingAngle={3} dataKey="value" stroke="none">
@@ -1024,6 +1024,68 @@ export function AdminReports() {
                   userId={selectedSellerId}
                   isAdminView={true}
                 />
+              </>
+            )}
+          </motion.div>
+        )}
+
+        {/* ══ COURIER TAB ═════════════════════════════════════════════════ */}
+        {activeTab === 'courier' && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            {loadingCouriers ? (
+              <div className="h-24 flex items-center justify-center text-xs text-[#94A3B8]">Loading analytics…</div>
+            ) : couriers.length === 0 ? (
+              <div className="h-24 flex items-center justify-center text-xs text-[#94A3B8]">No courier data yet</div>
+            ) : (
+              <>
+                {/* KPIs */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                  <StatCard label="Total Shipments" value={fn(courierTotals?.totalShipments || courierTotals?.shipments)} icon={Package} color="text-[#0F172A]" bg="bg-slate-50" />
+                  <StatCard label="Delivered" value={fn(courierTotals?.delivered)} icon={CheckCircle2} color="text-emerald-500" bg="bg-emerald-50" />
+                  <StatCard label="RTO" value={fn(courierTotals?.rto)} icon={RotateCcw} color="text-red-500" bg="bg-red-50" />
+                  <StatCard label="NDR" value={fn(courierTotals?.ndr)} icon={AlertTriangle} color="text-orange-500" bg="bg-orange-50" />
+                </div>
+
+                {/* Pie charts */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
+                  <PieChartCard title="Shipment Share by Courier" data={courierShipmentPie} />
+                  <PieChartCard title="Status Breakdown" data={courierStatusPie} colors={['#00A86B', '#EF4444', '#F59E0B']} />
+                </div>
+
+                {/* Courier-wise performance table */}
+                <SectionTitle icon={Truck} title="Courier-wise Performance" />
+                <div className="bg-white border border-[#E2E8F0] rounded-2xl overflow-hidden shadow-sm mb-6">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left min-w-[700px]">
+                      <thead>
+                        <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-[10px] uppercase tracking-wider font-bold text-[#64748B]">
+                          <th className="px-4 py-3">Courier</th>
+                          <th className="px-4 py-3">Shipments</th>
+                          <th className="px-4 py-3">Delivered</th>
+                          <th className="px-4 py-3">RTO</th>
+                          <th className="px-4 py-3">NDR</th>
+                          <th className="px-4 py-3">Billed</th>
+                          <th className="px-4 py-3">Delivery %</th>
+                          <th className="px-4 py-3">RTO %</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#F1F5F9] text-xs font-semibold text-[#475569]">
+                        {couriers.map(c => (
+                          <tr key={c.name} className="hover:bg-[#F8FAFC]">
+                            <td className="px-4 py-3 font-bold text-[#0F172A]">{c.name}</td>
+                            <td className="px-4 py-3">{fn(c.totalShipments || c.shipments)}</td>
+                            <td className="px-4 py-3 text-[#00A86B]">{fn(c.delivered)}</td>
+                            <td className="px-4 py-3 text-red-500">{fn(c.rto)}</td>
+                            <td className="px-4 py-3 text-amber-500">{fn(c.ndr)}</td>
+                            <td className="px-4 py-3">{fc(c.totalBilled || c.billed)}</td>
+                            <td className="px-4 py-3">{c.deliveryRate}%</td>
+                            <td className="px-4 py-3">{c.rtoRate}%</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               </>
             )}
           </motion.div>

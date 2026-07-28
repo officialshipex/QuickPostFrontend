@@ -198,6 +198,9 @@ export function AdminReferral() {
 
   // Filters — draft (live in the inputs) vs applied (drives the fetch, set by Apply/Clear All)
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchSuggestions, setSearchSuggestions] = useState<any[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
   const [selectedMonth, setSelectedMonth] = useState<string[]>([]);
   const [selectedYear, setSelectedYear] = useState<string[]>([]);
 
@@ -292,6 +295,28 @@ export function AdminReferral() {
     const handler = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       if (!target.closest('.row-action-dropdown-container')) setRowActionOpenId(null);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  // Autocomplete suggestions for referral search
+  useEffect(() => {
+    if (searchQuery.trim().length < 2) { setSearchSuggestions([]); setShowSuggestions(false); return; }
+    const t = setTimeout(async () => {
+      try {
+        const res = await apiClient.get(`/admin/searchUser?query=${encodeURIComponent(searchQuery)}`);
+        setSearchSuggestions(res.data?.users || []);
+        setShowSuggestions(true);
+      } catch { setSearchSuggestions([]); }
+    }, 300);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
+
+  // Close suggestions on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) setShowSuggestions(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
@@ -458,14 +483,38 @@ export function AdminReferral() {
 
           {/* Filters */}
           <div className="py-3 px-6 border-b border-[#CBD5F5] flex flex-wrap items-center gap-3 bg-[#F8FAFC]/50 relative z-20">
-            <input
-              type="text"
-              placeholder="Search by name, user ID or email"
-              className="glass-search-input w-[220px] shrink-0"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
-            />
+            <div ref={searchRef} className="relative shrink-0 w-[220px]">
+              <input
+                type="text"
+                placeholder="Search by name, user ID or email"
+                className="glass-search-input w-full"
+                value={searchQuery}
+                onChange={(e) => { setSearchQuery(e.target.value); }}
+                onKeyDown={(e) => { if (e.key === 'Enter') { setShowSuggestions(false); applyFilters(); } }}
+                onFocus={() => searchSuggestions.length > 0 && setShowSuggestions(true)}
+              />
+              {showSuggestions && searchSuggestions.length > 0 && (
+                <div className="absolute top-full left-0 mt-1 w-full bg-white border border-[#E2E8F0] rounded-xl shadow-lg z-50 overflow-hidden max-h-52 overflow-y-auto">
+                  {searchSuggestions.map((u: any) => (
+                    <button
+                      key={u._id}
+                      type="button"
+                      className="w-full text-left px-3 py-2 hover:bg-[#F0FDF8] transition-colors border-b border-[#F1F5F9] last:border-0"
+                      onClick={() => {
+                        setSearchQuery(u.fullname || u.name || u.email || '');
+                        setShowSuggestions(false);
+                        setAppliedSearch(u.fullname || u.name || u.email || '');
+                        setPage(1);
+                        setTimeout(() => applyFilters(), 0);
+                      }}
+                    >
+                      <div className="text-xs font-semibold text-[#0F172A]">{u.fullname || u.name}</div>
+                      <div className="text-[10px] text-[#94A3B8]">{u.email} · {u.userId || ''}</div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
 
             <GlassDropdown
               label="Month"
