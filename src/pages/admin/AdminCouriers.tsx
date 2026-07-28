@@ -330,6 +330,13 @@ export function AdminCouriers() {
           >
             <Filter className="w-3.5 h-3.5" /> Filters
           </button>
+          <button
+            onClick={() => setShowAddCourier(true)}
+            className="w-10 h-10 rounded-xl border border-[#03C27D] flex items-center justify-center text-white shadow-sm shrink-0 active:scale-95 transition-transform"
+            style={{ background: 'linear-gradient(180deg, #03C27D 0%, #059669 50%, #065F46 100%)' }}
+          >
+            <Plus className="w-4 h-4" />
+          </button>
         </div>
         </div>
 

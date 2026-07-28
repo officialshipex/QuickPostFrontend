@@ -55,6 +55,8 @@ import { AdminWebhookSettings } from './pages/admin/AdminWebhookSettings';
 import { AdminLabelSettings } from './pages/admin/AdminLabelSettings';
 import { AdminChangePassword } from './pages/admin/AdminChangePassword';
 import { AdminKYC } from './pages/admin/AdminKYC';
+import { AdminAgreement } from './pages/admin/AdminAgreement';
+import { AdminAgreementSettings } from './pages/admin/AdminAgreementSettings';
 
 function GlobalOrderClickInterceptor() {
   const navigate = useNavigate();
@@ -208,6 +210,7 @@ function App() {
               <Route path="/admin/rate-card" element={<AdminRateCard />} />
               <Route path="/admin/order-tracking" element={<AdminOrderTracking />} />
               <Route path="/admin/kyc" element={<AdminKYC />} />
+              <Route path="/admin/agreement" element={<AdminAgreement />} />
               <Route path="/internal-crm/shipments" element={<CRMShipmentListing />} />
               <Route path="/internal-crm/sellers" element={<CRMSellerAccounts />} />
               <Route path="/internal-crm/leads" element={<CRMLeads />} />
@@ -241,6 +244,7 @@ function App() {
               <Route path="/user/settings/label" element={<AdminLabelSettings />} />
               <Route path="/user/settings/invoice" element={<AdminSettingsPlaceholder title="Invoice" description="Manage your invoice preferences and billing settings." />} />
               <Route path="/user/settings/webhook" element={<AdminWebhookSettings />} />
+              <Route path="/user/settings/agreement" element={<AdminAgreementSettings />} />
             </Route>
 
           </Route>

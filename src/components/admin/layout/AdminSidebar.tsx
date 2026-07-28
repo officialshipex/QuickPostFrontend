@@ -102,6 +102,7 @@ const MENU_GROUPS: MenuGroup[] = [
       { name: 'Status Map', path: '/admin/status-map', icon: Route, adminOnly: true },
       { name: 'EDD Mapping', path: '/admin/edd-mapping', icon: Calendar, adminOnly: true },
       { name: 'EPD Mapping', path: '/admin/epd-mapping', icon: Calendar, adminOnly: true },
+      { name: 'Agreement', path: '/admin/agreement', icon: FileText, adminOnly: true },
       { name: 'Complete KYC', path: '/admin/kyc', icon: FileText, userOnly: true },
       { name: 'Settings', path: '/user/settings', icon: Settings, userOnly: true },
     ]
