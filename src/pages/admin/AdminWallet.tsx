@@ -510,8 +510,16 @@ export function AdminWallet() {
     setUpbDirCategory('');
   };
 
-  const handleReverseTransaction = async (order: any) => {
-    if (!window.confirm(`Reverse this debit of ₹${order.amount.toFixed(2)} (${order.description})?`)) return;
+  const [reverseConfirmOrder, setReverseConfirmOrder] = useState<any>(null);
+
+  const handleReverseTransaction = (order: any) => {
+    setReverseConfirmOrder(order);
+  };
+
+  const doReverseTransaction = async () => {
+    const order = reverseConfirmOrder;
+    if (!order) return;
+    setReverseConfirmOrder(null);
     try {
       await apiClient.post('/adminBilling/reverseTransaction', { transaction: order._raw });
       showToast('success', 'Transaction reversed successfully!');
@@ -2308,12 +2316,15 @@ export function AdminWallet() {
                                 <span className="font-medium text-[#64748B]">Description: </span>
                                 <span className="font-normal text-[#0F172A]">{order.description}</span>
                               </span>
-                              <button
-                                onClick={() => showToast('success', `Verification complete for record AWB: ${order.awb !== 'N/A' ? order.awb : 'N/A'}`)}
-                                className="w-8 h-8 rounded-full bg-[#E0F2FE] flex items-center justify-center text-[#0EA5E9] hover:bg-[#BAE6FD] transition-colors shrink-0"
-                              >
-                                <RefreshCcw className="w-4 h-4" />
-                              </button>
+                              {isDebit && (
+                                <button
+                                  onClick={() => handleReverseTransaction(order)}
+                                  title="Reverse Transaction"
+                                  className="w-8 h-8 rounded-full bg-[#FEF2F2] flex items-center justify-center text-[#EF4444] hover:bg-[#FEE2E2] transition-colors shrink-0"
+                                >
+                                  <RefreshCcw className="w-4 h-4" />
+                                </button>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -3745,6 +3756,71 @@ export function AdminWallet() {
                     Apply Filters
                   </button>
                 </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {/* ── Reverse Transaction Confirmation Modal ────────────────────────── */}
+        {reverseConfirmOrder && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[300] flex items-center justify-center p-4"
+            onClick={() => setReverseConfirmOrder(null)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 16 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+              className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6"
+              onClick={e => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center shrink-0">
+                  <RefreshCcw className="w-5 h-5 text-[#EF4444]" />
+                </div>
+                <div>
+                  <h3 className="text-[15px] font-bold text-[#0F172A]">Confirm Reversal</h3>
+                  <p className="text-[12px] text-[#64748B]">This action cannot be undone</p>
+                </div>
+              </div>
+
+              {/* Transaction details */}
+              <div className="bg-[#F8FAFC] rounded-xl px-4 py-3 mb-5 space-y-2.5 border border-[#E2E8F0]">
+                <div className="flex justify-between items-center">
+                  <span className="text-[12px] text-[#64748B]">Amount</span>
+                  <span className="text-[13px] font-bold text-red-500">−₹{reverseConfirmOrder.amount.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between items-center gap-3">
+                  <span className="text-[12px] text-[#64748B] shrink-0">Description</span>
+                  <span className="text-[12px] font-semibold text-[#0F172A] text-right truncate">{reverseConfirmOrder.description}</span>
+                </div>
+                {reverseConfirmOrder.awb && reverseConfirmOrder.awb !== 'N/A' && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-[12px] text-[#64748B]">AWB</span>
+                    <span className="text-[12px] font-semibold text-[#00A86B]">{reverseConfirmOrder.awb}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setReverseConfirmOrder(null)}
+                  className="flex-1 h-10 rounded-xl border border-[#E2E8F0] text-[13px] font-semibold text-[#64748B] hover:bg-[#F8FAFC] transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={doReverseTransaction}
+                  className="flex-1 h-10 rounded-xl bg-[#EF4444] text-white text-[13px] font-bold hover:bg-[#DC2626] transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <RefreshCcw className="w-3.5 h-3.5" /> Reverse
+                </button>
               </div>
             </motion.div>
           </motion.div>

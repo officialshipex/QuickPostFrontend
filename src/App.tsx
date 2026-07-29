@@ -82,69 +82,39 @@ function GlobalOrderClickInterceptor() {
       const target = event.target as HTMLElement;
       if (!target) return;
 
+      // Skip form elements and currency text early
+      if (target.closest('input, select, textarea')) return;
       const text = target.textContent?.trim() || "";
+      if (text.includes('₹') || text.includes('Rs') || text.includes('$')) return;
+
       const cleanText = text.replace(/,/g, '');
 
-      // Check if text is QP or ORD followed by digits, or a 5-8 digit number (order ID)
-      const isOrderId = /^(QP\d+|ORD\d+|\d{5,8})$/i.test(cleanText);
-      // AWB: 9+ digit number OR alphanumeric courier code (letter prefix + 6+ digits)
-      const isAwb = !isOrderId && /^(\d{9,}|[A-Z]{1,6}\d{6,})$/i.test(cleanText);
+      // Prefixed order IDs (QP/ORD) — unambiguous in any context
+      const isPrefixedOrderId = /^(QP\d+|ORD\d+)$/i.test(cleanText);
+      // AWB: 9+ digit number OR courier code (1–6 letters followed by 6+ digits)
+      const isAwb = !isPrefixedOrderId && /^(\d{9,}|[A-Z]{1,6}\d{6,})$/i.test(cleanText);
+      // Bare numeric ID: only a candidate — must confirm column header below
+      const isNumericCandidate = !isPrefixedOrderId && !isAwb && /^\d{5,8}$/.test(cleanText);
 
-      if (isOrderId || isAwb) {
-        // Exclude inputs, selects, textareas
-        if (target.closest('input, select, textarea')) {
-          return;
-        }
+      if (!isPrefixedOrderId && !isAwb && !isNumericCandidate) return;
 
-        // Avoid false positives like Pincodes, Mobile numbers, quantity, etc.
-        const headerText = getColumnHeader(target);
-        if (
-          headerText.includes('pin') ||
-          headerText.includes('phone') ||
-          headerText.includes('mobile') ||
-          headerText.includes('qty') ||
-          headerText.includes('page') ||
-          headerText.includes('user') ||
-          headerText.includes('seller') ||
-          headerText.includes('customer') ||
-          headerText.includes('recipient') ||
-          headerText.includes('partner') ||
-          headerText.includes('account') ||
-          headerText.includes('lead') ||
-          headerText.includes('member') ||
-          headerText.includes('admin') ||
-          headerText.includes('manager') ||
-          headerText.includes('ticket') ||
-          headerText.includes('referral') ||
-          headerText.includes('remittance') ||
-          headerText.includes('transaction') ||
-          headerText.includes('refer') ||
-          headerText.includes('contact') ||
-          headerText.includes('shipment') ||
-          headerText.includes('delivered') ||
-          headerText.includes('rto') ||
-          headerText.includes('ndr') ||
-          headerText.includes('billed') ||
-          headerText.includes('%') ||
-          headerText.includes('rate') ||
-          headerText.includes('courier')
-        ) {
-          return;
-        }
+      const headerText = getColumnHeader(target);
 
-        // Exclude prices/currency amounts
-        if (text.includes('₹') || text.includes('Rs') || text.includes('$')) {
-          return;
-        }
+      // Bare numbers are order IDs ONLY when the column is explicitly "order"
+      if (isNumericCandidate && headerText !== 'order') return;
 
-        // Trigger redirection
-        event.preventDefault();
-        event.stopPropagation();
-        if (isAwb) {
-          navigate(`/admin/tracking?awb=${cleanText}`);
-        } else {
-          navigate(`/admin/order-tracking?id=${cleanText}`);
-        }
+      // For AWBs, skip phone/mobile/pin/contact columns to avoid false positives
+      if (isAwb && (
+        headerText.includes('phone') || headerText.includes('mobile') ||
+        headerText.includes('pin') || headerText.includes('contact')
+      )) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      if (isAwb) {
+        navigate(`/admin/tracking?awb=${cleanText}`);
+      } else {
+        navigate(`/admin/order-tracking?id=${cleanText}`);
       }
     };
 
