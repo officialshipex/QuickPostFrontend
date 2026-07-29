@@ -1188,8 +1188,9 @@ export function AdminWallet() {
                 <div className="relative shrink-0 ml-auto flex items-center gap-2">
                   <div className="relative action-dropdown-container">
                     <button
-                      onClick={() => setShowShippingActionMenu(!showShippingActionMenu)}
-                      className="py-2 pl-4 pr-8 rounded-[32px] border border-[#03C27D] bg-white text-[#64748B] text-xs leading-[18px] flex items-center font-medium relative hover:bg-[#F0FDF9] transition-colors cursor-pointer"
+                      onClick={() => selectedOrders.length > 0 && setShowShippingActionMenu(!showShippingActionMenu)}
+                      disabled={selectedOrders.length === 0}
+                      className={`py-2 pl-4 pr-8 rounded-[32px] border text-xs leading-[18px] flex items-center font-medium relative transition-colors ${selectedOrders.length === 0 ? 'border-[#E2E8F0] bg-[#F8FAFC] text-[#CBD5E1] cursor-not-allowed' : 'border-[#03C27D] bg-white text-[#64748B] hover:bg-[#F0FDF9] cursor-pointer'}`}
                     >
                       Action
                       <ChevronDown className="w-3.5 h-3.5 absolute right-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
@@ -1246,8 +1247,9 @@ export function AdminWallet() {
                 </div>
                 <div className="relative action-dropdown-container">
                   <button
-                    onClick={() => setShowShippingActionMenu(!showShippingActionMenu)}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-[#E2E8F0] text-[12px] font-semibold text-[#475569] bg-white active:bg-[#F8FAFC] transition-colors"
+                    onClick={() => selectedOrders.length > 0 && setShowShippingActionMenu(!showShippingActionMenu)}
+                    disabled={selectedOrders.length === 0}
+                    className={`flex items-center gap-1.5 px-4 py-2 rounded-lg border text-[12px] font-semibold bg-white transition-colors ${selectedOrders.length === 0 ? 'border-[#E2E8F0] text-[#CBD5E1] cursor-not-allowed' : 'border-[#E2E8F0] text-[#475569] active:bg-[#F8FAFC]'}`}
                   >
                     Action
                     <ChevronDown className={`w-3.5 h-3.5 text-[#94A3B8] transition-transform duration-200 ${showShippingActionMenu ? 'rotate-180' : ''}`} />
@@ -1388,8 +1390,9 @@ export function AdminWallet() {
                 <div className="relative shrink-0 ml-auto flex items-center gap-2">
                   <div className="relative action-dropdown-container">
                     <button
-                      onClick={() => setShowPassbookActionMenu(!showPassbookActionMenu)}
-                      className="py-2 pl-4 pr-8 rounded-[32px] border border-[#03C27D] bg-white text-[#64748B] text-xs leading-[18px] flex items-center font-medium relative hover:bg-[#F0FDF9] transition-colors cursor-pointer"
+                      onClick={() => selectedPassbookOrders.length > 0 && setShowPassbookActionMenu(!showPassbookActionMenu)}
+                      disabled={selectedPassbookOrders.length === 0}
+                      className={`py-2 pl-4 pr-8 rounded-[32px] border text-xs leading-[18px] flex items-center font-medium relative transition-colors ${selectedPassbookOrders.length === 0 ? 'border-[#E2E8F0] bg-[#F8FAFC] text-[#CBD5E1] cursor-not-allowed' : 'border-[#03C27D] bg-white text-[#64748B] hover:bg-[#F0FDF9] cursor-pointer'}`}
                     >
                       Action
                       <ChevronDown className="w-3.5 h-3.5 absolute right-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
@@ -1489,8 +1492,9 @@ export function AdminWallet() {
                 <div className="relative shrink-0 ml-auto flex items-center gap-2">
                   <div className="relative action-dropdown-container">
                     <button
-                      onClick={() => setShowRechargeActionMenu(!showRechargeActionMenu)}
-                      className="py-2 pl-4 pr-8 rounded-[32px] border border-[#03C27D] bg-white text-[#64748B] text-xs leading-[18px] flex items-center font-medium relative hover:bg-[#F0FDF9] transition-colors cursor-pointer"
+                      onClick={() => selectedRechargeOrders.length > 0 && setShowRechargeActionMenu(!showRechargeActionMenu)}
+                      disabled={selectedRechargeOrders.length === 0}
+                      className={`py-2 pl-4 pr-8 rounded-[32px] border text-xs leading-[18px] flex items-center font-medium relative transition-colors ${selectedRechargeOrders.length === 0 ? 'border-[#E2E8F0] bg-[#F8FAFC] text-[#CBD5E1] cursor-not-allowed' : 'border-[#03C27D] bg-white text-[#64748B] hover:bg-[#F0FDF9] cursor-pointer'}`}
                     >
                       Action
                       <ChevronDown className="w-3.5 h-3.5 absolute right-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
@@ -1543,8 +1547,9 @@ export function AdminWallet() {
                 </div>
                 <div className="relative action-dropdown-container">
                   <button
-                    onClick={() => setShowRechargeActionMenu(!showRechargeActionMenu)}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-[#E2E8F0] text-[12px] font-semibold text-[#475569] bg-white active:bg-[#F8FAFC] transition-colors"
+                    onClick={() => selectedRechargeOrders.length > 0 && setShowRechargeActionMenu(!showRechargeActionMenu)}
+                    disabled={selectedRechargeOrders.length === 0}
+                    className={`flex items-center gap-1.5 px-4 py-2 rounded-lg border text-[12px] font-semibold bg-white transition-colors ${selectedRechargeOrders.length === 0 ? 'border-[#E2E8F0] text-[#CBD5E1] cursor-not-allowed' : 'border-[#E2E8F0] text-[#475569] active:bg-[#F8FAFC]'}`}
                   >
                     Action
                     <ChevronDown className={`w-3.5 h-3.5 text-[#94A3B8] transition-transform duration-200 ${showRechargeActionMenu ? 'rotate-180' : ''}`} />
@@ -1689,8 +1694,9 @@ export function AdminWallet() {
                 </div>
                 <div className="relative action-dropdown-container">
                   <button
-                    onClick={() => setShowInvoiceActionMenu(!showInvoiceActionMenu)}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-[#E2E8F0] text-[12px] font-semibold text-[#475569] bg-white active:bg-[#F8FAFC] transition-colors"
+                    onClick={() => selectedInvoiceOrders.length > 0 && setShowInvoiceActionMenu(!showInvoiceActionMenu)}
+                    disabled={selectedInvoiceOrders.length === 0}
+                    className={`flex items-center gap-1.5 px-4 py-2 rounded-lg border text-[12px] font-semibold bg-white transition-colors ${selectedInvoiceOrders.length === 0 ? 'border-[#E2E8F0] text-[#CBD5E1] cursor-not-allowed' : 'border-[#E2E8F0] text-[#475569] active:bg-[#F8FAFC]'}`}
                   >
                     Action
                     <ChevronDown className={`w-3.5 h-3.5 text-[#94A3B8] transition-transform duration-200 ${showInvoiceActionMenu ? 'rotate-180' : ''}`} />
@@ -2015,8 +2021,9 @@ export function AdminWallet() {
                 </div>
                 <div className="relative action-dropdown-container">
                   <button
-                    onClick={() => setShowPassbookActionMenu(!showPassbookActionMenu)}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-[#E2E8F0] text-[12px] font-semibold text-[#475569] bg-white active:bg-[#F8FAFC] transition-colors"
+                    onClick={() => selectedPassbookOrders.length > 0 && setShowPassbookActionMenu(!showPassbookActionMenu)}
+                    disabled={selectedPassbookOrders.length === 0}
+                    className={`flex items-center gap-1.5 px-4 py-2 rounded-lg border text-[12px] font-semibold bg-white transition-colors ${selectedPassbookOrders.length === 0 ? 'border-[#E2E8F0] text-[#CBD5E1] cursor-not-allowed' : 'border-[#E2E8F0] text-[#475569] active:bg-[#F8FAFC]'}`}
                   >
                     Action
                     <ChevronDown className={`w-3.5 h-3.5 text-[#94A3B8] transition-transform duration-200 ${showPassbookActionMenu ? 'rotate-180' : ''}`} />
@@ -2115,12 +2122,14 @@ export function AdminWallet() {
                           <span>Description</span>
                         </div>
                       </th>
-                      <th className="py-2 px-4 text-center align-middle whitespace-nowrap rounded-r-lg">
-                        <div className="flex items-center justify-center gap-1">
-                          <Settings className="w-3.5 h-3.5 shrink-0" />
-                          <span>Actions</span>
-                        </div>
-                      </th>
+                      {isAdminView && (
+                        <th className="py-2 px-4 text-center align-middle whitespace-nowrap rounded-r-lg">
+                          <div className="flex items-center justify-center gap-1">
+                            <Settings className="w-3.5 h-3.5 shrink-0" />
+                            <span>Actions</span>
+                          </div>
+                        </th>
+                      )}
                     </tr>
                   </thead>
                   <tbody className="text-[11px] text-[#475569]">
@@ -2164,24 +2173,26 @@ export function AdminWallet() {
                         <td className="p-4">
                           <div className="text-[#64748B] text-[12px] font-normal font-sans">{order.description}</div>
                         </td>
-                        <td className="p-4 text-center align-middle">
-                          {order.category === 'Debit' ? (
-                            <button
-                              onClick={() => handleReverseTransaction(order)}
-                              title="Reverse Transaction"
-                              className="w-7 h-7 rounded-full bg-[#FEF2F2] flex items-center justify-center text-[#EF4444] hover:bg-[#FEE2E2] transition-colors mx-auto"
-                            >
-                              <RefreshCcw className="w-3.5 h-3.5" />
-                            </button>
-                          ) : (
-                            <div className="w-7 mx-auto" />
-                          )}
-                        </td>
+                        {isAdminView && (
+                          <td className="p-4 text-center align-middle">
+                            {order.category === 'Debit' ? (
+                              <button
+                                onClick={() => handleReverseTransaction(order)}
+                                title="Reverse Transaction"
+                                className="w-7 h-7 rounded-full bg-[#FEF2F2] flex items-center justify-center text-[#EF4444] hover:bg-[#FEE2E2] transition-colors mx-auto"
+                              >
+                                <RefreshCcw className="w-3.5 h-3.5" />
+                              </button>
+                            ) : (
+                              <div className="w-7 mx-auto" />
+                            )}
+                          </td>
+                        )}
                       </tr>
                     ))}
                     {paginatedPassbookData.length === 0 && (
                       <tr>
-                        <td colSpan={isAdminView ? 10 : 9}>
+                        <td colSpan={isAdminView ? 10 : 8}>
                           <EmptyState title="No passbook records found" />
                         </td>
                       </tr>
@@ -2316,7 +2327,7 @@ export function AdminWallet() {
                                 <span className="font-medium text-[#64748B]">Description: </span>
                                 <span className="font-normal text-[#0F172A]">{order.description}</span>
                               </span>
-                              {isDebit && (
+                              {isAdminView && isDebit && (
                                 <button
                                   onClick={() => handleReverseTransaction(order)}
                                   title="Reverse Transaction"
@@ -3198,8 +3209,8 @@ export function AdminWallet() {
           </motion.div>
         )}
 
-        {/* Floating Bot Button */}
-        {activeTab === 'Passbook' && (
+        {/* Floating Bot Button — admin only */}
+        {activeTab === 'Passbook' && isAdminView && (
           <div className="hidden md:flex fixed bottom-24 right-8 z-40 items-center gap-2">
             <motion.div
               initial={{ opacity: 0, x: 20 }}

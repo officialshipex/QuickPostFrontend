@@ -54,8 +54,9 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
   // Sync real wallet balance from context on load (and whenever context updates)
   React.useEffect(() => { setWalletBalance(ctxWalletBalance); }, [ctxWalletBalance]);
 
-  // Fetch pending agreement for notification bell
+  // Fetch pending agreement for notification bell (users only — including admin in user mode)
   useEffect(() => {
+    if (isAdmin && adminTab) return;
     apiClient.get('/agreement/user/pending')
       .then(res => {
         if (res.data?.success && res.data?.hasPending) {
@@ -65,7 +66,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
         }
       })
       .catch(() => {});
-  }, []);
+  }, [isAdmin, adminTab]);
 
   // Debounced user search for impersonation popup
   useEffect(() => {
@@ -284,39 +285,63 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
         </button>
         
         <div className="flex items-center gap-1.5 shrink-0">
-          {/* Notifications */}
-          <div className="relative animate-fade-in shrink-0">
-            <button
-              onClick={() => {
-                setShowNotifications(!showNotifications);
-                setShowQuickActions(false);
-                setShowProfileMenu(false);
-                setShowMobileWalletSummary(false);
-              }}
-              className={`w-8 h-8 flex items-center justify-center rounded-full text-[#64748B] hover:bg-[#F8FAFC] transition-colors relative cursor-pointer ${showNotifications ? 'bg-[#F8FAFC] text-[#0F172A]' : ''}`}
-            >
-              <Bell className="w-[18px] h-[18px]" />
-              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-[#EF4444] rounded-full" />
-            </button>
+          {/* Notifications — users only (including admin in user mode) */}
+          {!(isAdmin && adminTab) && (
+            <div className="relative animate-fade-in shrink-0">
+              <button
+                onClick={() => {
+                  setShowNotifications(!showNotifications);
+                  setShowQuickActions(false);
+                  setShowProfileMenu(false);
+                  setShowMobileWalletSummary(false);
+                }}
+                className={`w-8 h-8 flex items-center justify-center rounded-full text-[#64748B] hover:bg-[#F8FAFC] transition-colors relative cursor-pointer ${showNotifications ? 'bg-[#F8FAFC] text-[#0F172A]' : ''}`}
+              >
+                <Bell className="w-[18px] h-[18px]" />
+                {!!pendingAgreement && (
+                  <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-[#EF4444] rounded-full" />
+                )}
+              </button>
 
-            {showNotifications && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setShowNotifications(false)} />
-                <div className="fixed left-3 right-3 top-[60px] max-w-[calc(100vw-24px)] bg-white rounded-xl shadow-xl border border-[#E2E8F0] py-2 z-50 origin-top-right">
-                  <div className="px-4 py-2 border-b border-[#E2E8F0] flex justify-between items-center bg-slate-50/50">
-                    <h3 className="font-bold text-[#0F172A] text-xs uppercase tracking-wider">Alerts</h3>
-                    <span className="text-[10px] font-semibold text-[#00A86B] cursor-pointer hover:underline" onClick={() => setShowNotifications(false)}>Dismiss</span>
-                  </div>
-                  <div className="max-h-[220px] overflow-y-auto">
-                    <div className="px-4 py-6 text-center">
-                      <Bell className="w-6 h-6 text-[#CBD5E1] mx-auto mb-2" />
-                      <p className="text-xs font-semibold text-[#94A3B8]">No alerts right now</p>
+              {showNotifications && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowNotifications(false)} />
+                  <div className="fixed left-3 right-3 top-[60px] max-w-[calc(100vw-24px)] bg-white rounded-xl shadow-xl border border-[#E2E8F0] py-2 z-50 origin-top-right">
+                    <div className="px-4 py-2 border-b border-[#E2E8F0] flex justify-between items-center bg-slate-50/50">
+                      <h3 className="font-bold text-[#0F172A] text-xs uppercase tracking-wider">Alerts</h3>
+                      {!!pendingAgreement && (
+                        <span className="text-[10px] font-bold text-white bg-[#EF4444] rounded-full px-2 py-0.5">1</span>
+                      )}
+                    </div>
+                    <div className="max-h-[220px] overflow-y-auto">
+                      {pendingAgreement ? (
+                        <div className="px-4 py-3 border-b border-[#E2E8F0]/60">
+                          <div className="flex items-start gap-2">
+                            <div className="w-1.5 h-1.5 rounded-full bg-[#EF4444] shrink-0 mt-1.5" />
+                            <div className="flex-1">
+                              <p className="text-[12px] font-semibold text-[#0F172A] leading-snug">Agreement Pending</p>
+                              <p className="text-[11px] text-[#64748B] mt-0.5">{pendingAgreement.versionName || 'New Terms & Conditions'} — please review and accept.</p>
+                              <button
+                                onClick={() => { navigate('/user/settings/agreement'); setShowNotifications(false); }}
+                                className="mt-1.5 text-[11px] font-bold text-[#00A86B] hover:underline"
+                              >
+                                View &amp; Accept →
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="px-4 py-6 text-center">
+                          <Bell className="w-6 h-6 text-[#CBD5E1] mx-auto mb-2" />
+                          <p className="text-xs font-semibold text-[#94A3B8]">No alerts right now</p>
+                        </div>
+                      )}
                     </div>
                   </div>
-                </div>
-              </>
-            )}
-          </div>
+                </>
+              )}
+            </div>
+          )}
 
           {/* Quick Actions */}
           <div className="relative animate-fade-in shrink-0">
@@ -828,68 +853,70 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
           </div>
         )}
 
-        {/* Notifications */}
-        <div className="relative">
-          <motion.button 
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => setShowNotifications(!showNotifications)}
-            onBlur={() => setTimeout(() => setShowNotifications(false), 200)}
-            className={`w-10 h-10 rounded-[14px] border flex items-center justify-center transition-all relative cursor-pointer ${showNotifications ? 'bg-[#F8FAFC] border-[#CBD5E1] text-[#0F172A]' : 'bg-white border-[#E2E8F0] text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A]'}`}
-          >
-            <Bell className="w-5 h-5" />
-            {!!pendingAgreement && (
-              <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-[#EF4444] rounded-full border-[1.5px] border-white shadow-sm" />
-            )}
-          </motion.button>
+        {/* Notifications — users only (including admin in user mode) */}
+        {!(isAdmin && adminTab) && (
+          <div className="relative">
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setShowNotifications(!showNotifications)}
+              onBlur={() => setTimeout(() => setShowNotifications(false), 200)}
+              className={`w-10 h-10 rounded-[14px] border flex items-center justify-center transition-all relative cursor-pointer ${showNotifications ? 'bg-[#F8FAFC] border-[#CBD5E1] text-[#0F172A]' : 'bg-white border-[#E2E8F0] text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A]'}`}
+            >
+              <Bell className="w-5 h-5" />
+              {!!pendingAgreement && (
+                <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-[#EF4444] rounded-full border-[1.5px] border-white shadow-sm" />
+              )}
+            </motion.button>
 
-          <AnimatePresence>
-            {showNotifications && (
-              <motion.div 
-                variants={dropdownVariants}
-                initial="hidden"
-                animate="visible"
-                exit="exit"
-                className="absolute right-0 mt-3 w-[340px] bg-white/95 backdrop-blur-xl rounded-2xl shadow-[0_20px_40px_-12px_rgba(0,0,0,0.15),0_0_0_1px_rgba(0,0,0,0.05)] overflow-hidden z-[110] origin-top-right"
-                onMouseDown={(e) => e.preventDefault()}
-              >
-                <div className="px-4 py-3.5 border-b border-[#E2E8F0]/60 flex justify-between items-center bg-white/50">
-                  <h3 className="font-bold text-[#0F172A] text-[13px] tracking-wide uppercase">Notifications</h3>
-                  {!!pendingAgreement && (
-                    <span className="text-[11px] font-bold text-white bg-[#EF4444] rounded-full px-2 py-0.5">1</span>
-                  )}
-                </div>
-                <div className="max-h-[300px] overflow-y-auto">
-                  {pendingAgreement ? (
-                    <div className="px-4 py-3.5 border-b border-[#E2E8F0]/60 hover:bg-[#F8FAFC] transition-colors">
-                      <div className="flex items-start gap-2">
-                        <div className="w-1.5 h-1.5 rounded-full bg-[#EF4444] shrink-0 mt-1.5" />
-                        <div className="flex-1">
-                          <p className="text-[13px] font-semibold text-[#0F172A] leading-snug">Agreement Pending</p>
-                          <p className="text-[12px] text-[#64748B] mt-0.5">{pendingAgreement.versionName || 'New Terms & Conditions'} — please review and accept.</p>
-                          <button
-                            onClick={() => { navigate('/admin/notification'); setShowNotifications(false); }}
-                            className="mt-1.5 text-[11px] font-bold text-[#00A86B] hover:underline"
-                          >
-                            View &amp; Accept →
-                          </button>
+            <AnimatePresence>
+              {showNotifications && (
+                <motion.div
+                  variants={dropdownVariants}
+                  initial="hidden"
+                  animate="visible"
+                  exit="exit"
+                  className="absolute right-0 mt-3 w-[340px] bg-white/95 backdrop-blur-xl rounded-2xl shadow-[0_20px_40px_-12px_rgba(0,0,0,0.15),0_0_0_1px_rgba(0,0,0,0.05)] overflow-hidden z-[110] origin-top-right"
+                  onMouseDown={(e) => e.preventDefault()}
+                >
+                  <div className="px-4 py-3.5 border-b border-[#E2E8F0]/60 flex justify-between items-center bg-white/50">
+                    <h3 className="font-bold text-[#0F172A] text-[13px] tracking-wide uppercase">Notifications</h3>
+                    {!!pendingAgreement && (
+                      <span className="text-[11px] font-bold text-white bg-[#EF4444] rounded-full px-2 py-0.5">1</span>
+                    )}
+                  </div>
+                  <div className="max-h-[300px] overflow-y-auto">
+                    {pendingAgreement ? (
+                      <div className="px-4 py-3.5 border-b border-[#E2E8F0]/60 hover:bg-[#F8FAFC] transition-colors">
+                        <div className="flex items-start gap-2">
+                          <div className="w-1.5 h-1.5 rounded-full bg-[#EF4444] shrink-0 mt-1.5" />
+                          <div className="flex-1">
+                            <p className="text-[13px] font-semibold text-[#0F172A] leading-snug">Agreement Pending</p>
+                            <p className="text-[12px] text-[#64748B] mt-0.5">{pendingAgreement.versionName || 'New Terms & Conditions'} — please review and accept.</p>
+                            <button
+                              onClick={() => { navigate('/user/settings/agreement'); setShowNotifications(false); }}
+                              className="mt-1.5 text-[11px] font-bold text-[#00A86B] hover:underline"
+                            >
+                              View &amp; Accept →
+                            </button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ) : (
-                    <div className="px-4 py-8 flex flex-col items-center gap-2">
-                      <Bell className="w-8 h-8 text-[#CBD5E1]" />
-                      <p className="text-[13px] font-semibold text-[#94A3B8]">No notifications right now</p>
-                    </div>
-                  )}
-                </div>
-                <div className="p-2.5 text-center bg-[#F8FAFC]/80 hover:bg-[#F1F5F9] transition-colors cursor-pointer" onClick={() => { navigate('/admin/notification'); setShowNotifications(false); }}>
-                  <span className="text-xs font-bold text-[#0F172A]">View All Notifications</span>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+                    ) : (
+                      <div className="px-4 py-8 flex flex-col items-center gap-2">
+                        <Bell className="w-8 h-8 text-[#CBD5E1]" />
+                        <p className="text-[13px] font-semibold text-[#94A3B8]">No notifications right now</p>
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-2.5 text-center bg-[#F8FAFC]/80 hover:bg-[#F1F5F9] transition-colors cursor-pointer" onClick={() => { navigate('/user/notification'); setShowNotifications(false); }}>
+                    <span className="text-xs font-bold text-[#0F172A]">View All Notifications</span>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        )}
 
         {/* Profile Dropdown */}
         <div className="relative ml-1 border-l border-[#E2E8F0] pl-3 hidden sm:block">
@@ -911,7 +938,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
               <span className="text-[13px] font-bold text-[#0F172A] leading-tight group-hover:text-[#00A86B] transition-colors truncate max-w-[120px]">
                 {userName || 'User'}
               </span>
-              <span className="text-[11px] font-semibold text-[#64748B]">{isAdmin ? 'Admin' : 'User'}</span>
+              <span className="text-[11px] font-semibold text-[#64748B]">{(isAdmin && adminTab) ? 'Admin' : 'User'}</span>
             </div>
             <ChevronDown className="w-3.5 h-3.5 text-[#94A3B8] group-hover:text-[#0F172A] transition-colors" />
           </button>
