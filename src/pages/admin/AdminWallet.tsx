@@ -1813,7 +1813,7 @@ export function AdminWallet() {
                         <td className="p-4">
                           {renderCopyable(order.id, 'Order ID', "text-[12px] font-semibold font-sans text-[#00A86B] cursor-pointer hover:underline uppercase", () => navigate(`/admin/order-tracking?id=${order.id}`))}
                           <div className="table-date mt-0.5">{order.date}</div>
-                          <div className="text-[11px] text-[#475569] mt-0.5 font-medium">{order.paymentMethod}</div>
+                          <span className="px-2 py-0.5 rounded-full border border-blue-200 text-[#004AAD] font-semibold text-[10px] leading-4 bg-blue-50/50 inline-block w-fit mt-0.5">{order.paymentMethod}</span>
                         </td>
                         <td className="p-4">
                           <div className="text-xs font-semibold text-[#00A86B]">{order.courier}</div>

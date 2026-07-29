@@ -256,9 +256,6 @@ export function AdminAnnouncements() {
                 <Megaphone className="w-6 h-6 text-[#00A86B]" />
                 Important Announcements
               </h1>
-              <p className="text-xs text-[#64748B] mt-1">
-                Create and manage alerts visible to users on their dashboard.
-              </p>
             </div>
             <button
               onClick={openModal}
@@ -309,11 +306,11 @@ export function AdminAnnouncements() {
                 ) : (
                   paginatedData.map((ann, idx) => (
                     <tr key={ann._id} className={`border-b border-[#E2E8F0] transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]/20'}`}>
-                      <td className="p-4 align-top">
-                        <div className="font-semibold text-[#0F172A] text-[12px]">{fmtDate(ann.createdAt)}</div>
-                        <div className="text-[#94A3B8] text-[11px] mt-0.5">{fmtTime(ann.createdAt)}</div>
+                      <td className="p-3 align-top">
+                        <div className="font-semibold text-[#0F172A] text-[14px]">{fmtDate(ann.createdAt)}</div>
+                        <div className="text-[#94A3B8] text-[12px] font-normal mt-0.5">{fmtTime(ann.createdAt)}</div>
                       </td>
-                      <td className="p-4 align-top relative group">
+                      <td className="p-3 align-top relative group">
                         <p className="text-[#0F172A] font-normal text-[12px] leading-relaxed line-clamp-2 max-w-[420px]">
                           {ann.message}
                         </p>
@@ -321,28 +318,28 @@ export function AdminAnnouncements() {
                           {ann.message}
                         </div>
                       </td>
-                      <td className="p-4 align-top">
-                        <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold ${
+                      <td className="p-3 align-top">
+                        <span className={`px-2.5 py-0.5 rounded-full border text-[10px] font-semibold ${
                           ann.disableType === 'manual'
-                            ? 'bg-blue-50 text-blue-600'
-                            : 'bg-purple-50 text-purple-600'
+                            ? 'bg-blue-50 text-blue-700 border-blue-200'
+                            : 'bg-purple-50 text-purple-700 border-purple-200'
                         }`}>
                           {ann.disableType === 'manual' ? 'Manual' : 'Automated'}
                         </span>
                         {ann.disableType === 'automated' && ann.automatedDisableUntil && (
-                          <div className="text-[11px] text-[#94A3B8] mt-1.5">
+                          <div className="text-[12px] font-normal text-[#94A3B8] mt-1.5">
                             Until: {fmtDate(ann.automatedDisableUntil)}, {fmtTime(ann.automatedDisableUntil)}
                           </div>
                         )}
                       </td>
-                      <td className="p-4 align-top">
-                        <span className="text-[12px] font-semibold text-[#0F172A]">
+                      <td className="p-3 align-top">
+                        <span className="text-[14px] font-semibold text-[#0F172A]">
                           {ann.targetAudience === 'all'
                             ? 'All Users'
                             : `Selected (${ann.selectedUsers?.length || 0})`}
                         </span>
                       </td>
-                      <td className="p-4 align-top">
+                      <td className="p-3 align-top">
                         <label className="relative inline-flex items-center cursor-pointer">
                           <input
                             type="checkbox"
@@ -354,7 +351,7 @@ export function AdminAnnouncements() {
                           <div className="absolute left-1 top-1 bg-white w-3 h-3 rounded-full transition-transform peer-checked:translate-x-4 shadow-sm" />
                         </label>
                       </td>
-                      <td className="p-4 align-top">
+                      <td className="p-3 align-top">
                         <div className="flex items-center justify-center gap-2">
                           <button
                             onClick={() => openEditModal(ann)}

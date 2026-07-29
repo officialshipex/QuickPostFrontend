@@ -630,7 +630,7 @@ export function AdminOrderTracking() {
             <div className="relative">
               <button
                 onClick={(e) => { e.stopPropagation(); setIsHeaderDropdownOpen(!isHeaderDropdownOpen); }}
-                className="border border-[#E2E8F0] hover:bg-[#F4F6F5] rounded-lg w-9 h-9 flex items-center justify-center text-slate-600 transition-all focus:outline-none"
+                className="border border-[#E2E8F0] hover:bg-[#F8FAFC] rounded-lg w-9 h-9 flex items-center justify-center text-slate-600 transition-all focus:outline-none"
                 title="More Actions"
               >
                 <span className="font-bold text-[14px] leading-[8px] -mt-1.5">...</span>
@@ -989,7 +989,7 @@ export function AdminOrderTracking() {
               </div>
 
               {/* Tab selector */}
-              <div className="bg-[#F4F6F5] p-1 rounded-xl flex gap-1 mb-5">
+              <div className="bg-[#F8FAFC] p-1 rounded-xl flex gap-1 mb-5">
                 <button onClick={() => setChargesTab('billed')} className={`flex-1 py-2 text-center text-[13px] font-medium transition-all ${chargesTab === 'billed' ? 'bg-white rounded-lg shadow-[0_1px_3px_rgba(0,0,0,0.08)] text-[#0F172A]' : 'text-[#94A3B8] hover:text-[#0F172A]'}`}>
                   Billed Charges
                 </button>
@@ -1002,24 +1002,24 @@ export function AdminOrderTracking() {
               {/* Billed Charges tab */}
               {chargesTab === 'billed' && (
                 <div className="space-y-0.5">
-                  <div className="flex justify-between items-center py-2.5 border-b border-[#F4F6F5]">
+                  <div className="flex justify-between items-center py-2.5 border-b border-[#F8FAFC]">
                     <span className="text-[12px] leading-[18px] font-medium text-[#64748B]">Base Freight Charge</span>
                     <span className="text-[12px] leading-[18px] font-normal text-[#0F172A]">
                       {order?.priceBreakup?.freight != null ? `₹${order.priceBreakup.freight.toFixed(2)}` : '—'}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center py-2.5 border-b border-[#F4F6F5]">
+                  <div className="flex justify-between items-center py-2.5 border-b border-[#F8FAFC]">
                     <span className="text-[12px] leading-[18px] font-medium text-[#64748B]">COD Handling Charge</span>
                     <span className="text-[12px] leading-[18px] font-normal text-[#0F172A]">
                       {order?.priceBreakup?.cod != null ? `₹${order.priceBreakup.cod.toFixed(2)}` : '—'}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center py-2.5 border-b border-[#F4F6F5]">
+                  <div className="flex justify-between items-center py-2.5 border-b border-[#F8FAFC]">
                     <span className="text-[12px] leading-[18px] font-medium text-[#64748B]">Reverse Pickup Charge</span>
                     <span className="text-[12px] leading-[18px] font-normal text-[#CBD5E1]">—</span>
                   </div>
                   {discrepancy && (
-                    <div className="flex justify-between items-center py-2.5 border-b border-[#F4F6F5]">
+                    <div className="flex justify-between items-center py-2.5 border-b border-[#F8FAFC]">
                       <div className="flex items-center">
                         <span className="text-[12px] leading-[18px] font-medium text-[#64748B]">Weight Discrepancy Charge</span>
                         {isDisputeRaised && <span className="bg-[#FFF3E0] text-[#E65100] text-[10px] leading-4 font-medium px-2 py-0.5 rounded ml-2">Disputed</span>}
@@ -1029,7 +1029,7 @@ export function AdminOrderTracking() {
                       </span>
                     </div>
                   )}
-                  <div className="flex justify-between items-center py-2.5 border-b border-[#F4F6F5]">
+                  <div className="flex justify-between items-center py-2.5 border-b border-[#F8FAFC]">
                     <span className="text-[12px] leading-[18px] font-medium text-[#64748B]">GST (18%)</span>
                     <span className="text-[12px] leading-[18px] font-normal text-[#0F172A]">
                       {order?.priceBreakup?.gst != null ? `₹${order.priceBreakup.gst.toFixed(2)}` : '—'}
@@ -1075,19 +1075,19 @@ export function AdminOrderTracking() {
                       <div className="overflow-x-auto no-scrollbar">
                         <table className="w-full text-left border-collapse min-w-[450px]">
                           <thead>
-                            <tr className="bg-[#E6F9F2] border-b border-[#F4F6F5] text-[10px] leading-4 uppercase tracking-wider font-semibold text-[#94A3B8]">
+                            <tr className="bg-[#E6F9F2] border-b border-[#F8FAFC] text-[10px] leading-4 uppercase tracking-wider font-semibold text-[#94A3B8]">
                               <th className="pb-3">Metric</th>
                               <th className="pb-3">Seller Declared</th>
                               <th className="pb-3">Courier Claimed</th>
                             </tr>
                           </thead>
                           <tbody className="text-[12px] leading-[18px] font-normal text-[#0F172A]">
-                            <tr className="border-b border-[#F4F6F5]">
+                            <tr className="border-b border-[#F8FAFC]">
                               <td className="py-3">Dead Weight</td>
                               <td className="py-3">{order?.packageDetails?.deadWeight != null ? `${order.packageDetails.deadWeight} KG` : '—'}</td>
                               <td className="py-3 text-red-500">{discrepancy.enteredWeight != null ? `${discrepancy.enteredWeight} KG` : '—'}</td>
                             </tr>
-                            <tr className="border-b border-[#F4F6F5]">
+                            <tr className="border-b border-[#F8FAFC]">
                               <td className="py-3">Dimensions</td>
                               <td className="py-3">
                                 {order?.packageDetails?.volumetricWeight
@@ -1096,17 +1096,17 @@ export function AdminOrderTracking() {
                               </td>
                               <td className="py-3 text-red-500">{discrepancy.chargeDimension || '—'}</td>
                             </tr>
-                            <tr className="border-b border-[#F4F6F5]">
+                            <tr className="border-b border-[#F8FAFC]">
                               <td className="py-3">Vol. Weight</td>
                               <td className="py-3">{(() => { const vw = order?.packageDetails?.volumetricWeight; if (vw?.length && vw?.width && vw?.height) return `${((vw.length * vw.width * vw.height) / 5000).toFixed(2)} KG`; if (vw?.calculatedWeight != null) return `${vw.calculatedWeight} KG`; return '—'; })()}</td>
                               <td className="py-3 text-red-500">—</td>
                             </tr>
-                            <tr className="border-b border-[#F4F6F5]">
+                            <tr className="border-b border-[#F8FAFC]">
                               <td className="py-3">Charged Weight</td>
                               <td className="py-3">{order?.packageDetails?.applicableWeight != null ? `${order.packageDetails.applicableWeight} KG` : '—'}</td>
                               <td className="py-3 text-red-500">{discrepancy.chargedWeight != null ? `${discrepancy.chargedWeight} KG` : '—'}</td>
                             </tr>
-                            <tr className="border-b last:border-0 border-[#F4F6F5]">
+                            <tr className="border-b last:border-0 border-[#F8FAFC]">
                               <td className="py-3 font-semibold">Charges</td>
                               <td className="py-3 font-semibold">{order?.priceBreakup?.freight != null ? `₹${order.priceBreakup.freight.toFixed(2)}` : '—'}</td>
                               <td className="py-3 font-semibold text-red-500">{discrepancy.excessWeightCharges != null ? `₹${discrepancy.excessWeightCharges.toFixed(2)}` : '—'}</td>
