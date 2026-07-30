@@ -364,19 +364,22 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                   <div className="px-4 py-1.5 border-b border-slate-100 mb-1">
                     <span className="text-[10px] font-bold text-[#94A3B8] uppercase">Quick Menu</span>
                   </div>
-                  <Link to="/admin/add-order" className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A]" onClick={() => setShowQuickActions(false)}>
-                    <PackagePlus className="w-3.5 h-3.5" /> Add an Order
-                  </Link>
-                  <button className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] text-left w-full" onClick={() => { setShowBulkModal(true); setShowQuickActions(false); }}>
-                    <Upload className="w-3.5 h-3.5" /> Bulk Import
-                  </button>
-                  <Link to="/admin/rate-calculator" className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A]" onClick={() => setShowQuickActions(false)}>
-                    <Calculator className="w-3.5 h-3.5" /> Calculate Rate
-                  </Link>
-                  {isAdmin && (
+                  {isAdmin && adminTab ? (
                     <button className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] text-left w-full" onClick={() => { setShowUserLoginModal(true); setUserLoginQuery(''); setUserSuggestions([]); setShowQuickActions(false); }}>
                       <Users className="w-3.5 h-3.5" /> User Login
                     </button>
+                  ) : (
+                    <>
+                      <Link to="/user/add-order" className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A]" onClick={() => setShowQuickActions(false)}>
+                        <PackagePlus className="w-3.5 h-3.5" /> Add an Order
+                      </Link>
+                      <button className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] text-left w-full" onClick={() => { setShowBulkModal(true); setShowQuickActions(false); }}>
+                        <Upload className="w-3.5 h-3.5" /> Bulk Import
+                      </button>
+                      <Link to="/user/rate-calculator" className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A]" onClick={() => setShowQuickActions(false)}>
+                        <Calculator className="w-3.5 h-3.5" /> Calculate Rate
+                      </Link>
+                    </>
                   )}
                 </div>
               </>
@@ -805,37 +808,8 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                   <div className="px-4 py-3.5 border-b border-[#E2E8F0]/60 bg-white/50">
                     <h3 className="font-bold text-[#0F172A] text-[13px] tracking-wide uppercase">Quick Actions</h3>
                   </div>
-                  <div className="p-2 grid grid-cols-2 gap-1">
-                    <Link
-                      to="/admin/add-order"
-                      className="flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-[#F8FAFC] transition-colors group text-center"
-                      onClick={() => setShowQuickActions(false)}
-                    >
-                      <div className="w-10 h-10 rounded-full bg-[#EFF6FF] flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                        <PackagePlus className="w-5 h-5 text-[#3B82F6]" />
-                      </div>
-                      <h4 className="text-[12px] font-bold text-[#0F172A] group-hover:text-[#3B82F6] transition-colors leading-tight">Add an Order</h4>
-                    </Link>
-                    <button
-                      className="flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-[#F8FAFC] transition-colors group text-center w-full"
-                      onClick={() => { setShowBulkModal(true); setShowQuickActions(false); }}
-                    >
-                      <div className="w-10 h-10 rounded-full bg-[#FFF7ED] flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                        <Upload className="w-5 h-5 text-[#F97316]" />
-                      </div>
-                      <h4 className="text-[12px] font-bold text-[#0F172A] group-hover:text-[#F97316] transition-colors leading-tight">Bulk Import</h4>
-                    </button>
-                    <Link
-                      to="/admin/rate-calculator"
-                      className="flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-[#F8FAFC] transition-colors group text-center"
-                      onClick={() => setShowQuickActions(false)}
-                    >
-                      <div className="w-10 h-10 rounded-full bg-[#F0FDF4] flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                        <Calculator className="w-5 h-5 text-[#00A86B]" />
-                      </div>
-                      <h4 className="text-[12px] font-bold text-[#0F172A] group-hover:text-[#00A86B] transition-colors leading-tight">Calculate Rate</h4>
-                    </Link>
-                    {isAdmin && (
+                  <div className="p-2">
+                    {isAdmin && adminTab ? (
                       <button
                         className="flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-[#F8FAFC] transition-colors group text-center w-full"
                         onClick={() => { setShowUserLoginModal(true); setUserLoginQuery(''); setUserSuggestions([]); setShowQuickActions(false); }}
@@ -845,6 +819,38 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                         </div>
                         <h4 className="text-[12px] font-bold text-[#0F172A] group-hover:text-[#8B5CF6] transition-colors leading-tight">User Login</h4>
                       </button>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-1">
+                        <Link
+                          to="/user/add-order"
+                          className="flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-[#F8FAFC] transition-colors group text-center"
+                          onClick={() => setShowQuickActions(false)}
+                        >
+                          <div className="w-10 h-10 rounded-full bg-[#EFF6FF] flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                            <PackagePlus className="w-5 h-5 text-[#3B82F6]" />
+                          </div>
+                          <h4 className="text-[12px] font-bold text-[#0F172A] group-hover:text-[#3B82F6] transition-colors leading-tight">Add an Order</h4>
+                        </Link>
+                        <button
+                          className="flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-[#F8FAFC] transition-colors group text-center w-full"
+                          onClick={() => { setShowBulkModal(true); setShowQuickActions(false); }}
+                        >
+                          <div className="w-10 h-10 rounded-full bg-[#FFF7ED] flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                            <Upload className="w-5 h-5 text-[#F97316]" />
+                          </div>
+                          <h4 className="text-[12px] font-bold text-[#0F172A] group-hover:text-[#F97316] transition-colors leading-tight">Bulk Import</h4>
+                        </button>
+                        <Link
+                          to="/user/rate-calculator"
+                          className="flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-[#F8FAFC] transition-colors group text-center"
+                          onClick={() => setShowQuickActions(false)}
+                        >
+                          <div className="w-10 h-10 rounded-full bg-[#F0FDF4] flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                            <Calculator className="w-5 h-5 text-[#00A86B]" />
+                          </div>
+                          <h4 className="text-[12px] font-bold text-[#0F172A] group-hover:text-[#00A86B] transition-colors leading-tight">Calculate Rate</h4>
+                        </Link>
+                      </div>
                     )}
                   </div>
                 </motion.div>

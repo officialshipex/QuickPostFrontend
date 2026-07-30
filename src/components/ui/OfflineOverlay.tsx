@@ -77,7 +77,7 @@ export function OfflineOverlay() {
     <div className="fixed inset-0 z-[9999] bg-white flex flex-col items-center justify-center px-6">
       <div className="w-full max-w-[480px] aspect-square">
         <DotLottieReact
-          src="https://lottie.host/998ef698-0249-43af-91fb-935760baddf5/mxTvnhXUgk.lottie"
+          src="/offline.lottie"
           loop
           autoplay
         />
