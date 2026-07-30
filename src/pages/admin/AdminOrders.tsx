@@ -768,7 +768,8 @@ export function AdminOrders() {
                     <button
                       key={tab}
                       onClick={() => handleTabChange(tab)}
-                      className={`relative px-4 py-2 text-[13px] font-bold transition-colors whitespace-nowrap rounded-full cursor-pointer ${activeTab === tab ? 'text-[#00A86B] underline underline-offset-4 decoration-2' : 'text-[#64748B] hover:text-[#0F172A]'}`}
+                      ref={(el) => { if (el && activeTab === tab) el.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }}
+                      className={`relative px-4 py-2 text-[14px] md:text-[13px] font-semibold md:font-bold transition-colors whitespace-nowrap rounded-full cursor-pointer ${activeTab === tab ? 'text-[#00A86B] underline underline-offset-4 decoration-2' : 'text-[#64748B] hover:text-[#0F172A]'}`}
                     >
                       {tab}
                     </button>
@@ -778,7 +779,7 @@ export function AdminOrders() {
                 <div className="relative shrink-0" ref={moreRef}>
                   <button
                     onClick={() => setShowMore(!showMore)}
-                    className={`px-4 py-2 text-[13px] font-bold flex items-center gap-1 transition-colors whitespace-nowrap rounded-full cursor-pointer ${MORE_TABS.includes(activeTab) ? 'text-[#00A86B] underline underline-offset-4 decoration-2' : 'text-[#64748B] hover:text-[#0F172A]'}`}
+                    className={`px-4 py-2 text-[14px] md:text-[13px] font-semibold md:font-bold flex items-center gap-1 transition-colors whitespace-nowrap rounded-full cursor-pointer ${MORE_TABS.includes(activeTab) ? 'text-[#00A86B] underline underline-offset-4 decoration-2' : 'text-[#64748B] hover:text-[#0F172A]'}`}
                   >
                     {MORE_TABS.includes(activeTab) ? activeTab : 'More'} <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showMore ? 'rotate-180' : ''}`} />
                   </button>

@@ -12,8 +12,10 @@ import {
 } from 'lucide-react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { TruncatedText } from '../../components/ui/TruncatedText';
+import { EmptyState } from '../../components/ui/EmptyState';
 import { TableLoader } from '../../components/ui/TableLoader';
 import { DesktopPagination, usePagination } from '../../hooks/usePagination';
+import { useMobilePaginationBar } from '../../hooks/useMobilePaginationBar';
 import { getTier, getTierBadgeClass } from '../../hooks/useTier';
 import { getCourierLogo } from '../../utils/courierLogo';
 
@@ -274,31 +276,30 @@ function MisReportTable({ userId, isAdminView }: {
 
   return (
     <div>
-      {isAdminView && (
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h3 className="text-sm font-bold text-[#0F172A] flex items-center gap-2">
-              <FileText className="w-4 h-4 text-[#00A86B]" />
-              {!userId ? 'All MIS Reports' : 'MIS Reports'}
-            </h3>
-            <p className="text-[10px] text-[#94A3B8] mt-0.5">Excel reports generated across all report types</p>
+      <div className="bg-white border border-[#E2E8F0] rounded-2xl overflow-visible shadow-sm">
+        {isAdminView && (
+          <div className="sticky top-0 z-20 rounded-t-2xl flex items-center justify-between p-4 border-b border-[#E2E8F0] bg-[#F8FAFC]">
+            <div>
+              <h3 className="text-sm font-bold text-[#0F172A] flex items-center gap-2">
+                <FileText className="w-4 h-4 text-[#00A86B]" />
+                {!userId ? 'All MIS Reports' : 'MIS Reports'}
+              </h3>
+              <p className="text-[10px] text-[#94A3B8] mt-0.5">Excel reports generated across all report types</p>
+            </div>
+            <button onClick={fetchReports} title="Refresh"
+              className={`w-8 h-8 flex items-center justify-center rounded-lg border border-[#E2E8F0] text-[#64748B] hover:text-[#00A86B] hover:border-[#00A86B] transition-colors ${loading ? 'animate-spin' : ''}`}>
+              <RefreshCw className="w-3.5 h-3.5" />
+            </button>
           </div>
-          <button onClick={fetchReports} title="Refresh"
-            className={`w-8 h-8 flex items-center justify-center rounded-lg border border-[#E2E8F0] text-[#64748B] hover:text-[#00A86B] hover:border-[#00A86B] transition-colors ${loading ? 'animate-spin' : ''}`}>
-            <RefreshCw className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      )}
-      {!isAdminView && (
-        <div className="flex justify-end mb-4">
-          <button onClick={fetchReports} title="Refresh"
-            className={`w-8 h-8 flex items-center justify-center rounded-lg border border-[#E2E8F0] text-[#64748B] hover:text-[#00A86B] hover:border-[#00A86B] transition-colors ${loading ? 'animate-spin' : ''}`}>
-            <RefreshCw className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      )}
-
-      <div className="bg-white border border-[#E2E8F0] rounded-2xl overflow-hidden shadow-sm">
+        )}
+        {!isAdminView && (
+          <div className="sticky top-0 z-20 rounded-t-2xl flex justify-end p-4 border-b border-[#E2E8F0] bg-[#F8FAFC]">
+            <button onClick={fetchReports} title="Refresh"
+              className={`w-8 h-8 flex items-center justify-center rounded-lg border border-[#E2E8F0] text-[#64748B] hover:text-[#00A86B] hover:border-[#00A86B] transition-colors ${loading ? 'animate-spin' : ''}`}>
+              <RefreshCw className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
         <div className="hidden md:block relative overflow-auto no-scrollbar max-h-[560px]">
           {loading && <TableLoader />}
           <table className="w-full text-left border-collapse">
@@ -326,7 +327,7 @@ function MisReportTable({ userId, isAdminView }: {
                   <td className="p-3 text-xs font-semibold text-[#94A3B8]">{(page - 1) * rowsPerPage + i + 1}</td>
                   {isAdminView && !userId && (
                     <td className="p-3 max-w-[180px]">
-                      <TruncatedText text={r.user?.fullname || '—'} maxLength={22} className="text-[14px] leading-[20px] font-semibold text-[#0F172A]" />
+                      <TruncatedText text={r.user?.fullname || '—'} maxLength={22} className="text-[12px] leading-[18px] font-semibold text-[#0F172A]" />
                       <TruncatedText text={r.user?.email || '—'} maxLength={26} className="text-[12px] leading-[18px] font-normal text-[#64748B]" />
                     </td>
                   )}
@@ -361,27 +362,71 @@ function MisReportTable({ userId, isAdminView }: {
         </div>
 
         {/* Mobile */}
-        <div className="md:hidden divide-y divide-[#F1F5F9]">
-          {loading ? (
-            <div className="text-center py-10 text-xs text-[#94A3B8]">Loading…</div>
-          ) : reports.length === 0 ? (
-            <div className="text-center py-10 text-sm font-medium text-[#94A3B8]">No reports yet</div>
-          ) : reports.map((r, i) => (
-            <div key={r._id} className="p-4 space-y-1.5">
-              <div className="flex items-center justify-between">
-                <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${typeColor(r.reportType)}`}>{r.reportType}</span>
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border capitalize ${statusStyle(r.status)}`}>{r.status}</span>
-              </div>
-              <div className="text-[11px] text-[#64748B]">{fmtDate(r.fromDate)} → {fmtDate(r.toDate)} · {r.dateFilterType || '—'}</div>
-              <div className="text-[10px] text-[#94A3B8]">Generated: {fmtDateTime(r.createdAt)}</div>
-              {r.status === 'completed' && r.downloadUrl && (
-                <a href={r.downloadUrl} target="_blank" rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-xs font-bold text-[#00A86B] hover:underline">
-                  <Download className="w-3 h-3" /> Download
-                </a>
-              )}
+        <div className="md:hidden relative bg-[#F8FAFC]">
+          {loading && <div className="relative h-32"><TableLoader /></div>}
+          {!loading && reports.length === 0 ? (
+            <EmptyState title="No reports yet" subtitle="Click &quot;Generate Report&quot; to create one" />
+          ) : !loading && (
+            <div className="p-4 space-y-4">
+              {reports.map((r, i) => (
+                <div key={r._id} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
+                  <div className="absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide"
+                    style={{ background: '#00A86B', clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}>
+                    #{(page - 1) * rowsPerPage + i + 1}
+                  </div>
+                  <div className="pt-8 px-4 pb-4">
+                    <div className="rounded-xl p-3 mb-3 bg-white border border-[#E2E8F0]">
+                      <div className="flex items-start justify-between gap-2 mb-1.5">
+                        <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${typeColor(r.reportType)}`}>{r.reportType}</span>
+                        <span className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold border capitalize flex items-center ${statusStyle(r.status)}`}>
+                          {r.status === 'pending' && <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse mr-1" />}
+                          {r.status}
+                        </span>
+                      </div>
+                      {isAdminView && !userId && (
+                        <>
+                          <TruncatedText text={r.user?.fullname || '—'} maxLength={22} className="text-[12px] leading-[18px] font-semibold text-[#0F172A]" />
+                          <TruncatedText text={r.user?.email || '—'} maxLength={26} className="text-[12px] leading-[18px] font-normal text-[#64748B]" />
+                        </>
+                      )}
+                    </div>
+
+                    <div className="bg-[#F8FAFC] rounded-xl px-3 py-2.5 mb-3 space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="text-[10px] font-normal text-[#94A3B8] uppercase tracking-wider shrink-0">Date Range</span>
+                        <span className="text-[12px] font-normal text-[#0F172A] text-right whitespace-nowrap">{fmtDate(r.fromDate)} → {fmtDate(r.toDate)}</span>
+                      </div>
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="text-[10px] font-normal text-[#94A3B8] uppercase tracking-wider shrink-0">Filter</span>
+                        <span className="text-[12px] font-normal text-[#0F172A] text-right truncate">{r.dateFilterType || '—'}</span>
+                      </div>
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="text-[10px] font-normal text-[#94A3B8] uppercase tracking-wider shrink-0">Generated</span>
+                        <span className="text-[12px] font-normal text-[#0F172A] text-right whitespace-nowrap">{fmtDateTime(r.createdAt)}</span>
+                      </div>
+                      {r.email && (
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="text-[10px] font-normal text-[#94A3B8] uppercase tracking-wider shrink-0">Email</span>
+                          <TruncatedText text={r.email} maxLength={18} className="text-[12px] font-normal text-[#0F172A] ml-auto" tooltipAlign="right" />
+                        </div>
+                      )}
+                    </div>
+
+                    {r.status === 'completed' && r.downloadUrl ? (
+                      <a href={r.downloadUrl} target="_blank" rel="noopener noreferrer"
+                        className="w-full py-2.5 rounded-xl bg-[#1e40af] text-white text-[12px] font-bold flex items-center justify-center gap-1.5 hover:bg-[#1e3a8a] transition-colors">
+                        <Download className="w-3.5 h-3.5" /> Download
+                      </a>
+                    ) : (
+                      <div className="w-full py-2.5 rounded-xl bg-[#F1F5F9] text-[#94A3B8] text-[12px] font-bold flex items-center justify-center gap-1.5">
+                        {r.status === 'pending' ? 'Processing…' : 'Not Available'}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
+          )}
         </div>
 
         <DesktopPagination
@@ -413,24 +458,24 @@ function PieChartCard({ title, data, colors }: { title: string; data: { name: st
   const clrs = colors || PIE_COLORS;
   const total = data.reduce((s, d) => s + d.value, 0);
   if (total === 0) return (
-    <div className="bg-white rounded-2xl border border-[#E2E8F0] p-5 shadow-sm flex flex-col">
-      <h4 className="text-[16px] font-normal leading-[24px] text-[#0F172A] mb-4">{title}</h4>
-      <div className="min-h-[260px] flex items-center justify-center text-xs text-[#94A3B8]">No data yet</div>
+    <div className="bg-white rounded-2xl border border-[#E2E8F0] p-4 md:p-5 shadow-sm flex flex-col">
+      <h4 className="font-bold text-[13px] text-[#0F172A] mb-4">{title}</h4>
+      <div className="min-h-[220px] md:min-h-[260px] flex items-center justify-center text-xs text-[#94A3B8]">No data yet</div>
     </div>
   );
   return (
-    <div className="bg-white rounded-2xl border border-[#E2E8F0] p-5 shadow-sm flex flex-col">
-      <h4 className="text-[16px] font-normal leading-[24px] text-[#0F172A] mb-4">{title}</h4>
-      <div className="min-h-[260px]">
-        <ResponsiveContainer width="100%" height={260}>
+    <div className="bg-white rounded-2xl border border-[#E2E8F0] p-4 md:p-5 shadow-sm flex flex-col overflow-hidden">
+      <h4 className="font-bold text-[13px] text-[#0F172A] mb-4">{title}</h4>
+      <div className="min-h-[220px] md:min-h-[260px]">
+        <ResponsiveContainer width="100%" height={220} className="md:!h-[260px]">
           <PieChart>
-            <Pie data={data} cx="50%" cy="45%" innerRadius={50} outerRadius={75} paddingAngle={3} dataKey="value" stroke="none">
+            <Pie data={data} cx="50%" cy="45%" innerRadius={42} outerRadius={65} paddingAngle={3} dataKey="value" stroke="none">
               {data.map((_, i) => <Cell key={i} fill={clrs[i % clrs.length]} />)}
             </Pie>
             <Tooltip formatter={((v: any, n: any) => [`${Number(v).toLocaleString('en-IN')} (${((Number(v) / total) * 100).toFixed(1)}%)`, n]) as any}
               contentStyle={{ borderRadius: '10px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.08)', fontSize: '12px', fontWeight: 600 }} />
-            <Legend verticalAlign="bottom" wrapperStyle={{ paddingTop: '20px' }} iconType="circle" iconSize={8}
-              formatter={(v: string) => <span className="text-[11px] font-semibold text-[#475569] ml-1">{v}</span>} />
+            <Legend verticalAlign="bottom" wrapperStyle={{ paddingTop: '16px' }} iconType="circle" iconSize={7}
+              formatter={(v: string) => <span className="text-[10px] md:text-[11px] font-semibold text-[#475569] ml-1">{v}</span>} />
           </PieChart>
         </ResponsiveContainer>
       </div>
@@ -443,10 +488,10 @@ function StatCard({ label, value, icon: Icon, color, bg, trend, sub, onClick }: 
   trend?: { value: string; up: boolean }; sub?: string; onClick?: () => void;
 }) {
   return (
-    <div onClick={onClick} className={`bg-white rounded-2xl border border-[#E2E8F0] p-5 shadow-sm transition-all ${onClick ? 'cursor-pointer hover:border-[#00A86B] hover:shadow-md hover:-translate-y-0.5' : 'hover:shadow-md'}`}>
-      <div className="flex items-start justify-between mb-3">
-        <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${bg}`}>
-          <Icon className={`w-[18px] h-[18px] ${color}`} />
+    <div onClick={onClick} className={`bg-white rounded-2xl border border-[#E2E8F0] p-4 md:p-5 shadow-sm transition-all ${onClick ? 'cursor-pointer hover:border-[#00A86B] hover:shadow-md hover:-translate-y-0.5' : 'hover:shadow-md'}`}>
+      <div className="flex items-start justify-between mb-2.5 md:mb-3">
+        <div className={`w-8 h-8 md:w-9 md:h-9 rounded-xl flex items-center justify-center shrink-0 ${bg}`}>
+          <Icon className={`w-4 h-4 md:w-[18px] md:h-[18px] ${color}`} />
         </div>
         {trend && (
           <div className={`flex items-center gap-1 text-[11px] font-bold ${trend.up ? 'text-green-600' : 'text-red-500'}`}>
@@ -454,8 +499,8 @@ function StatCard({ label, value, icon: Icon, color, bg, trend, sub, onClick }: 
           </div>
         )}
       </div>
-      <div className="text-[24px] font-bold leading-[32px] text-[#0F172A]">{value}</div>
-      <div className="text-[16px] font-normal leading-[24px] text-[#64748B] mt-1">{label}</div>
+      <div className="text-lg md:text-xl font-extrabold text-[#0F172A] leading-tight break-words">{value}</div>
+      <div className="text-[11px] font-semibold text-[#64748B] mt-1">{label}</div>
       {sub && <div className="text-[10px] font-medium text-[#94A3B8] mt-0.5">{sub}</div>}
     </div>
   );
@@ -703,45 +748,33 @@ export function AdminReports() {
 
   return (
     <AdminLayout>
-      <div className="max-w-[1600px] mx-auto pb-10">
+      <div className="max-w-[1600px] mx-auto h-[calc(100vh-72px)] -m-4 md:-m-6 p-2.5 md:p-6 flex flex-col">
 
-        {/* Header */}
-        <div className="mb-4">
-          <h2 className="text-xl font-bold text-[#0F172A] ml-[3px]">Analytics & Intelligence</h2>
-        </div>
-
-        {/* Tab switcher + Date filter */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-5">
-          <div className="flex gap-1 items-center bg-[#F7FEFC] rounded-full p-1.5 w-fit">
-            {(['seller', 'courier'] as const).map(tab => (
-              <button key={tab} onClick={() => { setSearchParams(prev => { const n = new URLSearchParams(prev); n.set('tab', tab); n.delete('id'); return n; }); }}
-                className={`px-4 py-2 text-[13px] font-bold rounded-full flex items-center gap-1.5 whitespace-nowrap transition-colors cursor-pointer ${activeTab === tab ? 'text-[#00A86B] underline underline-offset-4 decoration-2' : 'text-[#64748B] hover:text-[#0F172A]'}`}>
-                {tab === 'seller' ? <Users className="w-3.5 h-3.5 shrink-0" /> : <Truck className="w-3.5 h-3.5 shrink-0" />}
-                {tab === 'seller' ? 'Seller Performance' : 'Courier Performance'}
-              </button>
-            ))}
-          </div>
-          <div className="relative">
-            <button onClick={() => setIsDateOpen(!isDateOpen)}
-              className={`flex items-center gap-2 px-4 h-9 rounded-full border text-xs font-medium transition-all cursor-pointer ${isDateOpen ? 'border-[#00A86B] text-[#00A86B] ring-1 ring-[#00A86B]/20' : 'border-[#E2E8F0] text-[#475569] hover:border-[#00A86B]'}`}>
-              <Calendar className="w-3.5 h-3.5" /> {dateRange} <ChevronDown className="w-3 h-3" />
+        {/* Header: title + tabs */}
+        <div className="mb-5 shrink-0">
+          <h2 className="text-xl font-bold text-[#0F172A] mb-3">Analytics & Intelligence</h2>
+          <div className="flex justify-between items-center gap-3">
+            <div className="flex gap-1 items-center min-w-0 bg-[#F7FEFC] rounded-full p-1.5">
+              <div className="flex gap-1 items-center overflow-x-auto no-scrollbar min-w-0">
+                {(['seller', 'courier'] as const).map(tab => (
+                  <button key={tab} onClick={() => { setSearchParams(prev => { const n = new URLSearchParams(prev); n.set('tab', tab); n.delete('id'); return n; }); }}
+                    ref={(el) => { if (el && activeTab === tab) el.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }}
+                    className={`relative px-4 py-2 text-[14px] md:text-[13px] font-semibold md:font-bold rounded-full flex items-center gap-1.5 whitespace-nowrap transition-colors cursor-pointer ${activeTab === tab ? 'text-[#00A86B] underline underline-offset-4 decoration-2' : 'text-[#64748B] hover:text-[#0F172A]'}`}>
+                    {tab === 'seller' ? <Users className="w-3.5 h-3.5 shrink-0" /> : <Truck className="w-3.5 h-3.5 shrink-0" />}
+                    {tab === 'seller' ? 'Seller Performance' : 'Courier Performance'}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <button onClick={() => { fetchSummary(); fetchSellers(); if (activeTab === 'courier') fetchCouriers(); }}
+              title="Refresh" className="hidden md:flex w-8 h-8 rounded-full border border-[#E2E8F0] items-center justify-center text-[#64748B] hover:bg-[#F8FAFC] shrink-0">
+              <RefreshCw className={`w-4 h-4 ${loadingSummary || loadingSellers || loadingCouriers ? 'animate-spin text-[#00A86B]' : ''}`} />
             </button>
-            <AnimatePresence>
-              {isDateOpen && (
-                <>
-                  <div className="fixed inset-0 z-10" onClick={() => setIsDateOpen(false)} />
-                  <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
-                    className="absolute right-0 top-[calc(100%+6px)] bg-white border border-[#E2E8F0] rounded-xl shadow-lg z-20 py-1 min-w-[180px]">
-                    {DATE_RANGES.map(r => (
-                      <button key={r} onClick={() => { setDateRange(r); setIsDateOpen(false); }}
-                        className={`w-full text-left px-4 py-2.5 text-[12px] font-semibold transition-colors cursor-pointer ${dateRange === r ? 'bg-[#F0FDF4] text-[#00A86B]' : 'text-[#475569] hover:bg-[#F8FAFC]'}`}>{r}</button>
-                    ))}
-                  </motion.div>
-                </>
-              )}
-            </AnimatePresence>
           </div>
         </div>
+
+        {/* Scrollable content */}
+        <div className="flex-1 min-h-0 overflow-y-auto pb-10">
 
         {/* ══ SELLER TAB — OVERVIEW ══════════════════════════════════════════ */}
         {activeTab === 'seller' && !selectedSellerId && (
@@ -776,8 +809,8 @@ export function AdminReports() {
             )}
 
             {/* Seller table */}
-            <div className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden mb-8">
-              <div className="p-4 border-b border-[#E2E8F0] bg-[#F8FAFC] flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <div className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-visible mb-8">
+              <div className="sticky top-0 z-20 rounded-t-2xl p-4 border-b border-[#E2E8F0] bg-[#F8FAFC] flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                 <h3 className="font-bold text-sm text-[#0F172A]">Seller-wise Detailed Report</h3>
                 <div className="relative max-w-xs w-full">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8]" />
@@ -820,7 +853,7 @@ export function AdminReports() {
                   )}
                 </div>
               </div>
-              <div className="relative overflow-auto no-scrollbar max-h-[560px]">
+              <div className="hidden md:block relative overflow-auto no-scrollbar max-h-[560px]">
                 {loadingSellers && <TableLoader />}
                 <table className="w-full text-left border-collapse">
                   <thead className="sticky top-0 z-10 bg-[#E6F9F2] shadow-sm">
@@ -845,7 +878,8 @@ export function AdminReports() {
                     ) : sellers.length === 0 ? (
                       <tr><td colSpan={10} className="text-center py-12 text-xs text-[#94A3B8]">No sellers found</td></tr>
                     ) : sellers.map((s, i) => (
-                      <tr key={s._id} className={`border-b border-[#E2E8F0] transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]/20'}`}>
+                      <tr key={s._id} onClick={() => { setSelectedSellerId(s._id); setSellerDetail(null); setLoadingDetail(true); }}
+                        className={`border-b border-[#E2E8F0] transition-colors cursor-pointer hover:bg-[#F0FDF4] ${i % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]/20'}`}>
                         <td className="p-3 text-xs font-semibold text-[#94A3B8]">{(sellerPage - 1) * sellerRowsPerPage + i + 1}</td>
                         <td className="p-3 max-w-[220px]">
                           <div className="min-w-0">
@@ -863,7 +897,7 @@ export function AdminReports() {
                         <td className="p-3 text-[12px] font-normal"><span className={s.ndrRate > 5 ? 'text-orange-500' : 'text-[#0F172A]'}>{s.ndrRate}%</span></td>
                         <td className="p-3 text-[12px] font-normal text-[#0F172A]">{fn(s.codOrders)} / {fn(s.prepaidOrders)}</td>
                         <td className="p-3 text-right">
-                          <button onClick={() => { setSelectedSellerId(s._id); setSellerDetail(null); setLoadingDetail(true); }}
+                          <button onClick={(e) => { e.stopPropagation(); setSelectedSellerId(s._id); setSellerDetail(null); setLoadingDetail(true); }}
                             className="text-[#00A86B] hover:text-[#009B63] font-bold text-[11px] hover:underline transition-colors cursor-pointer">
                             View Report →
                           </button>
@@ -873,6 +907,74 @@ export function AdminReports() {
                   </tbody>
                 </table>
               </div>
+
+              {/* Mobile card list */}
+              <div className="md:hidden relative bg-[#F8FAFC]">
+                {loadingSellers && <div className="relative h-32"><TableLoader /></div>}
+                {!loadingSellers && sellerError ? (
+                  <div className="text-center py-10 text-xs font-semibold text-red-500">{sellerError}</div>
+                ) : !loadingSellers && sellers.length === 0 ? (
+                  <EmptyState title="No sellers found" subtitle="Try changing filters" />
+                ) : !loadingSellers && (
+                  <div className="p-4 space-y-4">
+                    {sellers.map((s, i) => {
+                      const tier = getTier(s.totalOrders ?? 0);
+                      const accent = '#00A86B';
+                      return (
+                        <div key={s._id}
+                          className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden"
+                        >
+                          <div className="absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide"
+                            style={{ background: accent, clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}>
+                            #{(sellerPage - 1) * sellerRowsPerPage + i + 1}
+                          </div>
+                          <div className="pt-8 px-4 pb-4">
+                            <div className="rounded-xl p-3 mb-3 bg-white" style={{ border: `1px solid ${accent}` }}>
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0 flex-1">
+                                  <TruncatedText text={s.fullname || '—'} maxLength={22} className="text-[12px] leading-[18px] font-semibold text-[#0F172A]" />
+                                  <TruncatedText text={s.email || '—'} maxLength={26} className="text-[12px] leading-[18px] font-normal text-[#64748B]" />
+                                </div>
+                                <span className={`shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full ${getTierBadgeClass(tier)}`}>{tier}</span>
+                              </div>
+                            </div>
+
+                            <div className="flex items-start justify-between mb-3 px-1 gap-2">
+                              <span className="text-[12px] font-normal text-[#0F172A] flex-1">{fn(s.totalOrders)} orders</span>
+                              <span className="text-[12px] font-normal text-[#00A86B] shrink-0">{fc(s.walletBalance)}</span>
+                            </div>
+
+                            <div className="flex items-start justify-between bg-[#F8FAFC] rounded-xl px-3 py-2.5 mb-3 gap-2">
+                              <div className="min-w-0">
+                                <div className="text-[10px] font-normal text-[#94A3B8] uppercase tracking-wider">Billed</div>
+                                <div className="text-[12px] font-normal text-[#0F172A] mt-0.5">{fc(s.totalBilled)}</div>
+                                <div className="text-[10px] font-normal text-[#94A3B8] uppercase tracking-wider mt-2">COD / Prepaid</div>
+                                <div className="text-[12px] font-normal text-[#0F172A] mt-0.5">{fn(s.codOrders)} / {fn(s.prepaidOrders)}</div>
+                              </div>
+                              <div className="text-right min-w-0">
+                                <div className="text-[10px] font-normal text-[#94A3B8] uppercase tracking-wider">Delivered</div>
+                                <span className={`text-[12px] font-normal px-2 py-0.5 rounded-full mt-0.5 inline-block ${s.deliveryRate >= 90 ? 'bg-green-50 text-green-600' : s.deliveryRate >= 80 ? 'bg-yellow-50 text-yellow-600' : 'bg-red-50 text-red-600'}`}>{s.deliveryRate}%</span>
+                                <div className="text-[10px] font-normal text-[#94A3B8] uppercase tracking-wider mt-2">RTO / NDR</div>
+                                <div className="text-[12px] font-normal mt-0.5">
+                                  <span className={s.rtoRate > 6 ? 'text-red-500' : 'text-[#0F172A]'}>{s.rtoRate}%</span>
+                                  <span className="text-[#94A3B8]"> / </span>
+                                  <span className={s.ndrRate > 5 ? 'text-orange-500' : 'text-[#0F172A]'}>{s.ndrRate}%</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <button onClick={() => { setSelectedSellerId(s._id); setSellerDetail(null); setLoadingDetail(true); }}
+                              className="w-full py-2.5 rounded-xl bg-[#1e40af] text-white text-[12px] font-bold flex items-center justify-center gap-1.5 hover:bg-[#1e3a8a] transition-colors">
+                              View Report
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
               <DesktopPagination
                 page={sellerPage}
                 setPage={setSellerPage}
@@ -883,18 +985,16 @@ export function AdminReports() {
                 endIndex={Math.min(sellerPage * sellerRowsPerPage, sellerTotal)}
                 totalItems={sellerTotal}
               />
-              {sellerTotalPages > 1 && (
-                <div className="md:hidden flex items-center justify-between p-4 border-t border-[#E2E8F0] bg-[#F8FAFC]">
-                  <span className="text-xs text-[#64748B]">Showing {sellers.length} of {fn(sellerTotal)} sellers</span>
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => setSellerPage(p => Math.max(1, p - 1))} disabled={sellerPage === 1}
-                      className="px-3 py-1.5 text-xs font-bold border border-[#E2E8F0] rounded-lg disabled:opacity-40">← Prev</button>
-                    <span className="text-xs font-medium text-[#64748B]">Page {sellerPage} of {sellerTotalPages}</span>
-                    <button onClick={() => setSellerPage(p => Math.min(sellerTotalPages, p + 1))} disabled={sellerPage === sellerTotalPages}
-                      className="px-3 py-1.5 text-xs font-bold border border-[#E2E8F0] rounded-lg disabled:opacity-40">Next →</button>
-                  </div>
-                </div>
-              )}
+              {useMobilePaginationBar({
+                page: sellerPage,
+                setPage: setSellerPage,
+                totalPages: sellerTotalPages,
+                rowsPerPage: sellerRowsPerPage,
+                setRowsPerPage: setSellerRowsPerPage,
+                startIndex: sellerTotal === 0 ? 0 : (sellerPage - 1) * sellerRowsPerPage + 1,
+                endIndex: Math.min(sellerPage * sellerRowsPerPage, sellerTotal),
+                totalItems: sellerTotal,
+              })}
             </div>
 
             {/* MIS Reports table at bottom of seller overview */}
@@ -926,29 +1026,32 @@ export function AdminReports() {
             ) : (
               <>
                 {/* Profile header */}
-                <div className="bg-white rounded-2xl border border-[#E2E8F0] p-6 mb-6 shadow-sm">
+                <div className="bg-white rounded-2xl border border-[#E2E8F0] p-4 md:p-6 mb-6 shadow-sm">
                   <div className="flex flex-col lg:flex-row lg:items-start gap-5">
-                    <div className="w-14 h-14 rounded-2xl bg-[#F0FDF4] flex items-center justify-center font-extrabold text-xl text-[#00A86B] shrink-0">
-                      {(sd.fullname || sd.email || '?').charAt(0).toUpperCase()}
+                    <div className="flex items-center gap-3 lg:contents">
+                      <div className="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-[#F0FDF4] flex items-center justify-center font-extrabold text-lg md:text-xl text-[#00A86B] shrink-0">
+                        {(sd.fullname || sd.email || '?').charAt(0).toUpperCase()}
+                      </div>
+                      <h3 className="text-base md:text-lg font-extrabold text-[#0F172A] lg:hidden">{sd.fullname || '—'}</h3>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex flex-wrap items-center gap-3 mb-2">
-                        <h3 className="text-lg font-extrabold text-[#0F172A]">{sd.fullname || '—'}</h3>
+                      <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-2">
+                        <h3 className="hidden lg:block text-lg font-extrabold text-[#0F172A]">{sd.fullname || '—'}</h3>
                         {sd.plan && (
                           <span className="text-[10px] font-bold bg-purple-50 text-purple-600 border border-purple-200 px-2 py-0.5 rounded-full flex items-center gap-1"><Crown className="w-3 h-3" />{sd.plan}</span>
                         )}
-                        <span className={`text-[12px] font-semibold px-2 py-0.5 rounded-full border ${sd.status === 'Active' || sd.enabled !== false ? 'bg-green-50 text-[#00A86B] border-green-200' : 'bg-red-50 text-red-500 border-red-200'}`}>
+                        <span className={`text-[11px] md:text-[12px] font-semibold px-2 py-0.5 rounded-full border ${sd.status === 'Active' || sd.enabled !== false ? 'bg-green-50 text-[#00A86B] border-green-200' : 'bg-red-50 text-red-500 border-red-200'}`}>
                           {sd.status || (sd.enabled === false ? 'Inactive' : 'Active')}
                         </span>
                         {sd.kycDone && (
-                          <span className="text-[12px] font-semibold bg-green-50 text-[#00A86B] border border-green-200 px-2 py-0.5 rounded-full">KYC Verified</span>
+                          <span className="text-[11px] md:text-[12px] font-semibold bg-green-50 text-[#00A86B] border border-green-200 px-2 py-0.5 rounded-full">KYC Verified</span>
                         )}
-                        {sd.userId && <span className="text-[12px] font-semibold bg-[#F8FAFC] text-[#64748B] border border-[#E2E8F0] px-2 py-0.5 rounded-full">ID: #QP-S{String(sd.userId).padStart(4, '0')}</span>}
-                        <span className={`text-[12px] font-semibold ${getTierBadgeClass(getTier(sd.totalOrders ?? 0))}`}>{getTier(sd.totalOrders ?? 0)} Tier</span>
+                        {sd.userId && <span className="text-[11px] md:text-[12px] font-semibold bg-[#F8FAFC] text-[#64748B] border border-[#E2E8F0] px-2 py-0.5 rounded-full">ID: #QP-S{String(sd.userId).padStart(4, '0')}</span>}
+                        <span className={`text-[11px] md:text-[12px] font-semibold ${getTierBadgeClass(getTier(sd.totalOrders ?? 0))}`}>{getTier(sd.totalOrders ?? 0)} Tier</span>
                       </div>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-2">
-                        <div className="flex items-center gap-1"><Users className="w-3 h-3 shrink-0 text-[#94A3B8]" /><span className="text-[14px] font-normal text-[#94A3B8]">Contact: </span><span className="text-[12px] font-normal text-[#0F172A]">{sd.fullname || '—'}</span></div>
-                        <div className="flex items-center gap-1"><Mail className="w-3 h-3 shrink-0 text-[#94A3B8]" /><span className="text-[14px] font-normal text-[#94A3B8]">Email: </span><span className="text-[12px] font-normal text-[#0F172A]">{sd.email || '—'}</span></div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-2">
+                        <div className="flex items-center gap-1"><Users className="w-3 h-3 shrink-0 text-[#94A3B8]" /><span className="text-[14px] font-normal text-[#94A3B8]">Contact: </span><span className="text-[12px] font-normal text-[#0F172A] truncate">{sd.fullname || '—'}</span></div>
+                        <div className="flex items-center gap-1 min-w-0"><Mail className="w-3 h-3 shrink-0 text-[#94A3B8]" /><span className="text-[14px] font-normal text-[#94A3B8]">Email: </span><span className="text-[12px] font-normal text-[#0F172A] truncate">{sd.email || '—'}</span></div>
                         <div className="flex items-center gap-1"><Phone className="w-3 h-3 shrink-0 text-[#94A3B8]" /><span className="text-[14px] font-normal text-[#94A3B8]">Phone: </span><span className="text-[12px] font-normal text-[#0F172A]">{sd.phoneNumber || '—'}</span></div>
                         <div className="flex items-center gap-1"><Calendar className="w-3 h-3 shrink-0 text-[#94A3B8]" /><span className="text-[14px] font-normal text-[#94A3B8]">Joined: </span><span className="text-[12px] font-normal text-[#0F172A]">{fmtDate(sd.joinedAt)}</span></div>
                         <div className="flex items-center gap-1"><ShieldAlert className="w-3 h-3 shrink-0 text-[#94A3B8]" /><span className="text-[14px] font-normal text-[#94A3B8]">GSTIN: </span><span className="text-[12px] font-normal text-[#0F172A]">{sd.gstin || '—'}</span></div>
@@ -957,9 +1060,9 @@ export function AdminReports() {
                         <div className="flex items-center gap-1"><Clock className="w-3 h-3 shrink-0 text-[#94A3B8]" /><span className="text-[14px] font-normal text-[#94A3B8]">Avg Delivery: </span><span className="text-[12px] font-normal text-[#0F172A]">{sd.avgDeliveryDays != null ? `${sd.avgDeliveryDays} days` : '—'}</span></div>
                       </div>
                     </div>
-                    <div className="flex flex-col items-end gap-2 shrink-0">
+                    <div className="flex flex-row lg:flex-col items-center lg:items-end justify-between lg:justify-start gap-2 shrink-0 pt-2 lg:pt-0 border-t lg:border-t-0 border-[#E2E8F0]">
                       <button onClick={() => openGenerate(sd._id, sd.fullname || sd.email)}
-                        className="h-9 px-4 rounded-xl bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors flex items-center gap-1.5 shadow-sm cursor-pointer">
+                        className="h-9 px-4 rounded-xl bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors flex items-center gap-1.5 shadow-sm cursor-pointer whitespace-nowrap">
                         <FileText className="w-3.5 h-3.5" /> Generate Report
                       </button>
                       <label className="flex items-center gap-2 cursor-pointer select-none">
@@ -995,7 +1098,7 @@ export function AdminReports() {
 
                 {/* Shipment operations */}
                 <SectionTitle icon={Package} title="Shipment Operations" />
-                <div className="grid grid-cols-3 md:grid-cols-5 gap-3 mb-6">
+                <div className="grid grid-cols-3 md:grid-cols-5 gap-2.5 md:gap-3 mb-6">
                   {[
                     { label: 'Total', value: fn(sd.totalOrders), color: 'text-[#0F172A]' },
                     { label: 'Delivered', value: fn(sd.delivered), color: 'text-[#00A86B]' },
@@ -1007,8 +1110,8 @@ export function AdminReports() {
                     { label: 'RTO Rate', value: `${sd.rtoRate}%`, color: 'text-red-500' },
                     { label: 'NDR Rate', value: `${sd.ndrRate}%`, color: 'text-amber-500' },
                   ].map(m => (
-                    <div key={m.label} className="bg-white rounded-xl border border-[#E2E8F0] p-3 text-center shadow-sm">
-                      <div className={`text-lg font-extrabold ${m.color}`}>{m.value}</div>
+                    <div key={m.label} className="bg-white rounded-xl border border-[#E2E8F0] p-2.5 md:p-3 text-center shadow-sm">
+                      <div className={`text-base md:text-lg font-extrabold ${m.color}`}>{m.value}</div>
                       <div className="text-[10px] font-semibold text-[#64748B] mt-0.5">{m.label}</div>
                     </div>
                   ))}
@@ -1031,8 +1134,11 @@ export function AdminReports() {
                 {sd.couriers.length > 0 && (
                   <>
                     <SectionTitle icon={Truck} title="Courier-wise Performance" />
-                    <div className="bg-white border border-[#E2E8F0] rounded-2xl overflow-hidden shadow-sm mb-6">
-                      <div className="relative overflow-auto no-scrollbar max-h-[560px]">
+                    <div className="bg-white border border-[#E2E8F0] rounded-2xl overflow-visible shadow-sm mb-6">
+                      <div className="md:hidden sticky top-0 z-20 rounded-t-2xl p-4 border-b border-[#E2E8F0] bg-[#F8FAFC]">
+                        <h3 className="font-bold text-sm text-[#0F172A] flex items-center gap-2"><Truck className="w-4 h-4 text-[#00A86B]" />Courier-wise Performance</h3>
+                      </div>
+                      <div className="hidden md:block relative overflow-auto no-scrollbar max-h-[560px]">
                         <table className="w-full text-left border-collapse">
                           <thead className="sticky top-0 z-10 bg-[#E6F9F2] shadow-sm">
                             <tr className="text-xs leading-[18px] font-medium text-[#64748B] uppercase tracking-wider border border-[#B9EFDB]">
@@ -1069,6 +1175,54 @@ export function AdminReports() {
                           </tbody>
                         </table>
                       </div>
+
+                      {/* Mobile card list */}
+                      <div className="md:hidden relative bg-[#F8FAFC] p-4 space-y-4">
+                        {sdCouriersPagination.paginatedData.map((c, i) => (
+                          <div key={c.name} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
+                            <div className="absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide"
+                              style={{ background: '#00A86B', clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}>
+                              #{sdCouriersPagination.startIndex + i}
+                            </div>
+                            <div className="pt-8 px-4 pb-4">
+                              <div className="rounded-xl p-3 mb-3 bg-white border border-[#E2E8F0] flex items-center gap-3">
+                                <img src={getCourierLogo(c.name)} alt={c.name} className="w-16 h-7 rounded object-contain object-left shrink-0"
+                                  onError={(e) => { (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(c.name)}&background=f8fafc&color=0f172a&bold=true&font-size=0.4`; }} />
+                                <span className="text-[12px] font-semibold text-[#0F172A] truncate">{c.name}</span>
+                              </div>
+
+                              <div className="flex items-start justify-between mb-3 px-1 gap-2">
+                                <span className="text-[12px] font-normal text-[#0F172A] flex-1">{fn(c.shipments)} shipments</span>
+                                <span className="text-[12px] font-normal text-[#0F172A] shrink-0">{fc(c.billed)}</span>
+                              </div>
+
+                              <div className="bg-[#F8FAFC] rounded-xl px-3 py-2.5 space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[10px] text-[#94A3B8] uppercase tracking-wider">Delivered</span>
+                                  <span className="text-[12px] font-normal text-[#00A86B]">{fn(c.delivered)}</span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[10px] text-[#94A3B8] uppercase tracking-wider">RTO</span>
+                                  <span className="text-[12px] font-normal text-red-500">{fn(c.rto)}</span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[10px] text-[#94A3B8] uppercase tracking-wider">NDR</span>
+                                  <span className="text-[12px] font-normal text-amber-500">{fn(c.ndr)}</span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[10px] text-[#94A3B8] uppercase tracking-wider">Delivery %</span>
+                                  <span className={`text-[12px] font-normal ${c.deliveryRate >= 90 ? 'text-[#00A86B]' : c.deliveryRate >= 80 ? 'text-amber-500' : 'text-red-500'}`}>{c.deliveryRate}%</span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[10px] text-[#94A3B8] uppercase tracking-wider">RTO %</span>
+                                  <span className={`text-[12px] font-normal ${c.rtoRate > 6 ? 'text-red-500' : 'text-[#0F172A]'}`}>{c.rtoRate}%</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
                       <DesktopPagination
                         page={sdCouriersPagination.page}
                         setPage={sdCouriersPagination.setPage}
@@ -1079,6 +1233,16 @@ export function AdminReports() {
                         endIndex={sdCouriersPagination.endIndex}
                         totalItems={sdCouriersPagination.totalItems}
                       />
+                      {useMobilePaginationBar({
+                        page: sdCouriersPagination.page,
+                        setPage: sdCouriersPagination.setPage,
+                        totalPages: sdCouriersPagination.totalPages,
+                        rowsPerPage: sdCouriersPagination.rowsPerPage,
+                        setRowsPerPage: sdCouriersPagination.setRowsPerPage,
+                        startIndex: sdCouriersPagination.startIndex,
+                        endIndex: sdCouriersPagination.endIndex,
+                        totalItems: sdCouriersPagination.totalItems,
+                      })}
                     </div>
                   </>
                 )}
@@ -1087,8 +1251,11 @@ export function AdminReports() {
                 {sd.recentTransactions.length > 0 && (
                   <>
                     <SectionTitle icon={CreditCard} title="Recent Wallet Transactions" />
-                    <div className="bg-white border border-[#E2E8F0] rounded-2xl overflow-hidden shadow-sm mb-6">
-                      <div className="relative overflow-auto no-scrollbar max-h-[560px]">
+                    <div className="bg-white border border-[#E2E8F0] rounded-2xl overflow-visible shadow-sm mb-6">
+                      <div className="md:hidden sticky top-0 z-20 rounded-t-2xl p-4 border-b border-[#E2E8F0] bg-[#F8FAFC]">
+                        <h3 className="font-bold text-sm text-[#0F172A] flex items-center gap-2"><CreditCard className="w-4 h-4 text-[#00A86B]" />Recent Wallet Transactions</h3>
+                      </div>
+                      <div className="hidden md:block relative overflow-auto no-scrollbar max-h-[560px]">
                         <table className="w-full text-left border-collapse">
                           <thead className="sticky top-0 z-10 bg-[#E6F9F2] shadow-sm">
                             <tr className="text-xs leading-[18px] font-medium text-[#64748B] uppercase tracking-wider border border-[#B9EFDB]">
@@ -1120,6 +1287,42 @@ export function AdminReports() {
                           </tbody>
                         </table>
                       </div>
+
+                      {/* Mobile card list */}
+                      <div className="md:hidden relative bg-[#F8FAFC] p-4 space-y-4">
+                        {sdTxnsPagination.paginatedData.map((t, i) => (
+                          <div key={i} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
+                            <div className="absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide"
+                              style={{ background: '#00A86B', clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}>
+                              #{sdTxnsPagination.startIndex + i}
+                            </div>
+                            <div className="pt-8 px-4 pb-4">
+                              <div className="rounded-xl p-3 mb-3 bg-white border border-[#E2E8F0]">
+                                <div className="flex items-start justify-between gap-2 mb-1.5">
+                                  <span className="text-[11px] text-[#64748B]">{fmtDate(t.date)}</span>
+                                  <span className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold border capitalize ${t.category === 'credit' ? 'bg-green-50 text-[#00A86B] border-green-200' : 'bg-red-50 text-red-500 border-red-200'}`}>{t.category}</span>
+                                </div>
+                                <TruncatedText text={t.description || '—'} maxLength={34} className="text-[12px] font-semibold text-[#0F172A]" />
+                                {(t.awb_number || t.channelOrderId) && (
+                                  <div className="text-[10px] text-[#94A3B8] mt-1">AWB/Ref: {t.awb_number || t.channelOrderId}</div>
+                                )}
+                              </div>
+
+                              <div className="bg-[#F8FAFC] rounded-xl px-3 py-2.5 space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[10px] text-[#94A3B8] uppercase tracking-wider">Amount</span>
+                                  <span className={`text-[12px] font-normal ${t.category === 'credit' ? 'text-[#00A86B]' : 'text-red-500'}`}>{t.category === 'credit' ? '+' : '−'}{fc(t.amount)}</span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[10px] text-[#94A3B8] uppercase tracking-wider">Balance After</span>
+                                  <span className="text-[12px] font-normal text-[#0F172A]">{t.balanceAfterTransaction !== undefined ? fc(t.balanceAfterTransaction) : '—'}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
                       <DesktopPagination
                         page={sdTxnsPagination.page}
                         setPage={sdTxnsPagination.setPage}
@@ -1130,6 +1333,16 @@ export function AdminReports() {
                         endIndex={sdTxnsPagination.endIndex}
                         totalItems={sdTxnsPagination.totalItems}
                       />
+                      {useMobilePaginationBar({
+                        page: sdTxnsPagination.page,
+                        setPage: sdTxnsPagination.setPage,
+                        totalPages: sdTxnsPagination.totalPages,
+                        rowsPerPage: sdTxnsPagination.rowsPerPage,
+                        setRowsPerPage: sdTxnsPagination.setRowsPerPage,
+                        startIndex: sdTxnsPagination.startIndex,
+                        endIndex: sdTxnsPagination.endIndex,
+                        totalItems: sdTxnsPagination.totalItems,
+                      })}
                     </div>
                   </>
                 )}
@@ -1171,11 +1384,11 @@ export function AdminReports() {
                 </div>
 
                 {/* Courier-wise performance table */}
-                <div className="bg-white border border-[#E2E8F0] rounded-2xl overflow-hidden shadow-sm mb-8">
-                  <div className="p-4 border-b border-[#E2E8F0] bg-[#F8FAFC]">
+                <div className="bg-white border border-[#E2E8F0] rounded-2xl overflow-visible shadow-sm mb-8">
+                  <div className="sticky top-0 z-20 rounded-t-2xl p-4 border-b border-[#E2E8F0] bg-[#F8FAFC]">
                     <h3 className="font-bold text-sm text-[#0F172A] flex items-center gap-2"><Truck className="w-4 h-4 text-[#00A86B]" />Courier-wise Performance</h3>
                   </div>
-                  <div className="relative overflow-auto no-scrollbar max-h-[560px]">
+                  <div className="hidden md:block relative overflow-auto no-scrollbar max-h-[560px]">
                     {loadingCouriers && <TableLoader />}
                     <table className="w-full text-left border-collapse">
                       <thead className="sticky top-0 z-10 bg-[#E6F9F2] shadow-sm">
@@ -1211,12 +1424,61 @@ export function AdminReports() {
                       </tbody>
                     </table>
                   </div>
+
+                  {/* Mobile card list */}
+                  <div className="md:hidden relative bg-[#F8FAFC] p-4 space-y-4">
+                    {loadingCouriers && <div className="relative h-32"><TableLoader /></div>}
+                    {!loadingCouriers && couriers.map((c, i) => (
+                      <div key={c.name} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
+                        <div className="absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide"
+                          style={{ background: '#00A86B', clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}>
+                          #{i + 1}
+                        </div>
+                        <div className="pt-8 px-4 pb-4">
+                          <div className="rounded-xl p-3 mb-3 bg-white border border-[#E2E8F0] flex items-center gap-3">
+                            <img src={getCourierLogo(c.name)} alt={c.name} className="w-16 h-7 rounded object-contain object-left shrink-0"
+                              onError={(e) => { (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(c.name)}&background=f8fafc&color=0f172a&bold=true&font-size=0.4`; }} />
+                            <span className="text-[12px] font-semibold text-[#0F172A] truncate">{c.name}</span>
+                          </div>
+
+                          <div className="flex items-start justify-between mb-3 px-1 gap-2">
+                            <span className="text-[12px] font-normal text-[#0F172A] flex-1">{fn(c.totalShipments || c.shipments)} shipments</span>
+                            <span className="text-[12px] font-normal text-[#0F172A] shrink-0">{fc(c.totalBilled || c.billed)}</span>
+                          </div>
+
+                          <div className="bg-[#F8FAFC] rounded-xl px-3 py-2.5 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] text-[#94A3B8] uppercase tracking-wider">Delivered</span>
+                              <span className="text-[12px] font-normal text-[#00A86B]">{fn(c.delivered)}</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] text-[#94A3B8] uppercase tracking-wider">RTO</span>
+                              <span className="text-[12px] font-normal text-red-500">{fn(c.rto)}</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] text-[#94A3B8] uppercase tracking-wider">NDR</span>
+                              <span className="text-[12px] font-normal text-amber-500">{fn(c.ndr)}</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] text-[#94A3B8] uppercase tracking-wider">Delivery %</span>
+                              <span className="text-[12px] font-normal text-[#0F172A]">{c.deliveryRate}%</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] text-[#94A3B8] uppercase tracking-wider">RTO %</span>
+                              <span className="text-[12px] font-normal text-[#0F172A]">{c.rtoRate}%</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </>
             )}
           </motion.div>
         )}
 
+        </div>
       </div>
 
       {/* Generate Report Modal */}

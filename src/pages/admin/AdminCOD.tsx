@@ -308,6 +308,9 @@ export function AdminCOD() {
   const [isMobileCourierFiltersOpen, setIsMobileCourierFiltersOpen] = useState(false);
   const [showMobileSellerActionMenu, setShowMobileSellerActionMenu] = useState(false);
   const [showMobileCourierActionMenu, setShowMobileCourierActionMenu] = useState(false);
+  const [showMobileCodStats, setShowMobileCodStats] = useState(false);
+  const [showMobileSellerStats, setShowMobileSellerStats] = useState(false);
+  const [showMobileCourierStats, setShowMobileCourierStats] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [codRowsPerPage, setCodRowsPerPage] = useState(20);
   const [sellerRowsPerPage, setSellerRowsPerPage] = useState(20);
@@ -779,7 +782,8 @@ export function AdminCOD() {
                 <button
                   key={tab.name}
                   onClick={() => handleTabChange(tab.name)}
-                  className={`relative px-4 py-2 text-[13px] font-bold transition-colors whitespace-nowrap rounded-full flex items-center gap-1.5 cursor-pointer ${
+                  ref={(el) => { if (el && activeTab === tab.name) el.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }}
+                  className={`relative px-4 py-2 text-[14px] md:text-[13px] font-semibold md:font-bold transition-colors whitespace-nowrap rounded-full flex items-center gap-1.5 cursor-pointer ${
                     activeTab === tab.name ? 'text-[#00A86B] underline underline-offset-4 decoration-2' : 'text-[#64748B] hover:text-[#0F172A]'
                   }`}
                 >
@@ -807,9 +811,9 @@ export function AdminCOD() {
                 <button
                   onClick={handleExportBankTemplate}
                   disabled={bankExportLoading}
-                  className="h-9 px-4 rounded-full bg-[#00A86B] text-white text-[12px] font-bold shadow-sm flex items-center gap-1.5 whitespace-nowrap active:bg-[#009B63] transition-colors disabled:opacity-60"
+                  className="h-9 px-2.5 rounded-full bg-[#00A86B] text-white text-[11px] font-bold shadow-sm flex items-center gap-1 whitespace-nowrap active:bg-[#009B63] transition-colors disabled:opacity-60 shrink-0"
                 >
-                  <Banknote className="w-3.5 h-3.5" /> Early COD
+                  <Banknote className="w-3 h-3 shrink-0" /> Early COD
                 </button>
                 <button
                   onClick={handleOpenBankResponseUpload}
@@ -868,9 +872,9 @@ export function AdminCOD() {
                 <button
                   onClick={handleExportBankTemplate}
                   disabled={bankExportLoading}
-                  className="h-9 px-4 rounded-full bg-[#00A86B] text-white text-[12px] font-bold shadow-sm flex items-center gap-1.5 whitespace-nowrap active:bg-[#009B63] transition-colors disabled:opacity-60 shrink-0"
+                  className="h-9 px-2.5 rounded-full bg-[#00A86B] text-white text-[11px] font-bold shadow-sm flex items-center gap-1 whitespace-nowrap active:bg-[#009B63] transition-colors disabled:opacity-60 shrink-0"
                 >
-                  <Banknote className="w-3.5 h-3.5" /> Early COD
+                  <Banknote className="w-3 h-3 shrink-0" /> Early COD
                 </button>
               </div>
             </div>
@@ -938,44 +942,56 @@ export function AdminCOD() {
               </div>
 
               {/* Mobile Stat Cards */}
-              <div className="md:hidden p-4 border-b border-[#E2E8F0] bg-white space-y-2.5">
-                <div className="grid grid-cols-2 gap-2.5">
-                  <div className="bg-[#F0F9FF] rounded-xl p-3 border border-[#E0F2FE] flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-full bg-[#DBEAFE] flex items-center justify-center shrink-0"><Wallet className="w-4 h-4 text-[#3B82F6]" /></div>
-                    <div className="min-w-0">
-                      <div className="text-[13px] font-bold text-[#0F172A] truncate">{fmtCurrency(sellerSummary.CODToBeRemitted)}</div>
-                      <div className="text-[10px] font-semibold text-[#64748B] truncate">COD To Be Remitted</div>
-                    </div>
-                  </div>
-                  <div className="bg-[#FAF5FF] rounded-xl p-3 border border-[#F3E8FF] flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-full bg-[#F3E8FF] flex items-center justify-center shrink-0"><Send className="w-4 h-4 text-[#A855F7]" /></div>
-                    <div className="min-w-0">
-                      <div className="text-[13px] font-bold text-[#0F172A] truncate">{fmtCurrency(sellerSummary.LastCodRemmited)}</div>
-                      <div className="text-[10px] font-semibold text-[#64748B] truncate">Last COD Remitted</div>
-                    </div>
-                  </div>
-                  <div className="bg-[#F0FDFA] rounded-xl p-3 border border-[#CCFBF1] flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-full bg-[#CCFBF1] flex items-center justify-center shrink-0"><Banknote className="w-4 h-4 text-[#14B8A6]" /></div>
-                    <div className="min-w-0">
-                      <div className="text-[13px] font-bold text-[#0F172A] truncate">{fmtCurrency(sellerSummary.TotalCODRemitted)}</div>
-                      <div className="text-[10px] font-semibold text-[#64748B] truncate">Total COD Remitted</div>
-                    </div>
-                  </div>
-                  <div className="bg-[#FEFCE8] rounded-xl p-3 border border-[#FEF08A] flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-full bg-[#FEF08A] flex items-center justify-center shrink-0"><MinusCircle className="w-4 h-4 text-[#EAB308]" /></div>
-                    <div className="min-w-0">
-                      <div className="text-[13px] font-bold text-[#0F172A] truncate">{fmtCurrency(sellerSummary.TotalDeductionfromCOD)}</div>
-                      <div className="text-[10px] font-semibold text-[#64748B] truncate">Total Deduction</div>
-                    </div>
-                  </div>
-                </div>
-                <div className="bg-[#F8F5FF] rounded-xl p-3 border border-[#F3EFFF] flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-full bg-[#EADDFF] flex items-center justify-center shrink-0"><Clock className="w-4 h-4 text-[#8B5CF6]" /></div>
-                  <div className="min-w-0">
-                    <div className="text-[13px] font-bold text-[#0F172A] truncate">{fmtCurrency(sellerSummary.RemittanceInitiated)}</div>
-                    <div className="text-[10px] font-semibold text-[#64748B] truncate">Remittance Initiated</div>
-                  </div>
-                </div>
+              <div className="md:hidden border-b border-[#E2E8F0] bg-white">
+                <button onClick={() => setShowMobileSellerStats(v => !v)}
+                  className="w-full flex items-center justify-between px-4 py-3 text-[13px] font-bold text-[#0F172A]">
+                  Summary
+                  <ChevronDown className={`w-4 h-4 text-[#64748B] transition-transform ${showMobileSellerStats ? 'rotate-180' : ''}`} />
+                </button>
+                <AnimatePresence>
+                  {showMobileSellerStats && (
+                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.18, ease: 'easeOut' }} className="overflow-hidden">
+                      <div className="grid grid-cols-3 gap-2 px-3 pb-3">
+                        <div className="bg-[#F0F9FF] rounded-xl p-2 border border-[#E0F2FE] flex flex-col items-center text-center gap-1">
+                          <div className="w-7 h-7 rounded-full bg-[#DBEAFE] flex items-center justify-center shrink-0"><Wallet className="w-3.5 h-3.5 text-[#3B82F6]" /></div>
+                          <div className="min-w-0 w-full">
+                            <div className="text-[12px] font-bold text-[#0F172A] truncate">{fmtCurrency(sellerSummary.CODToBeRemitted)}</div>
+                            <div className="text-[9px] font-semibold text-[#64748B] leading-tight truncate">COD To Be Remitted</div>
+                          </div>
+                        </div>
+                        <div className="bg-[#FAF5FF] rounded-xl p-2 border border-[#F3E8FF] flex flex-col items-center text-center gap-1">
+                          <div className="w-7 h-7 rounded-full bg-[#F3E8FF] flex items-center justify-center shrink-0"><Send className="w-3.5 h-3.5 text-[#A855F7]" /></div>
+                          <div className="min-w-0 w-full">
+                            <div className="text-[12px] font-bold text-[#0F172A] truncate">{fmtCurrency(sellerSummary.LastCodRemmited)}</div>
+                            <div className="text-[9px] font-semibold text-[#64748B] leading-tight truncate">Last COD Remitted</div>
+                          </div>
+                        </div>
+                        <div className="bg-[#F0FDFA] rounded-xl p-2 border border-[#CCFBF1] flex flex-col items-center text-center gap-1">
+                          <div className="w-7 h-7 rounded-full bg-[#CCFBF1] flex items-center justify-center shrink-0"><Banknote className="w-3.5 h-3.5 text-[#14B8A6]" /></div>
+                          <div className="min-w-0 w-full">
+                            <div className="text-[12px] font-bold text-[#0F172A] truncate">{fmtCurrency(sellerSummary.TotalCODRemitted)}</div>
+                            <div className="text-[9px] font-semibold text-[#64748B] leading-tight truncate">Total COD Remitted</div>
+                          </div>
+                        </div>
+                        <div className="bg-[#FEFCE8] rounded-xl p-2 border border-[#FEF08A] flex flex-col items-center text-center gap-1">
+                          <div className="w-7 h-7 rounded-full bg-[#FEF08A] flex items-center justify-center shrink-0"><MinusCircle className="w-3.5 h-3.5 text-[#EAB308]" /></div>
+                          <div className="min-w-0 w-full">
+                            <div className="text-[12px] font-bold text-[#0F172A] truncate">{fmtCurrency(sellerSummary.TotalDeductionfromCOD)}</div>
+                            <div className="text-[9px] font-semibold text-[#64748B] leading-tight truncate">Total Deduction</div>
+                          </div>
+                        </div>
+                        <div className="bg-[#F8F5FF] rounded-xl p-2 border border-[#F3EFFF] flex flex-col items-center text-center gap-1">
+                          <div className="w-7 h-7 rounded-full bg-[#EADDFF] flex items-center justify-center shrink-0"><Clock className="w-3.5 h-3.5 text-[#8B5CF6]" /></div>
+                          <div className="min-w-0 w-full">
+                            <div className="text-[12px] font-bold text-[#0F172A] truncate">{fmtCurrency(sellerSummary.RemittanceInitiated)}</div>
+                            <div className="text-[9px] font-semibold text-[#64748B] leading-tight truncate">Remittance Initiated</div>
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </>
           )}
@@ -997,30 +1013,42 @@ export function AdminCOD() {
               </div>
 
               {/* Mobile Stat Cards */}
-              <div className="md:hidden p-4 border-b border-[#E2E8F0] bg-white space-y-2.5">
-                <div className="grid grid-cols-2 gap-2.5">
-                  <div className="bg-[#F0F9FF] rounded-xl p-3 border border-[#E0F2FE] flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-full bg-[#DBEAFE] flex items-center justify-center shrink-0"><Banknote className="w-4 h-4 text-[#3B82F6]" /></div>
-                    <div className="min-w-0">
-                      <div className="text-[13px] font-bold text-[#0F172A] truncate">{fmtCurrency(courierSummary.totalCODAmount)}</div>
-                      <div className="text-[10px] font-semibold text-[#64748B] truncate">Total Courier COD</div>
-                    </div>
-                  </div>
-                  <div className="bg-[#FEFCE8] rounded-xl p-3 border border-[#FEF08A] flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-full bg-[#FEF08A] flex items-center justify-center shrink-0"><MinusCircle className="w-4 h-4 text-[#EAB308]" /></div>
-                    <div className="min-w-0">
-                      <div className="text-[13px] font-bold text-[#0F172A] truncate">{fmtCurrency(courierSummary.paidCODAmount)}</div>
-                      <div className="text-[10px] font-semibold text-[#64748B] truncate">Paid COD Amount</div>
-                    </div>
-                  </div>
-                </div>
-                <div className="bg-[#FAF5FF] rounded-xl p-3 border border-[#F3E8FF] flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-full bg-[#F3E8FF] flex items-center justify-center shrink-0"><Send className="w-4 h-4 text-[#A855F7]" /></div>
-                  <div className="min-w-0">
-                    <div className="text-[13px] font-bold text-[#0F172A] truncate">{fmtCurrency(courierSummary.pendingCODAmount)}</div>
-                    <div className="text-[10px] font-semibold text-[#64748B] truncate">Pending COD Amount</div>
-                  </div>
-                </div>
+              <div className="md:hidden border-b border-[#E2E8F0] bg-white">
+                <button onClick={() => setShowMobileCourierStats(v => !v)}
+                  className="w-full flex items-center justify-between px-4 py-3 text-[13px] font-bold text-[#0F172A]">
+                  Summary
+                  <ChevronDown className={`w-4 h-4 text-[#64748B] transition-transform ${showMobileCourierStats ? 'rotate-180' : ''}`} />
+                </button>
+                <AnimatePresence>
+                  {showMobileCourierStats && (
+                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.18, ease: 'easeOut' }} className="overflow-hidden">
+                      <div className="grid grid-cols-3 gap-2 px-3 pb-3">
+                        <div className="bg-[#F0F9FF] rounded-xl p-2 border border-[#E0F2FE] flex flex-col items-center text-center gap-1">
+                          <div className="w-7 h-7 rounded-full bg-[#DBEAFE] flex items-center justify-center shrink-0"><Banknote className="w-3.5 h-3.5 text-[#3B82F6]" /></div>
+                          <div className="min-w-0 w-full">
+                            <div className="text-[12px] font-bold text-[#0F172A] truncate">{fmtCurrency(courierSummary.totalCODAmount)}</div>
+                            <div className="text-[9px] font-semibold text-[#64748B] leading-tight truncate">Total Courier COD</div>
+                          </div>
+                        </div>
+                        <div className="bg-[#FEFCE8] rounded-xl p-2 border border-[#FEF08A] flex flex-col items-center text-center gap-1">
+                          <div className="w-7 h-7 rounded-full bg-[#FEF08A] flex items-center justify-center shrink-0"><MinusCircle className="w-3.5 h-3.5 text-[#EAB308]" /></div>
+                          <div className="min-w-0 w-full">
+                            <div className="text-[12px] font-bold text-[#0F172A] truncate">{fmtCurrency(courierSummary.paidCODAmount)}</div>
+                            <div className="text-[9px] font-semibold text-[#64748B] leading-tight truncate">Paid COD Amount</div>
+                          </div>
+                        </div>
+                        <div className="bg-[#FAF5FF] rounded-xl p-2 border border-[#F3E8FF] flex flex-col items-center text-center gap-1">
+                          <div className="w-7 h-7 rounded-full bg-[#F3E8FF] flex items-center justify-center shrink-0"><Send className="w-3.5 h-3.5 text-[#A855F7]" /></div>
+                          <div className="min-w-0 w-full">
+                            <div className="text-[12px] font-bold text-[#0F172A] truncate">{fmtCurrency(courierSummary.pendingCODAmount)}</div>
+                            <div className="text-[9px] font-semibold text-[#64748B] leading-tight truncate">Pending COD Amount</div>
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </>
           )}
@@ -1042,30 +1070,42 @@ export function AdminCOD() {
               </div>
 
               {/* Mobile Stat Cards */}
-              <div className="md:hidden p-4 border-b border-[#E2E8F0] bg-white space-y-2.5">
-                <div className="grid grid-cols-2 gap-2.5">
-                  <div className="bg-[#F0F9FF] rounded-xl p-3 border border-[#E0F2FE] flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-full bg-[#DBEAFE] flex items-center justify-center shrink-0"><Banknote className="w-4 h-4 text-[#3B82F6]" /></div>
-                    <div className="min-w-0">
-                      <div className="text-[13px] font-bold text-[#0F172A] truncate">{fmtCurrency(codSummary.totalCODAmount)}</div>
-                      <div className="text-[10px] font-semibold text-[#64748B] truncate">Total COD Remitted</div>
-                    </div>
-                  </div>
-                  <div className="bg-[#FEFCE8] rounded-xl p-3 border border-[#FEF08A] flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-full bg-[#FEF08A] flex items-center justify-center shrink-0"><Check className="w-4 h-4 text-[#EAB308]" /></div>
-                    <div className="min-w-0">
-                      <div className="text-[13px] font-bold text-[#0F172A] truncate">{fmtCurrency(codSummary.paidCODAmount)}</div>
-                      <div className="text-[10px] font-semibold text-[#64748B] truncate">Paid COD Amount</div>
-                    </div>
-                  </div>
-                </div>
-                <div className="bg-[#FAF5FF] rounded-xl p-3 border border-[#F3E8FF] flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-full bg-[#F3E8FF] flex items-center justify-center shrink-0"><Clock className="w-4 h-4 text-[#A855F7]" /></div>
-                  <div className="min-w-0">
-                    <div className="text-[13px] font-bold text-[#0F172A] truncate">{fmtCurrency(codSummary.pendingCODAmount)}</div>
-                    <div className="text-[10px] font-semibold text-[#64748B] truncate">Pending COD Amount</div>
-                  </div>
-                </div>
+              <div className="md:hidden border-b border-[#E2E8F0] bg-white">
+                <button onClick={() => setShowMobileCodStats(v => !v)}
+                  className="w-full flex items-center justify-between px-4 py-3 text-[13px] font-bold text-[#0F172A]">
+                  Summary
+                  <ChevronDown className={`w-4 h-4 text-[#64748B] transition-transform ${showMobileCodStats ? 'rotate-180' : ''}`} />
+                </button>
+                <AnimatePresence>
+                  {showMobileCodStats && (
+                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.18, ease: 'easeOut' }} className="overflow-hidden">
+                      <div className="grid grid-cols-3 gap-2 px-3 pb-3">
+                        <div className="bg-[#F0F9FF] rounded-xl p-2 border border-[#E0F2FE] flex flex-col items-center text-center gap-1">
+                          <div className="w-7 h-7 rounded-full bg-[#DBEAFE] flex items-center justify-center shrink-0"><Banknote className="w-3.5 h-3.5 text-[#3B82F6]" /></div>
+                          <div className="min-w-0 w-full">
+                            <div className="text-[12px] font-bold text-[#0F172A] truncate">{fmtCurrency(codSummary.totalCODAmount)}</div>
+                            <div className="text-[9px] font-semibold text-[#64748B] leading-tight truncate">Total COD Remitted</div>
+                          </div>
+                        </div>
+                        <div className="bg-[#FEFCE8] rounded-xl p-2 border border-[#FEF08A] flex flex-col items-center text-center gap-1">
+                          <div className="w-7 h-7 rounded-full bg-[#FEF08A] flex items-center justify-center shrink-0"><Check className="w-3.5 h-3.5 text-[#EAB308]" /></div>
+                          <div className="min-w-0 w-full">
+                            <div className="text-[12px] font-bold text-[#0F172A] truncate">{fmtCurrency(codSummary.paidCODAmount)}</div>
+                            <div className="text-[9px] font-semibold text-[#64748B] leading-tight truncate">Paid COD Amount</div>
+                          </div>
+                        </div>
+                        <div className="bg-[#FAF5FF] rounded-xl p-2 border border-[#F3E8FF] flex flex-col items-center text-center gap-1">
+                          <div className="w-7 h-7 rounded-full bg-[#F3E8FF] flex items-center justify-center shrink-0"><Clock className="w-3.5 h-3.5 text-[#A855F7]" /></div>
+                          <div className="min-w-0 w-full">
+                            <div className="text-[12px] font-bold text-[#0F172A] truncate">{fmtCurrency(codSummary.pendingCODAmount)}</div>
+                            <div className="text-[9px] font-semibold text-[#64748B] leading-tight truncate">Pending COD Amount</div>
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </>
           )}
@@ -1453,7 +1493,7 @@ export function AdminCOD() {
                 {filteredSellerRemittanceList.length === 0 ? (
                   <EmptyState title="No seller remittance records found" />
                 ) : (
-                  <div className="p-4 space-y-4">
+                  <div className="p-3 space-y-3">
                     {filteredSellerRemittanceList.map((order) => {
                       const accent = order.status === 'Paid' ? '#00A86B' : '#F59E0B';
                       return (
@@ -1466,62 +1506,56 @@ export function AdminCOD() {
                             {order.status}
                           </div>
 
-                          <div className="pt-8 px-4 pb-4">
-                            {/* Header row: checkbox + COD Remittance / Remitted on + Amount */}
-                            <div className="rounded-xl p-3 mb-3 bg-white flex items-start justify-between gap-2" style={{ border: `1px solid ${accent}` }}>
+                          <div className="pt-7 px-3 pb-3">
+                            {/* Header row: checkbox + COD Remittance / seller name+email + Amount */}
+                            <div className="rounded-xl p-2.5 mb-2.5 bg-white flex items-start justify-between gap-2" style={{ border: `1px solid ${accent}` }}>
                               <div className="flex items-start gap-2.5 min-w-0 flex-1">
                                 <input type="checkbox" checked={selectedCodOrders.includes(order.awb)} onChange={() => toggleSelectCod(order.awb)} className="rounded border-gray-300 accent-[#00A86B] w-4 h-4 shrink-0 mt-0.5" />
                                 <div className="w-8 h-8 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg flex items-center justify-center shrink-0">
                                   <Banknote className="w-4 h-4 text-[#94A3B8]" />
                                 </div>
-                                <div className="min-w-0">
-                                  <button onClick={() => openRemittanceDetail(order.awb)} className="text-[12px] font-semibold text-[#00A86B] hover:underline cursor-pointer text-left">
+                                <div className="min-w-0 flex-1">
+                                  <button onClick={() => openRemittanceDetail(order.awb)} className="text-[12px] font-semibold text-[#00A86B] hover:underline cursor-pointer text-left block truncate w-full">
                                     {order.awb || 'COD Remittance'}
                                   </button>
-                                  <div className="text-[11px] font-normal text-[#94A3B8] mt-0.5">Remitted on: {withOrdinalSuffix(order.date)}</div>
+                                  {isAdminView && order.userName && (
+                                    <>
+                                      <TruncatedText text={order.userName} maxLength={20} className="text-[12px] font-semibold text-[#0F172A] mt-0.5" />
+                                      <TruncatedText text={order.userEmail} maxLength={26} className="text-[11px] font-normal text-[#94A3B8]" />
+                                    </>
+                                  )}
                                 </div>
                               </div>
                               <div className="text-[13px] font-bold text-[#00A86B] shrink-0">{fmtCurrency(order.remittanceAmount)}</div>
                             </div>
 
-                            {/* UTR / Total COD / Wallet Credit / Adj. Amt / Early COD strip */}
-                            <div className="grid grid-cols-2 gap-x-3 gap-y-2 bg-[#F8FAFC] rounded-xl px-3 py-2.5 mb-3">
+                            {/* UTR / Total COD / Wallet Credit / Adj. Amt / Early COD / Remitted on strip */}
+                            <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 bg-[#F8FAFC] rounded-xl px-2.5 py-2">
                               <div>
                                 <div className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wide">UTR</div>
-                                <div className="text-[12px] font-medium text-[#0F172A] mt-0.5 truncate">{order.utr}</div>
+                                <div className="text-[12px] font-normal text-[#0F172A] mt-0.5 truncate">{order.utr}</div>
                               </div>
                               <div>
                                 <div className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wide">Total COD</div>
-                                <div className="text-[12px] font-medium text-[#0F172A] mt-0.5">{fmtCurrency(order.totalCodAmount)}</div>
+                                <div className="text-[12px] font-normal text-[#0F172A] mt-0.5">{fmtCurrency(order.totalCodAmount)}</div>
                               </div>
                               <div>
                                 <div className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wide">Wallet Credit</div>
-                                <div className="text-[12px] font-medium text-red-500 mt-0.5">{fmtCurrency(order.creditedAmount)}</div>
+                                <div className="text-[12px] font-normal text-red-500 mt-0.5">{fmtCurrency(order.creditedAmount)}</div>
                               </div>
                               <div>
                                 <div className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wide">Adj. Amt</div>
-                                <div className="text-[12px] font-medium text-[#0F172A] mt-0.5">{fmtCurrency(order.adjustedAmount)}</div>
+                                <div className="text-[12px] font-normal text-[#0F172A] mt-0.5">{fmtCurrency(order.adjustedAmount)}</div>
                               </div>
                               <div>
                                 <div className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wide">Early COD</div>
-                                <div className="text-[12px] font-medium text-red-700 mt-0.5">{fmtCurrency(order.earlyCodCharges)}</div>
+                                <div className="text-[12px] font-normal text-red-700 mt-0.5">{fmtCurrency(order.earlyCodCharges)}</div>
+                              </div>
+                              <div>
+                                <div className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wide">Remitted On</div>
+                                <div className="text-[12px] font-normal text-[#0F172A] mt-0.5">{withOrdinalSuffix(order.date)}</div>
                               </div>
                             </div>
-
-                            {/* User footer row */}
-                            {isAdminView && order.userName && (
-                              <div className="flex items-center justify-between gap-2">
-                                <div className="flex items-center gap-2 min-w-0">
-                                  <div className="w-7 h-7 rounded-full bg-[#DCFCE7] text-[#00A86B] flex items-center justify-center text-[11px] font-bold shrink-0">
-                                    {order.userName.charAt(0).toUpperCase()}
-                                  </div>
-                                  <div className="min-w-0">
-                                    <TruncatedText text={order.userName} maxLength={20} className="text-[12px] font-semibold text-[#0F172A]" />
-                                    <TruncatedText text={order.userEmail} maxLength={26} className="text-[11px] font-normal text-[#94A3B8]" />
-                                  </div>
-                                </div>
-                              </div>
-                            )}
                           </div>
                         </div>
                       );

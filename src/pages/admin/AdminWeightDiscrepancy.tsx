@@ -663,7 +663,8 @@ export function AdminWeightDiscrepancy() {
             <div className="flex gap-1 items-center bg-[#F7FEFC] rounded-full p-1.5 shrink-0">
               {MAIN_TABS.map(tab => (
                 <button key={tab} onClick={() => handleTabChange(tab)}
-                  className={`relative px-4 py-2 text-[13px] font-bold transition-colors whitespace-nowrap rounded-full flex items-center gap-1.5 cursor-pointer ${
+                  ref={(el) => { if (el && activeTab === tab) el.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }}
+                  className={`relative px-4 py-2 text-[14px] md:text-[13px] font-semibold md:font-bold transition-colors whitespace-nowrap rounded-full flex items-center gap-1.5 cursor-pointer ${
                     activeTab === tab ? 'text-[#00A86B] underline underline-offset-4 decoration-2' : 'text-[#64748B] hover:text-[#0F172A]'
                   }`}>
                   {tab}

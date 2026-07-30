@@ -8,6 +8,7 @@ import { Login } from './pages/Login';
 import { ProtectedRoute } from './components/layout/ProtectedRoute';
 import { AdminUserProvider } from './context/AdminUserContext';
 import { DashboardFilterProvider } from './context/DashboardFilterContext';
+import { OfflineOverlay } from './components/ui/OfflineOverlay';
 
 
 
@@ -140,6 +141,7 @@ const queryClient = new QueryClient();
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
+      <OfflineOverlay />
       <Router>
         <GlobalOrderClickInterceptor />
         <Routes>

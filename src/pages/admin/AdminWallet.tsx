@@ -1093,17 +1093,20 @@ export function AdminWallet() {
 
           {/* Top Header Row — Tabs */}
           <div className="flex justify-between items-center px-4 md:px-6 py-2 border-b border-[#E2E8F0] bg-white">
-            <div className="flex gap-1 items-center bg-[#F7FEFC] rounded-full p-1.5 shrink-0 overflow-x-auto no-scrollbar">
-              {MAIN_TABS.map((tab) => (
-                <button
-                  key={tab.name}
-                  onClick={() => setActiveTab(tab.name)}
-                  className={`relative px-4 py-2 text-[13px] font-bold transition-colors whitespace-nowrap rounded-full flex items-center gap-1.5 cursor-pointer ${activeTab === tab.name ? 'text-[#00A86B] underline underline-offset-4 decoration-2' : 'text-[#64748B] hover:text-[#0F172A]'
-                    }`}
-                >
-                  {tab.name}
-                </button>
-              ))}
+            <div className="flex gap-1 items-center min-w-0 bg-[#F7FEFC] rounded-full p-1.5">
+              <div className="flex gap-1 items-center overflow-x-auto no-scrollbar min-w-0">
+                {MAIN_TABS.map((tab) => (
+                  <button
+                    key={tab.name}
+                    onClick={() => setActiveTab(tab.name)}
+                    ref={(el) => { if (el && activeTab === tab.name) el.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }}
+                    className={`relative px-4 py-2 text-[14px] md:text-[13px] font-semibold md:font-bold transition-colors whitespace-nowrap rounded-full flex items-center gap-1.5 cursor-pointer ${activeTab === tab.name ? 'text-[#00A86B] underline underline-offset-4 decoration-2' : 'text-[#64748B] hover:text-[#0F172A]'
+                      }`}
+                  >
+                    {tab.name}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="hidden md:flex items-center gap-3 shrink-0 ml-4">
