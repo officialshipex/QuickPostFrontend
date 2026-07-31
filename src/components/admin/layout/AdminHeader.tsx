@@ -17,7 +17,7 @@ interface AdminHeaderProps {
 
 export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
   const { logout } = useAuth();
-  const { isAdmin, adminTab, toggleAdminTab, userName, userEmail, profileImage, walletBalance: ctxWalletBalance, walletHold } = useAdminTab();
+  const { isAdmin, adminTab, toggleAdminTab, userName, userEmail, businessName, profileImage, walletBalance: ctxWalletBalance, walletHold } = useAdminTab();
   const { filters, updateFilter } = useDashboardFilters();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -185,6 +185,24 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
 
   // KYC is a self-contained onboarding flow — the page-context search/date/quick-action tools don't apply there.
   const isKycPage = location.pathname === '/admin/kyc' || location.pathname.startsWith('/admin/kyc/');
+
+  // Pages (both /admin/* and /user/*) that either have their own in-page date
+  // filter or don't need one at all — the navbar date filter is dashboard-only.
+  // Deliberately separate from isSetupPage/isKycPage so it doesn't also hide
+  // Quick Actions or the global search, which should stay available everywhere.
+  const isDateFilterHiddenPage = [
+    '/admin/orders', '/user/orders',
+    '/admin/ndr', '/user/ndr',
+    '/admin/wallet', '/user/wallet',
+    '/admin/cod', '/user/cod',
+    '/admin/reports', '/user/reports',
+    '/admin/weight-discrepancy', '/user/weight-discrepancy',
+    '/admin/notification', '/user/notification',
+    '/admin/rate-calculator', '/user/rate-calculator',
+    '/admin/kyc', '/user/kyc',
+    '/admin/settings', '/user/settings',
+    '/admin/referral', '/user/referral',
+  ].some((path) => location.pathname === path || location.pathname.startsWith(path + '/'));
 
   // ─── Global navbar search — always searches Orders, regardless of the current page ──
   // The "Search by" behavior never changes; only the placeholder hint cycles through
@@ -509,6 +527,8 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
               setShowOrderSearchResults(true);
             }}
             onFocus={() => { if (searchQuery.trim()) setShowOrderSearchResults(true); }}
+            name="navbar-global-order-search"
+            autoComplete="off"
             className="w-full h-10 pl-10 pr-12 rounded-full border border-[#E2E8F0] bg-[#F8FAFC]/50 text-sm focus:outline-none focus:ring-2 focus:ring-[#00A86B]/20 focus:border-[#00A86B] transition-all text-[#0F172A] font-medium shadow-[0_2px_6px_rgba(0,0,0,0.02)] hover:border-[#CBD5E1]"
           />
           {!searchQuery && (
@@ -593,7 +613,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
       <div className="flex items-center gap-3 shrink-0">
         
         {/* Date Filter */}
-        {!isSetupPage && !isKycPage && (
+        {!isDateFilterHiddenPage && (
           <div className="relative">
             <motion.button
               whileHover={{ scale: 1.02 }}
@@ -944,7 +964,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
               <span className="text-[13px] font-bold text-[#0F172A] leading-tight group-hover:text-[#00A86B] transition-colors truncate max-w-[120px]">
                 {userName || 'User'}
               </span>
-              <span className="text-[11px] font-semibold text-[#64748B]">{(isAdmin && adminTab) ? 'Admin' : 'User'}</span>
+              <span className="text-[11px] font-semibold text-[#64748B] truncate max-w-[120px]">{(isAdmin && adminTab) ? 'Admin' : businessName}</span>
             </div>
             <ChevronDown className="w-3.5 h-3.5 text-[#94A3B8] group-hover:text-[#0F172A] transition-colors" />
           </button>

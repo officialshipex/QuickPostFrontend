@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiClient } from '../../services/apiClient';
 import { getToken } from '../../utils/session';
+import { useAdminTab } from '../../context/AdminUserContext';
 import {
   Search, ChevronDown, MapPin, Truck, X, Download, Filter,
-  User, Hash, Calendar, Package, Clock, CheckCircle2, Settings,
+  User, Hash, Calendar, Package, Clock, CheckCircle2, Settings, PackagePlus,
 } from 'lucide-react';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
@@ -12,6 +14,7 @@ import { usePagination, DesktopPagination } from '../../hooks/usePagination';
 import { useMobilePaginationBar } from '../../hooks/useMobilePaginationBar';
 import { TableLoader } from '../../components/ui/TableLoader';
 import { TruncatedText } from '../../components/ui/TruncatedText';
+import { EmptyState } from '../../components/ui/EmptyState';
 
 const BACKEND_BASE = (import.meta.env.VITE_API_URL as string) || 'http://localhost:5000/v1';
 
@@ -41,6 +44,8 @@ interface Props {
 }
 
 export function AdminPickupManifest({ isAdminView }: Props) {
+  const navigate = useNavigate();
+  const { currentUserId, loadingAdminTab } = useAdminTab();
 
   const [manifests, setManifests]       = useState<any[]>([]);
   const [loading, setLoading]           = useState(false);
@@ -97,6 +102,7 @@ export function AdminPickupManifest({ isAdminView }: Props) {
       if (dateStart)                         params.startDate            = dateStart;
       if (dateEnd)                           params.endDate              = dateEnd;
       if (isAdminView && userMongoId)        params.userId               = userMongoId;
+      else if (!isAdminView && currentUserId) params.userId              = currentUserId;
 
       const res = await apiClient.get('/admin/filterPickupManifests', { params });
       setManifests(res.data?.manifests || []);
@@ -115,13 +121,15 @@ export function AdminPickupManifest({ isAdminView }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [page, searchId, awbNumber, selectedCouriers, selectedPickupAddresses, dateStart, dateEnd, userMongoId, isAdminView, rowsPerPage]);
+  }, [page, searchId, awbNumber, selectedCouriers, selectedPickupAddresses, dateStart, dateEnd, userMongoId, isAdminView, currentUserId, rowsPerPage]);
 
+  // Guard with loadingAdminTab: without this, on refresh currentUserId is '' and all data is returned.
   useEffect(() => {
+    if (loadingAdminTab) return;
     setSelectedManifests([]);
     fetchManifests(page);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, refreshTrigger, isAdminView]);
+  }, [page, refreshTrigger, isAdminView, currentUserId, loadingAdminTab]);
 
   useEffect(() => {
     setPage(1);
@@ -264,6 +272,15 @@ export function AdminPickupManifest({ isAdminView }: Props) {
             )}
           </AnimatePresence>
         </div>
+        {!isAdminView && (
+          <button
+            onClick={() => navigate('/user/add-order')}
+            aria-label="Add Order"
+            className="w-9 h-9 rounded-[80px] border border-[#03C27D] flex items-center justify-center text-white shadow-sm transition-transform hover:scale-105 bg-[#009D64]"
+          >
+            <PackagePlus className="w-4 h-4" />
+          </button>
+        )}
       </div>
 
       {/* ── Filter Row — desktop only ── */}
@@ -392,8 +409,8 @@ export function AdminPickupManifest({ isAdminView }: Props) {
             <tbody className="text-[11px] text-[#475569]">
               {paginatedManifests.length === 0 ? (
                 <tr>
-                  <td colSpan={colSpan} className="p-10 text-center text-[#64748B] font-medium">
-                    No manifests found
+                  <td colSpan={colSpan} className="text-center">
+                    <EmptyState title="No manifests found" subtitle="Try changing filters" />
                   </td>
                 </tr>
               ) : paginatedManifests.map((m, idx) => (
@@ -498,8 +515,8 @@ export function AdminPickupManifest({ isAdminView }: Props) {
       <div className="md:hidden flex-1 overflow-y-auto bg-[#F8FAFC] relative">
         {loading && <TableLoader />}
         {paginatedManifests.length === 0 ? (
-          <div className="p-8 text-center text-[#64748B] font-medium text-sm">
-            No manifests found
+          <div className="flex items-center justify-center min-h-[60vh]">
+            <EmptyState title="No manifests found" subtitle="Try changing filters" />
           </div>
         ) : (
           <div className="p-4 space-y-4">

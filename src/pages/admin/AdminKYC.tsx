@@ -21,10 +21,7 @@ import {
   RefreshCcw,
   Building,
   CheckCircle2,
-  FileCheck,
-  ChevronRight,
   Clock,
-  Sparkles,
   ShieldAlert,
   Copy,
   BadgeCheck,
@@ -41,41 +38,28 @@ interface GstData { gstin?: string; nameOfBusiness?: string; legalNameOfBusiness
 interface BillingData { address?: string; city?: string; state?: string; postalCode?: string; }
 
 /* ── READ-ONLY HELPER COMPONENTS ── */
-function KycCard({ title, icon: Icon, verified, accent, children }: { title: string; icon: React.ElementType; verified: boolean; accent: string; children: React.ReactNode }) {
+function KycCard({ title, icon: Icon, verified, children }: { title: string; icon: React.ElementType; verified: boolean; accent?: string; children: React.ReactNode }) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
-      whileHover={{ y: -3 }}
-      className="group relative bg-white rounded-3xl border border-slate-100 p-6 shadow-[0_2px_12px_-4px_rgba(15,23,42,0.06)] hover:shadow-[0_16px_36px_-12px_rgba(15,23,42,0.14)] transition-shadow duration-300 overflow-hidden"
-    >
-      <div
-        className="absolute -top-10 -right-10 w-32 h-32 rounded-full opacity-[0.06] transition-transform duration-500 group-hover:scale-110"
-        style={{ background: accent }}
-      />
-      <div className="relative flex items-center justify-between mb-5">
-        <div className="flex items-center gap-3">
-          <div
-            className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 shadow-sm"
-            style={{ background: `${accent}14`, color: accent }}
-          >
-            <Icon className="w-[18px] h-[18px]" />
+    <div className="bg-white rounded-2xl border border-[#E2E8F0] p-5 shadow-sm">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-[#F0FDF4] flex items-center justify-center shrink-0">
+            <Icon className="w-4 h-4 text-[#00A86B]" />
           </div>
-          <h3 className="text-[13.5px] font-bold text-[#0F172A] tracking-tight">{title}</h3>
+          <h3 className="text-sm font-bold text-[#0F172A]">{title}</h3>
         </div>
         {verified ? (
-          <span className="flex items-center gap-1 text-[10px] font-bold text-[#00A86B] bg-[#F0FDF4] border border-[#00A86B]/20 px-2.5 py-1 rounded-full select-none shadow-sm">
+          <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full select-none">
             <CheckCircle2 className="w-3 h-3" /> Verified
           </span>
         ) : (
-          <span className="flex items-center gap-1 text-[10px] font-bold text-amber-600 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full select-none shadow-sm">
+          <span className="flex items-center gap-1 text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full select-none">
             <Clock className="w-3 h-3" /> Pending
           </span>
         )}
       </div>
-      <div className="relative grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3.5">{children}</div>
-    </motion.div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3.5">{children}</div>
+    </div>
   );
 }
 
@@ -84,12 +68,12 @@ function KycField({ label, value, wide, onCopy }: { label: string; value?: strin
     <div className={`group/field ${wide ? 'sm:col-span-2' : ''}`}>
       <span className="block text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider mb-1">{label}</span>
       <div className="flex items-center gap-1.5">
-        <span className="text-[12.5px] font-semibold text-[#1E293B] break-all">{value || '—'}</span>
+        <span className="text-[13px] font-semibold text-[#0F172A] break-all">{value || '—'}</span>
         {value && onCopy && (
           <button
             type="button"
             onClick={() => onCopy(value)}
-            className="opacity-0 group-hover/field:opacity-100 transition-opacity shrink-0 text-slate-300 hover:text-[#00A86B] focus:outline-none"
+            className="opacity-0 group-hover/field:opacity-100 transition-opacity shrink-0 text-[#CBD5E1] hover:text-[#00A86B] focus:outline-none"
           >
             <Copy className="w-3 h-3" />
           </button>
@@ -99,24 +83,19 @@ function KycField({ label, value, wide, onCopy }: { label: string; value?: strin
   );
 }
 
-/* ── FORM WIZARD HELPER: consistent elevated section card with icon chip header ── */
+/* ── FORM WIZARD HELPER: consistent card with icon chip header, matching the app's SectionTitle pattern ── */
 function SectionCard({ icon: Icon, title, required, note, children }: { icon: React.ElementType; title: string; required?: boolean; note?: React.ReactNode; children: React.ReactNode }) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 14 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35 }}
-      className="bg-white rounded-2xl border border-slate-100 p-6 md:p-8 shadow-[0_2px_14px_-8px_rgba(15,23,42,0.08)] hover:shadow-[0_10px_28px_-12px_rgba(15,23,42,0.12)] transition-shadow duration-300"
-    >
-      <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-5 flex items-center gap-2.5">
-        <span className="w-7 h-7 rounded-xl bg-[#F0FDF4] flex items-center justify-center shrink-0">
+    <div className="bg-white rounded-2xl border border-[#E2E8F0] p-5 md:p-6 shadow-sm">
+      <h3 className="text-sm font-bold text-[#0F172A] mb-4 flex items-center gap-2.5">
+        <span className="w-7 h-7 rounded-lg bg-[#F0FDF4] flex items-center justify-center shrink-0">
           <Icon className="w-3.5 h-3.5 text-[#00A86B]" />
         </span>
         {title} {required && <span className="text-red-500">*</span>}
       </h3>
       {note}
       {children}
-    </motion.div>
+    </div>
   );
 }
 
@@ -481,7 +460,7 @@ export function AdminKYC() {
               <TableLoader />
             </div>
             <p className="text-sm font-bold text-[#0F172A]">Checking your KYC status</p>
-            <p className="text-xs text-slate-400">Just a moment while we securely fetch your verification details…</p>
+            <p className="text-xs text-[#94A3B8]">Just a moment while we securely fetch your verification details…</p>
           </div>
         </div>
       </AdminLayout>
@@ -493,37 +472,19 @@ export function AdminKYC() {
     const isVerifiedG = !!fetchedGst?.gstin;
     return (
       <AdminLayout>
-        <div className="max-w-4xl mx-auto pb-16">
-          <motion.div
-            initial={{ opacity: 0, y: -12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="relative mb-8 overflow-hidden rounded-3xl border border-[#00A86B]/15 shadow-[0_8px_32px_-12px_rgba(0,168,107,0.25)]"
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-[#00A86B] via-[#049966] to-[#0F766E]" />
-            <div className="absolute inset-0 opacity-[0.07]" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '22px 22px' }} />
-            <div className="absolute -top-16 -right-16 w-56 h-56 rounded-full bg-white/10 blur-2xl" />
-            <div className="relative flex items-center gap-4 px-6 py-6 md:px-8 md:py-7">
-              <motion.div
-                initial={{ scale: 0.5, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ type: 'spring', stiffness: 260, damping: 16, delay: 0.15 }}
-                className="w-14 h-14 rounded-2xl bg-white/15 backdrop-blur-sm border border-white/25 flex items-center justify-center shrink-0 shadow-lg"
-              >
-                <ShieldCheck className="w-7 h-7 text-white" strokeWidth={2.25} />
-              </motion.div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h2 className="text-[17px] font-bold text-white tracking-tight">KYC Verification Complete</h2>
-                  <Sparkles className="w-4 h-4 text-white/80" />
-                </div>
-                <p className="text-[12px] text-white/80 mt-0.5">All your documents have been successfully verified — this information is now read-only.</p>
-              </div>
+        <div className="max-w-5xl mx-auto pb-16">
+          <div className="mb-6 bg-[#F0FDF4] border border-emerald-200 rounded-2xl p-4 flex items-center gap-3 shadow-sm">
+            <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shrink-0 text-[#00A86B] shadow-sm">
+              <ShieldCheck className="w-5 h-5" />
             </div>
-          </motion.div>
+            <div>
+              <h2 className="text-sm font-bold text-[#0F172A]">KYC Verification Complete</h2>
+              <p className="text-xs text-[#64748B] mt-0.5">All your documents have been successfully verified — this information is now read-only.</p>
+            </div>
+          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <KycCard title="Aadhaar Details" icon={CreditCard} accent="#3B82F6" verified={!!fetchedAadhaar?.aadhaarNumber}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <KycCard title="Aadhaar Details" icon={CreditCard} verified={!!fetchedAadhaar?.aadhaarNumber}>
               <KycField label="Name" value={fetchedAadhaar?.name} wide onCopy={copyValue} />
               <KycField label="Aadhaar Number" value={fetchedAadhaar?.aadhaarNumber} onCopy={copyValue} />
               <KycField label="Guardian Name" value={fetchedAadhaar?.sonOf} />
@@ -531,14 +492,14 @@ export function AdminKYC() {
               <KycField label="Address" value={fetchedAadhaar?.address} wide />
             </KycCard>
 
-            <KycCard title="PAN Details" icon={FileText} accent="#8B5CF6" verified={!!fetchedPan?.pan}>
+            <KycCard title="PAN Details" icon={FileText} verified={!!fetchedPan?.pan}>
               <KycField label="PAN Number" value={fetchedPan?.pan} onCopy={copyValue} />
               <KycField label="PAN Type" value={fetchedPan?.panType} />
               <KycField label="Registered Name" value={fetchedPan?.registeredName} wide />
               <KycField label="PAN Ref ID" value={fetchedPan?.panRefId} wide />
             </KycCard>
 
-            <KycCard title="Bank Account Details" icon={Landmark} accent="#F59E0B" verified={!!(fetchedBank?.accountNumber && fetchedBank?.ifsc)}>
+            <KycCard title="Bank Account Details" icon={Landmark} verified={!!(fetchedBank?.accountNumber && fetchedBank?.ifsc)}>
               <KycField label="Name at Bank" value={fetchedBank?.nameAtBank} wide />
               <KycField label="Bank" value={fetchedBank?.bank} />
               <KycField label="Branch" value={fetchedBank?.branch} />
@@ -546,7 +507,7 @@ export function AdminKYC() {
               <KycField label="IFSC" value={fetchedBank?.ifsc} onCopy={copyValue} />
             </KycCard>
 
-            <KycCard title={isVerifiedG ? 'GST Details' : 'Billing Details'} icon={isVerifiedG ? ReceiptText : MapPin} accent="#00A86B" verified={!!(fetchedBilling?.address || isVerifiedG)}>
+            <KycCard title={isVerifiedG ? 'GST Details' : 'Billing Details'} icon={isVerifiedG ? ReceiptText : MapPin} verified={!!(fetchedBilling?.address || isVerifiedG)}>
               {isVerifiedG ? (
                 <>
                   <KycField label="GSTIN" value={fetchedGst?.gstin} onCopy={copyValue} />
@@ -588,96 +549,51 @@ export function AdminKYC() {
   /* ── FORM WIZARD ── */
   return (
     <AdminLayout>
-      <div className="max-w-4xl mx-auto text-[#0F172A] pb-16 font-sans admin-kyc-wrapper" style={{ fontFamily: "'Roboto', sans-serif" }}>
-
-        <style dangerouslySetInnerHTML={{__html: `
-          @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
-          .admin-kyc-wrapper, .admin-kyc-wrapper * { font-family: 'Roboto', sans-serif !important; }
-          .admin-kyc-wrapper h3, .admin-kyc-wrapper .heading-14 { font-size: 14px !important; }
-          .admin-kyc-wrapper label, .admin-kyc-wrapper input:not(.otp-box), .admin-kyc-wrapper textarea,
-          .admin-kyc-wrapper select, .admin-kyc-wrapper button, .admin-kyc-wrapper p:not(.subtext),
-          .admin-kyc-wrapper span:not(.heading-14) { font-size: 13px !important; }
-        `}} />
+      <div className="max-w-4xl mx-auto text-[#0F172A] pb-16">
 
         {/* Hero Intro */}
         {!isSubmitted && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}
-            className="relative overflow-hidden rounded-3xl border border-slate-100 mb-6 shadow-[0_2px_16px_-8px_rgba(15,23,42,0.08)]"
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-[#0F172A] via-[#132a24] to-[#0F172A]" />
-            <div className="absolute -bottom-10 -right-6 w-44 h-44 rounded-full bg-[#00A86B]/20 blur-3xl" />
-            <div className="relative flex items-center gap-4 px-6 py-5 md:px-8">
-              <div className="w-11 h-11 rounded-2xl bg-white/10 border border-white/15 flex items-center justify-center shrink-0">
-                <ShieldAlert className="w-5 h-5 text-[#34D399]" />
-              </div>
-              <div>
-                <h1 className="text-[16px] font-bold text-white tracking-tight">Complete Your KYC Verification</h1>
-                <p className="text-[11.5px] text-white/60 mt-0.5">A quick, secure two-step process to activate your account for shipping.</p>
-              </div>
-            </div>
-          </motion.div>
+          <div className="mb-6">
+            <h1 className="text-xl font-bold text-[#0F172A] flex items-center gap-2">
+              <ShieldAlert className="w-5 h-5 text-[#00A86B]" /> Complete Your KYC Verification
+            </h1>
+            <p className="text-xs text-[#64748B] mt-1">A quick, secure two-step process to activate your account for shipping.</p>
+          </div>
         )}
 
         {/* Stepper Header */}
-        <div className="relative grid grid-cols-2 gap-4 mb-8">
-          <div className="absolute top-1/2 left-[calc(50%-2px)] -translate-y-1/2 -translate-x-1/2 hidden sm:block w-4 h-4 pointer-events-none z-10">
-            <motion.div
-              animate={{ scale: (step === 2 || billingPreFilled) ? 1 : 0.4, opacity: (step === 2 || billingPreFilled) ? 1 : 0 }}
-              transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-              className="w-4 h-4 rounded-full bg-[#00A86B] shadow-[0_0_0_4px_rgba(0,168,107,0.15)]"
-            />
-          </div>
-
-          <motion.div
-            whileHover={{ y: -2 }}
+        <div className="grid grid-cols-2 gap-3 mb-6">
+          <button
+            type="button"
             onClick={() => !isSubmitted && setStep(1)}
-            className={`relative flex items-center gap-4 p-4 rounded-2xl border transition-all cursor-pointer ${step === 1 ? 'bg-[#F0FDF4] border-[#00A86B]/30 shadow-[0_8px_24px_-8px_rgba(0,168,107,0.25)]' : billingPreFilled ? 'bg-[#F0FDF4]/50 border-[#00A86B]/20 hover:bg-[#F0FDF4]' : 'bg-white border-slate-100 hover:bg-slate-50'}`}
+            className={`flex items-center gap-3 p-4 rounded-2xl border transition-colors text-left cursor-pointer ${step === 1 ? 'bg-[#F0FDF4] border-[#00A86B]/40' : billingPreFilled ? 'bg-white border-[#E2E8F0] hover:bg-[#F8FAFC]' : 'bg-white border-[#E2E8F0] hover:bg-[#F8FAFC]'}`}
           >
-            <div className={`relative w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors ${billingPreFilled || step === 1 ? 'bg-[#00A86B] text-white shadow-md shadow-[#00A86B]/30' : 'bg-slate-100 text-slate-400'}`}>
-              {step === 1 && !billingPreFilled && (
-                <motion.span
-                  className="absolute inset-0 rounded-xl bg-[#00A86B]"
-                  animate={{ scale: [1, 1.35], opacity: [0.5, 0] }}
-                  transition={{ duration: 1.6, repeat: Infinity, ease: 'easeOut' }}
-                />
-              )}
-              {billingPreFilled ? <Check className="w-5 h-5 relative" /> : <CreditCard className="w-5 h-5 relative" />}
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${billingPreFilled || step === 1 ? 'bg-[#00A86B] text-white' : 'bg-[#F1F5F9] text-[#94A3B8]'}`}>
+              {billingPreFilled ? <Check className="w-4.5 h-4.5" /> : <CreditCard className="w-4.5 h-4.5" />}
             </div>
-            <div className="text-left">
-              <div className="flex items-center gap-1.5">
-                <span className="text-[9px] font-bold text-slate-300 tracking-wider">STEP 1</span>
-              </div>
-              <h3 className={`text-[14px] font-bold ${step === 1 ? 'text-[#0F172A]' : billingPreFilled ? 'text-[#00A86B]' : 'text-slate-500'} font-sans`}>Billing Information</h3>
-              <p className="text-xs text-slate-400 font-normal leading-tight mt-1 font-sans subtext">{billingPreFilled ? 'Already verified — read only.' : 'Manage your billing details and payment methods here.'}</p>
+            <div className="min-w-0">
+              <span className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider">Step 1</span>
+              <h3 className={`text-sm font-bold ${step === 1 ? 'text-[#0F172A]' : billingPreFilled ? 'text-[#00A86B]' : 'text-[#64748B]'}`}>Billing Information</h3>
+              <p className="text-[11px] text-[#94A3B8] leading-tight mt-0.5">{billingPreFilled ? 'Already verified — read only.' : 'Business type, GST and billing address.'}</p>
             </div>
-            {billingPreFilled && step !== 1 && <span className="ml-auto text-[10px] font-bold text-[#00A86B] bg-[#F0FDF4] border border-[#00A86B]/20 px-2 py-0.5 rounded-full shrink-0">Done</span>}
-            {!billingPreFilled && step === 2 && <ChevronRight className="w-5 h-5 text-slate-400 ml-auto shrink-0" />}
-          </motion.div>
+            {billingPreFilled && step !== 1 && <span className="ml-auto shrink-0 text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">Done</span>}
+          </button>
 
-          <motion.div
-            whileHover={{ y: -2 }}
+          <button
+            type="button"
             onClick={() => { if (!isSubmitted && (billingPreFilled || (businessType && address && pincode))) setStep(2); }}
-            className={`relative flex items-center gap-4 p-4 rounded-2xl border transition-all ${billingPreFilled || (businessType && address && pincode) ? 'cursor-pointer' : 'cursor-not-allowed opacity-70'} ${step === 2 ? 'bg-[#F0FDF4] border-[#00A86B]/30 shadow-[0_8px_24px_-8px_rgba(0,168,107,0.25)]' : 'bg-white border-slate-100 hover:bg-slate-50'}`}
+            disabled={!(billingPreFilled || (businessType && address && pincode))}
+            className={`flex items-center gap-3 p-4 rounded-2xl border transition-colors text-left ${billingPreFilled || (businessType && address && pincode) ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'} ${step === 2 ? 'bg-[#F0FDF4] border-[#00A86B]/40' : 'bg-white border-[#E2E8F0] hover:bg-[#F8FAFC]'}`}
           >
-            <div className={`relative w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors ${step === 2 ? 'bg-[#00A86B] text-white shadow-md shadow-[#00A86B]/30' : 'bg-slate-100 text-slate-400'}`}>
-              {step === 2 && (
-                <motion.span
-                  className="absolute inset-0 rounded-xl bg-[#00A86B]"
-                  animate={{ scale: [1, 1.35], opacity: [0.5, 0] }}
-                  transition={{ duration: 1.6, repeat: Infinity, ease: 'easeOut' }}
-                />
-              )}
-              <FileText className="w-5 h-5 relative" />
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${step === 2 ? 'bg-[#00A86B] text-white' : 'bg-[#F1F5F9] text-[#94A3B8]'}`}>
+              <FileText className="w-4.5 h-4.5" />
             </div>
-            <div className="text-left">
-              <span className="text-[9px] font-bold text-slate-300 tracking-wider">STEP 2</span>
-              <h3 className={`text-[14px] font-bold ${step === 2 ? 'text-[#0F172A]' : 'text-slate-500'} font-sans`}>Document Verification</h3>
-              <p className="text-xs text-slate-400 font-normal leading-tight mt-1 font-sans subtext">Verify documents quickly and securely to ensure authenticity.</p>
+            <div className="min-w-0">
+              <span className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider">Step 2</span>
+              <h3 className={`text-sm font-bold ${step === 2 ? 'text-[#0F172A]' : 'text-[#64748B]'}`}>Document Verification</h3>
+              <p className="text-[11px] text-[#94A3B8] leading-tight mt-0.5">Aadhaar, PAN and bank account.</p>
             </div>
-          </motion.div>
+          </button>
         </div>
 
         <AnimatePresence mode="wait">
@@ -699,32 +615,32 @@ export function AdminKYC() {
                       <motion.div
                         whileHover={!billingPreFilled ? { y: -2 } : undefined}
                         onClick={() => !billingPreFilled && setBusinessType('INDIVIDUAL')}
-                        className={`relative overflow-hidden p-5 rounded-2xl border-2 transition-all ${billingPreFilled ? 'cursor-default' : 'cursor-pointer'} ${businessType === 'INDIVIDUAL' ? 'border-[#00A86B] bg-[#F0FDF4]/40 shadow-[0_8px_20px_-10px_rgba(0,168,107,0.35)]' : 'border-slate-100 bg-white'} ${!billingPreFilled ? 'hover:border-slate-200' : ''}`}
+                        className={`relative overflow-hidden p-5 rounded-2xl border-2 transition-all ${billingPreFilled ? 'cursor-default' : 'cursor-pointer'} ${businessType === 'INDIVIDUAL' ? 'border-[#00A86B] bg-[#F0FDF4]/40 shadow-[0_8px_20px_-10px_rgba(0,168,107,0.35)]' : 'border-[#E2E8F0] bg-white'} ${!billingPreFilled ? 'hover:border-[#E2E8F0]' : ''}`}
                       >
                         {businessType === 'INDIVIDUAL' && <div className="absolute -top-8 -right-8 w-24 h-24 rounded-full bg-[#00A86B]/10" />}
                         <div className="relative flex items-center gap-3 mb-2.5">
-                          <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors ${businessType === 'INDIVIDUAL' ? 'bg-[#00A86B] text-white' : 'bg-slate-100 text-slate-400'}`}>
+                          <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors ${businessType === 'INDIVIDUAL' ? 'bg-[#00A86B] text-white' : 'bg-[#F1F5F9] text-[#94A3B8]'}`}>
                             <ScanLine className="w-4 h-4" />
                           </div>
-                          <span className="text-[13.5px] font-bold text-slate-800 uppercase tracking-wide font-sans heading-14">Individual</span>
+                          <span className="text-[13.5px] font-bold text-[#0F172A] uppercase tracking-wide">Individual</span>
                           {businessType === 'INDIVIDUAL' && <Check className="w-4 h-4 text-[#00A86B] ml-auto shrink-0" />}
                         </div>
-                        <p className="relative text-xs text-slate-400 font-normal leading-relaxed font-sans">A seller using online platforms without registering under the Companies Act</p>
+                        <p className="relative text-xs text-[#94A3B8] font-normal leading-relaxed">A seller using online platforms without registering under the Companies Act</p>
                       </motion.div>
                       <motion.div
                         whileHover={!billingPreFilled ? { y: -2 } : undefined}
                         onClick={() => !billingPreFilled && setBusinessType('COMPANY')}
-                        className={`relative overflow-hidden p-5 rounded-2xl border-2 transition-all ${billingPreFilled ? 'cursor-default' : 'cursor-pointer'} ${businessType === 'COMPANY' ? 'border-[#00A86B] bg-[#F0FDF4]/40 shadow-[0_8px_20px_-10px_rgba(0,168,107,0.35)]' : 'border-slate-100 bg-white'} ${!billingPreFilled ? 'hover:border-slate-200' : ''}`}
+                        className={`relative overflow-hidden p-5 rounded-2xl border-2 transition-all ${billingPreFilled ? 'cursor-default' : 'cursor-pointer'} ${businessType === 'COMPANY' ? 'border-[#00A86B] bg-[#F0FDF4]/40 shadow-[0_8px_20px_-10px_rgba(0,168,107,0.35)]' : 'border-[#E2E8F0] bg-white'} ${!billingPreFilled ? 'hover:border-[#E2E8F0]' : ''}`}
                       >
                         {businessType === 'COMPANY' && <div className="absolute -top-8 -right-8 w-24 h-24 rounded-full bg-[#00A86B]/10" />}
                         <div className="relative flex items-center gap-3 mb-2.5">
-                          <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors ${businessType === 'COMPANY' ? 'bg-[#00A86B] text-white' : 'bg-slate-100 text-slate-400'}`}>
+                          <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors ${businessType === 'COMPANY' ? 'bg-[#00A86B] text-white' : 'bg-[#F1F5F9] text-[#94A3B8]'}`}>
                             <Building className="w-4 h-4" />
                           </div>
-                          <span className="text-[13.5px] font-bold text-slate-800 uppercase tracking-wide font-sans heading-14">Company</span>
+                          <span className="text-[13.5px] font-bold text-[#0F172A] uppercase tracking-wide">Company</span>
                           {businessType === 'COMPANY' && <Check className="w-4 h-4 text-[#00A86B] ml-auto shrink-0" />}
                         </div>
-                        <p className="relative text-xs text-slate-400 font-normal leading-relaxed font-sans">(Registered as LLP, Private, Subsidiary, Holding, etc. under Companies Act 2013)</p>
+                        <p className="relative text-xs text-[#94A3B8] font-normal leading-relaxed">(Registered as LLP, Private, Subsidiary, Holding, etc. under Companies Act 2013)</p>
                       </motion.div>
                     </div>
                   </SectionCard>
@@ -736,13 +652,13 @@ export function AdminKYC() {
                           <SectionCard icon={Building} title="Company Legal & GST Details">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                               <div>
-                                <label className="block text-xs font-semibold text-slate-500 mb-1.5">Legal Company Name<span className="text-red-500">*</span></label>
-                                <input type="text" value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Enter Registered Company Name" className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-xs focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all font-bold" />
+                                <label className="block text-xs font-semibold text-[#64748B] mb-1.5">Legal Company Name<span className="text-red-500">*</span></label>
+                                <input type="text" value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Enter Registered Company Name" className="w-full h-10 px-3 rounded-lg border border-[#E2E8F0] text-[#0F172A] text-xs focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all font-bold" />
                               </div>
                               <div>
-                                <label className="block text-xs font-semibold text-slate-500 mb-1.5">GSTIN Number<span className="text-red-500">*</span></label>
+                                <label className="block text-xs font-semibold text-[#64748B] mb-1.5">GSTIN Number<span className="text-red-500">*</span></label>
                                 <div className="relative flex items-center">
-                                  <input type="text" maxLength={15} value={gstin} onChange={(e) => setGstin(e.target.value.toUpperCase())} disabled={isGstinVerified} placeholder="Enter 15-digit GSTIN" className="w-full h-11 px-4 pr-24 rounded-xl border border-slate-200 text-slate-800 text-xs focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all font-bold uppercase" />
+                                  <input type="text" maxLength={15} value={gstin} onChange={(e) => setGstin(e.target.value.toUpperCase())} disabled={isGstinVerified} placeholder="Enter 15-digit GSTIN" className="w-full h-10 px-3 pr-24 rounded-lg border border-[#E2E8F0] text-[#0F172A] text-xs focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all font-bold uppercase" />
                                   {!isGstinVerified ? (
                                     <button type="button" onClick={() => { setIsGstinLoading(true); setTimeout(() => { setIsGstinVerified(true); setIsGstinLoading(false); }, 1000); }} disabled={isGstinLoading || gstin.length < 15} className="absolute right-3.5 text-xs font-bold text-[#00A86B] hover:text-[#009B63] select-none cursor-pointer focus:outline-none flex items-center gap-1.5 disabled:opacity-50">
                                       {isGstinLoading ? <RefreshCcw className="w-3.5 h-3.5 animate-spin" /> : "Verify GST"}
@@ -762,7 +678,7 @@ export function AdminKYC() {
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                             {/* Email */}
                             <div>
-                              <label className="block text-xs font-semibold text-slate-500 mb-1.5">Email<span className="text-red-500">*</span></label>
+                              <label className="block text-xs font-semibold text-[#64748B] mb-1.5">Email<span className="text-red-500">*</span></label>
                               <div className="relative flex items-center">
                                 <input
                                   type="email"
@@ -770,9 +686,9 @@ export function AdminKYC() {
                                   onChange={(e) => !isEmailVerified && !billingPreFilled && setEmail(e.target.value)}
                                   readOnly={isEmailVerified || billingPreFilled}
                                   placeholder="Enter your email"
-                                  className={`w-full h-11 pl-10 pr-28 rounded-xl border text-xs focus:outline-none font-bold transition-all ${isEmailVerified || billingPreFilled ? 'border-slate-200 text-slate-700 bg-slate-50' : 'border-slate-200 text-slate-800 focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10'}`}
+                                  className={`w-full h-10 pl-10 pr-28 rounded-lg border text-xs focus:outline-none font-bold transition-all ${isEmailVerified || billingPreFilled ? 'border-[#E2E8F0] text-[#334155] bg-[#F8FAFC]' : 'border-[#E2E8F0] text-[#0F172A] focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10'}`}
                                 />
-                                <Mail className="w-4 h-4 text-slate-400 absolute left-3.5" />
+                                <Mail className="w-4 h-4 text-[#94A3B8] absolute left-3.5" />
                                 {isEmailVerified ? (
                                   <span className="absolute right-3.5 flex items-center gap-1 text-[11px] font-bold text-[#00A86B] bg-[#00A86B]/5 border border-[#00A86B]/15 px-2 py-0.5 rounded-full">
                                     <Check className="w-3 h-3" /> Verified
@@ -791,7 +707,7 @@ export function AdminKYC() {
                             </div>
                             {/* Phone */}
                             <div>
-                              <label className="block text-xs font-semibold text-slate-500 mb-1.5">Phone Number<span className="text-red-500">*</span></label>
+                              <label className="block text-xs font-semibold text-[#64748B] mb-1.5">Phone Number<span className="text-red-500">*</span></label>
                               <div className="relative flex items-center">
                                 <input
                                   type="tel"
@@ -805,9 +721,9 @@ export function AdminKYC() {
                                   }}
                                   readOnly={isPhoneVerified || billingPreFilled}
                                   placeholder="Enter 10-digit mobile number"
-                                  className={`w-full h-11 pl-10 pr-28 rounded-xl border text-xs focus:outline-none font-bold transition-all ${isPhoneVerified || billingPreFilled ? 'border-slate-200 text-slate-700 bg-slate-50' : 'border-slate-200 text-slate-800 focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10'}`}
+                                  className={`w-full h-10 pl-10 pr-28 rounded-lg border text-xs focus:outline-none font-bold transition-all ${isPhoneVerified || billingPreFilled ? 'border-[#E2E8F0] text-[#334155] bg-[#F8FAFC]' : 'border-[#E2E8F0] text-[#0F172A] focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10'}`}
                                 />
-                                <Phone className="w-4 h-4 text-slate-400 absolute left-3.5" />
+                                <Phone className="w-4 h-4 text-[#94A3B8] absolute left-3.5" />
                                 {isPhoneVerified ? (
                                   <span className="absolute right-3.5 flex items-center gap-1 text-[11px] font-bold text-[#00A86B] bg-[#00A86B]/5 border border-[#00A86B]/15 px-2 py-0.5 rounded-full">
                                     <Check className="w-3 h-3" /> Verified
@@ -830,22 +746,22 @@ export function AdminKYC() {
                         <SectionCard icon={MapPin} title={businessType === 'COMPANY' ? 'Registered Office / Billing Address' : 'Billing Information'}>
                           <div className="space-y-4">
                             <div>
-                              <label className="block text-xs font-semibold text-slate-500 mb-1.5">Address<span className="text-red-500">*</span></label>
-                              <textarea rows={2} required value={address} onChange={(e) => setAddress(e.target.value)} readOnly={billingPreFilled} placeholder="Enter your registered billing address" className={`w-full p-4 rounded-xl border border-slate-200 text-slate-800 text-xs focus:outline-none font-medium leading-relaxed resize-none ${billingPreFilled ? 'bg-slate-50 text-slate-600 cursor-default' : 'focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]'}`} />
+                              <label className="block text-xs font-semibold text-[#64748B] mb-1.5">Address<span className="text-red-500">*</span></label>
+                              <textarea rows={2} required value={address} onChange={(e) => setAddress(e.target.value)} readOnly={billingPreFilled} placeholder="Enter your registered billing address" className={`w-full p-4 rounded-xl border border-[#E2E8F0] text-[#0F172A] text-xs focus:outline-none font-medium leading-relaxed resize-none ${billingPreFilled ? 'bg-[#F8FAFC] text-[#475569] cursor-default' : 'focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]'}`} />
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                               <div>
-                                <label className="block text-xs font-semibold text-slate-500 mb-1.5">Pincode<span className="text-red-500">*</span></label>
-                                <input type="text" required maxLength={6} placeholder="Enter 6-digit Pincode" value={pincode} onChange={(e) => !billingPreFilled && setPincode(e.target.value.replace(/\D/g, ''))} readOnly={billingPreFilled} className={`w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-xs focus:outline-none font-bold ${billingPreFilled ? 'bg-slate-50 text-slate-600 cursor-default' : 'focus:border-[#00A86B]'}`} />
+                                <label className="block text-xs font-semibold text-[#64748B] mb-1.5">Pincode<span className="text-red-500">*</span></label>
+                                <input type="text" required maxLength={6} placeholder="Enter 6-digit Pincode" value={pincode} onChange={(e) => !billingPreFilled && setPincode(e.target.value.replace(/\D/g, ''))} readOnly={billingPreFilled} className={`w-full h-10 px-3 rounded-lg border border-[#E2E8F0] text-[#0F172A] text-xs focus:outline-none font-bold ${billingPreFilled ? 'bg-[#F8FAFC] text-[#475569] cursor-default' : 'focus:border-[#00A86B]'}`} />
                               </div>
                               <div>
-                                <label className="block text-xs font-semibold text-slate-500 mb-1.5">City<span className="text-red-500">*</span></label>
-                                <input type="text" required readOnly value={city} placeholder="Auto-filled via Pincode" className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-700 bg-slate-50 text-xs focus:outline-none font-bold uppercase" />
+                                <label className="block text-xs font-semibold text-[#64748B] mb-1.5">City<span className="text-red-500">*</span></label>
+                                <input type="text" required readOnly value={city} placeholder="Auto-filled via Pincode" className="w-full h-10 px-3 rounded-lg border border-[#E2E8F0] text-[#334155] bg-[#F8FAFC] text-xs focus:outline-none font-bold uppercase" />
                               </div>
                               <div>
-                                <label className="block text-xs font-semibold text-slate-500 mb-1.5">State<span className="text-red-500">*</span></label>
+                                <label className="block text-xs font-semibold text-[#64748B] mb-1.5">State<span className="text-red-500">*</span></label>
                                 <div className="relative flex items-center">
-                                  <input type="text" required readOnly value={state} placeholder="Auto-filled via Pincode" className="w-full h-11 pl-4 pr-24 rounded-xl border border-slate-200 text-slate-700 bg-slate-50 text-xs focus:outline-none font-bold uppercase" />
+                                  <input type="text" required readOnly value={state} placeholder="Auto-filled via Pincode" className="w-full h-10 pl-3 pr-24 rounded-lg border border-[#E2E8F0] text-[#334155] bg-[#F8FAFC] text-xs focus:outline-none font-bold uppercase" />
                                   {city && state && <span className="absolute right-3.5 flex items-center gap-1 text-[10px] font-bold text-[#00A86B] bg-[#00A86B]/5 border border-[#00A86B]/15 px-2 py-0.5 rounded-full select-none"><Check className="w-3 h-3" /> Submitted</span>}
                                 </div>
                               </div>
@@ -855,11 +771,11 @@ export function AdminKYC() {
 
                         <div className="flex justify-end pt-2">
                           {billingPreFilled ? (
-                            <button type="button" onClick={() => setStep(2)} className="h-11 px-6 rounded-xl bg-[#00A86B] hover:bg-[#009B63] text-white text-xs font-bold shadow-lg shadow-[#00A86B]/25 transition-all flex items-center justify-center gap-1.5 cursor-pointer">
+                            <button type="button" onClick={() => setStep(2)} className="h-11 px-6 rounded-xl bg-[#00A86B] hover:bg-[#009B63] text-white text-xs font-bold shadow-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer">
                               Go to Documents <ArrowRight className="w-4 h-4" />
                             </button>
                           ) : (
-                            <button type="button" disabled={!address || !pincode || (businessType === 'COMPANY' && (!companyName || !gstin))} onClick={() => setStep(2)} className="h-11 px-6 rounded-xl bg-[#00A86B] hover:bg-[#009B63] text-white text-xs font-bold shadow-lg shadow-[#00A86B]/25 transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:pointer-events-none cursor-pointer">
+                            <button type="button" disabled={!address || !pincode || (businessType === 'COMPANY' && (!companyName || !gstin))} onClick={() => setStep(2)} className="h-11 px-6 rounded-xl bg-[#00A86B] hover:bg-[#009B63] text-white text-xs font-bold shadow-sm transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:pointer-events-none cursor-pointer">
                               Next <ArrowRight className="w-4 h-4" />
                             </button>
                           )}
@@ -874,9 +790,9 @@ export function AdminKYC() {
                   <SectionCard icon={CreditCard} title="Aadhaar Verification">
                     <div className="space-y-4">
                       <div>
-                        <label className="block text-xs font-semibold text-slate-500 mb-1.5">Aadhaar Number<span className="text-red-500">*</span></label>
+                        <label className="block text-xs font-semibold text-[#64748B] mb-1.5">Aadhaar Number<span className="text-red-500">*</span></label>
                         <div className="relative flex items-center">
-                          <input type="text" required maxLength={12} placeholder="Enter 12-digit Aadhaar Number" value={aadhaarNumber} onChange={(e) => setAadhaarNumber(e.target.value.replace(/\D/g, ''))} disabled={isAadhaarVerified} className="w-full h-11 px-4 pr-24 rounded-xl border border-slate-200 text-slate-800 text-xs focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all font-bold" />
+                          <input type="text" required maxLength={12} placeholder="Enter 12-digit Aadhaar Number" value={aadhaarNumber} onChange={(e) => setAadhaarNumber(e.target.value.replace(/\D/g, ''))} disabled={isAadhaarVerified} className="w-full h-10 px-3 pr-24 rounded-lg border border-[#E2E8F0] text-[#0F172A] text-xs focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all font-bold" />
                           {aadhaarNumber.length === 12 && !isAadhaarVerified && (
                             <button type="button" onClick={() => { setOtpTarget('aadhaar'); setIsOtpModalOpen(true); }} className="absolute right-3.5 text-xs font-bold text-[#00A86B] hover:text-[#009B63] select-none cursor-pointer focus:outline-none">Send OTP</button>
                           )}
@@ -885,13 +801,13 @@ export function AdminKYC() {
                       </div>
                       <AnimatePresence>
                         {isAadhaarVerified && (
-                          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-3 border-t border-dashed border-slate-100 overflow-hidden">
+                          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-3 border-t border-dashed border-[#E2E8F0] overflow-hidden">
                             <div className="md:col-span-2 flex items-center gap-1.5 text-[10.5px] font-bold text-[#00A86B] mb-0.5"><BadgeCheck className="w-3.5 h-3.5" /> Auto-fetched from UIDAI</div>
-                            <div><label className="block text-[10px] font-semibold text-slate-400 mb-1.5">Name</label><input type="text" readOnly value={aadhaarData.name} className="w-full h-10 px-3 bg-slate-50 border border-slate-100 rounded-lg text-xs text-slate-600 font-bold" /></div>
-                            <div><label className="block text-[10px] font-semibold text-slate-400 mb-1.5">Guardian Name</label><input type="text" readOnly value={aadhaarData.guardianName} className="w-full h-10 px-3 bg-slate-50 border border-slate-100 rounded-lg text-xs text-slate-600 font-bold" /></div>
-                            <div className="md:col-span-2"><label className="block text-[10px] font-semibold text-slate-400 mb-1.5">Address</label><input type="text" readOnly value={aadhaarData.address} className="w-full h-10 px-3 bg-slate-50 border border-slate-100 rounded-lg text-xs text-slate-600 font-bold" /></div>
-                            <div><label className="block text-[10px] font-semibold text-slate-400 mb-1.5">State</label><input type="text" readOnly value={aadhaarData.state} className="w-full h-10 px-3 bg-slate-50 border border-slate-100 rounded-lg text-xs text-slate-600 font-bold" /></div>
-                            <div><label className="block text-[10px] font-semibold text-slate-400 mb-1.5">City</label><input type="text" readOnly value={aadhaarData.city} className="w-full h-10 px-3 bg-slate-50 border border-slate-100 rounded-lg text-xs text-slate-600 font-bold" /></div>
+                            <div><label className="block text-[10px] font-semibold text-[#94A3B8] mb-1.5">Name</label><input type="text" readOnly value={aadhaarData.name} className="w-full h-10 px-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg text-xs text-[#475569] font-bold" /></div>
+                            <div><label className="block text-[10px] font-semibold text-[#94A3B8] mb-1.5">Guardian Name</label><input type="text" readOnly value={aadhaarData.guardianName} className="w-full h-10 px-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg text-xs text-[#475569] font-bold" /></div>
+                            <div className="md:col-span-2"><label className="block text-[10px] font-semibold text-[#94A3B8] mb-1.5">Address</label><input type="text" readOnly value={aadhaarData.address} className="w-full h-10 px-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg text-xs text-[#475569] font-bold" /></div>
+                            <div><label className="block text-[10px] font-semibold text-[#94A3B8] mb-1.5">State</label><input type="text" readOnly value={aadhaarData.state} className="w-full h-10 px-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg text-xs text-[#475569] font-bold" /></div>
+                            <div><label className="block text-[10px] font-semibold text-[#94A3B8] mb-1.5">City</label><input type="text" readOnly value={aadhaarData.city} className="w-full h-10 px-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg text-xs text-[#475569] font-bold" /></div>
                           </motion.div>
                         )}
                       </AnimatePresence>
@@ -902,9 +818,9 @@ export function AdminKYC() {
                   <SectionCard icon={FileText} title="PAN Verification">
                     <div className="space-y-4">
                       <div>
-                        <label className="block text-xs font-semibold text-slate-500 mb-1.5">PAN Number<span className="text-red-500">*</span></label>
+                        <label className="block text-xs font-semibold text-[#64748B] mb-1.5">PAN Number<span className="text-red-500">*</span></label>
                         <div className="relative flex items-center">
-                          <input type="text" required maxLength={10} placeholder="Enter 10-digit PAN Number (e.g. ABCDE1234F)" value={panNumber} onChange={(e) => setPanNumber(e.target.value.toUpperCase())} disabled={isPanVerified} className="w-full h-11 px-4 pr-24 rounded-xl border border-slate-200 text-slate-800 text-xs focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all font-bold uppercase" />
+                          <input type="text" required maxLength={10} placeholder="Enter 10-digit PAN Number (e.g. ABCDE1234F)" value={panNumber} onChange={(e) => setPanNumber(e.target.value.toUpperCase())} disabled={isPanVerified} className="w-full h-10 px-3 pr-24 rounded-lg border border-[#E2E8F0] text-[#0F172A] text-xs focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all font-bold uppercase" />
                           {panNumber.length === 10 && !isPanVerified && (
                             <button type="button" onClick={handleVerifyPan} disabled={isPanLoading} className="absolute right-3.5 text-xs font-bold text-[#00A86B] hover:text-[#009B63] select-none cursor-pointer focus:outline-none flex items-center gap-1.5">
                               {isPanLoading ? <RefreshCcw className="w-3.5 h-3.5 animate-spin" /> : "Verify"}
@@ -915,10 +831,10 @@ export function AdminKYC() {
                       </div>
                       <AnimatePresence>
                         {isPanVerified && (
-                          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-3 border-t border-dashed border-slate-100 overflow-hidden">
+                          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-3 border-t border-dashed border-[#E2E8F0] overflow-hidden">
                             <div className="md:col-span-2 flex items-center gap-1.5 text-[10.5px] font-bold text-[#00A86B] mb-0.5"><BadgeCheck className="w-3.5 h-3.5" /> Auto-fetched from Income Tax records</div>
-                            <div><label className="block text-[10px] font-semibold text-slate-400 mb-1.5">PAN Type<span className="text-red-500">*</span></label><input type="text" readOnly value={panData.panType} className="w-full h-10 px-3 bg-slate-50 border border-slate-100 rounded-lg text-xs text-slate-600 font-bold" /></div>
-                            <div><label className="block text-[10px] font-semibold text-slate-400 mb-1.5">Name<span className="text-red-500">*</span></label><input type="text" readOnly value={panData.name} className="w-full h-10 px-3 bg-slate-50 border border-slate-100 rounded-lg text-xs text-slate-600 font-bold" /></div>
+                            <div><label className="block text-[10px] font-semibold text-[#94A3B8] mb-1.5">PAN Type<span className="text-red-500">*</span></label><input type="text" readOnly value={panData.panType} className="w-full h-10 px-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg text-xs text-[#475569] font-bold" /></div>
+                            <div><label className="block text-[10px] font-semibold text-[#94A3B8] mb-1.5">Name<span className="text-red-500">*</span></label><input type="text" readOnly value={panData.name} className="w-full h-10 px-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg text-xs text-[#475569] font-bold" /></div>
                           </motion.div>
                         )}
                       </AnimatePresence>
@@ -930,13 +846,13 @@ export function AdminKYC() {
                     <div className="space-y-4">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-xs font-semibold text-slate-500 mb-1.5">Account Number<span className="text-red-500">*</span></label>
-                          <input type="text" required placeholder="Enter bank account number" value={accountNumber} onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, ''))} disabled={isBankVerified} className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-xs focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all font-bold" />
+                          <label className="block text-xs font-semibold text-[#64748B] mb-1.5">Account Number<span className="text-red-500">*</span></label>
+                          <input type="text" required placeholder="Enter bank account number" value={accountNumber} onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, ''))} disabled={isBankVerified} className="w-full h-10 px-3 rounded-lg border border-[#E2E8F0] text-[#0F172A] text-xs focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all font-bold" />
                         </div>
                         <div>
-                          <label className="block text-xs font-semibold text-slate-500 mb-1.5">IFSC Code<span className="text-red-500">*</span></label>
+                          <label className="block text-xs font-semibold text-[#64748B] mb-1.5">IFSC Code<span className="text-red-500">*</span></label>
                           <div className="relative flex items-center">
-                            <input type="text" required maxLength={11} placeholder="Enter 11-digit IFSC Code" value={ifscCode} onChange={(e) => setIfscCode(e.target.value.toUpperCase())} disabled={isBankVerified} className="w-full h-11 px-4 pr-24 rounded-xl border border-slate-200 text-slate-800 text-xs focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all font-bold uppercase" />
+                            <input type="text" required maxLength={11} placeholder="Enter 11-digit IFSC Code" value={ifscCode} onChange={(e) => setIfscCode(e.target.value.toUpperCase())} disabled={isBankVerified} className="w-full h-10 px-3 pr-24 rounded-lg border border-[#E2E8F0] text-[#0F172A] text-xs focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all font-bold uppercase" />
                             {ifscCode.length === 11 && accountNumber && !isBankVerified && (
                               <button type="button" onClick={handleVerifyBank} disabled={isBankLoading} className="absolute right-3.5 text-xs font-bold text-[#00A86B] hover:text-[#009B63] select-none cursor-pointer focus:outline-none flex items-center gap-1.5">
                                 {isBankLoading ? <RefreshCcw className="w-3.5 h-3.5 animate-spin" /> : "Verify"}
@@ -948,12 +864,12 @@ export function AdminKYC() {
                       </div>
                       <AnimatePresence>
                         {isBankVerified && (
-                          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-3 border-t border-dashed border-slate-100 overflow-hidden">
+                          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-3 border-t border-dashed border-[#E2E8F0] overflow-hidden">
                           <div className="md:col-span-3 flex items-center gap-1.5 text-[10.5px] font-bold text-[#00A86B] mb-0.5"><BadgeCheck className="w-3.5 h-3.5" /> Auto-fetched via penny-drop verification</div>
-                          <div><label className="block text-[10px] font-semibold text-slate-400 mb-1.5">Beneficiary Name<span className="text-red-500">*</span></label><input type="text" readOnly value={bankData.beneficiaryName} className="w-full h-10 px-3 bg-slate-50 border border-slate-100 rounded-lg text-xs text-slate-600 font-bold" /></div>
-                          <div><label className="block text-[10px] font-semibold text-slate-400 mb-1.5">Bank Name<span className="text-red-500">*</span></label><input type="text" readOnly value={bankData.bankName} className="w-full h-10 px-3 bg-slate-50 border border-slate-100 rounded-lg text-xs text-slate-600 font-bold" /></div>
-                          <div><label className="block text-[10px] font-semibold text-slate-400 mb-1.5">Branch Name<span className="text-red-500">*</span></label><input type="text" readOnly value={bankData.branchName} className="w-full h-10 px-3 bg-slate-50 border border-slate-100 rounded-lg text-xs text-slate-600 font-bold" /></div>
-                          <div><label className="block text-[10px] font-semibold text-slate-400 mb-1.5">City<span className="text-red-500">*</span></label><input type="text" readOnly value={bankData.city} className="w-full h-10 px-3 bg-slate-50 border border-slate-100 rounded-lg text-xs text-slate-600 font-bold" /></div>
+                          <div><label className="block text-[10px] font-semibold text-[#94A3B8] mb-1.5">Beneficiary Name<span className="text-red-500">*</span></label><input type="text" readOnly value={bankData.beneficiaryName} className="w-full h-10 px-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg text-xs text-[#475569] font-bold" /></div>
+                          <div><label className="block text-[10px] font-semibold text-[#94A3B8] mb-1.5">Bank Name<span className="text-red-500">*</span></label><input type="text" readOnly value={bankData.bankName} className="w-full h-10 px-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg text-xs text-[#475569] font-bold" /></div>
+                          <div><label className="block text-[10px] font-semibold text-[#94A3B8] mb-1.5">Branch Name<span className="text-red-500">*</span></label><input type="text" readOnly value={bankData.branchName} className="w-full h-10 px-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg text-xs text-[#475569] font-bold" /></div>
+                          <div><label className="block text-[10px] font-semibold text-[#94A3B8] mb-1.5">City<span className="text-red-500">*</span></label><input type="text" readOnly value={bankData.city} className="w-full h-10 px-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg text-xs text-[#475569] font-bold" /></div>
                           </motion.div>
                         )}
                       </AnimatePresence>
@@ -961,10 +877,10 @@ export function AdminKYC() {
                   </SectionCard>
 
                   <div className="flex justify-between items-center pt-2">
-                    <button type="button" onClick={() => setStep(1)} className="h-11 px-5 rounded-xl border border-slate-200 text-slate-500 hover:text-slate-700 hover:bg-slate-50 text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer">
+                    <button type="button" onClick={() => setStep(1)} className="h-10 px-5 rounded-xl border border-[#E2E8F0] text-[#64748B] hover:text-[#334155] hover:bg-[#F8FAFC] text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer">
                       <ArrowLeft className="w-4 h-4" /> Back
                     </button>
-                    <button type="submit" disabled={isSubmitting || !isAadhaarVerified || !isPanVerified || !isBankVerified} className="h-11 px-6 rounded-xl bg-[#00A86B] hover:bg-[#009B63] text-white text-xs font-bold shadow-lg shadow-[#00A86B]/25 transition-all flex items-center justify-center disabled:opacity-50 disabled:pointer-events-none cursor-pointer">
+                    <button type="submit" disabled={isSubmitting || !isAadhaarVerified || !isPanVerified || !isBankVerified} className="h-11 px-6 rounded-xl bg-[#00A86B] hover:bg-[#009B63] text-white text-xs font-bold shadow-sm transition-all flex items-center justify-center disabled:opacity-50 disabled:pointer-events-none cursor-pointer">
                       {isSubmitting ? <span className="flex items-center gap-2"><RefreshCcw className="w-4 h-4 animate-spin" /> Processing...</span> : "Submit KYC"}
                     </button>
                   </div>
@@ -972,7 +888,7 @@ export function AdminKYC() {
               )}
             </motion.div>
           ) : (
-            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", duration: 0.5 }} className="relative bg-white rounded-3xl border border-slate-100 p-8 md:p-12 shadow-2xl text-center space-y-6 overflow-hidden">
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", duration: 0.5 }} className="relative bg-white rounded-2xl border border-[#E2E8F0] p-8 md:p-12 shadow-sm text-center space-y-6 overflow-hidden">
               <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#00A86B] via-[#34D399] to-[#00A86B]" />
               <div className="absolute -top-20 -left-20 w-56 h-56 rounded-full bg-[#00A86B]/[0.04] blur-2xl" />
               <div className="absolute -bottom-20 -right-20 w-56 h-56 rounded-full bg-[#34D399]/[0.05] blur-2xl" />
@@ -1001,8 +917,8 @@ export function AdminKYC() {
               </div>
 
               <div className="relative space-y-2">
-                <h2 className="text-xl font-bold text-slate-800">KYC Verification Under Review</h2>
-                <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">Your Aadhaar, PAN Card, and Bank details have been successfully received. Our verification team is reviewing them. Usually, accounts are validated in less than 2 hours.</p>
+                <h2 className="text-xl font-bold text-[#0F172A]">KYC Verification Under Review</h2>
+                <p className="text-xs text-[#64748B] max-w-md mx-auto leading-relaxed">Your Aadhaar, PAN Card, and Bank details have been successfully received. Our verification team is reviewing them. Usually, accounts are validated in less than 2 hours.</p>
               </div>
 
               <div className="relative bg-gradient-to-b from-[#F8FAFC] to-white border border-[#E2E8F0]/60 rounded-2xl p-4 max-w-sm mx-auto text-left space-y-1">
@@ -1016,7 +932,7 @@ export function AdminKYC() {
                     initial={{ opacity: 0, x: -8 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.5 + i * 0.1 }}
-                    className="flex justify-between items-center text-[11px] font-bold text-slate-500 py-1.5"
+                    className="flex justify-between items-center text-[11px] font-bold text-[#64748B] py-1.5"
                   >
                     <span>{row.label}</span>
                     <span className="flex items-center gap-1 text-[#00A86B]"><CheckCircle2 className="w-3.5 h-3.5" /> {row.value}</span>
@@ -1024,7 +940,7 @@ export function AdminKYC() {
                 ))}
               </div>
 
-              <button onClick={() => navigate('/admin/dashboard')} className="relative h-11 px-8 rounded-full bg-[#00A86B] hover:bg-[#009B63] text-white text-xs font-bold transition-all shadow-lg shadow-[#00A86B]/25 cursor-pointer inline-flex items-center justify-center gap-1.5 focus:outline-none">
+              <button onClick={() => navigate('/admin/dashboard')} className="relative h-10 px-6 rounded-xl bg-[#00A86B] hover:bg-[#009B63] text-white text-xs font-bold transition-colors shadow-sm cursor-pointer inline-flex items-center justify-center gap-1.5 focus:outline-none">
                 Back to Dashboard <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </motion.div>
@@ -1037,18 +953,18 @@ export function AdminKYC() {
             <>
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowPhoneOtpModal(false)} className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm z-[200]" />
               <div className="fixed inset-0 flex items-center justify-center z-[201] p-4 pointer-events-none">
-                <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} transition={{ type: 'spring', duration: 0.5 }} className="w-full max-w-[360px] bg-white rounded-3xl shadow-[0_24px_48px_rgba(0,0,0,0.16)] p-6 relative pointer-events-auto border border-slate-100 text-center">
-                  <button type="button" onClick={() => setShowPhoneOtpModal(false)} className="absolute -top-5 left-1/2 -translate-x-1/2 w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-md hover:bg-slate-50 transition-colors border border-slate-100 cursor-pointer focus:outline-none">
-                    <X className="w-4 h-4 text-slate-500" />
+                <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} transition={{ type: 'spring', duration: 0.5 }} className="w-full max-w-[360px] bg-white rounded-2xl shadow-2xl p-6 relative pointer-events-auto border border-[#E2E8F0] text-center">
+                  <button type="button" onClick={() => setShowPhoneOtpModal(false)} className="absolute -top-5 left-1/2 -translate-x-1/2 w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-md hover:bg-[#F8FAFC] transition-colors border border-[#E2E8F0] cursor-pointer focus:outline-none">
+                    <X className="w-4 h-4 text-[#64748B]" />
                   </button>
                   <motion.div initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 260, damping: 16, delay: 0.1 }} className="w-14 h-14 rounded-2xl bg-[#F0FDF4] flex items-center justify-center mx-auto mt-3 mb-4">
                     <Phone className="w-6 h-6 text-[#00A86B]" />
                   </motion.div>
                   <div className="mb-4">
-                    <h2 className="text-base font-bold text-slate-800 mb-1">Verify Phone OTP</h2>
-                    <p className="text-xs text-slate-500">OTP sent to <span className="font-semibold text-slate-700">+91 {phoneNumber}</span></p>
+                    <h2 className="text-base font-bold text-[#0F172A] mb-1">Verify Phone OTP</h2>
+                    <p className="text-xs text-[#64748B]">OTP sent to <span className="font-semibold text-[#334155]">+91 {phoneNumber}</span></p>
                   </div>
-                  <div className="h-[1px] bg-slate-100 mb-5" />
+                  <div className="h-[1px] bg-[#F1F5F9] mb-5" />
                   <div className="flex justify-center gap-2 mb-4">
                     {phoneOtpValues.map((val, idx) => (
                       <input key={idx} type="tel" maxLength={1} inputMode="numeric" value={val}
@@ -1059,14 +975,14 @@ export function AdminKYC() {
                         }}
                         onKeyDown={(e) => { if (e.key === 'Backspace' && !val && idx > 0) (document.getElementById(`potp-${idx - 1}`) as HTMLInputElement)?.focus(); }}
                         id={`potp-${idx}`}
-                        className={`w-11 h-11 rounded-xl border text-center text-lg font-bold text-[#00A86B] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/15 transition-all ${val ? 'border-[#00A86B]/40 bg-[#F0FDF4]/40' : 'border-slate-200'}`}
+                        className={`w-11 h-11 rounded-xl border text-center text-lg font-bold text-[#00A86B] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/15 transition-all ${val ? 'border-[#00A86B]/40 bg-[#F0FDF4]/40' : 'border-[#E2E8F0]'}`}
                       />
                     ))}
                   </div>
-                  <button type="button" onClick={verifyPhoneOtp} disabled={verifyingPhoneOtp || phoneOtpValues.join('').length !== 6} className="w-full h-10 rounded-full bg-[#00A86B] hover:bg-[#009B63] text-white text-xs font-bold shadow-lg shadow-[#00A86B]/20 disabled:opacity-50 disabled:pointer-events-none disabled:shadow-none mb-3 cursor-pointer transition-all">
+                  <button type="button" onClick={verifyPhoneOtp} disabled={verifyingPhoneOtp || phoneOtpValues.join('').length !== 6} className="w-full h-10 rounded-xl bg-[#00A86B] hover:bg-[#009B63] text-white text-xs font-bold shadow-sm disabled:opacity-50 disabled:pointer-events-none disabled:shadow-none mb-3 cursor-pointer transition-all">
                     {verifyingPhoneOtp ? <span className="flex items-center justify-center gap-2"><RefreshCcw className="w-3.5 h-3.5 animate-spin" /> Verifying...</span> : 'Verify OTP'}
                   </button>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-[#94A3B8]">
                     {phoneOtpTimer > 0 ? `Resend in ${phoneOtpTimer}s` : <span className="text-[#00A86B] cursor-pointer font-bold hover:underline" onClick={sendPhoneOtp}>Resend OTP</span>}
                   </p>
                 </motion.div>
@@ -1081,18 +997,18 @@ export function AdminKYC() {
             <>
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowEmailOtpModal(false)} className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm z-[200]" />
               <div className="fixed inset-0 flex items-center justify-center z-[201] p-4 pointer-events-none">
-                <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} transition={{ type: 'spring', duration: 0.5 }} className="w-full max-w-[360px] bg-white rounded-3xl shadow-[0_24px_48px_rgba(0,0,0,0.16)] p-6 relative pointer-events-auto border border-slate-100 text-center">
-                  <button type="button" onClick={() => setShowEmailOtpModal(false)} className="absolute -top-5 left-1/2 -translate-x-1/2 w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-md hover:bg-slate-50 transition-colors border border-slate-100 cursor-pointer focus:outline-none">
-                    <X className="w-4 h-4 text-slate-500" />
+                <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} transition={{ type: 'spring', duration: 0.5 }} className="w-full max-w-[360px] bg-white rounded-2xl shadow-2xl p-6 relative pointer-events-auto border border-[#E2E8F0] text-center">
+                  <button type="button" onClick={() => setShowEmailOtpModal(false)} className="absolute -top-5 left-1/2 -translate-x-1/2 w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-md hover:bg-[#F8FAFC] transition-colors border border-[#E2E8F0] cursor-pointer focus:outline-none">
+                    <X className="w-4 h-4 text-[#64748B]" />
                   </button>
                   <motion.div initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 260, damping: 16, delay: 0.1 }} className="w-14 h-14 rounded-2xl bg-[#F0FDF4] flex items-center justify-center mx-auto mt-3 mb-4">
                     <Mail className="w-6 h-6 text-[#00A86B]" />
                   </motion.div>
                   <div className="mb-4">
-                    <h2 className="text-base font-bold text-slate-800 mb-1">Verify Email OTP</h2>
-                    <p className="text-xs text-slate-500">OTP sent to <span className="font-semibold text-slate-700">{email}</span></p>
+                    <h2 className="text-base font-bold text-[#0F172A] mb-1">Verify Email OTP</h2>
+                    <p className="text-xs text-[#64748B]">OTP sent to <span className="font-semibold text-[#334155]">{email}</span></p>
                   </div>
-                  <div className="h-[1px] bg-slate-100 mb-5" />
+                  <div className="h-[1px] bg-[#F1F5F9] mb-5" />
                   <div className="flex justify-center gap-2 mb-4">
                     {emailOtpValues.map((val, idx) => (
                       <input key={idx} type="tel" maxLength={1} inputMode="numeric" value={val}
@@ -1103,14 +1019,14 @@ export function AdminKYC() {
                         }}
                         onKeyDown={(e) => { if (e.key === 'Backspace' && !val && idx > 0) (document.getElementById(`eotp-${idx - 1}`) as HTMLInputElement)?.focus(); }}
                         id={`eotp-${idx}`}
-                        className={`w-11 h-11 rounded-xl border text-center text-lg font-bold text-[#00A86B] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/15 transition-all ${val ? 'border-[#00A86B]/40 bg-[#F0FDF4]/40' : 'border-slate-200'}`}
+                        className={`w-11 h-11 rounded-xl border text-center text-lg font-bold text-[#00A86B] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/15 transition-all ${val ? 'border-[#00A86B]/40 bg-[#F0FDF4]/40' : 'border-[#E2E8F0]'}`}
                       />
                     ))}
                   </div>
-                  <button type="button" onClick={verifyEmailOtp} disabled={verifyingEmailOtp || emailOtpValues.join('').length !== 6} className="w-full h-10 rounded-full bg-[#00A86B] hover:bg-[#009B63] text-white text-xs font-bold shadow-lg shadow-[#00A86B]/20 disabled:opacity-50 disabled:pointer-events-none disabled:shadow-none mb-3 cursor-pointer transition-all">
+                  <button type="button" onClick={verifyEmailOtp} disabled={verifyingEmailOtp || emailOtpValues.join('').length !== 6} className="w-full h-10 rounded-xl bg-[#00A86B] hover:bg-[#009B63] text-white text-xs font-bold shadow-sm disabled:opacity-50 disabled:pointer-events-none disabled:shadow-none mb-3 cursor-pointer transition-all">
                     {verifyingEmailOtp ? <span className="flex items-center justify-center gap-2"><RefreshCcw className="w-3.5 h-3.5 animate-spin" /> Verifying...</span> : 'Verify OTP'}
                   </button>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-[#94A3B8]">
                     {emailOtpTimer > 0 ? `Resend in ${emailOtpTimer}s` : <span className="text-[#00A86B] cursor-pointer font-bold hover:underline" onClick={sendEmailOtp}>Resend OTP</span>}
                   </p>
                 </motion.div>
@@ -1125,27 +1041,27 @@ export function AdminKYC() {
             <>
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={closeOtpModal} className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm z-[200]" />
               <div className="fixed inset-0 flex items-center justify-center z-[201] p-4 pointer-events-none">
-                <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} transition={{ type: "spring", duration: 0.5 }} className="w-full max-w-[360px] bg-white rounded-3xl shadow-[0_24px_48px_rgba(0,0,0,0.16)] p-6 relative pointer-events-auto border border-slate-100 text-center">
-                  <button type="button" onClick={closeOtpModal} className="absolute -top-5 left-1/2 -translate-x-1/2 w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-[0_4px_16px_rgba(0,0,0,0.08)] hover:bg-slate-50 transition-colors border border-slate-100 cursor-pointer focus:outline-none">
-                    <X className="w-4 h-4 text-slate-500" />
+                <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} transition={{ type: "spring", duration: 0.5 }} className="w-full max-w-[360px] bg-white rounded-2xl shadow-2xl p-6 relative pointer-events-auto border border-[#E2E8F0] text-center">
+                  <button type="button" onClick={closeOtpModal} className="absolute -top-5 left-1/2 -translate-x-1/2 w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-[0_4px_16px_rgba(0,0,0,0.08)] hover:bg-[#F8FAFC] transition-colors border border-[#E2E8F0] cursor-pointer focus:outline-none">
+                    <X className="w-4 h-4 text-[#64748B]" />
                   </button>
                   <motion.div initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 260, damping: 16, delay: 0.1 }} className="w-14 h-14 rounded-2xl bg-[#F0FDF4] flex items-center justify-center mx-auto mt-3 mb-4">
                     <ShieldCheck className="w-6 h-6 text-[#00A86B]" />
                   </motion.div>
                   <div className="mb-6">
-                    <h2 className="text-lg font-bold text-slate-800 mb-1">Verify OTP</h2>
-                    <p className="text-xs text-slate-500 leading-relaxed px-4">Verify your identity with the OTP sent to your phone!</p>
+                    <h2 className="text-lg font-bold text-[#0F172A] mb-1">Verify OTP</h2>
+                    <p className="text-xs text-[#64748B] leading-relaxed px-4">Verify your identity with the OTP sent to your phone!</p>
                   </div>
-                  <div className="h-[1px] bg-slate-100 mb-6" />
+                  <div className="h-[1px] bg-[#F1F5F9] mb-6" />
                   <div className="flex justify-center gap-3.5 mb-5">
                     {otpValues.map((value, idx) => (
-                      <input key={idx} ref={otpInputRefs[idx]} type="text" maxLength={1} inputMode="numeric" pattern="[0-9]*" value={value} onChange={(e) => handleOtpChange(idx, e.target.value)} onKeyDown={(e) => handleOtpKeyDown(idx, e)} className={`w-16 h-16 rounded-xl border text-center text-2xl font-bold text-[#00A86B] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/15 bg-white shadow-sm otp-box transition-all ${value ? 'border-[#00A86B]/40 bg-[#F0FDF4]/40' : 'border-slate-200'}`} />
+                      <input key={idx} ref={otpInputRefs[idx]} type="text" maxLength={1} inputMode="numeric" pattern="[0-9]*" value={value} onChange={(e) => handleOtpChange(idx, e.target.value)} onKeyDown={(e) => handleOtpKeyDown(idx, e)} className={`w-16 h-16 rounded-xl border text-center text-2xl font-bold text-[#00A86B] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/15 bg-white shadow-sm otp-box transition-all ${value ? 'border-[#00A86B]/40 bg-[#F0FDF4]/40' : 'border-[#E2E8F0]'}`} />
                     ))}
                   </div>
-                  <p className="text-xs text-slate-400 font-medium mb-6">Didn't get a code? <span className="text-[#00A86B] font-bold cursor-pointer hover:underline">Click to resend.</span></p>
+                  <p className="text-xs text-[#94A3B8] font-medium mb-6">Didn't get a code? <span className="text-[#00A86B] font-bold cursor-pointer hover:underline">Click to resend.</span></p>
                   <div className="flex gap-3">
-                    <button type="button" onClick={closeOtpModal} className="flex-1 h-11 rounded-full border border-slate-200 text-slate-500 hover:text-slate-700 hover:bg-slate-50 text-xs font-bold transition-all focus:outline-none cursor-pointer">Cancel</button>
-                    <button type="button" onClick={handleVerifyOtp} disabled={otpValues.join('').length < 4} className="flex-1 h-11 rounded-full bg-[#00A86B] hover:bg-[#009B63] text-white text-xs font-bold shadow-lg shadow-[#00A86B]/25 transition-all disabled:opacity-50 disabled:pointer-events-none cursor-pointer focus:outline-none">Verify</button>
+                    <button type="button" onClick={closeOtpModal} className="flex-1 h-11 rounded-xl border border-[#E2E8F0] text-[#64748B] hover:text-[#334155] hover:bg-[#F8FAFC] text-xs font-bold transition-all focus:outline-none cursor-pointer">Cancel</button>
+                    <button type="button" onClick={handleVerifyOtp} disabled={otpValues.join('').length < 4} className="flex-1 h-11 rounded-xl bg-[#00A86B] hover:bg-[#009B63] text-white text-xs font-bold shadow-sm transition-all disabled:opacity-50 disabled:pointer-events-none cursor-pointer focus:outline-none">Verify</button>
                   </div>
                 </motion.div>
               </div>

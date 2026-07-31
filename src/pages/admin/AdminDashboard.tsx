@@ -281,7 +281,7 @@ export function AdminDashboard() {
               </div>
             </div>
             <Link
-              to="/admin/kyc"
+              to={isUserRoute ? '/user/kyc' : '/admin/kyc'}
               className="shrink-0 h-9 px-4 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-bold flex items-center gap-1.5 shadow-sm transition-colors"
             >
               Complete KYC Now <ArrowRight className="w-3.5 h-3.5" />

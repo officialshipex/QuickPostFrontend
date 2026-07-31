@@ -9,6 +9,7 @@ interface AdminTabContextType {
   currentUserId: string;
   userName: string;
   userEmail: string;
+  businessName: string;
   profileImage: string;
   walletBalance: number;
   walletHold: number;
@@ -22,6 +23,7 @@ const AdminTabContext = createContext<AdminTabContextType>({
   currentUserId: '',
   userName: '',
   userEmail: '',
+  businessName: '',
   profileImage: '',
   walletBalance: 0,
   walletHold: 0,
@@ -38,6 +40,7 @@ export function AdminUserProvider({ children }: { children: React.ReactNode }) {
   const [currentUserId, setCurrentUserId] = useState('');
   const [userName, setUserName] = useState('');
   const [userEmail, setUserEmail] = useState('');
+  const [businessName, setBusinessName] = useState('');
   const [profileImage, setProfileImage] = useState('');
   const [walletBalance, setWalletBalance] = useState(0);
   const [walletHold, setWalletHold] = useState(0);
@@ -55,6 +58,7 @@ export function AdminUserProvider({ children }: { children: React.ReactNode }) {
       setCurrentUserId(user?._id || '');
       setUserName(user?.fullname || '');
       setUserEmail(user?.email || '');
+      setBusinessName(user?.company || '');
       setProfileImage(user?.profileImage || '');
       setWalletBalance(user?.Wallet?.balance || 0);
       setWalletHold(user?.Wallet?.holdAmount || 0);
@@ -80,7 +84,7 @@ export function AdminUserProvider({ children }: { children: React.ReactNode }) {
   return (
     <AdminTabContext.Provider value={{
       isAdmin, adminTab, loadingAdminTab, currentUserId,
-      userName, userEmail, profileImage, walletBalance, walletHold,
+      userName, userEmail, businessName, profileImage, walletBalance, walletHold,
       toggleAdminTab,
     }}>
       {children}

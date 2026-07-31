@@ -1052,6 +1052,10 @@ type TabKey = ChannelType | 'ai' | 'history' | 'alerts';
 export function AdminNotification() {
   const { isAdmin, adminTab, currentUserId } = useAdminTab();
   const isAdminView = isAdmin && adminTab;
+  // AdminLayout adds a 32px impersonation banner (pt-8) above the page when an
+  // admin is impersonating a user — the page height calc must account for it too,
+  // otherwise the extra 32px overflows the viewport and the whole page scrolls.
+  const isImpersonating = !!localStorage.getItem('admin_token_backup');
 
   // User search (admin)
   const [userSearch, setUserSearch] = useState('');
@@ -1076,9 +1080,12 @@ export function AdminNotification() {
   const targetUserId = isAdminView ? (selectedUser?._id || null) : currentUserId;
   const targetUserName = selectedUser?.fullname || selectedUser?.name || '';
 
-  // User search debounce
+  // User search debounce — skipped right after selecting a user, since selecting
+  // sets userSearch to the picked name and would otherwise immediately re-trigger
+  // a search + reopen the dropdown that was just closed.
   useEffect(() => {
     if (!isAdminView || userSearch.trim().length < 2) { setSuggestions([]); return; }
+    if (selectedUser && userSearch === (selectedUser.fullname || selectedUser.name || selectedUser.email || '')) return;
     const timer = setTimeout(async () => {
       try {
         const res = await apiClient.get(`/admin/searchUser?query=${encodeURIComponent(userSearch)}`);
@@ -1087,7 +1094,7 @@ export function AdminNotification() {
       } catch { setSuggestions([]); }
     }, 300);
     return () => clearTimeout(timer);
-  }, [userSearch, isAdminView]);
+  }, [userSearch, isAdminView, selectedUser]);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -1142,7 +1149,8 @@ export function AdminNotification() {
 
   return (
     <AdminLayout>
-      <div className="max-w-[1400px] mx-auto pb-10">
+      <div className={`flex flex-col ${isImpersonating ? 'h-[calc(100vh-104px)]' : 'h-[calc(100vh-72px)]'} -m-4 md:-m-6 overflow-hidden`}>
+        <div className="px-4 md:px-6 pt-4 md:pt-6 shrink-0">
 
         {/* Header */}
         <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4 mb-6">
@@ -1187,6 +1195,11 @@ export function AdminNotification() {
             </div>
           )}
         </div>
+        </div>
+
+        {/* Scrollable body — everything below the title bar */}
+        <div className="flex-1 min-h-0 overflow-y-auto">
+        <div className="px-4 md:px-6 pb-10">
 
         {/* Admin: user search */}
         {isAdminView && (
@@ -1199,6 +1212,8 @@ export function AdminNotification() {
                   <input value={userSearch} onChange={e => setUserSearch(e.target.value)}
                     onFocus={() => suggestions.length > 0 && setDropOpen(true)}
                     placeholder="Search by name or email…"
+                    name="notification-target-user-search"
+                    autoComplete="off"
                     className="w-full h-10 pl-9 pr-3 rounded-lg border border-[#E2E8F0] text-xs focus:outline-none focus:border-[#00A86B]" />
                   {dropOpen && suggestions.length > 0 && (
                     <div className="absolute top-full left-0 w-full bg-white border border-[#E2E8F0] rounded-xl shadow-xl z-50 mt-1 max-h-48 overflow-y-auto">
@@ -1308,6 +1323,9 @@ export function AdminNotification() {
             </div>
           </>
         )}
+
+        </div>
+        </div>
 
         {/* Modals */}
         <AnimatePresence>

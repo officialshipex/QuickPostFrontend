@@ -282,6 +282,10 @@ export function AdminOrders() {
   // JWT isAdmin can be stale if the user was granted admin after their last login.
   const { isAdmin, adminTab, currentUserId, loadingAdminTab } = useAdminTab();
   const isAdminView = isAdmin && adminTab;
+  // AdminLayout adds a 32px impersonation banner (pt-8) above the page when an
+  // admin is impersonating a user — the page height calc must account for it too,
+  // otherwise the extra 32px overflows the viewport and the whole page scrolls.
+  const isImpersonating = !!localStorage.getItem('admin_token_backup');
 
   // ── Tabs — each tab is its own URL sub-route (/admin/orders/:tabSlug or /user/orders/:tabSlug) ──
   const navigate = useNavigate();
@@ -822,7 +826,7 @@ export function AdminOrders() {
 
   return (
     <AdminLayout>
-      <div className="flex flex-col h-[calc(100vh-72px)] -m-4 md:-m-6 bg-white">
+      <div className={`flex flex-col ${isImpersonating ? 'h-[calc(100vh-104px)]' : 'h-[calc(100vh-72px)]'} -m-4 md:-m-6 bg-white ${!isAdminView ? 'overflow-hidden' : ''}`}>
 
         {/* ── Mobile Search Bar ── */}
         <div className="md:hidden px-4 py-3 border-b border-[#E2E8F0] bg-white shrink-0">
@@ -1069,8 +1073,7 @@ export function AdminOrders() {
                 <button
                   onClick={() => navigate('/user/add-order')}
                   aria-label="Add Order"
-                  className="w-9 h-9 rounded-[80px] border border-[#03C27D] flex items-center justify-center text-white shadow-sm transition-transform hover:scale-105"
-                  style={{ background: 'linear-gradient(180deg, #03C27D 0%, #059669 50%, #065F46 100%)' }}
+                  className="w-9 h-9 rounded-[80px] border border-[#03C27D] flex items-center justify-center text-white shadow-sm transition-transform hover:scale-105 bg-[#009D64]"
                 >
                   <PackagePlus className="w-4 h-4" />
                 </button>
@@ -1165,7 +1168,7 @@ export function AdminOrders() {
                 <tbody className="text-[11px] text-[#475569]">
                   {paginatedOrders.length === 0 ? (
                     <tr>
-                      <td colSpan={colCount()}>
+                      <td colSpan={colCount()} className="text-center">
                         <EmptyState title="No orders found" subtitle="Try changing filters" />
                       </td>
                     </tr>
@@ -1371,7 +1374,9 @@ export function AdminOrders() {
           <div className="md:hidden flex-1 overflow-y-auto bg-[#F8FAFC] relative">
             {loading && <TableLoader />}
             {paginatedOrders.length === 0 ? (
-              <EmptyState />
+              <div className="flex items-center justify-center min-h-[60vh]">
+                <EmptyState title="No orders found" subtitle="Try changing filters" />
+              </div>
             ) : (
               <div className="p-4 space-y-4">
                 {paginatedOrders.map((order) => {

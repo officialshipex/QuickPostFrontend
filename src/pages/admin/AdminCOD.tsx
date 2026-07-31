@@ -134,6 +134,10 @@ export function AdminCOD() {
   const navigate = useNavigate();
   const { isAdmin, adminTab, loadingAdminTab, currentUserId } = useAdminTab();
   const isAdminView = isAdmin && adminTab;
+  // AdminLayout adds a 32px impersonation banner (pt-8) above the page when an
+  // admin is impersonating a user — the page height calc must account for it too,
+  // otherwise the extra 32px overflows the viewport and the whole page scrolls.
+  const isImpersonating = !!localStorage.getItem('admin_token_backup');
   const MAIN_TABS = isAdminView ? ADMIN_TABS : USER_TABS;
 
   // Global search from layout
@@ -758,7 +762,7 @@ export function AdminCOD() {
 
   return (
     <AdminLayout>
-      <div className="flex flex-col h-[calc(100vh-72px)] -m-4 md:-m-6 bg-white">
+      <div className={`flex flex-col ${isImpersonating ? 'h-[calc(100vh-104px)]' : 'h-[calc(100vh-72px)]'} -m-4 md:-m-6 bg-white ${!isAdminView ? 'overflow-hidden' : ''}`}>
 
         {/* Mobile Search Bar */}
         <div className="md:hidden px-4 py-3 border-b border-[#E2E8F0] bg-white">

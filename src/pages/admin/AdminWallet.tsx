@@ -156,6 +156,10 @@ export function AdminWallet() {
   const navigate = useNavigate();
   const { isAdmin, adminTab, loadingAdminTab, currentUserId } = useAdminTab();
   const isAdminView = isAdmin && adminTab;
+  // AdminLayout adds a 32px impersonation banner (pt-8) above the page when an
+  // admin is impersonating a user — the page height calc must account for it too,
+  // otherwise the extra 32px overflows the viewport and the whole page scrolls.
+  const isImpersonating = !!localStorage.getItem('admin_token_backup');
   const [globalSearchQuery, setGlobalSearchQuery] = useState((window as any).__adminSearchQuery?.toLowerCase() || '');
 
   useEffect(() => {
@@ -1059,7 +1063,7 @@ export function AdminWallet() {
 
   return (
     <AdminLayout>
-      <div className="flex flex-col h-[calc(100vh-72px)] md:h-[calc(100vh-72px)] -m-4 md:-m-6 bg-white">
+      <div className={`flex flex-col ${isImpersonating ? 'h-[calc(100vh-104px)] md:h-[calc(100vh-104px)]' : 'h-[calc(100vh-72px)] md:h-[calc(100vh-72px)]'} -m-4 md:-m-6 bg-white ${!isAdminView ? 'overflow-hidden' : ''}`}>
         <div className="bg-white relative z-50 shrink-0">
           {/* Mobile Search Bar */}
           <div className="md:hidden px-4 py-3 border-b border-[#E2E8F0]">
@@ -1225,8 +1229,7 @@ export function AdminWallet() {
                   <button
                     onClick={() => setIsRechargeModalOpen(true)}
                     aria-label="Recharge Wallet"
-                    className="w-9 h-9 rounded-[80px] border border-[#03C27D] flex items-center justify-center text-white shadow-sm transition-transform hover:scale-105"
-                    style={{ background: 'linear-gradient(180deg, #03C27D 0%, #059669 50%, #065F46 100%)' }}
+                    className="w-9 h-9 rounded-[80px] border border-[#03C27D] flex items-center justify-center text-white shadow-sm transition-transform hover:scale-105 bg-[#009D64]"
                   >
                     <Plus className="w-4 h-4" />
                   </button>
@@ -1423,8 +1426,7 @@ export function AdminWallet() {
                   <button
                     onClick={() => setIsRechargeModalOpen(true)}
                     aria-label="Recharge Wallet"
-                    className="w-9 h-9 rounded-[80px] border border-[#03C27D] flex items-center justify-center text-white shadow-sm transition-transform hover:scale-105"
-                    style={{ background: 'linear-gradient(180deg, #03C27D 0%, #059669 50%, #065F46 100%)' }}
+                    className="w-9 h-9 rounded-[80px] border border-[#03C27D] flex items-center justify-center text-white shadow-sm transition-transform hover:scale-105 bg-[#009D64]"
                   >
                     <Plus className="w-4 h-4" />
                   </button>
@@ -1525,8 +1527,7 @@ export function AdminWallet() {
                   <button
                     onClick={() => setIsRechargeModalOpen(true)}
                     aria-label="Recharge Wallet"
-                    className="w-9 h-9 rounded-[80px] border border-[#03C27D] flex items-center justify-center text-white shadow-sm transition-transform hover:scale-105"
-                    style={{ background: 'linear-gradient(180deg, #03C27D 0%, #059669 50%, #065F46 100%)' }}
+                    className="w-9 h-9 rounded-[80px] border border-[#03C27D] flex items-center justify-center text-white shadow-sm transition-transform hover:scale-105 bg-[#009D64]"
                   >
                     <Plus className="w-4 h-4" />
                   </button>
@@ -1671,8 +1672,7 @@ export function AdminWallet() {
                     <button
                       onClick={() => setIsRechargeModalOpen(true)}
                       aria-label="Recharge Wallet"
-                      className="w-9 h-9 rounded-[80px] border border-[#03C27D] flex items-center justify-center text-white shadow-sm transition-transform hover:scale-105"
-                      style={{ background: 'linear-gradient(180deg, #03C27D 0%, #059669 50%, #065F46 100%)' }}
+                      className="w-9 h-9 rounded-[80px] border border-[#03C27D] flex items-center justify-center text-white shadow-sm transition-transform hover:scale-105 bg-[#009D64]"
                     >
                       <Plus className="w-4 h-4" />
                     </button>

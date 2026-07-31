@@ -369,6 +369,10 @@ const exportDiscrepancyToExcel = (rows: any[], filename: string) => {
 export function AdminWeightDiscrepancy() {
   const { isAdmin, adminTab, currentUserId, loadingAdminTab } = useAdminTab();
   const isAdminView = isAdmin && adminTab;
+  // AdminLayout adds a 32px impersonation banner (pt-8) above the page when an
+  // admin is impersonating a user — the page height calc must account for it too,
+  // otherwise the extra 32px overflows the viewport and the whole page scrolls.
+  const isImpersonating = !!localStorage.getItem('admin_token_backup');
 
   // ── Tabs — each tab is its own URL sub-route (/admin/weight-discrepancy/:tabSlug) ──
   const navigate = useNavigate();
@@ -655,7 +659,7 @@ export function AdminWeightDiscrepancy() {
 
   return (
     <AdminLayout>
-      <div className="flex flex-col h-[calc(100vh-72px)] -m-4 md:-m-6 bg-white">
+      <div className={`flex flex-col ${isImpersonating ? 'h-[calc(100vh-104px)]' : 'h-[calc(100vh-72px)]'} -m-4 md:-m-6 bg-white ${!isAdminView ? 'overflow-hidden' : ''}`}>
 
         {/* ── Tab bar ── */}
         <div className="bg-white border-b border-[#E2E8F0] relative z-50 shrink-0">

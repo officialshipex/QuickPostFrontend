@@ -4,8 +4,12 @@ import { apiClient } from '../../services/apiClient';
 import { useAdminTab } from '../../context/AdminUserContext';
 import {
   Plus, Download, Pencil, Trash2, Star, Loader2, X, MapPin, Phone, Mail, AlertCircle, Search,
+  User, Hash, CheckCircle2, Settings,
 } from 'lucide-react';
 import { useUserSearchFilter } from '../../hooks/filters/useUserSearchFilter';
+import { useTableLoader } from '../../hooks/useTableLoader';
+import { TableLoader } from '../../components/ui/TableLoader';
+import { TruncatedText } from '../../components/ui/TruncatedText';
 
 const BACKEND_BASE = (import.meta.env.VITE_API_URL as string) || 'http://localhost:5000/v1';
 
@@ -32,6 +36,10 @@ const inputCls = (err?: string) =>
 export function AdminPickupAddress() {
   const { isAdmin, adminTab } = useAdminTab();
   const isAdminView = isAdmin && adminTab;
+  // AdminLayout adds a 32px impersonation banner (pt-8) above the page when an
+  // admin is impersonating a user — the page height calc must account for it too,
+  // otherwise the extra 32px overflows the viewport and the whole page scrolls.
+  const isImpersonating = !!localStorage.getItem('admin_token_backup');
 
   const {
     userQuery,
@@ -43,7 +51,7 @@ export function AdminPickupAddress() {
   } = useUserSearchFilter(isAdminView);
 
   const [addresses, setAddresses] = useState<PickupDoc[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { isLoading: loading, setIsLoading: setLoading } = useTableLoader(0);
   const [fetchError, setFetchError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -237,10 +245,10 @@ export function AdminPickupAddress() {
   // ─────────────────────────────────────────────────────────────────────────
   return (
     <AdminLayout>
-      <div className="max-w-[1400px] mx-auto pb-10">
+      <div className={`flex flex-col ${isImpersonating ? 'h-[calc(100vh-104px)]' : 'h-[calc(100vh-72px)]'} -m-4 md:-m-6 bg-white ${!isAdminView ? 'overflow-hidden' : ''}`}>
 
         {/* Top bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 md:px-6 py-4 border-b border-[#E2E8F0] shrink-0">
           <div>
             <h1 className="text-[20px] font-bold text-[#0F172A]">Pickup Addresses</h1>
             <p className="text-[13px] text-[#64748B] mt-0.5">
@@ -252,16 +260,15 @@ export function AdminPickupAddress() {
             {isAdminView && (
               <div className="relative shrink-0">
                 <div className="relative">
-                  <Search className="w-4 h-4 text-[#94A3B8] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                   <input
                     type="text"
                     placeholder="Filter by user..."
                     value={userQuery}
                     onChange={e => onUserQueryChange(e.target.value)}
-                    className="h-9 pl-9 pr-8 w-[180px] rounded-lg border border-[#E2E8F0] bg-white text-[13px] text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B] transition-colors"
+                    className="glass-search-input w-[180px]"
                   />
                   {(userQuery || userMongoId) && (
-                    <button onClick={clearUserFilter} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#94A3B8] hover:text-[#475569]">
+                    <button onClick={clearUserFilter} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#94A3B8] hover:text-[#475569]">
                       <X className="w-3.5 h-3.5" />
                     </button>
                   )}
@@ -285,23 +292,21 @@ export function AdminPickupAddress() {
             )}
 
             {/* Search — always visible */}
-            <div className="relative">
-              <Search className="w-4 h-4 text-[#94A3B8] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                placeholder={isAdminView ? 'Search by name, user, city…' : 'Search by name, city…'}
-                className="h-9 pl-9 pr-3 w-[220px] rounded-lg border border-[#E2E8F0] bg-white text-[13px] text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B] transition-colors"
-              />
-            </div>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder={isAdminView ? 'Search by name, user, city…' : 'Search by name, city…'}
+              className="glass-search-input w-[220px]"
+            />
 
             {/* Export — always visible */}
             <button
               onClick={handleDownload}
-              className="flex items-center gap-2 h-9 px-4 rounded-lg border border-[#E2E8F0] bg-white text-[13px] font-semibold text-[#475569] hover:border-[#00A86B] hover:text-[#00A86B] transition-colors"
+              aria-label="Export Excel"
+              className="w-9 h-9 rounded-full border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC] hover:border-[#00A86B] hover:text-[#00A86B] transition-colors shrink-0"
             >
-              <Download className="w-4 h-4" /> Export Excel
+              <Download className="w-4 h-4" />
             </button>
 
             {/* Add — user only */}
@@ -318,19 +323,19 @@ export function AdminPickupAddress() {
 
         {/* Error */}
         {fetchError && (
-          <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-100 rounded-xl text-red-600 text-[13px] mb-4">
+          <div className="flex items-center gap-2 p-3 mx-4 md:mx-6 mt-4 bg-red-50 border border-red-100 rounded-xl text-red-600 text-[13px] shrink-0">
             <AlertCircle className="w-4 h-4 shrink-0" /> {fetchError}
           </div>
         )}
 
         {/* Loading */}
         {loading ? (
-          <div className="flex items-center justify-center h-48">
-            <Loader2 className="w-6 h-6 animate-spin text-[#00A86B]" />
+          <div className="flex-1 relative">
+            <TableLoader />
           </div>
         ) : addresses.length === 0 ? (
           /* Empty state */
-          <div className="bg-white border border-dashed border-[#CBD5E1] rounded-2xl flex flex-col items-center justify-center py-16 px-6 text-center">
+          <div className="flex-1 flex flex-col items-center justify-center text-center px-6">
             <div className="w-14 h-14 rounded-full bg-[#F0FDF4] flex items-center justify-center mb-4">
               <MapPin className="w-7 h-7 text-[#00A86B]" />
             </div>
@@ -349,7 +354,7 @@ export function AdminPickupAddress() {
           </div>
         ) : filteredAddresses.length === 0 ? (
           /* No search results */
-          <div className="bg-white border border-[#E2E8F0] rounded-2xl flex flex-col items-center justify-center py-12 px-6 text-center">
+          <div className="flex-1 flex flex-col items-center justify-center text-center px-6">
             <Search className="w-8 h-8 text-[#CBD5E1] mb-3" />
             <p className="text-[14px] font-semibold text-[#0F172A] mb-1">No results for "{searchQuery}"</p>
             <p className="text-[13px] text-[#64748B]">Try a different name, phone number, or city</p>
@@ -357,42 +362,43 @@ export function AdminPickupAddress() {
         ) : (
           <>
             {/* ── Desktop table ─────────────────────────────────────────── */}
-            <div className="hidden md:block bg-white border border-[#E2E8F0] rounded-2xl overflow-hidden shadow-sm">
-              <table className="w-full text-[13px]">
-                <thead>
-                  <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0]">
-                    {isAdminView && <th className="px-5 py-3.5 text-left font-semibold text-[#475569]">User</th>}
-                    <th className="px-5 py-3.5 text-left font-semibold text-[#475569]">Contact</th>
-                    <th className="px-5 py-3.5 text-left font-semibold text-[#475569]">Phone</th>
-                    <th className="px-5 py-3.5 text-left font-semibold text-[#475569]">Address</th>
-                    <th className="px-5 py-3.5 text-left font-semibold text-[#475569]">City / State</th>
-                    <th className="px-5 py-3.5 text-left font-semibold text-[#475569]">Pincode</th>
-                    <th className="px-5 py-3.5 text-center font-semibold text-[#475569]">Status</th>
-                    {!isAdminView && <th className="px-5 py-3.5 text-center font-semibold text-[#475569]">Actions</th>}
+            <div className="hidden md:block flex-1 min-h-0 overflow-hidden px-4 md:px-6 py-4">
+              <div className="h-full overflow-auto no-scrollbar border border-[#E2E8F0] rounded-2xl">
+              <table className="w-full text-left border-collapse">
+                <thead className="sticky top-0 z-10 bg-[#E6F9F2] shadow-sm">
+                  <tr className="text-xs leading-[18px] font-medium text-[#64748B] uppercase tracking-wider border border-[#B9EFDB]">
+                    {isAdminView && <th className="py-2 px-4 whitespace-nowrap"><div className="flex items-center gap-1"><User className="w-3.5 h-3.5 shrink-0" /><span>User</span></div></th>}
+                    <th className="py-2 px-4 whitespace-nowrap"><div className="flex items-center gap-1"><User className="w-3.5 h-3.5 shrink-0" /><span>Contact</span></div></th>
+                    <th className="py-2 px-4 whitespace-nowrap"><div className="flex items-center gap-1"><Phone className="w-3.5 h-3.5 shrink-0" /><span>Phone</span></div></th>
+                    <th className="py-2 px-4 whitespace-nowrap"><div className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5 shrink-0" /><span>Address</span></div></th>
+                    <th className="py-2 px-4 whitespace-nowrap"><div className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5 shrink-0" /><span>City / State</span></div></th>
+                    <th className="py-2 px-4 whitespace-nowrap"><div className="flex items-center gap-1"><Hash className="w-3.5 h-3.5 shrink-0" /><span>Pincode</span></div></th>
+                    <th className="py-2 px-4 text-center whitespace-nowrap"><div className="flex items-center justify-center gap-1"><CheckCircle2 className="w-3.5 h-3.5 shrink-0" /><span>Status</span></div></th>
+                    {!isAdminView && <th className="py-2 px-4 text-center whitespace-nowrap"><div className="flex items-center justify-center gap-1"><Settings className="w-3.5 h-3.5 shrink-0" /><span>Actions</span></div></th>}
                   </tr>
                 </thead>
                 <tbody>
                   {filteredAddresses.map((doc, i) => {
                     const a = doc.pickupAddress;
                     return (
-                      <tr key={doc._id} className={`border-b border-[#F1F5F9] last:border-0 hover:bg-[#FAFFFE] transition-colors ${i % 2 === 1 ? 'bg-[#FAFFFE]' : ''}`}>
+                      <tr key={doc._id} className={`border-b border-[#E2E8F0] transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]/20'}`}>
                         {isAdminView && (
-                          <td className="px-5 py-3.5">
-                            <p className="font-semibold text-[#0F172A]">{doc.userId?.fullname || '—'}</p>
-                            {doc.userId?.company && <p className="text-[12px] text-[#94A3B8] mt-0.5">{doc.userId.company}</p>}
+                          <td className="p-3 max-w-[180px]">
+                            <TruncatedText text={doc.userId?.fullname || '—'} maxLength={22} className="text-[14px] leading-[20px] font-semibold text-[#0F172A]" />
+                            {doc.userId?.company && <TruncatedText text={doc.userId.company} maxLength={26} className="text-[12px] leading-[18px] font-normal text-[#94A3B8]" />}
                           </td>
                         )}
-                        <td className="px-5 py-3.5">
-                          <p className="font-semibold text-[#0F172A]">{a.contactName}</p>
-                          {a.email && <p className="text-[12px] text-[#94A3B8] mt-0.5">{a.email}</p>}
+                        <td className="p-3 max-w-[180px]">
+                          <TruncatedText text={a.contactName} maxLength={22} className="text-[14px] leading-[20px] font-semibold text-[#0F172A]" />
+                          {a.email && <TruncatedText text={a.email} maxLength={26} className="text-[12px] leading-[18px] font-normal text-[#94A3B8]" />}
                         </td>
-                        <td className="px-5 py-3.5 text-[#475569]">{a.phoneNumber}</td>
-                        <td className="px-5 py-3.5 text-[#475569] max-w-[200px]">
+                        <td className="p-3 text-[12px] font-normal text-[#475569]">{a.phoneNumber}</td>
+                        <td className="p-3 text-[12px] font-normal text-[#475569] max-w-[200px]">
                           <p className="truncate">{a.address}</p>
                         </td>
-                        <td className="px-5 py-3.5 text-[#475569]">{a.city}, {a.state}</td>
-                        <td className="px-5 py-3.5 text-[#475569]">{a.pinCode}</td>
-                        <td className="px-5 py-3.5 text-center">
+                        <td className="p-3 text-[12px] font-normal text-[#475569]">{a.city}, {a.state}</td>
+                        <td className="p-3 text-[12px] font-normal text-[#475569]">{a.pinCode}</td>
+                        <td className="p-3 text-center">
                           {doc.isPrimary ? (
                             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#D1FAE5] text-[#059669] text-[11px] font-bold">
                               <Star className="w-3 h-3 fill-[#059669]" /> Primary
@@ -411,7 +417,7 @@ export function AdminPickupAddress() {
                           )}
                         </td>
                         {!isAdminView && (
-                          <td className="px-5 py-3.5">
+                          <td className="p-3">
                             <div className="flex items-center justify-center gap-2">
                               <button
                                 onClick={() => openEdit(doc)}
@@ -435,10 +441,11 @@ export function AdminPickupAddress() {
                   })}
                 </tbody>
               </table>
+              </div>
             </div>
 
             {/* ── Mobile cards ───────────────────────────────────────────── */}
-            <div className="flex flex-col gap-3 md:hidden">
+            <div className="flex flex-col gap-3 md:hidden flex-1 min-h-0 overflow-y-auto p-4 bg-[#F8FAFC]">
               {filteredAddresses.map(doc => {
                 const a = doc.pickupAddress;
                 return (

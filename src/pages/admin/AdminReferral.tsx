@@ -185,6 +185,10 @@ function ReferralDetailsModal({ referral, onClose }: { referral: ReferralRow; on
 export function AdminReferral() {
   const { isAdmin, adminTab, currentUserId, loadingAdminTab } = useAdminTab();
   const isAdminView = isAdmin && adminTab;
+  // AdminLayout adds a 32px impersonation banner (pt-8) above the page when an
+  // admin is impersonating a user — the page height calc must account for it too,
+  // otherwise the extra 32px overflows the viewport and the whole page scrolls.
+  const isImpersonating = !!localStorage.getItem('admin_token_backup');
 
   const [referrals, setReferrals] = useState<ReferralRow[]>([]);
   const [summary, setSummary] = useState<Summary>({ totalUsers: 0, totalOrders: 0, totalCommission: 0, totalShipping: 0 });
@@ -453,7 +457,7 @@ export function AdminReferral() {
 
   return (
     <AdminLayout>
-      <div className="flex flex-col h-[calc(100vh-72px)] -m-4 md:-m-6 bg-white">
+      <div className={`flex flex-col ${isImpersonating ? 'h-[calc(100vh-104px)]' : 'h-[calc(100vh-72px)]'} -m-4 md:-m-6 bg-white ${!isAdminView ? 'overflow-hidden' : ''}`}>
         <div className="bg-white relative z-50 shrink-0">
           {/* Header */}
           <div className="flex justify-between items-center px-6 py-3 border-b border-[#E2E8F0] bg-white">

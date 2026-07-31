@@ -23,12 +23,13 @@ export function EmptyState({
   className = '',
 }: EmptyStateProps) {
   return (
-    <div className={`flex flex-col items-center justify-center w-full py-2 ${className}`}>
-      <div style={{ width: size, height: size }}>
+    <div className={`flex flex-col items-center justify-center w-full py-2 mx-auto ${className}`}>
+      <div className="flex items-center justify-center mx-auto" style={{ width: size, height: size }}>
         <DotLottieReact
           src="https://lottie.host/4a3a43dd-6b9e-4d67-a98f-d6230687c4a3/63xmOCCv3R.lottie"
           loop
           autoplay
+          style={{ width: '100%', height: '100%' }}
         />
       </div>
       {title && (
