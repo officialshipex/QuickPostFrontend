@@ -22,7 +22,8 @@ import {
   Building2,
   RotateCcw,
   X,
-  ChevronRight
+  ChevronRight,
+  MapPin,
 } from 'lucide-react';
 
 const LOGO_URL = '/logo-white.png';
@@ -104,6 +105,7 @@ const MENU_GROUPS: MenuGroup[] = [
       { name: 'EPD Mapping', path: '/admin/epd-mapping', icon: Calendar, adminOnly: true },
       { name: 'Agreement', path: '/admin/agreement', icon: FileText, adminOnly: true },
       { name: 'Complete KYC', path: '/admin/kyc', icon: FileText, userOnly: true },
+      { name: 'Pickup Address', path: '/admin/settings/pickup-address', icon: MapPin },
       { name: 'Settings', path: '/user/settings', icon: Settings, userOnly: true },
     ]
   },

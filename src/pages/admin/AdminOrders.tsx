@@ -13,7 +13,6 @@ import {
   CheckCircle2, Clock, AlertTriangle, Flame, History, Layers, RefreshCw, Mail,
   Filter, Copy, PackagePlus, FileText, Download
 } from 'lucide-react';
-import { TransferCODModal } from '../../components/ui/TransferCODModal';
 import { usePagination, DesktopPagination } from '../../hooks/usePagination';
 import { useMobilePaginationBar } from '../../hooks/useMobilePaginationBar';
 import { useUserSearchFilter } from '../../hooks/filters/useUserSearchFilter';
@@ -324,6 +323,7 @@ export function AdminOrders() {
   const [showMore, setShowMore]     = useState(false);
   const moreRef                     = useRef<HTMLDivElement>(null);
   const actionMenuRef               = useRef<HTMLDivElement>(null);
+  const mobileActionMenuRef         = useRef<HTMLDivElement>(null);
   const [showActionMenu, setShowActionMenu] = useState(false);
 
   // ── Orders data ──
@@ -376,6 +376,74 @@ export function AdminOrders() {
   const [hoveredPickup,   setHoveredPickup]     = useState<{ id: string; rect: DOMRect; name: string; address: string; city: string; state: string; pinCode: string; phone: string } | null>(null);
   const [hoveredCustomer, setHoveredCustomer]   = useState<{ rect: DOMRect; name: string; address: string; city: string; state: string; pinCode: string; email: string } | null>(null);
 
+  // ── Update Package Details modal ──
+  const [showPackageModal,  setShowPackageModal]  = useState(false);
+  const [packageForm,       setPackageForm]        = useState({ weight: '', length: '', width: '', height: '' });
+  const [packageSaving,     setPackageSaving]      = useState(false);
+
+  const handleUpdatePackageDetails = async () => {
+    const { weight, length, width, height } = packageForm;
+    if (!weight || !length || !width || !height) return;
+    setPackageSaving(true);
+    try {
+      await apiClient.post('/order/updatePackageDetails', {
+        details: { weight: parseFloat(weight), length: parseFloat(length), width: parseFloat(width), height: parseFloat(height) },
+        selectedOrders,
+      });
+      setShowPackageModal(false);
+      setPackageForm({ weight: '', length: '', width: '', height: '' });
+      fetchOrders(page);
+    } catch (e) {
+      console.error('Update package details failed', e);
+    } finally {
+      setPackageSaving(false);
+    }
+  };
+
+  // ── Update Pickup Address modal ──
+  const [showPickupModal,    setShowPickupModal]    = useState(false);
+  const [pickupList,         setPickupList]         = useState<any[]>([]);
+  const [selectedPickupAddr, setSelectedPickupAddr] = useState<any | null>(null);
+  const [pickupSaving,       setPickupSaving]       = useState(false);
+
+  const openPickupModal = async () => {
+    setShowPickupModal(true);
+    try {
+      const res = await apiClient.get('/order/pickupAddress', { params: { limit: 100 } });
+      setPickupList(res.data?.data || []);
+    } catch (e) { console.error('Failed to fetch pickup addresses', e); }
+  };
+
+  const handleUpdatePickupAddress = async () => {
+    if (!selectedPickupAddr) return;
+    setPickupSaving(true);
+    try {
+      const pa = selectedPickupAddr.pickupAddress;
+      await Promise.all(
+        selectedOrders.map(id =>
+          apiClient.put(`/order/updateOrder/${id}`, {
+            pickupAddress: {
+              contactName: pa.contactName,
+              phoneNumber: pa.phoneNumber,
+              email:       pa.email,
+              address:     pa.address,
+              city:        pa.city,
+              state:       pa.state,
+              pinCode:     pa.pinCode,
+            },
+          })
+        )
+      );
+      setShowPickupModal(false);
+      setSelectedPickupAddr(null);
+      fetchOrders(page);
+    } catch (e) {
+      console.error('Update pickup address failed', e);
+    } finally {
+      setPickupSaving(false);
+    }
+  };
+
   // ── Mobile view state ──
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
   const [mobileSearchQuery,   setMobileSearchQuery]   = useState('');
@@ -409,7 +477,9 @@ export function AdminOrders() {
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (moreRef.current && !moreRef.current.contains(e.target as Node)) setShowMore(false);
-      if (actionMenuRef.current && !actionMenuRef.current.contains(e.target as Node)) setShowActionMenu(false);
+      const insideDesktop = actionMenuRef.current?.contains(e.target as Node);
+      const insideMobile  = mobileActionMenuRef.current?.contains(e.target as Node);
+      if (!insideDesktop && !insideMobile) setShowActionMenu(false);
       if (ageingLegendRef.current && !ageingLegendRef.current.contains(e.target as Node)) setShowAgeingLegend(false);
       // Row-action dropdown is closed via its own backdrop overlay (portal); no setDropdownPos here
     };
@@ -628,11 +698,22 @@ export function AdminOrders() {
     setPage(1);
     setSelectedOrders([]);
     setShowMore(false);
+    setMobileSearchQuery('');
     setOrderId(''); setAwbNumber(''); setSelectedPaymentTypes([]); setSelectedPickupAddresses([]);
     setSelectedCouriers([]); setDateStart(''); setDateEnd('');
     setUserQuery(''); setUserSuggestions([]); setUserMongoId('');
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
+
+  // Mobile search bar debounce — feeds into orderId filter
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setOrderId(mobileSearchQuery);
+      setPage(1);
+      setRefreshTrigger(t => t + 1);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [mobileSearchQuery]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleTabChange = (tab: string) => {
     navigate(`${ordersBase}/${TAB_SLUG_MAP[tab] || 'new'}`);
@@ -673,18 +754,18 @@ export function AdminOrders() {
     );
     if (isNewTab) return (
       <>
-        <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer">Bulk Ship</button>
-        <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer">Update Package Details</button>
-        <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer">Update Pickup Address</button>
-        <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer">Verify Orders</button>
-        <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer">Export Excel</button>
+        <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { setShipOrder(orders.find(o => selectedOrders.includes(o._id)) || null); closeMenu(); }}>Bulk Ship</button>
+        <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { setShowPackageModal(true); closeMenu(); }}>Update Package Details</button>
+        <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { openPickupModal(); closeMenu(); }}>Update Pickup Address</button>
+        <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { handleBulkLabel(selectedOrders); closeMenu(); }}>Verify Orders</button>
+        <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { setShowExportModal(true); closeMenu(); }}>Export Excel</button>
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { handleBulkInvoice(selectedOrders); closeMenu(); }}>Download Invoices</button>
-        <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#EF4444] hover:bg-red-50 mt-1 cursor-pointer">Bulk Delete</button>
+        <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#EF4444] hover:bg-red-50 mt-1 cursor-pointer" onClick={() => { selectedOrders.forEach(id => { const o = orders.find(x => x._id === id); if (o) handleCancelOrder(o); }); closeMenu(); }}>Bulk Delete</button>
       </>
     );
     return (
       <>
-        <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer">Export Excel</button>
+        <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { setShowExportModal(true); closeMenu(); }}>Export Excel</button>
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { handleBulkLabel(selectedOrders); closeMenu(); }}>Download Labels</button>
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { handleBulkInvoice(selectedOrders); closeMenu(); }}>Download Invoices</button>
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { handleBulkManifest(selectedOrders); closeMenu(); }}>Download Manifests</button>
@@ -698,7 +779,7 @@ export function AdminOrders() {
     if (isPMTab) return (
       <>
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { handleManifest(rowOrder._id); close(); }}>Download Manifest</button>
-        <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer" onClick={close}>Raise a Ticket</button>
+        <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { navigate(isAdminView ? '/admin/support' : '/user/support'); close(); }}>Raise a Ticket</button>
       </>
     );
     if (activeTab === 'Ready to Ship') return (
@@ -822,7 +903,7 @@ export function AdminOrders() {
                 )}
               </div>
               <div className="flex items-center gap-2">
-                <div className="relative" ref={actionMenuRef}>
+                <div className="relative" ref={mobileActionMenuRef}>
                   <button
                     onClick={() => selectedOrders.length > 0 && setShowActionMenu(v => !v)}
                     disabled={selectedOrders.length === 0}
@@ -1001,14 +1082,15 @@ export function AdminOrders() {
           {!isPMTab && selectedOrders.length > 0 && (
             <div className="hidden md:flex px-4 py-2 bg-blue-50 border-b border-blue-100 items-center gap-3">
               <span className="text-xs font-bold text-blue-700">{selectedOrders.length} selected</span>
-              {isNewTab && <button className="h-8 px-3 rounded-md bg-white border border-blue-200 text-xs font-bold text-blue-700 shadow-sm">Bulk Ship</button>}
-              {isNewTab && <button className="h-8 px-3 rounded-md bg-white border border-blue-200 text-xs font-bold text-blue-700 shadow-sm">Update Package Details</button>}
-              <button className="h-8 px-3 rounded-md bg-white border border-blue-200 text-xs font-bold text-blue-700 shadow-sm">Export Excel</button>
-              <button className="h-8 px-3 rounded-md bg-white border border-blue-200 text-xs font-bold text-blue-700 shadow-sm">Download Invoices</button>
+              {isNewTab && <button onClick={() => setShipOrder(orders.find(o => selectedOrders.includes(o._id)) || null)} className="h-8 px-3 rounded-md bg-white border border-blue-200 text-xs font-bold text-blue-700 shadow-sm hover:bg-blue-50 cursor-pointer">Bulk Ship</button>}
+              {isNewTab && <button onClick={() => setShowPackageModal(true)} className="h-8 px-3 rounded-md bg-white border border-blue-200 text-xs font-bold text-blue-700 shadow-sm hover:bg-blue-50 cursor-pointer">Update Package Details</button>}
+              {isNewTab && <button onClick={() => openPickupModal()} className="h-8 px-3 rounded-md bg-white border border-blue-200 text-xs font-bold text-blue-700 shadow-sm hover:bg-blue-50 cursor-pointer">Update Pickup Address</button>}
+              <button onClick={() => setShowExportModal(true)} className="h-8 px-3 rounded-md bg-white border border-blue-200 text-xs font-bold text-blue-700 shadow-sm hover:bg-blue-50 cursor-pointer">Export Excel</button>
+              <button onClick={() => handleBulkInvoice(selectedOrders)} className="h-8 px-3 rounded-md bg-white border border-blue-200 text-xs font-bold text-blue-700 shadow-sm hover:bg-blue-50 cursor-pointer">Download Invoices</button>
               {activeTab === 'Ready to Ship' && (
-                <button className="h-8 px-3 rounded-md bg-white border border-blue-200 text-xs font-bold text-blue-700 shadow-sm">Download Manifests</button>
+                <button onClick={() => handleBulkManifest(selectedOrders)} className="h-8 px-3 rounded-md bg-white border border-blue-200 text-xs font-bold text-blue-700 shadow-sm hover:bg-blue-50 cursor-pointer">Download Manifests</button>
               )}
-              {isNewTab && <button className="h-8 px-3 rounded-md bg-white border border-red-200 text-xs font-bold text-red-600 shadow-sm ml-auto hover:bg-red-50">Bulk Delete</button>}
+              {isNewTab && <button onClick={() => { selectedOrders.forEach(id => { const o = orders.find(x => x._id === id); if (o) handleCancelOrder(o); }); setSelectedOrders([]); }} className="h-8 px-3 rounded-md bg-white border border-red-200 text-xs font-bold text-red-600 shadow-sm ml-auto hover:bg-red-50 cursor-pointer">Bulk Delete</button>}
             </div>
           )}
         </div>
@@ -1207,7 +1289,7 @@ export function AdminOrders() {
                               <div className="flex flex-col gap-1">
                                 <div className="text-[12px] leading-[18px] font-semibold text-[#009D64]">{order.courier}</div>
                                 <div className="text-[12px] leading-[18px] font-normal text-[#1E293B]">Booked | {order.bookedDate}</div>
-                                <div className="text-[12px] leading-[18px] font-semibold text-[#009D64] underline hover:text-[#009B63] cursor-pointer truncate max-w-[120px]">{order.awb}</div>
+                                <div onClick={() => order.awb && navigator.clipboard.writeText(order.awb)} title="Click to copy AWB" className="text-[12px] leading-[18px] font-semibold text-[#009D64] underline hover:text-[#009B63] cursor-pointer truncate max-w-[120px]">{order.awb}</div>
                               </div>
                             </td>
                           )}
@@ -1485,13 +1567,35 @@ export function AdminOrders() {
                   {isAdminView && (
                     <div>
                       <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Search by name, email, or contact</label>
-                      <input
-                        type="text"
-                        placeholder="Search user..."
-                        value={userQuery}
-                        onChange={(e) => setUserQuery(e.target.value)}
-                        className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
-                      />
+                      <div className="relative">
+                        <input
+                          type="text"
+                          placeholder="Search user..."
+                          value={userQuery}
+                          onChange={(e) => onUserQueryChange(e.target.value)}
+                          className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
+                        />
+                        {userMongoId && (
+                          <button onClick={clearUserFilter} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#94A3B8] hover:text-red-500">
+                            <X className="w-4 h-4" />
+                          </button>
+                        )}
+                        {userSuggestions.length > 0 && !userMongoId && (
+                          <div className="absolute left-0 top-full mt-1 bg-white border border-[#E2E8F0] rounded-xl shadow-xl z-50 w-full max-h-52 overflow-y-auto py-1">
+                            {userSuggestions.map((u: any) => (
+                              <button key={u._id} type="button"
+                                onClick={() => selectUserSuggestion(u)}
+                                className="w-full text-left px-3 py-2.5 hover:bg-[#F0FDF4] flex items-start gap-2">
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-[12px] font-bold text-slate-800 truncate">{u.fullname}</div>
+                                  <div className="text-[11px] text-slate-400 truncate">{u.email} · {u.phoneNumber}</div>
+                                </div>
+                                <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded shrink-0">{u.userId}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
 
@@ -1637,6 +1741,84 @@ export function AdminOrders() {
               >
                 {exportingExcel ? 'Exporting…' : 'Download'}
               </button>
+            </div>
+          </div>,
+          document.body
+        )}
+
+        {/* ── Update Package Details Modal ── */}
+        {showPackageModal && createPortal(
+          <div className="fixed inset-0 z-[300] flex items-center justify-center">
+            <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={() => !packageSaving && setShowPackageModal(false)} />
+            <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6">
+              <div className="flex items-center justify-between mb-5">
+                <h3 className="text-[15px] font-bold text-[#0F172A]">Update Package Details</h3>
+                <button onClick={() => !packageSaving && setShowPackageModal(false)} className="w-7 h-7 rounded-full flex items-center justify-center text-[#94A3B8] hover:bg-[#F8FAFC]"><X className="w-4 h-4" /></button>
+              </div>
+              <p className="text-[12px] text-[#64748B] mb-4">{selectedOrders.length} order(s) selected — new dimensions will apply to all.</p>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-[#64748B] uppercase tracking-wider mb-1">Dead Weight (kg)</label>
+                  <input type="number" min="0" step="0.01" placeholder="e.g. 0.5" value={packageForm.weight} onChange={e => setPackageForm(f => ({ ...f, weight: e.target.value }))} className="w-full h-10 px-3 rounded-xl border border-[#E2E8F0] text-sm text-[#0F172A] focus:outline-none focus:border-[#00A86B]" />
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {(['length', 'width', 'height'] as const).map(dim => (
+                    <div key={dim}>
+                      <label className="block text-[11px] font-bold text-[#64748B] uppercase tracking-wider mb-1">{dim} (cm)</label>
+                      <input type="number" min="0" step="0.1" placeholder="0" value={packageForm[dim]} onChange={e => setPackageForm(f => ({ ...f, [dim]: e.target.value }))} className="w-full h-10 px-3 rounded-xl border border-[#E2E8F0] text-sm text-[#0F172A] focus:outline-none focus:border-[#00A86B]" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="flex gap-3 mt-6">
+                <button onClick={() => setShowPackageModal(false)} className="flex-1 h-10 rounded-xl border border-[#E2E8F0] text-[#475569] text-sm font-semibold hover:bg-[#F8FAFC]">Cancel</button>
+                <button onClick={handleUpdatePackageDetails} disabled={packageSaving || !packageForm.weight || !packageForm.length || !packageForm.width || !packageForm.height}
+                  className="flex-1 h-10 rounded-xl bg-[#00A86B] text-white text-sm font-bold hover:bg-[#009B63] disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                  {packageSaving ? 'Saving…' : 'Update'}
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
+
+        {/* ── Update Pickup Address Modal ── */}
+        {showPickupModal && createPortal(
+          <div className="fixed inset-0 z-[300] flex items-center justify-center">
+            <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={() => !pickupSaving && setShowPickupModal(false)} />
+            <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-[15px] font-bold text-[#0F172A]">Update Pickup Address</h3>
+                <button onClick={() => !pickupSaving && setShowPickupModal(false)} className="w-7 h-7 rounded-full flex items-center justify-center text-[#94A3B8] hover:bg-[#F8FAFC]"><X className="w-4 h-4" /></button>
+              </div>
+              <p className="text-[12px] text-[#64748B] mb-4">{selectedOrders.length} order(s) selected — select a pickup address to apply to all.</p>
+              <div className="space-y-2 max-h-[320px] overflow-y-auto pr-1">
+                {pickupList.length === 0 ? (
+                  <p className="text-[13px] text-[#94A3B8] text-center py-6">No saved pickup addresses found.</p>
+                ) : pickupList.map((addr: any) => {
+                  const pa = addr.pickupAddress || {};
+                  return (
+                    <label key={addr._id} className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${selectedPickupAddr?._id === addr._id ? 'border-[#00A86B] bg-[#F0FDF9]' : 'border-[#E2E8F0] hover:bg-[#F8FAFC]'}`}>
+                      <input type="radio" name="pickupAddr" checked={selectedPickupAddr?._id === addr._id} onChange={() => setSelectedPickupAddr(addr)} className="mt-0.5 accent-[#00A86B]" />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[13px] font-bold text-[#0F172A]">{pa.contactName}</span>
+                          {addr.isPrimary && <span className="text-[10px] font-bold text-[#00A86B] bg-[#F0FDF9] border border-[#00A86B]/20 px-1.5 py-0.5 rounded-full">Primary</span>}
+                        </div>
+                        <div className="text-[11px] text-[#64748B] mt-0.5">{pa.address}, {pa.city}, {pa.state} – {pa.pinCode}</div>
+                        <div className="text-[11px] text-[#64748B]">{pa.phoneNumber}</div>
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
+              <div className="flex gap-3 mt-5">
+                <button onClick={() => setShowPickupModal(false)} className="flex-1 h-10 rounded-xl border border-[#E2E8F0] text-[#475569] text-sm font-semibold hover:bg-[#F8FAFC]">Cancel</button>
+                <button onClick={handleUpdatePickupAddress} disabled={pickupSaving || !selectedPickupAddr}
+                  className="flex-1 h-10 rounded-xl bg-[#00A86B] text-white text-sm font-bold hover:bg-[#009B63] disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                  {pickupSaving ? 'Saving…' : 'Update'}
+                </button>
+              </div>
             </div>
           </div>,
           document.body

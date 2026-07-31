@@ -1,18 +1,34 @@
-import React from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
-import { CheckCircle2, Apple, ChevronDown } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Apple, ChevronDown, Eye, EyeOff, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { apiClient } from '../../services/apiClient';
+import { useAuth } from '../../hooks/useAuth';
+import { getRoleFromToken } from '../../utils/session';
+
+const MONTHLY_ORDER_OPTIONS = [
+  'Less than 100',
+  '100 - 500',
+  '500 - 1000',
+  'More than 1000',
+];
 
 const formSchema = z.object({
-  firstName: z.string().min(2, 'First name is required'),
-  lastName: z.string().min(2, 'Last name is required'),
+  fullname: z.string().min(2, 'Full name is required'),
   email: z.string().email('Invalid email address'),
   phone: z.string().min(10, 'Valid phone number is required'),
+  company: z.string().min(2, 'Company name is required'),
+  monthlyOrders: z.string().min(1, 'Please select monthly orders'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
+  confirmedPassword: z.string().min(8, 'Please confirm your password'),
+  checked: z.boolean().refine(v => v === true, 'You must accept the terms'),
+}).refine(data => data.password === data.confirmedPassword, {
+  message: 'Passwords do not match',
+  path: ['confirmedPassword'],
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -22,43 +38,74 @@ interface SignupCardProps {
 }
 
 export function SignupCard({ onBack }: SignupCardProps) {
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
-    resolver: zodResolver(formSchema)
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [serverError, setServerError] = useState<string | null>(null);
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { login } = useAuth();
+
+  const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
+    resolver: zodResolver(formSchema),
+    defaultValues: { checked: false },
   });
 
-  const onSubmit = async () => {
-    return new Promise((resolve) => setTimeout(resolve, 1500));
+  const onSubmit = async (data: FormData) => {
+    setStatus('loading');
+    setServerError(null);
+    try {
+      const response = await apiClient.post('/external/register', {
+        fullname: data.fullname,
+        email: data.email,
+        phoneNumber: data.phone,
+        company: data.company,
+        monthlyOrders: data.monthlyOrders,
+        password: data.password,
+        confirmedPassword: data.confirmedPassword,
+        checked: data.checked,
+        referralCode: searchParams.get('ref') || undefined,
+      });
+
+      if (!response.data.success) throw new Error(response.data.message || 'Registration failed');
+
+      const token = typeof response.data.data === 'string'
+        ? response.data.data
+        : (response.data.token || response.data.data?.token);
+
+      if (!token) throw new Error('Token not found in the server response');
+
+      login(token);
+      setStatus('success');
+      const role = getRoleFromToken(token);
+      navigate(role === 'admin' ? '/admin/dashboard' : '/user/dashboard', { replace: true });
+    } catch (err: any) {
+      setStatus('error');
+      setServerError(err.response?.data?.message || err.message || 'An unexpected error occurred.');
+    }
   };
 
   return (
-    <div className="bg-white p-8 md:p-10 rounded-2xl shadow-2xl shadow-black/10">
-      <div className="text-center mb-8">
+    <div className="bg-white p-8 md:p-10 rounded-2xl shadow-2xl shadow-black/10 overflow-y-auto max-h-[90vh]">
+      <div className="text-center mb-6">
         <h2 className="text-2xl font-bold text-[#0F172A] mb-2">Create an account</h2>
         <p className="text-[#64748B] text-sm">Sign up in less than 2 minutes.</p>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-semibold text-[#475569] mb-1.5">First Name<span className="text-[#00A86B]">*</span></label>
-            <Input placeholder="Enter your first name" className="h-11 bg-transparent border-[#E2E8F0] text-sm focus-visible:ring-[#00A86B]" {...register('firstName')} error={errors.firstName?.message} />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-[#475569] mb-1.5">Last Name<span className="text-[#00A86B]">*</span></label>
-            <Input placeholder="Enter your last name" className="h-11 bg-transparent border-[#E2E8F0] text-sm focus-visible:ring-[#00A86B]" {...register('lastName')} error={errors.lastName?.message} />
-          </div>
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <div>
+          <label className="block text-xs font-semibold text-[#475569] mb-1.5">Full Name<span className="text-[#00A86B]">*</span></label>
+          <Input placeholder="Enter your full name" className="h-11 bg-transparent border-[#E2E8F0] text-sm focus-visible:ring-[#00A86B]" {...register('fullname')} error={errors.fullname?.message} />
         </div>
 
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-semibold text-[#475569] mb-1.5">Email<span className="text-red-500">*</span></label>
-            <div className="relative">
-              <Input type="email" placeholder="abc@gmail.com" className="h-11 bg-transparent border-[#E2E8F0] text-sm focus-visible:ring-[#00A86B]" {...register('email')} error={errors.email?.message} />
-            </div>
+            <Input type="email" placeholder="abc@gmail.com" className="h-11 bg-transparent border-[#E2E8F0] text-sm focus-visible:ring-[#00A86B]" {...register('email')} error={errors.email?.message} />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-[#475569] mb-1.5">Phone Number <span className="text-red-500">*</span></label>
-            <div className="relative flex">
+            <label className="block text-xs font-semibold text-[#475569] mb-1.5">Phone Number<span className="text-red-500">*</span></label>
+            <div className="flex">
               <div className="flex items-center border border-r-0 border-[#E2E8F0] rounded-l-md px-2 bg-transparent text-sm text-[#475569]">
                 +91 <ChevronDown className="w-3 h-3 ml-1" />
               </div>
@@ -67,14 +114,89 @@ export function SignupCard({ onBack }: SignupCardProps) {
           </div>
         </div>
 
-        <div>
-          <label className="block text-xs font-semibold text-[#475569] mb-1.5">Password<span className="text-[#00A86B]">*</span></label>
-          <Input type="password" placeholder="Create a password" className="h-11 bg-transparent border-[#E2E8F0] text-sm focus-visible:ring-[#00A86B]" {...register('password')} error={errors.password?.message} />
-          <p className="text-[10px] text-[#94A3B8] mt-1.5">Must be at least 8 characters.</p>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-semibold text-[#475569] mb-1.5">Company Name<span className="text-red-500">*</span></label>
+            <Input placeholder="Your company" className="h-11 bg-transparent border-[#E2E8F0] text-sm focus-visible:ring-[#00A86B]" {...register('company')} error={errors.company?.message} />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-[#475569] mb-1.5">Monthly Orders<span className="text-red-500">*</span></label>
+            <select
+              {...register('monthlyOrders')}
+              className="h-11 w-full rounded-md border border-[#E2E8F0] bg-transparent px-3 text-sm text-[#0F172A] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]"
+            >
+              <option value="">Select range</option>
+              {MONTHLY_ORDER_OPTIONS.map(opt => (
+                <option key={opt} value={opt}>{opt}</option>
+              ))}
+            </select>
+            {errors.monthlyOrders && <p className="mt-1 text-xs text-red-500">{errors.monthlyOrders.message}</p>}
+          </div>
         </div>
 
-        <Button type="submit" className="w-full h-11 bg-[#00A86B] hover:bg-[#009B63] text-sm font-semibold rounded-md shadow-none" disabled={isSubmitting}>
-          Get Started
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-semibold text-[#475569] mb-1.5">Password<span className="text-[#00A86B]">*</span></label>
+            <div className="relative">
+              <Input type={showPassword ? 'text' : 'password'} placeholder="Create a password" className="h-11 bg-transparent border-[#E2E8F0] text-sm pr-10 focus-visible:ring-[#00A86B]" {...register('password')} error={errors.password?.message} />
+              <button type="button" onClick={() => setShowPassword(p => !p)} className="absolute right-3 top-3.5 text-[#94A3B8] hover:text-[#475569]">
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+            <p className="text-[10px] text-[#94A3B8] mt-1">Min. 8 characters</p>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-[#475569] mb-1.5">Confirm Password<span className="text-[#00A86B]">*</span></label>
+            <div className="relative">
+              <Input type={showConfirm ? 'text' : 'password'} placeholder="Confirm password" className="h-11 bg-transparent border-[#E2E8F0] text-sm pr-10 focus-visible:ring-[#00A86B]" {...register('confirmedPassword')} error={errors.confirmedPassword?.message} />
+              <button type="button" onClick={() => setShowConfirm(p => !p)} className="absolute right-3 top-3.5 text-[#94A3B8] hover:text-[#475569]">
+                {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-start gap-2">
+          <input
+            type="checkbox"
+            id="terms"
+            {...register('checked')}
+            className="mt-0.5 h-4 w-4 rounded border-[#E2E8F0] accent-[#00A86B] cursor-pointer"
+          />
+          <label htmlFor="terms" className="text-xs text-[#475569] cursor-pointer">
+            I agree to the <span className="text-[#00A86B] font-semibold">Terms of Service</span> and <span className="text-[#00A86B] font-semibold">Privacy Policy</span>
+          </label>
+        </div>
+        {errors.checked && <p className="text-xs text-red-500 -mt-2">{errors.checked.message}</p>}
+
+        {status === 'error' && (
+          <div className="flex items-start gap-2 p-3 bg-red-50 text-red-600 rounded-md text-xs font-medium">
+            <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+            <span>{serverError}</span>
+          </div>
+        )}
+
+        {status === 'success' && (
+          <div className="flex items-start gap-2 p-3 bg-[#10B981]/10 text-[#00A86B] rounded-md text-xs font-medium">
+            <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" />
+            <span>Account created! Redirecting...</span>
+          </div>
+        )}
+
+        <Button
+          type="submit"
+          className="w-full h-11 bg-[#00A86B] hover:bg-[#009B63] text-sm font-semibold rounded-md shadow-none"
+          disabled={status === 'loading' || status === 'success'}
+        >
+          {status === 'loading' ? (
+            <div className="flex items-center gap-2">
+              <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+              Creating account...
+            </div>
+          ) : 'Get Started'}
         </Button>
       </form>
 
@@ -94,7 +216,7 @@ export function SignupCard({ onBack }: SignupCardProps) {
         </Button>
       </div>
 
-      <div className="text-center mt-6">
+      <div className="text-center mt-4">
         <p className="text-xs text-[#64748B]">
           Already have an account? <Link to="/login" className="text-[#00A86B] font-semibold hover:underline">Log in</Link>
         </p>

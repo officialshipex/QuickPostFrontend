@@ -40,7 +40,18 @@ export function OfflineOverlay() {
   // Seed from navigator.onLine so an already-offline device shows the
   // overlay instantly instead of waiting for the first async probe.
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [lottieData, setLottieData] = useState<ArrayBuffer | null>(null);
   const mounted = useRef(true);
+
+  // Fetch the Lottie file eagerly while online so it is available when the
+  // network drops. DotLottieReact's `data` prop accepts an ArrayBuffer and
+  // skips the network request entirely.
+  useEffect(() => {
+    fetch('/offline.lottie')
+      .then(r => r.arrayBuffer())
+      .then(buf => { if (mounted.current) setLottieData(buf); })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     mounted.current = true;
@@ -77,7 +88,7 @@ export function OfflineOverlay() {
     <div className="fixed inset-0 z-[9999] bg-white flex flex-col items-center justify-center px-6">
       <div className="w-full max-w-[480px] aspect-square">
         <DotLottieReact
-          src="/offline.lottie"
+          {...(lottieData ? { data: lottieData } : { src: '/offline.lottie' })}
           loop
           autoplay
         />

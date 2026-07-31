@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import {
-  User, ShieldCheck, Lock, Tag, CreditCard, Users, MessageCircle, Activity, FileText, ChevronRight,
+  User, ShieldCheck, Lock, Tag, CreditCard, Users, MessageCircle, Activity, FileText, MapPin, ChevronRight,
 } from 'lucide-react';
 
 interface SettingsCard {
@@ -14,6 +14,7 @@ interface SettingsCard {
 
 const SETTINGS_CARDS: SettingsCard[] = [
   { title: 'Company Profile', description: 'Edit your company details', icon: User, path: '/user/profile' },
+  { title: 'Pickup Address', description: 'Manage your saved pickup addresses', icon: MapPin, path: '/user/settings/pickup-address' },
   { title: 'KYC', description: 'Manage KYC documents', icon: ShieldCheck, path: '/user/kyc' },
   { title: 'Change Password', description: 'Update your credentials', icon: Lock, path: '/user/settings/change-password' },
   { title: 'Label', description: 'Customize your labels', icon: Tag, path: '/user/settings/label' },

@@ -1,107 +1,88 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
-import { CheckCircle2, Apple, ChevronDown, X } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Apple, ChevronDown, Eye, EyeOff, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { apiClient } from '../../services/apiClient';
+import { useAuth } from '../../hooks/useAuth';
+import { getRoleFromToken } from '../../utils/session';
+
+const MONTHLY_ORDER_OPTIONS = [
+  'Less than 100',
+  '100 - 500',
+  '500 - 1000',
+  'More than 1000',
+];
 
 const formSchema = z.object({
-  firstName: z.string().min(2, 'First name is required'),
-  lastName: z.string().min(2, 'Last name is required'),
+  fullname: z.string().min(2, 'Full name is required'),
   email: z.string().email('Invalid email address'),
   phone: z.string().min(10, 'Valid phone number is required'),
+  company: z.string().min(2, 'Company name is required'),
+  monthlyOrders: z.string().min(1, 'Please select monthly orders'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
+  confirmedPassword: z.string().min(8, 'Please confirm your password'),
+  checked: z.boolean().refine(v => v === true, 'You must accept the terms'),
+}).refine(data => data.password === data.confirmedPassword, {
+  message: 'Passwords do not match',
+  path: ['confirmedPassword'],
 });
 
 type FormData = z.infer<typeof formSchema>;
-
-type VerifyStatus = 'idle' | 'otp-sent' | 'verified';
 
 interface SignupCardMobileProps {
   onBack?: () => void;
 }
 
-/**
- * Mobile-only signup card. Shares the same validation schema and submit
- * contract as the desktop SignupCard, plus an email/phone OTP verify step
- * (mocked with a timeout — swap `requestOtp`/`confirmOtp` for real API calls).
- */
 export function SignupCardMobile({ onBack }: SignupCardMobileProps) {
-  const { register, handleSubmit, watch, formState: { errors, isSubmitting } } = useForm<FormData>({
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [serverError, setServerError] = useState<string | null>(null);
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { login } = useAuth();
+
+  const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(formSchema),
+    defaultValues: { checked: false },
   });
 
-  const emailValue = watch('email');
-  const phoneValue = watch('phone');
+  const onSubmit = async (data: FormData) => {
+    setStatus('loading');
+    setServerError(null);
+    try {
+      const response = await apiClient.post('/external/register', {
+        fullname: data.fullname,
+        email: data.email,
+        phoneNumber: data.phone,
+        company: data.company,
+        monthlyOrders: data.monthlyOrders,
+        password: data.password,
+        confirmedPassword: data.confirmedPassword,
+        checked: data.checked,
+        referralCode: searchParams.get('ref') || undefined,
+      });
 
-  const [emailStatus, setEmailStatus] = useState<VerifyStatus>('idle');
-  const [phoneStatus, setPhoneStatus] = useState<VerifyStatus>('idle');
-  const [emailOtp, setEmailOtp] = useState('');
-  const [phoneOtp, setPhoneOtp] = useState('');
-  const [emailSending, setEmailSending] = useState(false);
-  const [phoneSending, setPhoneSending] = useState(false);
-  const [verifiedEmail, setVerifiedEmail] = useState<string | null>(null);
-  const [verifiedPhone, setVerifiedPhone] = useState<string | null>(null);
-  const [formError, setFormError] = useState<string | null>(null);
+      if (!response.data.success) throw new Error(response.data.message || 'Registration failed');
 
-  const isEmailValid = !!emailValue && z.string().email().safeParse(emailValue).success;
-  const isPhoneValid = !!phoneValue && phoneValue.length >= 10;
+      const token = typeof response.data.data === 'string'
+        ? response.data.data
+        : (response.data.token || response.data.data?.token);
 
-  const requestOtp = async (field: 'email' | 'phone') => {
-    if (field === 'email') {
-      setEmailSending(true);
-      // TODO: replace with real "send OTP to email" API call
-      await new Promise((r) => setTimeout(r, 900));
-      setEmailSending(false);
-      setEmailStatus('otp-sent');
-    } else {
-      setPhoneSending(true);
-      // TODO: replace with real "send OTP to phone" API call
-      await new Promise((r) => setTimeout(r, 900));
-      setPhoneSending(false);
-      setPhoneStatus('otp-sent');
+      if (!token) throw new Error('Token not found in the server response');
+
+      login(token);
+      setStatus('success');
+      const role = getRoleFromToken(token);
+      navigate(role === 'admin' ? '/admin/dashboard' : '/user/dashboard', { replace: true });
+    } catch (err: any) {
+      setStatus('error');
+      setServerError(err.response?.data?.message || err.message || 'An unexpected error occurred.');
     }
-  };
-
-  const confirmOtp = (field: 'email' | 'phone') => {
-    if (field === 'email') {
-      if (emailOtp.trim().length < 4) return;
-      // TODO: replace with real "verify OTP" API call
-      setEmailStatus('verified');
-      setVerifiedEmail(emailValue);
-    } else {
-      if (phoneOtp.trim().length < 4) return;
-      // TODO: replace with real "verify OTP" API call
-      setPhoneStatus('verified');
-      setVerifiedPhone(phoneValue);
-    }
-  };
-
-  // Reset verification if the user edits an already-verified value
-  useEffect(() => {
-    if (emailStatus === 'verified' && verifiedEmail !== emailValue) {
-      setEmailStatus('idle');
-      setEmailOtp('');
-    }
-  }, [emailValue, emailStatus, verifiedEmail]);
-
-  useEffect(() => {
-    if (phoneStatus === 'verified' && verifiedPhone !== phoneValue) {
-      setPhoneStatus('idle');
-      setPhoneOtp('');
-    }
-  }, [phoneValue, phoneStatus, verifiedPhone]);
-
-  const onSubmit = async () => {
-    if (emailStatus !== 'verified' || phoneStatus !== 'verified') {
-      setFormError('Please verify your email and phone number to continue.');
-      return;
-    }
-    setFormError(null);
-    // TODO: replace with real signup API call
-    return new Promise((resolve) => setTimeout(resolve, 1500));
   };
 
   return (
@@ -118,6 +99,7 @@ export function SignupCardMobile({ onBack }: SignupCardMobileProps) {
           Back
         </button>
       )}
+
       <div className="text-center mb-6">
         <h2 className="text-xl font-bold text-[#0F172A] mb-1.5 font-sans">Create an account</h2>
         <p className="text-[#64748B] text-sm font-sans">Sign up in less than 2 minutes.</p>
@@ -125,152 +107,106 @@ export function SignupCardMobile({ onBack }: SignupCardMobileProps) {
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div>
-          <label className="block text-xs font-semibold text-[#475569] mb-1.5 font-sans">First Name<span className="text-[#00A86B]">*</span></label>
-          <Input placeholder="Enter your first name" className="h-11 bg-transparent border-[#E2E8F0] text-sm focus-visible:ring-[#00A86B]" {...register('firstName')} error={errors.firstName?.message} />
+          <label className="block text-xs font-semibold text-[#475569] mb-1.5 font-sans">Full Name<span className="text-[#00A86B]">*</span></label>
+          <Input placeholder="Enter your full name" className="h-11 bg-transparent border-[#E2E8F0] text-sm focus-visible:ring-[#00A86B]" {...register('fullname')} error={errors.fullname?.message} />
         </div>
 
-        <div>
-          <label className="block text-xs font-semibold text-[#475569] mb-1.5 font-sans">Last Name<span className="text-[#00A86B]">*</span></label>
-          <Input placeholder="Enter your last name" className="h-11 bg-transparent border-[#E2E8F0] text-sm focus-visible:ring-[#00A86B]" {...register('lastName')} error={errors.lastName?.message} />
-        </div>
-
-        {/* Email + Verify */}
         <div>
           <label className="block text-xs font-semibold text-[#475569] mb-1.5 font-sans">Email<span className="text-red-500">*</span></label>
-          <div className="relative">
-            <Input
-              type="email"
-              placeholder="abc@gmail.com"
-              className="h-11 bg-transparent border-[#E2E8F0] text-sm pr-24 focus-visible:ring-[#00A86B]"
-              {...register('email')}
-              error={errors.email?.message}
-              disabled={emailStatus === 'verified'}
-            />
-            <div className="absolute right-3 top-0 h-11 flex items-center">
-              {emailStatus === 'verified' ? (
-                <span className="flex items-center gap-1 text-[11px] font-bold text-[#00A86B] font-sans">
-                  <CheckCircle2 className="w-3.5 h-3.5" /> Verified
-                </span>
-              ) : (
-                <button
-                  type="button"
-                  disabled={!isEmailValid || emailSending}
-                  onClick={() => requestOtp('email')}
-                  className="text-[11px] font-bold text-[#00A86B] disabled:text-[#94A3B8] disabled:cursor-not-allowed font-sans"
-                >
-                  {emailSending ? 'Sending...' : emailStatus === 'otp-sent' ? 'Resend' : 'Verify'}
-                </button>
-              )}
-            </div>
-          </div>
-          {emailStatus === 'otp-sent' && (
-            <div className="flex items-center gap-2 mt-2">
-              <input
-                type="text"
-                inputMode="numeric"
-                maxLength={6}
-                value={emailOtp}
-                onChange={(e) => setEmailOtp(e.target.value.replace(/\D/g, ''))}
-                placeholder="Enter OTP"
-                className="h-9 flex-1 px-3 rounded-md border border-[#E2E8F0] text-sm focus:outline-none focus:border-[#00A86B] font-sans"
-              />
-              <button
-                type="button"
-                onClick={() => confirmOtp('email')}
-                disabled={emailOtp.trim().length < 4}
-                className="h-9 px-3 rounded-md bg-[#00A86B] text-white text-xs font-bold disabled:opacity-50 font-sans shrink-0"
-              >
-                Confirm
-              </button>
-              <button
-                type="button"
-                onClick={() => { setEmailStatus('idle'); setEmailOtp(''); }}
-                className="text-[#94A3B8] shrink-0"
-                title="Cancel"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          )}
+          <Input type="email" placeholder="abc@gmail.com" className="h-11 bg-transparent border-[#E2E8F0] text-sm focus-visible:ring-[#00A86B]" {...register('email')} error={errors.email?.message} />
         </div>
 
-        {/* Phone + Verify */}
         <div>
-          <label className="block text-xs font-semibold text-[#475569] mb-1.5 font-sans">Phone Number <span className="text-red-500">*</span></label>
-          <div className="relative flex">
+          <label className="block text-xs font-semibold text-[#475569] mb-1.5 font-sans">Phone Number<span className="text-red-500">*</span></label>
+          <div className="flex">
             <div className="flex items-center border border-r-0 border-[#E2E8F0] rounded-l-md px-2 bg-transparent text-sm text-[#475569] font-sans">
               +91 <ChevronDown className="w-3 h-3 ml-1" />
             </div>
-            <div className="relative flex-1">
-              <Input
-                type="tel"
-                placeholder="9876543210"
-                className="h-11 rounded-l-none bg-transparent border-[#E2E8F0] text-sm pr-24 focus-visible:ring-[#00A86B]"
-                {...register('phone')}
-                error={errors.phone?.message}
-                disabled={phoneStatus === 'verified'}
-              />
-              <div className="absolute right-3 top-0 h-11 flex items-center">
-                {phoneStatus === 'verified' ? (
-                  <span className="flex items-center gap-1 text-[11px] font-bold text-[#00A86B] font-sans">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> Verified
-                  </span>
-                ) : (
-                  <button
-                    type="button"
-                    disabled={!isPhoneValid || phoneSending}
-                    onClick={() => requestOtp('phone')}
-                    className="text-[11px] font-bold text-[#00A86B] disabled:text-[#94A3B8] disabled:cursor-not-allowed font-sans"
-                  >
-                    {phoneSending ? 'Sending...' : phoneStatus === 'otp-sent' ? 'Resend' : 'Verify'}
-                  </button>
-                )}
-              </div>
-            </div>
+            <Input type="tel" placeholder="9876543210" className="h-11 rounded-l-none bg-transparent border-[#E2E8F0] text-sm focus-visible:ring-[#00A86B]" {...register('phone')} error={errors.phone?.message} />
           </div>
-          {phoneStatus === 'otp-sent' && (
-            <div className="flex items-center gap-2 mt-2">
-              <input
-                type="text"
-                inputMode="numeric"
-                maxLength={6}
-                value={phoneOtp}
-                onChange={(e) => setPhoneOtp(e.target.value.replace(/\D/g, ''))}
-                placeholder="Enter OTP"
-                className="h-9 flex-1 px-3 rounded-md border border-[#E2E8F0] text-sm focus:outline-none focus:border-[#00A86B] font-sans"
-              />
-              <button
-                type="button"
-                onClick={() => confirmOtp('phone')}
-                disabled={phoneOtp.trim().length < 4}
-                className="h-9 px-3 rounded-md bg-[#00A86B] text-white text-xs font-bold disabled:opacity-50 font-sans shrink-0"
-              >
-                Confirm
-              </button>
-              <button
-                type="button"
-                onClick={() => { setPhoneStatus('idle'); setPhoneOtp(''); }}
-                className="text-[#94A3B8] shrink-0"
-                title="Cancel"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          )}
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-[#475569] mb-1.5 font-sans">Company Name<span className="text-red-500">*</span></label>
+          <Input placeholder="Your company name" className="h-11 bg-transparent border-[#E2E8F0] text-sm focus-visible:ring-[#00A86B]" {...register('company')} error={errors.company?.message} />
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-[#475569] mb-1.5 font-sans">Monthly Orders<span className="text-red-500">*</span></label>
+          <select
+            {...register('monthlyOrders')}
+            className="h-11 w-full rounded-md border border-[#E2E8F0] bg-transparent px-3 text-sm text-[#0F172A] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B] font-sans"
+          >
+            <option value="">Select monthly order range</option>
+            {MONTHLY_ORDER_OPTIONS.map(opt => (
+              <option key={opt} value={opt}>{opt}</option>
+            ))}
+          </select>
+          {errors.monthlyOrders && <p className="mt-1 text-xs text-red-500 font-sans">{errors.monthlyOrders.message}</p>}
         </div>
 
         <div>
           <label className="block text-xs font-semibold text-[#475569] mb-1.5 font-sans">Password<span className="text-[#00A86B]">*</span></label>
-          <Input type="password" placeholder="Create a password" className="h-11 bg-transparent border-[#E2E8F0] text-sm focus-visible:ring-[#00A86B]" {...register('password')} error={errors.password?.message} />
-          <p className="text-[10px] text-[#94A3B8] mt-1.5 font-sans">Must be at least 8 characters.</p>
+          <div className="relative">
+            <Input type={showPassword ? 'text' : 'password'} placeholder="Create a password" className="h-11 bg-transparent border-[#E2E8F0] text-sm pr-10 focus-visible:ring-[#00A86B]" {...register('password')} error={errors.password?.message} />
+            <button type="button" onClick={() => setShowPassword(p => !p)} className="absolute right-3 top-3.5 text-[#94A3B8] hover:text-[#475569]">
+              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          </div>
+          <p className="text-[10px] text-[#94A3B8] mt-1 font-sans">Must be at least 8 characters.</p>
         </div>
 
-        {formError && (
-          <p className="text-xs text-red-500 font-sans -mt-1">{formError}</p>
+        <div>
+          <label className="block text-xs font-semibold text-[#475569] mb-1.5 font-sans">Confirm Password<span className="text-[#00A86B]">*</span></label>
+          <div className="relative">
+            <Input type={showConfirm ? 'text' : 'password'} placeholder="Confirm your password" className="h-11 bg-transparent border-[#E2E8F0] text-sm pr-10 focus-visible:ring-[#00A86B]" {...register('confirmedPassword')} error={errors.confirmedPassword?.message} />
+            <button type="button" onClick={() => setShowConfirm(p => !p)} className="absolute right-3 top-3.5 text-[#94A3B8] hover:text-[#475569]">
+              {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          </div>
+        </div>
+
+        <div className="flex items-start gap-2">
+          <input
+            type="checkbox"
+            id="terms-mobile"
+            {...register('checked')}
+            className="mt-0.5 h-4 w-4 rounded border-[#E2E8F0] accent-[#00A86B] cursor-pointer"
+          />
+          <label htmlFor="terms-mobile" className="text-xs text-[#475569] font-sans cursor-pointer">
+            I agree to the <span className="text-[#00A86B] font-semibold">Terms of Service</span> and <span className="text-[#00A86B] font-semibold">Privacy Policy</span>
+          </label>
+        </div>
+        {errors.checked && <p className="text-xs text-red-500 font-sans -mt-2">{errors.checked.message}</p>}
+
+        {status === 'error' && (
+          <div className="flex items-start gap-2 p-3 bg-red-50 text-red-600 rounded-md text-xs font-medium font-sans">
+            <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+            <span>{serverError}</span>
+          </div>
         )}
 
-        <Button type="submit" className="w-full h-11 bg-[#00A86B] hover:bg-[#009B63] text-sm font-semibold rounded-md shadow-none font-sans" disabled={isSubmitting}>
-          Get Started
+        {status === 'success' && (
+          <div className="flex items-start gap-2 p-3 bg-[#10B981]/10 text-[#00A86B] rounded-md text-xs font-medium font-sans">
+            <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" />
+            <span>Account created! Redirecting...</span>
+          </div>
+        )}
+
+        <Button
+          type="submit"
+          className="w-full h-11 bg-[#00A86B] hover:bg-[#009B63] text-sm font-semibold rounded-md shadow-none font-sans"
+          disabled={status === 'loading' || status === 'success'}
+        >
+          {status === 'loading' ? (
+            <div className="flex items-center gap-2">
+              <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+              Creating account...
+            </div>
+          ) : 'Get Started'}
         </Button>
       </form>
 
