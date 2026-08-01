@@ -15,24 +15,34 @@ export function RechargeWalletModal({ open, onClose, walletBalance, onSuccess }:
   const [rechargeAmount, setRechargeAmount] = useState(0);
   const [rechargeMode, setRechargeMode] = useState<'Payment' | 'COD'>('Payment');
   const [availableCodBalance, setAvailableCodBalance] = useState(0);
-  const [couponCode, setCouponCode] = useState('');
   const [showBillSummary, setShowBillSummary] = useState(true);
-  const [showCouponModal, setShowCouponModal] = useState(false);
-  const [tempCouponCode, setTempCouponCode] = useState('');
   const [toast, setToast] = useState<string | null>(null);
+  const [toastType, setToastType] = useState<'success' | 'error'>('success');
+  const [loading, setLoading] = useState(false);
 
-  const showToast = (msg: string) => {
+  const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
     setToast(msg);
+    setToastType(type);
     setTimeout(() => setToast(null), 3000);
   };
 
   const handleClose = () => {
     setRechargeAmount(0);
     setRechargeMode('Payment');
-    setCouponCode('');
     setToast(null);
+    setLoading(false);
     onClose();
   };
+
+  // Reset state when modal opens
+  useEffect(() => {
+    if (open) {
+      setRechargeAmount(0);
+      setRechargeMode('Payment');
+      setToast(null);
+      setLoading(false);
+    }
+  }, [open]);
 
   // Fetch COD balance when modal opens
   useEffect(() => {
@@ -41,6 +51,77 @@ export function RechargeWalletModal({ open, onClose, walletBalance, onSuccess }:
       .then(res => setAvailableCodBalance(res.data.remittance || 0))
       .catch(() => {});
   }, [open]);
+
+  const loadRazorpayScript = () =>
+    new Promise<boolean>((resolve, reject) => {
+      if ((window as any).Razorpay) return resolve(true);
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.async = true;
+      script.onload = () => resolve(true);
+      script.onerror = () => reject(new Error('Failed to load Razorpay SDK'));
+      document.body.appendChild(script);
+    });
+
+  const handleRazorpayPayment = async () => {
+    if (rechargeAmount < 1000) {
+      showToast('Minimum recharge amount is ₹1000', 'error');
+      return;
+    }
+    setLoading(true);
+    try {
+      await loadRazorpayScript();
+      const { data } = await apiClient.post('/recharge/create-order', { amount: rechargeAmount });
+      if (!data.order) throw new Error('Order creation failed');
+      const { id: order_id, amount: orderAmount, currency } = data.order;
+      const options = {
+        key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+        amount: orderAmount,
+        currency,
+        name: 'Shipex India',
+        description: 'Wallet Recharge',
+        order_id,
+        theme: { color: '#00A86B' },
+        handler: () => {
+          showToast(`Recharge of ₹${rechargeAmount.toLocaleString('en-IN')} initiated! Wallet will be credited shortly.`);
+          onSuccess?.(rechargeAmount);
+          setTimeout(handleClose, 2500);
+        },
+        modal: {
+          ondismiss: () => setLoading(false),
+        },
+      };
+      const rzp = new (window as any).Razorpay(options);
+      rzp.open();
+    } catch {
+      showToast('Payment failed. Please try again.', 'error');
+      setLoading(false);
+    }
+  };
+
+  const handleCodTransfer = async () => {
+    if (rechargeAmount < 500) {
+      showToast('Minimum transfer amount is ₹500', 'error');
+      return;
+    }
+    if (rechargeAmount > availableCodBalance) {
+      showToast('Insufficient COD remittance balance', 'error');
+      return;
+    }
+    setLoading(true);
+    try {
+      const { data } = await apiClient.post('/cod/codRemittanceRecharge', { amount: rechargeAmount });
+      showToast(data.message || `Transferred ₹${rechargeAmount.toLocaleString('en-IN')} from COD Remittance!`);
+      setAvailableCodBalance(prev => prev - rechargeAmount);
+      onSuccess?.(rechargeAmount);
+      setTimeout(handleClose, 2000);
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || 'Transfer failed. Please try again.';
+      showToast(msg, 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (typeof document === 'undefined') return null;
 
@@ -62,20 +143,23 @@ export function RechargeWalletModal({ open, onClose, walletBalance, onSuccess }:
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 20 }}
                 transition={{ type: 'spring', duration: 0.5 }}
-                className="w-full max-w-[300px] sm:max-w-[380px] max-h-[88vh] sm:max-h-[92vh] overflow-y-auto bg-white rounded-2xl sm:rounded-3xl shadow-[0_24px_48px_rgba(0,0,0,0.16)] p-4 sm:p-6 relative pointer-events-auto border border-slate-100"
+                className="w-full max-w-[300px] sm:max-w-[380px] relative pointer-events-auto"
               >
-                {/* Close button */}
+                {/* Close button — outside the scroll container so overflow-y-auto doesn't clip it */}
                 <button
                   type="button"
                   onClick={handleClose}
-                  className="absolute -top-3.5 sm:-top-5 left-1/2 -translate-x-1/2 w-8 h-8 sm:w-10 sm:h-10 bg-white rounded-full flex items-center justify-center shadow-[0_4px_16px_rgba(0,0,0,0.08)] hover:bg-slate-50 transition-colors border border-slate-100 cursor-pointer focus:outline-none"
+                  className="absolute -top-3.5 sm:-top-5 left-1/2 -translate-x-1/2 w-8 h-8 sm:w-10 sm:h-10 bg-white rounded-full flex items-center justify-center shadow-[0_4px_16px_rgba(0,0,0,0.08)] hover:bg-slate-50 transition-colors border border-slate-100 cursor-pointer focus:outline-none z-10"
                 >
                   <X className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-500" />
                 </button>
 
+                {/* Scrollable card */}
+                <div className="max-h-[88vh] sm:max-h-[92vh] overflow-y-auto bg-white rounded-2xl sm:rounded-3xl shadow-[0_24px_48px_rgba(0,0,0,0.16)] p-4 sm:p-6 border border-slate-100">
+
                 {/* Toast */}
                 {toast && (
-                  <div className="mb-3 px-3 py-2 rounded-xl bg-[#F0FDF4] text-[#00A86B] text-[12px] font-semibold text-center">
+                  <div className={`mb-3 px-3 py-2 rounded-xl text-[12px] font-semibold text-center ${toastType === 'error' ? 'bg-[#FFF1F1] text-[#E53E3E]' : 'bg-[#F0FDF4] text-[#00A86B]'}`}>
                     {toast}
                   </div>
                 )}
@@ -116,9 +200,13 @@ export function RechargeWalletModal({ open, onClose, walletBalance, onSuccess }:
                         <div className="w-full border-b border-dashed border-[#94A3B8] mt-1 h-0" />
                       </div>
 
+                      {rechargeAmount > 0 && rechargeAmount < 1000 && (
+                        <p className="text-[10px] text-red-500 font-semibold mt-1.5">Minimum amount is ₹1000</p>
+                      )}
+
                       {/* Quick pills */}
                       <div className="flex items-center justify-center gap-1.5 sm:gap-2 mt-3 sm:mt-5">
-                        {[500, 1000, 2000, 5000].map(amt => (
+                        {[1000, 2000, 5000, 10000].map(amt => (
                           <button
                             key={amt}
                             type="button"
@@ -129,7 +217,7 @@ export function RechargeWalletModal({ open, onClose, walletBalance, onSuccess }:
                                 : 'border-slate-200 text-[#64748B] hover:border-slate-300 hover:bg-slate-50'
                             }`}
                           >
-                            ₹{amt}
+                            ₹{amt >= 1000 ? `${amt / 1000}k` : amt}
                           </button>
                         ))}
                       </div>
@@ -137,11 +225,11 @@ export function RechargeWalletModal({ open, onClose, walletBalance, onSuccess }:
 
                     <div className="h-[1px] bg-slate-100 mb-3 sm:mb-4" />
 
-                    {/* Offer & Bill Summary */}
+                    {/* Bill Summary */}
                     <div className="mb-3 sm:mb-5">
-                      <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 sm:mb-2.5">Offer & Bill Summary</p>
+                      <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 sm:mb-2.5">Bill Summary</p>
 
-                      {/* Coupon box */}
+                      {/* COUPON: commented out
                       <div
                         onClick={() => { setTempCouponCode(couponCode); setShowCouponModal(true); }}
                         className="border border-slate-200/80 rounded-xl px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between bg-white mb-2 sm:mb-3 hover:border-slate-300 transition-colors cursor-pointer"
@@ -159,6 +247,7 @@ export function RechargeWalletModal({ open, onClose, walletBalance, onSuccess }:
                           {couponCode ? 'Change' : 'View Coupons'}
                         </span>
                       </div>
+                      */}
 
                       {/* Bill details */}
                       <div className="bg-[#F8FAFC] border border-[#E2E8F0]/50 rounded-xl p-2.5 sm:p-3">
@@ -194,15 +283,11 @@ export function RechargeWalletModal({ open, onClose, walletBalance, onSuccess }:
                     {/* Pay button */}
                     <button
                       type="button"
-                      disabled={!rechargeAmount || rechargeAmount <= 0}
-                      onClick={() => {
-                        onSuccess?.(rechargeAmount);
-                        showToast(`Recharge of ₹${rechargeAmount.toLocaleString('en-IN')} successful!`);
-                        setTimeout(handleClose, 1500);
-                      }}
+                      disabled={!rechargeAmount || rechargeAmount < 1000 || loading}
+                      onClick={handleRazorpayPayment}
                       className="w-full py-2.5 sm:py-3.5 bg-gradient-to-r from-[#00b876] to-[#00A86B] text-white text-xs sm:text-sm font-bold rounded-full shadow-[0_4px_12px_rgba(0,168,107,0.2)] hover:from-[#00c982] hover:to-[#00b876] transition-all disabled:opacity-50 disabled:pointer-events-none text-center focus:outline-none cursor-pointer"
                     >
-                      Pay ₹{(rechargeAmount || 0).toLocaleString('en-IN')}
+                      {loading ? 'Processing...' : `Pay ₹${(rechargeAmount || 0).toLocaleString('en-IN')}`}
                     </button>
 
                     {/* OR divider */}
@@ -258,6 +343,11 @@ export function RechargeWalletModal({ open, onClose, walletBalance, onSuccess }:
                         </div>
                         <div className="w-full border-b border-dashed border-[#94A3B8] mt-1 h-0" />
                       </div>
+
+                      {rechargeAmount > 0 && rechargeAmount < 500 && (
+                        <p className="text-[10px] text-red-500 font-semibold mt-1.5">Minimum transfer is ₹500</p>
+                      )}
+
                       <div className="flex items-center justify-center gap-1.5 sm:gap-2 mt-3 sm:mt-4">
                         {[500, 1000, 2000, 5000].map(amt => (
                           <button
@@ -288,20 +378,15 @@ export function RechargeWalletModal({ open, onClose, walletBalance, onSuccess }:
                     <div className="space-y-2 sm:space-y-2.5">
                       <button
                         type="button"
-                        disabled={!rechargeAmount || rechargeAmount <= 0 || rechargeAmount > availableCodBalance}
-                        onClick={() => {
-                          setAvailableCodBalance(prev => prev - rechargeAmount);
-                          onSuccess?.(rechargeAmount);
-                          showToast(`Successfully transferred ₹${rechargeAmount.toLocaleString('en-IN')} from COD Remittance!`);
-                          setTimeout(() => { handleClose(); setRechargeMode('Payment'); }, 1500);
-                        }}
+                        disabled={!rechargeAmount || rechargeAmount < 500 || rechargeAmount > availableCodBalance || loading}
+                        onClick={handleCodTransfer}
                         className="w-full py-2.5 sm:py-3.5 bg-gradient-to-r from-emerald-600 to-[#00A86B] text-white text-xs sm:text-sm font-bold rounded-full shadow-[0_4px_12px_rgba(0,168,107,0.2)] hover:from-emerald-700 hover:to-[#009B63] transition-all disabled:opacity-50 disabled:pointer-events-none text-center focus:outline-none cursor-pointer"
                       >
-                        Confirm Transfer
+                        {loading ? 'Processing...' : 'Confirm Transfer'}
                       </button>
                       <button
                         type="button"
-                        onClick={() => setRechargeMode('Payment')}
+                        onClick={() => { setRechargeMode('Payment'); setRechargeAmount(0); }}
                         className="w-full py-2 sm:py-2.5 bg-white border border-slate-200 text-slate-500 hover:text-slate-700 hover:border-slate-300 text-[11px] sm:text-xs font-bold rounded-full transition-all flex items-center justify-center gap-1.5 focus:outline-none cursor-pointer"
                       >
                         <ArrowLeft className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> Back to Online Payment
@@ -309,13 +394,14 @@ export function RechargeWalletModal({ open, onClose, walletBalance, onSuccess }:
                     </div>
                   </div>
                 )}
+                </div>{/* end scrollable card */}
               </motion.div>
             </div>
           </>
         )}
       </AnimatePresence>
 
-      {/* ── Coupon Modal ───────────────────────────────────────────────── */}
+      {/* COUPON MODAL: commented out
       <AnimatePresence>
         {showCouponModal && (
           <>
@@ -332,98 +418,13 @@ export function RechargeWalletModal({ open, onClose, walletBalance, onSuccess }:
                 transition={{ type: 'spring', duration: 0.5 }}
                 className="w-full max-w-[360px] max-h-[92vh] overflow-y-auto bg-white rounded-3xl shadow-[0_24px_48px_rgba(0,0,0,0.16)] p-6 relative pointer-events-auto border border-slate-100"
               >
-                <button
-                  type="button"
-                  onClick={() => setShowCouponModal(false)}
-                  className="absolute -top-5 left-1/2 -translate-x-1/2 w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-[0_4px_16px_rgba(0,0,0,0.08)] hover:bg-slate-50 transition-colors border border-slate-100 cursor-pointer focus:outline-none"
-                >
-                  <X className="w-4 h-4 text-slate-500" />
-                </button>
-
-                <div className="text-center mb-5 mt-2">
-                  <h2 className="text-lg font-bold text-[#0F172A] mb-1">Available Coupon</h2>
-                  <p className="text-[11px] text-[#64748B] font-medium">Note: Cash-back amount will expire in 30 days.</p>
-                </div>
-
-                <div className="h-[1px] bg-slate-100 mb-4" />
-
-                <div className="border border-slate-200/80 rounded-xl px-4 py-2.5 flex items-center justify-between bg-white mb-5 hover:border-slate-300 transition-colors">
-                  <input
-                    type="text"
-                    placeholder="Enter Coupon Code"
-                    value={tempCouponCode}
-                    onChange={e => setTempCouponCode(e.target.value.toUpperCase())}
-                    className="bg-transparent focus:outline-none text-xs font-bold text-[#0F172A] placeholder:text-[#94A3B8] w-full mr-2 uppercase"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (tempCouponCode.trim()) {
-                        setCouponCode(tempCouponCode);
-                        showToast(`Coupon "${tempCouponCode}" applied!`);
-                        setShowCouponModal(false);
-                      } else {
-                        showToast('Please enter a coupon code.');
-                      }
-                    }}
-                    className="text-xs font-bold text-[#00A86B] hover:text-[#009B63] transition-colors shrink-0 focus:outline-none"
-                  >
-                    Apply
-                  </button>
-                </div>
-
-                <div className="text-center mb-3">
-                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Available Coupons</span>
-                </div>
-
-                <div className="space-y-2.5 max-h-[260px] overflow-y-auto pr-1">
-                  {[
-                    { code: 'SHIPFIRST25', desc: 'Save ₹25 using this code', actionText: 'Apply Code' },
-                    { code: 'FREESHIP100', desc: 'Free shipping on orders over ₹1000', actionText: 'Apply Code' },
-                    { code: 'WELCOME50',   desc: 'Get ₹50 off on your first purchase', actionText: 'Apply Code' },
-                    { code: 'BUY2GET1',    desc: 'Buy 2 items, get 1 free', actionText: 'Apply Offer' },
-                  ].map(coupon => {
-                    const isApplied = couponCode === coupon.code;
-                    return (
-                      <div
-                        key={coupon.code}
-                        className={`border rounded-xl px-4 py-3 flex items-center justify-between transition-all ${
-                          isApplied
-                            ? 'border-[#00A86B] bg-[#00A86B]/5 shadow-[0_2px_8px_rgba(0,168,107,0.05)]'
-                            : 'border-slate-100 hover:border-slate-200 bg-[#F8FAFC]/40'
-                        }`}
-                      >
-                        <div className="flex flex-col text-left mr-3">
-                          <span className="text-xs font-bold text-[#0F172A] tracking-tight">{coupon.code}</span>
-                          <span className="text-[10px] text-[#64748B] font-medium mt-0.5">{coupon.desc}</span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (isApplied) {
-                              setCouponCode('');
-                              showToast('Coupon removed.');
-                            } else {
-                              setCouponCode(coupon.code);
-                              showToast(`Coupon "${coupon.code}" applied!`);
-                              setShowCouponModal(false);
-                            }
-                          }}
-                          className={`text-[10px] font-bold shrink-0 transition-colors focus:outline-none ${
-                            isApplied ? 'text-[#00A86B]' : 'text-slate-500 hover:text-[#00A86B]'
-                          }`}
-                        >
-                          {isApplied ? 'Applied' : coupon.actionText}
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
+                ... coupon modal content ...
               </motion.div>
             </div>
           </>
         )}
       </AnimatePresence>
+      */}
     </>,
     document.body
   );

@@ -216,6 +216,7 @@ function App() {
               <Route path="/user/notification" element={<AdminNotification />} />
               <Route path="/user/kyc" element={<AdminKYC />} />
               <Route path="/user/referral" element={<AdminReferral />} />
+              <Route path="/user/support" element={<AdminSupport />} />
               <Route path="/user/rate-calculator" element={<AdminRateCalculator />} />
               <Route path="/user/add-order" element={<AdminAddOrder />} />
               <Route path="/user/tracking" element={<AdminTracking />} />

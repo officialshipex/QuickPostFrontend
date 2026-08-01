@@ -24,6 +24,7 @@ import {
   X,
   ChevronRight,
   MapPin,
+  HelpCircle,
 } from 'lucide-react';
 
 const LOGO_URL = '/logo-white.png';
@@ -131,7 +132,14 @@ const MENU_GROUPS: MenuGroup[] = [
   {
     label: 'Referral',
     icon: Star,
-    path: '/admin/referral'
+    path: '/admin/referral',
+    adminOnly: true,
+  },
+  {
+    label: 'Support',
+    icon: HelpCircle,
+    path: '/admin/support',
+    userOnly: true,
   },
 ];
 

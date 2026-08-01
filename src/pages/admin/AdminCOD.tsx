@@ -320,6 +320,7 @@ export function AdminCOD() {
   const [sellerRowsPerPage, setSellerRowsPerPage] = useState(20);
   const [courierRowsPerPage, setCourierRowsPerPage] = useState(20);
   const [currentPage, setCurrentPage] = useState(1);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const STATUS_OPTIONS = [
     { label: 'Pending', value: 'Pending' },
@@ -490,7 +491,7 @@ export function AdminCOD() {
       case 'COD Remittance': fetchSellerRemittance(1); break;
       case 'Courier COD Remittance': fetchCourierRemittance(1); break;
     }
-  }, [activeTab, loadingAdminTab]);
+  }, [activeTab, loadingAdminTab, refreshTrigger]);
 
   // Effects for rows per page change
   useEffect(() => {
@@ -684,13 +685,12 @@ export function AdminCOD() {
 
   const handleApplyFilters = () => { setCurrentPage(1); fetchCodOrders(1); };
 
-  // Clear All — same pattern as Orders/NDR: reset every filter, reset to page 1, refetch immediately.
   const clearCodOrderFilters = () => {
     setCodOrderId(''); setCodAwb(''); setSelectedStatuses([]); setSelectedCouriers([]);
     setDateStart(''); setDateEnd('');
     if (isAdminView) { clearCodUserFilter(); }
     setCurrentPage(1);
-    fetchCodOrders(1);
+    setRefreshTrigger(t => t + 1);
   };
   const hasCodOrderFilters = !!(codOrderId || codAwb || selectedStatuses.length || selectedCouriers.length || (dateStart && dateEnd) || (isAdminView && codUserMongoId));
 
@@ -698,7 +698,7 @@ export function AdminCOD() {
     setSellerRemittanceId(''); setSelectedCodStatuses([]); setCodDateStart(''); setCodDateEnd('');
     if (isAdminView) { clearSellerUserFilter(); }
     setSellerPage(1);
-    fetchSellerRemittance(1);
+    setRefreshTrigger(t => t + 1);
   };
   const hasSellerRemittanceFilters = !!(sellerRemittanceId || selectedCodStatuses.length || (codDateStart && codDateEnd) || (isAdminView && sellerUserMongoId));
 
@@ -707,7 +707,7 @@ export function AdminCOD() {
     setCourierCodDateStart(''); setCourierCodDateEnd('');
     if (isAdminView) { clearCourierUserFilter(); }
     setCourierPage(1);
-    fetchCourierRemittance(1);
+    setRefreshTrigger(t => t + 1);
   };
   const hasCourierRemittanceFilters = !!(courierOrderId || courierAwb || selectedCourierCodStatuses.length || selectedCourierCouriers.length || (courierCodDateStart && courierCodDateEnd) || (isAdminView && courierUserMongoId));
 

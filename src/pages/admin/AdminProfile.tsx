@@ -93,7 +93,8 @@ export function AdminProfile() {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const { currentUserId } = useAdminTab();
+  const { currentUserId, isAdmin, adminTab } = useAdminTab();
+  const isAdminView = isAdmin && adminTab;
   const apiUser = location.state?.user;
   // getAllUsers returns ObjectId as `id` (not `_id`), getUserById does the same
   const mongoId = String(apiUser?.id || '');
@@ -324,10 +325,11 @@ export function AdminProfile() {
     }
   };
 
-  const Toggle = ({ on, onClick }: { on: boolean; onClick: () => void }) => (
+  const Toggle = ({ on, onClick, disabled }: { on: boolean; onClick: () => void; disabled?: boolean }) => (
     <button
-      onClick={onClick}
-      className={`w-9 h-5 rounded-full transition-colors relative flex items-center shrink-0 ${on ? 'bg-[#00A86B]' : 'bg-[#CBD5E1]'}`}
+      onClick={disabled ? undefined : onClick}
+      disabled={disabled}
+      className={`w-9 h-5 rounded-full transition-colors relative flex items-center shrink-0 ${disabled ? 'opacity-40 cursor-not-allowed' : ''} ${on ? 'bg-[#00A86B]' : 'bg-[#CBD5E1]'}`}
     >
       <div className={`w-4 h-4 rounded-full bg-white shadow-sm absolute transition-transform ${on ? 'translate-x-4' : 'translate-x-0.5'}`} />
     </button>
@@ -442,11 +444,11 @@ export function AdminProfile() {
             <div className="flex flex-col gap-3">
               <div className="flex items-center justify-between">
                 <span className={`${TXT.label} text-[#475569]`}>Account Active</span>
-                <Toggle on={isActive} onClick={handleToggle} />
+                <Toggle on={isActive} onClick={handleToggle} disabled={!isAdminView} />
               </div>
               <div className="flex items-center justify-between">
                 <span className={`${TXT.label} text-[#475569]`}>KYC Verified</span>
-                <Toggle on={isKycVerified} onClick={handleKycToggle} />
+                <Toggle on={isKycVerified} onClick={handleKycToggle} disabled={!isAdminView} />
               </div>
             </div>
 

@@ -273,6 +273,7 @@ export function AdminWallet() {
   const [passbookPage, setPassbookPage] = useState(1);
   const [rechargePage, setRechargePage] = useState(1);
   const [invoicePage, setInvoicePage] = useState(1);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // Per-tab user search state
   const {
@@ -727,7 +728,7 @@ export function AdminWallet() {
       case 'Wallet Recharge': fetchRechargeData(1); setRechargePage(1); break;
       case 'Invoices': fetchInvoiceData(1); setInvoicePage(1); break;
     }
-  }, [activeTab, loadingAdminTab]);
+  }, [activeTab, loadingAdminTab, refreshTrigger]);
 
   // On page change (server-side): refetch current tab
   useEffect(() => { if (activeTab === 'Shipping') fetchShippingData(shippingPage); }, [shippingPage]);
@@ -735,14 +736,13 @@ export function AdminWallet() {
   useEffect(() => { if (activeTab === 'Wallet Recharge') fetchRechargeData(rechargePage); }, [rechargePage]);
   useEffect(() => { if (activeTab === 'Invoices') fetchInvoiceData(invoicePage); }, [invoicePage]);
 
-  // Clear All — same pattern as Orders/NDR: reset every filter for the active tab, reset to page 1, refetch immediately.
   const clearShippingFilters = () => {
     setSearchTerm(''); setSelectedSearchTypes([]); setSearchTypeId('');
     setSelectedCouriers([]); setSelectedStatuses([]);
     setShippingDateStart(''); setShippingDateEnd('');
     if (isAdminView) { clearShipUserFilter(); }
     setShippingPage(1);
-    fetchShippingData(1);
+    setRefreshTrigger(t => t + 1);
   };
   const hasShippingFilters = !!(searchTerm || selectedSearchTypes.length || searchTypeId || selectedCouriers.length || selectedStatuses.length || (shippingDateStart && shippingDateEnd) || (isAdminView && shipUserMongoId));
 
@@ -752,7 +752,7 @@ export function AdminWallet() {
     setPassbookDateStart(''); setPassbookDateEnd('');
     if (isAdminView) { clearPbUserFilter(); }
     setPassbookPage(1);
-    fetchPassbookData(1);
+    setRefreshTrigger(t => t + 1);
   };
   const hasPassbookFilters = !!(passbookSearchTerm || passbookOrderId || passbookAwb || selectedCategories.length || selectedDescriptions.length || (passbookDateStart && passbookDateEnd) || (isAdminView && pbUserMongoId));
 
@@ -762,7 +762,7 @@ export function AdminWallet() {
     setRechargeDateStart(''); setRechargeDateEnd('');
     if (isAdminView) { clearRcUserFilter(); }
     setRechargePage(1);
-    fetchRechargeData(1);
+    setRefreshTrigger(t => t + 1);
   };
   const hasRechargeFilters = !!(rechargeSearchTerm || rechargeTxnId || selectedPaymentMethods.length || selectedRechargeStatuses.length || (rechargeDateStart && rechargeDateEnd) || (isAdminView && rcUserMongoId));
 
@@ -771,7 +771,7 @@ export function AdminWallet() {
     setInvoiceDateStart(''); setInvoiceDateEnd('');
     if (isAdminView) { clearInvUserFilter(); }
     setInvoicePage(1);
-    fetchInvoiceData(1);
+    setRefreshTrigger(t => t + 1);
   };
   const hasInvoiceFilters = !!(invoiceSearchTerm || selectedMonths.length || selectedYears.length || (invoiceDateStart && invoiceDateEnd) || (isAdminView && invUserMongoId));
 
