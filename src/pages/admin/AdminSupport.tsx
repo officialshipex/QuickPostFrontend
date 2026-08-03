@@ -3,6 +3,7 @@ import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { useAdminTab } from '../../context/AdminUserContext';
 import { usePagination, DesktopPagination } from '../../hooks/usePagination';
+import { useTableLoader } from '../../hooks/useTableLoader';
 import {
   Search, RefreshCcw, User, Package, FileText, Calendar, X,
   MessageSquare, CheckCircle2, Tag, ArrowUpDown, Send, Plus
@@ -11,6 +12,8 @@ import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
 import { useDateRangeFilter } from '../../hooks/filters/useDateRangeFilter';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { TableLoader } from '../../components/ui/TableLoader';
+import { TruncatedText } from '../../components/ui/TruncatedText';
 import { apiClient } from '../../services/apiClient';
 import {
   getAllTickets, getUserTickets, viewTicket, replyToTicket, closeTicket, createTicket,
@@ -250,21 +253,25 @@ function CreateTicketModal({ onClose, onCreated }: CreateTicketModalProps) {
 
 const TABS = ['New', 'Open', 'Awaiting Response', 'Closed', 'All'] as const;
 
-const TAB_SLUG_MAP: Record<string, string> = {
-  'New':               'new',
-  'Open':              'open',
-  'Awaiting Response': 'awaiting-response',
-  'Closed':            'closed',
-  'All':               'all',
-};
+// ── Filter persistence — survives navigating away and back within the tab session ──
+const FILTERS_KEY = 'adminSupport.filters';
 
-const SLUG_TO_TAB: Record<string, string> = {
-  'new':               'New',
-  'open':              'Open',
-  'awaiting-response': 'Awaiting Response',
-  'closed':            'Closed',
-  'all':               'All',
-};
+interface PersistedFilters {
+  activeTab: string;
+  searchTerm: string;
+  selectedSubcategories: string[];
+  selectedStatuses: string[];
+  dateStart: string;
+  dateEnd: string;
+  selectedSort: string[];
+}
+
+function loadPersistedFilters(): PersistedFilters | null {
+  try {
+    const raw = sessionStorage.getItem(FILTERS_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
 
 export function AdminSupport() {
   const navigate = useNavigate();
@@ -273,13 +280,11 @@ export function AdminSupport() {
   const { isAdmin, adminTab } = useAdminTab();
   const isAdminView = isAdmin && adminTab;
 
-  const supportBase = location.pathname.startsWith('/user/') ? '/user/support' : '/admin/support';
+  const persisted = loadPersistedFilters();
 
-  const [activeTab, setActiveTab] = useState<string>(
-    () => (tabSlug && SLUG_TO_TAB[tabSlug]) || 'New'
-  );
+  const [activeTab, setActiveTab]       = useState<string>(persisted?.activeTab || 'New');
   const [tickets, setTickets]           = useState<Ticket[]>([]);
-  const [loading, setLoading]           = useState(true);
+  const { isLoading: loading, setIsLoading: setLoading, startLoading } = useTableLoader(0);
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
 
@@ -288,15 +293,57 @@ export function AdminSupport() {
   const [replying, setReplying]         = useState(false);
   const [closing, setClosing]           = useState(false);
 
-  // Filters
-  const [searchTerm, setSearchTerm]     = useState('');
-  const [selectedSubcategories, setSelectedSubcategories] = useState<string[]>([]);
-  const [selectedStatuses, setSelectedStatuses]           = useState<string[]>([]);
-  const { dateStart, dateEnd, onDateChange }              = useDateRangeFilter();
-  const [selectedSort, setSelectedSort] = useState<string[]>(['Most Recently Created']);
+  // Filters — initialized from sessionStorage so they persist across navigation.
+  // The dropdown/date/sort filters use a draft/applied split: changing them in the
+  // UI only updates the draft, the table keeps using the last *applied* values
+  // until "Apply Filters" is clicked (or "Clear All" resets everything).
+  const [searchTerm, setSearchTerm]     = useState(persisted?.searchTerm || '');
+
+  const [draftSubcategories, setDraftSubcategories] = useState<string[]>(persisted?.selectedSubcategories || []);
+  const [draftStatuses, setDraftStatuses]           = useState<string[]>(persisted?.selectedStatuses || []);
+  const [draftSort, setDraftSort]                   = useState<string[]>(persisted?.selectedSort || ['Most Recently Created']);
+  const { dateStart: draftDateStart, dateEnd: draftDateEnd, onDateChange: onDraftDateChange, clearDateRange: clearDraftDateRange } =
+    useDateRangeFilter(persisted?.dateStart || '', persisted?.dateEnd || '');
+
+  const [selectedSubcategories, setSelectedSubcategories] = useState<string[]>(persisted?.selectedSubcategories || []);
+  const [selectedStatuses, setSelectedStatuses]           = useState<string[]>(persisted?.selectedStatuses || []);
+  const [selectedSort, setSelectedSort]                   = useState<string[]>(persisted?.selectedSort || ['Most Recently Created']);
+  const [dateStart, setDateStart]                         = useState(persisted?.dateStart || '');
+  const [dateEnd, setDateEnd]                             = useState(persisted?.dateEnd || '');
+
   const [globalSearchQuery, setGlobalSearchQuery] = useState(
     ((window as any).__adminSearchQuery || '').toLowerCase()
   );
+
+  const hasDraftFilters = draftSubcategories.length > 0 || draftStatuses.length > 0 || !!draftDateStart || !!draftDateEnd
+    || (draftSort[0] && draftSort[0] !== 'Most Recently Created');
+
+  const handleApplyFilters = () => {
+    setSelectedSubcategories(draftSubcategories);
+    setSelectedStatuses(draftStatuses);
+    setSelectedSort(draftSort);
+    setDateStart(draftDateStart);
+    setDateEnd(draftDateEnd);
+    setCurrentPage(1);
+    startLoading(300);
+  };
+
+  const handleClearAllFilters = () => {
+    setDraftSubcategories([]); setSelectedSubcategories([]);
+    setDraftStatuses([]); setSelectedStatuses([]);
+    setDraftSort(['Most Recently Created']); setSelectedSort(['Most Recently Created']);
+    clearDraftDateRange(); setDateStart(''); setDateEnd('');
+    setSearchTerm('');
+    setCurrentPage(1);
+  };
+
+  // Persist the *applied* filters to sessionStorage whenever they change
+  useEffect(() => {
+    const toSave: PersistedFilters = {
+      activeTab, searchTerm, selectedSubcategories, selectedStatuses, dateStart, dateEnd, selectedSort,
+    };
+    try { sessionStorage.setItem(FILTERS_KEY, JSON.stringify(toSave)); } catch { /* ignore */ }
+  }, [activeTab, searchTerm, selectedSubcategories, selectedStatuses, dateStart, dateEnd, selectedSort]);
 
   // Global admin search event
   useEffect(() => {
@@ -319,23 +366,6 @@ export function AdminSupport() {
   }, [isAdminView]);
 
   useEffect(() => { fetchTickets(); }, [fetchTickets]);
-
-  // Sync active tab from URL (refresh, back/forward, direct link)
-  useEffect(() => {
-    const tabFromUrl = (tabSlug && SLUG_TO_TAB[tabSlug]) || 'New';
-    setActiveTab(prev => (prev === tabFromUrl ? prev : tabFromUrl));
-  }, [tabSlug]);
-
-  // Tab counts
-  const tabCounts = useMemo(() => {
-    const counts: Record<string, number> = { New: 0, Open: 0, 'Awaiting Response': 0, Closed: 0, All: 0 };
-    tickets.forEach(t => {
-      const tab = statusTab(t.status);
-      if (counts[tab] !== undefined) counts[tab]++;
-      counts.All++;
-    });
-    return counts;
-  }, [tickets]);
 
   // Filtered + sorted tickets
   const filteredTickets = useMemo(() => {
@@ -475,24 +505,22 @@ export function AdminSupport() {
         <div className="bg-white relative z-50 shrink-0">
 
           {/* ── Tabs ── */}
-          <div className="flex justify-between items-center px-6 py-2 border-b border-[#E2E8F0] bg-white">
-            <div className="flex gap-1 items-center bg-[#F7FEFC] rounded-full p-1.5 shrink-0 overflow-x-auto">
-              {TABS.map(s => (
-                <button
-                  key={s}
-                  onClick={() => { navigate(`${supportBase}/${TAB_SLUG_MAP[s] || 'new'}`); setCurrentPage(1); }}
-                  className={`px-4 py-2 text-[13px] font-bold rounded-full transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${activeTab === s ? 'text-[#00A86B] underline underline-offset-4 decoration-2' : 'text-[#64748B] hover:text-[#0F172A]'}`}
-                >
-                  {s}
-                  {tabCounts[s] > 0 && (
-                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center ${activeTab === s ? 'bg-[#00A86B]/10 text-[#00A86B]' : 'bg-slate-100 text-slate-500'}`}>
-                      {tabCounts[s]}
-                    </span>
-                  )}
-                </button>
-              ))}
+          <div className="flex justify-between items-center px-4 md:px-6 py-2 border-b border-[#E2E8F0] bg-white">
+            <div className="flex gap-1 items-center min-w-0 bg-[#F7FEFC] rounded-full p-1.5">
+              <div className="flex gap-1 items-center overflow-x-auto no-scrollbar min-w-0">
+                {TABS.map(s => (
+                  <button
+                    key={s}
+                    onClick={() => { setActiveTab(s); setCurrentPage(1); startLoading(300); }}
+                    ref={(el) => { if (el && activeTab === s) el.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }}
+                    className={`relative px-4 py-2 text-[12px] md:text-[13px] font-medium md:font-bold rounded-full transition-colors whitespace-nowrap cursor-pointer ${activeTab === s ? 'text-[#00A86B] underline underline-offset-4 decoration-2' : 'text-[#64748B] hover:text-[#0F172A]'}`}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
             </div>
-            <div className="flex items-center gap-3 shrink-0 ml-4">
+            <div className="hidden md:flex items-center gap-3 shrink-0 ml-4">
               <button
                 onClick={fetchTickets}
                 className={`w-8 h-8 rounded-full border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC] ${loading ? 'animate-spin' : ''}`}
@@ -520,8 +548,8 @@ export function AdminSupport() {
               <GlassDropdown
                 label="Subcategory"
                 options={subcategoryOptions}
-                selected={selectedSubcategories}
-                onChange={setSelectedSubcategories}
+                selected={draftSubcategories}
+                onChange={setDraftSubcategories}
                 placeholder="Search category..."
                 icon={<Tag className="w-3.5 h-3.5" />}
               />
@@ -529,27 +557,36 @@ export function AdminSupport() {
               <GlassDropdown
                 label="Status"
                 options={STATUS_OPTIONS}
-                selected={selectedStatuses}
-                onChange={setSelectedStatuses}
+                selected={draftStatuses}
+                onChange={setDraftStatuses}
                 placeholder="Search status..."
                 icon={<CheckCircle2 className="w-3.5 h-3.5" />}
               />
 
               <GlassDateFilter
                 align="right"
-                startDate={dateStart}
-                endDate={dateEnd}
-                onDateChange={onDateChange}
+                startDate={draftDateStart}
+                endDate={draftDateEnd}
+                onDateChange={onDraftDateChange}
               />
 
               <GlassDropdown
                 label="Sort By"
                 options={SORT_OPTIONS}
-                selected={selectedSort}
-                onChange={setSelectedSort}
+                selected={draftSort}
+                onChange={setDraftSort}
                 placeholder="Sort by..."
                 icon={<ArrowUpDown className="w-3.5 h-3.5" />}
               />
+
+              <button onClick={handleApplyFilters} className="h-9 px-4 shrink-0 rounded-full bg-[#009D64] border border-[#009D64] text-white text-xs font-medium hover:bg-[#008a57] transition-colors cursor-pointer">
+                Apply Filters
+              </button>
+              {hasDraftFilters && (
+                <button onClick={handleClearAllFilters} className="h-9 px-4 shrink-0 rounded-full border border-red-200 text-red-500 text-xs font-medium hover:bg-red-50 transition-colors cursor-pointer">
+                  Clear All
+                </button>
+              )}
             </div>
 
             {!isAdminView && (
@@ -566,60 +603,58 @@ export function AdminSupport() {
         {/* ── Table ── */}
         <div className="bg-white flex flex-col flex-1 min-h-0 overflow-hidden border-t border-[#E2E8F0]">
           <div className="flex-1 overflow-y-auto overflow-x-hidden w-full relative">
-            {loading ? (
-              <div className="flex items-center justify-center h-40 text-[#64748B] text-sm">Loading tickets…</div>
-            ) : (
-              <table className="w-full text-left border-collapse min-w-full">
-                <thead>
-                  <tr className="bg-[#E6F9F2] text-xs font-medium text-[#64748B] uppercase tracking-wider">
-                    <th className="py-2 px-3 rounded-l-lg"><User className="w-3.5 h-3.5 inline mr-1" />Ticket ID</th>
-                    <th className="py-2 px-3"><FileText className="w-3.5 h-3.5 inline mr-1" />Raised By</th>
-                    <th className="py-2 px-3"><Package className="w-3.5 h-3.5 inline mr-1" />AWB(s)</th>
-                    <th className="py-2 px-3"><Tag className="w-3.5 h-3.5 inline mr-1" />Category</th>
-                    <th className="py-2 px-3"><CheckCircle2 className="w-3.5 h-3.5 inline mr-1" />Status</th>
-                    <th className="py-2 px-3"><MessageSquare className="w-3.5 h-3.5 inline mr-1" />Messages</th>
-                    <th className="py-2 px-3"><Calendar className="w-3.5 h-3.5 inline mr-1" />Created</th>
-                    <th className="py-2 px-3 text-right rounded-r-lg">Actions</th>
+            {loading && <TableLoader />}
+            <table className="w-full text-left border-collapse min-w-full">
+                <thead className="sticky top-0 z-10 bg-[#E6F9F2] shadow-sm">
+                  <tr className="text-xs leading-[18px] font-medium text-[#64748B] uppercase tracking-wider border border-[#B9EFDB]">
+                    <th className="py-2 px-4 whitespace-nowrap"><div className="flex items-center gap-1"><User className="w-3.5 h-3.5 shrink-0" /><span>Ticket ID</span></div></th>
+                    <th className="py-2 px-4 whitespace-nowrap"><div className="flex items-center gap-1"><FileText className="w-3.5 h-3.5 shrink-0" /><span>Raised By</span></div></th>
+                    <th className="py-2 px-4 whitespace-nowrap"><div className="flex items-center gap-1"><Package className="w-3.5 h-3.5 shrink-0" /><span>AWB(s)</span></div></th>
+                    <th className="py-2 px-4 whitespace-nowrap"><div className="flex items-center gap-1"><Tag className="w-3.5 h-3.5 shrink-0" /><span>Category</span></div></th>
+                    <th className="py-2 px-4 whitespace-nowrap"><div className="flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5 shrink-0" /><span>Status</span></div></th>
+                    <th className="py-2 px-4 whitespace-nowrap"><div className="flex items-center gap-1"><MessageSquare className="w-3.5 h-3.5 shrink-0" /><span>Messages</span></div></th>
+                    <th className="py-2 px-4 whitespace-nowrap"><div className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5 shrink-0" /><span>Created</span></div></th>
+                    <th className="py-2 px-4 text-right whitespace-nowrap">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="text-[11px] text-[#475569]">
-                  {paginatedTickets.length > 0 ? (
+                <tbody>
+                  {loading ? null : paginatedTickets.length > 0 ? (
                     paginatedTickets.map((ticket, i) => (
                       <tr
                         key={ticket._id}
                         className={`border-b border-[#E2E8F0] transition-colors group ${i % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]/20'}`}
                       >
-                        <td className="p-4 align-top">
-                          <div className="text-xs font-bold text-[#00A86B] mb-0.5">#{ticket.ticketNumber}</div>
-                          <div className="text-[10px] text-[#94A3B8]">{formatDate(ticket.createdAt)}</div>
+                        <td className="p-3 align-top">
+                          <div className="text-[12px] font-semibold text-[#00A86B] mb-0.5">#{ticket.ticketNumber}</div>
+                          <div className="text-[12px] font-normal text-[#94A3B8]">{formatDate(ticket.createdAt)}</div>
                         </td>
-                        <td className="p-4 align-top">
-                          <div className="text-xs font-semibold text-[#0F172A]">{ticket.fullname}</div>
-                          <div className="text-[10px] text-[#94A3B8]">{ticket.email}</div>
+                        <td className="p-3 align-top max-w-[180px]">
+                          <TruncatedText text={ticket.fullname} maxLength={22} className="text-[14px] leading-[20px] font-semibold text-[#0F172A]" />
+                          <TruncatedText text={ticket.email} maxLength={26} className="text-[12px] leading-[18px] font-normal text-[#94A3B8]" />
                         </td>
-                        <td className="p-4 align-top text-xs font-semibold text-[#0F172A]">
+                        <td className="p-3 align-top text-[12px] font-normal text-[#475569]">
                           {ticket.awbNumbers.length > 0 ? ticket.awbNumbers.slice(0, 2).join(', ') + (ticket.awbNumbers.length > 2 ? ` +${ticket.awbNumbers.length - 2}` : '') : '—'}
                         </td>
-                        <td className="p-4 align-top">
-                          <div className="font-semibold text-[#0F172A] text-[11px]">{ticket.category}</div>
-                          <div className="text-[10px] text-[#94A3B8]">{ticket.subcategory}</div>
+                        <td className="p-3 align-top">
+                          <div className="text-[12px] font-normal text-[#0F172A]">{ticket.category}</div>
+                          <div className="text-[12px] font-normal text-[#94A3B8]">{ticket.subcategory}</div>
                         </td>
-                        <td className="p-4 align-top">
+                        <td className="p-3 align-top">
                           <span className={`px-2.5 py-0.5 rounded-full border text-[10px] font-semibold uppercase tracking-wider whitespace-nowrap shadow-sm ${STATUS_BADGE[ticket.status] || 'bg-slate-50 text-slate-600 border-slate-200'}`}>
                             {STATUS_LABEL[ticket.status] || ticket.status}
                           </span>
                         </td>
-                        <td className="p-4 align-top">
-                          <span className="flex items-center gap-1 text-[11px] font-semibold text-[#64748B]">
+                        <td className="p-3 align-top">
+                          <span className="flex items-center gap-1 text-[12px] font-normal text-[#64748B]">
                             <MessageSquare className="w-3 h-3" />
                             {ticket.messages.length + 1}
                           </span>
                           {ticket.lastRepliedAt && (
-                            <div className="text-[10px] text-[#94A3B8] mt-0.5">{timeAgo(ticket.lastRepliedAt)}</div>
+                            <div className="text-[12px] font-normal text-[#94A3B8] mt-0.5">{timeAgo(ticket.lastRepliedAt)}</div>
                           )}
                         </td>
-                        <td className="p-4 align-top text-[10px] text-[#94A3B8]">{formatDateShort(ticket.createdAt)}</td>
-                        <td className="p-4 align-top text-right pr-6">
+                        <td className="p-3 align-top text-[12px] font-normal text-[#94A3B8]">{formatDateShort(ticket.createdAt)}</td>
+                        <td className="p-3 align-top text-right pr-6">
                           <button
                             onClick={() => handleViewTicket(ticket)}
                             className="px-4 py-1.5 rounded-full bg-[#1e3a8a] text-white font-bold text-[10px] hover:bg-[#1e40af] transition-colors shadow-sm"
@@ -638,7 +673,6 @@ export function AdminSupport() {
                   )}
                 </tbody>
               </table>
-            )}
           </div>
 
           {totalPages > 0 && (

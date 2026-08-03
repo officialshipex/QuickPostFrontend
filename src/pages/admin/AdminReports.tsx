@@ -235,8 +235,8 @@ function GenerateReportModal({ open, onClose, prefillUserId, prefillUserName, is
 }
 
 // ─── MisReportTable ───────────────────────────────────────────────────────────
-function MisReportTable({ userId, isAdminView }: {
-  userId: string | null; isAdminView: boolean;
+function MisReportTable({ userId, isAdminView, fillHeight }: {
+  userId: string | null; isAdminView: boolean; fillHeight?: boolean;
 }) {
   const [reports, setReports] = useState<MisReport[]>([]);
   const [loading, setLoading] = useState(false);
@@ -275,8 +275,8 @@ function MisReportTable({ userId, isAdminView }: {
                         'bg-blue-50 text-blue-500';
 
   return (
-    <div>
-      <div className="bg-white border border-[#E2E8F0] rounded-2xl overflow-visible shadow-sm">
+    <div className={fillHeight ? 'flex flex-col flex-1 min-h-0' : ''}>
+      <div className={fillHeight ? 'bg-white flex flex-col flex-1 min-h-0 overflow-hidden border-t border-[#E2E8F0]' : 'bg-white border border-[#E2E8F0] rounded-2xl overflow-visible shadow-sm'}>
         {isAdminView && (
           <div className="sticky top-0 z-20 rounded-t-2xl flex items-center justify-between p-4 border-b border-[#E2E8F0] bg-[#F8FAFC]">
             <div>
@@ -292,29 +292,21 @@ function MisReportTable({ userId, isAdminView }: {
             </button>
           </div>
         )}
-        {!isAdminView && (
-          <div className="sticky top-0 z-20 rounded-t-2xl flex justify-end p-4 border-b border-[#E2E8F0] bg-[#F8FAFC]">
-            <button onClick={fetchReports} title="Refresh"
-              className={`w-8 h-8 flex items-center justify-center rounded-lg border border-[#E2E8F0] text-[#64748B] hover:text-[#00A86B] hover:border-[#00A86B] transition-colors ${loading ? 'animate-spin' : ''}`}>
-              <RefreshCw className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        )}
-        <div className="hidden md:block relative overflow-auto no-scrollbar max-h-[560px]">
+        <div className={`hidden md:block relative overflow-auto no-scrollbar ${fillHeight ? 'flex-1 min-h-0' : 'max-h-[560px]'}`}>
           {loading && <TableLoader />}
-          <table className="w-full text-left border-collapse">
+          <table className="w-full text-left border-collapse table-fixed">
             <thead className="sticky top-0 z-10 bg-[#E6F9F2] shadow-sm">
               <tr className="text-xs leading-[18px] font-medium text-[#64748B] uppercase tracking-wider border border-[#B9EFDB]">
-                <th className="py-2 px-4"><div className="flex items-center gap-1"><Hash className="w-3.5 h-3.5 shrink-0" /><span>#</span></div></th>
-                {isAdminView && !userId && <th className="py-2 px-4"><div className="flex items-center gap-1"><Users className="w-3.5 h-3.5 shrink-0" /><span>User</span></div></th>}
-                <th className="py-2 px-4"><div className="flex items-center gap-1"><FileText className="w-3.5 h-3.5 shrink-0" /><span>Report Type</span></div></th>
-                <th className="py-2 px-4"><div className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5 shrink-0" /><span>Date Filter</span></div></th>
-                <th className="py-2 px-4"><div className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5 shrink-0" /><span>From</span></div></th>
-                <th className="py-2 px-4"><div className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5 shrink-0" /><span>To</span></div></th>
-                <th className="py-2 px-4"><div className="flex items-center gap-1"><Mail className="w-3.5 h-3.5 shrink-0" /><span>Email</span></div></th>
-                <th className="py-2 px-4"><div className="flex items-center gap-1"><Clock className="w-3.5 h-3.5 shrink-0" /><span>Generated At</span></div></th>
-                <th className="py-2 px-4 text-center"><div className="flex items-center justify-center gap-1"><CheckCircle2 className="w-3.5 h-3.5 shrink-0" /><span>Status</span></div></th>
-                <th className="py-2 px-4 text-right"><div className="flex items-center justify-end gap-1"><Download className="w-3.5 h-3.5 shrink-0" /><span>Download</span></div></th>
+                <th className="py-2 px-4 w-[5%]"><div className="flex items-center gap-1"><Hash className="w-3.5 h-3.5 shrink-0" /><span>#</span></div></th>
+                {isAdminView && !userId && <th className="py-2 px-4 w-[14%]"><div className="flex items-center gap-1"><Users className="w-3.5 h-3.5 shrink-0" /><span>User</span></div></th>}
+                <th className="py-2 px-4 w-[12%]"><div className="flex items-center gap-1"><FileText className="w-3.5 h-3.5 shrink-0" /><span>Report Type</span></div></th>
+                <th className="py-2 px-4 w-[12%]"><div className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5 shrink-0" /><span>Date Filter</span></div></th>
+                <th className="py-2 px-4 w-[9%]"><div className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5 shrink-0" /><span>From</span></div></th>
+                <th className="py-2 px-4 w-[9%]"><div className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5 shrink-0" /><span>To</span></div></th>
+                <th className="py-2 px-4 w-[15%]"><div className="flex items-center gap-1"><Mail className="w-3.5 h-3.5 shrink-0" /><span>Email</span></div></th>
+                <th className="py-2 px-4 w-[13%]"><div className="flex items-center gap-1"><Clock className="w-3.5 h-3.5 shrink-0" /><span>Generated At</span></div></th>
+                <th className="py-2 px-4 text-center w-[9%]"><div className="flex items-center justify-center gap-1"><CheckCircle2 className="w-3.5 h-3.5 shrink-0" /><span>Status</span></div></th>
+                <th className="py-2 px-4 text-right w-[12%]"><div className="flex items-center justify-end gap-1"><Download className="w-3.5 h-3.5 shrink-0" /><span>Download</span></div></th>
               </tr>
             </thead>
             <tbody>
@@ -324,36 +316,36 @@ function MisReportTable({ userId, isAdminView }: {
                 <tr><td colSpan={10} className="text-center py-12 text-sm font-medium text-[#94A3B8]">No reports generated yet. Click "Generate Report" to create one.</td></tr>
               ) : reports.map((r, i) => (
                 <tr key={r._id} className={`border-b border-[#E2E8F0] transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]/20'}`}>
-                  <td className="p-3 text-xs font-semibold text-[#94A3B8]">{(page - 1) * rowsPerPage + i + 1}</td>
+                  <td className="p-3 text-[12px] font-normal text-[#94A3B8]">{(page - 1) * rowsPerPage + i + 1}</td>
                   {isAdminView && !userId && (
-                    <td className="p-3 max-w-[180px]">
+                    <td className="p-3">
                       <TruncatedText text={r.user?.fullname || '—'} maxLength={22} className="text-[12px] leading-[18px] font-semibold text-[#0F172A]" />
                       <TruncatedText text={r.user?.email || '—'} maxLength={26} className="text-[12px] leading-[18px] font-normal text-[#64748B]" />
                     </td>
                   )}
                   <td className="p-3">
-                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-semibold ${typeColor(r.reportType)}`}>{r.reportType}</span>
+                    <span className={`px-2 py-0.5 rounded-md text-[12px] font-semibold ${typeColor(r.reportType)}`}>{r.reportType}</span>
                   </td>
-                  <td className="p-3 text-[12px] font-normal text-[#64748B]">{r.dateFilterType || '—'}</td>
-                  <td className="p-3 text-[12px] font-normal text-[#0F172A]">{fmtDate(r.fromDate)}</td>
-                  <td className="p-3 text-[12px] font-normal text-[#0F172A]">{fmtDate(r.toDate)}</td>
-                  <td className="p-3 max-w-[160px]">
+                  <td className="p-3 text-[12px] font-normal text-[#64748B] truncate">{r.dateFilterType || '—'}</td>
+                  <td className="p-3 text-[12px] font-normal text-[#0F172A] whitespace-nowrap">{fmtDate(r.fromDate)}</td>
+                  <td className="p-3 text-[12px] font-normal text-[#0F172A] whitespace-nowrap">{fmtDate(r.toDate)}</td>
+                  <td className="p-3">
                     <TruncatedText text={r.email || '—'} maxLength={16} className="text-[12px] leading-[18px] font-normal text-[#64748B]" tooltipAlign="right" />
                   </td>
-                  <td className="p-3 text-[12px] font-normal text-[#64748B]">{fmtDateTime(r.createdAt)}</td>
+                  <td className="p-3 text-[12px] font-normal text-[#64748B] whitespace-nowrap">{fmtDateTime(r.createdAt)}</td>
                   <td className="p-3 text-center">
                     <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border capitalize ${statusStyle(r.status)}`}>
                       {r.status === 'pending' && <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse mr-1 align-middle" />}
                       {r.status}
                     </span>
                   </td>
-                  <td className="p-3 text-right">
+                  <td className="p-3 text-right" style={{ paddingRight: 'calc(0.75rem + 10px)' }}>
                     {r.status === 'completed' && r.downloadUrl
                       ? <a href={r.downloadUrl} target="_blank" rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-[11px] font-bold text-[#00A86B] hover:underline">
+                          className="inline-flex items-center gap-1 text-[12px] font-bold text-[#00A86B] hover:underline">
                           <Download className="w-3.5 h-3.5" /> Download
                         </a>
-                      : <span className="text-[11px] text-[#CBD5E1] font-semibold">{r.status === 'pending' ? 'Processing…' : '—'}</span>}
+                      : <span className="text-[12px] text-[#CBD5E1] font-semibold">{r.status === 'pending' ? 'Processing…' : '—'}</span>}
                   </td>
                 </tr>
               ))}
@@ -362,7 +354,7 @@ function MisReportTable({ userId, isAdminView }: {
         </div>
 
         {/* Mobile */}
-        <div className="md:hidden relative bg-[#F8FAFC]">
+        <div className={`md:hidden relative bg-[#F8FAFC] ${fillHeight ? 'flex-1 min-h-0 overflow-y-auto' : ''}`}>
           {loading && <div className="relative h-32"><TableLoader /></div>}
           {!loading && reports.length === 0 ? (
             <EmptyState title="No reports yet" subtitle="Click &quot;Generate Report&quot; to create one" />
@@ -377,7 +369,7 @@ function MisReportTable({ userId, isAdminView }: {
                   <div className="pt-8 px-4 pb-4">
                     <div className="rounded-xl p-3 mb-3 bg-white border border-[#E2E8F0]">
                       <div className="flex items-start justify-between gap-2 mb-1.5">
-                        <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${typeColor(r.reportType)}`}>{r.reportType}</span>
+                        <span className={`px-2 py-0.5 rounded-md text-[12px] font-semibold ${typeColor(r.reportType)}`}>{r.reportType}</span>
                         <span className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold border capitalize flex items-center ${statusStyle(r.status)}`}>
                           {r.status === 'pending' && <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse mr-1" />}
                           {r.status}
@@ -429,6 +421,7 @@ function MisReportTable({ userId, isAdminView }: {
           )}
         </div>
 
+        <div className="shrink-0">
         <DesktopPagination
           page={page}
           setPage={setPage}
@@ -439,8 +432,9 @@ function MisReportTable({ userId, isAdminView }: {
           endIndex={Math.min(page * rowsPerPage, totalReports)}
           totalItems={totalReports}
         />
+        </div>
         {totalPages > 1 && (
-          <div className="md:hidden flex items-center justify-center gap-2 p-3 border-t border-[#E2E8F0]">
+          <div className="md:hidden shrink-0 flex items-center justify-center gap-2 p-3 border-t border-[#E2E8F0]">
             <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
               className="px-3 py-1.5 text-xs font-bold border border-[#E2E8F0] rounded-lg disabled:opacity-40 hover:bg-[#F8FAFC]">← Prev</button>
             <span className="text-xs text-[#64748B] font-medium">Page {page} of {totalPages}</span>
@@ -711,24 +705,33 @@ export function AdminReports() {
   if (!isAdminView) {
     return (
       <AdminLayout>
-        <div className="max-w-[1400px] mx-auto pb-10">
-          <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4 mb-6">
+        <div className="flex flex-col h-[calc(100vh-72px)] -m-4 md:-m-6 bg-white overflow-hidden">
+          <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4 px-4 md:px-6 py-4 border-b border-[#E2E8F0] shrink-0">
             <div>
               <h2 className="text-xl font-bold text-[#0F172A] flex items-center gap-2">
                 <FileText className="w-5 h-5 text-[#00A86B]" /> MIS Reports
               </h2>
               <p className="text-xs text-[#64748B] mt-1">Generate and download Excel reports for your shipments and transactions.</p>
             </div>
-            <button onClick={() => openGenerate(null, '')}
-              className="h-9 px-4 rounded-xl bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors flex items-center gap-1.5 shadow-sm shrink-0">
-              <FileText className="w-3.5 h-3.5" /> Generate Report
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              <button onClick={() => openGenerate(null, '')}
+                className="h-9 px-4 rounded-xl bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors flex items-center gap-1.5 shadow-sm shrink-0">
+                <FileText className="w-3.5 h-3.5" /> Generate Report
+              </button>
+              <button onClick={() => setMisRefreshKey(k => k + 1)} title="Refresh"
+                className="w-9 h-9 flex items-center justify-center rounded-xl border border-[#E2E8F0] text-[#64748B] hover:text-[#00A86B] hover:border-[#00A86B] transition-colors shrink-0">
+                <RefreshCw className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
-          <MisReportTable
-            key={misRefreshKey}
-            userId={currentUserId}
-            isAdminView={false}
-          />
+          <div className="flex-1 min-h-0 flex flex-col">
+            <MisReportTable
+              key={misRefreshKey}
+              userId={currentUserId}
+              isAdminView={false}
+              fillHeight
+            />
+          </div>
         </div>
         <AnimatePresence>
           {genOpen && (
