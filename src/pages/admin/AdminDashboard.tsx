@@ -118,7 +118,7 @@ function BarRow({ name, value, maxValue, color }: { name: string; value: number;
 
 /* ─── main component ──────────────────────────────────────────────── */
 export function AdminDashboard() {
-  const { isAdmin, adminTab, loadingAdminTab } = useAdminTab();
+  const { isAdmin, adminTab, loadingAdminTab, isEmployee } = useAdminTab();
   const { filters } = useDashboardFilters();
   const isAdminView = isAdmin && adminTab;
   const location = useLocation();
@@ -266,8 +266,8 @@ export function AdminDashboard() {
           />
         </div>
 
-        {/* KYC Banner */}
-        {!kycComplete && (
+        {/* KYC Banner — never shown to employees (they're linked to parent user, not themselves) */}
+        {!kycComplete && !isEmployee && (
           <div className="mb-6 bg-amber-50 border border-amber-200/80 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
             <div className="flex items-start sm:items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center shrink-0 text-amber-600">

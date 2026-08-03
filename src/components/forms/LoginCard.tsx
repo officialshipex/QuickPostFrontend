@@ -159,9 +159,15 @@ export function LoginCard() {
         </Button>
       </div>
 
-      <div className="text-center mt-6">
+      <div className="text-center mt-6 space-y-2">
         <p className="text-xs text-[#64748B]">
           Don't have an account? <Link to="/" className="text-[#00A86B] font-semibold hover:underline">Sign up</Link>
+        </p>
+        <p className="text-xs text-[#64748B]">
+          Employee?{' '}
+          <Link to="/employee-login" className="text-[#1e40af] font-semibold hover:underline">
+            Login with employee credentials
+          </Link>
         </p>
       </div>
     </div>

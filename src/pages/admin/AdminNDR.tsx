@@ -686,7 +686,7 @@ export function AdminNDR() {
 
                       {/* Order */}
                       <td className="p-4">
-                        <div className="text-[12px] font-semibold text-[#00A86B]">{order.orderId}</div>
+                        <div className="text-[12px] font-semibold text-[#00A86B] underline cursor-pointer hover:text-[#009B63]" onClick={() => order.orderId && navigate(`${isAdminView ? '/admin' : '/user'}/order-tracking?id=${order.orderId}`)}>{order.orderId}</div>
                         <div className="text-[12px] font-normal text-[#94A3B8] mt-0.5">{order.date}</div>
                         <span className="px-2 py-0.5 rounded-full border border-blue-200 text-blue-600 font-semibold text-[10px] bg-blue-50/50 mt-1 inline-block">
                           {order.channel}
@@ -741,7 +741,7 @@ export function AdminNDR() {
                       <td className="p-4">
                         <div className="text-[12px] font-semibold text-[#00A86B]">{order.courier}</div>
                         <div className="text-[12px] font-normal text-[#94A3B8] mt-0.5">Booked On | {order.bookedDate}</div>
-                        <div className="text-[12px] font-semibold text-[#00A86B] underline mt-0.5 hover:text-[#009B63] cursor-pointer truncate max-w-[120px]">{order.awb}</div>
+                        <div onClick={() => order.awb && navigate(`${isAdminView ? '/admin' : '/user'}/tracking?awb=${order.awb}`)} className="text-[12px] font-semibold text-[#00A86B] underline mt-0.5 hover:text-[#009B63] cursor-pointer truncate max-w-[120px]">{order.awb}</div>
                       </td>
 
                       {/* Status */}

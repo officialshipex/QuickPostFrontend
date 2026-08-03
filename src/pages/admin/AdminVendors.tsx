@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { usePagination } from '../../hooks/usePagination';
 import { 
@@ -319,6 +320,9 @@ const INITIAL_MOCK_VENDORS: Vendor[] = [
 ];
 
 export function AdminVendors() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const isAdminView = !location.pathname.startsWith('/user/');
   const [vendors, setVendors] = useState<Vendor[]>(INITIAL_MOCK_VENDORS);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<'All' | 'Approved' | 'Pending Approval' | 'Rejected' | 'Suspended'>('All');
@@ -1482,7 +1486,7 @@ export function AdminVendors() {
                         ].map((shipment, i) => (
                           <div key={i} className="p-3.5 rounded-xl border border-slate-100 bg-[#F8FAFC]/50 flex flex-col sm:flex-row justify-between gap-3 text-xs">
                             <div>
-                              <div className="font-bold text-[#00A86B]">{shipment.awb}</div>
+                              <div className="font-bold text-[#00A86B] underline cursor-pointer hover:text-[#009B63]" onClick={() => shipment.awb && navigate(`${isAdminView ? '/admin' : '/user'}/tracking?awb=${shipment.awb}`)}>{shipment.awb}</div>
                               <div className="text-[10px] text-[#94A3B8] mt-0.5 font-medium">{shipment.date} | Customer: {shipment.customer}</div>
                             </div>
                             <div className="flex flex-row sm:flex-col items-start sm:items-end justify-between sm:justify-start gap-1">

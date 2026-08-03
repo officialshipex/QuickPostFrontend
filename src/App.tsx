@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Home } from './pages/Home';
 import { ForgotPassword } from './pages/ForgotPassword';
 import { Login } from './pages/Login';
+import { EmployeeLogin } from './pages/EmployeeLogin';
 import { ProtectedRoute } from './components/layout/ProtectedRoute';
 import { AdminUserProvider } from './context/AdminUserContext';
 import { DashboardFilterProvider } from './context/DashboardFilterContext';
@@ -113,10 +114,11 @@ function GlobalOrderClickInterceptor() {
 
       event.preventDefault();
       event.stopPropagation();
+      const panel = window.location.pathname.startsWith('/user/') ? '/user' : '/admin';
       if (isAwb) {
-        navigate(`/admin/tracking?awb=${cleanText}`);
+        navigate(`${panel}/tracking?awb=${cleanText}`);
       } else {
-        navigate(`/admin/order-tracking?id=${cleanText}`);
+        navigate(`${panel}/order-tracking?id=${cleanText}`);
       }
     };
 
@@ -148,6 +150,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<AuthRedirect><Login /></AuthRedirect>} />
+          <Route path="/employee-login" element={<AuthRedirect><EmployeeLogin /></AuthRedirect>} />
           <Route path="/forgot-password" element={<AuthRedirect><ForgotPassword /></AuthRedirect>} />
           
           {/* Protected Routes — auth check + context providers */}
@@ -172,9 +175,11 @@ function App() {
               <Route path="/admin/ndr" element={<AdminNDR />} />
               <Route path="/admin/ndr/:tabSlug" element={<AdminNDR />} />
               <Route path="/admin/cod" element={<AdminCOD />} />
+              <Route path="/admin/cod/:tabSlug" element={<AdminCOD />} />
               <Route path="/admin/wallet" element={<AdminWallet />} />
               <Route path="/admin/reports" element={<AdminReports />} />
               <Route path="/admin/support" element={<AdminSupport />} />
+              <Route path="/admin/support/:tabSlug" element={<AdminSupport />} />
               <Route path="/admin/settings" element={<AdminSettings />} />
               <Route path="/admin/accounts" element={<AdminAccounts />} />
               <Route path="/admin/audit" element={<AdminAuditLogs />} />
@@ -184,6 +189,7 @@ function App() {
               <Route path="/admin/weight-discrepancy/:tabSlug" element={<AdminWeightDiscrepancy />} />
               <Route path="/admin/announcement" element={<AdminAnnouncements />} />
               <Route path="/admin/notification" element={<AdminNotification />} />
+              <Route path="/admin/notification/:tabSlug" element={<AdminNotification />} />
               <Route path="/admin/rate-calculator" element={<AdminRateCalculator />} />
               <Route path="/admin/add-order" element={<AdminAddOrder />} />
               <Route path="/admin/tracking" element={<AdminTracking />} />
@@ -214,9 +220,11 @@ function App() {
               <Route path="/user/weight-discrepancy" element={<AdminWeightDiscrepancy />} />
               <Route path="/user/weight-discrepancy/:tabSlug" element={<AdminWeightDiscrepancy />} />
               <Route path="/user/notification" element={<AdminNotification />} />
+              <Route path="/user/notification/:tabSlug" element={<AdminNotification />} />
               <Route path="/user/kyc" element={<AdminKYC />} />
               <Route path="/user/referral" element={<AdminReferral />} />
               <Route path="/user/support" element={<AdminSupport />} />
+              <Route path="/user/support/:tabSlug" element={<AdminSupport />} />
               <Route path="/user/rate-calculator" element={<AdminRateCalculator />} />
               <Route path="/user/add-order" element={<AdminAddOrder />} />
               <Route path="/user/tracking" element={<AdminTracking />} />
@@ -229,6 +237,7 @@ function App() {
               <Route path="/user/settings/webhook" element={<AdminWebhookSettings />} />
               <Route path="/user/settings/agreement" element={<AdminAgreementSettings />} />
               <Route path="/user/settings/pickup-address" element={<AdminPickupAddress />} />
+              <Route path="/user/employees" element={<AdminRoles />} />
             </Route>
 
           </Route>

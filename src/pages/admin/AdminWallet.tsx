@@ -1814,14 +1814,14 @@ export function AdminWallet() {
                           </td>
                         )}
                         <td className="p-4">
-                          {renderCopyable(order.id, 'Order ID', "text-[12px] font-semibold font-sans text-[#00A86B] cursor-pointer hover:underline uppercase", () => navigate(`/admin/order-tracking?id=${order.id}`))}
+                          {renderCopyable(order.id, 'Order ID', "text-[12px] font-semibold font-sans text-[#00A86B] cursor-pointer hover:underline uppercase", () => navigate(`${isAdminView ? '/admin' : '/user'}/order-tracking?id=${order.id}`))}
                           <div className="table-date mt-0.5">{order.date}</div>
                           <span className="px-2 py-0.5 rounded-full border border-blue-200 text-[#004AAD] font-semibold text-[10px] leading-4 bg-blue-50/50 inline-block w-fit mt-0.5">{order.paymentMethod}</span>
                         </td>
                         <td className="p-4">
                           <div className="text-xs font-semibold text-[#00A86B]">{order.courier}</div>
                           <div className="table-date mt-0.5">Booked On : {order.bookedDate}</div>
-                          {renderCopyable(order.awb, 'AWB', "text-[12px] font-semibold font-sans text-[#00A86B] cursor-pointer hover:underline mt-0.5")}
+                          {renderCopyable(order.awb, 'AWB', "text-[12px] font-semibold font-sans text-[#00A86B] cursor-pointer hover:underline mt-0.5", () => navigate(`${isAdminView ? '/admin' : '/user'}/tracking?awb=${order.awb}`))}
                         </td>
                         <td className="p-4">
                           <div className="text-[12px] font-normal font-sans text-[#0F172A]">₹{order.statusAmount}</div>
@@ -1924,7 +1924,7 @@ export function AdminWallet() {
                                       <span
                                         className="text-[12px] font-semibold text-[#00A86B] font-sans truncate active:opacity-60"
                                         title={order.awb}
-                                        onClick={(e) => { e.stopPropagation(); showToast('success', order.awb); }}
+                                        onClick={(e) => { e.stopPropagation(); navigate(`${isAdminView ? '/admin' : '/user'}/tracking?awb=${order.awb}`); }}
                                       >
                                         {order.awb}
                                       </span>
@@ -1958,7 +1958,7 @@ export function AdminWallet() {
                                 <div
                                   className="text-[12px] font-medium text-[#00A86B] mt-0.5 font-sans truncate active:opacity-60"
                                   title={order.awb}
-                                  onClick={() => showToast('success', order.awb)}
+                                  onClick={() => navigate(`${isAdminView ? '/admin' : '/user'}/tracking?awb=${order.awb}`)}
                                 >
                                   {order.awb}
                                 </div>
@@ -2149,7 +2149,7 @@ export function AdminWallet() {
                           </td>
                         )}
                         <td className="p-4">
-                          {renderCopyable(order.id, 'Order ID', "text-[12px] font-semibold font-sans text-[#00A86B] cursor-pointer hover:underline uppercase")}
+                          {renderCopyable(order.id, 'Order ID', "text-[12px] font-semibold font-sans text-[#00A86B] cursor-pointer hover:underline uppercase", () => navigate(`${isAdminView ? '/admin' : '/user'}/order-tracking?id=${order.id}`))}
                           <div className="table-date mt-0.5">{order.date}</div>
                           <div className="table-date mt-0.5">{order.day}</div>
                         </td>
@@ -2308,7 +2308,7 @@ export function AdminWallet() {
                                 <div
                                   className="text-[12px] font-medium text-[#00A86B] mt-0.5 truncate active:opacity-60 font-sans"
                                   title={order.awb !== 'N/A' ? order.awb : undefined}
-                                  onClick={() => { if (order.awb !== 'N/A') showToast('success', order.awb); }}
+                                  onClick={() => { if (order.awb !== 'N/A') navigate(`${isAdminView ? '/admin' : '/user'}/tracking?awb=${order.awb}`); }}
                                 >
                                   {order.awb !== 'N/A' ? order.awb : '—'}
                                 </div>

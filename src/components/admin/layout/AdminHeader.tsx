@@ -17,7 +17,7 @@ interface AdminHeaderProps {
 
 export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
   const { logout } = useAuth();
-  const { isAdmin, adminTab, toggleAdminTab, userName, userEmail, businessName, profileImage, walletBalance: ctxWalletBalance, walletHold } = useAdminTab();
+  const { isAdmin, adminTab, toggleAdminTab, userName, userEmail, businessName, profileImage, walletBalance: ctxWalletBalance, walletHold, isEmployee, parentEmail } = useAdminTab();
   const { filters, updateFilter } = useDashboardFilters();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -361,8 +361,8 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
             </div>
           )}
 
-          {/* Quick Actions */}
-          <div className="relative animate-fade-in shrink-0">
+          {/* Quick Actions — hidden for employees */}
+          {!isEmployee && <div className="relative animate-fade-in shrink-0">
             <button
               onClick={() => {
                 setShowQuickActions(!showQuickActions);
@@ -402,7 +402,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                 </div>
               </>
             )}
-          </div>
+          </div>}
 
           {/* Wallet Balance */}
           <div className="relative shrink-0">
@@ -485,9 +485,11 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                     <span className="text-[10px] font-medium text-[#64748B]">System Role</span>
                   </div>
                 </div>
-                <Link to={isAdmin ? '/admin/profile' : '/user/profile'} className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A]" onClick={() => setShowProfileMenu(false)}>
-                  <User className="w-3.5 h-3.5" /> My Profile
-                </Link>
+                {!isEmployee && (
+                  <Link to={isAdmin ? '/admin/profile' : '/user/profile'} className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A]" onClick={() => setShowProfileMenu(false)}>
+                    <User className="w-3.5 h-3.5" /> My Profile
+                  </Link>
+                )}
                 <button
                   onClick={() => { logout(); setShowProfileMenu(false); }}
                   className="w-full flex items-center gap-2 px-4 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 text-left"
@@ -801,8 +803,8 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
           </AnimatePresence>
         </div>
         
-        {/* Quick Actions */}
-        {!isSetupPage && !isKycPage && (
+        {/* Quick Actions — hidden for employees */}
+        {!isEmployee && !isSetupPage && !isKycPage && (
           <div className="relative">
             <motion.button 
               whileHover={{ scale: 1.05 }}
@@ -980,16 +982,30 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                 onMouseDown={(e) => e.preventDefault()}
               >
                 <div className="px-3 py-2.5 mb-1 border-b border-[#E2E8F0]/60">
-                  <p className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider mb-0.5">Signed in as</p>
-                  <p className="text-[13px] font-bold text-[#0F172A] truncate">{userEmail || '—'}</p>
+                  {isEmployee ? (
+                    <>
+                      <p className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider mb-0.5">Employee Login</p>
+                      <p className="text-[13px] font-bold text-[#0F172A] truncate">{userEmail || '—'}</p>
+                      {parentEmail && (
+                        <p className="text-[10px] text-[#64748B] mt-0.5 truncate">Account: {parentEmail}</p>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider mb-0.5">Signed in as</p>
+                      <p className="text-[13px] font-bold text-[#0F172A] truncate">{userEmail || '—'}</p>
+                    </>
+                  )}
                 </div>
                 
-                <Link to={isAdmin ? '/admin/profile' : '/user/profile'} className="flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors" onClick={() => setShowProfileMenu(false)}>
-                  <User className="w-4 h-4 text-[#94A3B8]" /> Profile
-                </Link>
+                {!isEmployee && (
+                  <Link to={isAdmin ? '/admin/profile' : '/user/profile'} className="flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors" onClick={() => setShowProfileMenu(false)}>
+                    <User className="w-4 h-4 text-[#94A3B8]" /> Profile
+                  </Link>
+                )}
 
-                {/* Admin / User view toggle — only for admins */}
-                {isAdmin && (
+                {/* Admin / User view toggle — only for admins, not employees */}
+                {isAdmin && !isEmployee && (
                   <>
                     <div className="border-t border-[#E2E8F0] my-1"></div>
                     <div className="flex items-center justify-between px-3 py-2">

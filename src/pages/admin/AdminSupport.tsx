@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { useAdminTab } from '../../context/AdminUserContext';
 import { usePagination, DesktopPagination } from '../../hooks/usePagination';
@@ -249,11 +250,34 @@ function CreateTicketModal({ onClose, onCreated }: CreateTicketModalProps) {
 
 const TABS = ['New', 'Open', 'Awaiting Response', 'Closed', 'All'] as const;
 
+const TAB_SLUG_MAP: Record<string, string> = {
+  'New':               'new',
+  'Open':              'open',
+  'Awaiting Response': 'awaiting-response',
+  'Closed':            'closed',
+  'All':               'all',
+};
+
+const SLUG_TO_TAB: Record<string, string> = {
+  'new':               'New',
+  'open':              'Open',
+  'awaiting-response': 'Awaiting Response',
+  'closed':            'Closed',
+  'all':               'All',
+};
+
 export function AdminSupport() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { tabSlug } = useParams<{ tabSlug?: string }>();
   const { isAdmin, adminTab } = useAdminTab();
   const isAdminView = isAdmin && adminTab;
 
-  const [activeTab, setActiveTab]       = useState<string>('New');
+  const supportBase = location.pathname.startsWith('/user/') ? '/user/support' : '/admin/support';
+
+  const [activeTab, setActiveTab] = useState<string>(
+    () => (tabSlug && SLUG_TO_TAB[tabSlug]) || 'New'
+  );
   const [tickets, setTickets]           = useState<Ticket[]>([]);
   const [loading, setLoading]           = useState(true);
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
@@ -295,6 +319,12 @@ export function AdminSupport() {
   }, [isAdminView]);
 
   useEffect(() => { fetchTickets(); }, [fetchTickets]);
+
+  // Sync active tab from URL (refresh, back/forward, direct link)
+  useEffect(() => {
+    const tabFromUrl = (tabSlug && SLUG_TO_TAB[tabSlug]) || 'New';
+    setActiveTab(prev => (prev === tabFromUrl ? prev : tabFromUrl));
+  }, [tabSlug]);
 
   // Tab counts
   const tabCounts = useMemo(() => {
@@ -450,7 +480,7 @@ export function AdminSupport() {
               {TABS.map(s => (
                 <button
                   key={s}
-                  onClick={() => { setActiveTab(s); setCurrentPage(1); }}
+                  onClick={() => { navigate(`${supportBase}/${TAB_SLUG_MAP[s] || 'new'}`); setCurrentPage(1); }}
                   className={`px-4 py-2 text-[13px] font-bold rounded-full transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${activeTab === s ? 'text-[#00A86B] underline underline-offset-4 decoration-2' : 'text-[#64748B] hover:text-[#0F172A]'}`}
                 >
                   {s}

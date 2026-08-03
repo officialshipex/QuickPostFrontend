@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { Search, Filter, ChevronDown, ChevronLeft, ChevronRight, MapPin, Truck, Clock, CheckCircle2, RotateCcw, AlertTriangle, Package, Eye } from 'lucide-react';
 
@@ -31,6 +32,9 @@ const MOCK_SHIPMENTS = Array.from({ length: 20 }, (_, i) => ({
 }));
 
 export function AdminShipments() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const isAdminView = !location.pathname.startsWith('/user/');
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
 
@@ -102,7 +106,7 @@ export function AdminShipments() {
             <tbody className="text-xs font-medium text-[#475569]">
               {filtered.map(shipment => (
                 <tr key={shipment.id} className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors cursor-pointer">
-                  <td className="p-4 font-bold text-[#00A86B]">{shipment.awb}</td>
+                  <td className="p-4 font-bold text-[#00A86B] underline cursor-pointer hover:text-[#009B63]" onClick={() => shipment.awb && navigate(`${isAdminView ? '/admin' : '/user'}/tracking?awb=${shipment.awb}`)}>{shipment.awb}</td>
                   <td className="p-4 text-[#0F172A]">{shipment.orderId}</td>
                   <td className="p-4">
                     <div className="flex items-center gap-2">

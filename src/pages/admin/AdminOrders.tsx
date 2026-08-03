@@ -1292,7 +1292,7 @@ export function AdminOrders() {
                               <div className="flex flex-col gap-1">
                                 <div className="text-[12px] leading-[18px] font-semibold text-[#009D64]">{order.courier}</div>
                                 <div className="text-[12px] leading-[18px] font-normal text-[#1E293B]">Booked | {order.bookedDate}</div>
-                                <div onClick={() => order.awb && navigator.clipboard.writeText(order.awb)} title="Click to copy AWB" className="text-[12px] leading-[18px] font-semibold text-[#009D64] underline hover:text-[#009B63] cursor-pointer truncate max-w-[120px]">{order.awb}</div>
+                                <div onClick={() => order.awb && navigate(`${isAdminView ? '/admin' : '/user'}/tracking?awb=${order.awb}`)} title="Track shipment" className="text-[12px] leading-[18px] font-semibold text-[#009D64] underline hover:text-[#009B63] cursor-pointer truncate max-w-[120px]">{order.awb}</div>
                               </div>
                             </td>
                           )}
@@ -1424,7 +1424,7 @@ export function AdminOrders() {
                               <div className="flex items-center gap-1.5 min-w-0 mt-0.5">
                                 {order.awb ? (
                                   <>
-                                    <span className="text-[12px] font-semibold text-[#00A86B] truncate active:opacity-60">{order.awb}</span>
+                                    <span onClick={(e) => { e.stopPropagation(); navigate(`${isAdminView ? '/admin' : '/user'}/tracking?awb=${order.awb}`); }} className="text-[12px] font-semibold text-[#00A86B] underline truncate active:opacity-60 cursor-pointer">{order.awb}</span>
                                     <button onClick={(e) => { e.stopPropagation(); copyToClipboard(order.awb, 'AWB'); }} className="shrink-0 focus:outline-none">
                                       <Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" />
                                     </button>
