@@ -57,14 +57,14 @@ export function MobilePaginationBar({
   };
 
   return (
-    <div className="md:hidden px-3 py-2 border-t border-[#E2E8F0] bg-white flex items-center justify-between gap-2">
-      <div className="flex items-center gap-1.5 shrink-0">
+    <div className="md:hidden px-4 py-2 border-t border-[#E2E8F0] bg-white shadow-[0_-2px_8px_rgba(0,0,0,0.04)] flex items-center justify-between gap-2 shrink-0">
+      <div className="flex items-center gap-2 shrink-0">
 
         {/* Trigger button */}
         <button
           ref={btnRef}
           onClick={handleToggle}
-          className="h-6 pl-2 pr-1.5 flex items-center gap-1 rounded-md border border-[#E2E8F0] bg-white text-[10px] font-bold text-[#475569] cursor-pointer hover:border-[#CBD5E1] focus:outline-none focus:border-[#00A86B] transition-colors whitespace-nowrap"
+          className="h-7 pl-2.5 pr-2 flex items-center gap-1 rounded-lg border border-[#E2E8F0] bg-white text-[12px] font-bold text-[#475569] cursor-pointer hover:border-[#CBD5E1] focus:outline-none focus:border-[#00A86B] transition-colors whitespace-nowrap"
         >
           <span>{rowsPerPage}/page</span>
           <ChevronDown
@@ -94,7 +94,7 @@ export function MobilePaginationBar({
             <button
               key={v}
               onClick={() => { setRowsPerPage(v); setIsOpen(false); }}
-              className={`w-full px-3 py-2 text-left text-[11px] font-semibold transition-colors whitespace-nowrap ${
+              className={`w-full px-3 py-2 text-left text-[12px] font-semibold transition-colors whitespace-nowrap ${
                 v === rowsPerPage
                   ? 'bg-[#E6F7F1] text-[#00A86B]'
                   : 'text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A]'
@@ -105,27 +105,27 @@ export function MobilePaginationBar({
           ))}
         </div>
 
-        <span className="text-[10px] text-[#94A3B8] font-medium font-sans whitespace-nowrap">
+        <span className="text-[12px] text-[#94A3B8] font-medium font-sans whitespace-nowrap">
           {startIndex}–{endIndex} of {totalItems}
         </span>
       </div>
 
       {totalPages > 1 && (
-        <div className="flex items-center gap-0.5 shrink-0">
+        <div className="flex items-center gap-1 shrink-0">
           <button
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page === 1}
-            className="w-6 h-6 flex items-center justify-center rounded border border-[#E2E8F0] text-[#475569] disabled:opacity-40"
+            className="w-7 h-7 flex items-center justify-center rounded-lg border border-[#E2E8F0] text-[#475569] disabled:opacity-40 active:bg-[#F8FAFC]"
           >
-            <ChevronLeft className="w-3.5 h-3.5" />
+            <ChevronLeft className="w-4 h-4" />
           </button>
-          <span className="text-[10px] font-bold text-[#0F172A] px-1.5 whitespace-nowrap">{page}/{totalPages}</span>
+          <span className="text-[12px] font-bold text-[#0F172A] px-2 whitespace-nowrap">{page} / {totalPages}</span>
           <button
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             disabled={page === totalPages}
-            className="w-6 h-6 flex items-center justify-center rounded border border-[#E2E8F0] text-[#475569] disabled:opacity-40"
+            className="w-7 h-7 flex items-center justify-center rounded-lg border border-[#E2E8F0] text-[#475569] disabled:opacity-40 active:bg-[#F8FAFC]"
           >
-            <ChevronRight className="w-3.5 h-3.5" />
+            <ChevronRight className="w-4 h-4" />
           </button>
         </div>
       )}
