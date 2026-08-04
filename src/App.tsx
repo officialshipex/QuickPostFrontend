@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'r
 import { getToken, isTokenExpired, getRoleFromToken } from './utils/session';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Home } from './pages/Home';
+import { Track } from './pages/Track';
 import { ForgotPassword } from './pages/ForgotPassword';
 import { Login } from './pages/Login';
 import { EmployeeLogin } from './pages/EmployeeLogin';
@@ -149,6 +150,7 @@ function App() {
         <GlobalOrderClickInterceptor />
         <Routes>
           <Route path="/" element={<Home />} />
+          <Route path="/track" element={<Track />} />
           <Route path="/login" element={<AuthRedirect><Login /></AuthRedirect>} />
           <Route path="/employee-login" element={<AuthRedirect><EmployeeLogin /></AuthRedirect>} />
           <Route path="/forgot-password" element={<AuthRedirect><ForgotPassword /></AuthRedirect>} />

@@ -322,6 +322,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                   setShowQuickActions(false);
                   setShowProfileMenu(false);
                   setShowMobileWalletSummary(false);
+                  setShowDateDropdown(false);
                 }}
                 className="w-8 h-8 flex items-center justify-center rounded-full text-[#64748B] hover:bg-[#F8FAFC] transition-colors"
               >
@@ -337,6 +338,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                       setShowQuickActions(false);
                       setShowProfileMenu(false);
                       setShowMobileWalletSummary(false);
+                      setShowDateDropdown(false);
                     }}
                     className={`w-8 h-8 flex items-center justify-center rounded-full text-[#64748B] hover:bg-[#F8FAFC] transition-colors relative cursor-pointer ${showNotifications ? 'bg-[#F8FAFC] text-[#0F172A]' : ''}`}
                   >
@@ -349,24 +351,24 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                   {showNotifications && (
                     <>
                       <div className="fixed inset-0 z-40" onClick={() => setShowNotifications(false)} />
-                      <div className={`fixed left-3 right-3 ${isImpersonating ? 'top-[92px]' : 'top-[68px]'} max-w-[calc(100vw-24px)] bg-white rounded-xl shadow-xl border border-[#E2E8F0] overflow-hidden z-50`}>
-                        <div className="px-4 py-2.5 border-b border-[#E2E8F0] flex justify-between items-center bg-slate-50/50">
-                          <h3 className="font-bold text-[#0F172A] text-xs uppercase tracking-wider">Notifications</h3>
+                      <div className={`fixed right-3 ${isImpersonating ? 'top-[96px]' : 'top-[64px]'} w-56 max-w-[calc(100vw-24px)] bg-white rounded-xl shadow-xl border border-[#E2E8F0] overflow-hidden z-50 origin-top-right`}>
+                        <div className="px-2.5 py-1.5 border-b border-[#E2E8F0] flex justify-between items-center bg-slate-50/50">
+                          <h3 className="font-bold text-[#0F172A] text-[10px] uppercase tracking-wider">Notifications</h3>
                           {!!pendingAgreement && (
-                            <span className="text-[10px] font-bold text-white bg-[#EF4444] rounded-full px-2 py-0.5">1</span>
+                            <span className="text-[8.5px] font-bold text-white bg-[#EF4444] rounded-full px-1.5 py-0.5">1</span>
                           )}
                         </div>
-                        <div className="max-h-[240px] overflow-y-auto">
+                        <div className="max-h-[160px] overflow-y-auto">
                           {pendingAgreement ? (
-                            <div className="px-4 py-3 border-b border-[#E2E8F0]/60">
-                              <div className="flex items-start gap-2">
-                                <div className="w-1.5 h-1.5 rounded-full bg-[#EF4444] shrink-0 mt-1.5" />
+                            <div className="px-2.5 py-2 border-b border-[#E2E8F0]/60">
+                              <div className="flex items-start gap-1.5">
+                                <div className="w-1.5 h-1.5 rounded-full bg-[#EF4444] shrink-0 mt-1" />
                                 <div className="flex-1">
-                                  <p className="text-[12px] font-semibold text-[#0F172A] leading-snug">Agreement Pending</p>
-                                  <p className="text-[11px] text-[#64748B] mt-0.5">{pendingAgreement.versionName || 'New Terms & Conditions'} — please review and accept.</p>
+                                  <p className="text-[10.5px] font-semibold text-[#0F172A] leading-snug">Agreement Pending</p>
+                                  <p className="text-[9.5px] text-[#64748B] mt-0.5 leading-snug">{pendingAgreement.versionName || 'New Terms & Conditions'} — please review and accept.</p>
                                   <button
                                     onClick={() => { navigate('/user/settings/agreement'); setShowNotifications(false); }}
-                                    className="mt-1.5 text-[11px] font-bold text-[#00A86B] hover:underline"
+                                    className="mt-1 text-[9.5px] font-bold text-[#00A86B] hover:underline"
                                   >
                                     View &amp; Accept →
                                   </button>
@@ -374,17 +376,17 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                               </div>
                             </div>
                           ) : (
-                            <div className="px-4 py-6 text-center">
-                              <Bell className="w-6 h-6 text-[#CBD5E1] mx-auto mb-2" />
-                              <p className="text-xs font-semibold text-[#94A3B8]">No new notifications</p>
+                            <div className="px-2.5 py-3.5 text-center">
+                              <Bell className="w-4.5 h-4.5 text-[#CBD5E1] mx-auto mb-1.5" />
+                              <p className="text-[10px] font-semibold text-[#94A3B8]">No new notifications</p>
                             </div>
                           )}
                         </div>
                         <div
-                          className="px-4 py-2.5 border-t border-[#E2E8F0] bg-[#F8FAFC] text-center cursor-pointer hover:bg-[#F1F5F9] transition-colors"
+                          className="px-2.5 py-1.5 border-t border-[#E2E8F0] bg-[#F8FAFC] text-center cursor-pointer hover:bg-[#F1F5F9] transition-colors"
                           onClick={() => { navigate('/user/notification'); setShowNotifications(false); }}
                         >
-                          <span className="text-[11px] font-bold text-[#0F172A]">View All Notifications</span>
+                          <span className="text-[9.5px] font-bold text-[#0F172A]">View All Notifications</span>
                         </div>
                       </div>
                     </>
@@ -401,6 +403,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                       setShowNotifications(false);
                       setShowProfileMenu(false);
                       setShowMobileWalletSummary(false);
+                      setShowDateDropdown(false);
                     }}
                     className={`w-8 h-8 flex items-center justify-center rounded-full text-[#64748B] hover:bg-[#F8FAFC] transition-colors cursor-pointer ${showQuickActions ? 'bg-[#F8FAFC] text-[#0F172A]' : ''}`}
                   >
@@ -440,7 +443,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
               {/* Wallet Balance */}
               <div className="relative shrink-0">
                 <div
-                  className={`flex items-center gap-1 shrink-0 whitespace-nowrap text-white pl-2 pr-1 py-1.5 rounded-full text-[11px] font-bold shadow-sm transition-colors ${walletBalance < 0 ? 'bg-[#EF4444]' : 'bg-[#00A86B]'}`}
+                  className={`flex items-center gap-1.5 shrink-0 whitespace-nowrap text-white pl-3 pr-1.5 py-2 rounded-full text-[12px] font-bold shadow-sm transition-all duration-200 ${walletBalance < 0 ? 'bg-[#EF4444]' : 'bg-[#00A86B]'} ${showMobileWalletSummary ? 'scale-105' : ''}`}
                 >
                   <button
                     onClick={() => {
@@ -448,15 +451,16 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                       setShowNotifications(false);
                       setShowQuickActions(false);
                       setShowProfileMenu(false);
+                      setShowDateDropdown(false);
                     }}
-                    className="flex items-center gap-1 focus:outline-none cursor-pointer"
+                    className="flex items-center gap-1.5 focus:outline-none cursor-pointer"
                   >
-                    <Wallet className="w-3.5 h-3.5 shrink-0" />
+                    <Wallet className="w-4 h-4 shrink-0" />
                     <span>₹{walletBalance.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
                   </button>
                   <button
                     onClick={() => setShowRechargeModal(true)}
-                    className="text-white/80 hover:text-white px-1 focus:outline-none cursor-pointer"
+                    className="text-white/80 hover:text-white px-1.5 focus:outline-none cursor-pointer"
                     aria-label="Recharge wallet"
                   >
                     +
@@ -466,24 +470,24 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                 {showMobileWalletSummary && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setShowMobileWalletSummary(false)} />
-                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-[#E2E8F0] p-3 z-50 origin-top-right">
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-[9px] font-bold text-[#94A3B8] uppercase tracking-wider">Wallet Summary</span>
+                    <div className="absolute right-0 mt-2.5 w-64 bg-white rounded-2xl shadow-xl border border-[#E2E8F0] p-4 z-50 origin-top-right">
+                      <div className="flex justify-between items-center mb-3">
+                        <span className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider">Wallet Summary</span>
                         <span className="w-1.5 h-1.5 rounded-full bg-[#00A86B] animate-pulse shrink-0"></span>
                       </div>
-                      <div className="space-y-1.5">
+                      <div className="space-y-2">
                         <div className="flex justify-between items-center gap-2">
-                          <span className="text-[11px] font-semibold text-[#64748B]">Available</span>
-                          <span className="text-[11px] font-bold text-slate-800">₹{walletBalance.toLocaleString('en-IN')}</span>
+                          <span className="text-[13px] font-semibold text-[#64748B]">Available</span>
+                          <span className="text-[13px] font-bold text-slate-800">₹{walletBalance.toLocaleString('en-IN')}</span>
                         </div>
                         <div className="flex justify-between items-center gap-2">
-                          <span className="text-[11px] font-semibold text-[#64748B]">Hold</span>
-                          <span className="text-[11px] font-bold text-amber-600">₹{walletHold.toLocaleString('en-IN')}</span>
+                          <span className="text-[13px] font-semibold text-[#64748B]">Hold</span>
+                          <span className="text-[13px] font-bold text-amber-600">₹{walletHold.toLocaleString('en-IN')}</span>
                         </div>
                         <div className="h-[1px] bg-slate-100"></div>
                         <div className="flex justify-between items-center gap-2">
-                          <span className="text-[11px] font-bold text-slate-700">Net</span>
-                          <span className="text-[11px] font-extrabold text-[#00A86B]">₹{Math.max(0, walletBalance - walletHold).toLocaleString('en-IN')}</span>
+                          <span className="text-[13px] font-bold text-slate-700">Net</span>
+                          <span className="text-[13px] font-extrabold text-[#00A86B]">₹{Math.max(0, walletBalance - walletHold).toLocaleString('en-IN')}</span>
                         </div>
                       </div>
                     </div>
@@ -499,6 +503,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                     setShowNotifications(false);
                     setShowQuickActions(false);
                     setShowMobileWalletSummary(false);
+                    setShowDateDropdown(false);
                   }}
                   className="w-8 h-8 rounded-full bg-[#E2E8F0] overflow-hidden flex items-center justify-center focus:outline-none border border-[#CBD5E1] shrink-0"
                 >
