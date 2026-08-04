@@ -11,7 +11,7 @@ import { useUserSearchFilter } from '../../hooks/filters/useUserSearchFilter';
 import {
   Search, ChevronDown, RefreshCcw, Check, IndianRupee, Package,
   User, Settings, MapPin, X, Truck,
-  AlertTriangle, Mail, FileText, Download
+  AlertTriangle, Mail, FileText, Download, Copy
 } from 'lucide-react';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
@@ -234,6 +234,13 @@ export function AdminNDR() {
   const [actionModalOrder,   setActionModalOrder]   = useState<any>(null);
   const [historyModalOrder,  setHistoryModalOrder]  = useState<any>(null);
   const [showBulkNdrModal,   setShowBulkNdrModal]   = useState(false);
+
+  // ── Toast ──
+  const [toast, setToast] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
+  const showToast = (type: 'error' | 'success', text: string) => {
+    setToast({ type, text });
+    setTimeout(() => setToast(null), 3000);
+  };
 
   const actionMenuRef = useRef<HTMLDivElement>(null);
 
@@ -686,7 +693,10 @@ export function AdminNDR() {
 
                       {/* Order */}
                       <td className="p-4">
-                        <div className="text-[12px] font-semibold text-[#00A86B]">{order.orderId}</div>
+                        <div className="flex items-center gap-1 group/copy w-max">
+                          <div className="text-[12px] font-semibold text-[#00A86B] underline cursor-pointer hover:text-[#009B63]" onClick={() => order.orderId && navigate(`${isAdminView ? '/admin' : '/user'}/order-tracking?id=${order.orderId}`)}>{order.orderId}</div>
+                          {order.orderId && <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(order.orderId).catch(()=>{}); showToast('success', 'Order ID copied!'); }} className="opacity-100 md:opacity-0 md:group-hover/copy:opacity-100 transition-opacity shrink-0 focus:outline-none" title="Copy Order ID"><Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" /></button>}
+                        </div>
                         <div className="text-[12px] font-normal text-[#94A3B8] mt-0.5">{order.date}</div>
                         <span className="px-2 py-0.5 rounded-full border border-blue-200 text-blue-600 font-semibold text-[10px] bg-blue-50/50 mt-1 inline-block">
                           {order.channel}
@@ -741,7 +751,10 @@ export function AdminNDR() {
                       <td className="p-4">
                         <div className="text-[12px] font-semibold text-[#00A86B]">{order.courier}</div>
                         <div className="text-[12px] font-normal text-[#94A3B8] mt-0.5">Booked On | {order.bookedDate}</div>
-                        <div className="text-[12px] font-semibold text-[#00A86B] underline mt-0.5 hover:text-[#009B63] cursor-pointer truncate max-w-[120px]">{order.awb}</div>
+                        <div className="flex items-center gap-1 group/copy mt-0.5">
+                          <div onClick={() => order.awb && navigate(`${isAdminView ? '/admin' : '/user'}/tracking?awb=${order.awb}`)} className="text-[12px] font-semibold text-[#00A86B] underline hover:text-[#009B63] cursor-pointer truncate max-w-[120px]">{order.awb}</div>
+                          {order.awb && <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(order.awb).catch(()=>{}); showToast('success', 'AWB copied!'); }} className="opacity-100 md:opacity-0 md:group-hover/copy:opacity-100 transition-opacity shrink-0 focus:outline-none" title="Copy AWB"><Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" /></button>}
+                        </div>
                       </td>
 
                       {/* Status */}
@@ -974,6 +987,11 @@ export function AdminNDR() {
           selectedOrders={selectedOrders}
           onRefresh={() => setRefreshTrigger(t => t + 1)}
         />
+      )}
+      {toast && (
+        <div className={`fixed bottom-6 left-4 right-4 sm:left-auto sm:right-6 z-[100] px-5 py-3 rounded-xl shadow-xl flex items-center gap-3 text-white text-sm font-medium ${toast.type === 'success' ? 'bg-[#00A86B]' : 'bg-red-500'}`}>
+          {toast.text}
+        </div>
       )}
     </AdminLayout>
   );

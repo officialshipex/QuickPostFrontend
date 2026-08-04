@@ -1231,7 +1231,10 @@ export function AdminOrders() {
                         <>
                           <td className="p-3">
                             <div className="flex flex-col gap-1">
-                              <div className="text-[12px] leading-[18px] font-semibold text-[#009D64] hover:underline cursor-pointer" onClick={() => navigate(`${isAdminView ? '/admin' : '/user'}/order-tracking?id=${order.orderId}`)}>{order.orderId}</div>
+                              <div className="flex items-center gap-1 group/copy w-max">
+                                <div className="text-[12px] leading-[18px] font-semibold text-[#009D64] hover:underline cursor-pointer" onClick={() => navigate(`${isAdminView ? '/admin' : '/user'}/order-tracking?id=${order.orderId}`)}>{order.orderId}</div>
+                                <button onClick={(e) => { e.stopPropagation(); copyToClipboard(order.orderId, 'Order ID'); }} className="opacity-100 md:opacity-0 md:group-hover/copy:opacity-100 transition-opacity shrink-0 focus:outline-none" title="Copy Order ID"><Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" /></button>
+                              </div>
                               <div className="text-[12px] leading-[18px] font-normal text-[#64748B]">{order.date}</div>
                               <span className="px-2 py-0.5 rounded-full border border-blue-200 text-[#004AAD] font-semibold text-[10px] leading-4 bg-blue-50/50 inline-block uppercase w-fit">
                                 {order.channel === 'WooCommerce' ? 'Woo' : (order.channel || 'CUSTOM')}
@@ -1292,7 +1295,10 @@ export function AdminOrders() {
                               <div className="flex flex-col gap-1">
                                 <div className="text-[12px] leading-[18px] font-semibold text-[#009D64]">{order.courier}</div>
                                 <div className="text-[12px] leading-[18px] font-normal text-[#1E293B]">Booked | {order.bookedDate}</div>
-                                <div onClick={() => order.awb && navigator.clipboard.writeText(order.awb)} title="Click to copy AWB" className="text-[12px] leading-[18px] font-semibold text-[#009D64] underline hover:text-[#009B63] cursor-pointer truncate max-w-[120px]">{order.awb}</div>
+                                <div className="flex items-center gap-1 group/copy">
+                                  <div onClick={() => order.awb && navigate(`${isAdminView ? '/admin' : '/user'}/tracking?awb=${order.awb}`)} title="Track shipment" className="text-[12px] leading-[18px] font-semibold text-[#009D64] underline hover:text-[#009B63] cursor-pointer truncate max-w-[120px]">{order.awb}</div>
+                                  {order.awb && <button onClick={(e) => { e.stopPropagation(); copyToClipboard(order.awb, 'AWB'); }} className="opacity-100 md:opacity-0 md:group-hover/copy:opacity-100 transition-opacity shrink-0 focus:outline-none" title="Copy AWB"><Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" /></button>}
+                                </div>
                               </div>
                             </td>
                           )}
@@ -1424,7 +1430,7 @@ export function AdminOrders() {
                               <div className="flex items-center gap-1.5 min-w-0 mt-0.5">
                                 {order.awb ? (
                                   <>
-                                    <span className="text-[12px] font-semibold text-[#00A86B] truncate active:opacity-60">{order.awb}</span>
+                                    <span onClick={(e) => { e.stopPropagation(); navigate(`${isAdminView ? '/admin' : '/user'}/tracking?awb=${order.awb}`); }} className="text-[12px] font-semibold text-[#00A86B] underline truncate active:opacity-60 cursor-pointer">{order.awb}</span>
                                     <button onClick={(e) => { e.stopPropagation(); copyToClipboard(order.awb, 'AWB'); }} className="shrink-0 focus:outline-none">
                                       <Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" />
                                     </button>

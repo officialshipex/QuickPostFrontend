@@ -968,7 +968,10 @@ export function AdminWeightDiscrepancy() {
                           <div className="text-xs font-semibold text-[#00A86B]">{safeText(order.courierServiceName)}</div>
                           <div className="text-xs text-[#94A3B8] mt-0.5">Booked On:</div>
                           <div className="flex items-center gap-1 group mt-0.5">
-                            <span className="text-xs font-semibold text-[#00A86B] underline underline-offset-2 cursor-pointer hover:text-[#009B63]">
+                            <span
+                              className="text-xs font-semibold text-[#00A86B] underline underline-offset-2 cursor-pointer hover:text-[#009B63]"
+                              onClick={() => order.awbNumber && navigate(`${isAdminView ? '/admin' : '/user'}/tracking?awb=${order.awbNumber}`)}
+                            >
                               {order.awbNumber}
                             </span>
                             <button onClick={() => copyAwb(order.awbNumber, `awb-${idx}`)}

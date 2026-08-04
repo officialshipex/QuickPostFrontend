@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { useAdminTab } from '../../context/AdminUserContext';
 import { usePagination, DesktopPagination } from '../../hooks/usePagination';
@@ -273,6 +274,9 @@ function loadPersistedFilters(): PersistedFilters | null {
 }
 
 export function AdminSupport() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { tabSlug } = useParams<{ tabSlug?: string }>();
   const { isAdmin, adminTab } = useAdminTab();
   const isAdminView = isAdmin && adminTab;
 

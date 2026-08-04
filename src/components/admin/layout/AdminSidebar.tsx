@@ -35,6 +35,8 @@ interface MenuItem {
   icon: any;
   adminOnly?: boolean;
   userOnly?: boolean;
+  permission?: string;
+  noEmployee?: boolean; // hide for all employees regardless of their access rights
 }
 
 interface MenuGroup {
@@ -46,6 +48,7 @@ interface MenuGroup {
   userOnly?: boolean;
   items?: MenuItem[];
   divider?: boolean;
+  permission?: string;
 }
 
 const MENU_GROUPS: MenuGroup[] = [
@@ -64,18 +67,21 @@ const MENU_GROUPS: MenuGroup[] = [
   {
     label: 'Orders',
     icon: ShoppingCart,
-    path: '/admin/orders'
+    path: '/admin/orders',
+    permission: 'orders',
   },
   {
     label: 'NDR',
     icon: RotateCcw,
-    path: '/admin/ndr'
+    path: '/admin/ndr',
+    permission: 'ndr',
   },
 
   { divider: true },
   {
     label: 'Finance',
     icon: Wallet,
+    permission: 'finance',
     items: [
       { name: 'Wallet', path: '/admin/wallet', icon: Wallet },
       { name: 'COD', path: '/admin/cod', icon: Banknote },
@@ -84,11 +90,13 @@ const MENU_GROUPS: MenuGroup[] = [
   {
     label: 'Reports',
     icon: FileText,
-    path: '/admin/reports'
+    path: '/admin/reports',
+    permission: 'reports',
   },
   {
     label: 'Tools',
     icon: Wrench,
+    permission: 'tools',
     items: [
       { name: 'Weight Discrepancy', path: '/admin/weight-discrepancy', icon: Scale },
       { name: 'Notification', path: '/admin/notification', icon: Bell },
@@ -99,13 +107,15 @@ const MENU_GROUPS: MenuGroup[] = [
   {
     label: 'Setup & Manage',
     icon: Settings,
+    permission: 'setupAndManage',
     items: [
       { name: 'Users', path: '/admin/users', icon: Users, adminOnly: true },
       { name: 'Status Map', path: '/admin/status-map', icon: Route, adminOnly: true },
       { name: 'EDD Mapping', path: '/admin/edd-mapping', icon: Calendar, adminOnly: true },
       { name: 'EPD Mapping', path: '/admin/epd-mapping', icon: Calendar, adminOnly: true },
       { name: 'Agreement', path: '/admin/agreement', icon: FileText, adminOnly: true },
-      { name: 'Complete KYC', path: '/admin/kyc', icon: FileText, userOnly: true },
+      { name: 'Complete KYC', path: '/admin/kyc', icon: FileText, userOnly: true, noEmployee: true },
+      { name: 'Employees', path: '/user/employees', icon: Users, userOnly: true, noEmployee: true },
       { name: 'Pickup Address', path: '/admin/settings/pickup-address', icon: MapPin },
       { name: 'Settings', path: '/user/settings', icon: Settings, userOnly: true },
     ]
@@ -114,6 +124,7 @@ const MENU_GROUPS: MenuGroup[] = [
     label: 'Courier',
     icon: Truck,
     adminOnly: true,
+    permission: 'courier',
     items: [
       { name: 'Couriers', path: '/admin/couriers', icon: Truck },
       { name: 'Rate Card', path: '/admin/rate-card', icon: Banknote },
@@ -123,10 +134,11 @@ const MENU_GROUPS: MenuGroup[] = [
     label: 'System',
     icon: Monitor,
     adminOnly: true,
+    permission: 'support',
     items: [
       { name: 'Support Tickets', path: '/admin/support', icon: Mail },
-      { name: 'System Settings', path: '/admin/settings', icon: Settings },
-      { name: 'Admin Accounts', path: '/admin/accounts', icon: Users },
+      { name: 'System Settings', path: '/admin/settings', icon: Settings, noEmployee: true },
+      { name: 'Admin Accounts', path: '/admin/accounts', icon: Users, noEmployee: true },
     ]
   },
   {
@@ -140,6 +152,7 @@ const MENU_GROUPS: MenuGroup[] = [
     icon: HelpCircle,
     path: '/admin/support',
     userOnly: true,
+    permission: 'support',
   },
 ];
 
@@ -151,7 +164,7 @@ interface AdminSidebarProps {
 export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSidebarProps) {
   const location = useLocation();
   const [mobileExpandedGroup, setMobileExpandedGroup] = useState<string | null>(null);
-  const { isAdmin, adminTab } = useAdminTab();
+  const { isAdmin, adminTab, isEmployee, employeeAccessRights } = useAdminTab();
   const isAdminView = isAdmin && adminTab;
   const isImpersonating = !!localStorage.getItem('admin_token_backup');
 
@@ -163,10 +176,16 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
     return path;
   };
 
-  const filterItems = (items?: MenuItem[]) =>
+  const filterItems = (items?: MenuItem[], groupPermission?: string) =>
     (items || []).filter(item => {
       if (item.adminOnly && !isAdminView) return false;
       if (item.userOnly && isAdminView) return false;
+      if (isEmployee) {
+        if (item.noEmployee) return false;
+        // Use item's own permission if set, else fall back to the group's permission
+        const permKey = item.permission ?? groupPermission;
+        if (permKey && employeeAccessRights[permKey]?.view !== true) return false;
+      }
       return true;
     });
 
@@ -174,7 +193,16 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
     if (group.divider) return true;
     if (group.adminOnly && !isAdminView) return false;
     if (group.userOnly && isAdminView) return false;
-    if (group.items) return filterItems(group.items).length > 0;
+    // Employees only see what they have explicit permission for
+    if (isEmployee) {
+      if (group.permission) {
+        if (employeeAccessRights[group.permission]?.view !== true) return false;
+      } else if (group.adminOnly || group.userOnly) {
+        // Role-restricted groups without a permission key (Internal CRM, Referral, etc.) are hidden
+        return false;
+      }
+    }
+    if (group.items) return filterItems(group.items, group.permission).length > 0;
     return true;
   };
 
@@ -247,7 +275,7 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
                 )}
 
                 {/* Flyout Menu Container */}
-                {group.items && filterItems(group.items).length > 0 && (
+                {group.items && filterItems(group.items, group.permission).length > 0 && (
                   <div className={`absolute left-full ml-2 invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-all duration-200 z-[100] ${index > visibleGroups.length / 2 ? 'bottom-0' : 'top-0'}`}>
                     <div className="bg-white rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.15)] border border-[#E2E8F0] min-w-[200px] overflow-hidden py-2">
                       <div className="px-4 py-2 border-b border-[#E2E8F0] mb-2 flex justify-between items-center">
@@ -256,7 +284,7 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
                       </div>
 
                       <div className="flex flex-col">
-                        {filterItems(group.items).map((item, i) => {
+                        {filterItems(group.items, group.permission).map((item, i) => {
                           const resolvedItemPath = resolvePath(item.path);
                           const isSubActive = location.pathname === resolvedItemPath;
                           return (
@@ -365,7 +393,7 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
                     </button>
                     {isExpanded && group.items && (
                       <div className="ml-4 mt-1 flex flex-col gap-0.5 border-l-2 border-[#1E293B] pl-3">
-                        {filterItems(group.items).map((item, i) => {
+                        {filterItems(group.items, group.permission).map((item, i) => {
                           const resolvedItemPath = resolvePath(item.path);
                           const isSubActive = location.pathname === resolvedItemPath;
                           return (

@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { apiClient } from '../../services/apiClient';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { getCourierLogo } from '../../utils/courierLogo';
@@ -30,6 +30,18 @@ const ADMIN_TABS = [
 const USER_TABS = [
   { name: 'COD Remittance' },
 ];
+
+const TAB_SLUG_MAP: Record<string, string> = {
+  'All COD Orders':       'all-cod-orders',
+  'Seller COD Remittance':'seller-cod-remittance',
+  'Courier COD Remittance':'courier-cod-remittance',
+};
+
+const SLUG_TO_TAB: Record<string, string> = {
+  'all-cod-orders':          'All COD Orders',
+  'seller-cod-remittance':   'Seller COD Remittance',
+  'courier-cod-remittance':  'Courier COD Remittance',
+};
 
 // Data mapping helpers â€" field names must match exact API response keys
 const mapCodOrder = (item: any) => ({
@@ -132,13 +144,18 @@ const formatCreatedAt = (rawDate: string) => {
 
 export function AdminCOD() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { tabSlug } = useParams<{ tabSlug?: string }>();
   const { isAdmin, adminTab, loadingAdminTab, currentUserId } = useAdminTab();
   const isAdminView = isAdmin && adminTab;
+  const isUserPanel = location.pathname.startsWith('/user/');
   // AdminLayout adds a 32px impersonation banner (pt-8) above the page when an
   // admin is impersonating a user — the page height calc must account for it too,
   // otherwise the extra 32px overflows the viewport and the whole page scrolls.
   const isImpersonating = !!localStorage.getItem('admin_token_backup');
   const MAIN_TABS = isAdminView ? ADMIN_TABS : USER_TABS;
+
+  const codBase = isUserPanel ? '/user/cod' : '/admin/cod';
 
   // Global search from layout
   const [globalSearchQuery, setGlobalSearchQuery] = useState(
@@ -151,44 +168,27 @@ export function AdminCOD() {
     return () => window.removeEventListener('admin-search', handler);
   }, []);
 
+  const [activeTab, setActiveTab] = useState(
+    () => isUserPanel ? 'COD Remittance' : ((tabSlug && SLUG_TO_TAB[tabSlug]) || 'All COD Orders')
+  );
 
-  const [activeTab, setActiveTab] = useState('All COD Orders');
+  // Sync tab from URL (browser back/forward, direct link, refresh)
+  useEffect(() => {
+    if (isUserPanel) { setActiveTab('COD Remittance'); return; }
+    const tabFromUrl = (tabSlug && SLUG_TO_TAB[tabSlug]) || 'All COD Orders';
+    setActiveTab(prev => (prev === tabFromUrl ? prev : tabFromUrl));
+  }, [tabSlug, isUserPanel]);
+
   const handleTabChange = (tab: string) => {
-    // Clear all selections across tabs when switching
     setSelectedOrders([]);
     setSelectedCodOrders([]);
     setSelectedCourierCodOrders([]);
-    // Push a history entry so the browser back button returns to the previous tab
-    // instead of leaving the COD page entirely (e.g. going to wallet)
-    if (tab !== activeTab) {
-      window.history.pushState({ codTab: tab }, '', window.location.pathname);
+    if (isAdminView) {
+      navigate(`${codBase}/${TAB_SLUG_MAP[tab] || 'all-cod-orders'}`);
+    } else {
+      setActiveTab(tab);
     }
-    setActiveTab(tab);
   };
-  useEffect(() => {
-    if (!isAdminView) setActiveTab('COD Remittance');
-  }, [isAdminView]);
-
-  // Handle browser back/forward button: switch to the previous tab instead of leaving the page
-  useEffect(() => {
-    const handlePopState = (e: PopStateEvent) => {
-      const tab = e.state?.codTab;
-      if (tab && MAIN_TABS.some(t => t.name === tab)) {
-        setSelectedOrders([]);
-        setSelectedCodOrders([]);
-        setSelectedCourierCodOrders([]);
-        setActiveTab(tab);
-      } else if (activeTab !== 'All COD Orders') {
-        // No tab state in history — go back to default tab
-        setSelectedOrders([]);
-        setSelectedCodOrders([]);
-        setSelectedCourierCodOrders([]);
-        setActiveTab('All COD Orders');
-      }
-    };
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, [activeTab]);
 
   // Broadcast active tab so the header search placeholder can reflect it
   useEffect(() => {
@@ -1207,13 +1207,13 @@ export function AdminCOD() {
                         </td>
                       )}
                       <td className="p-4">
-                        {order.orderID ? renderCopyable(order.orderID, 'Order ID', "text-xs font-semibold text-[#00A86B] cursor-pointer") : <div className="text-xs font-semibold text-[#00A86B]">—</div>}
+                        {order.orderID ? renderCopyable(order.orderID, 'Order ID', "text-xs font-semibold text-[#00A86B] cursor-pointer", () => navigate(`${isAdminView ? '/admin' : '/user'}/order-tracking?id=${order.orderID}`)) : <div className="text-xs font-semibold text-[#00A86B]">—</div>}
                       </td>
                       <td className="p-4">
                         <div className="text-xs font-semibold text-[#00A86B]">{order.courier}</div>
                         <div className="text-xs font-normal text-[#94A3B8] mt-0.5">Delivered On : {withOrdinalSuffix(order.date)}</div>
                         <div className="mt-0.5">
-                          {order.awb ? renderCopyable(order.awb, 'AWB', "text-xs font-semibold text-[#00A86B] hover:underline cursor-pointer") : <div className="text-xs font-semibold text-[#00A86B]">—</div>}
+                          {order.awb ? renderCopyable(order.awb, 'AWB', "text-xs font-semibold text-[#00A86B] hover:underline cursor-pointer", () => navigate(`${isAdminView ? '/admin' : '/user'}/tracking?awb=${order.awb}`)) : <div className="text-xs font-semibold text-[#00A86B]">—</div>}
                         </div>
                       </td>
                       <td className="p-4">
@@ -1296,11 +1296,9 @@ export function AdminCOD() {
                                   <div className="min-w-0 flex-1">
                                     <div className="text-[12px] font-normal text-[#0F172A] truncate">{order.courier || '—'}</div>
                                     {order.awb ? (
-                                      <div
-                                        className="text-[12px] font-semibold text-[#00A86B] underline truncate mt-0.5 active:opacity-60"
-                                        onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(order.awb); showToast('success', 'AWB copied!'); }}
-                                      >
-                                        {order.awb}
+                                      <div className="flex items-center gap-1 group/copy mt-0.5">
+                                        <div className="text-[12px] font-semibold text-[#00A86B] underline truncate active:opacity-60 cursor-pointer" onClick={(e) => { e.stopPropagation(); navigate(`${isAdminView ? '/admin' : '/user'}/tracking?awb=${order.awb}`); }}>{order.awb}</div>
+                                        <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(order.awb).catch(()=>{}); showToast('success', 'AWB copied!'); }} className="opacity-100 md:opacity-0 md:group-hover/copy:opacity-100 transition-opacity shrink-0 focus:outline-none" title="Copy AWB"><Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" /></button>
                                       </div>
                                     ) : (
                                       <div className="text-[12px] font-semibold text-[#94A3B8] truncate mt-0.5">—</div>
@@ -1679,13 +1677,13 @@ export function AdminCOD() {
                         </td>
                       )}
                       <td className="p-4">
-                        {order.orderID ? renderCopyable(order.orderID, 'Order ID', "text-xs font-semibold text-[#00A86B] cursor-pointer") : <div className="text-xs font-semibold text-[#00A86B]">—</div>}
+                        {order.orderID ? renderCopyable(order.orderID, 'Order ID', "text-xs font-semibold text-[#00A86B] cursor-pointer", () => navigate(`${isAdminView ? '/admin' : '/user'}/order-tracking?id=${order.orderID}`)) : <div className="text-xs font-semibold text-[#00A86B]">—</div>}
                       </td>
                       <td className="p-4">
                         <div className="text-xs font-semibold text-[#00A86B]">{order.courierName}</div>
                         <div className="text-xs font-normal text-[#94A3B8] mt-0.5">Delivered On : {withOrdinalSuffix(order.date)}</div>
                         <div className="mt-0.5">
-                          {order.awb ? renderCopyable(order.awb, 'AWB', "text-xs font-semibold text-[#00A86B] hover:underline cursor-pointer", () => navigate('/admin/tracking', { state: { awb: order.awb } })) : <div className="text-xs font-semibold text-[#00A86B]">—</div>}
+                          {order.awb ? renderCopyable(order.awb, 'AWB', "text-xs font-semibold text-[#00A86B] hover:underline cursor-pointer", () => navigate(`${isAdminView ? '/admin' : '/user'}/tracking?awb=${order.awb}`)) : <div className="text-xs font-semibold text-[#00A86B]">—</div>}
                         </div>
                       </td>
                       <td className="p-4">
@@ -1744,11 +1742,9 @@ export function AdminCOD() {
 
                             {/* Order ID */}
                             {order.orderID && (
-                              <div
-                                className="text-[11px] font-semibold text-[#00A86B] mb-3"
-                                onClick={() => { navigator.clipboard.writeText(order.orderID); showToast('success', 'Order ID copied!'); }}
-                              >
-                                Order ID: {order.orderID}
+                              <div className="flex items-center gap-1 group/copy mb-3">
+                                <div className="text-[11px] font-semibold text-[#00A86B] cursor-pointer" onClick={() => navigate(`${isAdminView ? '/admin' : '/user'}/order-tracking?id=${order.orderID}`)}>Order ID: {order.orderID}</div>
+                                <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(order.orderID).catch(()=>{}); showToast('success', 'Order ID copied!'); }} className="opacity-100 md:opacity-0 md:group-hover/copy:opacity-100 transition-opacity shrink-0 focus:outline-none" title="Copy Order ID"><Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" /></button>
                               </div>
                             )}
 
@@ -1774,11 +1770,9 @@ export function AdminCOD() {
                                     <div className="text-[12px] font-normal text-[#0F172A] truncate">{order.courierName || '—'}</div>
                                     <div className="text-[11px] font-normal text-[#94A3B8] truncate mt-0.5">Delivered On: {withOrdinalSuffix(order.date)}</div>
                                     {order.awb ? (
-                                      <div
-                                        className="text-[12px] font-semibold text-[#00A86B] underline truncate mt-0.5 active:opacity-60"
-                                        onClick={(e) => { e.stopPropagation(); navigate('/admin/tracking', { state: { awb: order.awb } }); }}
-                                      >
-                                        {order.awb}
+                                      <div className="flex items-center gap-1 group/copy mt-0.5">
+                                        <div className="text-[12px] font-semibold text-[#00A86B] underline truncate active:opacity-60 cursor-pointer" onClick={(e) => { e.stopPropagation(); navigate(`${isAdminView ? '/admin' : '/user'}/tracking?awb=${order.awb}`); }}>{order.awb}</div>
+                                        <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(order.awb).catch(()=>{}); showToast('success', 'AWB copied!'); }} className="opacity-100 md:opacity-0 md:group-hover/copy:opacity-100 transition-opacity shrink-0 focus:outline-none" title="Copy AWB"><Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" /></button>
                                       </div>
                                     ) : (
                                       <div className="text-[12px] font-semibold text-[#94A3B8] truncate mt-0.5">—</div>
@@ -1944,7 +1938,7 @@ export function AdminCOD() {
                                 <button
                                   onClick={() => {
                                     setRemittanceDetailId(null);
-                                    navigate('/admin/tracking', { state: { awb: item.awb_number } });
+                                    navigate(`${isAdminView ? '/admin' : '/user'}/tracking?awb=${item.awb_number}`);
                                   }}
                                   className="text-[#00A86B] font-semibold hover:underline"
                                 >

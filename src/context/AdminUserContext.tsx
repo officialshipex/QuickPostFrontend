@@ -1,6 +1,12 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import { apiClient } from '../services/apiClient';
-import { getToken, getRoleFromToken } from '../utils/session';
+import { getToken, getRoleFromToken, isEmployeeToken, getEmployeeFromToken } from '../utils/session';
+
+export interface EmployeeAccessRights {
+  view?: boolean;
+  edit?: boolean;
+  delete?: boolean;
+}
 
 interface AdminTabContextType {
   isAdmin: boolean;
@@ -13,7 +19,12 @@ interface AdminTabContextType {
   profileImage: string;
   walletBalance: number;
   walletHold: number;
+  isEmployee: boolean;
+  employeeId: string;
+  employeeAccessRights: Record<string, EmployeeAccessRights>;
+  parentEmail: string;
   toggleAdminTab: (value: boolean) => Promise<void>;
+  refetchUser: () => Promise<void>;
 }
 
 const AdminTabContext = createContext<AdminTabContextType>({
@@ -27,10 +38,15 @@ const AdminTabContext = createContext<AdminTabContextType>({
   profileImage: '',
   walletBalance: 0,
   walletHold: 0,
+  isEmployee: false,
+  employeeId: '',
+  employeeAccessRights: {},
+  parentEmail: '',
   toggleAdminTab: async () => {},
+  refetchUser: async () => {},
 });
 
-export function AdminUserProvider({ children }: { children: React.ReactNode }) {
+export function AdminUserProvider({ children }: { children: ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(() => {
     const token = getToken();
     return token ? getRoleFromToken(token) === 'admin' : false;
@@ -44,17 +60,51 @@ export function AdminUserProvider({ children }: { children: React.ReactNode }) {
   const [profileImage, setProfileImage] = useState('');
   const [walletBalance, setWalletBalance] = useState(0);
   const [walletHold, setWalletHold] = useState(0);
+  const [isEmployee, setIsEmployee] = useState(false);
+  const [employeeId, setEmployeeId] = useState('');
+  const [employeeAccessRights, setEmployeeAccessRights] = useState<Record<string, EmployeeAccessRights>>({});
+  const [parentEmail, setParentEmail] = useState('');
 
   const fetchAdminTab = useCallback(async () => {
-    if (!getToken()) { setLoadingAdminTab(false); return; }
+    const token = getToken();
+    if (!token) { setLoadingAdminTab(false); return; }
+
+    // ── Employee token path ────────────────────────────────────────────────────
+    if (isEmployeeToken(token)) {
+      const emp = getEmployeeFromToken(token);
+      setIsAdmin(emp?.isAdmin ?? false);
+      setAdminTab(emp?.adminTab ?? false);
+      setIsEmployee(true);
+      setEmployeeId(emp?.employeeId || '');
+      try {
+        const res = await apiClient.get('/staffRole/verify');
+        const employee = res.data?.employee;
+        const parentUser = res.data?.user;
+        if (employee) {
+          setEmployeeAccessRights(employee.accessRights || {});
+          setUserName(employee.fullName || '');
+          setUserEmail(employee.email || '');
+          setParentEmail(parentUser?.email || '');
+          // currentUserId: for user employees use parent's _id so APIs filter correctly
+          setCurrentUserId(parentUser?._id || employee._id || '');
+          setBusinessName(parentUser?.company || '');
+          setWalletBalance(parentUser?.Wallet?.balance || 0);
+          setWalletHold(parentUser?.Wallet?.holdAmount || 0);
+        }
+      } catch (e) {
+        console.error('[AdminUserContext] Employee verify failed:', e);
+      } finally {
+        setLoadingAdminTab(false);
+      }
+      return;
+    }
+
+    // ── Regular user / admin path ──────────────────────────────────────────────
     try {
       const res = await apiClient.get('/user/getUserDetails');
       const user = res.data?.user;
-      const userIsAdmin = user?.isAdmin === true;
-      const resolvedAdminTab = user?.adminTab === true;
-
-      setIsAdmin(userIsAdmin);
-      setAdminTab(resolvedAdminTab);
+      setIsAdmin(user?.isAdmin === true);
+      setAdminTab(user?.adminTab === true);
       setCurrentUserId(user?._id || '');
       setUserName(user?.fullname || '');
       setUserEmail(user?.email || '');
@@ -62,6 +112,9 @@ export function AdminUserProvider({ children }: { children: React.ReactNode }) {
       setProfileImage(user?.profileImage || '');
       setWalletBalance(user?.Wallet?.balance || 0);
       setWalletHold(user?.Wallet?.holdAmount || 0);
+      setIsEmployee(false);
+      setEmployeeAccessRights({});
+      setParentEmail('');
     } catch (e) {
       console.error('[AdminUserContext] Failed to fetch user details:', e);
     } finally {
@@ -74,7 +127,6 @@ export function AdminUserProvider({ children }: { children: React.ReactNode }) {
   const toggleAdminTab = async (value: boolean) => {
     try {
       await apiClient.post('/user/getUserDetails', { adminTab: value });
-      // Full reload so all data, context, and routes reset cleanly
       window.location.href = value ? '/admin/dashboard' : '/user/dashboard';
     } catch (e) {
       console.error('[AdminUserContext] Failed to toggle admin tab:', e);
@@ -85,7 +137,9 @@ export function AdminUserProvider({ children }: { children: React.ReactNode }) {
     <AdminTabContext.Provider value={{
       isAdmin, adminTab, loadingAdminTab, currentUserId,
       userName, userEmail, businessName, profileImage, walletBalance, walletHold,
+      isEmployee, employeeId, employeeAccessRights, parentEmail,
       toggleAdminTab,
+      refetchUser: fetchAdminTab,
     }}>
       {children}
     </AdminTabContext.Provider>

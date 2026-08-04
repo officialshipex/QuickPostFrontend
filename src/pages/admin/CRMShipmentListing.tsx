@@ -637,7 +637,10 @@ export function CRMShipmentListing() {
                     </td>
                     <td className="p-3">
                       <div className="flex flex-col gap-1">
-                        <div className="text-[12px] leading-[18px] font-semibold text-[#009D64] hover:underline cursor-pointer">{row.orderId}</div>
+                        <div className="flex items-center gap-1 group/copy">
+                          <span className="text-[12px] leading-[18px] font-semibold text-[#009D64] underline cursor-pointer hover:text-[#007A50]" onClick={() => navigate(`/admin/order-tracking?id=${row.orderId}`)}>{row.orderId}</span>
+                          <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(row.orderId).catch(()=>{}); }} className="opacity-100 md:opacity-0 md:group-hover/copy:opacity-100 transition-opacity shrink-0 focus:outline-none" title="Copy Order ID"><Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" /></button>
+                        </div>
                         <div className="text-[12px] leading-[18px] font-normal text-[#64748B]">{new Date(row.manifestDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
                         <span className="px-2 py-0.5 rounded-full border border-blue-200 text-[#004AAD] font-semibold text-[10px] leading-4 bg-blue-50/50 inline-block uppercase w-fit">
                           {row.channel === 'WooCommerce' ? 'Woo' : (row.channel || 'API')}
@@ -697,7 +700,10 @@ export function CRMShipmentListing() {
                       <div className="flex flex-col gap-1">
                         <div className="text-[12px] leading-[18px] font-semibold text-[#009D64]">{row.courier}</div>
                         <div className="text-[12px] leading-[18px] font-normal text-[#1E293B]">{new Date(row.manifestDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</div>
-                        <TruncatedText text={row.awb} maxLength={16} className="text-[12px] leading-[18px] font-semibold text-[#009D64] underline hover:text-[#009B63] cursor-pointer max-w-[120px]" />
+                        <div className="flex items-center gap-1 group/copy">
+                          <span className="text-[12px] leading-[18px] font-semibold text-[#009D64] underline cursor-pointer hover:text-[#009B63] truncate max-w-[120px]" onClick={() => row.awb && navigate(`/admin/tracking?awb=${row.awb}`)}>{row.awb}</span>
+                          <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(row.awb).catch(()=>{}); }} className="opacity-100 md:opacity-0 md:group-hover/copy:opacity-100 transition-opacity shrink-0 focus:outline-none" title="Copy AWB"><Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" /></button>
+                        </div>
                       </div>
                     </td>
                     <td className="px-2 py-3 text-left align-middle">

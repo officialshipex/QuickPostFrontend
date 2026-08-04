@@ -17,7 +17,7 @@ interface AdminHeaderProps {
 
 export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
   const { logout } = useAuth();
-  const { isAdmin, adminTab, toggleAdminTab, userName, userEmail, businessName, profileImage, walletBalance: ctxWalletBalance, walletHold } = useAdminTab();
+  const { isAdmin, adminTab, toggleAdminTab, userName, userEmail, businessName, profileImage, walletBalance: ctxWalletBalance, walletHold, isEmployee, parentEmail } = useAdminTab();
   const { filters, updateFilter } = useDashboardFilters();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -37,6 +37,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
   const [showWalletHover, setShowWalletHover] = useState(false);
   const [showMobileWalletSummary, setShowMobileWalletSummary] = useState(false);
   const [showRechargeModal, setShowRechargeModal] = useState(false);
+  const [showMobileSearch, setShowMobileSearch] = useState(false);
 
   // Bulk Import modal
   const [showBulkModal, setShowBulkModal] = useState(false);
@@ -294,210 +295,343 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
       )}
 
       {/* Mobile Top Bar — visible only on mobile */}
-      <div className={`md:hidden bg-white border-b border-[#E2E8F0] px-4 py-3 flex items-center justify-between sticky ${isImpersonating ? 'top-8' : 'top-0'} z-[100] shadow-sm`}>
-        <button
-          onClick={onMobileMenuToggle}
-          className="w-9 h-9 flex items-center justify-center rounded-lg text-[#475569] hover:bg-[#F8FAFC] transition-colors"
-        >
-          <Menu className="w-5 h-5" />
-        </button>
-        
-        <div className="flex items-center gap-1.5 shrink-0">
-          {/* Notifications — users only (including admin in user mode) */}
-          {!(isAdmin && adminTab) && (
-            <div className="relative animate-fade-in shrink-0">
+      <div className={`md:hidden bg-white border-b border-[#E2E8F0] sticky ${isImpersonating ? 'top-8' : 'top-0'} z-[100] shadow-sm`}>
+
+        {/* Normal mode — hamburger + logo + icon strip */}
+        {!showMobileSearch && (
+          <div className="flex items-center justify-between px-4 h-[60px]">
+            {/* Left: hamburger + logo */}
+            <div className="flex items-center gap-2.5 shrink-0">
+              <button
+                onClick={onMobileMenuToggle}
+                className="w-9 h-9 flex items-center justify-center rounded-lg text-[#475569] hover:bg-[#F8FAFC] transition-colors"
+              >
+                <Menu className="w-5 h-5" />
+              </button>
+              <img src="/logo-color.png" alt="QuickPost" className="h-10 w-auto object-contain" />
+            </div>
+
+            <div className="flex items-center gap-1 shrink-0">
+              {/* Search trigger */}
               <button
                 onClick={() => {
-                  setShowNotifications(!showNotifications);
+                  setShowMobileSearch(true);
+                  setSearchQuery('');
+                  setShowOrderSearchResults(false);
+                  setShowNotifications(false);
                   setShowQuickActions(false);
                   setShowProfileMenu(false);
                   setShowMobileWalletSummary(false);
                 }}
-                className={`w-8 h-8 flex items-center justify-center rounded-full text-[#64748B] hover:bg-[#F8FAFC] transition-colors relative cursor-pointer ${showNotifications ? 'bg-[#F8FAFC] text-[#0F172A]' : ''}`}
+                className="w-8 h-8 flex items-center justify-center rounded-full text-[#64748B] hover:bg-[#F8FAFC] transition-colors"
               >
-                <Bell className="w-[18px] h-[18px]" />
-                {!!pendingAgreement && (
-                  <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-[#EF4444] rounded-full" />
-                )}
+                <Search className="w-[18px] h-[18px]" />
               </button>
 
-              {showNotifications && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setShowNotifications(false)} />
-                  <div className="fixed left-3 right-3 top-[60px] max-w-[calc(100vw-24px)] bg-white rounded-xl shadow-xl border border-[#E2E8F0] py-2 z-50 origin-top-right">
-                    <div className="px-4 py-2 border-b border-[#E2E8F0] flex justify-between items-center bg-slate-50/50">
-                      <h3 className="font-bold text-[#0F172A] text-xs uppercase tracking-wider">Alerts</h3>
-                      {!!pendingAgreement && (
-                        <span className="text-[10px] font-bold text-white bg-[#EF4444] rounded-full px-2 py-0.5">1</span>
-                      )}
-                    </div>
-                    <div className="max-h-[220px] overflow-y-auto">
-                      {pendingAgreement ? (
-                        <div className="px-4 py-3 border-b border-[#E2E8F0]/60">
-                          <div className="flex items-start gap-2">
-                            <div className="w-1.5 h-1.5 rounded-full bg-[#EF4444] shrink-0 mt-1.5" />
-                            <div className="flex-1">
-                              <p className="text-[12px] font-semibold text-[#0F172A] leading-snug">Agreement Pending</p>
-                              <p className="text-[11px] text-[#64748B] mt-0.5">{pendingAgreement.versionName || 'New Terms & Conditions'} — please review and accept.</p>
-                              <button
-                                onClick={() => { navigate('/user/settings/agreement'); setShowNotifications(false); }}
-                                className="mt-1.5 text-[11px] font-bold text-[#00A86B] hover:underline"
-                              >
-                                View &amp; Accept →
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="px-4 py-6 text-center">
-                          <Bell className="w-6 h-6 text-[#CBD5E1] mx-auto mb-2" />
-                          <p className="text-xs font-semibold text-[#94A3B8]">No alerts right now</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-          )}
+              {/* Notifications — only for non-admin users */}
+              {!(isAdmin && adminTab) && (
+                <div className="relative shrink-0">
+                  <button
+                    onClick={() => {
+                      setShowNotifications(!showNotifications);
+                      setShowQuickActions(false);
+                      setShowProfileMenu(false);
+                      setShowMobileWalletSummary(false);
+                    }}
+                    className={`w-8 h-8 flex items-center justify-center rounded-full text-[#64748B] hover:bg-[#F8FAFC] transition-colors relative cursor-pointer ${showNotifications ? 'bg-[#F8FAFC] text-[#0F172A]' : ''}`}
+                  >
+                    <Bell className="w-[18px] h-[18px]" />
+                    {!!pendingAgreement && (
+                      <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-[#EF4444] rounded-full" />
+                    )}
+                  </button>
 
-          {/* Quick Actions */}
-          <div className="relative animate-fade-in shrink-0">
-            <button
-              onClick={() => {
-                setShowQuickActions(!showQuickActions);
-                setShowNotifications(false);
-                setShowProfileMenu(false);
-                setShowMobileWalletSummary(false);
-              }}
-              className={`w-8 h-8 flex items-center justify-center rounded-full text-[#64748B] hover:bg-[#F8FAFC] transition-colors cursor-pointer ${showQuickActions ? 'bg-[#F8FAFC] text-[#0F172A]' : ''}`}
-            >
-              <Zap className="w-[18px] h-[18px]" />
-            </button>
-
-            {showQuickActions && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setShowQuickActions(false)} />
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-[#E2E8F0] py-2 z-50 origin-top-right">
-                  <div className="px-4 py-1.5 border-b border-slate-100 mb-1">
-                    <span className="text-[10px] font-bold text-[#94A3B8] uppercase">Quick Menu</span>
-                  </div>
-                  {isAdmin && adminTab ? (
-                    <button className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] text-left w-full" onClick={() => { setShowUserLoginModal(true); setUserLoginQuery(''); setUserSuggestions([]); setShowQuickActions(false); }}>
-                      <Users className="w-3.5 h-3.5" /> User Login
-                    </button>
-                  ) : (
+                  {showNotifications && (
                     <>
-                      <Link to="/user/add-order" className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A]" onClick={() => setShowQuickActions(false)}>
-                        <PackagePlus className="w-3.5 h-3.5" /> Add an Order
-                      </Link>
-                      <button className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] text-left w-full" onClick={() => { setShowBulkModal(true); setShowQuickActions(false); }}>
-                        <Upload className="w-3.5 h-3.5" /> Bulk Import
-                      </button>
-                      <Link to="/user/rate-calculator" className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A]" onClick={() => setShowQuickActions(false)}>
-                        <Calculator className="w-3.5 h-3.5" /> Calculate Rate
-                      </Link>
+                      <div className="fixed inset-0 z-40" onClick={() => setShowNotifications(false)} />
+                      <div className={`fixed left-3 right-3 ${isImpersonating ? 'top-[92px]' : 'top-[68px]'} max-w-[calc(100vw-24px)] bg-white rounded-xl shadow-xl border border-[#E2E8F0] overflow-hidden z-50`}>
+                        <div className="px-4 py-2.5 border-b border-[#E2E8F0] flex justify-between items-center bg-slate-50/50">
+                          <h3 className="font-bold text-[#0F172A] text-xs uppercase tracking-wider">Notifications</h3>
+                          {!!pendingAgreement && (
+                            <span className="text-[10px] font-bold text-white bg-[#EF4444] rounded-full px-2 py-0.5">1</span>
+                          )}
+                        </div>
+                        <div className="max-h-[240px] overflow-y-auto">
+                          {pendingAgreement ? (
+                            <div className="px-4 py-3 border-b border-[#E2E8F0]/60">
+                              <div className="flex items-start gap-2">
+                                <div className="w-1.5 h-1.5 rounded-full bg-[#EF4444] shrink-0 mt-1.5" />
+                                <div className="flex-1">
+                                  <p className="text-[12px] font-semibold text-[#0F172A] leading-snug">Agreement Pending</p>
+                                  <p className="text-[11px] text-[#64748B] mt-0.5">{pendingAgreement.versionName || 'New Terms & Conditions'} — please review and accept.</p>
+                                  <button
+                                    onClick={() => { navigate('/user/settings/agreement'); setShowNotifications(false); }}
+                                    className="mt-1.5 text-[11px] font-bold text-[#00A86B] hover:underline"
+                                  >
+                                    View &amp; Accept →
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="px-4 py-6 text-center">
+                              <Bell className="w-6 h-6 text-[#CBD5E1] mx-auto mb-2" />
+                              <p className="text-xs font-semibold text-[#94A3B8]">No new notifications</p>
+                            </div>
+                          )}
+                        </div>
+                        <div
+                          className="px-4 py-2.5 border-t border-[#E2E8F0] bg-[#F8FAFC] text-center cursor-pointer hover:bg-[#F1F5F9] transition-colors"
+                          onClick={() => { navigate('/user/notification'); setShowNotifications(false); }}
+                        >
+                          <span className="text-[11px] font-bold text-[#0F172A]">View All Notifications</span>
+                        </div>
+                      </div>
                     </>
                   )}
                 </div>
-              </>
-            )}
-          </div>
+              )}
 
-          {/* Wallet Balance */}
-          <div className="relative shrink-0">
-            <div
-              className={`flex items-center gap-1 shrink-0 whitespace-nowrap text-white pl-2 pr-1 py-1.5 rounded-full text-[11px] font-bold shadow-sm transition-colors ${walletBalance < 0 ? 'bg-[#EF4444]' : 'bg-[#00A86B]'}`}
-            >
-              <button
-                onClick={() => {
-                  setShowMobileWalletSummary(!showMobileWalletSummary);
-                  setShowNotifications(false);
-                  setShowQuickActions(false);
-                  setShowProfileMenu(false);
-                }}
-                className="flex items-center gap-1 focus:outline-none cursor-pointer"
-              >
-                <Wallet className="w-3.5 h-3.5 shrink-0" />
-                <span>₹{walletBalance.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
-              </button>
-              <button
-                onClick={() => setShowRechargeModal(true)}
-                className="text-white/80 hover:text-white px-1 focus:outline-none cursor-pointer"
-                aria-label="Recharge wallet"
-              >
-                +
-              </button>
-            </div>
+              {/* Quick Actions — hidden for employees */}
+              {!isEmployee && (
+                <div className="relative shrink-0">
+                  <button
+                    onClick={() => {
+                      setShowQuickActions(!showQuickActions);
+                      setShowNotifications(false);
+                      setShowProfileMenu(false);
+                      setShowMobileWalletSummary(false);
+                    }}
+                    className={`w-8 h-8 flex items-center justify-center rounded-full text-[#64748B] hover:bg-[#F8FAFC] transition-colors cursor-pointer ${showQuickActions ? 'bg-[#F8FAFC] text-[#0F172A]' : ''}`}
+                  >
+                    <Zap className="w-[18px] h-[18px]" />
+                  </button>
 
-            {showMobileWalletSummary && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setShowMobileWalletSummary(false)} />
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-[#E2E8F0] p-3 z-50 origin-top-right">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-[9px] font-bold text-[#94A3B8] uppercase tracking-wider">Wallet Summary</span>
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#00A86B] animate-pulse shrink-0"></span>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between items-center gap-2">
-                      <span className="text-[11px] font-semibold text-[#64748B]">Available</span>
-                      <span className="text-[11px] font-bold text-slate-800">₹{walletBalance.toLocaleString('en-IN')}</span>
-                    </div>
-
-                    <div className="flex justify-between items-center gap-2">
-                      <span className="text-[11px] font-semibold text-[#64748B]">Hold</span>
-                      <span className="text-[11px] font-bold text-amber-600">₹{walletHold.toLocaleString('en-IN')}</span>
-                    </div>
-
-                    <div className="h-[1px] bg-slate-100"></div>
-
-                    <div className="flex justify-between items-center gap-2">
-                      <span className="text-[11px] font-bold text-slate-700">Net</span>
-                      <span className="text-[11px] font-extrabold text-[#00A86B]">₹{Math.max(0, walletBalance - walletHold).toLocaleString('en-IN')}</span>
-                    </div>
-                  </div>
+                  {showQuickActions && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setShowQuickActions(false)} />
+                      <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-[#E2E8F0] py-2 z-50 origin-top-right">
+                        <div className="px-4 py-1.5 border-b border-slate-100 mb-1">
+                          <span className="text-[10px] font-bold text-[#94A3B8] uppercase">Quick Menu</span>
+                        </div>
+                        {isAdmin && adminTab ? (
+                          <button className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] text-left w-full" onClick={() => { setShowUserLoginModal(true); setUserLoginQuery(''); setUserSuggestions([]); setShowQuickActions(false); }}>
+                            <Users className="w-3.5 h-3.5" /> User Login
+                          </button>
+                        ) : (
+                          <>
+                            <Link to="/user/add-order" className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A]" onClick={() => setShowQuickActions(false)}>
+                              <PackagePlus className="w-3.5 h-3.5" /> Add an Order
+                            </Link>
+                            <button className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] text-left w-full" onClick={() => { setShowBulkModal(true); setShowQuickActions(false); }}>
+                              <Upload className="w-3.5 h-3.5" /> Bulk Import
+                            </button>
+                            <Link to="/user/rate-calculator" className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A]" onClick={() => setShowQuickActions(false)}>
+                              <Calculator className="w-3.5 h-3.5" /> Calculate Rate
+                            </Link>
+                          </>
+                        )}
+                      </div>
+                    </>
+                  )}
                 </div>
-              </>
-            )}
-          </div>
+              )}
 
-          {/* Profile Dropdown */}
-          <div className="relative animate-fade-in shrink-0">
-            <button
-              onClick={() => {
-                setShowProfileMenu(!showProfileMenu);
-                setShowNotifications(false);
-                setShowQuickActions(false);
-                setShowMobileWalletSummary(false);
-              }}
-              className="w-8 h-8 rounded-full bg-[#E2E8F0] overflow-hidden flex items-center justify-center focus:outline-none border border-[#CBD5E1] shrink-0"
-            >
-              <img src="https://ui-avatars.com/api/?name=Admin&background=00A86B&color=fff&size=32&bold=true" alt="Profile" className="w-full h-full object-cover" />
-            </button>
-
-            {showProfileMenu && (
-              <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-[#E2E8F0] py-2 z-50 origin-top-right">
-                <div className="px-4 py-2 border-b border-slate-100 flex items-center gap-2.5 bg-slate-50/50">
-                  <div className="w-6 h-6 rounded-md bg-[#00A86B] text-white flex items-center justify-center font-bold text-xs">S</div>
-                  <div className="flex flex-col">
-                    <span className="text-xs font-bold text-[#0F172A] leading-tight">Super Admin</span>
-                    <span className="text-[10px] font-medium text-[#64748B]">System Role</span>
-                  </div>
-                </div>
-                <Link to={isAdmin ? '/admin/profile' : '/user/profile'} className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A]" onClick={() => setShowProfileMenu(false)}>
-                  <User className="w-3.5 h-3.5" /> My Profile
-                </Link>
-                <button
-                  onClick={() => { logout(); setShowProfileMenu(false); }}
-                  className="w-full flex items-center gap-2 px-4 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 text-left"
+              {/* Wallet Balance */}
+              <div className="relative shrink-0">
+                <div
+                  className={`flex items-center gap-1 shrink-0 whitespace-nowrap text-white pl-2 pr-1 py-1.5 rounded-full text-[11px] font-bold shadow-sm transition-colors ${walletBalance < 0 ? 'bg-[#EF4444]' : 'bg-[#00A86B]'}`}
                 >
-                  <LogOut className="w-3.5 h-3.5" /> Logout
-                </button>
+                  <button
+                    onClick={() => {
+                      setShowMobileWalletSummary(!showMobileWalletSummary);
+                      setShowNotifications(false);
+                      setShowQuickActions(false);
+                      setShowProfileMenu(false);
+                    }}
+                    className="flex items-center gap-1 focus:outline-none cursor-pointer"
+                  >
+                    <Wallet className="w-3.5 h-3.5 shrink-0" />
+                    <span>₹{walletBalance.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
+                  </button>
+                  <button
+                    onClick={() => setShowRechargeModal(true)}
+                    className="text-white/80 hover:text-white px-1 focus:outline-none cursor-pointer"
+                    aria-label="Recharge wallet"
+                  >
+                    +
+                  </button>
+                </div>
+
+                {showMobileWalletSummary && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowMobileWalletSummary(false)} />
+                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-[#E2E8F0] p-3 z-50 origin-top-right">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-[9px] font-bold text-[#94A3B8] uppercase tracking-wider">Wallet Summary</span>
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#00A86B] animate-pulse shrink-0"></span>
+                      </div>
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between items-center gap-2">
+                          <span className="text-[11px] font-semibold text-[#64748B]">Available</span>
+                          <span className="text-[11px] font-bold text-slate-800">₹{walletBalance.toLocaleString('en-IN')}</span>
+                        </div>
+                        <div className="flex justify-between items-center gap-2">
+                          <span className="text-[11px] font-semibold text-[#64748B]">Hold</span>
+                          <span className="text-[11px] font-bold text-amber-600">₹{walletHold.toLocaleString('en-IN')}</span>
+                        </div>
+                        <div className="h-[1px] bg-slate-100"></div>
+                        <div className="flex justify-between items-center gap-2">
+                          <span className="text-[11px] font-bold text-slate-700">Net</span>
+                          <span className="text-[11px] font-extrabold text-[#00A86B]">₹{Math.max(0, walletBalance - walletHold).toLocaleString('en-IN')}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
-            )}
+
+              {/* Profile Dropdown */}
+              <div className="relative shrink-0">
+                <button
+                  onClick={() => {
+                    setShowProfileMenu(!showProfileMenu);
+                    setShowNotifications(false);
+                    setShowQuickActions(false);
+                    setShowMobileWalletSummary(false);
+                  }}
+                  className="w-8 h-8 rounded-full bg-[#E2E8F0] overflow-hidden flex items-center justify-center focus:outline-none border border-[#CBD5E1] shrink-0"
+                >
+                  {profileImage ? (
+                    <img src={profileImage} alt={userName} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-[#1E293B] to-[#0F172A] flex items-center justify-center text-white text-[11px] font-bold">
+                      {userInitials}
+                    </div>
+                  )}
+                </button>
+
+                {showProfileMenu && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowProfileMenu(false)} />
+                    <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-[#E2E8F0] py-2 z-50 origin-top-right">
+                      <div className="px-4 py-2.5 border-b border-slate-100 bg-slate-50/50">
+                        {isEmployee ? (
+                          <>
+                            <p className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider mb-0.5">Employee Login</p>
+                            <p className="text-[12px] font-bold text-[#0F172A] truncate">{userEmail || '—'}</p>
+                            {parentEmail && <p className="text-[10px] text-[#64748B] mt-0.5 truncate">Account: {parentEmail}</p>}
+                          </>
+                        ) : (
+                          <>
+                            <p className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider mb-0.5">Signed in as</p>
+                            <p className="text-[12px] font-bold text-[#0F172A] truncate">{userEmail || '—'}</p>
+                          </>
+                        )}
+                      </div>
+                      {!isEmployee && (
+                        <Link to={isAdmin ? '/admin/profile' : '/user/profile'} className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A]" onClick={() => setShowProfileMenu(false)}>
+                          <User className="w-3.5 h-3.5" /> My Profile
+                        </Link>
+                      )}
+                      {isAdmin && !isEmployee && (
+                        <>
+                          <div className="border-t border-[#E2E8F0] my-1" />
+                          <div className="flex items-center justify-between px-4 py-2">
+                            <div className="flex items-center gap-2 text-[#475569]">
+                              <Shield className="w-3.5 h-3.5 text-[#00A86B]" />
+                              <span className="text-[12px] font-semibold">{adminTab ? 'Admin' : 'User'} Mode</span>
+                            </div>
+                            <label className="relative inline-flex items-center cursor-pointer">
+                              <input type="checkbox" className="sr-only peer" checked={adminTab} onChange={(e) => toggleAdminTab(e.target.checked)} />
+                              <div className="w-10 h-5 bg-gray-300 rounded-full peer peer-checked:bg-[#00A86B] transition-colors duration-300" />
+                              <div className="absolute left-1 top-1 bg-white w-3 h-3 rounded-full transition-transform duration-300 peer-checked:translate-x-5" />
+                            </label>
+                          </div>
+                        </>
+                      )}
+                      <div className="border-t border-[#E2E8F0] my-1" />
+                      <button
+                        onClick={() => { logout(); setShowProfileMenu(false); }}
+                        className="w-full flex items-center gap-2 px-4 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 text-left"
+                      >
+                        <LogOut className="w-3.5 h-3.5" /> Sign out
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* Search mode — full-width input with Cancel */}
+        {showMobileSearch && (
+          <div className="flex items-center gap-3 px-4 h-[60px]">
+            <div className="flex-1 flex items-center gap-2 bg-[#F8FAFC] rounded-xl px-3 py-2.5 border border-[#E2E8F0] focus-within:border-[#00A86B] focus-within:bg-white transition-all min-w-0">
+              <Search className="w-4 h-4 text-[#94A3B8] shrink-0" />
+              <input
+                autoFocus
+                type="text"
+                value={searchQuery}
+                onChange={(e) => { setSearchQuery(e.target.value); setShowOrderSearchResults(true); }}
+                onFocus={() => { if (searchQuery.trim()) setShowOrderSearchResults(true); }}
+                placeholder="Search by AWB, order ID, customer…"
+                className="flex-1 min-w-0 bg-transparent text-sm font-medium text-[#0F172A] outline-none placeholder:text-[#94A3B8]"
+              />
+              {searchQuery && (
+                <button onClick={() => { setSearchQuery(''); setShowOrderSearchResults(false); }} className="shrink-0 focus:outline-none">
+                  <X className="w-4 h-4 text-[#94A3B8] hover:text-[#64748B]" />
+                </button>
+              )}
+            </div>
+            <button
+              onClick={() => { setShowMobileSearch(false); setSearchQuery(''); setShowOrderSearchResults(false); }}
+              className="w-8 h-8 flex items-center justify-center rounded-full text-[#64748B] hover:bg-[#F1F5F9] transition-colors shrink-0 focus:outline-none"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        )}
+
+        {/* Mobile search results panel */}
+        {showMobileSearch && showOrderSearchResults && searchQuery.trim() && (
+          <>
+            <div className="fixed inset-0 z-[89]" style={{ top: isImpersonating ? 92 : 60 }} onClick={() => setShowOrderSearchResults(false)} />
+            <div className={`fixed left-0 right-0 ${isImpersonating ? 'top-[92px]' : 'top-[60px]'} max-h-[60vh] overflow-y-auto bg-white border-b border-[#E2E8F0] shadow-2xl z-[90]`}>
+              {orderSearchLoading ? (
+                <div className="px-4 py-6 flex items-center justify-center gap-2 text-[#94A3B8]">
+                  <div className="w-4 h-4 border-2 border-[#00A86B] border-t-transparent rounded-full animate-spin" />
+                  <span className="text-xs font-semibold">Searching orders…</span>
+                </div>
+              ) : orderSearchResults.length === 0 ? (
+                <div className="px-4 py-6 text-center">
+                  <p className="text-xs font-semibold text-[#94A3B8]">No matching orders found</p>
+                </div>
+              ) : (
+                orderSearchResults.map((o: any, i: number) => (
+                  <button
+                    key={o._id || o.orderId || i}
+                    onClick={() => { goToOrder(o); setShowMobileSearch(false); setShowOrderSearchResults(false); }}
+                    className="w-full flex items-center justify-between gap-3 px-4 py-3.5 hover:bg-[#F8FAFC] active:bg-[#F1F5F9] transition-colors text-left border-b border-[#F1F5F9] last:border-0"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-[#00A86B]">{o.orderId}</span>
+                        {o.awb_number && <span className="text-[10px] text-[#94A3B8] font-mono truncate">{o.awb_number}</span>}
+                      </div>
+                      <p className="text-[11px] text-[#64748B] truncate mt-0.5">
+                        {o.receiverAddress?.contactName || o.userId?.fullname || '—'}
+                        {o.receiverAddress?.email ? ` · ${o.receiverAddress.email}` : ''}
+                      </p>
+                    </div>
+                    <span className="text-[10px] font-semibold text-[#475569] bg-slate-100 px-2 py-0.5 rounded-full shrink-0">{o.status || 'New'}</span>
+                  </button>
+                ))
+              )}
+            </div>
+          </>
+        )}
       </div>
 
       {/* Desktop Header — hidden on mobile */}
@@ -801,8 +935,8 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
           </AnimatePresence>
         </div>
         
-        {/* Quick Actions */}
-        {!isSetupPage && !isKycPage && (
+        {/* Quick Actions — hidden for employees */}
+        {!isEmployee && !isSetupPage && !isKycPage && (
           <div className="relative">
             <motion.button 
               whileHover={{ scale: 1.05 }}
@@ -980,16 +1114,30 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                 onMouseDown={(e) => e.preventDefault()}
               >
                 <div className="px-3 py-2.5 mb-1 border-b border-[#E2E8F0]/60">
-                  <p className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider mb-0.5">Signed in as</p>
-                  <p className="text-[13px] font-bold text-[#0F172A] truncate">{userEmail || '—'}</p>
+                  {isEmployee ? (
+                    <>
+                      <p className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider mb-0.5">Employee Login</p>
+                      <p className="text-[13px] font-bold text-[#0F172A] truncate">{userEmail || '—'}</p>
+                      {parentEmail && (
+                        <p className="text-[10px] text-[#64748B] mt-0.5 truncate">Account: {parentEmail}</p>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider mb-0.5">Signed in as</p>
+                      <p className="text-[13px] font-bold text-[#0F172A] truncate">{userEmail || '—'}</p>
+                    </>
+                  )}
                 </div>
                 
-                <Link to={isAdmin ? '/admin/profile' : '/user/profile'} className="flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors" onClick={() => setShowProfileMenu(false)}>
-                  <User className="w-4 h-4 text-[#94A3B8]" /> Profile
-                </Link>
+                {!isEmployee && (
+                  <Link to={isAdmin ? '/admin/profile' : '/user/profile'} className="flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors" onClick={() => setShowProfileMenu(false)}>
+                    <User className="w-4 h-4 text-[#94A3B8]" /> Profile
+                  </Link>
+                )}
 
-                {/* Admin / User view toggle — only for admins */}
-                {isAdmin && (
+                {/* Admin / User view toggle — only for admins, not employees */}
+                {isAdmin && !isEmployee && (
                   <>
                     <div className="border-t border-[#E2E8F0] my-1"></div>
                     <div className="flex items-center justify-between px-3 py-2">

@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo, useEffect, useCallback } from 'react';
+﻿import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
@@ -55,6 +55,7 @@ const mapShippingItem = (item: any) => {
     courier: item.courierServiceName || '',
     bookedDate: item.shipmentCreatedAt ? new Date(item.shipmentCreatedAt).toLocaleDateString('en-IN') : '',
     statusAmount: (item.totalFreightCharges || 0).toFixed(2),
+    priceBreakup: item.priceBreakup || null,
     status: item.status || 'new',
     initialWeight: `${Number(item.packageDetails?.deadWeight || 0).toFixed(3)} Kg`,
     initialDimensions: `L*W*H: ${vl}*${vw}*${vh} cm`,
@@ -81,6 +82,7 @@ const mapPassbookItem = (item: any) => ({
   amount: item.amount || 0,
   balance: item.balanceAfterTransaction || 0,
   description: item.description || '',
+  priceBreakup: item.priceBreakup || null,
   _raw: item,
 });
 
@@ -181,6 +183,9 @@ export function AdminWallet() {
     setSearchParams(newParams);
   };
   const [toast, setToast] = useState<{ type: 'error' | 'success', text: string } | null>(null);
+  const [pricePopupPos, setPricePopupPos] = useState<{ x: number; y: number; dir: string; order: any } | null>(null);
+  const pricePopupTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [mobilePricePopupOrder, setMobilePricePopupOrder] = useState<any | null>(null);
 
   const showToast = (type: 'error' | 'success', text: string) => {
     setToast({ type, text });
@@ -268,7 +273,14 @@ export function AdminWallet() {
   const [courierOptions, setCourierOptions] = useState<{ label: string; value: string }[]>([]);
 
   // Pagination page states — declared early so fetch functions can reference setters
-  const itemsPerPage = 20;
+  const [shippingItemsPerPage, setShippingItemsPerPage] = useState(20);
+  const [passbookItemsPerPage, setPassbookItemsPerPage] = useState(20);
+  const [rechargeItemsPerPage, setRechargeItemsPerPage] = useState(20);
+  const [invoiceItemsPerPage, setInvoiceItemsPerPage] = useState(20);
+  const shippingItemsPerPageRef = useRef(20);
+  const passbookItemsPerPageRef = useRef(20);
+  const rechargeItemsPerPageRef = useRef(20);
+  const invoiceItemsPerPageRef = useRef(20);
   const [shippingPage, setShippingPage] = useState(1);
   const [passbookPage, setPassbookPage] = useState(1);
   const [rechargePage, setRechargePage] = useState(1);
@@ -611,7 +623,7 @@ export function AdminWallet() {
   const fetchShippingData = useCallback(async (page: number) => {
     setIsLoading(true);
     try {
-      const params: Record<string, any> = { page, limit: itemsPerPage };
+      const params: Record<string, any> = { page, limit: shippingItemsPerPageRef.current };
       if (isAdminView) {
         if (shipUserMongoId) params.userSearch = shipUserMongoId;
       } else if (currentUserId) {
@@ -641,7 +653,7 @@ export function AdminWallet() {
   const fetchPassbookData = useCallback(async (page: number) => {
     setIsLoading(true);
     try {
-      const params: Record<string, any> = { page, limit: itemsPerPage };
+      const params: Record<string, any> = { page, limit: passbookItemsPerPageRef.current };
       if (isAdminView) {
         if (pbUserMongoId) params.userSearch = pbUserMongoId;
       } else if (currentUserId) {
@@ -665,7 +677,7 @@ export function AdminWallet() {
   const fetchRechargeData = useCallback(async (page: number) => {
     setIsLoading(true);
     try {
-      const params: Record<string, any> = { page, limit: itemsPerPage };
+      const params: Record<string, any> = { page, limit: rechargeItemsPerPageRef.current };
       if (isAdminView) {
         if (rcUserMongoId) params.userSearch = rcUserMongoId;
       } else if (currentUserId) {
@@ -693,7 +705,7 @@ export function AdminWallet() {
   const fetchInvoiceData = useCallback(async (page: number) => {
     setIsLoading(true);
     try {
-      const params: Record<string, any> = { page, limit: itemsPerPage };
+      const params: Record<string, any> = { page, limit: invoiceItemsPerPageRef.current };
       if (isAdminView) {
         if (invUserMongoId) params.userId = invUserMongoId;
       }
@@ -869,41 +881,49 @@ export function AdminWallet() {
     });
   }, [invoiceList, headerMobileSearch, globalSearchQuery, invoiceSearchTerm]);
 
-  const {
-    paginatedData: paginatedShippingData,
-    rowsPerPage: shippingRowsPerPage,
-    setRowsPerPage: setShippingRowsPerPage,
-  } = usePagination({ data: filteredShippingData, perPage: 20 });
-  const totalShippingPages = Math.max(1, Math.ceil(shippingTotal / itemsPerPage));
-  const shippingStartIndex = shippingTotal === 0 ? 0 : (shippingPage - 1) * itemsPerPage + 1;
-  const shippingEndIndex = Math.min(shippingPage * itemsPerPage, shippingTotal);
+  const { paginatedData: paginatedShippingData } = usePagination({ data: filteredShippingData, perPage: shippingItemsPerPage });
+  const totalShippingPages = Math.max(1, Math.ceil(shippingTotal / shippingItemsPerPage));
+  const shippingStartIndex = shippingTotal === 0 ? 0 : (shippingPage - 1) * shippingItemsPerPage + 1;
+  const shippingEndIndex = Math.min(shippingPage * shippingItemsPerPage, shippingTotal);
+  const handleShippingItemsPerPage: React.Dispatch<React.SetStateAction<number>> = (n) => {
+    const val = typeof n === 'function' ? n(shippingItemsPerPage) : n;
+    shippingItemsPerPageRef.current = val;
+    setShippingItemsPerPage(val);
+    if (shippingPage === 1) fetchShippingData(1); else setShippingPage(1);
+  };
 
-  const {
-    paginatedData: paginatedPassbookData,
-    rowsPerPage: passbookRowsPerPage,
-    setRowsPerPage: setPassbookRowsPerPage,
-  } = usePagination({ data: filteredPassbookData, perPage: 20 });
-  const totalPassbookPages = Math.max(1, Math.ceil(passbookTotal / itemsPerPage));
-  const passbookStartIndex = passbookTotal === 0 ? 0 : (passbookPage - 1) * itemsPerPage + 1;
-  const passbookEndIndex = Math.min(passbookPage * itemsPerPage, passbookTotal);
+  const { paginatedData: paginatedPassbookData } = usePagination({ data: filteredPassbookData, perPage: passbookItemsPerPage });
+  const totalPassbookPages = Math.max(1, Math.ceil(passbookTotal / passbookItemsPerPage));
+  const passbookStartIndex = passbookTotal === 0 ? 0 : (passbookPage - 1) * passbookItemsPerPage + 1;
+  const passbookEndIndex = Math.min(passbookPage * passbookItemsPerPage, passbookTotal);
+  const handlePassbookItemsPerPage: React.Dispatch<React.SetStateAction<number>> = (n) => {
+    const val = typeof n === 'function' ? n(passbookItemsPerPage) : n;
+    passbookItemsPerPageRef.current = val;
+    setPassbookItemsPerPage(val);
+    if (passbookPage === 1) fetchPassbookData(1); else setPassbookPage(1);
+  };
 
-  const {
-    paginatedData: paginatedRechargeData,
-    rowsPerPage: rechargeRowsPerPage,
-    setRowsPerPage: setRechargeRowsPerPage,
-  } = usePagination({ data: filteredWalletRechargeData, perPage: 20 });
-  const totalRechargePages = Math.max(1, Math.ceil(rechargeTotal / itemsPerPage));
-  const rechargeStartIndex = rechargeTotal === 0 ? 0 : (rechargePage - 1) * itemsPerPage + 1;
-  const rechargeEndIndex = Math.min(rechargePage * itemsPerPage, rechargeTotal);
+  const { paginatedData: paginatedRechargeData } = usePagination({ data: filteredWalletRechargeData, perPage: rechargeItemsPerPage });
+  const totalRechargePages = Math.max(1, Math.ceil(rechargeTotal / rechargeItemsPerPage));
+  const rechargeStartIndex = rechargeTotal === 0 ? 0 : (rechargePage - 1) * rechargeItemsPerPage + 1;
+  const rechargeEndIndex = Math.min(rechargePage * rechargeItemsPerPage, rechargeTotal);
+  const handleRechargeItemsPerPage: React.Dispatch<React.SetStateAction<number>> = (n) => {
+    const val = typeof n === 'function' ? n(rechargeItemsPerPage) : n;
+    rechargeItemsPerPageRef.current = val;
+    setRechargeItemsPerPage(val);
+    if (rechargePage === 1) fetchRechargeData(1); else setRechargePage(1);
+  };
 
-  const {
-    paginatedData: paginatedInvoicesData,
-    rowsPerPage: invoiceRowsPerPage,
-    setRowsPerPage: setInvoiceRowsPerPage,
-  } = usePagination({ data: filteredInvoicesData, perPage: 20 });
-  const totalInvoicePages = Math.max(1, Math.ceil(invoiceTotal / itemsPerPage));
-  const invoiceStartIndex = invoiceTotal === 0 ? 0 : (invoicePage - 1) * itemsPerPage + 1;
-  const invoiceEndIndex = Math.min(invoicePage * itemsPerPage, invoiceTotal);
+  const { paginatedData: paginatedInvoicesData } = usePagination({ data: filteredInvoicesData, perPage: invoiceItemsPerPage });
+  const totalInvoicePages = Math.max(1, Math.ceil(invoiceTotal / invoiceItemsPerPage));
+  const invoiceStartIndex = invoiceTotal === 0 ? 0 : (invoicePage - 1) * invoiceItemsPerPage + 1;
+  const invoiceEndIndex = Math.min(invoicePage * invoiceItemsPerPage, invoiceTotal);
+  const handleInvoiceItemsPerPage: React.Dispatch<React.SetStateAction<number>> = (n) => {
+    const val = typeof n === 'function' ? n(invoiceItemsPerPage) : n;
+    invoiceItemsPerPageRef.current = val;
+    setInvoiceItemsPerPage(val);
+    if (invoicePage === 1) fetchInvoiceData(1); else setInvoicePage(1);
+  };
 
   // Bulk Actions & Helpers
   const handleRefresh = () => {
@@ -1814,17 +1834,33 @@ export function AdminWallet() {
                           </td>
                         )}
                         <td className="p-4">
-                          {renderCopyable(order.id, 'Order ID', "text-[12px] font-semibold font-sans text-[#00A86B] cursor-pointer hover:underline uppercase", () => navigate(`/admin/order-tracking?id=${order.id}`))}
+                          {renderCopyable(order.id, 'Order ID', "text-[12px] font-semibold font-sans text-[#00A86B] cursor-pointer hover:underline uppercase", () => navigate(`${isAdminView ? '/admin' : '/user'}/order-tracking?id=${order.id}`))}
                           <div className="table-date mt-0.5">{order.date}</div>
                           <span className="px-2 py-0.5 rounded-full border border-blue-200 text-[#004AAD] font-semibold text-[10px] leading-4 bg-blue-50/50 inline-block w-fit mt-0.5">{order.paymentMethod}</span>
                         </td>
                         <td className="p-4">
                           <div className="text-xs font-semibold text-[#00A86B]">{order.courier}</div>
                           <div className="table-date mt-0.5">Booked On : {order.bookedDate}</div>
-                          {renderCopyable(order.awb, 'AWB', "text-[12px] font-semibold font-sans text-[#00A86B] cursor-pointer hover:underline mt-0.5")}
+                          {renderCopyable(order.awb, 'AWB', "text-[12px] font-semibold font-sans text-[#00A86B] cursor-pointer hover:underline mt-0.5", () => navigate(`${isAdminView ? '/admin' : '/user'}/tracking?awb=${order.awb}`))}
                         </td>
                         <td className="p-4">
-                          <div className="text-[12px] font-normal font-sans text-[#0F172A]">₹{order.statusAmount}</div>
+                          <div className="flex items-center gap-1">
+                            <div className="text-[12px] font-normal font-sans text-[#0F172A]">₹{order.statusAmount}</div>
+                            {order.priceBreakup && (
+                              <div
+                                className="cursor-help shrink-0"
+                                onMouseEnter={(e) => {
+                                  if (pricePopupTimerRef.current) clearTimeout(pricePopupTimerRef.current);
+                                  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                                  const dir = rect.top < window.innerHeight * 0.4 ? 'bottom' : 'top';
+                                  setPricePopupPos({ x: rect.left + rect.width / 2, y: dir === 'top' ? rect.top - 10 : rect.bottom + 10, dir, order });
+                                }}
+                                onMouseLeave={() => { pricePopupTimerRef.current = setTimeout(() => setPricePopupPos(null), 150); }}
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3 text-[#00A86B]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01" strokeLinecap="round"/></svg>
+                              </div>
+                            )}
+                          </div>
                           <span className={getStatusBadgeClass(order.status)}>
                             {order.status}
                           </span>
@@ -1870,8 +1906,8 @@ export function AdminWallet() {
                     page={shippingPage}
                     setPage={setShippingPage}
                     totalPages={totalShippingPages}
-                    rowsPerPage={shippingRowsPerPage}
-                    setRowsPerPage={setShippingRowsPerPage}
+                    rowsPerPage={shippingItemsPerPage}
+                    setRowsPerPage={handleShippingItemsPerPage}
                     startIndex={shippingStartIndex}
                     endIndex={shippingEndIndex}
                     totalItems={shippingTotal}
@@ -1924,7 +1960,7 @@ export function AdminWallet() {
                                       <span
                                         className="text-[12px] font-semibold text-[#00A86B] font-sans truncate active:opacity-60"
                                         title={order.awb}
-                                        onClick={(e) => { e.stopPropagation(); showToast('success', order.awb); }}
+                                        onClick={(e) => { e.stopPropagation(); navigate(`${isAdminView ? '/admin' : '/user'}/tracking?awb=${order.awb}`); }}
                                       >
                                         {order.awb}
                                       </span>
@@ -1955,12 +1991,15 @@ export function AdminWallet() {
                             <div className="flex items-start justify-between bg-[#F8FAFC] rounded-xl px-3 py-2.5 mb-3">
                               <div className="min-w-0">
                                 <div className="text-[12px] font-normal text-[#94A3B8] uppercase tracking-wider font-sans">AWB Number</div>
-                                <div
-                                  className="text-[12px] font-medium text-[#00A86B] mt-0.5 font-sans truncate active:opacity-60"
-                                  title={order.awb}
-                                  onClick={() => showToast('success', order.awb)}
-                                >
-                                  {order.awb}
+                                <div className="flex items-center gap-1 group/copy mt-0.5 min-w-0">
+                                  <div
+                                    className="text-[12px] font-medium text-[#00A86B] font-sans truncate active:opacity-60 cursor-pointer"
+                                    title={order.awb}
+                                    onClick={() => navigate(`${isAdminView ? '/admin' : '/user'}/tracking?awb=${order.awb}`)}
+                                  >
+                                    {order.awb}
+                                  </div>
+                                  <button onClick={(e) => { e.stopPropagation(); copyToClipboard(order.awb, 'AWB'); }} className="opacity-100 md:opacity-0 md:group-hover/copy:opacity-100 transition-opacity shrink-0 focus:outline-none" title="Copy AWB"><Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" /></button>
                                 </div>
                               </div>
                               <div className="text-center">
@@ -1969,7 +2008,14 @@ export function AdminWallet() {
                               </div>
                               <div className="text-right">
                                 <div className="text-[12px] font-normal text-[#94A3B8] uppercase tracking-wider font-sans">Total Freight</div>
-                                <div className="text-[12px] font-medium text-[#0F172A] mt-0.5 font-sans">₹{order.statusAmount} <span className="inline-block w-3 h-3 rounded-full border border-[#CBD5E1] text-[8px] text-[#94A3B8] text-center leading-3">ⓘ</span></div>
+                                <div className="flex items-center gap-1 mt-0.5">
+                                  <div className="text-[12px] font-medium text-[#0F172A] font-sans">₹{order.statusAmount}</div>
+                                  {order.priceBreakup && (
+                                    <button onClick={(e) => { e.stopPropagation(); setMobilePricePopupOrder(order); }} className="text-[#00A86B] flex items-center justify-center cursor-pointer focus:outline-none">
+                                      <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01" strokeLinecap="round"/></svg>
+                                    </button>
+                                  )}
+                                </div>
                               </div>
                             </div>
 
@@ -1995,8 +2041,8 @@ export function AdminWallet() {
                   page: shippingPage,
                   setPage: setShippingPage,
                   totalPages: totalShippingPages,
-                  rowsPerPage: shippingRowsPerPage,
-                  setRowsPerPage: setShippingRowsPerPage,
+                  rowsPerPage: shippingItemsPerPage,
+                  setRowsPerPage: handleShippingItemsPerPage,
                   startIndex: shippingStartIndex,
                   endIndex: shippingEndIndex,
                   totalItems: shippingTotal,
@@ -2149,14 +2195,17 @@ export function AdminWallet() {
                           </td>
                         )}
                         <td className="p-4">
-                          {renderCopyable(order.id, 'Order ID', "text-[12px] font-semibold font-sans text-[#00A86B] cursor-pointer hover:underline uppercase")}
+                          {renderCopyable(order.id, 'Order ID', "text-[12px] font-semibold font-sans text-[#00A86B] cursor-pointer hover:underline uppercase", () => navigate(`${isAdminView ? '/admin' : '/user'}/order-tracking?id=${order.id}`))}
                           <div className="table-date mt-0.5">{order.date}</div>
                           <div className="table-date mt-0.5">{order.day}</div>
                         </td>
                         <td className="p-4">
                           <div className="text-[12px] font-semibold text-[#0F172A] font-sans">{order.courier || '—'}</div>
                           {order.awb && order.awb !== 'N/A' && (
-                            <div className="text-[11px] font-semibold text-[#00A86B] font-sans">{order.awb}</div>
+                            <div className="flex items-center gap-1 group/copy mt-0.5">
+                              <div className="text-[12px] font-semibold text-[#00A86B] cursor-pointer hover:text-[#009B63] font-sans underline" onClick={() => navigate(`${isAdminView ? '/admin' : '/user'}/tracking?awb=${order.awb}`)}>{order.awb}</div>
+                              <button onClick={(e) => { e.stopPropagation(); copyToClipboard(order.awb, 'AWB'); }} className="opacity-100 md:opacity-0 md:group-hover/copy:opacity-100 transition-opacity shrink-0 focus:outline-none" title="Copy AWB"><Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" /></button>
+                            </div>
                           )}
                           {order.bookedDate && (
                             <div className="text-[11px] text-[#94A3B8] font-sans">{order.bookedDate}</div>
@@ -2168,7 +2217,23 @@ export function AdminWallet() {
                           </span>
                         </td>
                         <td className="p-4">
-                          <div className={`text-[12px] font-normal font-sans ${order.category === 'Debit' ? 'text-red-500' : 'text-green-500'}`}>₹{order.amount.toFixed(2)}</div>
+                          <div className="flex items-center gap-1">
+                            <div className={`text-[12px] font-normal font-sans ${order.category === 'Debit' ? 'text-red-500' : 'text-green-500'}`}>₹{order.amount.toFixed(2)}</div>
+                            {order.category === 'Debit' && order.priceBreakup && (
+                              <div
+                                className="cursor-help shrink-0"
+                                onMouseEnter={(e) => {
+                                  if (pricePopupTimerRef.current) clearTimeout(pricePopupTimerRef.current);
+                                  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                                  const dir = rect.top < window.innerHeight * 0.4 ? 'bottom' : 'top';
+                                  setPricePopupPos({ x: rect.left + rect.width / 2, y: dir === 'top' ? rect.top - 10 : rect.bottom + 10, dir, order });
+                                }}
+                                onMouseLeave={() => { pricePopupTimerRef.current = setTimeout(() => setPricePopupPos(null), 150); }}
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3 text-[#00A86B]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01" strokeLinecap="round"/></svg>
+                              </div>
+                            )}
+                          </div>
                         </td>
                         <td className="p-4">
                           <div className="text-[#64748B] text-[12px] font-normal font-sans">₹{order.balance.toFixed(2)}</div>
@@ -2211,8 +2276,8 @@ export function AdminWallet() {
                     page={passbookPage}
                     setPage={setPassbookPage}
                     totalPages={totalPassbookPages}
-                    rowsPerPage={passbookRowsPerPage}
-                    setRowsPerPage={setPassbookRowsPerPage}
+                    rowsPerPage={passbookItemsPerPage}
+                    setRowsPerPage={handlePassbookItemsPerPage}
                     startIndex={passbookStartIndex}
                     endIndex={passbookEndIndex}
                     totalItems={passbookTotal}
@@ -2280,7 +2345,7 @@ export function AdminWallet() {
                                     <div className="text-[12px] font-normal text-[#0F172A] truncate font-sans">{order.courier} 2KG</div>
                                     {order.awb !== 'N/A' && (
                                       <div className="flex items-center gap-1.5 min-w-0 mt-0.5">
-                                        <span className="text-[12px] font-semibold text-[#00A86B] truncate font-sans">{order.awb}</span>
+                                        <span className="text-[12px] font-semibold text-[#00A86B] underline truncate font-sans cursor-pointer active:opacity-60" onClick={(e) => { e.stopPropagation(); navigate(`${isAdminView ? '/admin' : '/user'}/tracking?awb=${order.awb}`); }}>{order.awb}</span>
                                         <button
                                           onClick={(e) => {
                                             e.stopPropagation();
@@ -2295,8 +2360,15 @@ export function AdminWallet() {
                                     )}
                                   </div>
                                 </div>
-                                <div className={`text-[12px] font-normal shrink-0 font-sans ${isDebit ? 'text-red-500' : 'text-[#00A86B]'}`}>
-                                  {isDebit ? '-' : '+'} ₹{order.amount.toFixed(2)}
+                                <div className="flex items-center gap-1 shrink-0">
+                                  <div className={`text-[12px] font-normal font-sans ${isDebit ? 'text-red-500' : 'text-[#00A86B]'}`}>
+                                    {isDebit ? '-' : '+'} ₹{order.amount.toFixed(2)}
+                                  </div>
+                                  {isDebit && order.priceBreakup && (
+                                    <button onClick={(e) => { e.stopPropagation(); setMobilePricePopupOrder(order); }} className="text-[#00A86B] flex items-center justify-center cursor-pointer focus:outline-none">
+                                      <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01" strokeLinecap="round"/></svg>
+                                    </button>
+                                  )}
                                 </div>
                               </div>
                             </div>
@@ -2305,12 +2377,17 @@ export function AdminWallet() {
                             <div className="grid grid-cols-3 gap-2 items-start bg-[#F8FAFC] rounded-xl px-3 py-2.5 mb-3">
                               <div className="min-w-0">
                                 <div className="text-[12px] font-normal text-[#94A3B8] uppercase tracking-wider font-sans">AWB Number</div>
-                                <div
-                                  className="text-[12px] font-medium text-[#00A86B] mt-0.5 truncate active:opacity-60 font-sans"
-                                  title={order.awb !== 'N/A' ? order.awb : undefined}
-                                  onClick={() => { if (order.awb !== 'N/A') showToast('success', order.awb); }}
-                                >
-                                  {order.awb !== 'N/A' ? order.awb : '—'}
+                                <div className="flex items-center gap-1 group/copy mt-0.5 min-w-0">
+                                  <div
+                                    className="text-[12px] font-medium text-[#00A86B] truncate active:opacity-60 font-sans cursor-pointer"
+                                    title={order.awb !== 'N/A' ? order.awb : undefined}
+                                    onClick={() => { if (order.awb !== 'N/A') navigate(`${isAdminView ? '/admin' : '/user'}/tracking?awb=${order.awb}`); }}
+                                  >
+                                    {order.awb !== 'N/A' ? order.awb : '—'}
+                                  </div>
+                                  {order.awb !== 'N/A' && (
+                                    <button onClick={(e) => { e.stopPropagation(); copyToClipboard(order.awb, 'AWB'); }} className="opacity-100 md:opacity-0 md:group-hover/copy:opacity-100 transition-opacity shrink-0 focus:outline-none" title="Copy AWB"><Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" /></button>
+                                  )}
                                 </div>
                               </div>
                               <div className="min-w-0 text-center">
@@ -2352,8 +2429,8 @@ export function AdminWallet() {
                   page: passbookPage,
                   setPage: setPassbookPage,
                   totalPages: totalPassbookPages,
-                  rowsPerPage: passbookRowsPerPage,
-                  setRowsPerPage: setPassbookRowsPerPage,
+                  rowsPerPage: passbookItemsPerPage,
+                  setRowsPerPage: handlePassbookItemsPerPage,
                   startIndex: passbookStartIndex,
                   endIndex: passbookEndIndex,
                   totalItems: passbookTotal,
@@ -2476,8 +2553,8 @@ export function AdminWallet() {
                     page={rechargePage}
                     setPage={setRechargePage}
                     totalPages={totalRechargePages}
-                    rowsPerPage={rechargeRowsPerPage}
-                    setRowsPerPage={setRechargeRowsPerPage}
+                    rowsPerPage={rechargeItemsPerPage}
+                    setRowsPerPage={handleRechargeItemsPerPage}
                     startIndex={rechargeStartIndex}
                     endIndex={rechargeEndIndex}
                     totalItems={rechargeTotal}
@@ -2563,8 +2640,8 @@ export function AdminWallet() {
                   page: rechargePage,
                   setPage: setRechargePage,
                   totalPages: totalRechargePages,
-                  rowsPerPage: rechargeRowsPerPage,
-                  setRowsPerPage: setRechargeRowsPerPage,
+                  rowsPerPage: rechargeItemsPerPage,
+                  setRowsPerPage: handleRechargeItemsPerPage,
                   startIndex: rechargeStartIndex,
                   endIndex: rechargeEndIndex,
                   totalItems: rechargeTotal,
@@ -2721,8 +2798,8 @@ export function AdminWallet() {
                     page={invoicePage}
                     setPage={setInvoicePage}
                     totalPages={totalInvoicePages}
-                    rowsPerPage={invoiceRowsPerPage}
-                    setRowsPerPage={setInvoiceRowsPerPage}
+                    rowsPerPage={invoiceItemsPerPage}
+                    setRowsPerPage={handleInvoiceItemsPerPage}
                     startIndex={invoiceStartIndex}
                     endIndex={invoiceEndIndex}
                     totalItems={invoiceTotal}
@@ -2835,8 +2912,8 @@ export function AdminWallet() {
                   page: invoicePage,
                   setPage: setInvoicePage,
                   totalPages: totalInvoicePages,
-                  rowsPerPage: invoiceRowsPerPage,
-                  setRowsPerPage: setInvoiceRowsPerPage,
+                  rowsPerPage: invoiceItemsPerPage,
+                  setRowsPerPage: handleInvoiceItemsPerPage,
                   startIndex: invoiceStartIndex,
                   endIndex: invoiceEndIndex,
                   totalItems: invoiceTotal,
@@ -3838,6 +3915,58 @@ export function AdminWallet() {
               </div>
             </motion.div>
           </motion.div>
+        )}
+      </AnimatePresence>
+      {/* ── Price Breakup Desktop Popup (fixed, never clipped) ── */}
+      {pricePopupPos && (
+        <div
+          style={{
+            position: 'fixed', zIndex: 9999,
+            left: pricePopupPos.x,
+            ...(pricePopupPos.dir === 'top' ? { bottom: window.innerHeight - pricePopupPos.y } : { top: pricePopupPos.y }),
+            transform: 'translateX(-50%)',
+            pointerEvents: 'auto',
+          }}
+          className="bg-white border border-[#E2E8F0] shadow-2xl rounded-xl p-3 w-52 text-[11px] text-[#475569]"
+          onMouseEnter={() => { if (pricePopupTimerRef.current) clearTimeout(pricePopupTimerRef.current); }}
+          onMouseLeave={() => { pricePopupTimerRef.current = setTimeout(() => setPricePopupPos(null), 150); }}
+        >
+          <p className="font-bold text-[#0F172A] text-[12px] mb-2 pb-1.5 border-b border-[#F1F5F9]">Price Breakup</p>
+          <div className="space-y-1.5">
+            <div className="flex justify-between"><span className="text-[#64748B]">Freight</span><span className="font-semibold text-[#0F172A]">₹{Number(pricePopupPos.order.priceBreakup?.freight ?? 0).toFixed(2)}</span></div>
+            <div className="flex justify-between"><span className="text-[#64748B]">COD</span><span className="font-semibold text-[#0F172A]">₹{Number(pricePopupPos.order.priceBreakup?.cod ?? 0).toFixed(2)}</span></div>
+            <div className="flex justify-between"><span className="text-[#64748B]">GST</span><span className="font-semibold text-[#0F172A]">₹{Number(pricePopupPos.order.priceBreakup?.gst ?? 0).toFixed(2)}</span></div>
+            <div className="flex justify-between pt-1.5 border-t border-[#F1F5F9]"><span className="font-bold text-[#0F172A]">Total</span><span className="font-bold text-[#00A86B]">₹{Number(pricePopupPos.order.priceBreakup?.total ?? pricePopupPos.order.statusAmount ?? pricePopupPos.order.amount ?? 0).toFixed(2)}</span></div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Price Breakup Mobile Modal ── */}
+      <AnimatePresence>
+        {mobilePricePopupOrder && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setMobilePricePopupOrder(null)} />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.92 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.92 }}
+              transition={{ duration: 0.18 }}
+              className="relative z-10 bg-white rounded-2xl shadow-2xl p-5 w-full max-w-xs"
+            >
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="font-bold text-[#0F172A] text-[13px] uppercase tracking-wide">Price Breakup</h3>
+                <button onClick={() => setMobilePricePopupOrder(null)} className="w-6 h-6 rounded-full bg-[#F1F5F9] flex items-center justify-center text-[#64748B] hover:bg-[#E2E8F0]">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+              </div>
+              <div className="space-y-2.5 text-[12px]">
+                <div className="flex justify-between"><span className="text-[#64748B]">Freight</span><span className="font-semibold text-[#0F172A]">₹{Number(mobilePricePopupOrder.priceBreakup?.freight ?? 0).toFixed(2)}</span></div>
+                <div className="flex justify-between"><span className="text-[#64748B]">COD</span><span className="font-semibold text-[#0F172A]">₹{Number(mobilePricePopupOrder.priceBreakup?.cod ?? 0).toFixed(2)}</span></div>
+                <div className="flex justify-between"><span className="text-[#64748B]">GST</span><span className="font-semibold text-[#0F172A]">₹{Number(mobilePricePopupOrder.priceBreakup?.gst ?? 0).toFixed(2)}</span></div>
+                <div className="flex justify-between pt-2 border-t border-[#F1F5F9]"><span className="font-bold text-[#0F172A]">Total</span><span className="font-bold text-[#00A86B]">₹{Number(mobilePricePopupOrder.priceBreakup?.total ?? mobilePricePopupOrder.statusAmount ?? mobilePricePopupOrder.amount ?? 0).toFixed(2)}</span></div>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </AdminLayout>

@@ -27,11 +27,25 @@ export function isTokenExpired(token: string): boolean {
 
 export function getRoleFromToken(token: string): 'admin' | 'user' | null {
   const decoded = decodePayload(token);
-  if (!decoded?.user) return null;
-  return decoded.user.isAdmin ? 'admin' : 'user';
+  if (decoded?.user) return decoded.user.isAdmin ? 'admin' : 'user';
+  if (decoded?.employee) {
+    // Employee: use parentType to determine which side they belong to
+    return decoded.employee.parentType === 'user' ? 'user' : 'admin';
+  }
+  return null;
 }
 
 export function getUserFromToken(token: string): any {
   const decoded = decodePayload(token);
   return decoded?.user ?? null;
+}
+
+export function isEmployeeToken(token: string): boolean {
+  const decoded = decodePayload(token);
+  return !!(decoded?.employee?.isEmployee);
+}
+
+export function getEmployeeFromToken(token: string): any {
+  const decoded = decodePayload(token);
+  return decoded?.employee ?? null;
 }
