@@ -1086,8 +1086,8 @@ export function AdminWallet() {
       <div className={`flex flex-col ${isImpersonating ? 'h-[calc(100vh-104px)] md:h-[calc(100vh-104px)]' : 'h-[calc(100vh-72px)] md:h-[calc(100vh-72px)]'} -m-4 md:-m-6 bg-white ${!isAdminView ? 'overflow-hidden' : ''}`}>
         <div className="bg-white relative z-50 shrink-0">
           {/* Mobile Search Bar */}
-          <div className="md:hidden px-4 py-3 border-b border-[#E2E8F0]">
-            <div className="relative">
+          <div className="md:hidden px-3 py-2.5 border-b border-[#E2E8F0] flex items-center gap-2">
+            <div className="relative flex-1">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
               <input
                 type="text"
@@ -1110,15 +1110,154 @@ export function AdminWallet() {
                   else if (activeTab === 'Wallet Recharge') setRechargeSearchTerm(val);
                   else setInvoiceSearchTerm(val);
                 }}
-                className="w-full h-10 pl-10 pr-4 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] text-sm text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all"
+                className="w-full h-9 pl-9 pr-3 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] text-sm text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all"
               />
+            </div>
+            {/* Filter icon */}
+            <button
+              onClick={() => setIsMobileFiltersOpen(true)}
+              className="w-9 h-9 rounded-xl border border-[#E2E8F0] flex items-center justify-center text-[#475569] bg-white shrink-0"
+            >
+              <Filter className="w-4 h-4" />
+            </button>
+            {/* Action icon + per-tab dropdowns */}
+            <div className="relative action-dropdown-container shrink-0">
+              <button
+                onClick={() => {
+                  if (activeTab === 'Shipping') setShowShippingActionMenu(v => !v);
+                  else if (activeTab === 'Passbook') setShowPassbookActionMenu(v => !v);
+                  else if (activeTab === 'Wallet Recharge') setShowRechargeActionMenu(v => !v);
+                  else setShowInvoiceActionMenu(v => !v);
+                }}
+                className="w-9 h-9 rounded-xl border border-[#E2E8F0] flex items-center justify-center text-[#475569] bg-white relative"
+              >
+                <MoreVertical className="w-4 h-4" />
+                {(() => {
+                  const count = activeTab === 'Shipping' ? selectedOrders.length :
+                    activeTab === 'Passbook' ? selectedPassbookOrders.length :
+                    activeTab === 'Wallet Recharge' ? selectedRechargeOrders.length :
+                    selectedInvoiceOrders.length;
+                  return count > 0 ? (
+                    <span className="absolute -top-1 -right-1 min-w-[16px] h-4 rounded-full bg-[#00A86B] text-white text-[9px] font-bold flex items-center justify-center px-0.5">
+                      {count}
+                    </span>
+                  ) : null;
+                })()}
+              </button>
+              {activeTab === 'Shipping' && showShippingActionMenu && (
+                <div className="absolute right-0 top-full mt-2 w-[200px] bg-white rounded-xl shadow-[0_8px_28px_-6px_rgba(0,0,0,0.15)] border border-[#E2E8F0] py-1.5 z-50">
+                  <button
+                    disabled={selectedOrders.length === 0}
+                    onClick={() => { handleBulkShip(); setShowShippingActionMenu(false); }}
+                    className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                  >
+                    Bulk Ship
+                  </button>
+                  <button
+                    disabled={selectedOrders.length === 0}
+                    onClick={() => { handleUpdatePackageDetails(); setShowShippingActionMenu(false); }}
+                    className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                  >
+                    Update Package Details
+                  </button>
+                  <button
+                    disabled={selectedOrders.length === 0}
+                    onClick={() => { handleUpdatePickupAddress(); setShowShippingActionMenu(false); }}
+                    className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                  >
+                    Update Pickup Address
+                  </button>
+                  <button
+                    disabled={selectedOrders.length === 0}
+                    onClick={() => { handleVerifyOrders(); setShowShippingActionMenu(false); }}
+                    className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                  >
+                    Verify Orders
+                  </button>
+                  <button
+                    onClick={() => { handleExportData('shipping', filteredShippingData); setShowShippingActionMenu(false); }}
+                    className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors"
+                  >
+                    Export Excel
+                  </button>
+                  <button
+                    disabled={selectedOrders.length === 0}
+                    onClick={() => { handleDownloadInvoices(); setShowShippingActionMenu(false); }}
+                    className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                  >
+                    Download Invoices
+                  </button>
+                  <div className="h-px bg-[#E2E8F0] my-1" />
+                  <button
+                    disabled={selectedOrders.length === 0}
+                    onClick={() => { handleBulkDelete(); setShowShippingActionMenu(false); }}
+                    className="w-full text-left px-4 py-2.5 text-[13px] font-semibold text-red-600 hover:bg-red-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                  >
+                    Bulk Delete
+                  </button>
+                </div>
+              )}
+              {activeTab === 'Passbook' && showPassbookActionMenu && (
+                <div className="absolute right-0 top-full mt-2 w-[200px] bg-white rounded-xl shadow-[0_8px_28px_-6px_rgba(0,0,0,0.15)] border border-[#E2E8F0] py-1.5 z-50">
+                  <button
+                    onClick={() => { handleExportData('passbook', filteredPassbookData); setShowPassbookActionMenu(false); }}
+                    className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors"
+                  >
+                    Export Passbook (CSV)
+                  </button>
+                  <button
+                    onClick={() => {
+                      showToast('success', 'Passbook ledger report generated!');
+                      setShowPassbookActionMenu(false);
+                    }}
+                    className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors"
+                  >
+                    Download Detailed Ledger
+                  </button>
+                </div>
+              )}
+              {activeTab === 'Wallet Recharge' && showRechargeActionMenu && (
+                <div className="absolute right-0 top-full mt-2 w-[200px] bg-white rounded-xl shadow-[0_8px_28px_-6px_rgba(0,0,0,0.15)] border border-[#E2E8F0] py-1.5 z-50">
+                  <button
+                    onClick={() => { handleExportData('recharge', filteredWalletRechargeData); setShowRechargeActionMenu(false); }}
+                    className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors"
+                  >
+                    Export Recharge History
+                  </button>
+                  <button
+                    onClick={() => {
+                      showToast('success', 'Wallet Statement generated successfully!');
+                      setShowRechargeActionMenu(false);
+                    }}
+                    className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors"
+                  >
+                    Generate Statement
+                  </button>
+                </div>
+              )}
+              {activeTab === 'Invoices' && showInvoiceActionMenu && (
+                <div className="absolute right-0 top-full mt-2 w-[200px] bg-white rounded-xl shadow-[0_8px_28px_-6px_rgba(0,0,0,0.15)] border border-[#E2E8F0] py-1.5 z-50">
+                  <button
+                    onClick={() => { handleExportData('invoice', filteredInvoicesData); setShowInvoiceActionMenu(false); }}
+                    className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors"
+                  >
+                    Export Invoice List
+                  </button>
+                  <button
+                    onClick={() => { handleBulkDownloadPDF(); setShowInvoiceActionMenu(false); }}
+                    className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors"
+                  >
+                    Download Selected PDF
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
           {/* Top Header Row — Tabs */}
           <div className="flex justify-between items-center px-4 md:px-6 py-2 border-b border-[#E2E8F0] bg-white">
             <div className="flex gap-1 items-center min-w-0 bg-[#F7FEFC] rounded-full p-1.5">
-              <div className="flex gap-1 items-center overflow-x-auto no-scrollbar min-w-0">
+              <div className="flex gap-1 items-center overflow-x-auto no-scrollbar flex-1 min-w-0">
                 {MAIN_TABS.map((tab) => (
                   <button
                     key={tab.name}
@@ -1131,6 +1270,7 @@ export function AdminWallet() {
                   </button>
                 ))}
               </div>
+              <ChevronRight className="md:hidden w-4 h-4 text-[#94A3B8] shrink-0" />
             </div>
 
             <div className="hidden md:flex items-center gap-3 shrink-0 ml-4">
@@ -1256,93 +1396,6 @@ export function AdminWallet() {
                 </div>
               </div>
 
-              {/* Mobile Filters + Action Row */}
-              <div className="md:hidden px-4 py-3 border-b border-[#E2E8F0] flex items-center justify-between bg-white">
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setIsMobileFiltersOpen(true)}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#00A86B] text-white text-[12px] font-bold shadow-sm"
-                  >
-                    <Filter className="w-3.5 h-3.5" /> Filters
-                  </button>
-                  {selectedOrders.length > 0 && (
-                    <span className="text-[11px] font-bold text-[#00A86B] bg-[#F0FDF4] border border-[#00A86B]/20 px-2.5 py-1 rounded-full">
-                      {selectedOrders.length} selected
-                    </span>
-                  )}
-                </div>
-                <div className="relative action-dropdown-container">
-                  <button
-                    onClick={() => selectedOrders.length > 0 && setShowShippingActionMenu(!showShippingActionMenu)}
-                    disabled={selectedOrders.length === 0}
-                    className={`flex items-center gap-1.5 px-4 py-2 rounded-lg border text-[12px] font-semibold bg-white transition-colors ${selectedOrders.length === 0 ? 'border-[#E2E8F0] text-[#CBD5E1] cursor-not-allowed' : 'border-[#E2E8F0] text-[#475569] active:bg-[#F8FAFC]'}`}
-                  >
-                    Action
-                    <ChevronDown className={`w-3.5 h-3.5 text-[#94A3B8] transition-transform duration-200 ${showShippingActionMenu ? 'rotate-180' : ''}`} />
-                  </button>
-                  <AnimatePresence>
-                    {showShippingActionMenu && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -6, scale: 0.97 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: -6, scale: 0.97 }}
-                        transition={{ duration: 0.16, ease: 'easeOut' }}
-                        className="absolute right-0 top-full mt-2 w-[200px] bg-white rounded-xl shadow-[0_8px_28px_-6px_rgba(0,0,0,0.15)] border border-[#E2E8F0] py-1.5 z-50 origin-top-right"
-                      >
-                        <button
-                          disabled={selectedOrders.length === 0}
-                          onClick={() => { handleBulkShip(); setShowShippingActionMenu(false); }}
-                          className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-                        >
-                          Bulk Ship
-                        </button>
-                        <button
-                          disabled={selectedOrders.length === 0}
-                          onClick={() => { handleUpdatePackageDetails(); setShowShippingActionMenu(false); }}
-                          className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-                        >
-                          Update Package Details
-                        </button>
-                        <button
-                          disabled={selectedOrders.length === 0}
-                          onClick={() => { handleUpdatePickupAddress(); setShowShippingActionMenu(false); }}
-                          className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-                        >
-                          Update Pickup Address
-                        </button>
-                        <button
-                          disabled={selectedOrders.length === 0}
-                          onClick={() => { handleVerifyOrders(); setShowShippingActionMenu(false); }}
-                          className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-                        >
-                          Verify Orders
-                        </button>
-                        <button
-                          onClick={() => { handleExportData('shipping', filteredShippingData); setShowShippingActionMenu(false); }}
-                          className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors"
-                        >
-                          Export Excel
-                        </button>
-                        <button
-                          disabled={selectedOrders.length === 0}
-                          onClick={() => { handleDownloadInvoices(); setShowShippingActionMenu(false); }}
-                          className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-                        >
-                          Download Invoices
-                        </button>
-                        <div className="h-px bg-[#E2E8F0] my-1" />
-                        <button
-                          disabled={selectedOrders.length === 0}
-                          onClick={() => { handleBulkDelete(); setShowShippingActionMenu(false); }}
-                          className="w-full text-left px-4 py-2.5 text-[13px] font-semibold text-red-600 hover:bg-red-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-                        >
-                          Bulk Delete
-                        </button>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              </div>
             </>
           )}
 
@@ -1554,59 +1607,6 @@ export function AdminWallet() {
                 </div>
               </div>
 
-              {/* Mobile Filters + Action Row */}
-              <div className="md:hidden px-4 py-3 border-b border-[#E2E8F0] flex items-center justify-between bg-white">
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setIsMobileFiltersOpen(true)}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#00A86B] text-white text-[12px] font-bold shadow-sm"
-                  >
-                    <Filter className="w-3.5 h-3.5" /> Filters
-                  </button>
-                  {selectedRechargeOrders.length > 0 && (
-                    <span className="text-[11px] font-bold text-[#00A86B] bg-[#F0FDF4] border border-[#00A86B]/20 px-2.5 py-1 rounded-full">
-                      {selectedRechargeOrders.length} selected
-                    </span>
-                  )}
-                </div>
-                <div className="relative action-dropdown-container">
-                  <button
-                    onClick={() => selectedRechargeOrders.length > 0 && setShowRechargeActionMenu(!showRechargeActionMenu)}
-                    disabled={selectedRechargeOrders.length === 0}
-                    className={`flex items-center gap-1.5 px-4 py-2 rounded-lg border text-[12px] font-semibold bg-white transition-colors ${selectedRechargeOrders.length === 0 ? 'border-[#E2E8F0] text-[#CBD5E1] cursor-not-allowed' : 'border-[#E2E8F0] text-[#475569] active:bg-[#F8FAFC]'}`}
-                  >
-                    Action
-                    <ChevronDown className={`w-3.5 h-3.5 text-[#94A3B8] transition-transform duration-200 ${showRechargeActionMenu ? 'rotate-180' : ''}`} />
-                  </button>
-                  <AnimatePresence>
-                    {showRechargeActionMenu && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -6, scale: 0.97 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: -6, scale: 0.97 }}
-                        transition={{ duration: 0.16, ease: 'easeOut' }}
-                        className="absolute right-0 top-full mt-2 w-[200px] bg-white rounded-xl shadow-[0_8px_28px_-6px_rgba(0,0,0,0.15)] border border-[#E2E8F0] py-1.5 z-50 origin-top-right"
-                      >
-                        <button
-                          onClick={() => { handleExportData('recharge', filteredWalletRechargeData); setShowRechargeActionMenu(false); }}
-                          className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors"
-                        >
-                          Export Recharge History
-                        </button>
-                        <button
-                          onClick={() => {
-                            showToast('success', 'Wallet Statement generated successfully!');
-                            setShowRechargeActionMenu(false);
-                          }}
-                          className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors"
-                        >
-                          Generate Statement
-                        </button>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              </div>
             </>
           )}
 
@@ -1700,56 +1700,6 @@ export function AdminWallet() {
                 </div>
               </div>
 
-              {/* Mobile Filters + Action Row */}
-              <div className="md:hidden px-4 py-3 border-b border-[#E2E8F0] flex items-center justify-between bg-white">
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setIsMobileFiltersOpen(true)}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#00A86B] text-white text-[12px] font-bold shadow-sm"
-                  >
-                    <Filter className="w-3.5 h-3.5" /> Filters
-                  </button>
-                  {selectedInvoiceOrders.length > 0 && (
-                    <span className="text-[11px] font-bold text-[#00A86B] bg-[#F0FDF4] border border-[#00A86B]/20 px-2.5 py-1 rounded-full">
-                      {selectedInvoiceOrders.length} selected
-                    </span>
-                  )}
-                </div>
-                <div className="relative action-dropdown-container">
-                  <button
-                    onClick={() => selectedInvoiceOrders.length > 0 && setShowInvoiceActionMenu(!showInvoiceActionMenu)}
-                    disabled={selectedInvoiceOrders.length === 0}
-                    className={`flex items-center gap-1.5 px-4 py-2 rounded-lg border text-[12px] font-semibold bg-white transition-colors ${selectedInvoiceOrders.length === 0 ? 'border-[#E2E8F0] text-[#CBD5E1] cursor-not-allowed' : 'border-[#E2E8F0] text-[#475569] active:bg-[#F8FAFC]'}`}
-                  >
-                    Action
-                    <ChevronDown className={`w-3.5 h-3.5 text-[#94A3B8] transition-transform duration-200 ${showInvoiceActionMenu ? 'rotate-180' : ''}`} />
-                  </button>
-                  <AnimatePresence>
-                    {showInvoiceActionMenu && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -6, scale: 0.97 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: -6, scale: 0.97 }}
-                        transition={{ duration: 0.16, ease: 'easeOut' }}
-                        className="absolute right-0 top-full mt-2 w-[200px] bg-white rounded-xl shadow-[0_8px_28px_-6px_rgba(0,0,0,0.15)] border border-[#E2E8F0] py-1.5 z-50 origin-top-right"
-                      >
-                        <button
-                          onClick={() => { handleExportData('invoice', filteredInvoicesData); setShowInvoiceActionMenu(false); }}
-                          className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors"
-                        >
-                          Export Invoice List
-                        </button>
-                        <button
-                          onClick={() => { handleBulkDownloadPDF(); setShowInvoiceActionMenu(false); }}
-                          className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors"
-                        >
-                          Download Selected PDF
-                        </button>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              </div>
             </>
           )}
         </div>
@@ -1916,11 +1866,12 @@ export function AdminWallet() {
               </div>
 
               {/* Mobile Card Layout */}
-              <div className="md:hidden flex-1 overflow-y-auto">
+              <div className="md:hidden flex-1 flex flex-col min-h-0">
+                <div className="flex-1 overflow-y-auto">
                 {paginatedShippingData.length === 0 ? (
                   <EmptyState title="No shipping records found" />
                 ) : (
-                  <div className="p-4 space-y-4 bg-[#F8FAFC]">
+                  <div className="p-3 space-y-3 bg-[#F8FAFC]">
                     {paginatedShippingData.map((order) => {
                       const isPaid = order.status === 'Paid';
                       const accent = isPaid ? '#00A86B' : '#F59E0B';
@@ -1934,21 +1885,21 @@ export function AdminWallet() {
                             {isPaid ? 'Paid' : 'Ready To Ship'}
                           </div>
 
-                          <div className="pt-8 px-4 pb-4">
+                          <div className="pt-7 px-3 pb-3">
                             {/* User Details Row */}
-                            <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center justify-between mb-2">
                               <div className="flex items-center gap-2">
                                 <input type="checkbox" checked={selectedOrders.includes(order.awb)} onChange={() => toggleSelect(order.awb)} className="rounded border-gray-300 accent-[#00A86B] w-4 h-4" />
                                 <span className="text-[#64748B] font-medium text-[12px] font-sans">User Details</span>
                               </div>
                               <span className="text-[12px] font-sans inline-flex items-baseline gap-1 max-w-[180px]">
-                                {renderTruncatedName(order.userName, 16, "font-semibold text-[#0F172A] text-[12px]")}
-                                <span className="text-[#64748B] font-semibold shrink-0">({order.id})</span>
+                                <span className="font-semibold text-[#0F172A] text-[12px] truncate">{(order.userName || '—').split(' ')[0]}</span>
+                                <span className="text-[#64748B] font-semibold shrink-0">({order.userId || '—'})</span>
                               </span>
                             </div>
 
                             {/* Courier & Order Card */}
-                            <div className="rounded-xl p-3 mb-3 bg-white" style={{ border: `1px solid ${accent}` }}>
+                            <div className="rounded-xl p-2.5 mb-2 bg-white" style={{ border: `1px solid ${accent}` }}>
                               <div className="flex items-start justify-between">
                                 <div className="flex items-center gap-2.5 min-w-0 flex-1">
                                   <div className="w-10 h-10 bg-white border border-[#E2E8F0] rounded-xl flex items-center justify-center shrink-0 overflow-hidden p-1 shadow-sm">
@@ -1982,33 +1933,20 @@ export function AdminWallet() {
                             </div>
 
                             {/* Weight & Dimensions */}
-                            <div className="flex items-center justify-between mb-3 px-1">
+                            <div className="flex items-center justify-between mb-2 px-1">
                               <span className="text-[11px] font-medium text-[#64748B] font-sans">Ent. Wt & Dim:</span>
                               <span className="text-[12px] font-medium text-[#0F172A] font-sans">1.2 Kg | 20×15×20 cm</span>
                             </div>
 
-                            {/* AWB / Weight / Freight Row */}
-                            <div className="flex items-start justify-between bg-[#F8FAFC] rounded-xl px-3 py-2.5 mb-3">
-                              <div className="min-w-0">
-                                <div className="text-[12px] font-normal text-[#94A3B8] uppercase tracking-wider font-sans">AWB Number</div>
-                                <div className="flex items-center gap-1 group/copy mt-0.5 min-w-0">
-                                  <div
-                                    className="text-[12px] font-medium text-[#00A86B] font-sans truncate active:opacity-60 cursor-pointer"
-                                    title={order.awb}
-                                    onClick={() => navigate(`${isAdminView ? '/admin' : '/user'}/tracking?awb=${order.awb}`)}
-                                  >
-                                    {order.awb}
-                                  </div>
-                                  <button onClick={(e) => { e.stopPropagation(); copyToClipboard(order.awb, 'AWB'); }} className="opacity-100 md:opacity-0 md:group-hover/copy:opacity-100 transition-opacity shrink-0 focus:outline-none" title="Copy AWB"><Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" /></button>
-                                </div>
-                              </div>
+                            {/* Weight / Freight Row */}
+                            <div className="flex items-center justify-between bg-[#F8FAFC] rounded-xl px-3 py-2 mb-2">
                               <div className="text-center">
-                                <div className="text-[12px] font-normal text-[#94A3B8] uppercase tracking-wider font-sans">AWB Assigned Wt.</div>
+                                <div className="text-[12px] font-normal text-[#94A3B8] uppercase tracking-wider font-sans">AWB Wt.</div>
                                 <div className="text-[12px] font-medium text-[#0F172A] mt-0.5 font-sans">1.200 Kg</div>
                               </div>
                               <div className="text-right">
                                 <div className="text-[12px] font-normal text-[#94A3B8] uppercase tracking-wider font-sans">Total Freight</div>
-                                <div className="flex items-center gap-1 mt-0.5">
+                                <div className="flex items-center gap-1 mt-0.5 justify-end">
                                   <div className="text-[12px] font-medium text-[#0F172A] font-sans">₹{order.statusAmount}</div>
                                   {order.priceBreakup && (
                                     <button onClick={(e) => { e.stopPropagation(); setMobilePricePopupOrder(order); }} className="text-[#00A86B] flex items-center justify-center cursor-pointer focus:outline-none">
@@ -2036,6 +1974,7 @@ export function AdminWallet() {
                   </div>
                 )}
 
+                </div>
                 {/* Mobile Pagination */}
                 {useMobilePaginationBar({
                   page: shippingPage,
@@ -2053,60 +1992,6 @@ export function AdminWallet() {
 
           {activeTab === 'Passbook' && (
             <>
-              {/* Mobile Filters Row */}
-              <div className="md:hidden px-4 py-3 border-b border-[#E2E8F0] flex items-center justify-between bg-white">
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setIsMobileFiltersOpen(true)}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#00A86B] text-white text-[12px] font-bold shadow-sm"
-                  >
-                    <Filter className="w-3.5 h-3.5" /> Filters
-                  </button>
-                  {selectedPassbookOrders.length > 0 && (
-                    <span className="text-[11px] font-bold text-[#00A86B] bg-[#F0FDF4] border border-[#00A86B]/20 px-2.5 py-1 rounded-full">
-                      {selectedPassbookOrders.length} selected
-                    </span>
-                  )}
-                </div>
-                <div className="relative action-dropdown-container">
-                  <button
-                    onClick={() => selectedPassbookOrders.length > 0 && setShowPassbookActionMenu(!showPassbookActionMenu)}
-                    disabled={selectedPassbookOrders.length === 0}
-                    className={`flex items-center gap-1.5 px-4 py-2 rounded-lg border text-[12px] font-semibold bg-white transition-colors ${selectedPassbookOrders.length === 0 ? 'border-[#E2E8F0] text-[#CBD5E1] cursor-not-allowed' : 'border-[#E2E8F0] text-[#475569] active:bg-[#F8FAFC]'}`}
-                  >
-                    Action
-                    <ChevronDown className={`w-3.5 h-3.5 text-[#94A3B8] transition-transform duration-200 ${showPassbookActionMenu ? 'rotate-180' : ''}`} />
-                  </button>
-                  <AnimatePresence>
-                    {showPassbookActionMenu && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -6, scale: 0.97 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: -6, scale: 0.97 }}
-                        transition={{ duration: 0.16, ease: 'easeOut' }}
-                        className="absolute right-0 top-full mt-2 w-[200px] bg-white rounded-xl shadow-[0_8px_28px_-6px_rgba(0,0,0,0.15)] border border-[#E2E8F0] py-1.5 z-50 origin-top-right"
-                      >
-                        <button
-                          onClick={() => { handleExportData('passbook', filteredPassbookData); setShowPassbookActionMenu(false); }}
-                          className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors"
-                        >
-                          Export Passbook (CSV)
-                        </button>
-                        <button
-                          onClick={() => {
-                            showToast('success', 'Passbook ledger report generated!');
-                            setShowPassbookActionMenu(false);
-                          }}
-                          className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors"
-                        >
-                          Download Detailed Ledger
-                        </button>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              </div>
-
               {selectedPassbookOrders.length > 0 && (
                 <div className="hidden md:flex px-4 py-2 bg-blue-50 border-b border-blue-100 items-center gap-3 animate-fade-in">
                   <span className="text-xs font-bold text-blue-700">{selectedPassbookOrders.length} selected</span>
@@ -2286,7 +2171,8 @@ export function AdminWallet() {
               </div>
 
               {/* Mobile Passbook Card Layout */}
-              <div className="md:hidden flex-1 overflow-y-auto">
+              <div className="md:hidden flex-1 flex flex-col min-h-0">
+                <div className="flex-1 overflow-y-auto">
                 {passbookAwb && (
                   <div className="px-4 py-2.5 bg-blue-50 border-b border-blue-100 flex items-center justify-between">
                     <span className="text-xs font-semibold text-blue-700">Filtered by AWB: <span className="font-bold">{passbookAwb}</span></span>
@@ -2302,7 +2188,7 @@ export function AdminWallet() {
                 {paginatedPassbookData.length === 0 ? (
                   <EmptyState title="No passbook records found" />
                 ) : (
-                  <div className="p-4 space-y-4 bg-[#F8FAFC]">
+                  <div className="p-3 space-y-3 bg-[#F8FAFC]">
                     {paginatedPassbookData.map((order) => {
                       const isDebit = order.category === 'Debit';
                       const accent = isDebit ? '#EF4444' : '#00A86B';
@@ -2316,9 +2202,9 @@ export function AdminWallet() {
                             {order.category}
                           </div>
 
-                          <div className="pt-8 px-4 pb-4">
+                          <div className="pt-7 px-3 pb-3">
                             {/* User Info */}
-                            <div className="flex justify-between items-center text-[12px] mb-3">
+                            <div className="flex justify-between items-center text-[12px] mb-2">
                               <div className="flex items-center gap-2">
                                 <input
                                   type="checkbox"
@@ -2329,13 +2215,13 @@ export function AdminWallet() {
                                 <span className="text-[#64748B] font-medium text-[12px] font-sans">User Details</span>
                               </div>
                               <span className="text-[12px] font-sans inline-flex items-baseline gap-1 max-w-[180px]">
-                                {renderTruncatedName(order.userName, 16, "font-semibold text-[#0F172A] text-[12px]")}
-                                <span className="text-[#94A3B8] font-semibold shrink-0">({order.id})</span>
+                                <span className="font-semibold text-[#0F172A] text-[12px] truncate">{(order.userName || '—').split(' ')[0]}</span>
+                                <span className="text-[#94A3B8] font-semibold shrink-0">({order.userId || '—'})</span>
                               </span>
                             </div>
 
                             {/* Courier Card */}
-                            <div className="rounded-xl p-3 mb-3 bg-white" style={{ border: `1px solid ${accent}` }}>
+                            <div className="rounded-xl p-2.5 mb-2 bg-white" style={{ border: `1px solid ${accent}` }}>
                               <div className="flex items-start justify-between">
                                 <div className="flex items-center gap-2.5 min-w-0">
                                   <div className="w-9 h-9 bg-white border border-[#E2E8F0] rounded-xl flex items-center justify-center shrink-0 overflow-hidden p-1 shadow-sm">
@@ -2373,34 +2259,18 @@ export function AdminWallet() {
                               </div>
                             </div>
 
-                            {/* AWB / Date & Time / Balance Row */}
-                            <div className="grid grid-cols-3 gap-2 items-start bg-[#F8FAFC] rounded-xl px-3 py-2.5 mb-3">
-                              <div className="min-w-0">
-                                <div className="text-[12px] font-normal text-[#94A3B8] uppercase tracking-wider font-sans">AWB Number</div>
-                                <div className="flex items-center gap-1 group/copy mt-0.5 min-w-0">
-                                  <div
-                                    className="text-[12px] font-medium text-[#00A86B] truncate active:opacity-60 font-sans cursor-pointer"
-                                    title={order.awb !== 'N/A' ? order.awb : undefined}
-                                    onClick={() => { if (order.awb !== 'N/A') navigate(`${isAdminView ? '/admin' : '/user'}/tracking?awb=${order.awb}`); }}
-                                  >
-                                    {order.awb !== 'N/A' ? order.awb : '—'}
-                                  </div>
-                                  {order.awb !== 'N/A' && (
-                                    <button onClick={(e) => { e.stopPropagation(); copyToClipboard(order.awb, 'AWB'); }} className="opacity-100 md:opacity-0 md:group-hover/copy:opacity-100 transition-opacity shrink-0 focus:outline-none" title="Copy AWB"><Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" /></button>
-                                  )}
-                                </div>
-                              </div>
-                              <div className="min-w-0 text-center">
+                            {/* Date & Time / Balance Row */}
+                            <div className="flex items-center justify-between bg-[#F8FAFC] rounded-xl px-3 py-2 mb-2">
+                              <div className="min-w-0 text-center flex-1">
                                 <div className="text-[12px] font-normal text-[#94A3B8] uppercase tracking-wider font-sans">Date & Time</div>
                                 <div className="text-[12px] font-medium text-[#0F172A] mt-0.5 truncate font-sans">{order.date}</div>
                                 <div className="text-[12px] font-medium text-[#64748B] truncate font-sans">{order.day}</div>
                               </div>
-                              <div className="text-right min-w-0">
+                              <div className="text-right flex-1">
                                 <div className="text-[12px] font-normal text-[#94A3B8] uppercase tracking-wider font-sans">Avail. Balance</div>
                                 <div className="text-[12px] font-medium text-[#0F172A] mt-0.5 truncate font-sans">₹{order.balance.toFixed(2)}</div>
                               </div>
                             </div>
-
                             {/* Description + Action */}
                             <div className="flex items-center justify-between gap-2">
                               <span className="text-[12px] font-sans truncate">
@@ -2424,6 +2294,7 @@ export function AdminWallet() {
                   </div>
                 )}
 
+                </div>
                 {/* Mobile Passbook Pagination */}
                 {useMobilePaginationBar({
                   page: passbookPage,
@@ -2563,11 +2434,12 @@ export function AdminWallet() {
               </div>
 
               {/* Mobile Card Layout */}
-              <div className="md:hidden flex-1 overflow-y-auto">
+              <div className="md:hidden flex-1 flex flex-col min-h-0">
+                <div className="flex-1 overflow-y-auto">
                 {paginatedRechargeData.length === 0 ? (
                   <EmptyState title="No recharge transactions found" />
                 ) : (
-                  <div className="p-4 space-y-4 bg-[#F8FAFC]">
+                  <div className="p-3 space-y-3 bg-[#F8FAFC]">
                     {paginatedRechargeData.map((recharge) => {
                       const isSuccess = recharge.status === 'Success';
                       const accent = isSuccess ? '#00A86B' : recharge.status === 'Failed' ? '#EF4444' : '#F59E0B';
@@ -2581,7 +2453,7 @@ export function AdminWallet() {
                             {recharge.status}
                           </div>
 
-                          <div className="pt-8 px-4 pb-4">
+                          <div className="pt-7 px-3 pb-3">
                             {/* User Info */}
                             <div className="flex justify-between items-center text-[12px] mb-2.5">
                               <div className="flex items-center gap-2">
@@ -2606,15 +2478,25 @@ export function AdminWallet() {
                             </div>
 
                             {/* Payment ID */}
-                            <div className="text-[12px] mb-1.5 truncate font-sans">
-                              <span className="text-[#64748B] font-medium">Payment ID: </span>
-                              <span className="text-[#0F172A] font-normal">{recharge.paymentId}</span>
+                            <div className="text-[12px] mb-1.5 font-sans flex items-center gap-1 group/copyPayment">
+                              <span className="text-[#64748B] font-medium shrink-0">Payment ID: </span>
+                              <span className="text-[#0F172A] font-normal truncate">{recharge.paymentId || '—'}</span>
+                              {recharge.paymentId && (
+                                <button onClick={(e) => { e.stopPropagation(); copyToClipboard(recharge.paymentId, 'Payment ID'); }} className="opacity-100 md:opacity-0 md:group-hover/copyPayment:opacity-100 transition-opacity shrink-0 focus:outline-none" title="Copy Payment ID">
+                                  <Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" />
+                                </button>
+                              )}
                             </div>
 
                             {/* Order ID */}
-                            <div className="text-[12px] mb-3 truncate font-sans">
-                              <span className="text-[#64748B] font-medium">Order ID: </span>
-                              <span className="text-[#0F172A] font-normal">{recharge.orderId}</span>
+                            <div className="text-[12px] mb-2 font-sans flex items-center gap-1 group/copyOrder">
+                              <span className="text-[#64748B] font-medium shrink-0">Order ID: </span>
+                              <span className="text-[#0F172A] font-normal truncate">{recharge.orderId || '—'}</span>
+                              {recharge.orderId && (
+                                <button onClick={(e) => { e.stopPropagation(); copyToClipboard(recharge.orderId, 'Order ID'); }} className="opacity-100 md:opacity-0 md:group-hover/copyOrder:opacity-100 transition-opacity shrink-0 focus:outline-none" title="Copy Order ID">
+                                  <Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" />
+                                </button>
+                              )}
                             </div>
 
                             {/* Transaction ID / Amount Box */}
@@ -2635,6 +2517,7 @@ export function AdminWallet() {
                   </div>
                 )}
 
+                </div>
                 {/* Mobile Recharge Pagination */}
                 {useMobilePaginationBar({
                   page: rechargePage,
@@ -2808,11 +2691,12 @@ export function AdminWallet() {
               </div>
 
               {/* Mobile Card Layout */}
-              <div className="md:hidden flex-1 overflow-y-auto">
+              <div className="md:hidden flex-1 flex flex-col min-h-0">
+                <div className="flex-1 overflow-y-auto">
                 {paginatedInvoicesData.length === 0 ? (
                   <EmptyState title="No invoice records found" />
                 ) : (
-                  <div className="p-4 space-y-4 bg-[#F8FAFC]">
+                  <div className="p-3 space-y-3 bg-[#F8FAFC]">
                     {paginatedInvoicesData.map((invoice) => {
                       const accent = invoice.status === 'PAID' ? '#00A86B' : '#EF4444';
                       return (
@@ -2825,56 +2709,51 @@ export function AdminWallet() {
                             {invoice.status === 'PAID' ? 'Paid' : 'Unpaid'}
                           </div>
 
-                          <div className="pt-8 px-4 pb-4">
-                            {/* User Info + Actions */}
-                            <div className="flex items-center justify-between mb-3 gap-2">
-                              <div className="flex items-center gap-2 min-w-0">
+                          <div className="pt-7 px-3 pb-3">
+                            {/* User Info */}
+                            <div className="flex justify-between items-center text-[12px] mb-2">
+                              <div className="flex items-center gap-2">
                                 <input
                                   type="checkbox"
                                   checked={selectedInvoiceOrders.includes(invoice.invoiceNumber)}
                                   onChange={() => toggleSelectInvoice(invoice.invoiceNumber)}
-                                  className="rounded border-gray-300 accent-[#00A86B] w-4 h-4 shrink-0"
+                                  className="rounded border-gray-300 accent-[#00A86B] w-4 h-4"
                                 />
-                                {isAdminView && (
-                                  <div className="w-8 h-8 rounded-full bg-[#E6F5F1] text-[#00A86B] font-bold text-xs flex items-center justify-center shrink-0">
-                                    {(invoice.userName || '?').charAt(0)}
-                                  </div>
-                                )}
-                                {isAdminView && (
-                                  <div className="min-w-0">
-                                    <div className="text-[12px] font-semibold text-[#00A86B] font-sans uppercase">{invoice.userId || '—'}</div>
-                                    <TruncatedText text={invoice.userName || '—'} maxLength={16} className="text-[12px] font-normal text-[#0F172A] font-sans" />
-                                    <TruncatedText text={invoice.userEmail || '—'} maxLength={18} className="text-[12px] font-normal text-[#94A3B8] font-sans" />
-                                  </div>
-                                )}
+                                <span className="text-[#64748B] font-medium text-[12px] font-sans">User Details</span>
                               </div>
-                              <div className="flex items-center gap-1.5 shrink-0">
-                                <button
-                                  onClick={() => handleDownloadInvoice(invoice)}
-                                  title="Download PDF"
-                                  className="w-7 h-7 rounded-full bg-[#E0F2FE] flex items-center justify-center text-[#0EA5E9] hover:bg-[#BAE6FD] transition-colors"
-                                >
-                                  <Download className="w-3.5 h-3.5" />
-                                </button>
-                                <button
-                                  onClick={() => handleDownloadExcel(invoice)}
-                                  title="Download Excel"
-                                  className="w-7 h-7 rounded-full bg-[#F0FDF4] flex items-center justify-center text-[#00A86B] hover:bg-[#DCFCE7] transition-colors"
-                                >
-                                  <FileText className="w-3.5 h-3.5" />
-                                </button>
-                                <button
-                                  onClick={() => setActiveInvoicePreview(invoice)}
-                                  title="Preview Invoice"
-                                  className="w-7 h-7 rounded-full bg-[#E0F2FE] flex items-center justify-center text-[#0EA5E9] hover:bg-[#BAE6FD] transition-colors"
-                                >
-                                  <Eye className="w-3.5 h-3.5" />
-                                </button>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[12px] font-sans inline-flex items-baseline gap-1 max-w-[130px]">
+                                  <span className="font-semibold text-[#0F172A] text-[12px] truncate">{(invoice.userName || '—').split(' ')[0]}</span>
+                                  <span className="text-[#94A3B8] font-semibold shrink-0">({invoice.userId || '—'})</span>
+                                </span>
+                                <div className="flex items-center gap-1 shrink-0">
+                                  <button
+                                    onClick={() => handleDownloadInvoice(invoice)}
+                                    title="Download PDF"
+                                    className="w-7 h-7 rounded-full bg-[#E0F2FE] flex items-center justify-center text-[#0EA5E9] hover:bg-[#BAE6FD] transition-colors"
+                                  >
+                                    <Download className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDownloadExcel(invoice)}
+                                    title="Download Excel"
+                                    className="w-7 h-7 rounded-full bg-[#F0FDF4] flex items-center justify-center text-[#00A86B] hover:bg-[#DCFCE7] transition-colors"
+                                  >
+                                    <FileText className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    onClick={() => setActiveInvoicePreview(invoice)}
+                                    title="Preview Invoice"
+                                    className="w-7 h-7 rounded-full bg-[#E0F2FE] flex items-center justify-center text-[#0EA5E9] hover:bg-[#BAE6FD] transition-colors"
+                                  >
+                                    <Eye className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
                               </div>
                             </div>
 
                             {/* Created At / Period */}
-                            <div className="flex items-center justify-between text-[12px] mb-3 font-sans">
+                            <div className="flex items-center justify-between text-[12px] mb-2 font-sans">
                               <span>
                                 <span className="text-[#64748B] font-semibold">Created At: </span>
                                 <span className="text-[#0F172A] font-normal">{invoice.createdOn}</span>
@@ -2886,10 +2765,10 @@ export function AdminWallet() {
                             </div>
 
                             {/* Invoice No / Shipments / Amount Box */}
-                            <div className="grid grid-cols-3 gap-2 items-start bg-[#F8FAFC] rounded-xl px-3 py-2.5">
+                            <div className="grid grid-cols-3 gap-2 items-start bg-[#F8FAFC] rounded-xl px-3 py-2">
                               <div className="min-w-0">
                                 <div className="text-[12px] font-normal text-[#94A3B8] uppercase tracking-wider font-sans">Invoice No</div>
-                                <TruncatedText text={invoice.invoiceNumber || '—'} maxLength={14} className="text-[12px] font-semibold text-[#00A86B] mt-0.5 font-sans" />
+                                {renderCopyable(invoice.invoiceNumber || '—', 'Invoice No', 'text-[12px] font-semibold text-[#00A86B] mt-0.5 font-sans')}
                               </div>
                               <div className="text-center min-w-0">
                                 <div className="text-[12px] font-normal text-[#94A3B8] uppercase tracking-wider font-sans">Shipments</div>
@@ -2907,6 +2786,7 @@ export function AdminWallet() {
                   </div>
                 )}
 
+                </div>
                 {/* Mobile Invoices Pagination */}
                 {useMobilePaginationBar({
                   page: invoicePage,

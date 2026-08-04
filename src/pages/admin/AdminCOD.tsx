@@ -7,8 +7,8 @@ import { getCourierLogo } from '../../utils/courierLogo';
 import { useAdminTab } from '../../context/AdminUserContext';
 import { useUserSearchFilter } from '../../hooks/filters/useUserSearchFilter';
 import {
-  ChevronDown, RefreshCcw, Check, User, Truck, Banknote, Clock, Upload, Download,
-  Wallet, Send, MinusCircle, FileText, AlertCircle, CheckCircle2, X, Package, Search, Filter, Copy
+  ChevronDown, ChevronRight, RefreshCcw, Check, User, Truck, Banknote, Clock, Upload, Download,
+  Wallet, Send, MinusCircle, MoreVertical, FileText, AlertCircle, CheckCircle2, X, Package, Search, Filter, Copy
 } from 'lucide-react';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
@@ -63,6 +63,7 @@ const mapCodOrder = (item: any) => ({
 const mapSellerRemittance = (item: any) => ({
   id: String(item._id || ''),
   awb: String(item.remittanceId || ''),   // awb field holds remittanceId for selection
+  userId: item.user?.userId || item.userId || '',
   userName: item.user?.name || '',
   userEmail: item.user?.email || '',
   date: (() => {
@@ -764,36 +765,123 @@ export function AdminCOD() {
     <AdminLayout>
       <div className={`flex flex-col ${isImpersonating ? 'h-[calc(100vh-104px)]' : 'h-[calc(100vh-72px)]'} -m-4 md:-m-6 bg-white ${!isAdminView ? 'overflow-hidden' : ''}`}>
 
-        {/* Mobile Search Bar */}
-        <div className="md:hidden px-4 py-3 border-b border-[#E2E8F0] bg-white">
-          <div className="relative">
+        {/* Mobile Search Bar — search + filter + action consolidated */}
+        <div className="md:hidden px-3 py-2.5 border-b border-[#E2E8F0] flex items-center gap-2">
+          <div className="relative flex-1">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
             <input
               type="text"
-              placeholder="AWB/Order ID tracking"
-              value={activeTab === 'All COD Orders' ? codAwb : ''}
-              onChange={(e) => { if (activeTab === 'All COD Orders') setCodAwb(e.target.value); }}
-              className="w-full h-10 pl-10 pr-4 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] text-sm text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all"
+              placeholder={
+                activeTab === 'All COD Orders' ? 'Search by AWB...' :
+                (activeTab === 'Seller COD Remittance' || activeTab === 'COD Remittance') ? 'Search by remittance ID...' :
+                'Search by AWB, Order ID...'
+              }
+              value={
+                activeTab === 'All COD Orders' ? codAwb :
+                (activeTab === 'Seller COD Remittance' || activeTab === 'COD Remittance') ? sellerRemittanceId :
+                courierAwb
+              }
+              onChange={(e) => {
+                const val = e.target.value;
+                if (activeTab === 'All COD Orders') setCodAwb(val);
+                else if (activeTab === 'Seller COD Remittance' || activeTab === 'COD Remittance') setSellerRemittanceId(val);
+                else setCourierAwb(val);
+              }}
+              className="w-full h-9 pl-9 pr-3 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] text-sm text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all"
             />
+          </div>
+          {/* Filter icon */}
+          <button
+            onClick={() => {
+              if (activeTab === 'All COD Orders') setIsMobileFiltersOpen(true);
+              else if (activeTab === 'Seller COD Remittance' || activeTab === 'COD Remittance') setIsMobileSellerFiltersOpen(true);
+              else setIsMobileCourierFiltersOpen(true);
+            }}
+            className="w-9 h-9 rounded-xl border border-[#E2E8F0] flex items-center justify-center text-[#475569] bg-white shrink-0"
+          >
+            <Filter className="w-4 h-4" />
+          </button>
+          {/* Action icon + per-tab dropdowns */}
+          <div className="relative action-dropdown-container shrink-0">
+            <button
+              onClick={() => {
+                if (activeTab === 'All COD Orders') setShowAllCodActionMenu(v => !v);
+                else if (activeTab === 'Seller COD Remittance' || activeTab === 'COD Remittance') setShowMobileSellerActionMenu(v => !v);
+                else setShowMobileCourierActionMenu(v => !v);
+              }}
+              className="w-9 h-9 rounded-xl border border-[#E2E8F0] flex items-center justify-center text-[#475569] bg-white relative"
+            >
+              <MoreVertical className="w-4 h-4" />
+              {(() => {
+                const count = activeTab === 'All COD Orders' ? selectedOrders.length :
+                  (activeTab === 'Seller COD Remittance' || activeTab === 'COD Remittance') ? selectedCodOrders.length :
+                  selectedCourierCodOrders.length;
+                return count > 0 ? (
+                  <span className="absolute -top-1 -right-1 min-w-[16px] h-4 rounded-full bg-[#00A86B] text-white text-[9px] font-bold flex items-center justify-center px-0.5">
+                    {count}
+                  </span>
+                ) : null;
+              })()}
+            </button>
+            {/* All COD Orders action menu */}
+            {activeTab === 'All COD Orders' && showAllCodActionMenu && (
+              <div className="absolute right-0 top-full mt-2 w-[200px] bg-white rounded-xl shadow-[0_8px_28px_-6px_rgba(0,0,0,0.15)] border border-[#E2E8F0] py-1.5 z-[200]">
+                <button onClick={() => { handleExportBankTemplate(); setShowAllCodActionMenu(false); }} disabled={bankExportLoading} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] flex items-center gap-2 disabled:opacity-60">
+                  <Banknote className="w-4 h-4 text-[#00A86B]" />{bankExportLoading ? 'Generating…' : 'Early COD'}
+                </button>
+                <button onClick={() => { handleOpenBankResponseUpload(); setShowAllCodActionMenu(false); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] flex items-center gap-2">
+                  <Upload className="w-4 h-4 text-orange-500" />Upload Bank Response
+                </button>
+                <div className="h-px bg-[#E2E8F0] my-1" />
+                <button
+                  onClick={() => { if (selectedOrders.length === 0) { showToast('error', 'Select rows to export.'); return; } const rows = codOrdersList.filter(o => selectedOrders.includes(o.id)); handleExportCsv(rows, 'cod_orders.csv'); setShowAllCodActionMenu(false); }}
+                  disabled={selectedOrders.length === 0}
+                  className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <Download className="w-4 h-4 text-[#00A86B]" />Export Data
+                </button>
+              </div>
+            )}
+            {/* Seller action menu */}
+            {(activeTab === 'Seller COD Remittance' || activeTab === 'COD Remittance') && showMobileSellerActionMenu && (
+              <div className="absolute right-0 top-full mt-2 w-[200px] bg-white rounded-xl shadow-[0_8px_28px_-6px_rgba(0,0,0,0.15)] border border-[#E2E8F0] py-1.5 z-[200]">
+                <button onClick={() => { const rows = sellerRemittanceList.filter(r => selectedCodOrders.includes(r.awb)); handleExportCsv(rows, 'seller_remittances.csv'); setShowMobileSellerActionMenu(false); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] flex items-center gap-2"><Download className="w-4 h-4 text-[#00A86B]" />Export Data</button>
+                {isAdminView && <button onClick={() => { handleExportBankTemplate(); setShowMobileSellerActionMenu(false); }} disabled={bankExportLoading} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] flex items-center gap-2 disabled:opacity-60"><FileText className="w-4 h-4 text-blue-500" />{bankExportLoading ? 'Generating…' : 'Export Bank Template'}</button>}
+                {isAdminView && <button onClick={() => { handleOpenBankResponseUpload(); setShowMobileSellerActionMenu(false); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] flex items-center gap-2"><Upload className="w-4 h-4 text-orange-500" />Upload Bank Response</button>}
+                <div className="border-t border-[#E2E8F0] my-1" />
+                {isAdminView && <button onClick={() => { setShowMobileSellerActionMenu(false); handleTransferCOD('seller'); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#00A86B] hover:bg-[#F0FDF4] flex items-center gap-2"><Send className="w-4 h-4" />Transfer COD</button>}
+              </div>
+            )}
+            {/* Courier action menu */}
+            {activeTab === 'Courier COD Remittance' && showMobileCourierActionMenu && (
+              <div className="absolute right-0 top-full mt-2 w-[190px] bg-white rounded-xl shadow-[0_8px_28px_-6px_rgba(0,0,0,0.15)] border border-[#E2E8F0] py-1.5 z-[200]">
+                <button onClick={() => { const rows = courierRemittanceList.filter(r => selectedCourierCodOrders.includes(r.id)); handleExportCsv(rows, 'courier_cod.csv'); setShowMobileCourierActionMenu(false); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] flex items-center gap-2"><Download className="w-4 h-4 text-[#00A86B]" />Export Data</button>
+                <div className="border-t border-[#E2E8F0] my-1" />
+                <button onClick={() => { setShowMobileCourierActionMenu(false); handleTransferCOD('courier'); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#00A86B] hover:bg-[#F0FDF4] flex items-center gap-2"><Send className="w-4 h-4" />Transfer COD</button>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Tab Navigation */}
         <div className="bg-white relative z-50 shrink-0">
-          <div className="flex justify-between items-center px-4 md:px-6 py-2 border-b border-[#E2E8F0] overflow-x-auto no-scrollbar">
-            <div className="flex gap-1 items-center bg-[#F7FEFC] rounded-full p-1.5 shrink-0">
-              {(isAdminView ? MAIN_TABS : MAIN_TABS.filter(t => t.name === 'All COD Orders')).map(tab => (
-                <button
-                  key={tab.name}
-                  onClick={() => handleTabChange(tab.name)}
-                  ref={(el) => { if (el && activeTab === tab.name) el.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }}
-                  className={`relative px-4 py-2 text-[14px] md:text-[13px] font-semibold md:font-bold transition-colors whitespace-nowrap rounded-full flex items-center gap-1.5 cursor-pointer ${
-                    activeTab === tab.name ? 'text-[#00A86B] underline underline-offset-4 decoration-2' : 'text-[#64748B] hover:text-[#0F172A]'
-                  }`}
-                >
-                  {tab.name}
-                </button>
-              ))}
+          <div className="flex justify-between items-center px-4 md:px-6 py-2 border-b border-[#E2E8F0]">
+            <div className="flex gap-1 items-center bg-[#F7FEFC] rounded-full p-1.5 min-w-0">
+              <div className="flex gap-1 items-center overflow-x-auto no-scrollbar flex-1 min-w-0">
+                {(isAdminView ? MAIN_TABS : MAIN_TABS.filter(t => t.name === 'All COD Orders')).map(tab => (
+                  <button
+                    key={tab.name}
+                    onClick={() => handleTabChange(tab.name)}
+                    ref={(el) => { if (el && activeTab === tab.name) el.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }}
+                    className={`relative px-4 py-2 text-[14px] md:text-[13px] font-semibold md:font-bold transition-colors whitespace-nowrap rounded-full flex items-center gap-1.5 cursor-pointer ${
+                      activeTab === tab.name ? 'text-[#00A86B] underline underline-offset-4 decoration-2' : 'text-[#64748B] hover:text-[#0F172A]'
+                    }`}
+                  >
+                    {tab.name}
+                  </button>
+                ))}
+              </div>
+              <ChevronRight className="md:hidden w-4 h-4 text-[#94A3B8] shrink-0" />
             </div>
             <div className="hidden md:flex items-center gap-3 shrink-0 ml-4">
               <button onClick={handleRefresh} className="w-8 h-8 rounded-full border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC]">
@@ -801,124 +889,6 @@ export function AdminCOD() {
               </button>
             </div>
           </div>
-
-          {/* Mobile Filters + Action Row — All COD Orders only */}
-          {activeTab === 'All COD Orders' && (
-            <div className="md:hidden px-4 py-3 border-b border-[#E2E8F0] flex items-center justify-between bg-white gap-2">
-              <button
-                onClick={() => setIsMobileFiltersOpen(true)}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#00A86B] text-white text-[12px] font-bold shadow-sm"
-              >
-                <Filter className="w-3.5 h-3.5" /> Filters
-              </button>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={handleExportBankTemplate}
-                  disabled={bankExportLoading}
-                  className="h-9 px-2.5 rounded-full bg-[#00A86B] text-white text-[11px] font-bold shadow-sm flex items-center gap-1 whitespace-nowrap active:bg-[#009B63] transition-colors disabled:opacity-60 shrink-0"
-                >
-                  <Banknote className="w-3 h-3 shrink-0" /> Early COD
-                </button>
-                <button
-                  onClick={handleOpenBankResponseUpload}
-                  className="w-9 h-9 rounded-full border border-[#E2E8F0] flex items-center justify-center text-[#64748B] bg-white active:bg-[#F8FAFC] transition-colors shrink-0"
-                  title="Upload Bank Response"
-                >
-                  <Upload className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => { if (selectedOrders.length === 0) { showToast('error', 'Select rows to export.'); return; } const rows = codOrdersList.filter(o => selectedOrders.includes(o.id)); handleExportCsv(rows, 'cod_orders.csv'); }}
-                  className={`w-9 h-9 rounded-full border flex items-center justify-center shrink-0 transition-colors ${selectedOrders.length > 0 ? 'border-[#00A86B] text-[#00A86B] bg-white active:bg-[#00A86B]/5' : 'border-[#E2E8F0] text-[#CBD5E1] bg-white'}`}
-                  title="Export"
-                >
-                  <Download className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Mobile Filters + Action Row — Seller COD Remittance */}
-          {(activeTab === 'Seller COD Remittance' || activeTab === 'COD Remittance') && (
-            <div className="md:hidden px-4 py-3 border-b border-[#E2E8F0] flex items-center justify-between bg-white gap-2">
-              <button
-                onClick={() => setIsMobileSellerFiltersOpen(true)}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#00A86B] text-white text-[12px] font-bold shadow-sm shrink-0"
-              >
-                <Filter className="w-3.5 h-3.5" /> Filters
-              </button>
-              <div className="flex items-center gap-2">
-                <div className="relative shrink-0 action-dropdown-container">
-                  <button
-                    onClick={() => selectedCodOrders.length > 0 && setShowMobileSellerActionMenu(v => !v)}
-                    disabled={selectedCodOrders.length === 0}
-                    className={`h-9 px-4 rounded-lg border text-[12px] font-semibold flex items-center gap-1 transition-colors ${selectedCodOrders.length > 0 ? 'border-[#E2E8F0] text-[#475569] bg-white active:bg-[#F8FAFC]' : 'border-[#E2E8F0] text-[#CBD5E1] bg-[#F8FAFC]'}`}
-                  >
-                    Action <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showMobileSellerActionMenu ? 'rotate-180' : ''}`} />
-                  </button>
-                  <AnimatePresence>
-                    {showMobileSellerActionMenu && selectedCodOrders.length > 0 && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -6, scale: 0.97 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: -6, scale: 0.97 }}
-                        transition={{ duration: 0.16, ease: 'easeOut' }}
-                        className="absolute right-0 top-full mt-2 w-[200px] bg-white rounded-xl shadow-[0_8px_28px_-6px_rgba(0,0,0,0.15)] border border-[#E2E8F0] py-1.5 z-50 origin-top-right"
-                      >
-                        <button onClick={() => { const rows = sellerRemittanceList.filter(r => selectedCodOrders.includes(r.awb)); handleExportCsv(rows, 'seller_remittances.csv'); setShowMobileSellerActionMenu(false); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] flex items-center gap-2"><Download className="w-4 h-4 text-[#00A86B]" />Export Data</button>
-                        {isAdminView && <button onClick={() => { handleExportBankTemplate(); setShowMobileSellerActionMenu(false); }} disabled={bankExportLoading} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] flex items-center gap-2"><FileText className="w-4 h-4 text-blue-500" />{bankExportLoading ? 'Generating…' : 'Export Bank Template'}</button>}
-                        {isAdminView && <button onClick={() => { handleOpenBankResponseUpload(); setShowMobileSellerActionMenu(false); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] flex items-center gap-2"><Upload className="w-4 h-4 text-orange-500" />Upload Bank Response</button>}
-                        <div className="border-t border-[#E2E8F0] my-1" />
-                        {isAdminView && <button onClick={() => { setShowMobileSellerActionMenu(false); handleTransferCOD('seller'); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#00A86B] hover:bg-[#F0FDF4] flex items-center gap-2"><Send className="w-4 h-4" />Transfer COD</button>}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-                <button
-                  onClick={handleExportBankTemplate}
-                  disabled={bankExportLoading}
-                  className="h-9 px-2.5 rounded-full bg-[#00A86B] text-white text-[11px] font-bold shadow-sm flex items-center gap-1 whitespace-nowrap active:bg-[#009B63] transition-colors disabled:opacity-60 shrink-0"
-                >
-                  <Banknote className="w-3 h-3 shrink-0" /> Early COD
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Mobile Filters + Action Row — Courier COD Remittance */}
-          {activeTab === 'Courier COD Remittance' && (
-            <div className="md:hidden px-4 py-3 border-b border-[#E2E8F0] flex items-center justify-between bg-white gap-2">
-              <button
-                onClick={() => setIsMobileCourierFiltersOpen(true)}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#00A86B] text-white text-[12px] font-bold shadow-sm shrink-0"
-              >
-                <Filter className="w-3.5 h-3.5" /> Filters
-              </button>
-              <div className="relative shrink-0 action-dropdown-container">
-                <button
-                  onClick={() => selectedCourierCodOrders.length > 0 && setShowMobileCourierActionMenu(v => !v)}
-                  disabled={selectedCourierCodOrders.length === 0}
-                  className={`h-9 px-4 rounded-lg border text-[12px] font-semibold flex items-center gap-1 transition-colors ${selectedCourierCodOrders.length > 0 ? 'border-[#E2E8F0] text-[#475569] bg-white active:bg-[#F8FAFC]' : 'border-[#E2E8F0] text-[#CBD5E1] bg-[#F8FAFC]'}`}
-                >
-                  Action <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showMobileCourierActionMenu ? 'rotate-180' : ''}`} />
-                </button>
-                <AnimatePresence>
-                  {showMobileCourierActionMenu && selectedCourierCodOrders.length > 0 && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -6, scale: 0.97 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: -6, scale: 0.97 }}
-                      transition={{ duration: 0.16, ease: 'easeOut' }}
-                      className="absolute right-0 top-full mt-2 w-[190px] bg-white rounded-xl shadow-[0_8px_28px_-6px_rgba(0,0,0,0.15)] border border-[#E2E8F0] py-1.5 z-50 origin-top-right"
-                    >
-                      <button onClick={() => { const rows = courierRemittanceList.filter(r => selectedCourierCodOrders.includes(r.id)); handleExportCsv(rows, 'courier_cod.csv'); setShowMobileCourierActionMenu(false); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] flex items-center gap-2"><Download className="w-4 h-4 text-[#00A86B]" />Export Data</button>
-                      <div className="border-t border-[#E2E8F0] my-1" />
-                      <button onClick={() => { setShowMobileCourierActionMenu(false); handleTransferCOD('courier'); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#00A86B] hover:bg-[#F0FDF4] flex items-center gap-2"><Send className="w-4 h-4" />Transfer COD</button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            </div>
-          )}
 
           {(activeTab === 'Seller COD Remittance' || activeTab === 'COD Remittance') && (
             <>
@@ -1244,7 +1214,7 @@ export function AdminCOD() {
                 {paginatedOrders.length === 0 ? (
                   <EmptyState title="No COD orders found" />
                 ) : (
-                  <div className="p-4 space-y-4">
+                  <div className="p-3 space-y-3">
                     {paginatedOrders.map((order) => {
                       const accent = order.status === 'Paid' ? '#00A86B' : '#F59E0B';
                       return (
@@ -1257,7 +1227,7 @@ export function AdminCOD() {
                             {order.status}
                           </div>
 
-                          <div className="pt-8 px-4 pb-4">
+                          <div className="pt-7 px-3 pb-3">
                             {/* User Details Row */}
                             <div className="flex items-center justify-between mb-2 gap-2">
                               <div className="flex items-center gap-2 min-w-0">
@@ -1265,15 +1235,19 @@ export function AdminCOD() {
                                 <span className="text-[#64748B] font-medium text-[12px]">User Details</span>
                               </div>
                               <span className="text-[12px] inline-flex items-baseline gap-1 max-w-[190px] justify-end text-right">
-                                <TruncatedText text={order.userName} maxLength={16} className="font-semibold text-[#0F172A] text-[12px]" />
-                                <span className="text-[#00A86B] font-semibold shrink-0">({order.userId})</span>
+                                <span className="font-semibold text-[#0F172A] text-[12px] truncate">{(order.userName || '—').split(' ')[0]}</span>
+                                <span className="text-[#00A86B] font-semibold shrink-0">({order.userId || '—'})</span>
                               </span>
                             </div>
 
-                            {/* Created At */}
-                            <div className="text-[11px] font-normal text-[#64748B] mb-3">
-                              Created At: {formatCreatedAt(order.rawDate)}
-                            </div>
+                            {/* Order ID */}
+                            {order.orderID && (
+                              <div className="flex items-center gap-1 group/copy mb-2">
+                                <span className="text-[12px] font-medium text-[#64748B] shrink-0">Order ID: </span>
+                                <div className="text-[12px] font-semibold text-[#00A86B] cursor-pointer hover:underline truncate flex-1 min-w-0" onClick={() => navigate(`${isAdminView ? '/admin' : '/user'}/order-tracking?id=${order.orderID}`)}>{order.orderID}</div>
+                                <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(order.orderID).catch(()=>{}); showToast('success', 'Order ID copied!'); }} className="opacity-100 md:opacity-0 md:group-hover/copy:opacity-100 transition-opacity shrink-0 focus:outline-none" title="Copy Order ID"><Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" /></button>
+                              </div>
+                            )}
 
                             {/* Courier / AWB / Amount Card */}
                             <div className="rounded-xl p-3 bg-white" style={{ border: `1px solid ${accent}` }}>
@@ -1295,6 +1269,7 @@ export function AdminCOD() {
                                   </div>
                                   <div className="min-w-0 flex-1">
                                     <div className="text-[12px] font-normal text-[#0F172A] truncate">{order.courier || '—'}</div>
+                                    <div className="text-[11px] font-normal text-[#94A3B8] truncate mt-0.5">Delivered On: {withOrdinalSuffix(order.date)}</div>
                                     {order.awb ? (
                                       <div className="flex items-center gap-1 group/copy mt-0.5">
                                         <div className="text-[12px] font-semibold text-[#00A86B] underline truncate active:opacity-60 cursor-pointer" onClick={(e) => { e.stopPropagation(); navigate(`${isAdminView ? '/admin' : '/user'}/tracking?awb=${order.awb}`); }}>{order.awb}</div>
@@ -1509,29 +1484,32 @@ export function AdminCOD() {
                           </div>
 
                           <div className="pt-7 px-3 pb-3">
-                            {/* Header row: checkbox + COD Remittance / seller name+email + Amount */}
-                            <div className="rounded-xl p-2.5 mb-2.5 bg-white flex items-start justify-between gap-2" style={{ border: `1px solid ${accent}` }}>
-                              <div className="flex items-start gap-2.5 min-w-0 flex-1">
-                                <input type="checkbox" checked={selectedCodOrders.includes(order.awb)} onChange={() => toggleSelectCod(order.awb)} className="rounded border-gray-300 accent-[#00A86B] w-4 h-4 shrink-0 mt-0.5" />
-                                <div className="w-8 h-8 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg flex items-center justify-center shrink-0">
-                                  <Banknote className="w-4 h-4 text-[#94A3B8]" />
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                  <button onClick={() => openRemittanceDetail(order.awb)} className="text-[12px] font-semibold text-[#00A86B] hover:underline cursor-pointer text-left block truncate w-full">
-                                    {order.awb || 'COD Remittance'}
-                                  </button>
-                                  {isAdminView && order.userName && (
-                                    <>
-                                      <TruncatedText text={order.userName} maxLength={20} className="text-[12px] font-semibold text-[#0F172A] mt-0.5" />
-                                      <TruncatedText text={order.userEmail} maxLength={26} className="text-[11px] font-normal text-[#94A3B8]" />
-                                    </>
-                                  )}
-                                </div>
+                            {/* User Details Row */}
+                            <div className="flex justify-between items-center text-[12px] mb-2">
+                              <div className="flex items-center gap-2">
+                                <input type="checkbox" checked={selectedCodOrders.includes(order.awb)} onChange={() => toggleSelectCod(order.awb)} className="rounded border-gray-300 accent-[#00A86B] w-4 h-4" />
+                                <span className="text-[#64748B] font-medium text-[12px]">User Details</span>
                               </div>
-                              <div className="text-[13px] font-bold text-[#00A86B] shrink-0">{fmtCurrency(order.remittanceAmount)}</div>
+                              <span className="text-[12px] inline-flex items-baseline gap-1 max-w-[180px]">
+                                <span className="font-semibold text-[#0F172A] text-[12px] truncate">{(order.userName || '—').split(' ')[0]}</span>
+                                <span className="text-[#94A3B8] font-semibold shrink-0">({order.userId || '—'})</span>
+                              </span>
                             </div>
 
-                            {/* UTR / Total COD / Wallet Credit / Adj. Amt / Early COD / Remitted on strip */}
+                            {/* Remittance ID */}
+                            <div className="flex items-center gap-1 group/copyRemit mb-2">
+                              <span className="text-[12px] font-medium text-[#64748B] shrink-0">Remittance ID: </span>
+                              <button onClick={() => openRemittanceDetail(order.awb)} className="text-[12px] font-semibold text-[#00A86B] hover:underline truncate text-left flex-1 min-w-0">
+                                {order.awb || '—'}
+                              </button>
+                              {order.awb && (
+                                <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(order.awb).catch(() => {}); showToast('success', 'Remittance ID copied!'); }} className="opacity-100 md:opacity-0 md:group-hover/copyRemit:opacity-100 transition-opacity shrink-0 focus:outline-none" title="Copy Remittance ID">
+                                  <Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" />
+                                </button>
+                              )}
+                            </div>
+
+                            {/* UTR / Total COD / Wallet Credit / Adj. Amt / Early COD / Net Remittance */}
                             <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 bg-[#F8FAFC] rounded-xl px-2.5 py-2">
                               <div>
                                 <div className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wide">UTR</div>
@@ -1554,8 +1532,8 @@ export function AdminCOD() {
                                 <div className="text-[12px] font-normal text-red-700 mt-0.5">{fmtCurrency(order.earlyCodCharges)}</div>
                               </div>
                               <div>
-                                <div className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wide">Remitted On</div>
-                                <div className="text-[12px] font-normal text-[#0F172A] mt-0.5">{withOrdinalSuffix(order.date)}</div>
+                                <div className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wide">Net Remittance</div>
+                                <div className="text-[12px] font-bold text-[#00A86B] mt-0.5">{fmtCurrency(order.remittanceAmount)}</div>
                               </div>
                             </div>
                           </div>
@@ -1714,7 +1692,7 @@ export function AdminCOD() {
                 {filteredCourierRemittanceList.length === 0 ? (
                   <EmptyState title="No courier remittance records found" />
                 ) : (
-                  <div className="p-4 space-y-4">
+                  <div className="p-3 space-y-3">
                     {filteredCourierRemittanceList.map((order) => {
                       const accent = order.status === 'Paid' ? '#00A86B' : '#F59E0B';
                       return (
@@ -1727,7 +1705,7 @@ export function AdminCOD() {
                             {order.status}
                           </div>
 
-                          <div className="pt-8 px-4 pb-4">
+                          <div className="pt-7 px-3 pb-3">
                             {/* User Details Row */}
                             <div className="flex items-center justify-between mb-2 gap-2">
                               <div className="flex items-center gap-2 min-w-0">
@@ -1735,15 +1713,16 @@ export function AdminCOD() {
                                 <span className="text-[#64748B] font-medium text-[12px]">User Details</span>
                               </div>
                               <span className="text-[12px] inline-flex items-baseline gap-1 max-w-[190px] justify-end text-right">
-                                <TruncatedText text={order.userName} maxLength={16} className="font-semibold text-[#0F172A] text-[12px]" />
-                                <span className="text-[#00A86B] font-semibold shrink-0">({order.userId})</span>
+                                <span className="font-semibold text-[#0F172A] text-[12px] truncate">{(order.userName || '—').split(' ')[0]}</span>
+                                <span className="text-[#00A86B] font-semibold shrink-0">({order.userId || '—'})</span>
                               </span>
                             </div>
 
                             {/* Order ID */}
                             {order.orderID && (
-                              <div className="flex items-center gap-1 group/copy mb-3">
-                                <div className="text-[11px] font-semibold text-[#00A86B] cursor-pointer" onClick={() => navigate(`${isAdminView ? '/admin' : '/user'}/order-tracking?id=${order.orderID}`)}>Order ID: {order.orderID}</div>
+                              <div className="flex items-center gap-1 group/copy mb-2">
+                                <span className="text-[12px] font-medium text-[#64748B] shrink-0">Order ID: </span>
+                                <div className="text-[12px] font-semibold text-[#00A86B] cursor-pointer hover:underline truncate flex-1 min-w-0" onClick={() => navigate(`${isAdminView ? '/admin' : '/user'}/order-tracking?id=${order.orderID}`)}>{order.orderID}</div>
                                 <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(order.orderID).catch(()=>{}); showToast('success', 'Order ID copied!'); }} className="opacity-100 md:opacity-0 md:group-hover/copy:opacity-100 transition-opacity shrink-0 focus:outline-none" title="Copy Order ID"><Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" /></button>
                               </div>
                             )}
