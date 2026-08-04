@@ -377,8 +377,9 @@ export function CRMShipmentListing() {
           <div className="flex flex-row items-center justify-between gap-3 mb-3">
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-xl font-bold text-[#0F172A]">Shipment Listing</h2>
-                <span className="text-[10px] font-bold bg-[#00A86B]/10 text-[#00A86B] px-2 py-0.5 rounded-full">INTERNAL CRM</span>
+                <h2 className="hidden md:block text-xl font-bold text-[#0F172A]">Shipment Listing</h2>
+                <h2 className="md:hidden text-xl font-bold text-[#0F172A]">Internal CRM</h2>
+                <span className="hidden md:inline text-[10px] font-bold bg-[#00A86B]/10 text-[#00A86B] px-2 py-0.5 rounded-full">INTERNAL CRM</span>
               </div>
               <p className="hidden md:block text-xs text-[#64748B] mt-0.5">AWB-level details — view, filter and manage all shipments across couriers.</p>
             </div>
@@ -394,29 +395,25 @@ export function CRMShipmentListing() {
                 <Download className="w-3.5 h-3.5" />
                 <span className="hidden md:inline">Export{selectedOrders.length > 0 ? ` (${selectedOrders.length})` : ''}</span>
               </button>
+              <button
+                onClick={() => setIsMobileFiltersOpen(true)}
+                className="md:hidden flex items-center justify-center gap-1.5 w-9 h-9 rounded-full bg-[#00A86B] text-white shadow-sm shrink-0 relative"
+              >
+                <Filter className="w-3.5 h-3.5" />
+                {hasActiveFilters && (
+                  <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-[#00A86B] border-2 border-white" />
+                )}
+              </button>
             </div>
           </div>
 
-          {/* Mobile Filters trigger */}
-          <div className="md:hidden flex items-center gap-2 mt-1 w-full">
-            {selectedOrders.length > 0 && (
-              <div className="flex items-center gap-2 shrink-0">
-                <span className="text-[11px] font-bold text-blue-700 whitespace-nowrap">{selectedOrders.length} selected</span>
-                <button className="h-7 px-2.5 rounded-md bg-white border border-blue-200 text-[11px] font-bold text-blue-700 shadow-sm hover:bg-blue-50 transition-colors whitespace-nowrap">Export</button>
-              </div>
-            )}
-            <div className="flex items-center gap-2 ml-auto shrink-0">
-              <button
-                onClick={() => setIsMobileFiltersOpen(true)}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#00A86B] text-white text-[12px] font-bold shadow-sm whitespace-nowrap"
-              >
-                <Filter className="w-3.5 h-3.5" /> Filters
-              </button>
-              {hasActiveFilters && (
-                <span className="text-[11px] font-bold text-[#00A86B] bg-[#F0FDF4] border border-[#00A86B]/20 px-2.5 py-1 rounded-full whitespace-nowrap">Active</span>
-              )}
+          {/* Mobile selection bar */}
+          {selectedOrders.length > 0 && (
+            <div className="md:hidden flex items-center gap-2 mt-1 w-full">
+              <span className="text-[11px] font-bold text-blue-700 whitespace-nowrap">{selectedOrders.length} selected</span>
+              <button className="h-7 px-2.5 rounded-md bg-white border border-blue-200 text-[11px] font-bold text-blue-700 shadow-sm hover:bg-blue-50 transition-colors whitespace-nowrap">Export</button>
             </div>
-          </div>
+          )}
 
           {/* Filter Row — evenly distributed 2-row grid, uniform pill sizes */}
           <div className="filter-grid hidden md:grid grid-cols-6 gap-3 mt-3">
@@ -807,12 +804,13 @@ export function CRMShipmentListing() {
         </div>
 
         {/* Mobile Card List */}
-        <div className="md:hidden flex-1 overflow-y-auto bg-[#F8FAFC] relative">
+        <div className="md:hidden flex flex-col flex-1 min-h-0">
+        <div className="flex-1 overflow-y-auto bg-[#F8FAFC] relative">
           {loading && <TableLoader />}
           {paginated.length === 0 ? (
             <EmptyState title="No shipments found" subtitle="Try changing filters" />
           ) : (
-            <div className="p-4 space-y-4">
+            <div className="p-3 space-y-3">
               {paginated.map((row, idx) => {
                 const accent = getRibbonColor(row.status);
                 return (
@@ -824,8 +822,8 @@ export function CRMShipmentListing() {
                       {row.status}
                     </div>
 
-                    <div className="pt-8 px-4 pb-4">
-                      <div className="flex items-center justify-between mb-3 gap-2">
+                    <div className="pt-7 px-3 pb-3">
+                      <div className="flex items-center justify-between mb-2 gap-2">
                         <div className="flex items-center gap-2 min-w-0">
                           <input type="checkbox" checked={selectedOrders.includes(row.awb)} onChange={() => toggleSelect(row.awb)} className="rounded border-gray-300 accent-[#00A86B] w-4 h-4 shrink-0" />
                           <span className="text-[#64748B] font-medium text-[12px]">{row.companyId}</span>
@@ -833,7 +831,7 @@ export function CRMShipmentListing() {
                         <span className="text-[12px] font-semibold text-[#009D64]">{row.orderId}</span>
                       </div>
 
-                      <div className="rounded-xl p-3 mb-3 bg-white" style={{ border: `1px solid ${accent}` }}>
+                      <div className="rounded-xl p-2.5 mb-2 bg-white" style={{ border: `1px solid ${accent}` }}>
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0 flex-1">
                             <TruncatedText text={row.seller} maxLength={24} className="text-[14px] leading-[20px] font-semibold text-[#1E293B]" />
@@ -846,7 +844,7 @@ export function CRMShipmentListing() {
                         </div>
                       </div>
 
-                      <div className="flex items-start justify-between mb-3 px-1 gap-2">
+                      <div className="flex items-start justify-between mb-2 px-1 gap-2">
                         <span
                           className="text-[12px] font-medium text-[#0F172A] underline decoration-dotted underline-offset-2 truncate flex-1 cursor-help"
                           onClick={(e) => {
@@ -861,7 +859,7 @@ export function CRMShipmentListing() {
                         <span className="text-[11px] font-medium text-[#64748B] shrink-0">QTY: {row.qty}</span>
                       </div>
 
-                      <div className="flex items-start justify-between bg-[#F8FAFC] rounded-xl px-3 py-2.5 mb-3 gap-2">
+                      <div className="flex items-start justify-between bg-[#F8FAFC] rounded-xl px-2.5 py-2 mb-2 gap-2">
                         <div className="min-w-0">
                           <div className="text-[10px] font-normal text-[#94A3B8] uppercase tracking-wider">Courier</div>
                           <div className="text-[12px] font-medium text-[#0F172A] mt-0.5">{row.courier}</div>
@@ -888,13 +886,13 @@ export function CRMShipmentListing() {
                       </div>
 
                       <div className="flex items-center gap-2">
-                        <button onClick={() => navigate(`/admin/order-tracking?id=${row.orderId}`)} className="flex-1 py-2.5 rounded-xl bg-[#1e40af] text-white text-[12px] font-bold flex items-center justify-center gap-1.5 hover:bg-[#1e3a8a] transition-colors">
+                        <button onClick={() => navigate(`/admin/order-tracking?id=${row.orderId}`)} className="flex-1 py-2 rounded-xl bg-[#1e40af] text-white text-[12px] font-bold flex items-center justify-center gap-1.5 hover:bg-[#1e3a8a] transition-colors">
                           View Details
                         </button>
                         <div className="relative shrink-0">
                           <button
                             onClick={(e) => { e.stopPropagation(); setOpenActionId(openActionId === row.awb ? null : row.awb); }}
-                            className="w-10 h-10 rounded-full border border-[#E2E8F0] text-[#64748B] bg-white flex items-center justify-center"
+                            className="w-9 h-9 rounded-full border border-[#E2E8F0] text-[#64748B] bg-white flex items-center justify-center"
                           >
                             <MoreHorizontal className="w-4 h-4" />
                           </button>
@@ -913,10 +911,13 @@ export function CRMShipmentListing() {
               })}
             </div>
           )}
+        </div>
+        <div className="shrink-0">
           {useMobilePaginationBar({
             page, setPage, totalPages, rowsPerPage, setRowsPerPage,
             startIndex, endIndex, totalItems: totalCount,
           })}
+        </div>
         </div>
       </div>
 

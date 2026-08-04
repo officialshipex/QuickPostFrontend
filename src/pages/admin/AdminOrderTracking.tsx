@@ -543,8 +543,8 @@ export function AdminOrderTracking() {
   if (loading) {
     return (
       <AdminLayout>
-        <div className="bg-[#F8FAFC] min-h-screen pb-10" style={{ fontFamily: 'Roboto, sans-serif' }}>
-          <div className="w-full bg-white border-b border-[#E2E8F0] px-6 py-4 flex items-center gap-3">
+        <div className="bg-[#F8FAFC] min-h-screen pb-10 -m-4 md:-m-6" style={{ fontFamily: 'Roboto, sans-serif' }}>
+          <div className="w-full bg-white border-b border-[#E2E8F0] px-3 md:px-6 py-3 md:py-4 flex items-center gap-3">
             <button onClick={() => window.history.back()} className="p-1 rounded-md text-[#64748B] hover:text-[#00A86B]">
               <ArrowLeft className="w-[18px] h-[18px]" />
             </button>
@@ -552,7 +552,7 @@ export function AdminOrderTracking() {
           </div>
           <div className="max-w-[1400px] mx-auto px-6 pt-6 grid grid-cols-1 lg:grid-cols-[65%_35%] gap-5">
             {[1, 2, 3, 4, 5].map(i => (
-              <div key={i} className="bg-white rounded-xl border border-[#E2E8F0] p-5 shadow-sm h-40 animate-pulse" />
+              <div key={i} className="bg-white rounded-xl border border-[#E2E8F0] p-3 md:p-5 shadow-sm h-40 animate-pulse" />
             ))}
           </div>
         </div>
@@ -564,8 +564,8 @@ export function AdminOrderTracking() {
   if (error) {
     return (
       <AdminLayout>
-        <div className="bg-[#F8FAFC] min-h-screen flex flex-col" style={{ fontFamily: 'Roboto, sans-serif' }}>
-          <div className="w-full bg-white border-b border-[#E2E8F0] px-6 py-4 flex items-center gap-3">
+        <div className="bg-[#F8FAFC] min-h-screen flex flex-col -m-4 md:-m-6" style={{ fontFamily: 'Roboto, sans-serif' }}>
+          <div className="w-full bg-white border-b border-[#E2E8F0] px-3 md:px-6 py-3 md:py-4 flex items-center gap-3">
             <button onClick={() => window.history.back()} className="p-1 rounded-md text-[#64748B] hover:text-[#00A86B]">
               <ArrowLeft className="w-[18px] h-[18px]" />
             </button>
@@ -604,11 +604,11 @@ export function AdminOrderTracking() {
         .thin-scrollbar { scrollbar-width: thin; scrollbar-color: #E2E8F0 transparent; }
       `}</style>
 
-      <div ref={containerRef} className="bg-[#F8FAFC] text-[#0F172A] min-h-screen pb-10" style={{ fontFamily: 'Roboto, sans-serif' }}>
+      <div ref={containerRef} className="bg-[#F8FAFC] text-[#0F172A] min-h-screen pb-10 -m-4 md:-m-6" style={{ fontFamily: 'Roboto, sans-serif' }}>
 
         {/* ── PAGE HEADER ─────────────────────────────────────────────────────── */}
-        <div className="w-full bg-white border-b border-[#E2E8F0] px-6 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div className="flex flex-wrap items-center gap-3">
+        <div className="w-full bg-white border-b border-[#E2E8F0] px-3 md:px-6 py-3 md:py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 md:gap-4">
+          <div className="flex flex-wrap items-center gap-2 md:gap-3">
             <button onClick={() => window.history.back()} className="flex items-center justify-center p-1 rounded-md text-[#64748B] hover:text-[#00A86B] hover:bg-slate-50 transition-colors" title="Back">
               <ArrowLeft className="w-[18px] h-[18px]" />
             </button>
@@ -623,8 +623,8 @@ export function AdminOrderTracking() {
               <Copy className="w-3.5 h-3.5" />
             </button>
           </div>
-          <div className="flex items-center gap-3 w-full sm:w-auto relative">
-            <button onClick={() => primaryAction()} className="flex-1 sm:flex-none bg-[#00A86B] hover:bg-[#009B63] text-white text-[14px] font-bold py-2.5 px-6 rounded-lg shadow-sm transition-all">
+          <div className="flex items-center gap-2 md:gap-3 w-full sm:w-auto relative">
+            <button onClick={() => primaryAction()} className="flex-1 sm:flex-none bg-[#00A86B] hover:bg-[#009B63] text-white text-[12px] md:text-[14px] font-bold py-1.5 md:py-2.5 px-3 md:px-6 rounded-lg shadow-sm transition-all">
               {primaryText}
             </button>
             <div className="relative">
@@ -657,7 +657,7 @@ export function AdminOrderTracking() {
         </div>
 
         {/* ── MILESTONE TIMELINE STRIP ─────────────────────────────────────────── */}
-        <div className="w-full bg-white border-b border-[#E2E8F0] px-8 py-6 mb-6">
+        <div className="w-full bg-white border-b border-[#E2E8F0] px-3 md:px-8 py-3 md:py-6 mb-3 md:mb-6">
 
           {/* Desktop */}
           <div className="hidden md:block relative w-full px-6">
@@ -693,27 +693,27 @@ export function AdminOrderTracking() {
             </div>
           </div>
 
-          {/* Mobile */}
-          <div className="block md:hidden relative pl-8 py-2">
-            <div className="absolute left-[15px] top-4 bottom-4 w-[2px] border-l border-dashed border-[#E2E8F0] z-0" />
-            <div className="absolute left-[15px] top-4 h-[60%] w-[2px] border-l border-solid border-[#00A86B] z-0" />
-            <div className="flex flex-col gap-6">
+          {/* Mobile — compact horizontal tracker, scrolls if it overflows */}
+          <div className="block md:hidden overflow-x-auto no-scrollbar -mx-3 px-3">
+            <div className="flex items-start" style={{ minWidth: `${milestones.length * 64}px` }}>
               {milestones.map((m, i) => {
                 const isCompleted = m.status === 'completed';
                 const isActive = m.status === 'active';
                 const isPending = m.status === 'pending';
                 const MilestoneIcon = MILESTONE_ICONS[m.icon] || Package;
+                const isLast = i === milestones.length - 1;
                 return (
-                  <div key={i} className="flex items-start gap-4 relative z-10 milestone-circle-container">
-                    <div className="w-8 h-8 flex items-center justify-center shrink-0">
-                      {isCompleted && <div className="w-7 h-7 rounded-full bg-[#00A86B] flex items-center justify-center text-white shadow-sm"><Check className="w-3.5 h-3.5" /></div>}
-                      {isActive && <div className="w-8 h-8 rounded-full bg-[#00A86B] flex items-center justify-center text-white pulse-active relative z-10"><MilestoneIcon className="w-3.5 h-3.5" /></div>}
-                      {isPending && <div className="w-7 h-7 rounded-full bg-white border-2 border-[#E2E8F0] flex items-center justify-center"><MilestoneIcon className="w-3.5 h-3.5 text-[#CBD5E1]" /></div>}
+                  <div key={i} className="flex flex-col items-center text-center shrink-0" style={{ width: '64px' }}>
+                    <div className="flex items-center w-full">
+                      <div className="flex-1 h-[2px]" style={{ background: i === 0 ? 'transparent' : (milestones[i - 1].status === 'completed' ? '#00A86B' : '#E2E8F0') }} />
+                      <div className="shrink-0">
+                        {isCompleted && <div className="w-[18px] h-[18px] rounded-full bg-[#00A86B] flex items-center justify-center text-white"><Check className="w-2.5 h-2.5" /></div>}
+                        {isActive && <div className="w-[18px] h-[18px] rounded-full bg-[#00A86B] flex items-center justify-center text-white pulse-active"><MilestoneIcon className="w-2.5 h-2.5" /></div>}
+                        {isPending && <div className="w-[18px] h-[18px] rounded-full bg-white border-2 border-[#E2E8F0] flex items-center justify-center"><MilestoneIcon className="w-2.5 h-2.5 text-[#CBD5E1]" /></div>}
+                      </div>
+                      <div className="flex-1 h-[2px]" style={{ background: isLast ? 'transparent' : (m.status === 'completed' ? '#00A86B' : '#E2E8F0') }} />
                     </div>
-                    <div className="pt-0.5">
-                      <div className={`text-[12px] leading-[18px] ${isCompleted ? 'font-medium text-[#0F172A]' : isActive ? 'font-bold text-[#00A86B]' : 'font-normal text-[#94A3B8]'}`}>{m.name}</div>
-                      <div className="text-[12px] leading-[18px] font-normal text-[#64748B] mt-0.5">{m.date}</div>
-                    </div>
+                    <div className={`text-[10px] leading-[13px] mt-1 px-0.5 ${isCompleted ? 'font-medium text-[#0F172A]' : isActive ? 'font-bold text-[#00A86B]' : 'font-normal text-[#94A3B8]'}`}>{m.name}</div>
                   </div>
                 );
               })}
@@ -722,20 +722,20 @@ export function AdminOrderTracking() {
         </div>
 
         {/* ── MAIN CONTENT ─────────────────────────────────────────────────────── */}
-        <div className="w-full max-w-[1400px] mx-auto px-6 grid grid-cols-1 lg:grid-cols-[65%_35%] gap-5 items-start">
+        <div className="w-full max-w-[1400px] mx-auto px-3 md:px-6 grid grid-cols-1 lg:grid-cols-[65%_35%] gap-3 md:gap-5 items-start">
 
           {/* LEFT COLUMN */}
-          <div className="flex flex-col gap-5 min-w-0">
+          <div className="flex flex-col gap-3 md:gap-5 min-w-0">
 
             {/* SECTION 1: ORDER DETAILS */}
-            <div className="bg-white rounded-xl border border-[#E2E8F0] p-5 shadow-sm left-col-card">
-              <div className="flex items-center gap-2.5 border-b border-[#E2E8F0] pb-3 mb-4">
+            <div className="bg-white rounded-xl border border-[#E2E8F0] p-3 md:p-5 shadow-sm left-col-card">
+              <div className="flex items-center gap-2.5 border-b border-[#E2E8F0] pb-2.5 md:pb-3 mb-3 md:mb-4">
                 <div className="w-8 h-8 rounded-full bg-[#F0FDF4] flex items-center justify-center shrink-0">
                   <ClipboardList className="w-4 h-4 text-[#00A86B]" />
                 </div>
                 <h3 className="text-[14px] leading-[20px] font-semibold text-[#0F172A]">Order Details</h3>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 md:gap-4">
                 <div>
                   <label className="block text-[12px] leading-[18px] font-medium text-[#94A3B8] uppercase tracking-wider">Creation Date</label>
                   <div className="text-[12px] leading-[18px] font-normal text-[#0F172A] mt-0.5">
@@ -769,18 +769,18 @@ export function AdminOrderTracking() {
             </div>
 
             {/* Sub-grid: Pickup + Receiver */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-5">
 
               {/* SECTION 2: PICKUP DETAILS */}
-              <div className="bg-white rounded-xl border border-[#E2E8F0] p-5 shadow-sm left-col-card">
-                <div className="flex items-center gap-2.5 border-b border-[#E2E8F0] pb-3 mb-4">
+              <div className="bg-white rounded-xl border border-[#E2E8F0] p-3 md:p-5 shadow-sm left-col-card">
+                <div className="flex items-center gap-2.5 border-b border-[#E2E8F0] pb-2.5 md:pb-3 mb-3 md:mb-4">
                   <div className="w-8 h-8 rounded-full bg-[#F0FDF4] flex items-center justify-center shrink-0">
                     <Navigation className="w-4 h-4 text-[#00A86B]" />
                   </div>
                   <h3 className="text-[14px] leading-[20px] font-semibold text-[#0F172A]">Pickup Details</h3>
                 </div>
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-3 md:space-y-4">
+                  <div className="grid grid-cols-2 gap-3 md:gap-4">
                     <div>
                       <label className="block text-[12px] leading-[18px] font-medium text-[#94A3B8] uppercase tracking-wider">Name</label>
                       <div className="text-[12px] leading-[18px] font-normal text-[#0F172A] mt-0.5">{order?.pickupAddress?.contactName || '—'}</div>
@@ -800,7 +800,7 @@ export function AdminOrderTracking() {
                       <div className="text-[12px] leading-[18px] font-normal text-[#0F172A] mt-0.5">{order?.pickupAddress?.pinCode || '—'}</div>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4 border-t border-[#F5F5F5] pt-3">
+                  <div className="grid grid-cols-2 gap-3 md:gap-4 border-t border-[#F5F5F5] pt-2.5 md:pt-3">
                     <div>
                       <label className="block text-[12px] leading-[18px] font-medium text-[#94A3B8] uppercase tracking-wider">State</label>
                       <div className="text-[12px] leading-[18px] font-normal text-[#0F172A] mt-0.5">{order?.pickupAddress?.state || '—'}</div>
@@ -818,15 +818,15 @@ export function AdminOrderTracking() {
               </div>
 
               {/* SECTION 3: RECEIVER DETAILS */}
-              <div className="bg-white rounded-xl border border-[#E2E8F0] p-5 shadow-sm left-col-card">
-                <div className="flex items-center gap-2.5 border-b border-[#E2E8F0] pb-3 mb-4">
+              <div className="bg-white rounded-xl border border-[#E2E8F0] p-3 md:p-5 shadow-sm left-col-card">
+                <div className="flex items-center gap-2.5 border-b border-[#E2E8F0] pb-2.5 md:pb-3 mb-3 md:mb-4">
                   <div className="w-8 h-8 rounded-full bg-[#F0FDF4] flex items-center justify-center shrink-0">
                     <MapPin className="w-4 h-4 text-[#00A86B]" />
                   </div>
                   <h3 className="text-[14px] leading-[20px] font-semibold text-[#0F172A]">Receiver Details</h3>
                 </div>
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-3 md:space-y-4">
+                  <div className="grid grid-cols-2 gap-3 md:gap-4">
                     <div>
                       <label className="block text-[12px] leading-[18px] font-medium text-[#94A3B8] uppercase tracking-wider">Name</label>
                       <div className="text-[12px] leading-[18px] font-normal text-[#0F172A] mt-0.5">{order?.receiverAddress?.contactName || '—'}</div>
@@ -846,7 +846,7 @@ export function AdminOrderTracking() {
                       <div className="text-[12px] leading-[18px] font-normal text-[#0F172A] mt-0.5">{order?.receiverAddress?.pinCode || '—'}</div>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4 border-t border-[#F5F5F5] pt-3">
+                  <div className="grid grid-cols-2 gap-3 md:gap-4 border-t border-[#F5F5F5] pt-2.5 md:pt-3">
                     <div>
                       <label className="block text-[12px] leading-[18px] font-medium text-[#94A3B8] uppercase tracking-wider">State</label>
                       <div className="text-[12px] leading-[18px] font-normal text-[#0F172A] mt-0.5">{order?.receiverAddress?.state || '—'}</div>
@@ -865,18 +865,18 @@ export function AdminOrderTracking() {
             </div>
 
             {/* Sub-grid: Package + Product */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-5">
 
               {/* SECTION 4: PACKAGE DETAILS */}
-              <div className="bg-white rounded-xl border border-[#E2E8F0] p-5 shadow-sm left-col-card">
-                <div className="flex items-center gap-2.5 border-b border-[#E2E8F0] pb-3 mb-4">
+              <div className="bg-white rounded-xl border border-[#E2E8F0] p-3 md:p-5 shadow-sm left-col-card">
+                <div className="flex items-center gap-2.5 border-b border-[#E2E8F0] pb-2.5 md:pb-3 mb-3 md:mb-4">
                   <div className="w-8 h-8 rounded-full bg-[#F0FDF4] flex items-center justify-center shrink-0">
                     <Package className="w-4 h-4 text-[#00A86B]" />
                   </div>
                   <h3 className="text-[14px] leading-[20px] font-semibold text-[#0F172A]">Package Details</h3>
                 </div>
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-3 md:space-y-4">
+                  <div className="grid grid-cols-2 gap-3 md:gap-4">
                     <div>
                       <label className="block text-[12px] leading-[18px] font-medium text-[#94A3B8] uppercase tracking-wider">Order Type</label>
                       <div className="text-[12px] leading-[18px] font-normal text-[#0F172A] mt-0.5">B2C</div>
@@ -908,7 +908,7 @@ export function AdminOrderTracking() {
                       </div>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4 border-t border-[#F5F5F5] pt-3">
+                  <div className="grid grid-cols-2 gap-3 md:gap-4 border-t border-[#F5F5F5] pt-2.5 md:pt-3">
                     <div>
                       <label className="text-[12px] leading-[18px] font-medium text-[#94A3B8] uppercase tracking-wider flex items-center gap-1.5">
                         Applicable Weight
@@ -938,8 +938,8 @@ export function AdminOrderTracking() {
               </div>
 
               {/* SECTION 5: PRODUCT DETAILS */}
-              <div className="bg-white rounded-xl border border-[#E2E8F0] p-5 shadow-sm left-col-card flex flex-col">
-                <div className="flex items-center gap-2.5 border-b border-[#E2E8F0] pb-3 mb-4">
+              <div className="bg-white rounded-xl border border-[#E2E8F0] p-3 md:p-5 shadow-sm left-col-card flex flex-col">
+                <div className="flex items-center gap-2.5 border-b border-[#E2E8F0] pb-2.5 md:pb-3 mb-3 md:mb-4">
                   <div className="w-8 h-8 rounded-full bg-[#F0FDF4] flex items-center justify-center shrink-0">
                     <Package className="w-4 h-4 text-[#00A86B]" />
                   </div>
@@ -980,8 +980,8 @@ export function AdminOrderTracking() {
             </div>
 
             {/* SECTION 6: CHARGES BREAKDOWN */}
-            <div className="bg-white rounded-xl border border-[#E2E8F0] p-5 shadow-sm left-col-card">
-              <div className="flex items-center gap-2.5 border-b border-[#E2E8F0] pb-3 mb-4">
+            <div className="bg-white rounded-xl border border-[#E2E8F0] p-3 md:p-5 shadow-sm left-col-card">
+              <div className="flex items-center gap-2.5 border-b border-[#E2E8F0] pb-2.5 md:pb-3 mb-3 md:mb-4">
                 <div className="w-8 h-8 rounded-full bg-[#F0FDF4] flex items-center justify-center shrink-0">
                   <Receipt className="w-4 h-4 text-[#00A86B]" />
                 </div>
@@ -1132,11 +1132,11 @@ export function AdminOrderTracking() {
           </div>
 
           {/* RIGHT COLUMN */}
-          <div className="flex flex-col lg:sticky lg:top-5 gap-4 min-w-0">
+          <div className="flex flex-col lg:sticky lg:top-5 gap-3 md:gap-4 min-w-0">
 
             {/* WIDGET 1: SHIPPING DETAILS */}
-            <div className="bg-white rounded-xl border border-[#E2E8F0] p-5 shadow-sm right-col-widget">
-              <div className="flex items-center gap-2.5 border-b border-[#E2E8F0] pb-3 mb-4">
+            <div className="bg-white rounded-xl border border-[#E2E8F0] p-3 md:p-5 shadow-sm right-col-widget">
+              <div className="flex items-center gap-2.5 border-b border-[#E2E8F0] pb-2.5 md:pb-3 mb-3 md:mb-4">
                 <div className="w-8 h-8 rounded-full bg-[#F0FDF4] flex items-center justify-center shrink-0">
                   <Truck className="w-4 h-4 text-[#00A86B]" />
                 </div>
@@ -1190,8 +1190,8 @@ export function AdminOrderTracking() {
             </div>
 
             {/* WIDGET 2: TRACKING DETAILS */}
-            <div className="bg-white rounded-xl border border-[#E2E8F0] p-5 shadow-sm right-col-widget">
-              <div className="flex items-center gap-2.5 border-b border-[#E2E8F0] pb-3 mb-4">
+            <div className="bg-white rounded-xl border border-[#E2E8F0] p-3 md:p-5 shadow-sm right-col-widget">
+              <div className="flex items-center gap-2.5 border-b border-[#E2E8F0] pb-2.5 md:pb-3 mb-3 md:mb-4">
                 <div className="w-8 h-8 rounded-full bg-[#F0FDF4] flex items-center justify-center shrink-0">
                   <Map className="w-4 h-4 text-[#00A86B]" />
                 </div>
@@ -1256,8 +1256,8 @@ export function AdminOrderTracking() {
             {(order?.status === 'Undelivered' || order?.ndrStatus === 'Undelivered' || order?.ndrStatus === 'Action_Requested') && (() => {
               const ndrButtonsEnabled = order?.ndrStatus === 'Undelivered' && order?.reattempt === true;
               return (
-              <div className="bg-white rounded-xl border border-[#E2E8F0] p-5 shadow-sm right-col-widget">
-                <div className="flex items-center gap-2.5 border-b border-[#E2E8F0] pb-3 mb-4">
+              <div className="bg-white rounded-xl border border-[#E2E8F0] p-3 md:p-5 shadow-sm right-col-widget">
+                <div className="flex items-center gap-2.5 border-b border-[#E2E8F0] pb-2.5 md:pb-3 mb-3 md:mb-4">
                   <div className="w-8 h-8 rounded-full bg-amber-50 flex items-center justify-center shrink-0">
                     <AlertTriangle className="w-4 h-4 text-amber-500" />
                   </div>
