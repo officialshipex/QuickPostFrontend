@@ -14,7 +14,7 @@ import {
   Filter, Copy, PackagePlus, FileText, Download
 } from 'lucide-react';
 import { usePagination, DesktopPagination } from '../../hooks/usePagination';
-import { useMobilePaginationBar } from '../../hooks/useMobilePaginationBar';
+import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
 import { useUserSearchFilter } from '../../hooks/filters/useUserSearchFilter';
 import { useDateRangeFilter } from '../../hooks/filters/useDateRangeFilter';
 import { TableLoader } from '../../components/ui/TableLoader';
@@ -1524,7 +1524,7 @@ export function AdminOrders() {
             )}
 
             {/* Mobile Pagination */}
-            {useMobilePaginationBar({
+            {<MobilePaginationBar {...({
               page,
               setPage,
               totalPages,
@@ -1533,7 +1533,7 @@ export function AdminOrders() {
               startIndex: Math.min((page - 1) * rowsPerPage + 1, totalRecords),
               endIndex: Math.min(page * rowsPerPage, totalRecords),
               totalItems: totalRecords,
-            })}
+            })} />}
           </div>
         )}
 

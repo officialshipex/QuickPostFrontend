@@ -7,7 +7,7 @@ import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { TableLoader } from '../../components/ui/TableLoader';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { usePagination, DesktopPagination } from '../../hooks/usePagination';
-import { useMobilePaginationBar } from '../../hooks/useMobilePaginationBar';
+import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
 
 const STATUS_RIBBON: Record<string, string> = {
   'Active': '#059669', 'Inactive': '#94A3B8', 'Under Review': '#D97706',
@@ -270,7 +270,7 @@ export function CRMCourierPartners() {
                 })}
               </div>
             )}
-            {useMobilePaginationBar({ page, setPage, totalPages, rowsPerPage, setRowsPerPage, startIndex, endIndex, totalItems: filtered.length })}
+            {<MobilePaginationBar {...({ page, setPage, totalPages, rowsPerPage, setRowsPerPage, startIndex, endIndex, totalItems: filtered.length })} />}
           </div>
         </div>
       </div>

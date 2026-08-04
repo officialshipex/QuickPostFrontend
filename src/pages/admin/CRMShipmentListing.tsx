@@ -14,7 +14,7 @@ import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
 import { TruncatedText } from '../../components/ui/TruncatedText';
 import { TableLoader } from '../../components/ui/TableLoader';
 import { EmptyState } from '../../components/ui/EmptyState';
-import { useMobilePaginationBar } from '../../hooks/useMobilePaginationBar';
+import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
 
 const COURIER_OPTS = ['Delhivery', 'Ekart', 'XpressBees', 'Shadowfax', 'DTDC', 'BlueDart', 'Ecom Express'];
 const STATUS_OPTS = ['Booked', 'Picked Up', 'In Transit', 'Out for Delivery', 'Delivered', 'RTO Initiated', 'RTO Delivered', 'Lost'];
@@ -919,10 +919,10 @@ export function CRMShipmentListing() {
           )}
         </div>
         <div className="shrink-0">
-          {useMobilePaginationBar({
+          {<MobilePaginationBar {...({
             page, setPage, totalPages, rowsPerPage, setRowsPerPage,
             startIndex, endIndex, totalItems: totalCount,
-          })}
+          })} />}
         </div>
         </div>
       </div>

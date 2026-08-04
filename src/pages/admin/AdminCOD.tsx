@@ -8,7 +8,7 @@ import { useAdminTab } from '../../context/AdminUserContext';
 import { useUserSearchFilter } from '../../hooks/filters/useUserSearchFilter';
 import {
   ChevronDown, RefreshCcw, Check, User, Truck, Banknote, Clock, Upload, Download,
-  Wallet, Send, MinusCircle, FileText, AlertCircle, CheckCircle2, X, Package, Search, Filter, Copy
+  Wallet, Send, MinusCircle, FileText, AlertCircle, CheckCircle2, X, Package, Search, Filter, Copy, MoreVertical
 } from 'lucide-react';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
@@ -19,7 +19,7 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { TransferCODModal } from '../../components/ui/TransferCODModal';
 import { useTableLoader } from '../../hooks/useTableLoader';
 import { usePagination, DesktopPagination } from '../../hooks/usePagination';
-import { useMobilePaginationBar } from '../../hooks/useMobilePaginationBar';
+import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
 
 const ADMIN_TABS = [
   { name: 'All COD Orders' },
@@ -764,20 +764,6 @@ export function AdminCOD() {
     <AdminLayout>
       <div className={`flex flex-col ${isImpersonating ? 'h-[calc(100vh-104px)]' : 'h-[calc(100vh-72px)]'} -m-4 md:-m-6 bg-white ${!isAdminView ? 'overflow-hidden' : ''}`}>
 
-        {/* Mobile Search Bar */}
-        <div className="md:hidden px-4 py-3 border-b border-[#E2E8F0] bg-white">
-          <div className="relative">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
-            <input
-              type="text"
-              placeholder="AWB/Order ID tracking"
-              value={activeTab === 'All COD Orders' ? codAwb : ''}
-              onChange={(e) => { if (activeTab === 'All COD Orders') setCodAwb(e.target.value); }}
-              className="w-full h-10 pl-10 pr-4 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] text-sm text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all"
-            />
-          </div>
-        </div>
-
         {/* Tab Navigation */}
         <div className="bg-white relative z-50 shrink-0">
           <div className="flex justify-between items-center px-4 md:px-6 py-2 border-b border-[#E2E8F0] overflow-x-auto no-scrollbar">
@@ -802,104 +788,137 @@ export function AdminCOD() {
             </div>
           </div>
 
-          {/* Mobile Filters + Action Row — All COD Orders only */}
+          {/* Mobile Search + Filters + Action Row — All COD Orders only */}
           {activeTab === 'All COD Orders' && (
-            <div className="md:hidden px-4 py-3 border-b border-[#E2E8F0] flex items-center justify-between bg-white gap-2">
+            <div className="md:hidden px-4 py-2.5 border-b border-[#E2E8F0] flex items-center gap-1.5 bg-white">
+              <div className="relative flex-1 min-w-0">
+                <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
+                <input
+                  type="text"
+                  placeholder="AWB/Order ID"
+                  value={codAwb}
+                  onChange={(e) => setCodAwb(e.target.value)}
+                  className="w-full h-8 pl-8 pr-2 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] text-[12px] text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all"
+                />
+              </div>
               <button
                 onClick={() => setIsMobileFiltersOpen(true)}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#00A86B] text-white text-[12px] font-bold shadow-sm"
+                className="w-8 h-8 rounded-lg bg-[#00A86B] text-white flex items-center justify-center shadow-sm shrink-0"
+                title="Filters"
               >
-                <Filter className="w-3.5 h-3.5" /> Filters
+                <Filter className="w-3.5 h-3.5" />
               </button>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={handleExportBankTemplate}
-                  disabled={bankExportLoading}
-                  className="h-9 px-2.5 rounded-full bg-[#00A86B] text-white text-[11px] font-bold shadow-sm flex items-center gap-1 whitespace-nowrap active:bg-[#009B63] transition-colors disabled:opacity-60 shrink-0"
-                >
-                  <Banknote className="w-3 h-3 shrink-0" /> Early COD
-                </button>
-                <button
-                  onClick={handleOpenBankResponseUpload}
-                  className="w-9 h-9 rounded-full border border-[#E2E8F0] flex items-center justify-center text-[#64748B] bg-white active:bg-[#F8FAFC] transition-colors shrink-0"
-                  title="Upload Bank Response"
-                >
-                  <Upload className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => { if (selectedOrders.length === 0) { showToast('error', 'Select rows to export.'); return; } const rows = codOrdersList.filter(o => selectedOrders.includes(o.id)); handleExportCsv(rows, 'cod_orders.csv'); }}
-                  className={`w-9 h-9 rounded-full border flex items-center justify-center shrink-0 transition-colors ${selectedOrders.length > 0 ? 'border-[#00A86B] text-[#00A86B] bg-white active:bg-[#00A86B]/5' : 'border-[#E2E8F0] text-[#CBD5E1] bg-white'}`}
-                  title="Export"
-                >
-                  <Download className="w-4 h-4" />
-                </button>
-              </div>
+              <button
+                onClick={handleExportBankTemplate}
+                disabled={bankExportLoading}
+                className="w-8 h-8 rounded-lg bg-[#00A86B] text-white flex items-center justify-center shadow-sm active:bg-[#009B63] transition-colors disabled:opacity-60 shrink-0"
+                title="Early COD"
+              >
+                <Banknote className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={handleOpenBankResponseUpload}
+                className="w-8 h-8 rounded-lg border border-[#E2E8F0] flex items-center justify-center text-[#64748B] bg-white active:bg-[#F8FAFC] transition-colors shrink-0"
+                title="Upload Bank Response"
+              >
+                <Upload className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => { if (selectedOrders.length === 0) { showToast('error', 'Select rows to export.'); return; } const rows = codOrdersList.filter(o => selectedOrders.includes(o.id)); handleExportCsv(rows, 'cod_orders.csv'); }}
+                className={`w-8 h-8 rounded-lg border flex items-center justify-center shrink-0 transition-colors ${selectedOrders.length > 0 ? 'border-[#00A86B] text-[#00A86B] bg-white active:bg-[#00A86B]/5' : 'border-[#E2E8F0] text-[#CBD5E1] bg-white'}`}
+                title="Export"
+              >
+                <Download className="w-3.5 h-3.5" />
+              </button>
             </div>
           )}
 
-          {/* Mobile Filters + Action Row — Seller COD Remittance */}
+          {/* Mobile Search + Filters + Action Row — Seller COD Remittance */}
           {(activeTab === 'Seller COD Remittance' || activeTab === 'COD Remittance') && (
-            <div className="md:hidden px-4 py-3 border-b border-[#E2E8F0] flex items-center justify-between bg-white gap-2">
+            <div className="md:hidden px-4 py-2.5 border-b border-[#E2E8F0] flex items-center gap-1.5 bg-white">
+              <div className="relative flex-1 min-w-0">
+                <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
+                <input
+                  type="text"
+                  placeholder="Search"
+                  value={globalSearchQuery}
+                  onChange={(e) => setGlobalSearchQuery(e.target.value)}
+                  className="w-full h-8 pl-8 pr-2 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] text-[12px] text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all"
+                />
+              </div>
               <button
                 onClick={() => setIsMobileSellerFiltersOpen(true)}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#00A86B] text-white text-[12px] font-bold shadow-sm shrink-0"
+                className="w-8 h-8 rounded-lg bg-[#00A86B] text-white flex items-center justify-center shadow-sm shrink-0"
+                title="Filters"
               >
-                <Filter className="w-3.5 h-3.5" /> Filters
+                <Filter className="w-3.5 h-3.5" />
               </button>
-              <div className="flex items-center gap-2">
-                <div className="relative shrink-0 action-dropdown-container">
-                  <button
-                    onClick={() => selectedCodOrders.length > 0 && setShowMobileSellerActionMenu(v => !v)}
-                    disabled={selectedCodOrders.length === 0}
-                    className={`h-9 px-4 rounded-lg border text-[12px] font-semibold flex items-center gap-1 transition-colors ${selectedCodOrders.length > 0 ? 'border-[#E2E8F0] text-[#475569] bg-white active:bg-[#F8FAFC]' : 'border-[#E2E8F0] text-[#CBD5E1] bg-[#F8FAFC]'}`}
-                  >
-                    Action <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showMobileSellerActionMenu ? 'rotate-180' : ''}`} />
-                  </button>
-                  <AnimatePresence>
-                    {showMobileSellerActionMenu && selectedCodOrders.length > 0 && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -6, scale: 0.97 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: -6, scale: 0.97 }}
-                        transition={{ duration: 0.16, ease: 'easeOut' }}
-                        className="absolute right-0 top-full mt-2 w-[200px] bg-white rounded-xl shadow-[0_8px_28px_-6px_rgba(0,0,0,0.15)] border border-[#E2E8F0] py-1.5 z-50 origin-top-right"
-                      >
-                        <button onClick={() => { const rows = sellerRemittanceList.filter(r => selectedCodOrders.includes(r.awb)); handleExportCsv(rows, 'seller_remittances.csv'); setShowMobileSellerActionMenu(false); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] flex items-center gap-2"><Download className="w-4 h-4 text-[#00A86B]" />Export Data</button>
-                        {isAdminView && <button onClick={() => { handleExportBankTemplate(); setShowMobileSellerActionMenu(false); }} disabled={bankExportLoading} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] flex items-center gap-2"><FileText className="w-4 h-4 text-blue-500" />{bankExportLoading ? 'Generating…' : 'Export Bank Template'}</button>}
-                        {isAdminView && <button onClick={() => { handleOpenBankResponseUpload(); setShowMobileSellerActionMenu(false); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] flex items-center gap-2"><Upload className="w-4 h-4 text-orange-500" />Upload Bank Response</button>}
-                        <div className="border-t border-[#E2E8F0] my-1" />
-                        {isAdminView && <button onClick={() => { setShowMobileSellerActionMenu(false); handleTransferCOD('seller'); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#00A86B] hover:bg-[#F0FDF4] flex items-center gap-2"><Send className="w-4 h-4" />Transfer COD</button>}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
+              <div className="relative shrink-0 action-dropdown-container">
                 <button
-                  onClick={handleExportBankTemplate}
-                  disabled={bankExportLoading}
-                  className="h-9 px-2.5 rounded-full bg-[#00A86B] text-white text-[11px] font-bold shadow-sm flex items-center gap-1 whitespace-nowrap active:bg-[#009B63] transition-colors disabled:opacity-60 shrink-0"
+                  onClick={() => selectedCodOrders.length > 0 && setShowMobileSellerActionMenu(v => !v)}
+                  disabled={selectedCodOrders.length === 0}
+                  className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-colors ${selectedCodOrders.length > 0 ? 'border-[#E2E8F0] text-[#475569] bg-white active:bg-[#F8FAFC]' : 'border-[#E2E8F0] text-[#CBD5E1] bg-[#F8FAFC]'}`}
+                  title="Actions"
                 >
-                  <Banknote className="w-3 h-3 shrink-0" /> Early COD
+                  <MoreVertical className="w-3.5 h-3.5" />
                 </button>
+                <AnimatePresence>
+                  {showMobileSellerActionMenu && selectedCodOrders.length > 0 && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -6, scale: 0.97 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -6, scale: 0.97 }}
+                      transition={{ duration: 0.16, ease: 'easeOut' }}
+                      className="absolute right-0 top-full mt-2 w-[200px] bg-white rounded-xl shadow-[0_8px_28px_-6px_rgba(0,0,0,0.15)] border border-[#E2E8F0] py-1.5 z-50 origin-top-right"
+                    >
+                      <button onClick={() => { const rows = sellerRemittanceList.filter(r => selectedCodOrders.includes(r.awb)); handleExportCsv(rows, 'seller_remittances.csv'); setShowMobileSellerActionMenu(false); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] flex items-center gap-2"><Download className="w-4 h-4 text-[#00A86B]" />Export Data</button>
+                      {isAdminView && <button onClick={() => { handleExportBankTemplate(); setShowMobileSellerActionMenu(false); }} disabled={bankExportLoading} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] flex items-center gap-2"><FileText className="w-4 h-4 text-blue-500" />{bankExportLoading ? 'Generating…' : 'Export Bank Template'}</button>}
+                      {isAdminView && <button onClick={() => { handleOpenBankResponseUpload(); setShowMobileSellerActionMenu(false); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] flex items-center gap-2"><Upload className="w-4 h-4 text-orange-500" />Upload Bank Response</button>}
+                      <div className="border-t border-[#E2E8F0] my-1" />
+                      {isAdminView && <button onClick={() => { setShowMobileSellerActionMenu(false); handleTransferCOD('seller'); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#00A86B] hover:bg-[#F0FDF4] flex items-center gap-2"><Send className="w-4 h-4" />Transfer COD</button>}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
+              <button
+                onClick={handleExportBankTemplate}
+                disabled={bankExportLoading}
+                className="w-8 h-8 rounded-lg bg-[#00A86B] text-white flex items-center justify-center shadow-sm active:bg-[#009B63] transition-colors disabled:opacity-60 shrink-0"
+                title="Early COD"
+              >
+                <Banknote className="w-3.5 h-3.5" />
+              </button>
             </div>
           )}
 
           {/* Mobile Filters + Action Row — Courier COD Remittance */}
           {activeTab === 'Courier COD Remittance' && (
-            <div className="md:hidden px-4 py-3 border-b border-[#E2E8F0] flex items-center justify-between bg-white gap-2">
+            <div className="md:hidden px-4 py-2.5 border-b border-[#E2E8F0] flex items-center gap-1.5 bg-white">
+              <div className="relative flex-1 min-w-0">
+                <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
+                <input
+                  type="text"
+                  placeholder="Search"
+                  value={globalSearchQuery}
+                  onChange={(e) => setGlobalSearchQuery(e.target.value)}
+                  className="w-full h-8 pl-8 pr-2 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] text-[12px] text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all"
+                />
+              </div>
               <button
                 onClick={() => setIsMobileCourierFiltersOpen(true)}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#00A86B] text-white text-[12px] font-bold shadow-sm shrink-0"
+                className="w-8 h-8 rounded-lg bg-[#00A86B] text-white flex items-center justify-center shadow-sm shrink-0"
+                title="Filters"
               >
-                <Filter className="w-3.5 h-3.5" /> Filters
+                <Filter className="w-3.5 h-3.5" />
               </button>
               <div className="relative shrink-0 action-dropdown-container">
                 <button
                   onClick={() => selectedCourierCodOrders.length > 0 && setShowMobileCourierActionMenu(v => !v)}
                   disabled={selectedCourierCodOrders.length === 0}
-                  className={`h-9 px-4 rounded-lg border text-[12px] font-semibold flex items-center gap-1 transition-colors ${selectedCourierCodOrders.length > 0 ? 'border-[#E2E8F0] text-[#475569] bg-white active:bg-[#F8FAFC]' : 'border-[#E2E8F0] text-[#CBD5E1] bg-[#F8FAFC]'}`}
+                  className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-colors ${selectedCourierCodOrders.length > 0 ? 'border-[#E2E8F0] text-[#475569] bg-white active:bg-[#F8FAFC]' : 'border-[#E2E8F0] text-[#CBD5E1] bg-[#F8FAFC]'}`}
+                  title="Actions"
                 >
-                  Action <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showMobileCourierActionMenu ? 'rotate-180' : ''}`} />
+                  <MoreVertical className="w-3.5 h-3.5" />
                 </button>
                 <AnimatePresence>
                   {showMobileCourierActionMenu && selectedCourierCodOrders.length > 0 && (
@@ -1317,7 +1336,7 @@ export function AdminCOD() {
               </div>
 
               {/* Mobile Pagination */}
-              {useMobilePaginationBar({
+              {<MobilePaginationBar {...({
                 page: currentPage,
                 setPage: setCurrentPage,
                 totalPages,
@@ -1326,7 +1345,7 @@ export function AdminCOD() {
                 startIndex: Math.min((currentPage - 1) * codRowsPerPage + 1, codOrdersTotal),
                 endIndex: Math.min(currentPage * codRowsPerPage, codOrdersTotal),
                 totalItems: codOrdersTotal,
-              })}
+              })} />}
             </div>
           </>
         )}
@@ -1567,7 +1586,7 @@ export function AdminCOD() {
               </div>
 
               {/* Mobile Pagination */}
-              {useMobilePaginationBar({
+              {<MobilePaginationBar {...({
                 page: sellerPage,
                 setPage: setSellerPage,
                 totalPages: totalSellerPages,
@@ -1576,7 +1595,7 @@ export function AdminCOD() {
                 startIndex: Math.min((sellerPage - 1) * sellerRowsPerPage + 1, sellerRemittanceTotal),
                 endIndex: Math.min(sellerPage * sellerRowsPerPage, sellerRemittanceTotal),
                 totalItems: sellerRemittanceTotal,
-              })}
+              })} />}
             </div>
           </>
         )}
@@ -1791,7 +1810,7 @@ export function AdminCOD() {
               </div>
 
               {/* Mobile Pagination */}
-              {useMobilePaginationBar({
+              {<MobilePaginationBar {...({
                 page: courierPage,
                 setPage: setCourierPage,
                 totalPages: totalCourierPages,
@@ -1800,7 +1819,7 @@ export function AdminCOD() {
                 startIndex: Math.min((courierPage - 1) * courierRowsPerPage + 1, courierRemittanceTotal),
                 endIndex: Math.min(courierPage * courierRowsPerPage, courierRemittanceTotal),
                 totalItems: courierRemittanceTotal,
-              })}
+              })} />}
             </div>
           </>
         )}

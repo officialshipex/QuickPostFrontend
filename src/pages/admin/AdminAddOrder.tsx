@@ -449,39 +449,39 @@ export function AdminAddOrder() {
 
   return (
     <AdminLayout>
-      <div className="max-w-6xl mx-auto pb-6 relative">
+      <div className="max-w-6xl mx-auto -m-4 md:m-0 pb-6 relative">
 
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between gap-3 mb-3 md:mb-6 px-2 pt-2.5 md:px-0 md:pt-0">
           <Link
             to={backPath}
-            className="flex items-center gap-2 text-[#0F172A] font-bold text-[15px] hover:text-[#00A86B] transition-colors"
+            className="flex items-center gap-2 text-[#0F172A] font-bold text-[14px] md:text-[15px] hover:text-[#00A86B] transition-colors min-w-0"
           >
-            <ArrowLeft className="w-5 h-5" />
-            {isUpdate ? 'Update Order' : 'Add Order'}
+            <ArrowLeft className="w-5 h-5 shrink-0" />
+            <span className="truncate">{isUpdate ? 'Update Order' : 'Add Order'}</span>
           </Link>
           <button
             onClick={() => setShowBulkModal(true)}
-            className="flex items-center gap-2 h-9 px-4 bg-[#00A86B] hover:bg-[#009B63] text-white text-[13px] font-bold rounded-full transition-colors shadow-sm"
+            className="flex items-center gap-1.5 md:gap-2 h-8 md:h-9 px-3 md:px-4 bg-[#00A86B] hover:bg-[#009B63] text-white text-[12px] md:text-[13px] font-bold rounded-full transition-colors shadow-sm shrink-0"
           >
-            <Upload className="w-4 h-4" /> Bulk Upload
+            <Upload className="w-3.5 h-3.5 md:w-4 md:h-4" /> <span className="hidden sm:inline">Bulk Upload</span>
           </button>
         </div>
 
         {errors.submit && (
-          <div className="mb-4 px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-[13px] text-red-600 font-medium">
+          <div className="mx-2 md:mx-0 mb-3 px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-[13px] text-red-600 font-medium">
             {errors.submit}
           </div>
         )}
 
-        <div className="space-y-6">
+        <div className="space-y-3 md:space-y-6 px-2 md:px-0">
 
           {/* ── Pickup Details ── */}
           <div className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm overflow-hidden">
-            <div className="px-6 py-4 border-b border-[#E2E8F0]">
-              <h2 className="text-[14px] font-bold text-[#0F172A]">Pickup Details</h2>
+            <div className="px-3 md:px-6 py-2.5 md:py-4 border-b border-[#E2E8F0]">
+              <h2 className="text-[13px] md:text-[14px] font-bold text-[#0F172A]">Pickup Details</h2>
             </div>
-            <div className="p-6">
+            <div className="p-3 md:p-6">
               <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">
                 Address <span className="text-red-500">*</span>
               </label>
@@ -518,11 +518,11 @@ export function AdminAddOrder() {
 
           {/* ── Delivery Details ── */}
           <div className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm overflow-hidden">
-            <div className="px-6 py-4 border-b border-[#E2E8F0]">
-              <h2 className="text-[14px] font-bold text-[#0F172A]">Delivery Details</h2>
+            <div className="px-3 md:px-6 py-2.5 md:py-4 border-b border-[#E2E8F0]">
+              <h2 className="text-[13px] md:text-[14px] font-bold text-[#0F172A]">Delivery Details</h2>
             </div>
-            <div className="p-6 space-y-5">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <div className="p-3 md:p-6 space-y-3 md:space-y-5">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-5">
                 <div>
                   <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Contact Name <span className="text-red-500">*</span></label>
                   {errors.contactName && <p className="text-[11px] text-red-500 mb-1">{errors.contactName}</p>}
@@ -546,7 +546,7 @@ export function AdminAddOrder() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3 md:gap-5">
                 <div className="md:col-span-2">
                   <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Address <span className="text-red-500">*</span></label>
                   {errors.address && <p className="text-[11px] text-red-500 mb-1">{errors.address}</p>}
@@ -584,64 +584,72 @@ export function AdminAddOrder() {
 
           {/* ── Product Details ── */}
           <div className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm overflow-hidden">
-            <div className="px-6 py-4 border-b border-[#E2E8F0]">
-              <h2 className="text-[14px] font-bold text-[#0F172A]">Product Details</h2>
+            <div className="px-3 md:px-6 py-2.5 md:py-4 border-b border-[#E2E8F0]">
+              <h2 className="text-[13px] md:text-[14px] font-bold text-[#0F172A]">Product Details</h2>
             </div>
-            <div className="p-6 space-y-5">
+            <div className="p-3 md:p-6 space-y-3 md:space-y-5">
               {errors.products && <p className="text-[11px] text-red-500">{errors.products}</p>}
 
               {products.map((product, index) => (
                 <div key={product.id} className="space-y-3">
                   {/* Always-visible row */}
-                  <div className="flex flex-col md:flex-row gap-4 items-end">
-                    <div className="flex-1">
+                  <div className="flex flex-col md:flex-row gap-3 md:gap-4 md:items-end">
+                    <div className="w-full md:flex-1">
                       {index === 0 && <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Product Name <span className="text-red-500">*</span></label>}
                       <input type="text" value={product.name} onChange={e => updateProduct(product.id, 'name', e.target.value)}
                         placeholder="Enter or search your product name" className={fieldCls()} />
                     </div>
-                    <div className="w-[110px]">
-                      {index === 0 && <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">HSN</label>}
-                      <input type="text" value={product.hsn} onChange={e => updateProduct(product.id, 'hsn', e.target.value)}
-                        placeholder="HSN" className={fieldCls()} />
-                    </div>
-                    <div className="w-[140px]">
-                      {index === 0 && <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Unit Price <span className="text-red-500">*</span></label>}
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] font-medium text-[#94A3B8]">₹</span>
-                        <input type="number" value={product.unitPrice || ''} onChange={e => updateProduct(product.id, 'unitPrice', Number(e.target.value))}
-                          placeholder="0.00" min={0} className="w-full h-11 pl-8 pr-4 border border-[#E2E8F0] rounded-lg text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]" />
+                    <div className="grid grid-cols-2 md:flex gap-3 md:gap-4">
+                      <div className="w-full md:w-[110px]">
+                        {index === 0 && <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">HSN</label>}
+                        <input type="text" value={product.hsn} onChange={e => updateProduct(product.id, 'hsn', e.target.value)}
+                          placeholder="HSN" className={fieldCls()} />
                       </div>
-                    </div>
-                    <div className="w-[120px]">
-                      {index === 0 && <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Qty</label>}
-                      <div className="flex h-11 border border-[#E2E8F0] rounded-lg">
-                        <button
-                          type="button"
-                          onClick={() => updateProduct(product.id, 'qty', Math.max(1, product.qty - 1))}
-                          className="w-10 shrink-0 flex items-center justify-center rounded-l-lg bg-[#F8FAFC] hover:bg-[#F1F5F9] text-[#64748B] border-r border-[#E2E8F0] cursor-pointer"
-                        >
-                          <Minus className="w-3.5 h-3.5" />
-                        </button>
-                        <input type="text" value={product.qty} readOnly className="flex-1 text-center text-[13px] font-medium text-[#0F172A] focus:outline-none min-w-0" />
-                        <button
-                          type="button"
-                          onClick={() => updateProduct(product.id, 'qty', product.qty + 1)}
-                          className="w-10 shrink-0 flex items-center justify-center rounded-r-lg bg-[#F8FAFC] hover:bg-[#F1F5F9] text-[#64748B] border-l border-[#E2E8F0] cursor-pointer"
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                        </button>
+                      <div className="w-full md:w-[140px]">
+                        {index === 0 && <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Unit Price <span className="text-red-500">*</span></label>}
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] font-medium text-[#94A3B8]">₹</span>
+                          <input type="number" value={product.unitPrice || ''} onChange={e => updateProduct(product.id, 'unitPrice', Number(e.target.value))}
+                            placeholder="0.00" min={0} className="w-full h-11 pl-8 pr-4 border border-[#E2E8F0] rounded-lg text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]" />
+                        </div>
                       </div>
-                    </div>
-                    <div className="w-[140px]">
-                      {index === 0 && <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Total</label>}
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] font-medium text-[#94A3B8]">₹</span>
-                        <input type="text" value={(product.unitPrice * product.qty).toFixed(2)} readOnly
-                          className="w-full h-11 pl-8 pr-4 border border-[#E2E8F0] bg-[#F8FAFC] rounded-lg text-[13px] text-[#475569] font-medium focus:outline-none cursor-not-allowed" />
+                      <div className="w-full md:w-[120px]">
+                        {index === 0 && <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Qty</label>}
+                        <div className="flex h-11 border border-[#E2E8F0] rounded-lg">
+                          <button
+                            type="button"
+                            onClick={() => updateProduct(product.id, 'qty', Math.max(1, product.qty - 1))}
+                            className="w-10 shrink-0 flex items-center justify-center rounded-l-lg bg-[#F8FAFC] hover:bg-[#F1F5F9] text-[#64748B] border-r border-[#E2E8F0] cursor-pointer"
+                          >
+                            <Minus className="w-3.5 h-3.5" />
+                          </button>
+                          <input type="text" value={product.qty} readOnly className="flex-1 text-center text-[13px] font-medium text-[#0F172A] focus:outline-none min-w-0" />
+                          <button
+                            type="button"
+                            onClick={() => updateProduct(product.id, 'qty', product.qty + 1)}
+                            className="w-10 shrink-0 flex items-center justify-center rounded-r-lg bg-[#F8FAFC] hover:bg-[#F1F5F9] text-[#64748B] border-l border-[#E2E8F0] cursor-pointer"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="w-full md:w-[140px] flex gap-2 items-end">
+                        <div className="flex-1">
+                          {index === 0 && <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Total</label>}
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] font-medium text-[#94A3B8]">₹</span>
+                            <input type="text" value={(product.unitPrice * product.qty).toFixed(2)} readOnly
+                              className="w-full h-11 pl-8 pr-4 border border-[#E2E8F0] bg-[#F8FAFC] rounded-lg text-[13px] text-[#475569] font-medium focus:outline-none cursor-not-allowed" />
+                          </div>
+                        </div>
+                        <button type="button" onClick={() => handleRemoveProduct(product.id)} disabled={products.length === 1}
+                          className="h-11 w-11 flex items-center justify-center rounded-lg text-[#EF4444] bg-[#FEF2F2] border border-[#FEE2E2] hover:bg-red-100 disabled:opacity-30 disabled:cursor-not-allowed shrink-0 md:hidden">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
                     </div>
                     <button type="button" onClick={() => handleRemoveProduct(product.id)} disabled={products.length === 1}
-                      className="h-11 w-11 flex items-center justify-center rounded-lg text-[#EF4444] bg-[#FEF2F2] border border-[#FEE2E2] hover:bg-red-100 disabled:opacity-30 disabled:cursor-not-allowed shrink-0">
+                      className="hidden md:flex h-11 w-11 items-center justify-center rounded-lg text-[#EF4444] bg-[#FEF2F2] border border-[#FEE2E2] hover:bg-red-100 disabled:opacity-30 disabled:cursor-not-allowed shrink-0">
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
@@ -682,13 +690,15 @@ export function AdminAddOrder() {
               {/* Charges toggle */}
               <div className="pt-4 border-t border-[#E2E8F0]">
                 <button type="button" onClick={() => setShowExtraFees(v => !v)}
-                  className="flex items-center gap-2 text-[13px] font-bold text-[#0F172A]">
-                  Add Shipping Charges, Gift Wrap, Transaction Fee
-                  <ChevronDown className={`w-4 h-4 text-[#94A3B8] transition-transform ${showExtraFees ? 'rotate-180' : ''}`} />
-                  <span className="text-[11px] font-normal text-[#94A3B8]">(Optional)</span>
+                  className="flex items-start md:items-center justify-between md:justify-start gap-2 w-full md:w-auto text-left text-[13px] font-bold text-[#0F172A]">
+                  <span className="flex-1 md:flex-none">
+                    Add Shipping Charges, Gift Wrap, Transaction Fee
+                    <span className="text-[11px] font-normal text-[#94A3B8]"> (Optional)</span>
+                  </span>
+                  <ChevronDown className={`w-4 h-4 text-[#94A3B8] transition-transform shrink-0 mt-0.5 md:mt-0 ${showExtraFees ? 'rotate-180' : ''}`} />
                 </button>
                 {showExtraFees && (
-                  <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
                     {[
                       { label: 'Shipping Charges', value: shippingCharges, setter: setShippingCharges },
                       { label: 'Gift Wrap', value: giftWrap, setter: setGiftWrap },
@@ -730,14 +740,14 @@ export function AdminAddOrder() {
 
           {/* ── Package Details ── */}
           <div className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm overflow-hidden">
-            <div className="px-6 py-4 border-b border-[#E2E8F0]">
-              <h2 className="text-[14px] font-bold text-[#0F172A]">Package Details</h2>
+            <div className="px-3 md:px-6 py-2.5 md:py-4 border-b border-[#E2E8F0]">
+              <h2 className="text-[13px] md:text-[14px] font-bold text-[#0F172A]">Package Details</h2>
             </div>
-            <div className="p-6 space-y-6">
+            <div className="p-3 md:p-6 space-y-3 md:space-y-6">
 
               {/* Type + ROV row */}
-              <div className="flex flex-wrap gap-4">
-                <div className="w-[160px]">
+              <div className="flex flex-wrap gap-3 md:gap-4">
+                <div className="w-[calc(50%-6px)] md:w-[160px]">
                   <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Package Type:</label>
                   <div className="relative">
                     <select value={orderType} onChange={e => setOrderType(e.target.value)}
@@ -749,7 +759,7 @@ export function AdminAddOrder() {
                   </div>
                 </div>
                 {orderType === 'B2B' && (
-                  <div className="w-[200px]">
+                  <div className="w-[calc(50%-6px)] md:w-[200px]">
                     <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">ROV Type:</label>
                     <div className="relative">
                       <select value={rovType} onChange={e => setRovType(e.target.value)}
@@ -766,7 +776,7 @@ export function AdminAddOrder() {
               {/* B2C fields */}
               {orderType === 'B2C' && (
                 <>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-5">
                     {[
                       { label: 'Dead Weight', value: deadWeight, setter: setDeadWeight, unit: 'Kg', err: errors.deadWeight },
                       { label: 'Length', value: length, setter: setLength, unit: 'cm', err: errors.length },
@@ -878,10 +888,10 @@ export function AdminAddOrder() {
 
           {/* ── Payment Details ── */}
           <div className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm overflow-hidden">
-            <div className="px-6 py-4 border-b border-[#E2E8F0]">
-              <h2 className="text-[14px] font-bold text-[#0F172A]">Payment Details</h2>
+            <div className="px-3 md:px-6 py-2.5 md:py-4 border-b border-[#E2E8F0]">
+              <h2 className="text-[13px] md:text-[14px] font-bold text-[#0F172A]">Payment Details</h2>
             </div>
-            <div className="p-6">
+            <div className="p-3 md:p-6">
               <p className="text-[11px] text-[#94A3B8] mb-4">Select Mode of Payment that your buyer has chosen for the order</p>
               {errors.paymentMode && <p className="text-[11px] text-red-500 mb-3">{errors.paymentMode}</p>}
               <div className="flex gap-8">
@@ -905,11 +915,11 @@ export function AdminAddOrder() {
 
           {/* ── Other Details ── */}
           <div className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm overflow-hidden">
-            <div className="px-6 py-4 border-b border-[#E2E8F0]">
-              <h2 className="text-[14px] font-bold text-[#0F172A]">Other Details</h2>
+            <div className="px-3 md:px-6 py-2.5 md:py-4 border-b border-[#E2E8F0]">
+              <h2 className="text-[13px] md:text-[14px] font-bold text-[#0F172A]">Other Details</h2>
             </div>
-            <div className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <div className="p-3 md:p-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-5">
                 <div>
                   <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Reseller Name</label>
                   <input type="text" value={resellerName} onChange={e => setResellerName(e.target.value)} placeholder="Reseller Name" className={fieldCls()} />
@@ -968,7 +978,7 @@ export function AdminAddOrder() {
                 <X className="w-4 h-4" />
               </button>
             </div>
-            <div className="p-6 space-y-4">
+            <div className="p-3 md:p-6 space-y-3">
               {pickupFormErrors.submit && (
                 <p className="text-[12px] text-red-500">{pickupFormErrors.submit}</p>
               )}

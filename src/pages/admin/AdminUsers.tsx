@@ -13,7 +13,7 @@ import { useDateRangeFilter } from '../../hooks/filters/useDateRangeFilter';
 import { TableLoader } from '../../components/ui/TableLoader';
 import { TruncatedText } from '../../components/ui/TruncatedText';
 import { DesktopPagination } from '../../hooks/usePagination';
-import { useMobilePaginationBar } from '../../hooks/useMobilePaginationBar';
+import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
 import { getTier } from '../../hooks/useTier';
 import { apiClient } from '../../services/apiClient';
 
@@ -788,7 +788,7 @@ export function AdminUsers() {
           </div>
 
           {/* Mobile Pagination */}
-          {useMobilePaginationBar({
+          {<MobilePaginationBar {...({
             page: currentPage,
             setPage: setCurrentPage,
             totalPages,
@@ -797,7 +797,7 @@ export function AdminUsers() {
             startIndex: totalCount === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1,
             endIndex: Math.min(currentPage * rowsPerPage, totalCount),
             totalItems: totalCount,
-          })}
+          })} />}
         </div>
       </div>
 

@@ -13,7 +13,7 @@ export interface MobilePaginationBarProps {
   rowsPerPageOptions?: number[];
 }
 
-export function useMobilePaginationBar({
+export function MobilePaginationBar({
   page,
   setPage,
   totalPages,

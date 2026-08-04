@@ -8,7 +8,7 @@ import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
 import { TableLoader } from '../../components/ui/TableLoader';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { usePagination, DesktopPagination } from '../../hooks/usePagination';
-import { useMobilePaginationBar } from '../../hooks/useMobilePaginationBar';
+import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
 
 const STAGE_RIBBON: Record<string, string> = {
   'New Lead': '#2563EB', 'Contacted': '#7C3AED', 'Demo Scheduled': '#D97706',
@@ -336,7 +336,7 @@ export function CRMLeads() {
                 })}
               </div>
             )}
-            {useMobilePaginationBar({ page, setPage, totalPages, rowsPerPage, setRowsPerPage, startIndex, endIndex, totalItems: displayLeads.length })}
+            {<MobilePaginationBar {...({ page, setPage, totalPages, rowsPerPage, setRowsPerPage, startIndex, endIndex, totalItems: displayLeads.length })} />}
           </div>
         </div>
       </div>

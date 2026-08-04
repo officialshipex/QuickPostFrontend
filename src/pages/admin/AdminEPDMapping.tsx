@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePagination, DesktopPagination } from '../../hooks/usePagination';
-import { useMobilePaginationBar } from '../../hooks/useMobilePaginationBar';
+import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
 import { TableLoader } from '../../components/ui/TableLoader';
 
 const getCourierLogo = (partner: string) => {
@@ -377,7 +377,7 @@ export function AdminEPDMapping() {
           </div>
 
           {/* Mobile Pagination */}
-          {useMobilePaginationBar({
+          {<MobilePaginationBar {...({
             page: currentPage,
             setPage: setCurrentPage,
             totalPages,
@@ -386,7 +386,7 @@ export function AdminEPDMapping() {
             startIndex,
             endIndex,
             totalItems: filteredData.length,
-          })}
+          })} />}
         </div>
       </div>
 

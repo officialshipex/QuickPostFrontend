@@ -11,7 +11,7 @@ import {
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
 import { usePagination, DesktopPagination } from '../../hooks/usePagination';
-import { useMobilePaginationBar } from '../../hooks/useMobilePaginationBar';
+import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
 import { TableLoader } from '../../components/ui/TableLoader';
 import { TruncatedText } from '../../components/ui/TruncatedText';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -587,7 +587,7 @@ export function AdminPickupManifest({ isAdminView }: Props) {
         )}
 
         {/* Mobile Pagination */}
-        {useMobilePaginationBar({
+        {<MobilePaginationBar {...({
           page,
           setPage,
           totalPages,
@@ -596,7 +596,7 @@ export function AdminPickupManifest({ isAdminView }: Props) {
           startIndex: Math.min((page - 1) * rowsPerPage + 1, totalRecords),
           endIndex: Math.min(page * rowsPerPage, totalRecords),
           totalItems: totalRecords,
-        })}
+        })} />}
       </div>
 
       {/* ── Mobile Pickup Address Tooltip — fixed + viewport-clamped ── */}

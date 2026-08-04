@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePagination, DesktopPagination } from '../../hooks/usePagination';
-import { useMobilePaginationBar } from '../../hooks/useMobilePaginationBar';
+import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
 import { TableLoader } from '../../components/ui/TableLoader';
 
 const ZONES = ['A', 'B', 'C', 'D', 'E'] as const;
@@ -411,7 +411,7 @@ export function AdminEDDMapping() {
           )}
 
           {/* Mobile Pagination */}
-          {useMobilePaginationBar({
+          {<MobilePaginationBar {...({
             page: currentPage,
             setPage: setCurrentPage,
             totalPages,
@@ -420,7 +420,7 @@ export function AdminEDDMapping() {
             startIndex,
             endIndex,
             totalItems: filteredData.length,
-          })}
+          })} />}
         </div>
       </div>
 

@@ -15,7 +15,7 @@ import { TruncatedText } from '../../components/ui/TruncatedText';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { TableLoader } from '../../components/ui/TableLoader';
 import { DesktopPagination, usePagination } from '../../hooks/usePagination';
-import { useMobilePaginationBar } from '../../hooks/useMobilePaginationBar';
+import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
 import { getTier, getTierBadgeClass } from '../../hooks/useTier';
 import { getCourierLogo } from '../../utils/courierLogo';
 
@@ -988,7 +988,7 @@ export function AdminReports() {
                 endIndex={Math.min(sellerPage * sellerRowsPerPage, sellerTotal)}
                 totalItems={sellerTotal}
               />
-              {useMobilePaginationBar({
+              {<MobilePaginationBar {...({
                 page: sellerPage,
                 setPage: setSellerPage,
                 totalPages: sellerTotalPages,
@@ -997,7 +997,7 @@ export function AdminReports() {
                 startIndex: sellerTotal === 0 ? 0 : (sellerPage - 1) * sellerRowsPerPage + 1,
                 endIndex: Math.min(sellerPage * sellerRowsPerPage, sellerTotal),
                 totalItems: sellerTotal,
-              })}
+              })} />}
             </div>
 
             {/* MIS Reports table at bottom of seller overview */}
@@ -1236,7 +1236,7 @@ export function AdminReports() {
                         endIndex={sdCouriersPagination.endIndex}
                         totalItems={sdCouriersPagination.totalItems}
                       />
-                      {useMobilePaginationBar({
+                      {<MobilePaginationBar {...({
                         page: sdCouriersPagination.page,
                         setPage: sdCouriersPagination.setPage,
                         totalPages: sdCouriersPagination.totalPages,
@@ -1245,7 +1245,7 @@ export function AdminReports() {
                         startIndex: sdCouriersPagination.startIndex,
                         endIndex: sdCouriersPagination.endIndex,
                         totalItems: sdCouriersPagination.totalItems,
-                      })}
+                      })} />}
                     </div>
                   </>
                 )}
@@ -1346,7 +1346,7 @@ export function AdminReports() {
                         endIndex={sdTxnsPagination.endIndex}
                         totalItems={sdTxnsPagination.totalItems}
                       />
-                      {useMobilePaginationBar({
+                      {<MobilePaginationBar {...({
                         page: sdTxnsPagination.page,
                         setPage: sdTxnsPagination.setPage,
                         totalPages: sdTxnsPagination.totalPages,
@@ -1355,7 +1355,7 @@ export function AdminReports() {
                         startIndex: sdTxnsPagination.startIndex,
                         endIndex: sdTxnsPagination.endIndex,
                         totalItems: sdTxnsPagination.totalItems,
-                      })}
+                      })} />}
                     </div>
                   </>
                 )}

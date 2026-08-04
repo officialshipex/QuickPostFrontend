@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { usePagination, DesktopPagination } from '../../hooks/usePagination';
-import { useMobilePaginationBar } from '../../hooks/useMobilePaginationBar';
+import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
 import { Search, AlertCircle, Clock, CheckCircle2, XCircle, Plus, Hash, User, Truck, Tag, Flame, Timer, UserCog, Calendar, History, Filter, X } from 'lucide-react';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
@@ -299,7 +299,7 @@ export function CRMEscalations() {
                 })}
               </div>
             )}
-            {useMobilePaginationBar({ page, setPage, totalPages, rowsPerPage, setRowsPerPage, startIndex, endIndex, totalItems: filtered.length })}
+            {<MobilePaginationBar {...({ page, setPage, totalPages, rowsPerPage, setRowsPerPage, startIndex, endIndex, totalItems: filtered.length })} />}
           </div>
         </div>
       </div>

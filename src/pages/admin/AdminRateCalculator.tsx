@@ -375,8 +375,8 @@ export function AdminRateCalculator() {
             </div>
           </form>
 
-          {/* Graphic */}
-          <div className="relative bg-white rounded-2xl border border-[#E2E8F0] p-6 shadow-sm flex flex-col items-center justify-center gap-3 overflow-hidden min-h-[380px]">
+          {/* Graphic — desktop only */}
+          <div className="hidden lg:flex relative bg-white rounded-2xl border border-[#E2E8F0] p-6 shadow-sm flex-col items-center justify-center gap-3 overflow-hidden min-h-[380px]">
             {/* Soft accent glow behind the animation */}
             <div className="absolute w-64 h-64 rounded-full bg-[#F0FDF4] blur-2xl pointer-events-none" />
 
@@ -399,7 +399,7 @@ export function AdminRateCalculator() {
         <div ref={resultRef}>
           {hasFetched && results.length > 0 && (
             <div className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
-              <div className="px-6 py-4 border-b border-[#E2E8F0] bg-[#F8FAFC]/50">
+              <div className="hidden md:block px-6 py-4 border-b border-[#E2E8F0] bg-[#F8FAFC]/50">
                 <h3 className="text-[15px] font-bold text-[#0F172A]">Available Courier Partners</h3>
               </div>
 
@@ -465,39 +465,64 @@ export function AdminRateCalculator() {
                 </table>
               </div>
 
-              {/* Mobile cards */}
-              <div className="md:hidden divide-y divide-[#E2E8F0]">
-                {results.map(item => {
+              {/* Mobile cards — bounded height, scrolls independently, header stays pinned */}
+              <div className="md:hidden max-h-[60vh] overflow-y-auto thin-scrollbar bg-white">
+                <div className="sticky top-0 z-20 px-4 py-3 border-b border-[#E2E8F0] bg-white flex items-center justify-between">
+                  <h3 className="text-[14px] font-bold text-[#0F172A]">Available Courier Partners</h3>
+                  <span className="text-[11px] font-semibold text-[#00A86B] bg-[#F0FDF4] border border-[#DCFCE7] px-2 py-0.5 rounded-full">{results.length} found</span>
+                </div>
+                <div className="divide-y divide-[#F1F5F9]">
+                {results.map((item, idx) => {
                   const logo = getCarrierLogo(item.courierServiceName);
                   const isAir = isModeAir(item);
+                  const price = item.orderType === 'B2C' ? item.forward.finalCharges : item.working?.grand_total;
+                  const isCheapest = idx === 0;
                   return (
-                    <div key={item._id} className="p-4">
-                      <div className="flex items-center gap-3 mb-3">
+                    <div key={item._id} className="px-4 py-3.5 bg-white active:bg-[#F8FAFC] transition-colors">
+                      <div className="flex items-start gap-3">
                         {logo
-                          ? <img src={logo} alt={item.courierServiceName} className="w-10 h-10 object-contain rounded" />
-                          : <div className="w-10 h-10 rounded-lg bg-[#F1F5F9] flex items-center justify-center text-[9px] font-bold text-[#64748B] text-center">{item.courierServiceName.slice(0, 6)}</div>
+                          ? <img src={logo} alt={item.courierServiceName} className="w-11 h-11 object-contain rounded-lg border border-[#F1F5F9] p-1.5 shrink-0" />
+                          : <div className="w-11 h-11 rounded-lg bg-[#F1F5F9] flex items-center justify-center text-[9px] font-bold text-[#64748B] text-center shrink-0">{item.courierServiceName.slice(0, 6)}</div>
                         }
-                        <span className="text-[13px] font-bold text-[#0F172A]">{item.courierServiceName}</span>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[13.5px] font-bold text-[#0F172A] truncate">{item.courierServiceName}</span>
+                                {isCheapest && (
+                                  <span className="shrink-0 text-[9.5px] font-bold text-[#00A86B] bg-[#F0FDF4] border border-[#DCFCE7] px-1.5 py-[1px] rounded uppercase tracking-wide">Cheapest</span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-1 text-[11px] text-[#64748B] font-medium mt-0.5">
+                                {isAir ? <Plane className="w-3 h-3" /> : <Truck className="w-3 h-3" />}
+                                {isAir ? 'Air Mode' : 'Surface Mode'}
+                              </div>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <div className="flex items-center gap-1 justify-end">
+                                <span className="text-[15px] font-extrabold text-[#0F172A]">₹{price}</span>
+                                {item.orderType === 'B2B' && (
+                                  <Info
+                                    className="b2b-info-icon w-3.5 h-3.5 text-[#00A86B] cursor-pointer"
+                                    onClick={e => { e.stopPropagation(); openB2BPopup(e, item.working); }}
+                                  />
+                                )}
+                              </div>
+                              <div className="text-[10px] text-[#94A3B8] font-medium">all-inclusive</div>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => navigate('/user/add-order')}
+                            className="mt-2.5 w-full py-2 border border-[#00A86B] text-[#00A86B] active:bg-[#00A86B] active:text-white text-[12px] font-bold rounded-lg transition-colors"
+                          >
+                            Create Shipment
+                          </button>
+                        </div>
                       </div>
-                      <div className="flex justify-between text-[12px] mb-1">
-                        <span className="text-[#64748B] font-medium">Mode</span>
-                        {isAir ? <Plane className="w-4 h-4 text-[#64748B]" /> : <Truck className="w-4 h-4 text-[#64748B]" />}
-                      </div>
-                      <div className="flex justify-between text-[12px] mb-3">
-                        <span className="text-[#64748B] font-medium">Charges</span>
-                        <span className="font-bold text-[#0F172A]">
-                          {item.orderType === 'B2C' ? `₹${item.forward.finalCharges}` : `₹${item.working?.grand_total}`}
-                        </span>
-                      </div>
-                      <button
-                        onClick={() => navigate('/user/add-order')}
-                        className="w-full py-2 bg-[#00A86B] hover:bg-[#009B63] text-white text-[12px] font-bold rounded-xl transition-colors"
-                      >
-                        + Create Shipment
-                      </button>
                     </div>
                   );
                 })}
+                </div>
               </div>
             </div>
           )}

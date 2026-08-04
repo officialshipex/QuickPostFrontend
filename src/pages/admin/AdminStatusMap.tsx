@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { apiClient } from '../../services/apiClient';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { usePagination, DesktopPagination } from '../../hooks/usePagination';
-import { useMobilePaginationBar } from '../../hooks/useMobilePaginationBar';
+import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
 import { TableLoader } from '../../components/ui/TableLoader';
 import {
   Upload, Download, Briefcase,
@@ -580,7 +580,7 @@ export function AdminStatusMap() {
           )}
 
           {/* Mobile Pagination */}
-          {useMobilePaginationBar({
+          {<MobilePaginationBar {...({
             page: currentPage,
             setPage: setCurrentPage,
             totalPages,
@@ -589,7 +589,7 @@ export function AdminStatusMap() {
             startIndex,
             endIndex,
             totalItems: filteredRows.length,
-          })}
+          })} />}
         </div>
       </div>
 

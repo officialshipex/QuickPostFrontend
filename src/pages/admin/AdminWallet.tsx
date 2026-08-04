@@ -5,7 +5,7 @@ import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { useAdminTab } from '../../context/AdminUserContext';
 import { apiClient } from '../../services/apiClient';
 import { usePagination, DesktopPagination } from '../../hooks/usePagination';
-import { useMobilePaginationBar } from '../../hooks/useMobilePaginationBar';
+import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
 import { useUserSearchFilter } from '../../hooks/filters/useUserSearchFilter';
 import { Search, ChevronDown, RefreshCcw, Calendar, Check, Package, User, Truck, Banknote, Clock, Upload, Download, MoreVertical, Wallet, ArrowDownCircle, ArrowUpCircle, FileText, Plus, TrendingUp, ChevronLeft, ChevronRight, MinusCircle, Send, Eye, AlertCircle, CheckCircle2, X, CreditCard, Filter, Layers, Hash, CalendarDays, Bot, Settings, Copy } from 'lucide-react';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
@@ -2037,7 +2037,7 @@ export function AdminWallet() {
                 )}
 
                 {/* Mobile Pagination */}
-                {useMobilePaginationBar({
+                {<MobilePaginationBar {...({
                   page: shippingPage,
                   setPage: setShippingPage,
                   totalPages: totalShippingPages,
@@ -2046,7 +2046,7 @@ export function AdminWallet() {
                   startIndex: shippingStartIndex,
                   endIndex: shippingEndIndex,
                   totalItems: shippingTotal,
-                })}
+                })} />}
               </div>
             </>
           )}
@@ -2425,7 +2425,7 @@ export function AdminWallet() {
                 )}
 
                 {/* Mobile Passbook Pagination */}
-                {useMobilePaginationBar({
+                {<MobilePaginationBar {...({
                   page: passbookPage,
                   setPage: setPassbookPage,
                   totalPages: totalPassbookPages,
@@ -2434,7 +2434,7 @@ export function AdminWallet() {
                   startIndex: passbookStartIndex,
                   endIndex: passbookEndIndex,
                   totalItems: passbookTotal,
-                })}
+                })} />}
               </div>
             </>
           )}
@@ -2636,7 +2636,7 @@ export function AdminWallet() {
                 )}
 
                 {/* Mobile Recharge Pagination */}
-                {useMobilePaginationBar({
+                {<MobilePaginationBar {...({
                   page: rechargePage,
                   setPage: setRechargePage,
                   totalPages: totalRechargePages,
@@ -2645,7 +2645,7 @@ export function AdminWallet() {
                   startIndex: rechargeStartIndex,
                   endIndex: rechargeEndIndex,
                   totalItems: rechargeTotal,
-                })}
+                })} />}
               </div>
             </>
           )}
@@ -2908,7 +2908,7 @@ export function AdminWallet() {
                 )}
 
                 {/* Mobile Invoices Pagination */}
-                {useMobilePaginationBar({
+                {<MobilePaginationBar {...({
                   page: invoicePage,
                   setPage: setInvoicePage,
                   totalPages: totalInvoicePages,
@@ -2917,7 +2917,7 @@ export function AdminWallet() {
                   startIndex: invoiceStartIndex,
                   endIndex: invoiceEndIndex,
                   totalItems: invoiceTotal,
-                })}
+                })} />}
               </div>
             </>
           )}

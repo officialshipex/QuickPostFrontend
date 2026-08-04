@@ -8,7 +8,7 @@ import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
 import { TableLoader } from '../../components/ui/TableLoader';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { usePagination, DesktopPagination } from '../../hooks/usePagination';
-import { useMobilePaginationBar } from '../../hooks/useMobilePaginationBar';
+import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
 
 const KYC_RIBBON: Record<string, string> = {
   'Verified': '#059669', 'Pending': '#D97706', 'Rejected': '#DC2626', 'Not Submitted': '#94A3B8',
@@ -346,7 +346,7 @@ export function CRMSellerAccounts() {
                 })}
               </div>
             )}
-            {useMobilePaginationBar({ page, setPage, totalPages, rowsPerPage, setRowsPerPage, startIndex, endIndex, totalItems: displaySellers.length })}
+            {<MobilePaginationBar {...({ page, setPage, totalPages, rowsPerPage, setRowsPerPage, startIndex, endIndex, totalItems: displaySellers.length })} />}
           </div>
         </div>
       </div>
