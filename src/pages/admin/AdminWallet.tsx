@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo, useEffect, useCallback } from 'react';
+﻿import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
@@ -55,6 +55,7 @@ const mapShippingItem = (item: any) => {
     courier: item.courierServiceName || '',
     bookedDate: item.shipmentCreatedAt ? new Date(item.shipmentCreatedAt).toLocaleDateString('en-IN') : '',
     statusAmount: (item.totalFreightCharges || 0).toFixed(2),
+    priceBreakup: item.priceBreakup || null,
     status: item.status || 'new',
     initialWeight: `${Number(item.packageDetails?.deadWeight || 0).toFixed(3)} Kg`,
     initialDimensions: `L*W*H: ${vl}*${vw}*${vh} cm`,
@@ -81,6 +82,7 @@ const mapPassbookItem = (item: any) => ({
   amount: item.amount || 0,
   balance: item.balanceAfterTransaction || 0,
   description: item.description || '',
+  priceBreakup: item.priceBreakup || null,
   _raw: item,
 });
 
@@ -181,6 +183,9 @@ export function AdminWallet() {
     setSearchParams(newParams);
   };
   const [toast, setToast] = useState<{ type: 'error' | 'success', text: string } | null>(null);
+  const [pricePopupPos, setPricePopupPos] = useState<{ x: number; y: number; dir: string; order: any } | null>(null);
+  const pricePopupTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [mobilePricePopupOrder, setMobilePricePopupOrder] = useState<any | null>(null);
 
   const showToast = (type: 'error' | 'success', text: string) => {
     setToast({ type, text });
@@ -1824,7 +1829,23 @@ export function AdminWallet() {
                           {renderCopyable(order.awb, 'AWB', "text-[12px] font-semibold font-sans text-[#00A86B] cursor-pointer hover:underline mt-0.5", () => navigate(`${isAdminView ? '/admin' : '/user'}/tracking?awb=${order.awb}`))}
                         </td>
                         <td className="p-4">
-                          <div className="text-[12px] font-normal font-sans text-[#0F172A]">₹{order.statusAmount}</div>
+                          <div className="flex items-center gap-1">
+                            <div className="text-[12px] font-normal font-sans text-[#0F172A]">₹{order.statusAmount}</div>
+                            {order.priceBreakup && (
+                              <div
+                                className="cursor-help shrink-0"
+                                onMouseEnter={(e) => {
+                                  if (pricePopupTimerRef.current) clearTimeout(pricePopupTimerRef.current);
+                                  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                                  const dir = rect.top < window.innerHeight * 0.4 ? 'bottom' : 'top';
+                                  setPricePopupPos({ x: rect.left + rect.width / 2, y: dir === 'top' ? rect.top - 10 : rect.bottom + 10, dir, order });
+                                }}
+                                onMouseLeave={() => { pricePopupTimerRef.current = setTimeout(() => setPricePopupPos(null), 150); }}
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3 text-[#00A86B]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01" strokeLinecap="round"/></svg>
+                              </div>
+                            )}
+                          </div>
                           <span className={getStatusBadgeClass(order.status)}>
                             {order.status}
                           </span>
@@ -1969,7 +1990,14 @@ export function AdminWallet() {
                               </div>
                               <div className="text-right">
                                 <div className="text-[12px] font-normal text-[#94A3B8] uppercase tracking-wider font-sans">Total Freight</div>
-                                <div className="text-[12px] font-medium text-[#0F172A] mt-0.5 font-sans">₹{order.statusAmount} <span className="inline-block w-3 h-3 rounded-full border border-[#CBD5E1] text-[8px] text-[#94A3B8] text-center leading-3">ⓘ</span></div>
+                                <div className="flex items-center gap-1 mt-0.5">
+                                  <div className="text-[12px] font-medium text-[#0F172A] font-sans">₹{order.statusAmount}</div>
+                                  {order.priceBreakup && (
+                                    <button onClick={(e) => { e.stopPropagation(); setMobilePricePopupOrder(order); }} className="text-[#00A86B] flex items-center justify-center cursor-pointer focus:outline-none">
+                                      <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01" strokeLinecap="round"/></svg>
+                                    </button>
+                                  )}
+                                </div>
                               </div>
                             </div>
 
@@ -2168,7 +2196,23 @@ export function AdminWallet() {
                           </span>
                         </td>
                         <td className="p-4">
-                          <div className={`text-[12px] font-normal font-sans ${order.category === 'Debit' ? 'text-red-500' : 'text-green-500'}`}>₹{order.amount.toFixed(2)}</div>
+                          <div className="flex items-center gap-1">
+                            <div className={`text-[12px] font-normal font-sans ${order.category === 'Debit' ? 'text-red-500' : 'text-green-500'}`}>₹{order.amount.toFixed(2)}</div>
+                            {order.category === 'Debit' && order.priceBreakup && (
+                              <div
+                                className="cursor-help shrink-0"
+                                onMouseEnter={(e) => {
+                                  if (pricePopupTimerRef.current) clearTimeout(pricePopupTimerRef.current);
+                                  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                                  const dir = rect.top < window.innerHeight * 0.4 ? 'bottom' : 'top';
+                                  setPricePopupPos({ x: rect.left + rect.width / 2, y: dir === 'top' ? rect.top - 10 : rect.bottom + 10, dir, order });
+                                }}
+                                onMouseLeave={() => { pricePopupTimerRef.current = setTimeout(() => setPricePopupPos(null), 150); }}
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3 text-[#00A86B]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01" strokeLinecap="round"/></svg>
+                              </div>
+                            )}
+                          </div>
                         </td>
                         <td className="p-4">
                           <div className="text-[#64748B] text-[12px] font-normal font-sans">₹{order.balance.toFixed(2)}</div>
@@ -2295,8 +2339,15 @@ export function AdminWallet() {
                                     )}
                                   </div>
                                 </div>
-                                <div className={`text-[12px] font-normal shrink-0 font-sans ${isDebit ? 'text-red-500' : 'text-[#00A86B]'}`}>
-                                  {isDebit ? '-' : '+'} ₹{order.amount.toFixed(2)}
+                                <div className="flex items-center gap-1 shrink-0">
+                                  <div className={`text-[12px] font-normal font-sans ${isDebit ? 'text-red-500' : 'text-[#00A86B]'}`}>
+                                    {isDebit ? '-' : '+'} ₹{order.amount.toFixed(2)}
+                                  </div>
+                                  {isDebit && order.priceBreakup && (
+                                    <button onClick={(e) => { e.stopPropagation(); setMobilePricePopupOrder(order); }} className="text-[#00A86B] flex items-center justify-center cursor-pointer focus:outline-none">
+                                      <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01" strokeLinecap="round"/></svg>
+                                    </button>
+                                  )}
                                 </div>
                               </div>
                             </div>
@@ -3838,6 +3889,58 @@ export function AdminWallet() {
               </div>
             </motion.div>
           </motion.div>
+        )}
+      </AnimatePresence>
+      {/* ── Price Breakup Desktop Popup (fixed, never clipped) ── */}
+      {pricePopupPos && (
+        <div
+          style={{
+            position: 'fixed', zIndex: 9999,
+            left: pricePopupPos.x,
+            ...(pricePopupPos.dir === 'top' ? { bottom: window.innerHeight - pricePopupPos.y } : { top: pricePopupPos.y }),
+            transform: 'translateX(-50%)',
+            pointerEvents: 'auto',
+          }}
+          className="bg-white border border-[#E2E8F0] shadow-2xl rounded-xl p-3 w-52 text-[11px] text-[#475569]"
+          onMouseEnter={() => { if (pricePopupTimerRef.current) clearTimeout(pricePopupTimerRef.current); }}
+          onMouseLeave={() => { pricePopupTimerRef.current = setTimeout(() => setPricePopupPos(null), 150); }}
+        >
+          <p className="font-bold text-[#0F172A] text-[12px] mb-2 pb-1.5 border-b border-[#F1F5F9]">Price Breakup</p>
+          <div className="space-y-1.5">
+            <div className="flex justify-between"><span className="text-[#64748B]">Freight</span><span className="font-semibold text-[#0F172A]">₹{Number(pricePopupPos.order.priceBreakup?.freight ?? 0).toFixed(2)}</span></div>
+            <div className="flex justify-between"><span className="text-[#64748B]">COD</span><span className="font-semibold text-[#0F172A]">₹{Number(pricePopupPos.order.priceBreakup?.cod ?? 0).toFixed(2)}</span></div>
+            <div className="flex justify-between"><span className="text-[#64748B]">GST</span><span className="font-semibold text-[#0F172A]">₹{Number(pricePopupPos.order.priceBreakup?.gst ?? 0).toFixed(2)}</span></div>
+            <div className="flex justify-between pt-1.5 border-t border-[#F1F5F9]"><span className="font-bold text-[#0F172A]">Total</span><span className="font-bold text-[#00A86B]">₹{Number(pricePopupPos.order.priceBreakup?.total ?? pricePopupPos.order.statusAmount ?? pricePopupPos.order.amount ?? 0).toFixed(2)}</span></div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Price Breakup Mobile Modal ── */}
+      <AnimatePresence>
+        {mobilePricePopupOrder && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setMobilePricePopupOrder(null)} />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.92 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.92 }}
+              transition={{ duration: 0.18 }}
+              className="relative z-10 bg-white rounded-2xl shadow-2xl p-5 w-full max-w-xs"
+            >
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="font-bold text-[#0F172A] text-[13px] uppercase tracking-wide">Price Breakup</h3>
+                <button onClick={() => setMobilePricePopupOrder(null)} className="w-6 h-6 rounded-full bg-[#F1F5F9] flex items-center justify-center text-[#64748B] hover:bg-[#E2E8F0]">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+              </div>
+              <div className="space-y-2.5 text-[12px]">
+                <div className="flex justify-between"><span className="text-[#64748B]">Freight</span><span className="font-semibold text-[#0F172A]">₹{Number(mobilePricePopupOrder.priceBreakup?.freight ?? 0).toFixed(2)}</span></div>
+                <div className="flex justify-between"><span className="text-[#64748B]">COD</span><span className="font-semibold text-[#0F172A]">₹{Number(mobilePricePopupOrder.priceBreakup?.cod ?? 0).toFixed(2)}</span></div>
+                <div className="flex justify-between"><span className="text-[#64748B]">GST</span><span className="font-semibold text-[#0F172A]">₹{Number(mobilePricePopupOrder.priceBreakup?.gst ?? 0).toFixed(2)}</span></div>
+                <div className="flex justify-between pt-2 border-t border-[#F1F5F9]"><span className="font-bold text-[#0F172A]">Total</span><span className="font-bold text-[#00A86B]">₹{Number(mobilePricePopupOrder.priceBreakup?.total ?? mobilePricePopupOrder.statusAmount ?? mobilePricePopupOrder.amount ?? 0).toFixed(2)}</span></div>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </AdminLayout>
