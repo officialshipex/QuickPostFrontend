@@ -1296,11 +1296,9 @@ export function AdminCOD() {
                                   <div className="min-w-0 flex-1">
                                     <div className="text-[12px] font-normal text-[#0F172A] truncate">{order.courier || '—'}</div>
                                     {order.awb ? (
-                                      <div
-                                        className="text-[12px] font-semibold text-[#00A86B] underline truncate mt-0.5 active:opacity-60"
-                                        onClick={(e) => { e.stopPropagation(); navigate(`${isAdminView ? '/admin' : '/user'}/tracking?awb=${order.awb}`); }}
-                                      >
-                                        {order.awb}
+                                      <div className="flex items-center gap-1 group/copy mt-0.5">
+                                        <div className="text-[12px] font-semibold text-[#00A86B] underline truncate active:opacity-60 cursor-pointer" onClick={(e) => { e.stopPropagation(); navigate(`${isAdminView ? '/admin' : '/user'}/tracking?awb=${order.awb}`); }}>{order.awb}</div>
+                                        <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(order.awb).catch(()=>{}); showToast('success', 'AWB copied!'); }} className="opacity-100 md:opacity-0 md:group-hover/copy:opacity-100 transition-opacity shrink-0 focus:outline-none" title="Copy AWB"><Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" /></button>
                                       </div>
                                     ) : (
                                       <div className="text-[12px] font-semibold text-[#94A3B8] truncate mt-0.5">—</div>
@@ -1744,11 +1742,9 @@ export function AdminCOD() {
 
                             {/* Order ID */}
                             {order.orderID && (
-                              <div
-                                className="text-[11px] font-semibold text-[#00A86B] mb-3"
-                                onClick={() => navigate(`${isAdminView ? '/admin' : '/user'}/order-tracking?id=${order.orderID}`)}
-                              >
-                                Order ID: {order.orderID}
+                              <div className="flex items-center gap-1 group/copy mb-3">
+                                <div className="text-[11px] font-semibold text-[#00A86B] cursor-pointer" onClick={() => navigate(`${isAdminView ? '/admin' : '/user'}/order-tracking?id=${order.orderID}`)}>Order ID: {order.orderID}</div>
+                                <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(order.orderID).catch(()=>{}); showToast('success', 'Order ID copied!'); }} className="opacity-100 md:opacity-0 md:group-hover/copy:opacity-100 transition-opacity shrink-0 focus:outline-none" title="Copy Order ID"><Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" /></button>
                               </div>
                             )}
 
@@ -1774,11 +1770,9 @@ export function AdminCOD() {
                                     <div className="text-[12px] font-normal text-[#0F172A] truncate">{order.courierName || '—'}</div>
                                     <div className="text-[11px] font-normal text-[#94A3B8] truncate mt-0.5">Delivered On: {withOrdinalSuffix(order.date)}</div>
                                     {order.awb ? (
-                                      <div
-                                        className="text-[12px] font-semibold text-[#00A86B] underline truncate mt-0.5 active:opacity-60"
-                                        onClick={(e) => { e.stopPropagation(); navigate(`${isAdminView ? '/admin' : '/user'}/tracking?awb=${order.awb}`); }}
-                                      >
-                                        {order.awb}
+                                      <div className="flex items-center gap-1 group/copy mt-0.5">
+                                        <div className="text-[12px] font-semibold text-[#00A86B] underline truncate active:opacity-60 cursor-pointer" onClick={(e) => { e.stopPropagation(); navigate(`${isAdminView ? '/admin' : '/user'}/tracking?awb=${order.awb}`); }}>{order.awb}</div>
+                                        <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(order.awb).catch(()=>{}); showToast('success', 'AWB copied!'); }} className="opacity-100 md:opacity-0 md:group-hover/copy:opacity-100 transition-opacity shrink-0 focus:outline-none" title="Copy AWB"><Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" /></button>
                                       </div>
                                     ) : (
                                       <div className="text-[12px] font-semibold text-[#94A3B8] truncate mt-0.5">—</div>

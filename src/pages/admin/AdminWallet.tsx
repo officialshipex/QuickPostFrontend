@@ -273,7 +273,14 @@ export function AdminWallet() {
   const [courierOptions, setCourierOptions] = useState<{ label: string; value: string }[]>([]);
 
   // Pagination page states — declared early so fetch functions can reference setters
-  const itemsPerPage = 20;
+  const [shippingItemsPerPage, setShippingItemsPerPage] = useState(20);
+  const [passbookItemsPerPage, setPassbookItemsPerPage] = useState(20);
+  const [rechargeItemsPerPage, setRechargeItemsPerPage] = useState(20);
+  const [invoiceItemsPerPage, setInvoiceItemsPerPage] = useState(20);
+  const shippingItemsPerPageRef = useRef(20);
+  const passbookItemsPerPageRef = useRef(20);
+  const rechargeItemsPerPageRef = useRef(20);
+  const invoiceItemsPerPageRef = useRef(20);
   const [shippingPage, setShippingPage] = useState(1);
   const [passbookPage, setPassbookPage] = useState(1);
   const [rechargePage, setRechargePage] = useState(1);
@@ -616,7 +623,7 @@ export function AdminWallet() {
   const fetchShippingData = useCallback(async (page: number) => {
     setIsLoading(true);
     try {
-      const params: Record<string, any> = { page, limit: itemsPerPage };
+      const params: Record<string, any> = { page, limit: shippingItemsPerPageRef.current };
       if (isAdminView) {
         if (shipUserMongoId) params.userSearch = shipUserMongoId;
       } else if (currentUserId) {
@@ -646,7 +653,7 @@ export function AdminWallet() {
   const fetchPassbookData = useCallback(async (page: number) => {
     setIsLoading(true);
     try {
-      const params: Record<string, any> = { page, limit: itemsPerPage };
+      const params: Record<string, any> = { page, limit: passbookItemsPerPageRef.current };
       if (isAdminView) {
         if (pbUserMongoId) params.userSearch = pbUserMongoId;
       } else if (currentUserId) {
@@ -670,7 +677,7 @@ export function AdminWallet() {
   const fetchRechargeData = useCallback(async (page: number) => {
     setIsLoading(true);
     try {
-      const params: Record<string, any> = { page, limit: itemsPerPage };
+      const params: Record<string, any> = { page, limit: rechargeItemsPerPageRef.current };
       if (isAdminView) {
         if (rcUserMongoId) params.userSearch = rcUserMongoId;
       } else if (currentUserId) {
@@ -698,7 +705,7 @@ export function AdminWallet() {
   const fetchInvoiceData = useCallback(async (page: number) => {
     setIsLoading(true);
     try {
-      const params: Record<string, any> = { page, limit: itemsPerPage };
+      const params: Record<string, any> = { page, limit: invoiceItemsPerPageRef.current };
       if (isAdminView) {
         if (invUserMongoId) params.userId = invUserMongoId;
       }
@@ -874,41 +881,49 @@ export function AdminWallet() {
     });
   }, [invoiceList, headerMobileSearch, globalSearchQuery, invoiceSearchTerm]);
 
-  const {
-    paginatedData: paginatedShippingData,
-    rowsPerPage: shippingRowsPerPage,
-    setRowsPerPage: setShippingRowsPerPage,
-  } = usePagination({ data: filteredShippingData, perPage: 20 });
-  const totalShippingPages = Math.max(1, Math.ceil(shippingTotal / itemsPerPage));
-  const shippingStartIndex = shippingTotal === 0 ? 0 : (shippingPage - 1) * itemsPerPage + 1;
-  const shippingEndIndex = Math.min(shippingPage * itemsPerPage, shippingTotal);
+  const { paginatedData: paginatedShippingData } = usePagination({ data: filteredShippingData, perPage: shippingItemsPerPage });
+  const totalShippingPages = Math.max(1, Math.ceil(shippingTotal / shippingItemsPerPage));
+  const shippingStartIndex = shippingTotal === 0 ? 0 : (shippingPage - 1) * shippingItemsPerPage + 1;
+  const shippingEndIndex = Math.min(shippingPage * shippingItemsPerPage, shippingTotal);
+  const handleShippingItemsPerPage: React.Dispatch<React.SetStateAction<number>> = (n) => {
+    const val = typeof n === 'function' ? n(shippingItemsPerPage) : n;
+    shippingItemsPerPageRef.current = val;
+    setShippingItemsPerPage(val);
+    if (shippingPage === 1) fetchShippingData(1); else setShippingPage(1);
+  };
 
-  const {
-    paginatedData: paginatedPassbookData,
-    rowsPerPage: passbookRowsPerPage,
-    setRowsPerPage: setPassbookRowsPerPage,
-  } = usePagination({ data: filteredPassbookData, perPage: 20 });
-  const totalPassbookPages = Math.max(1, Math.ceil(passbookTotal / itemsPerPage));
-  const passbookStartIndex = passbookTotal === 0 ? 0 : (passbookPage - 1) * itemsPerPage + 1;
-  const passbookEndIndex = Math.min(passbookPage * itemsPerPage, passbookTotal);
+  const { paginatedData: paginatedPassbookData } = usePagination({ data: filteredPassbookData, perPage: passbookItemsPerPage });
+  const totalPassbookPages = Math.max(1, Math.ceil(passbookTotal / passbookItemsPerPage));
+  const passbookStartIndex = passbookTotal === 0 ? 0 : (passbookPage - 1) * passbookItemsPerPage + 1;
+  const passbookEndIndex = Math.min(passbookPage * passbookItemsPerPage, passbookTotal);
+  const handlePassbookItemsPerPage: React.Dispatch<React.SetStateAction<number>> = (n) => {
+    const val = typeof n === 'function' ? n(passbookItemsPerPage) : n;
+    passbookItemsPerPageRef.current = val;
+    setPassbookItemsPerPage(val);
+    if (passbookPage === 1) fetchPassbookData(1); else setPassbookPage(1);
+  };
 
-  const {
-    paginatedData: paginatedRechargeData,
-    rowsPerPage: rechargeRowsPerPage,
-    setRowsPerPage: setRechargeRowsPerPage,
-  } = usePagination({ data: filteredWalletRechargeData, perPage: 20 });
-  const totalRechargePages = Math.max(1, Math.ceil(rechargeTotal / itemsPerPage));
-  const rechargeStartIndex = rechargeTotal === 0 ? 0 : (rechargePage - 1) * itemsPerPage + 1;
-  const rechargeEndIndex = Math.min(rechargePage * itemsPerPage, rechargeTotal);
+  const { paginatedData: paginatedRechargeData } = usePagination({ data: filteredWalletRechargeData, perPage: rechargeItemsPerPage });
+  const totalRechargePages = Math.max(1, Math.ceil(rechargeTotal / rechargeItemsPerPage));
+  const rechargeStartIndex = rechargeTotal === 0 ? 0 : (rechargePage - 1) * rechargeItemsPerPage + 1;
+  const rechargeEndIndex = Math.min(rechargePage * rechargeItemsPerPage, rechargeTotal);
+  const handleRechargeItemsPerPage: React.Dispatch<React.SetStateAction<number>> = (n) => {
+    const val = typeof n === 'function' ? n(rechargeItemsPerPage) : n;
+    rechargeItemsPerPageRef.current = val;
+    setRechargeItemsPerPage(val);
+    if (rechargePage === 1) fetchRechargeData(1); else setRechargePage(1);
+  };
 
-  const {
-    paginatedData: paginatedInvoicesData,
-    rowsPerPage: invoiceRowsPerPage,
-    setRowsPerPage: setInvoiceRowsPerPage,
-  } = usePagination({ data: filteredInvoicesData, perPage: 20 });
-  const totalInvoicePages = Math.max(1, Math.ceil(invoiceTotal / itemsPerPage));
-  const invoiceStartIndex = invoiceTotal === 0 ? 0 : (invoicePage - 1) * itemsPerPage + 1;
-  const invoiceEndIndex = Math.min(invoicePage * itemsPerPage, invoiceTotal);
+  const { paginatedData: paginatedInvoicesData } = usePagination({ data: filteredInvoicesData, perPage: invoiceItemsPerPage });
+  const totalInvoicePages = Math.max(1, Math.ceil(invoiceTotal / invoiceItemsPerPage));
+  const invoiceStartIndex = invoiceTotal === 0 ? 0 : (invoicePage - 1) * invoiceItemsPerPage + 1;
+  const invoiceEndIndex = Math.min(invoicePage * invoiceItemsPerPage, invoiceTotal);
+  const handleInvoiceItemsPerPage: React.Dispatch<React.SetStateAction<number>> = (n) => {
+    const val = typeof n === 'function' ? n(invoiceItemsPerPage) : n;
+    invoiceItemsPerPageRef.current = val;
+    setInvoiceItemsPerPage(val);
+    if (invoicePage === 1) fetchInvoiceData(1); else setInvoicePage(1);
+  };
 
   // Bulk Actions & Helpers
   const handleRefresh = () => {
@@ -1891,8 +1906,8 @@ export function AdminWallet() {
                     page={shippingPage}
                     setPage={setShippingPage}
                     totalPages={totalShippingPages}
-                    rowsPerPage={shippingRowsPerPage}
-                    setRowsPerPage={setShippingRowsPerPage}
+                    rowsPerPage={shippingItemsPerPage}
+                    setRowsPerPage={handleShippingItemsPerPage}
                     startIndex={shippingStartIndex}
                     endIndex={shippingEndIndex}
                     totalItems={shippingTotal}
@@ -1976,12 +1991,15 @@ export function AdminWallet() {
                             <div className="flex items-start justify-between bg-[#F8FAFC] rounded-xl px-3 py-2.5 mb-3">
                               <div className="min-w-0">
                                 <div className="text-[12px] font-normal text-[#94A3B8] uppercase tracking-wider font-sans">AWB Number</div>
-                                <div
-                                  className="text-[12px] font-medium text-[#00A86B] mt-0.5 font-sans truncate active:opacity-60"
-                                  title={order.awb}
-                                  onClick={() => navigate(`${isAdminView ? '/admin' : '/user'}/tracking?awb=${order.awb}`)}
-                                >
-                                  {order.awb}
+                                <div className="flex items-center gap-1 group/copy mt-0.5 min-w-0">
+                                  <div
+                                    className="text-[12px] font-medium text-[#00A86B] font-sans truncate active:opacity-60 cursor-pointer"
+                                    title={order.awb}
+                                    onClick={() => navigate(`${isAdminView ? '/admin' : '/user'}/tracking?awb=${order.awb}`)}
+                                  >
+                                    {order.awb}
+                                  </div>
+                                  <button onClick={(e) => { e.stopPropagation(); copyToClipboard(order.awb, 'AWB'); }} className="opacity-100 md:opacity-0 md:group-hover/copy:opacity-100 transition-opacity shrink-0 focus:outline-none" title="Copy AWB"><Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" /></button>
                                 </div>
                               </div>
                               <div className="text-center">
@@ -2023,8 +2041,8 @@ export function AdminWallet() {
                   page: shippingPage,
                   setPage: setShippingPage,
                   totalPages: totalShippingPages,
-                  rowsPerPage: shippingRowsPerPage,
-                  setRowsPerPage: setShippingRowsPerPage,
+                  rowsPerPage: shippingItemsPerPage,
+                  setRowsPerPage: handleShippingItemsPerPage,
                   startIndex: shippingStartIndex,
                   endIndex: shippingEndIndex,
                   totalItems: shippingTotal,
@@ -2184,7 +2202,10 @@ export function AdminWallet() {
                         <td className="p-4">
                           <div className="text-[12px] font-semibold text-[#0F172A] font-sans">{order.courier || '—'}</div>
                           {order.awb && order.awb !== 'N/A' && (
-                            <div className="text-[11px] font-semibold text-[#00A86B] font-sans">{order.awb}</div>
+                            <div className="flex items-center gap-1 group/copy mt-0.5">
+                              <div className="text-[12px] font-semibold text-[#00A86B] cursor-pointer hover:text-[#009B63] font-sans underline" onClick={() => navigate(`${isAdminView ? '/admin' : '/user'}/tracking?awb=${order.awb}`)}>{order.awb}</div>
+                              <button onClick={(e) => { e.stopPropagation(); copyToClipboard(order.awb, 'AWB'); }} className="opacity-100 md:opacity-0 md:group-hover/copy:opacity-100 transition-opacity shrink-0 focus:outline-none" title="Copy AWB"><Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" /></button>
+                            </div>
                           )}
                           {order.bookedDate && (
                             <div className="text-[11px] text-[#94A3B8] font-sans">{order.bookedDate}</div>
@@ -2255,8 +2276,8 @@ export function AdminWallet() {
                     page={passbookPage}
                     setPage={setPassbookPage}
                     totalPages={totalPassbookPages}
-                    rowsPerPage={passbookRowsPerPage}
-                    setRowsPerPage={setPassbookRowsPerPage}
+                    rowsPerPage={passbookItemsPerPage}
+                    setRowsPerPage={handlePassbookItemsPerPage}
                     startIndex={passbookStartIndex}
                     endIndex={passbookEndIndex}
                     totalItems={passbookTotal}
@@ -2324,7 +2345,7 @@ export function AdminWallet() {
                                     <div className="text-[12px] font-normal text-[#0F172A] truncate font-sans">{order.courier} 2KG</div>
                                     {order.awb !== 'N/A' && (
                                       <div className="flex items-center gap-1.5 min-w-0 mt-0.5">
-                                        <span className="text-[12px] font-semibold text-[#00A86B] truncate font-sans">{order.awb}</span>
+                                        <span className="text-[12px] font-semibold text-[#00A86B] underline truncate font-sans cursor-pointer active:opacity-60" onClick={(e) => { e.stopPropagation(); navigate(`${isAdminView ? '/admin' : '/user'}/tracking?awb=${order.awb}`); }}>{order.awb}</span>
                                         <button
                                           onClick={(e) => {
                                             e.stopPropagation();
@@ -2356,12 +2377,17 @@ export function AdminWallet() {
                             <div className="grid grid-cols-3 gap-2 items-start bg-[#F8FAFC] rounded-xl px-3 py-2.5 mb-3">
                               <div className="min-w-0">
                                 <div className="text-[12px] font-normal text-[#94A3B8] uppercase tracking-wider font-sans">AWB Number</div>
-                                <div
-                                  className="text-[12px] font-medium text-[#00A86B] mt-0.5 truncate active:opacity-60 font-sans"
-                                  title={order.awb !== 'N/A' ? order.awb : undefined}
-                                  onClick={() => { if (order.awb !== 'N/A') navigate(`${isAdminView ? '/admin' : '/user'}/tracking?awb=${order.awb}`); }}
-                                >
-                                  {order.awb !== 'N/A' ? order.awb : '—'}
+                                <div className="flex items-center gap-1 group/copy mt-0.5 min-w-0">
+                                  <div
+                                    className="text-[12px] font-medium text-[#00A86B] truncate active:opacity-60 font-sans cursor-pointer"
+                                    title={order.awb !== 'N/A' ? order.awb : undefined}
+                                    onClick={() => { if (order.awb !== 'N/A') navigate(`${isAdminView ? '/admin' : '/user'}/tracking?awb=${order.awb}`); }}
+                                  >
+                                    {order.awb !== 'N/A' ? order.awb : '—'}
+                                  </div>
+                                  {order.awb !== 'N/A' && (
+                                    <button onClick={(e) => { e.stopPropagation(); copyToClipboard(order.awb, 'AWB'); }} className="opacity-100 md:opacity-0 md:group-hover/copy:opacity-100 transition-opacity shrink-0 focus:outline-none" title="Copy AWB"><Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" /></button>
+                                  )}
                                 </div>
                               </div>
                               <div className="min-w-0 text-center">
@@ -2403,8 +2429,8 @@ export function AdminWallet() {
                   page: passbookPage,
                   setPage: setPassbookPage,
                   totalPages: totalPassbookPages,
-                  rowsPerPage: passbookRowsPerPage,
-                  setRowsPerPage: setPassbookRowsPerPage,
+                  rowsPerPage: passbookItemsPerPage,
+                  setRowsPerPage: handlePassbookItemsPerPage,
                   startIndex: passbookStartIndex,
                   endIndex: passbookEndIndex,
                   totalItems: passbookTotal,
@@ -2527,8 +2553,8 @@ export function AdminWallet() {
                     page={rechargePage}
                     setPage={setRechargePage}
                     totalPages={totalRechargePages}
-                    rowsPerPage={rechargeRowsPerPage}
-                    setRowsPerPage={setRechargeRowsPerPage}
+                    rowsPerPage={rechargeItemsPerPage}
+                    setRowsPerPage={handleRechargeItemsPerPage}
                     startIndex={rechargeStartIndex}
                     endIndex={rechargeEndIndex}
                     totalItems={rechargeTotal}
@@ -2614,8 +2640,8 @@ export function AdminWallet() {
                   page: rechargePage,
                   setPage: setRechargePage,
                   totalPages: totalRechargePages,
-                  rowsPerPage: rechargeRowsPerPage,
-                  setRowsPerPage: setRechargeRowsPerPage,
+                  rowsPerPage: rechargeItemsPerPage,
+                  setRowsPerPage: handleRechargeItemsPerPage,
                   startIndex: rechargeStartIndex,
                   endIndex: rechargeEndIndex,
                   totalItems: rechargeTotal,
@@ -2772,8 +2798,8 @@ export function AdminWallet() {
                     page={invoicePage}
                     setPage={setInvoicePage}
                     totalPages={totalInvoicePages}
-                    rowsPerPage={invoiceRowsPerPage}
-                    setRowsPerPage={setInvoiceRowsPerPage}
+                    rowsPerPage={invoiceItemsPerPage}
+                    setRowsPerPage={handleInvoiceItemsPerPage}
                     startIndex={invoiceStartIndex}
                     endIndex={invoiceEndIndex}
                     totalItems={invoiceTotal}
@@ -2886,8 +2912,8 @@ export function AdminWallet() {
                   page: invoicePage,
                   setPage: setInvoicePage,
                   totalPages: totalInvoicePages,
-                  rowsPerPage: invoiceRowsPerPage,
-                  setRowsPerPage: setInvoiceRowsPerPage,
+                  rowsPerPage: invoiceItemsPerPage,
+                  setRowsPerPage: handleInvoiceItemsPerPage,
                   startIndex: invoiceStartIndex,
                   endIndex: invoiceEndIndex,
                   totalItems: invoiceTotal,

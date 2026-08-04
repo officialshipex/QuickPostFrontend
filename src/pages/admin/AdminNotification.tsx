@@ -7,7 +7,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import {
   Bell, MessageSquare, Smartphone, Mail, History,
   RefreshCw, CreditCard, Edit2, X, Send, Search,
-  AlertTriangle, CheckCircle, Plus, PhoneCall,
+  AlertTriangle, CheckCircle, Plus, PhoneCall, Copy,
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -601,7 +601,12 @@ function AICallingTab({ settings, targetUserId, onUpdate }: { settings: NotifSet
                     <div className="text-[10px] text-[#94A3B8]">{new Date(log.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</div>
                   </td>
                   <td className="px-4 py-3">
-                    <div className="text-xs font-mono font-semibold text-[#0F172A]">{log.awb_number || '—'}</div>
+                    {log.awb_number ? (
+                      <div className="flex items-center gap-1 group/copy">
+                        <span className="text-xs font-mono font-semibold text-[#00A86B] underline cursor-pointer hover:text-[#009B63]" onClick={() => navigate(`${isAdminView ? '/admin' : '/user'}/tracking?awb=${log.awb_number}`)}>{log.awb_number}</span>
+                        <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(log.awb_number).catch(()=>{}); }} className="opacity-100 md:opacity-0 md:group-hover/copy:opacity-100 transition-opacity shrink-0 focus:outline-none" title="Copy AWB"><Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" /></button>
+                      </div>
+                    ) : <span className="text-xs font-mono font-semibold text-[#0F172A]">—</span>}
                     {log.orderDisplayId && <div className="text-[10px] text-[#94A3B8]">#{log.orderDisplayId}</div>}
                   </td>
                   <td className="px-4 py-3">
@@ -643,7 +648,12 @@ function AICallingTab({ settings, targetUserId, onUpdate }: { settings: NotifSet
             <div key={log._id} className="p-4 space-y-1.5">
               <div className="flex items-center justify-between">
                 <div>
-                  <span className="text-xs font-bold text-[#0F172A] font-mono">{log.awb_number || '—'}</span>
+                  {log.awb_number ? (
+                    <div className="flex items-center gap-1 group/copy">
+                      <span className="text-xs font-bold text-[#00A86B] font-mono underline cursor-pointer active:opacity-60" onClick={(e) => { e.stopPropagation(); navigate(`${isAdminView ? '/admin' : '/user'}/tracking?awb=${log.awb_number}`); }}>{log.awb_number}</span>
+                      <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(log.awb_number).catch(()=>{}); }} className="opacity-100 md:opacity-0 md:group-hover/copy:opacity-100 transition-opacity shrink-0 focus:outline-none" title="Copy AWB"><Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" /></button>
+                    </div>
+                  ) : <span className="text-xs font-bold text-[#0F172A] font-mono">—</span>}
                   {log.orderDisplayId && <span className="text-[10px] text-[#94A3B8] ml-1">#{log.orderDisplayId}</span>}
                 </div>
                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border capitalize ${CALL_STATUS_STYLES[log.callStatus] || ''}`}>
