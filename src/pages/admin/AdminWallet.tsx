@@ -1122,132 +1122,70 @@ export function AdminWallet() {
             </button>
             {/* Action icon + per-tab dropdowns */}
             <div className="relative action-dropdown-container shrink-0">
-              <button
-                onClick={() => {
-                  if (activeTab === 'Shipping') setShowShippingActionMenu(v => !v);
-                  else if (activeTab === 'Passbook') setShowPassbookActionMenu(v => !v);
-                  else if (activeTab === 'Wallet Recharge') setShowRechargeActionMenu(v => !v);
-                  else setShowInvoiceActionMenu(v => !v);
-                }}
-                className="w-9 h-9 rounded-xl border border-[#E2E8F0] flex items-center justify-center text-[#475569] bg-white relative"
-              >
-                <MoreVertical className="w-4 h-4" />
-                {(() => {
-                  const count = activeTab === 'Shipping' ? selectedOrders.length :
-                    activeTab === 'Passbook' ? selectedPassbookOrders.length :
-                    activeTab === 'Wallet Recharge' ? selectedRechargeOrders.length :
-                    selectedInvoiceOrders.length;
-                  return count > 0 ? (
-                    <span className="absolute -top-1 -right-1 min-w-[16px] h-4 rounded-full bg-[#00A86B] text-white text-[9px] font-bold flex items-center justify-center px-0.5">
-                      {count}
-                    </span>
-                  ) : null;
-                })()}
-              </button>
+              {(() => {
+                const count = activeTab === 'Shipping' ? selectedOrders.length :
+                  activeTab === 'Passbook' ? selectedPassbookOrders.length :
+                  activeTab === 'Wallet Recharge' ? selectedRechargeOrders.length :
+                  selectedInvoiceOrders.length;
+                const hasSelection = count > 0;
+                return (
+                  <button
+                    onClick={() => {
+                      if (!hasSelection) return;
+                      if (activeTab === 'Shipping') setShowShippingActionMenu(v => !v);
+                      else if (activeTab === 'Passbook') setShowPassbookActionMenu(v => !v);
+                      else if (activeTab === 'Wallet Recharge') setShowRechargeActionMenu(v => !v);
+                      else setShowInvoiceActionMenu(v => !v);
+                    }}
+                    className={`w-9 h-9 rounded-xl border flex items-center justify-center bg-white relative transition-colors ${hasSelection ? 'border-[#00A86B] text-[#00A86B]' : 'border-[#E2E8F0] text-[#CBD5E1] opacity-50 cursor-not-allowed'}`}
+                  >
+                    <MoreVertical className="w-4 h-4" />
+                    {hasSelection && (
+                      <span className="absolute -top-1 -right-1 min-w-[16px] h-4 rounded-full bg-[#00A86B] text-white text-[9px] font-bold flex items-center justify-center px-0.5">
+                        {count}
+                      </span>
+                    )}
+                  </button>
+                );
+              })()}
+
               {activeTab === 'Shipping' && showShippingActionMenu && (
-                <div className="absolute right-0 top-full mt-2 w-[200px] bg-white rounded-xl shadow-[0_8px_28px_-6px_rgba(0,0,0,0.15)] border border-[#E2E8F0] py-1.5 z-50">
-                  <button
-                    disabled={selectedOrders.length === 0}
-                    onClick={() => { handleBulkShip(); setShowShippingActionMenu(false); }}
-                    className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-                  >
-                    Bulk Ship
-                  </button>
-                  <button
-                    disabled={selectedOrders.length === 0}
-                    onClick={() => { handleUpdatePackageDetails(); setShowShippingActionMenu(false); }}
-                    className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-                  >
-                    Update Package Details
-                  </button>
-                  <button
-                    disabled={selectedOrders.length === 0}
-                    onClick={() => { handleUpdatePickupAddress(); setShowShippingActionMenu(false); }}
-                    className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-                  >
-                    Update Pickup Address
-                  </button>
-                  <button
-                    disabled={selectedOrders.length === 0}
-                    onClick={() => { handleVerifyOrders(); setShowShippingActionMenu(false); }}
-                    className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-                  >
-                    Verify Orders
-                  </button>
+                <div className="absolute right-0 top-full mt-2 w-[200px] bg-white rounded-xl shadow-[0_8px_28px_-6px_rgba(0,0,0,0.15)] border border-[#E2E8F0] py-1.5 z-[200]">
                   <button
                     onClick={() => { handleExportData('shipping', filteredShippingData); setShowShippingActionMenu(false); }}
                     className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors"
                   >
-                    Export Excel
-                  </button>
-                  <button
-                    disabled={selectedOrders.length === 0}
-                    onClick={() => { handleDownloadInvoices(); setShowShippingActionMenu(false); }}
-                    className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-                  >
-                    Download Invoices
-                  </button>
-                  <div className="h-px bg-[#E2E8F0] my-1" />
-                  <button
-                    disabled={selectedOrders.length === 0}
-                    onClick={() => { handleBulkDelete(); setShowShippingActionMenu(false); }}
-                    className="w-full text-left px-4 py-2.5 text-[13px] font-semibold text-red-600 hover:bg-red-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-                  >
-                    Bulk Delete
+                    Export Excel/CSV
                   </button>
                 </div>
               )}
               {activeTab === 'Passbook' && showPassbookActionMenu && (
-                <div className="absolute right-0 top-full mt-2 w-[200px] bg-white rounded-xl shadow-[0_8px_28px_-6px_rgba(0,0,0,0.15)] border border-[#E2E8F0] py-1.5 z-50">
+                <div className="absolute right-0 top-full mt-2 w-[200px] bg-white rounded-xl shadow-[0_8px_28px_-6px_rgba(0,0,0,0.15)] border border-[#E2E8F0] py-1.5 z-[200]">
                   <button
                     onClick={() => { handleExportData('passbook', filteredPassbookData); setShowPassbookActionMenu(false); }}
                     className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors"
                   >
                     Export Passbook (CSV)
                   </button>
-                  <button
-                    onClick={() => {
-                      showToast('success', 'Passbook ledger report generated!');
-                      setShowPassbookActionMenu(false);
-                    }}
-                    className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors"
-                  >
-                    Download Detailed Ledger
-                  </button>
                 </div>
               )}
               {activeTab === 'Wallet Recharge' && showRechargeActionMenu && (
-                <div className="absolute right-0 top-full mt-2 w-[200px] bg-white rounded-xl shadow-[0_8px_28px_-6px_rgba(0,0,0,0.15)] border border-[#E2E8F0] py-1.5 z-50">
+                <div className="absolute right-0 top-full mt-2 w-[200px] bg-white rounded-xl shadow-[0_8px_28px_-6px_rgba(0,0,0,0.15)] border border-[#E2E8F0] py-1.5 z-[200]">
                   <button
                     onClick={() => { handleExportData('recharge', filteredWalletRechargeData); setShowRechargeActionMenu(false); }}
                     className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors"
                   >
                     Export Recharge History
                   </button>
-                  <button
-                    onClick={() => {
-                      showToast('success', 'Wallet Statement generated successfully!');
-                      setShowRechargeActionMenu(false);
-                    }}
-                    className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors"
-                  >
-                    Generate Statement
-                  </button>
                 </div>
               )}
               {activeTab === 'Invoices' && showInvoiceActionMenu && (
-                <div className="absolute right-0 top-full mt-2 w-[200px] bg-white rounded-xl shadow-[0_8px_28px_-6px_rgba(0,0,0,0.15)] border border-[#E2E8F0] py-1.5 z-50">
+                <div className="absolute right-0 top-full mt-2 w-[200px] bg-white rounded-xl shadow-[0_8px_28px_-6px_rgba(0,0,0,0.15)] border border-[#E2E8F0] py-1.5 z-[200]">
                   <button
                     onClick={() => { handleExportData('invoice', filteredInvoicesData); setShowInvoiceActionMenu(false); }}
                     className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors"
                   >
                     Export Invoice List
-                  </button>
-                  <button
-                    onClick={() => { handleBulkDownloadPDF(); setShowInvoiceActionMenu(false); }}
-                    className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors"
-                  >
-                    Download Selected PDF
                   </button>
                 </div>
               )}
@@ -1884,19 +1822,21 @@ export function AdminWallet() {
                           >
                             {isPaid ? 'Paid' : 'Ready To Ship'}
                           </div>
+                          <div className="absolute top-1.5 right-2">
+                            <input type="checkbox" checked={selectedOrders.includes(order.awb)} onChange={() => toggleSelect(order.awb)} className="rounded border-gray-300 accent-[#00A86B] w-4 h-4" />
+                          </div>
 
                           <div className="pt-7 px-3 pb-3">
                             {/* User Details Row */}
-                            <div className="flex items-center justify-between mb-2">
-                              <div className="flex items-center gap-2">
-                                <input type="checkbox" checked={selectedOrders.includes(order.awb)} onChange={() => toggleSelect(order.awb)} className="rounded border-gray-300 accent-[#00A86B] w-4 h-4" />
+                            {isAdminView && (
+                              <div className="flex items-center justify-between mb-2">
                                 <span className="text-[#64748B] font-medium text-[12px] font-sans">User Details</span>
+                                <span className="text-[12px] font-sans inline-flex items-baseline gap-1 max-w-[180px]">
+                                  <span className="font-semibold text-[#0F172A] text-[12px] truncate">{(order.userName || '—').split(' ')[0]}</span>
+                                  <span className="text-[#64748B] font-semibold shrink-0">({order.userId || '—'})</span>
+                                </span>
                               </div>
-                              <span className="text-[12px] font-sans inline-flex items-baseline gap-1 max-w-[180px]">
-                                <span className="font-semibold text-[#0F172A] text-[12px] truncate">{(order.userName || '—').split(' ')[0]}</span>
-                                <span className="text-[#64748B] font-semibold shrink-0">({order.userId || '—'})</span>
-                              </span>
-                            </div>
+                            )}
 
                             {/* Courier & Order Card */}
                             <div className="rounded-xl p-2.5 mb-2 bg-white" style={{ border: `1px solid ${accent}` }}>
@@ -2201,26 +2141,29 @@ export function AdminWallet() {
                           >
                             {order.category}
                           </div>
+                          <div className="absolute top-1.5 right-2">
+                            <input
+                              type="checkbox"
+                              checked={selectedPassbookOrders.includes(order.awb)}
+                              onChange={() => toggleSelectPassbook(order.awb)}
+                              className="rounded border-gray-300 accent-[#00A86B] w-4 h-4"
+                            />
+                          </div>
 
                           <div className="pt-7 px-3 pb-3">
                             {/* User Info */}
-                            <div className="flex justify-between items-center text-[12px] mb-2">
-                              <div className="flex items-center gap-2">
-                                <input
-                                  type="checkbox"
-                                  checked={selectedPassbookOrders.includes(order.awb)}
-                                  onChange={() => toggleSelectPassbook(order.awb)}
-                                  className="rounded border-gray-300 accent-[#00A86B] w-4 h-4"
-                                />
+                            {isAdminView && (
+                              <div className="flex justify-between items-center text-[12px] mb-2">
                                 <span className="text-[#64748B] font-medium text-[12px] font-sans">User Details</span>
+                                <span className="text-[12px] font-sans inline-flex items-baseline gap-1 max-w-[180px]">
+                                  <span className="font-semibold text-[#0F172A] text-[12px] truncate">{(order.userName || '—').split(' ')[0]}</span>
+                                  <span className="text-[#94A3B8] font-semibold shrink-0">({order.userId || '—'})</span>
+                                </span>
                               </div>
-                              <span className="text-[12px] font-sans inline-flex items-baseline gap-1 max-w-[180px]">
-                                <span className="font-semibold text-[#0F172A] text-[12px] truncate">{(order.userName || '—').split(' ')[0]}</span>
-                                <span className="text-[#94A3B8] font-semibold shrink-0">({order.userId || '—'})</span>
-                              </span>
-                            </div>
+                            )}
 
                             {/* Courier Card */}
+                            {order.awb && order.awb !== 'N/A' && (
                             <div className="rounded-xl p-2.5 mb-2 bg-white" style={{ border: `1px solid ${accent}` }}>
                               <div className="flex items-start justify-between">
                                 <div className="flex items-center gap-2.5 min-w-0">
@@ -2258,13 +2201,23 @@ export function AdminWallet() {
                                 </div>
                               </div>
                             </div>
+                            )}
+                            {/* Amount row — only for non-shipment entries (no AWB) */}
+                            {(!order.awb || order.awb === 'N/A') && (
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="text-[12px] font-medium text-[#64748B] font-sans">Amount</span>
+                                <span className={`text-[12px] font-medium font-sans ${isDebit ? 'text-red-500' : 'text-[#00A86B]'}`}>
+                                  {isDebit ? '-' : '+'} ₹{order.amount.toFixed(2)}
+                                </span>
+                              </div>
+                            )}
 
                             {/* Date & Time / Balance Row */}
                             <div className="flex items-center justify-between bg-[#F8FAFC] rounded-xl px-3 py-2 mb-2">
-                              <div className="min-w-0 text-center flex-1">
+                              <div className="min-w-0 text-left flex-1">
                                 <div className="text-[12px] font-normal text-[#94A3B8] uppercase tracking-wider font-sans">Date & Time</div>
                                 <div className="text-[12px] font-medium text-[#0F172A] mt-0.5 truncate font-sans">{order.date}</div>
-                                <div className="text-[12px] font-medium text-[#64748B] truncate font-sans">{order.day}</div>
+                                <div className="text-[12px] font-medium text-[#64748B] truncate font-sans">{order.time}</div>
                               </div>
                               <div className="text-right flex-1">
                                 <div className="text-[12px] font-normal text-[#94A3B8] uppercase tracking-wider font-sans">Avail. Balance</div>
@@ -2452,24 +2405,26 @@ export function AdminWallet() {
                           >
                             {recharge.status}
                           </div>
+                          <div className="absolute top-1.5 right-2">
+                            <input
+                              type="checkbox"
+                              checked={selectedRechargeOrders.includes(recharge.transactionId)}
+                              onChange={() => toggleSelectRecharge(recharge.transactionId)}
+                              className="rounded border-gray-300 accent-[#00A86B] w-4 h-4"
+                            />
+                          </div>
 
                           <div className="pt-7 px-3 pb-3">
                             {/* User Info */}
-                            <div className="flex justify-between items-center text-[12px] mb-2.5">
-                              <div className="flex items-center gap-2">
-                                <input
-                                  type="checkbox"
-                                  checked={selectedRechargeOrders.includes(recharge.transactionId)}
-                                  onChange={() => toggleSelectRecharge(recharge.transactionId)}
-                                  className="rounded border-gray-300 accent-[#00A86B] w-4 h-4"
-                                />
+                            {isAdminView && (
+                              <div className="flex justify-between items-center text-[12px] mb-2.5">
                                 <span className="text-[#64748B] font-medium text-[12px] font-sans">User Details</span>
+                                <span className="text-[12px] font-sans inline-flex items-baseline gap-1 max-w-[180px]">
+                                  <TruncatedText text={recharge.userName || '—'} maxLength={16} className="font-semibold text-[#0F172A] text-[12px]" />
+                                  <span className="text-[#94A3B8] font-semibold shrink-0">({recharge.userId || '—'})</span>
+                                </span>
                               </div>
-                              <span className="text-[12px] font-sans inline-flex items-baseline gap-1 max-w-[180px]">
-                                <TruncatedText text={recharge.userName || '—'} maxLength={16} className="font-semibold text-[#0F172A] text-[12px]" />
-                                <span className="text-[#94A3B8] font-semibold shrink-0">({recharge.userId || '—'})</span>
-                              </span>
-                            </div>
+                            )}
 
                             {/* Created At */}
                             <div className="text-[12px] mb-1.5 font-sans">
@@ -2708,24 +2663,28 @@ export function AdminWallet() {
                           >
                             {invoice.status === 'PAID' ? 'Paid' : 'Unpaid'}
                           </div>
+                          <div className="absolute top-1.5 right-2">
+                            <input
+                              type="checkbox"
+                              checked={selectedInvoiceOrders.includes(invoice.invoiceNumber)}
+                              onChange={() => toggleSelectInvoice(invoice.invoiceNumber)}
+                              className="rounded border-gray-300 accent-[#00A86B] w-4 h-4"
+                            />
+                          </div>
 
                           <div className="pt-7 px-3 pb-3">
                             {/* User Info */}
                             <div className="flex justify-between items-center text-[12px] mb-2">
-                              <div className="flex items-center gap-2">
-                                <input
-                                  type="checkbox"
-                                  checked={selectedInvoiceOrders.includes(invoice.invoiceNumber)}
-                                  onChange={() => toggleSelectInvoice(invoice.invoiceNumber)}
-                                  className="rounded border-gray-300 accent-[#00A86B] w-4 h-4"
-                                />
+                              {isAdminView ? (
                                 <span className="text-[#64748B] font-medium text-[12px] font-sans">User Details</span>
-                              </div>
+                              ) : <div />}
                               <div className="flex items-center gap-2">
-                                <span className="text-[12px] font-sans inline-flex items-baseline gap-1 max-w-[130px]">
-                                  <span className="font-semibold text-[#0F172A] text-[12px] truncate">{(invoice.userName || '—').split(' ')[0]}</span>
-                                  <span className="text-[#94A3B8] font-semibold shrink-0">({invoice.userId || '—'})</span>
-                                </span>
+                                {isAdminView && (
+                                  <span className="text-[12px] font-sans inline-flex items-baseline gap-1 max-w-[130px]">
+                                    <span className="font-semibold text-[#0F172A] text-[12px] truncate">{(invoice.userName || '—').split(' ')[0]}</span>
+                                    <span className="text-[#94A3B8] font-semibold shrink-0">({invoice.userId || '—'})</span>
+                                  </span>
+                                )}
                                 <div className="flex items-center gap-1 shrink-0">
                                   <button
                                     onClick={() => handleDownloadInvoice(invoice)}
