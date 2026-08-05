@@ -292,28 +292,28 @@ export function TransferCODModal({ userId, selectedRemittanceIds, type = 'seller
                   </h3>
                   <div className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm p-4 sm:p-6 grid grid-cols-2 md:grid-cols-2 gap-x-4 sm:gap-x-8 gap-y-4 sm:gap-y-6">
                     <div className="min-w-0">
-                      <p className="text-[10px] sm:text-[12px] font-semibold text-[#94A3B8] uppercase tracking-wider mb-1">{displayType === 'Courier' ? 'Company Name' : 'Account Holder'}</p>
-                      <p className="text-[12px] sm:text-[14px] font-bold text-[#0F172A] truncate">{bankDetails?.nameAtBank || '—'}</p>
+                      <p className="text-[10px] sm:text-[12px] font-semibold text-[#1E293B] uppercase tracking-wider mb-1">{displayType === 'Courier' ? 'Company Name' : 'Account Holder'}</p>
+                      <p className="text-[12px] sm:text-[14px] font-bold text-[#64748B] truncate">{bankDetails?.nameAtBank || '—'}</p>
                     </div>
                     <div className="min-w-0">
-                      <p className="text-[10px] sm:text-[12px] font-semibold text-[#94A3B8] uppercase tracking-wider mb-1">Account Number</p>
-                      <p className="text-[12px] sm:text-[14px] font-bold text-[#0F172A] tracking-wider truncate">{bankDetails?.accountNumber || '—'}</p>
+                      <p className="text-[10px] sm:text-[12px] font-semibold text-[#1E293B] uppercase tracking-wider mb-1">Account Number</p>
+                      <p className="text-[12px] sm:text-[14px] font-bold text-[#64748B] tracking-wider truncate">{bankDetails?.accountNumber || '—'}</p>
                     </div>
                     <div className="min-w-0">
-                      <p className="text-[10px] sm:text-[12px] font-semibold text-[#94A3B8] uppercase tracking-wider mb-1">Bank Name</p>
-                      <p className="text-[12px] sm:text-[14px] font-bold text-[#0F172A] truncate">{bankDetails?.bank || '—'}</p>
+                      <p className="text-[10px] sm:text-[12px] font-semibold text-[#1E293B] uppercase tracking-wider mb-1">Bank Name</p>
+                      <p className="text-[12px] sm:text-[14px] font-bold text-[#64748B] truncate">{bankDetails?.bank || '—'}</p>
                     </div>
                     <div className="min-w-0">
-                      <p className="text-[10px] sm:text-[12px] font-semibold text-[#94A3B8] uppercase tracking-wider mb-1">IFSC Code</p>
-                      <p className="text-[12px] sm:text-[14px] font-bold text-[#0F172A] truncate">{bankDetails?.ifsc || '—'}</p>
+                      <p className="text-[10px] sm:text-[12px] font-semibold text-[#1E293B] uppercase tracking-wider mb-1">IFSC Code</p>
+                      <p className="text-[12px] sm:text-[14px] font-bold text-[#64748B] truncate">{bankDetails?.ifsc || '—'}</p>
                     </div>
                     <div className="min-w-0">
-                      <p className="text-[10px] sm:text-[12px] font-semibold text-[#94A3B8] uppercase tracking-wider mb-1">Branch</p>
-                      <p className="text-[12px] sm:text-[14px] font-bold text-[#0F172A] truncate">{bankDetails?.branch || '—'}</p>
+                      <p className="text-[10px] sm:text-[12px] font-semibold text-[#1E293B] uppercase tracking-wider mb-1">Branch</p>
+                      <p className="text-[12px] sm:text-[14px] font-bold text-[#64748B] truncate">{bankDetails?.branch || '—'}</p>
                     </div>
                     <div className="min-w-0">
-                      <p className="text-[10px] sm:text-[12px] font-semibold text-[#94A3B8] uppercase tracking-wider mb-1">City</p>
-                      <p className="text-[12px] sm:text-[14px] font-bold text-[#0F172A] truncate">{bankDetails?.city || '—'}</p>
+                      <p className="text-[10px] sm:text-[12px] font-semibold text-[#1E293B] uppercase tracking-wider mb-1">City</p>
+                      <p className="text-[12px] sm:text-[14px] font-bold text-[#64748B] truncate">{bankDetails?.city || '—'}</p>
                     </div>
                   </div>
                 </div>

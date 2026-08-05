@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 
 import { DesktopPagination } from '../../hooks/usePagination';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
@@ -10,7 +11,7 @@ import { useUserSearchFilter } from '../../hooks/filters/useUserSearchFilter';
 import * as XLSX from 'xlsx';
 import {
   ChevronDown, RefreshCcw, Check, Package, User, Truck,
-  Upload, FileText, AlertTriangle, X, Search, Download
+  Upload, FileText, AlertTriangle, X, Search, Download, Filter, MoreVertical, Copy,
 } from 'lucide-react';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
@@ -18,6 +19,8 @@ import { useDateRangeFilter } from '../../hooks/filters/useDateRangeFilter';
 import { TableLoader } from '../../components/ui/TableLoader';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { TruncatedText } from '../../components/ui/TruncatedText';
+import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
+import { getCourierLogo } from '../../utils/courierLogo';
 
 // ── Date helpers ──────────────────────────────────────────────────────────────
 const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -408,7 +411,7 @@ export function AdminWeightDiscrepancy() {
 
   // ── Filters
   const [searchInput, setSearchInput] = useState('');
-  const [searchBy] = useState('awbNumber');
+  const [searchBy, setSearchBy] = useState('awbNumber');
   const [selectedCouriers, setSelectedCouriers] = useState<string[]>([]);
   const { dateStart, dateEnd, setDateStart, setDateEnd, onDateChange } = useDateRangeFilter();
   const {
@@ -438,6 +441,8 @@ export function AdminWeightDiscrepancy() {
   // ── UI
   const [showActionMenu, setShowActionMenu] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
+  const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
+  const [showMobileActionMenu, setShowMobileActionMenu] = useState(false);
   const [acceptModal, setAcceptModal] = useState<{ open: boolean; awb: string }>({ open: false, awb: '' });
   const [userAcceptModal, setUserAcceptModal] = useState<{ open: boolean; awb: string }>({ open: false, awb: '' });
   const [raiseDisputeModal, setRaiseDisputeModal] = useState<{ open: boolean; awb: string }>({ open: false, awb: '' });
@@ -592,9 +597,34 @@ export function AdminWeightDiscrepancy() {
 
   // ── Copy AWB
   const copyAwb = (awb: string, key: string) => {
-    navigator.clipboard.writeText(awb);
-    setCopiedAwb(key);
-    setTimeout(() => setCopiedAwb(null), 1500);
+    const showCopied = () => {
+      setCopiedAwb(key);
+      setTimeout(() => setCopiedAwb(null), 1500);
+    };
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(awb).then(showCopied).catch(() => {
+        // Clipboard API blocked (insecure context, permissions) — fall back to legacy copy
+        const ta = document.createElement('textarea');
+        ta.value = awb;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand('copy'); } catch { /* ignore */ }
+        document.body.removeChild(ta);
+        showCopied();
+      });
+    } else {
+      const ta = document.createElement('textarea');
+      ta.value = awb;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); } catch { /* ignore */ }
+      document.body.removeChild(ta);
+      showCopied();
+    }
   };
 
   // ── Export
@@ -661,9 +691,70 @@ export function AdminWeightDiscrepancy() {
     <AdminLayout>
       <div className={`flex flex-col ${isImpersonating ? 'h-[calc(100vh-104px)]' : 'h-[calc(100vh-72px)]'} -m-4 md:-m-6 bg-white ${!isAdminView ? 'overflow-hidden' : ''}`}>
 
+        {/* ── Mobile Search + Filter + Action + Upload Row (matches Wallet page) ── */}
+        <div className="md:hidden px-3 py-2.5 border-b border-[#E2E8F0] flex items-center gap-2 bg-white">
+          <div className="relative flex-1">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
+            <input
+              type="text"
+              placeholder="AWB/Order ID tracking"
+              value={searchInput}
+              onChange={e => { setSearchInput(e.target.value); setPage(1); }}
+              className="w-full h-9 pl-9 pr-3 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] text-sm text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all"
+            />
+          </div>
+          {/* Filter icon */}
+          <button
+            onClick={() => setIsMobileFiltersOpen(true)}
+            className="w-9 h-9 rounded-xl border border-[#E2E8F0] flex items-center justify-center text-[#475569] bg-white shrink-0"
+          >
+            <Filter className="w-4 h-4" />
+          </button>
+          {/* Action icon */}
+          <div className="relative shrink-0">
+            <button
+              onClick={() => selectedItems.length > 0 && setShowMobileActionMenu(v => !v)}
+              disabled={selectedItems.length === 0}
+              className="w-9 h-9 rounded-xl border border-[#E2E8F0] flex items-center justify-center text-[#475569] bg-white relative disabled:opacity-50"
+            >
+              <MoreVertical className="w-4 h-4" />
+              {selectedItems.length > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[16px] h-4 rounded-full bg-[#00A86B] text-white text-[9px] font-bold flex items-center justify-center px-0.5">
+                  {selectedItems.length}
+                </span>
+              )}
+            </button>
+            {showMobileActionMenu && selectedItems.length > 0 && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowMobileActionMenu(false)} />
+                <div className="absolute right-0 top-full mt-2 w-[200px] bg-white rounded-xl shadow-[0_8px_28px_-6px_rgba(0,0,0,0.15)] border border-[#E2E8F0] py-1.5 z-50">
+                  <button onClick={() => { handleExport(); setShowMobileActionMenu(false); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors">Export</button>
+                  {activeTab === 'Pending' && !isAdminView && (
+                    <button onClick={() => { handleUserBulkAccept(); setShowMobileActionMenu(false); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#00A86B] hover:bg-green-50 transition-colors">Accept All</button>
+                  )}
+                  {isDisputeTab && isAdminView && (
+                    <button onClick={() => { handleBulkAccept(); setShowMobileActionMenu(false); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#00A86B] hover:bg-green-50 transition-colors">Bulk Accept</button>
+                  )}
+                  {isDisputeTab && (
+                    <button onClick={() => { handleBulkDecline(); setShowMobileActionMenu(false); }} className="w-full text-left px-4 py-2.5 text-[13px] font-semibold text-red-600 hover:bg-red-50 transition-colors">Bulk Decline</button>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+          {/* Upload icon */}
+          <button
+            onClick={() => setShowUpload(true)}
+            className="w-9 h-9 rounded-xl bg-[#00A86B] flex items-center justify-center text-white shadow-sm active:bg-[#009B63] transition-colors shrink-0"
+            title="Upload discrepancy"
+          >
+            <Upload className="w-4 h-4" />
+          </button>
+        </div>
+
         {/* ── Tab bar ── */}
         <div className="bg-white border-b border-[#E2E8F0] relative z-50 shrink-0">
-          <div className="flex justify-between items-center px-6 py-2 border-b border-[#E2E8F0] bg-white overflow-x-auto no-scrollbar">
+          <div className="flex justify-between items-center px-4 md:px-6 py-2 border-b border-[#E2E8F0] bg-white overflow-x-auto no-scrollbar">
             <div className="flex gap-1 items-center bg-[#F7FEFC] rounded-full p-1.5 shrink-0">
               {MAIN_TABS.map(tab => (
                 <button key={tab} onClick={() => handleTabChange(tab)}
@@ -675,7 +766,7 @@ export function AdminWeightDiscrepancy() {
                 </button>
               ))}
             </div>
-            <div className="flex items-center gap-2 shrink-0 ml-4">
+            <div className="hidden md:flex items-center gap-2 shrink-0 ml-4">
               <button onClick={() => setShowExportModal(true)} aria-label="Download Excel"
                 className="w-8 h-8 rounded-full border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC] cursor-pointer">
                 <Download className="w-4 h-4" />
@@ -688,47 +779,47 @@ export function AdminWeightDiscrepancy() {
           </div>
 
           {/* ── Summary cards ── */}
-          <div className="p-4 border-b border-[#E2E8F0] bg-[#F8FAFC]/30 flex flex-wrap gap-4">
-            <div className="flex-1 min-w-[180px] bg-white rounded-xl p-3 border border-[#E2E8F0] flex items-center gap-3 shadow-sm">
-              <div className="w-8 h-8 rounded-full bg-[#E0F2FE] flex items-center justify-center shrink-0">
-                <Package className="w-4 h-4 text-[#0EA5E9]" />
+          <div className="p-3 md:p-4 border-b border-[#E2E8F0] bg-[#F8FAFC]/30 grid grid-cols-2 md:flex md:flex-wrap gap-2.5 md:gap-4">
+            <div className="min-w-0 md:flex-1 md:min-w-[180px] bg-white rounded-xl p-2.5 md:p-3 border border-[#E2E8F0] flex items-center gap-2 md:gap-3 shadow-sm">
+              <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-[#E0F2FE] flex items-center justify-center shrink-0">
+                <Package className="w-3.5 h-3.5 md:w-4 md:h-4 text-[#0EA5E9]" />
               </div>
-              <div>
-                <div className="text-[18px] font-bold text-[#0F172A]">{counts['pending'] ?? 0}</div>
-                <div className="text-[10px] font-semibold text-[#64748B]">New Discrepancies</div>
-              </div>
-            </div>
-            <div className="flex-1 min-w-[180px] bg-[#F0FDF4] rounded-xl p-3 border border-[#BBF7D0] flex items-center gap-3 shadow-sm">
-              <div className="w-8 h-8 rounded-full bg-[#BBF7D0] flex items-center justify-center shrink-0">
-                <Check className="w-4 h-4 text-[#16A34A]" />
-              </div>
-              <div>
-                <div className="text-[18px] font-bold text-[#0F172A]">{counts['accepted'] ?? 0}</div>
-                <div className="text-[10px] font-semibold text-[#64748B]">Accepted</div>
+              <div className="min-w-0">
+                <div className="text-[15px] md:text-[18px] font-bold text-[#0F172A] leading-tight">{counts['pending'] ?? 0}</div>
+                <div className="text-[9.5px] md:text-[10px] font-semibold text-[#64748B] leading-tight truncate">New Discrepancies</div>
               </div>
             </div>
-            <div className="flex-1 min-w-[180px] bg-[#FFFBEB] rounded-xl p-3 border border-[#FDE68A] flex items-center gap-3 shadow-sm">
-              <div className="w-8 h-8 rounded-full bg-[#FDE68A] flex items-center justify-center shrink-0">
-                <AlertTriangle className="w-4 h-4 text-[#D97706]" />
+            <div className="min-w-0 md:flex-1 md:min-w-[180px] bg-[#F0FDF4] rounded-xl p-2.5 md:p-3 border border-[#BBF7D0] flex items-center gap-2 md:gap-3 shadow-sm">
+              <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-[#BBF7D0] flex items-center justify-center shrink-0">
+                <Check className="w-3.5 h-3.5 md:w-4 md:h-4 text-[#16A34A]" />
               </div>
-              <div>
-                <div className="text-[18px] font-bold text-[#0F172A]">{counts['discrepancy raised'] ?? 0}</div>
-                <div className="text-[10px] font-semibold text-[#64748B]">Disputes</div>
+              <div className="min-w-0">
+                <div className="text-[15px] md:text-[18px] font-bold text-[#0F172A] leading-tight">{counts['accepted'] ?? 0}</div>
+                <div className="text-[9.5px] md:text-[10px] font-semibold text-[#64748B] leading-tight truncate">Accepted</div>
               </div>
             </div>
-            <div className="flex-1 min-w-[180px] bg-[#FFF1F2] rounded-xl p-3 border border-[#FECDD3] flex items-center gap-3 shadow-sm">
-              <div className="w-8 h-8 rounded-full bg-[#FECDD3] flex items-center justify-center shrink-0">
-                <AlertTriangle className="w-4 h-4 text-[#E11D48]" />
+            <div className="min-w-0 md:flex-1 md:min-w-[180px] bg-[#FFFBEB] rounded-xl p-2.5 md:p-3 border border-[#FDE68A] flex items-center gap-2 md:gap-3 shadow-sm">
+              <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-[#FDE68A] flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-3.5 h-3.5 md:w-4 md:h-4 text-[#D97706]" />
               </div>
-              <div>
-                <div className="text-[18px] font-bold text-[#0F172A]">{counts['escalated'] ?? 0}</div>
-                <div className="text-[10px] font-semibold text-[#64748B]">Escalated</div>
+              <div className="min-w-0">
+                <div className="text-[15px] md:text-[18px] font-bold text-[#0F172A] leading-tight">{counts['discrepancy raised'] ?? 0}</div>
+                <div className="text-[9.5px] md:text-[10px] font-semibold text-[#64748B] leading-tight truncate">Disputes</div>
+              </div>
+            </div>
+            <div className="min-w-0 md:flex-1 md:min-w-[180px] bg-[#FFF1F2] rounded-xl p-2.5 md:p-3 border border-[#FECDD3] flex items-center gap-2 md:gap-3 shadow-sm">
+              <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-[#FECDD3] flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-3.5 h-3.5 md:w-4 md:h-4 text-[#E11D48]" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-[15px] md:text-[18px] font-bold text-[#0F172A] leading-tight">{counts['escalated'] ?? 0}</div>
+                <div className="text-[9.5px] md:text-[10px] font-semibold text-[#64748B] leading-tight truncate">Escalated</div>
               </div>
             </div>
           </div>
 
-          {/* ── Filter row ── */}
-          <div className="py-3 px-6 border-b border-[#CBD5F5] flex flex-wrap items-center gap-3 bg-[#F8FAFC]/50 relative z-50">
+          {/* ── Filter row (desktop) ── */}
+          <div className="hidden md:flex py-3 px-6 border-b border-[#CBD5F5] flex-wrap items-center gap-3 bg-[#F8FAFC]/50 relative z-50">
 
             {/* User search (admin only) — matches AdminOrders pattern */}
             {isAdminView && (
@@ -854,8 +945,8 @@ export function AdminWeightDiscrepancy() {
           </div>
         </div>
 
-        {/* ── Table ── */}
-        <div className="bg-white flex flex-col flex-1 min-h-0 overflow-hidden border-t border-[#E2E8F0]">
+        {/* ── Table (desktop) ── */}
+        <div className="hidden md:flex bg-white flex-col flex-1 min-h-0 overflow-hidden border-t border-[#E2E8F0]">
           <div className="flex-1 overflow-auto w-full relative">
             {loading && <TableLoader />}
             <table className="w-full text-left border-collapse min-w-full">
@@ -1098,6 +1189,170 @@ export function AdminWeightDiscrepancy() {
             />
           )}
         </div>
+
+        {/* ── Cards (mobile) ── */}
+        <div className="md:hidden bg-[#F8FAFC] flex flex-col flex-1 min-h-0 overflow-hidden">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden w-full relative">
+            {loading && <TableLoader />}
+            {!loading && filteredOrders.length === 0 && (
+              <EmptyState title="No discrepancies found" subtitle="Try changing filters" />
+            )}
+            {!loading && filteredOrders.length > 0 && (
+              <div className="p-3 space-y-2">
+                {filteredOrders.map((order, idx) => {
+                  const products: any[] = Array.isArray(order.productDetails) ? order.productDetails : [];
+                  const rem = daysLeft(order.createdAt);
+                  const statusText = safeText(order.adminStatus || order.status);
+                  const orderStatus = statusText.toLowerCase();
+                  const isPending = orderStatus === 'pending' || orderStatus === 'new';
+                  const isDisputeRaised = orderStatus === 'discrepancy raised';
+                  const logo = getCourierLogo(safeText(order.courierServiceName));
+                  const key = order._id || order.awbNumber || idx;
+
+                  return (
+                    <div key={key} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-visible">
+                      {/* Ribbon */}
+                      <div
+                        className={`absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide rounded-tl-2xl ${
+                          isDisputeRaised ? 'bg-rose-500' : orderStatus === 'accepted' ? 'bg-[#00A86B]' : orderStatus === 'escalated' ? 'bg-rose-600' : 'bg-blue-500'
+                        }`}
+                        style={{ clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}
+                      >
+                        {statusText || 'Pending'}
+                      </div>
+
+                      <div className="pt-7 px-3 pb-2.5">
+                        {/* Checkbox + User */}
+                        <div className="flex items-start justify-between gap-2 mb-1.5">
+                          <div className="flex items-center gap-2 min-w-0 flex-1">
+                            <input type="checkbox" className="rounded accent-[#00A86B] w-4 h-4 shrink-0"
+                              checked={selectedItems.includes(order._id)}
+                              onChange={() => toggleOne(order._id)} />
+                            {isAdminView ? (
+                              <div className="w-7 h-7 rounded-full bg-[#F0FDF4] flex items-center justify-center text-[#00A86B] text-[11px] font-bold shrink-0">
+                                {(order.user?.fullname || order.user?.name || '?').charAt(0).toUpperCase()}
+                              </div>
+                            ) : null}
+                            <div className="min-w-0 flex-1">
+                              {isAdminView && (
+                                <>
+                                  <div className="text-[12px] font-semibold text-[#0F172A] truncate max-w-full">{order.user?.fullname || order.user?.name || '—'}</div>
+                                  <div className="text-[11px] text-[#94A3B8] truncate max-w-full">{order.user?.email || ''}</div>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex flex-col items-end gap-1 shrink-0">
+                            {isAdminView && order.user?.userId && (
+                              <span className="text-[12px] font-semibold text-[#009D64]">{order.user.userId}</span>
+                            )}
+                            {isPending && (
+                              <span className="bg-red-500 text-white text-[9px] px-1.5 py-0.5 rounded whitespace-nowrap">
+                                {rem > 0 ? `${rem}d left` : 'Auto soon'}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Weights row */}
+                        <div className="text-[12px] text-[#64748B] mb-1">
+                          Charged weight: <span className="font-semibold text-[#0F172A]">{order.chargedWeight?.applicableWeight ?? '—'} Kg</span>
+                        </div>
+                        <div className="text-[12px] text-[#64748B] mb-1.5">
+                          Applied weight: <span className="font-semibold text-[#0F172A]">{order.enteredWeight?.applicableWeight ?? '—'} Kg</span>
+                        </div>
+
+                        {/* Courier + AWB + price row */}
+                        <div className="flex items-center justify-between gap-2 bg-[#F8FAFC] rounded-xl px-2.5 py-1.5">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div className="w-8 h-8 rounded-full bg-white border border-[#E2E8F0] flex items-center justify-center shrink-0 overflow-hidden">
+                              {logo ? <img src={logo} alt="" className="w-5 h-5 object-contain" /> : <Truck className="w-3.5 h-3.5 text-[#94A3B8]" />}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="text-[11px] font-semibold text-[#0F172A] truncate">{safeText(order.courierServiceName) || 'Courier'} {order.chargedWeight?.applicableWeight ?? ''}KG</div>
+                              <div className="relative flex items-center gap-1">
+                                <button
+                                  onClick={() => order.awbNumber && navigate(`${isAdminView ? '/admin' : '/user'}/tracking?awb=${order.awbNumber}`)}
+                                  className="text-[11px] font-semibold text-[#00A86B] hover:underline truncate"
+                                >
+                                  {order.awbNumber}
+                                </button>
+                                {order.awbNumber && (
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); copyAwb(order.awbNumber, `mobile-card-${idx}`); }}
+                                    className="p-0.5 text-[#94A3B8] hover:text-[#00A86B] shrink-0"
+                                  >
+                                    <Copy className="w-3 h-3" />
+                                  </button>
+                                )}
+                                {copiedAwb === `mobile-card-${idx}` && (
+                                  <span className="absolute left-0 -top-6 px-2 py-1 rounded-md bg-[#0F172A] text-white text-[10px] font-semibold whitespace-nowrap shadow-lg z-10">
+                                    Copied!
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-[12px] font-normal text-[#059669] shrink-0">
+                            ₹{Number(order.excessWeightCharges?.excessCharges || 0).toFixed(2)}
+                          </div>
+                        </div>
+
+                        {/* Actions row — only rendered when there's something to show */}
+                        {(isDisputeRaised || (!isAdminView && isPending)) && (
+                          <div className="flex items-center gap-2 mt-2">
+                            {isDisputeRaised && (
+                              <button onClick={() => setDetailsModal({ open: true, text: order.text || '', imageUrl: order.imageUrl || '' })}
+                                className="flex-1 h-8 rounded-full border border-[#E2E8F0] text-[#475569] text-[11px] font-bold hover:bg-[#F8FAFC] transition-colors">
+                                Details
+                              </button>
+                            )}
+                            {isAdminView && isDisputeRaised && (
+                              <>
+                                <button onClick={() => setAcceptModal({ open: true, awb: order.awbNumber })}
+                                  className="flex-1 h-8 rounded-full bg-[#00A86B] hover:bg-[#009B63] text-white text-[11px] font-bold transition-colors">
+                                  Accept
+                                </button>
+                                <button onClick={() => setDeclineModal({ open: true, awbs: [order.awbNumber] })}
+                                  className="flex-1 h-8 rounded-full bg-red-500 hover:bg-red-600 text-white text-[11px] font-bold transition-colors">
+                                  Decline
+                                </button>
+                              </>
+                            )}
+                            {!isAdminView && isPending && (
+                              <>
+                                <button onClick={() => setUserAcceptModal({ open: true, awb: order.awbNumber })}
+                                  className="flex-1 h-8 rounded-full bg-[#00A86B] hover:bg-[#009B63] text-white text-[11px] font-bold transition-colors">
+                                  Accept
+                                </button>
+                                <button onClick={() => setRaiseDisputeModal({ open: true, awb: order.awbNumber })}
+                                  className="flex-1 h-8 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-[11px] font-bold transition-colors">
+                                  Raise Dispute
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Mobile Pagination */}
+          {<MobilePaginationBar {...({
+            page,
+            setPage,
+            totalPages,
+            rowsPerPage,
+            setRowsPerPage,
+            startIndex: startIdx,
+            endIndex: endIdx,
+            totalItems: total,
+          })} />}
+        </div>
       </div>
 
       {/* ── Product line-item hover card — rendered on document.body to escape overflow-auto clipping ── */}
@@ -1143,6 +1398,138 @@ export function AdminWeightDiscrepancy() {
           document.body
         );
       })()}
+
+      {/* ── Mobile Filters Bottom Sheet ── */}
+      <AnimatePresence>
+        {isMobileFiltersOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[140] md:hidden flex items-end justify-center"
+            onClick={() => setIsMobileFiltersOpen(false)}
+          >
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="bg-white rounded-t-3xl border-t border-[#E2E8F0] shadow-2xl w-full max-h-[85vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="px-6 py-4 border-b border-[#E2E8F0] flex items-center justify-between sticky top-0 bg-white z-10">
+                <h3 className="font-bold text-slate-800 text-base">Filters</h3>
+                <button onClick={() => setIsMobileFiltersOpen(false)} className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-3">
+                {/* Date range */}
+                <GlassDateFilter
+                  className="w-full [&_.glass-dropdown-trigger]:w-full [&_.glass-dropdown-trigger]:h-12 [&_.glass-dropdown-trigger]:rounded-full"
+                  startDate={dateStart}
+                  endDate={dateEnd}
+                  onDateChange={(s, e) => { onDateChange(s, e); setPage(1); }}
+                />
+
+                {/* Search user (admin only) */}
+                {isAdminView && (
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="Search by name, email, or contact..."
+                      value={userSearchText}
+                      onChange={e => handleUserInput(e.target.value)}
+                      className="w-full h-12 pl-4 pr-10 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] placeholder:text-slate-400"
+                    />
+                    {userMongoId ? (
+                      <button onClick={clearUserFilter} className="absolute right-4 top-1/2 -translate-y-1/2 text-[#94A3B8] hover:text-red-500">
+                        <X className="w-4 h-4" />
+                      </button>
+                    ) : (
+                      <Search className="w-4 h-4 text-slate-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    )}
+                    {userResults.length > 0 && !userMongoId && (
+                      <div className="mt-1.5 bg-white border border-[#E2E8F0] rounded-2xl shadow-lg max-h-52 overflow-y-auto py-1">
+                        {userResults.map((u: any) => (
+                          <button key={u._id} type="button" onClick={() => selectUser(u)}
+                            className="w-full text-left px-4 py-2.5 hover:bg-[#F0FDF4] flex items-start gap-2">
+                            <div className="flex-1 min-w-0">
+                              <div className="text-[12px] font-bold text-slate-800 truncate">{u.fullname}</div>
+                              <div className="text-[11px] text-slate-400 truncate">{u.email} · {u.phoneNumber}</div>
+                            </div>
+                            <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded shrink-0">{u.userId}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Search AWB Number */}
+                <input
+                  type="text"
+                  placeholder="Search AWB Number"
+                  value={searchInput}
+                  onChange={e => { setSearchInput(e.target.value); setPage(1); }}
+                  className="w-full h-12 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] placeholder:text-slate-400"
+                />
+
+                {/* Search Type */}
+                <div className="relative">
+                  <select
+                    value={searchBy}
+                    onChange={e => { setSearchBy(e.target.value); setPage(1); }}
+                    className="w-full h-12 px-4 pr-10 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white appearance-none"
+                  >
+                    <option value="awbNumber">Search by AWB Number</option>
+                    <option value="orderId">Search by Order ID</option>
+                  </select>
+                  <ChevronDown className="w-4 h-4 text-slate-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
+
+                {/* Courier Service */}
+                <GlassDropdown
+                  label="Courier"
+                  options={courierDropOptions}
+                  selected={selectedCouriers}
+                  onChange={v => { setSelectedCouriers(v); setPage(1); }}
+                  placeholder="Courier Service"
+                  className="w-full [&_.glass-dropdown-trigger]:w-full [&_.glass-dropdown-trigger]:h-12 [&_.glass-dropdown-trigger]:rounded-full"
+                />
+
+                {/* Status — mirrors the tabs */}
+                <div className="relative">
+                  <select
+                    value={activeTab}
+                    onChange={e => handleTabChange(e.target.value as TabName)}
+                    className="w-full h-12 px-4 pr-10 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white appearance-none"
+                  >
+                    {MAIN_TABS.map(tab => <option key={tab} value={tab}>{tab === 'All' ? 'All Statuses' : tab}</option>)}
+                  </select>
+                  <ChevronDown className="w-4 h-4 text-slate-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
+              </div>
+
+              <div className="px-6 py-4 border-t border-[#E2E8F0] flex items-center gap-3 sticky bottom-0 bg-white">
+                <button
+                  onClick={() => { clearFilters(); setIsMobileFiltersOpen(false); }}
+                  className="flex-1 h-11 rounded-full border border-[#00A86B] text-[#00A86B] text-sm font-bold hover:bg-[#F0FDF4] transition-colors"
+                >
+                  Reset All
+                </button>
+                <button
+                  onClick={() => { setPage(1); fetchDiscrepancy(); setIsMobileFiltersOpen(false); }}
+                  className="flex-1 h-11 rounded-full bg-[#009D64] text-white text-sm font-bold hover:bg-[#009B63] transition-colors shadow-sm"
+                >
+                  Apply Filters
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── Excel Export Modal ── */}
       {showExportModal && createPortal(
