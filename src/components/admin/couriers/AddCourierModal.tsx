@@ -29,7 +29,16 @@ const getCredFields = (provider: string): CredField[] => {
       { id: 'password', label: 'Password', type: 'password', placeholder: 'Enter password', icon: ShieldCheck },
     ];
   }
-  // Shiprocket, Shree Maruti, Losung360, Ekart, NimbusPost, Smartship,
+  if (p === 'shree maruti') {
+    return [
+      { id: 'email', label: 'Email / Username', type: 'text', placeholder: 'Enter email or username', icon: User },
+      { id: 'password', label: 'Password', type: 'password', placeholder: 'Enter password', icon: ShieldCheck },
+      { id: 'tenantId', label: 'Tenant ID (optional)', type: 'text', placeholder: 'Overrides default tenant', icon: Hash },
+      { id: 'carrierId', label: 'Carrier ID (optional)', type: 'text', placeholder: 'Overrides default carrier', icon: Hash },
+      { id: 'carrierName', label: 'Carrier Name (optional)', type: 'text', placeholder: 'Overrides default carrier name', icon: Hash },
+    ];
+  }
+  // Shiprocket, Losung360, Ekart, NimbusPost, Smartship,
   // EcomExpress, Proship, ZipyPost, BoxdLogistics, etc.
   return [
     { id: 'email', label: 'Email / Username', type: 'text', placeholder: 'Enter email or username', icon: User },
@@ -81,6 +90,9 @@ export function AddCourierModal({ isOpen, onClose, onSuccess }: AddCourierModalP
         email: creds.email || '',
         apiKey: creds.apiKey || '',
         password: creds.password || '',
+        tenantId: creds.tenantId || undefined,
+        carrierId: creds.carrierId || undefined,
+        carrierName: creds.carrierName || undefined,
       });
       onSuccess();
       onClose();

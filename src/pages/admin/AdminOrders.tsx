@@ -375,6 +375,11 @@ export function AdminOrders() {
   // productHoverPos renders the Product-column line-item breakdown via portal, same reason as dropdownPos
   const [productHoverPos,  setProductHoverPos]   = useState<{ id: string; top: number; left: number } | null>(null);
   const [showAgeingLegend, setShowAgeingLegend] = useState(false);
+  const [toast, setToast] = useState<{ type: 'error' | 'success', text: string } | null>(null);
+  const showToast = (type: 'error' | 'success', text: string) => {
+    setToast({ type, text });
+    setTimeout(() => setToast(null), 3000);
+  };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const ageingLegendRef = useRef<any>(null);
   const [hoveredPickup,   setHoveredPickup]     = useState<{ id: string; rect: DOMRect; name: string; address: string; city: string; state: string; pinCode: string; phone: string } | null>(null);
@@ -588,8 +593,12 @@ export function AdminOrders() {
     const endpoint = isBooked ? '/order/cancelOrdersAtBooked' : '/order/cancelOrdersAtNotShipped';
     try {
       await apiClient.post(endpoint, { orderId: order._id });
+      showToast('success', 'Order cancelled successfully');
       fetchOrders(page);
-    } catch (e) { console.error('Cancel failed', e); }
+    } catch (e: any) {
+      console.error('Cancel failed', e);
+      showToast('error', e?.response?.data?.error || 'Failed to cancel order');
+    }
   };
 
   const handleBulkLabel = async (ids: string[]) => {
@@ -1899,9 +1908,31 @@ export function AdminOrders() {
           <ShipOrderModal
             order={shipOrder}
             onClose={() => setShipOrder(null)}
-            onShipped={() => fetchOrders(page)}
+            onShipped={() => { showToast('success', 'Shipment created successfully'); fetchOrders(page); }}
           />
         )}
+
+        {/* ── Toast ── */}
+        <AnimatePresence>
+          {toast && (
+            <motion.div
+              initial={{ opacity: 0, y: 50, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 50, scale: 0.95 }}
+              transition={{ duration: 0.2 }}
+              className="fixed bottom-6 right-6 z-[100] bg-[#1E293B] text-white px-5 py-3.5 rounded-xl shadow-2xl flex items-center gap-3 border border-white/10 min-w-[320px]"
+            >
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${toast.type === 'error' ? 'bg-red-500/20' : 'bg-emerald-500/20'}`}>
+                {toast.type === 'error' ? (
+                  <AlertTriangle className="w-4 h-4 text-[#F87171]" />
+                ) : (
+                  <CheckCircle2 className="w-4 h-4 text-[#34D399]" />
+                )}
+              </div>
+              <p className="text-[13px] font-medium pr-4">{toast.text}</p>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* ── Pickup Tooltip ── */}
         {hoveredPickup && (() => {
