@@ -1226,19 +1226,21 @@ export function AdminCOD() {
                           >
                             {order.status}
                           </div>
+                          <div className="absolute top-1.5 right-2">
+                            <input type="checkbox" checked={selectedOrders.includes(order.id)} onChange={() => toggleSelect(order.id)} className="rounded border-gray-300 accent-[#00A86B] w-4 h-4" />
+                          </div>
 
                           <div className="pt-7 px-3 pb-3">
                             {/* User Details Row */}
-                            <div className="flex items-center justify-between mb-2 gap-2">
-                              <div className="flex items-center gap-2 min-w-0">
-                                <input type="checkbox" checked={selectedOrders.includes(order.id)} onChange={() => toggleSelect(order.id)} className="rounded border-gray-300 accent-[#00A86B] w-4 h-4 shrink-0" />
+                            {isAdminView && (
+                              <div className="flex items-center justify-between mb-2 gap-2">
                                 <span className="text-[#64748B] font-medium text-[12px]">User Details</span>
+                                <span className="text-[12px] inline-flex items-baseline gap-1 max-w-[190px] justify-end text-right">
+                                  <span className="font-semibold text-[#0F172A] text-[12px] truncate">{(order.userName || '—').split(' ')[0]}</span>
+                                  <span className="text-[#00A86B] font-semibold shrink-0">({order.userId || '—'})</span>
+                                </span>
                               </div>
-                              <span className="text-[12px] inline-flex items-baseline gap-1 max-w-[190px] justify-end text-right">
-                                <span className="font-semibold text-[#0F172A] text-[12px] truncate">{(order.userName || '—').split(' ')[0]}</span>
-                                <span className="text-[#00A86B] font-semibold shrink-0">({order.userId || '—'})</span>
-                              </span>
-                            </div>
+                            )}
 
                             {/* Order ID */}
                             {order.orderID && (
@@ -1482,19 +1484,21 @@ export function AdminCOD() {
                           >
                             {order.status}
                           </div>
+                          <div className="absolute top-1.5 right-2">
+                            <input type="checkbox" checked={selectedCodOrders.includes(order.awb)} onChange={() => toggleSelectCod(order.awb)} className="rounded border-gray-300 accent-[#00A86B] w-4 h-4" />
+                          </div>
 
                           <div className="pt-7 px-3 pb-3">
                             {/* User Details Row */}
-                            <div className="flex justify-between items-center text-[12px] mb-2">
-                              <div className="flex items-center gap-2">
-                                <input type="checkbox" checked={selectedCodOrders.includes(order.awb)} onChange={() => toggleSelectCod(order.awb)} className="rounded border-gray-300 accent-[#00A86B] w-4 h-4" />
+                            {isAdminView && (
+                              <div className="flex justify-between items-center text-[12px] mb-2">
                                 <span className="text-[#64748B] font-medium text-[12px]">User Details</span>
+                                <span className="text-[12px] inline-flex items-baseline gap-1 max-w-[180px]">
+                                  <span className="font-semibold text-[#0F172A] text-[12px] truncate">{(order.userName || '—').split(' ')[0]}</span>
+                                  <span className="text-[#94A3B8] font-semibold shrink-0">({order.userId || '—'})</span>
+                                </span>
                               </div>
-                              <span className="text-[12px] inline-flex items-baseline gap-1 max-w-[180px]">
-                                <span className="font-semibold text-[#0F172A] text-[12px] truncate">{(order.userName || '—').split(' ')[0]}</span>
-                                <span className="text-[#94A3B8] font-semibold shrink-0">({order.userId || '—'})</span>
-                              </span>
-                            </div>
+                            )}
 
                             {/* Remittance ID */}
                             <div className="flex items-center gap-1 group/copyRemit mb-2">
@@ -1704,19 +1708,21 @@ export function AdminCOD() {
                           >
                             {order.status}
                           </div>
+                          <div className="absolute top-1.5 right-2">
+                            <input type="checkbox" checked={selectedCourierCodOrders.includes(order.id)} onChange={() => toggleSelectCourierCod(order.id)} className="rounded border-gray-300 accent-[#00A86B] w-4 h-4" />
+                          </div>
 
                           <div className="pt-7 px-3 pb-3">
                             {/* User Details Row */}
-                            <div className="flex items-center justify-between mb-2 gap-2">
-                              <div className="flex items-center gap-2 min-w-0">
-                                <input type="checkbox" checked={selectedCourierCodOrders.includes(order.id)} onChange={() => toggleSelectCourierCod(order.id)} className="rounded border-gray-300 accent-[#00A86B] w-4 h-4 shrink-0" />
+                            {isAdminView && (
+                              <div className="flex items-center justify-between mb-2 gap-2">
                                 <span className="text-[#64748B] font-medium text-[12px]">User Details</span>
+                                <span className="text-[12px] inline-flex items-baseline gap-1 max-w-[190px] justify-end text-right">
+                                  <span className="font-semibold text-[#0F172A] text-[12px] truncate">{(order.userName || '—').split(' ')[0]}</span>
+                                  <span className="text-[#00A86B] font-semibold shrink-0">({order.userId || '—'})</span>
+                                </span>
                               </div>
-                              <span className="text-[12px] inline-flex items-baseline gap-1 max-w-[190px] justify-end text-right">
-                                <span className="font-semibold text-[#0F172A] text-[12px] truncate">{(order.userName || '—').split(' ')[0]}</span>
-                                <span className="text-[#00A86B] font-semibold shrink-0">({order.userId || '—'})</span>
-                              </span>
-                            </div>
+                            )}
 
                             {/* Order ID */}
                             {order.orderID && (
