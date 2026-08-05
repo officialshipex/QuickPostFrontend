@@ -368,7 +368,8 @@ export function AdminAddOrder() {
         ? selectedPickup.pickupAddress
         : { _id: selectedPickupId },
       receiverAddress: { contactName, email, phoneNumber, address, pinCode, city, state: cityState },
-      productDetails: products.map(p => ({
+      productDetails: products.map((p, i) => ({
+        id: i + 1,
         name: p.name,
         hsn: p.hsn,
         quantity: p.qty,
@@ -425,7 +426,12 @@ export function AdminAddOrder() {
       }
       navigate(isAdminView ? '/admin/orders' : '/user/orders');
     } catch (err: any) {
-      setErrors({ submit: err?.response?.data?.message || 'Something went wrong. Please try again.' });
+      setErrors({
+        submit:
+          err?.response?.data?.error ||
+          err?.response?.data?.message ||
+          'Something went wrong. Please try again.',
+      });
     } finally {
       setSubmitting(false);
     }

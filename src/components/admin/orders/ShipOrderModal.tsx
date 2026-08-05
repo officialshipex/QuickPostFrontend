@@ -167,7 +167,7 @@ export function ShipOrderModal({ order, onClose, onShipped }: ShipOrderModalProp
           {/* ── Header ── */}
           <div className="px-4 md:px-5 py-3 md:py-3.5 bg-white border-b border-[#E2E8F0] flex items-center justify-between shrink-0">
             <div className={`${TXT.label} text-[#0F172A]`}>
-              Order ID : <span className="text-[#00A86B]">{order?.userUserId || order?.orderId || '—'}</span>
+              Order ID : <span className="text-[#00A86B]">{orderDetails?.orderId || order?.orderId || '—'}</span>
             </div>
             <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center text-[#64748B] hover:bg-[#F1F5F9] transition-colors">
               <X className="w-4 h-4" />

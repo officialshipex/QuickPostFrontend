@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Key, Mail, User, Clock, ShieldCheck, ArrowRight } from 'lucide-react';
+import { X, Key, Mail, User, Clock, ShieldCheck, ArrowRight, Hash } from 'lucide-react';
 
 interface Courier {
   _id: string;
@@ -10,6 +10,9 @@ interface Courier {
   apiKey?: string;
   password?: string;
   CODDays?: number;
+  tenantId?: string;
+  carrierId?: string;
+  carrierName?: string;
 }
 
 interface ConfigureCourierModalProps {
@@ -47,7 +50,17 @@ const getFieldsForCourier = (name: string) => {
       { id: 'password', label: 'Password', type: 'password', placeholder: 'Enter Password', icon: ShieldCheck },
     ];
   }
-  if (['shiprocket', 'shree maruti', 'lousung360', 'losung360', 'ekart', 'smartship', 'ecom express', 'ecomexpress', 'proship', 'zipypost', 'boxdlogistics'].includes(n)) {
+  if (n === 'shree maruti') {
+    return [
+      ...defaultFields,
+      { id: 'email', label: 'User / Email', type: 'text', placeholder: 'Enter User or Email', icon: User },
+      { id: 'password', label: 'Password', type: 'password', placeholder: 'Enter Password', icon: ShieldCheck },
+      { id: 'tenantId', label: 'Tenant ID (optional)', type: 'text', placeholder: 'Overrides default tenant', icon: Hash },
+      { id: 'carrierId', label: 'Carrier ID (optional)', type: 'text', placeholder: 'Overrides default carrier', icon: Hash },
+      { id: 'carrierName', label: 'Carrier Name (optional)', type: 'text', placeholder: 'Overrides default carrier name', icon: Hash },
+    ];
+  }
+  if (['shiprocket', 'lousung360', 'losung360', 'ekart', 'smartship', 'ecom express', 'ecomexpress', 'proship', 'zipypost', 'boxdlogistics'].includes(n)) {
     return [
       ...defaultFields,
       { id: 'email', label: 'User / Email', type: 'text', placeholder: 'Enter User or Email', icon: User },
@@ -71,6 +84,9 @@ export function ConfigureCourierModal({ isOpen, onClose, courier, onSave }: Conf
         apiKey: courier.apiKey || '',
         email: courier.email || '',
         password: '',
+        tenantId: courier.tenantId || '',
+        carrierId: courier.carrierId || '',
+        carrierName: courier.carrierName || '',
       });
     }
   }, [courier]);

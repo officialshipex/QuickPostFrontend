@@ -376,6 +376,11 @@ export function AdminOrders() {
   // productHoverPos renders the Product-column line-item breakdown via portal, same reason as dropdownPos
   const [productHoverPos,  setProductHoverPos]   = useState<{ id: string; top: number; left: number } | null>(null);
   const [showAgeingLegend, setShowAgeingLegend] = useState(false);
+  const [toast, setToast] = useState<{ type: 'error' | 'success', text: string } | null>(null);
+  const showToast = (type: 'error' | 'success', text: string) => {
+    setToast({ type, text });
+    setTimeout(() => setToast(null), 3000);
+  };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const ageingLegendRef = useRef<any>(null);
   const [hoveredPickup,   setHoveredPickup]     = useState<{ id: string; rect: DOMRect; name: string; address: string; city: string; state: string; pinCode: string; phone: string } | null>(null);
@@ -589,8 +594,12 @@ export function AdminOrders() {
     const endpoint = isBooked ? '/order/cancelOrdersAtBooked' : '/order/cancelOrdersAtNotShipped';
     try {
       await apiClient.post(endpoint, { orderId: order._id });
+      showToast('success', 'Order cancelled successfully');
       fetchOrders(page);
-    } catch (e) { console.error('Cancel failed', e); }
+    } catch (e: any) {
+      console.error('Cancel failed', e);
+      showToast('error', e?.response?.data?.error || 'Failed to cancel order');
+    }
   };
 
   const handleBulkLabel = async (ids: string[]) => {
@@ -1913,7 +1922,7 @@ export function AdminOrders() {
           <ShipOrderModal
             order={shipOrder}
             onClose={() => setShipOrder(null)}
-            onShipped={() => fetchOrders(page)}
+            onShipped={() => { showToast('success', 'Shipment created successfully'); fetchOrders(page); }}
           />
         )}
 
