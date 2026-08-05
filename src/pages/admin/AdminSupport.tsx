@@ -6,8 +6,10 @@ import { usePagination, DesktopPagination } from '../../hooks/usePagination';
 import { useTableLoader } from '../../hooks/useTableLoader';
 import {
   Search, RefreshCcw, User, Package, FileText, Calendar, X,
-  MessageSquare, CheckCircle2, Tag, ArrowUpDown, Send, Plus
+  MessageSquare, CheckCircle2, Tag, ArrowUpDown, Send, Plus,
+  Filter, MoreHorizontal,
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
 import { useDateRangeFilter } from '../../hooks/filters/useDateRangeFilter';
@@ -287,6 +289,8 @@ export function AdminSupport() {
   const { isLoading: loading, setIsLoading: setLoading, startLoading } = useTableLoader(0);
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
+  const [mobileActionMenuId, setMobileActionMenuId] = useState<string | null>(null);
 
   // Drawer state
   const [replyText, setReplyText]       = useState('');
@@ -530,8 +534,26 @@ export function AdminSupport() {
             </div>
           </div>
 
-          {/* ── Filter Row ── */}
-          <div className="py-3 px-6 border-b border-[#CBD5F5] flex flex-wrap justify-between items-center gap-3 bg-[#F8FAFC]/50">
+          {/* ── Mobile Filters + Create Ticket Row ── */}
+          <div className="md:hidden px-4 py-3 border-b border-[#E2E8F0] flex items-center justify-between bg-white gap-2">
+            <button
+              onClick={() => setIsMobileFiltersOpen(true)}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#00A86B] text-white text-[12px] font-bold shadow-sm"
+            >
+              <Filter className="w-3.5 h-3.5" /> Filters
+            </button>
+            {!isAdminView && (
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="h-9 px-4 rounded-full bg-[#00A86B] text-white text-[12px] font-bold hover:bg-[#009B63] transition-colors shadow-sm whitespace-nowrap flex items-center gap-1.5"
+              >
+                <Plus className="w-3.5 h-3.5" /> Create Ticket
+              </button>
+            )}
+          </div>
+
+          {/* ── Filter Row (desktop) ── */}
+          <div className="hidden md:flex py-3 px-6 border-b border-[#CBD5F5] flex-wrap justify-between items-center gap-3 bg-[#F8FAFC]/50">
             <div className="flex flex-wrap items-center gap-3">
               <div className="relative shrink-0">
                 <input
@@ -600,8 +622,8 @@ export function AdminSupport() {
           </div>
         </div>
 
-        {/* ── Table ── */}
-        <div className="bg-white flex flex-col flex-1 min-h-0 overflow-hidden border-t border-[#E2E8F0]">
+        {/* ── Table (desktop) ── */}
+        <div className="hidden md:flex bg-white flex-col flex-1 min-h-0 overflow-hidden border-t border-[#E2E8F0]">
           <div className="flex-1 overflow-y-auto overflow-x-hidden w-full relative">
             {loading && <TableLoader />}
             <table className="w-full text-left border-collapse min-w-full">
@@ -688,7 +710,208 @@ export function AdminSupport() {
             />
           )}
         </div>
+
+        {/* ── Ticket Cards (mobile) ── */}
+        <div className="md:hidden bg-[#F8FAFC] flex flex-col flex-1 min-h-0 overflow-hidden">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden w-full relative px-4 py-3 space-y-3">
+            {loading && <TableLoader />}
+            {!loading && paginatedTickets.length === 0 && (
+              <EmptyState title="No tickets found" />
+            )}
+            {!loading && paginatedTickets.map((ticket) => {
+              const statusKey = ticket.status;
+              const ribbonBg =
+                statusKey === 'resolved' || statusKey === 'closed' ? 'bg-slate-400' :
+                statusKey === 'awaiting_response' ? 'bg-amber-500' :
+                statusKey === 'new' ? 'bg-slate-500' : 'bg-[#00A86B]';
+              return (
+                <div key={ticket._id} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-visible">
+                  <div className={`absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide rounded-tl-2xl ${ribbonBg}`} style={{ clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}>
+                    {STATUS_LABEL[statusKey] || statusKey}
+                  </div>
+
+                  <div className="pt-8 px-4 pb-4">
+                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                      <span className="text-[12px] font-semibold text-[#64748B]">Ticket ID</span>
+                      <span className="flex items-center gap-1.5 shrink-0">
+                        <span className="text-[12px] font-semibold text-[#00A86B]">{ticket.ticketNumber}</span>
+                        <span className="text-[12px] font-normal text-[#94A3B8]">{formatDate(ticket.createdAt)}</span>
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                      <span className="text-[12px] font-normal text-[#64748B]">
+                        AWB(s): {ticket.awbNumbers.length > 0 ? ticket.awbNumbers.slice(0, 2).join(', ') + (ticket.awbNumbers.length > 2 ? ` +${ticket.awbNumbers.length - 2}` : '') : 'N/A'}
+                      </span>
+                      <span className="text-[12px] font-normal text-[#64748B] text-right truncate max-w-[55%]">{ticket.subcategory}</span>
+                    </div>
+
+                    <div className="text-[12px] font-normal text-[#94A3B8] mb-1">
+                      Resolution Due By: {formatDate(new Date(new Date(ticket.createdAt).getTime() + 24 * 60 * 60 * 1000).toISOString())}
+                    </div>
+                    <div className="text-[12px] font-normal text-[#94A3B8] mb-3">
+                      Last Updated: {formatDate(ticket.lastRepliedAt || ticket.createdAt)}
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleViewTicket(ticket)}
+                        className="flex-1 h-8 rounded-full bg-[#1e3a8a] hover:bg-[#1e40af] text-white text-[11px] font-bold transition-colors"
+                      >
+                        {ticket.status === 'new' ? 'Open' : 'Update'}
+                      </button>
+                      <button
+                        onClick={() => handleViewTicket(ticket)}
+                        className="flex-1 h-8 rounded-full border border-[#E2E8F0] text-[#475569] text-[11px] font-bold hover:bg-[#F8FAFC] transition-colors"
+                      >
+                        View
+                      </button>
+                      <div className="relative shrink-0">
+                        <button
+                          onClick={() => setMobileActionMenuId(mobileActionMenuId === ticket._id ? null : ticket._id)}
+                          className="w-8 h-8 rounded-full border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC] transition-colors"
+                        >
+                          <MoreHorizontal className="w-4 h-4" />
+                        </button>
+                        {mobileActionMenuId === ticket._id && (
+                          <>
+                            <div className="fixed inset-0 z-40" onClick={() => setMobileActionMenuId(null)} />
+                            <div className="absolute right-0 bottom-full mb-2 w-40 bg-white rounded-xl shadow-xl border border-[#E2E8F0] py-1.5 z-50">
+                              <button
+                                onClick={() => { setMobileActionMenuId(null); handleViewTicket(ticket); }}
+                                className="w-full text-left px-4 py-2 text-[12px] font-medium text-[#475569] hover:bg-[#F8FAFC]"
+                              >
+                                View Details
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Mobile pagination */}
+          {totalPages > 1 && (
+            <div className="md:hidden shrink-0 px-4 py-3 border-t border-[#E2E8F0] bg-white flex items-center justify-between gap-2">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="h-9 px-4 rounded-full border border-[#E2E8F0] text-[12px] font-semibold text-[#475569] disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Previous
+              </button>
+              <span className="text-[12px] font-semibold text-[#64748B]">Page {currentPage} of {totalPages}</span>
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="h-9 px-4 rounded-full border border-[#E2E8F0] text-[12px] font-semibold text-[#475569] disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* ── Mobile Filters Bottom Sheet ── */}
+      <AnimatePresence>
+        {isMobileFiltersOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[140] md:hidden flex items-end justify-center"
+            onClick={() => setIsMobileFiltersOpen(false)}
+          >
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="bg-white rounded-t-3xl border-t border-[#E2E8F0] shadow-2xl w-full max-h-[85vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="px-6 py-4 border-b border-[#E2E8F0] flex items-center justify-between sticky top-0 bg-white z-10">
+                <h3 className="font-bold text-slate-800 text-base">Filters</h3>
+                <button onClick={() => setIsMobileFiltersOpen(false)} className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-3">
+                {/* Date range — pill style, matches reference */}
+                <GlassDateFilter
+                  className="w-full [&_.glass-dropdown-trigger]:w-full [&_.glass-dropdown-trigger]:h-12 [&_.glass-dropdown-trigger]:rounded-full"
+                  startDate={draftDateStart}
+                  endDate={draftDateEnd}
+                  onDateChange={onDraftDateChange}
+                />
+
+                {/* Search */}
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Search by name, email, or contact..."
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                    className="w-full h-12 pl-4 pr-10 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] placeholder:text-slate-400"
+                  />
+                  <Search className="w-4 h-4 text-slate-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
+
+                {/* Subcategory */}
+                <GlassDropdown
+                  label="Subcategory"
+                  options={subcategoryOptions}
+                  selected={draftSubcategories}
+                  onChange={setDraftSubcategories}
+                  placeholder="Choose Subcategory"
+                  className="w-full [&_.glass-dropdown-trigger]:w-full [&_.glass-dropdown-trigger]:h-12 [&_.glass-dropdown-trigger]:rounded-full"
+                />
+
+                {/* Status */}
+                <GlassDropdown
+                  label="Status"
+                  options={STATUS_OPTIONS}
+                  selected={draftStatuses}
+                  onChange={setDraftStatuses}
+                  placeholder="Select Status"
+                  className="w-full [&_.glass-dropdown-trigger]:w-full [&_.glass-dropdown-trigger]:h-12 [&_.glass-dropdown-trigger]:rounded-full"
+                />
+
+                {/* Sort By */}
+                <GlassDropdown
+                  label="Sort By"
+                  options={SORT_OPTIONS}
+                  selected={draftSort}
+                  onChange={setDraftSort}
+                  placeholder="Sort By"
+                  className="w-full [&_.glass-dropdown-trigger]:w-full [&_.glass-dropdown-trigger]:h-12 [&_.glass-dropdown-trigger]:rounded-full"
+                />
+              </div>
+
+              <div className="px-6 py-4 border-t border-[#E2E8F0] flex items-center gap-3 sticky bottom-0 bg-white">
+                <button
+                  onClick={() => { handleClearAllFilters(); setIsMobileFiltersOpen(false); }}
+                  className="flex-1 h-11 rounded-full border border-[#00A86B] text-[#00A86B] text-sm font-bold hover:bg-[#F0FDF4] transition-colors"
+                >
+                  Reset All
+                </button>
+                <button
+                  onClick={() => { handleApplyFilters(); setIsMobileFiltersOpen(false); }}
+                  className="flex-1 h-11 rounded-full bg-[#009D64] text-white text-sm font-bold hover:bg-[#009B63] transition-colors shadow-sm"
+                >
+                  Apply Filters
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── Ticket Detail Drawer ── */}
       {selectedTicket && (
@@ -714,13 +937,13 @@ export function AdminSupport() {
             <div className="p-6 space-y-5">
               {/* Ticket meta */}
               <div className="bg-[#F8FAFC] rounded-xl p-4 space-y-2 text-xs">
-                <div className="flex justify-between"><span className="text-[#64748B]">Category</span><span className="font-semibold text-[#0F172A]">{selectedTicket.category}</span></div>
-                <div className="flex justify-between"><span className="text-[#64748B]">Subcategory</span><span className="font-semibold text-[#0F172A] text-right max-w-[60%]">{selectedTicket.subcategory}</span></div>
-                <div className="flex justify-between"><span className="text-[#64748B]">Email</span><span className="font-semibold text-[#0F172A]">{selectedTicket.email}</span></div>
-                <div className="flex justify-between"><span className="text-[#64748B]">Phone</span><span className="font-semibold text-[#0F172A]">{selectedTicket.phoneNumber}</span></div>
-                <div className="flex justify-between"><span className="text-[#64748B]">Company</span><span className="font-semibold text-[#0F172A]">{selectedTicket.company}</span></div>
+                <div className="flex justify-between"><span className="text-[#64748B]">Category</span><span className="text-[12px] font-normal md:font-semibold text-[#0F172A]">{selectedTicket.category}</span></div>
+                <div className="flex justify-between"><span className="text-[#64748B]">Subcategory</span><span className="text-[12px] font-normal md:font-semibold text-[#0F172A] text-right max-w-[60%]">{selectedTicket.subcategory}</span></div>
+                <div className="flex justify-between"><span className="text-[#64748B]">Email</span><span className="text-[12px] font-normal md:font-semibold text-[#0F172A]">{selectedTicket.email}</span></div>
+                <div className="flex justify-between"><span className="text-[#64748B]">Phone</span><span className="text-[12px] font-normal md:font-semibold text-[#0F172A]">{selectedTicket.phoneNumber}</span></div>
+                <div className="flex justify-between"><span className="text-[#64748B]">Company</span><span className="text-[12px] font-normal md:font-semibold text-[#0F172A]">{selectedTicket.company}</span></div>
                 {selectedTicket.awbNumbers.length > 0 && (
-                  <div className="flex justify-between"><span className="text-[#64748B]">AWB(s)</span><span className="font-semibold text-[#0F172A]">{selectedTicket.awbNumbers.join(', ')}</span></div>
+                  <div className="flex justify-between"><span className="text-[#64748B]">AWB(s)</span><span className="text-[12px] font-normal md:font-semibold text-[#0F172A]">{selectedTicket.awbNumbers.join(', ')}</span></div>
                 )}
               </div>
 
