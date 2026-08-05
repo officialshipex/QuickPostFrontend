@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiClient } from '../../services/apiClient';
@@ -6,7 +7,7 @@ import { getToken } from '../../utils/session';
 import { useAdminTab } from '../../context/AdminUserContext';
 import {
   Search, ChevronDown, MapPin, Truck, X, Download, Filter,
-  User, Hash, Calendar, Package, Clock, CheckCircle2, Settings, PackagePlus,
+  User, Hash, Calendar, Package, Clock, CheckCircle2, Settings, PackagePlus, MoreVertical,
 } from 'lucide-react';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
@@ -74,6 +75,7 @@ export function AdminPickupManifest({ isAdminView }: Props) {
   const [selectedManifests, setSelectedManifests] = useState<string[]>([]);
   const [showActionMenu,    setShowActionMenu]     = useState(false);
   const actionMenuRef = useRef<HTMLDivElement>(null);
+  const [mobileActionMenuPos, setMobileActionMenuPos] = useState<{ top: number; right: number } | null>(null);
 
   // Tooltip
   const [hoveredAddressId, setHoveredAddressId] = useState<string | null>(null);
@@ -234,49 +236,72 @@ export function AdminPickupManifest({ isAdminView }: Props) {
   return (
     <div className="flex flex-col h-full">
 
-      {/* ── Mobile Filters + Action Row ── */}
-      <div className="md:hidden px-4 py-3 border-b border-[#E2E8F0] flex items-center justify-between bg-white gap-2 shrink-0">
-        <div className="flex items-center gap-2">
+      {/* ── Mobile Search + Filter + Action + Add Order Row (matches Wallet page) ── */}
+      <div className="md:hidden px-3 py-2.5 border-b border-[#E2E8F0] flex items-center gap-2 bg-white shrink-0">
+        <div className="relative flex-1">
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
+          <input
+            type="text"
+            placeholder="Pickup ID tracking"
+            value={searchId}
+            onChange={(e) => setSearchId(e.target.value)}
+            className="w-full h-9 pl-9 pr-3 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] text-sm text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all"
+          />
+        </div>
+        {/* Filter icon */}
+        <button
+          onClick={() => setIsMobileFiltersOpen(true)}
+          className="w-9 h-9 rounded-xl border border-[#E2E8F0] flex items-center justify-center text-[#475569] bg-white shrink-0"
+        >
+          <Filter className="w-4 h-4" />
+        </button>
+        {/* Action icon */}
+        <div className="relative shrink-0" ref={actionMenuRef}>
           <button
-            onClick={() => setIsMobileFiltersOpen(true)}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#00A86B] text-white text-[12px] font-bold shadow-sm"
+            onClick={(e) => {
+              if (selectedManifests.length === 0) return;
+              if (!showActionMenu) {
+                const rect = e.currentTarget.getBoundingClientRect();
+                setMobileActionMenuPos({ top: rect.bottom + 8, right: window.innerWidth - rect.right });
+              }
+              setShowActionMenu(v => !v);
+            }}
+            disabled={selectedManifests.length === 0}
+            className="w-9 h-9 rounded-xl border border-[#E2E8F0] flex items-center justify-center text-[#475569] bg-white relative disabled:opacity-50"
           >
-            <Filter className="w-3.5 h-3.5" /> Filters
+            <MoreVertical className="w-4 h-4" />
+            {selectedManifests.length > 0 && (
+              <span className="absolute -top-1 -right-1 min-w-[16px] h-4 rounded-full bg-[#00A86B] text-white text-[9px] font-bold flex items-center justify-center px-0.5">
+                {selectedManifests.length}
+              </span>
+            )}
           </button>
-          {selectedManifests.length > 0 && (
-            <span className="text-[11px] font-bold text-[#00A86B] bg-[#F0FDF4] border border-[#00A86B]/20 px-2.5 py-1 rounded-full">
-              {selectedManifests.length} selected
-            </span>
+          {showActionMenu && mobileActionMenuPos && createPortal(
+            <>
+              <div className="fixed inset-0 z-[998]" onClick={() => setShowActionMenu(false)} />
+              <AnimatePresence>
+                <motion.div
+                  initial={{ opacity: 0, y: -6, scale: 0.97 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -6, scale: 0.97 }}
+                  transition={{ duration: 0.16, ease: 'easeOut' }}
+                  style={{ top: mobileActionMenuPos.top, right: mobileActionMenuPos.right }}
+                  className="fixed w-[200px] bg-white rounded-xl shadow-[0_8px_28px_-6px_rgba(0,0,0,0.15)] border border-[#E2E8F0] py-1.5 z-[999] origin-top-right"
+                  onMouseDown={(e) => e.stopPropagation()}
+                >
+                  <button onClick={handleBulkManifest} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors">Download Manifests</button>
+                </motion.div>
+              </AnimatePresence>
+            </>,
+            document.body
           )}
         </div>
-        <div className="relative" ref={actionMenuRef}>
-          <button
-            onClick={() => selectedManifests.length > 0 && setShowActionMenu(v => !v)}
-            disabled={selectedManifests.length === 0}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg border text-[12px] font-semibold transition-colors ${selectedManifests.length === 0 ? 'border-[#E2E8F0] bg-[#F8FAFC] text-[#CBD5E1]' : 'border-[#E2E8F0] text-[#475569] bg-white active:bg-[#F8FAFC]'}`}
-          >
-            Action
-            <ChevronDown className={`w-3.5 h-3.5 text-[#94A3B8] transition-transform duration-200 ${showActionMenu ? 'rotate-180' : ''}`} />
-          </button>
-          <AnimatePresence>
-            {showActionMenu && (
-              <motion.div
-                initial={{ opacity: 0, y: -6, scale: 0.97 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -6, scale: 0.97 }}
-                transition={{ duration: 0.16, ease: 'easeOut' }}
-                className="absolute right-0 top-full mt-2 w-[190px] bg-white rounded-xl shadow-[0_8px_28px_-6px_rgba(0,0,0,0.15)] border border-[#E2E8F0] py-1.5 z-50 origin-top-right"
-              >
-                <button onClick={handleBulkManifest} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC]">Download Manifests</button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+        {/* Add Order icon */}
         {!isAdminView && (
           <button
             onClick={() => navigate('/user/add-order')}
             aria-label="Add Order"
-            className="w-9 h-9 rounded-[80px] border border-[#03C27D] flex items-center justify-center text-white shadow-sm transition-transform hover:scale-105 bg-[#009D64]"
+            className="w-9 h-9 rounded-xl bg-[#00A86B] flex items-center justify-center text-white shadow-sm active:bg-[#009B63] transition-colors shrink-0"
           >
             <PackagePlus className="w-4 h-4" />
           </button>

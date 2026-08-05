@@ -57,7 +57,7 @@ export function MobilePaginationBar({
   };
 
   return (
-    <div className="md:hidden px-4 py-2 border-t border-[#E2E8F0] bg-white shadow-[0_-2px_8px_rgba(0,0,0,0.04)] flex items-center justify-between gap-2 shrink-0">
+    <div className="md:hidden sticky bottom-0 z-30 px-4 py-2 border-t border-[#E2E8F0] bg-white shadow-[0_-2px_8px_rgba(0,0,0,0.04)] flex items-center justify-between gap-2 shrink-0">
       <div className="flex items-center gap-2 shrink-0">
 
         {/* Trigger button */}

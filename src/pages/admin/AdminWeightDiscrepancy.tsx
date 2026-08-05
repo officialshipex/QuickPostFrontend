@@ -11,7 +11,7 @@ import { useUserSearchFilter } from '../../hooks/filters/useUserSearchFilter';
 import * as XLSX from 'xlsx';
 import {
   ChevronDown, RefreshCcw, Check, Package, User, Truck,
-  Upload, FileText, AlertTriangle, X, Search, Download, Filter, MoreVertical,
+  Upload, FileText, AlertTriangle, X, Search, Download, Filter, MoreVertical, Copy,
 } from 'lucide-react';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
@@ -443,7 +443,6 @@ export function AdminWeightDiscrepancy() {
   const [showUpload, setShowUpload] = useState(false);
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
   const [showMobileActionMenu, setShowMobileActionMenu] = useState(false);
-  const [mobileRowMenuId, setMobileRowMenuId] = useState<string | null>(null);
   const [acceptModal, setAcceptModal] = useState<{ open: boolean; awb: string }>({ open: false, awb: '' });
   const [userAcceptModal, setUserAcceptModal] = useState<{ open: boolean; awb: string }>({ open: false, awb: '' });
   const [raiseDisputeModal, setRaiseDisputeModal] = useState<{ open: boolean; awb: string }>({ open: false, awb: '' });
@@ -598,9 +597,34 @@ export function AdminWeightDiscrepancy() {
 
   // ── Copy AWB
   const copyAwb = (awb: string, key: string) => {
-    navigator.clipboard.writeText(awb);
-    setCopiedAwb(key);
-    setTimeout(() => setCopiedAwb(null), 1500);
+    const showCopied = () => {
+      setCopiedAwb(key);
+      setTimeout(() => setCopiedAwb(null), 1500);
+    };
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(awb).then(showCopied).catch(() => {
+        // Clipboard API blocked (insecure context, permissions) — fall back to legacy copy
+        const ta = document.createElement('textarea');
+        ta.value = awb;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand('copy'); } catch { /* ignore */ }
+        document.body.removeChild(ta);
+        showCopied();
+      });
+    } else {
+      const ta = document.createElement('textarea');
+      ta.value = awb;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); } catch { /* ignore */ }
+      document.body.removeChild(ta);
+      showCopied();
+    }
   };
 
   // ── Export
@@ -667,18 +691,65 @@ export function AdminWeightDiscrepancy() {
     <AdminLayout>
       <div className={`flex flex-col ${isImpersonating ? 'h-[calc(100vh-104px)]' : 'h-[calc(100vh-72px)]'} -m-4 md:-m-6 bg-white ${!isAdminView ? 'overflow-hidden' : ''}`}>
 
-        {/* ── Mobile Search Bar ── */}
-        <div className="md:hidden px-4 py-3 border-b border-[#E2E8F0] bg-white">
-          <div className="relative">
+        {/* ── Mobile Search + Filter + Action + Upload Row (matches Wallet page) ── */}
+        <div className="md:hidden px-3 py-2.5 border-b border-[#E2E8F0] flex items-center gap-2 bg-white">
+          <div className="relative flex-1">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
             <input
               type="text"
               placeholder="AWB/Order ID tracking"
               value={searchInput}
               onChange={e => { setSearchInput(e.target.value); setPage(1); }}
-              className="w-full h-10 pl-10 pr-4 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] text-sm text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all"
+              className="w-full h-9 pl-9 pr-3 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] text-sm text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all"
             />
           </div>
+          {/* Filter icon */}
+          <button
+            onClick={() => setIsMobileFiltersOpen(true)}
+            className="w-9 h-9 rounded-xl border border-[#E2E8F0] flex items-center justify-center text-[#475569] bg-white shrink-0"
+          >
+            <Filter className="w-4 h-4" />
+          </button>
+          {/* Action icon */}
+          <div className="relative shrink-0">
+            <button
+              onClick={() => selectedItems.length > 0 && setShowMobileActionMenu(v => !v)}
+              disabled={selectedItems.length === 0}
+              className="w-9 h-9 rounded-xl border border-[#E2E8F0] flex items-center justify-center text-[#475569] bg-white relative disabled:opacity-50"
+            >
+              <MoreVertical className="w-4 h-4" />
+              {selectedItems.length > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[16px] h-4 rounded-full bg-[#00A86B] text-white text-[9px] font-bold flex items-center justify-center px-0.5">
+                  {selectedItems.length}
+                </span>
+              )}
+            </button>
+            {showMobileActionMenu && selectedItems.length > 0 && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowMobileActionMenu(false)} />
+                <div className="absolute right-0 top-full mt-2 w-[200px] bg-white rounded-xl shadow-[0_8px_28px_-6px_rgba(0,0,0,0.15)] border border-[#E2E8F0] py-1.5 z-50">
+                  <button onClick={() => { handleExport(); setShowMobileActionMenu(false); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors">Export</button>
+                  {activeTab === 'Pending' && !isAdminView && (
+                    <button onClick={() => { handleUserBulkAccept(); setShowMobileActionMenu(false); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#00A86B] hover:bg-green-50 transition-colors">Accept All</button>
+                  )}
+                  {isDisputeTab && isAdminView && (
+                    <button onClick={() => { handleBulkAccept(); setShowMobileActionMenu(false); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#00A86B] hover:bg-green-50 transition-colors">Bulk Accept</button>
+                  )}
+                  {isDisputeTab && (
+                    <button onClick={() => { handleBulkDecline(); setShowMobileActionMenu(false); }} className="w-full text-left px-4 py-2.5 text-[13px] font-semibold text-red-600 hover:bg-red-50 transition-colors">Bulk Decline</button>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+          {/* Upload icon */}
+          <button
+            onClick={() => setShowUpload(true)}
+            className="w-9 h-9 rounded-xl bg-[#00A86B] flex items-center justify-center text-white shadow-sm active:bg-[#009B63] transition-colors shrink-0"
+            title="Upload discrepancy"
+          >
+            <Upload className="w-4 h-4" />
+          </button>
         </div>
 
         {/* ── Tab bar ── */}
@@ -707,82 +778,42 @@ export function AdminWeightDiscrepancy() {
             </div>
           </div>
 
-          {/* ── Mobile Filters + Action + Upload Row ── */}
-          <div className="md:hidden px-4 py-3 border-b border-[#E2E8F0] flex items-center justify-between bg-white gap-2">
-            <button
-              onClick={() => setIsMobileFiltersOpen(true)}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#00A86B] text-white text-[12px] font-bold shadow-sm"
-            >
-              <Filter className="w-3.5 h-3.5" /> Filters
-            </button>
-            <div className="flex items-center gap-2">
-              <div className="relative shrink-0">
-                <button onClick={() => selectedItems.length > 0 && setShowMobileActionMenu(v => !v)} disabled={selectedItems.length === 0}
-                  className={`h-9 pl-3.5 pr-3 rounded-full border text-[12px] font-semibold flex items-center gap-1 transition-colors ${selectedItems.length > 0 ? 'border-[#E2E8F0] text-[#475569] bg-white active:bg-[#F8FAFC]' : 'border-[#E2E8F0] text-[#CBD5E1] bg-[#F8FAFC]'}`}>
-                  Action <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showMobileActionMenu ? 'rotate-180' : ''}`} />
-                </button>
-                {showMobileActionMenu && selectedItems.length > 0 && (
-                  <>
-                    <div className="fixed inset-0 z-40" onClick={() => setShowMobileActionMenu(false)} />
-                    <div className="absolute right-0 top-full mt-2 w-[190px] bg-white rounded-xl shadow-[0_8px_28px_-6px_rgba(0,0,0,0.15)] border border-[#E2E8F0] py-1.5 z-50 origin-top-right">
-                      <button onClick={() => { handleExport(); setShowMobileActionMenu(false); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC]">Export</button>
-                      {activeTab === 'Pending' && !isAdminView && (
-                        <button onClick={() => { handleUserBulkAccept(); setShowMobileActionMenu(false); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#00A86B] hover:bg-green-50">Accept All</button>
-                      )}
-                      {isDisputeTab && isAdminView && (
-                        <button onClick={() => { handleBulkAccept(); setShowMobileActionMenu(false); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#00A86B] hover:bg-green-50">Bulk Accept</button>
-                      )}
-                      {isDisputeTab && (
-                        <button onClick={() => { handleBulkDecline(); setShowMobileActionMenu(false); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-red-500 hover:bg-red-50">Bulk Decline</button>
-                      )}
-                    </div>
-                  </>
-                )}
-              </div>
-              <button onClick={() => setShowUpload(true)}
-                className="w-9 h-9 rounded-full bg-[#00A86B] flex items-center justify-center text-white shadow-sm active:bg-[#009B63] transition-colors shrink-0"
-                title="Upload discrepancy">
-                <Upload className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-
           {/* ── Summary cards ── */}
-          <div className="p-4 border-b border-[#E2E8F0] bg-[#F8FAFC]/30 flex flex-wrap gap-4">
-            <div className="flex-1 min-w-[180px] bg-white rounded-xl p-3 border border-[#E2E8F0] flex items-center gap-3 shadow-sm">
-              <div className="w-8 h-8 rounded-full bg-[#E0F2FE] flex items-center justify-center shrink-0">
-                <Package className="w-4 h-4 text-[#0EA5E9]" />
+          <div className="p-3 md:p-4 border-b border-[#E2E8F0] bg-[#F8FAFC]/30 grid grid-cols-2 md:flex md:flex-wrap gap-2.5 md:gap-4">
+            <div className="min-w-0 md:flex-1 md:min-w-[180px] bg-white rounded-xl p-2.5 md:p-3 border border-[#E2E8F0] flex items-center gap-2 md:gap-3 shadow-sm">
+              <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-[#E0F2FE] flex items-center justify-center shrink-0">
+                <Package className="w-3.5 h-3.5 md:w-4 md:h-4 text-[#0EA5E9]" />
               </div>
-              <div>
-                <div className="text-[18px] font-bold text-[#0F172A]">{counts['pending'] ?? 0}</div>
-                <div className="text-[10px] font-semibold text-[#64748B]">New Discrepancies</div>
-              </div>
-            </div>
-            <div className="flex-1 min-w-[180px] bg-[#F0FDF4] rounded-xl p-3 border border-[#BBF7D0] flex items-center gap-3 shadow-sm">
-              <div className="w-8 h-8 rounded-full bg-[#BBF7D0] flex items-center justify-center shrink-0">
-                <Check className="w-4 h-4 text-[#16A34A]" />
-              </div>
-              <div>
-                <div className="text-[18px] font-bold text-[#0F172A]">{counts['accepted'] ?? 0}</div>
-                <div className="text-[10px] font-semibold text-[#64748B]">Accepted</div>
+              <div className="min-w-0">
+                <div className="text-[15px] md:text-[18px] font-bold text-[#0F172A] leading-tight">{counts['pending'] ?? 0}</div>
+                <div className="text-[9.5px] md:text-[10px] font-semibold text-[#64748B] leading-tight truncate">New Discrepancies</div>
               </div>
             </div>
-            <div className="flex-1 min-w-[180px] bg-[#FFFBEB] rounded-xl p-3 border border-[#FDE68A] flex items-center gap-3 shadow-sm">
-              <div className="w-8 h-8 rounded-full bg-[#FDE68A] flex items-center justify-center shrink-0">
-                <AlertTriangle className="w-4 h-4 text-[#D97706]" />
+            <div className="min-w-0 md:flex-1 md:min-w-[180px] bg-[#F0FDF4] rounded-xl p-2.5 md:p-3 border border-[#BBF7D0] flex items-center gap-2 md:gap-3 shadow-sm">
+              <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-[#BBF7D0] flex items-center justify-center shrink-0">
+                <Check className="w-3.5 h-3.5 md:w-4 md:h-4 text-[#16A34A]" />
               </div>
-              <div>
-                <div className="text-[18px] font-bold text-[#0F172A]">{counts['discrepancy raised'] ?? 0}</div>
-                <div className="text-[10px] font-semibold text-[#64748B]">Disputes</div>
+              <div className="min-w-0">
+                <div className="text-[15px] md:text-[18px] font-bold text-[#0F172A] leading-tight">{counts['accepted'] ?? 0}</div>
+                <div className="text-[9.5px] md:text-[10px] font-semibold text-[#64748B] leading-tight truncate">Accepted</div>
               </div>
             </div>
-            <div className="flex-1 min-w-[180px] bg-[#FFF1F2] rounded-xl p-3 border border-[#FECDD3] flex items-center gap-3 shadow-sm">
-              <div className="w-8 h-8 rounded-full bg-[#FECDD3] flex items-center justify-center shrink-0">
-                <AlertTriangle className="w-4 h-4 text-[#E11D48]" />
+            <div className="min-w-0 md:flex-1 md:min-w-[180px] bg-[#FFFBEB] rounded-xl p-2.5 md:p-3 border border-[#FDE68A] flex items-center gap-2 md:gap-3 shadow-sm">
+              <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-[#FDE68A] flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-3.5 h-3.5 md:w-4 md:h-4 text-[#D97706]" />
               </div>
-              <div>
-                <div className="text-[18px] font-bold text-[#0F172A]">{counts['escalated'] ?? 0}</div>
-                <div className="text-[10px] font-semibold text-[#64748B]">Escalated</div>
+              <div className="min-w-0">
+                <div className="text-[15px] md:text-[18px] font-bold text-[#0F172A] leading-tight">{counts['discrepancy raised'] ?? 0}</div>
+                <div className="text-[9.5px] md:text-[10px] font-semibold text-[#64748B] leading-tight truncate">Disputes</div>
+              </div>
+            </div>
+            <div className="min-w-0 md:flex-1 md:min-w-[180px] bg-[#FFF1F2] rounded-xl p-2.5 md:p-3 border border-[#FECDD3] flex items-center gap-2 md:gap-3 shadow-sm">
+              <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-[#FECDD3] flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-3.5 h-3.5 md:w-4 md:h-4 text-[#E11D48]" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-[15px] md:text-[18px] font-bold text-[#0F172A] leading-tight">{counts['escalated'] ?? 0}</div>
+                <div className="text-[9.5px] md:text-[10px] font-semibold text-[#64748B] leading-tight truncate">Escalated</div>
               </div>
             </div>
           </div>
@@ -1167,7 +1198,7 @@ export function AdminWeightDiscrepancy() {
               <EmptyState title="No discrepancies found" subtitle="Try changing filters" />
             )}
             {!loading && filteredOrders.length > 0 && (
-              <div className="p-3 space-y-3">
+              <div className="p-3 space-y-2">
                 {filteredOrders.map((order, idx) => {
                   const products: any[] = Array.isArray(order.productDetails) ? order.productDetails : [];
                   const rem = daysLeft(order.createdAt);
@@ -1190,10 +1221,10 @@ export function AdminWeightDiscrepancy() {
                         {statusText || 'Pending'}
                       </div>
 
-                      <div className="pt-8 px-3.5 pb-3.5">
+                      <div className="pt-7 px-3 pb-2.5">
                         {/* Checkbox + User */}
-                        <div className="flex items-start justify-between gap-2 mb-2">
-                          <div className="flex items-center gap-2 min-w-0">
+                        <div className="flex items-start justify-between gap-2 mb-1.5">
+                          <div className="flex items-center gap-2 min-w-0 flex-1">
                             <input type="checkbox" className="rounded accent-[#00A86B] w-4 h-4 shrink-0"
                               checked={selectedItems.includes(order._id)}
                               onChange={() => toggleOne(order._id)} />
@@ -1202,110 +1233,106 @@ export function AdminWeightDiscrepancy() {
                                 {(order.user?.fullname || order.user?.name || '?').charAt(0).toUpperCase()}
                               </div>
                             ) : null}
-                            <div className="min-w-0">
+                            <div className="min-w-0 flex-1">
                               {isAdminView && (
                                 <>
-                                  <div className="text-[12px] font-semibold text-[#0F172A] truncate">{order.user?.fullname || order.user?.name || '—'}</div>
-                                  <div className="text-[11px] text-[#94A3B8] truncate">{order.user?.email || ''}</div>
+                                  <div className="text-[12px] font-semibold text-[#0F172A] truncate max-w-full">{order.user?.fullname || order.user?.name || '—'}</div>
+                                  <div className="text-[11px] text-[#94A3B8] truncate max-w-full">{order.user?.email || ''}</div>
                                 </>
                               )}
                             </div>
                           </div>
-                          {isPending && (
-                            <span className="bg-red-500 text-white text-[9px] px-1.5 py-0.5 rounded whitespace-nowrap shrink-0">
-                              {rem > 0 ? `${rem}d left` : 'Auto soon'}
-                            </span>
-                          )}
+                          <div className="flex flex-col items-end gap-1 shrink-0">
+                            {isAdminView && order.user?.userId && (
+                              <span className="text-[12px] font-semibold text-[#009D64]">{order.user.userId}</span>
+                            )}
+                            {isPending && (
+                              <span className="bg-red-500 text-white text-[9px] px-1.5 py-0.5 rounded whitespace-nowrap">
+                                {rem > 0 ? `${rem}d left` : 'Auto soon'}
+                              </span>
+                            )}
+                          </div>
                         </div>
 
                         {/* Weights row */}
-                        <div className="flex items-center justify-between gap-2 text-[12px] mb-1.5">
-                          <span className="text-[#64748B]">
-                            Charged weight: <span className="font-semibold text-[#0F172A]">{order.chargedWeight?.applicableWeight ?? '—'} Kg</span>
-                          </span>
-                          <span className="text-[10px] font-bold text-[#0F172A] bg-slate-100 px-2 py-0.5 rounded-full shrink-0">{order.user?.userId || ''}</span>
+                        <div className="text-[12px] text-[#64748B] mb-1">
+                          Charged weight: <span className="font-semibold text-[#0F172A]">{order.chargedWeight?.applicableWeight ?? '—'} Kg</span>
                         </div>
-                        <div className="text-[12px] text-[#64748B] mb-2">
+                        <div className="text-[12px] text-[#64748B] mb-1.5">
                           Applied weight: <span className="font-semibold text-[#0F172A]">{order.enteredWeight?.applicableWeight ?? '—'} Kg</span>
                         </div>
 
                         {/* Courier + AWB + price row */}
-                        <div className="flex items-center justify-between gap-2 bg-[#F8FAFC] rounded-xl px-2.5 py-2">
+                        <div className="flex items-center justify-between gap-2 bg-[#F8FAFC] rounded-xl px-2.5 py-1.5">
                           <div className="flex items-center gap-2 min-w-0">
                             <div className="w-8 h-8 rounded-full bg-white border border-[#E2E8F0] flex items-center justify-center shrink-0 overflow-hidden">
                               {logo ? <img src={logo} alt="" className="w-5 h-5 object-contain" /> : <Truck className="w-3.5 h-3.5 text-[#94A3B8]" />}
                             </div>
                             <div className="min-w-0">
                               <div className="text-[11px] font-semibold text-[#0F172A] truncate">{safeText(order.courierServiceName) || 'Courier'} {order.chargedWeight?.applicableWeight ?? ''}KG</div>
-                              <button
-                                onClick={() => order.awbNumber && navigate(`${isAdminView ? '/admin' : '/user'}/tracking?awb=${order.awbNumber}`)}
-                                className="text-[11px] font-semibold text-[#00A86B] hover:underline truncate"
-                              >
-                                {order.awbNumber}
-                              </button>
+                              <div className="relative flex items-center gap-1">
+                                <button
+                                  onClick={() => order.awbNumber && navigate(`${isAdminView ? '/admin' : '/user'}/tracking?awb=${order.awbNumber}`)}
+                                  className="text-[11px] font-semibold text-[#00A86B] hover:underline truncate"
+                                >
+                                  {order.awbNumber}
+                                </button>
+                                {order.awbNumber && (
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); copyAwb(order.awbNumber, `mobile-card-${idx}`); }}
+                                    className="p-0.5 text-[#94A3B8] hover:text-[#00A86B] shrink-0"
+                                  >
+                                    <Copy className="w-3 h-3" />
+                                  </button>
+                                )}
+                                {copiedAwb === `mobile-card-${idx}` && (
+                                  <span className="absolute left-0 -top-6 px-2 py-1 rounded-md bg-[#0F172A] text-white text-[10px] font-semibold whitespace-nowrap shadow-lg z-10">
+                                    Copied!
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </div>
-                          <div className="text-[13px] font-bold text-[#0F172A] shrink-0">
+                          <div className="text-[12px] font-normal text-[#059669] shrink-0">
                             ₹{Number(order.excessWeightCharges?.excessCharges || 0).toFixed(2)}
                           </div>
                         </div>
 
-                        {/* Actions row */}
-                        <div className="flex items-center gap-2 mt-3">
-                          {isDisputeRaised && (
-                            <button onClick={() => setDetailsModal({ open: true, text: order.text || '', imageUrl: order.imageUrl || '' })}
-                              className="flex-1 h-8 rounded-full border border-[#E2E8F0] text-[#475569] text-[11px] font-bold hover:bg-[#F8FAFC] transition-colors">
-                              Details
-                            </button>
-                          )}
-                          {isAdminView && isDisputeRaised && (
-                            <>
-                              <button onClick={() => setAcceptModal({ open: true, awb: order.awbNumber })}
-                                className="flex-1 h-8 rounded-full bg-[#00A86B] hover:bg-[#009B63] text-white text-[11px] font-bold transition-colors">
-                                Accept
+                        {/* Actions row — only rendered when there's something to show */}
+                        {(isDisputeRaised || (!isAdminView && isPending)) && (
+                          <div className="flex items-center gap-2 mt-2">
+                            {isDisputeRaised && (
+                              <button onClick={() => setDetailsModal({ open: true, text: order.text || '', imageUrl: order.imageUrl || '' })}
+                                className="flex-1 h-8 rounded-full border border-[#E2E8F0] text-[#475569] text-[11px] font-bold hover:bg-[#F8FAFC] transition-colors">
+                                Details
                               </button>
-                              <button onClick={() => setDeclineModal({ open: true, awbs: [order.awbNumber] })}
-                                className="flex-1 h-8 rounded-full bg-red-500 hover:bg-red-600 text-white text-[11px] font-bold transition-colors">
-                                Decline
-                              </button>
-                            </>
-                          )}
-                          {!isAdminView && isPending && (
-                            <>
-                              <button onClick={() => setUserAcceptModal({ open: true, awb: order.awbNumber })}
-                                className="flex-1 h-8 rounded-full bg-[#00A86B] hover:bg-[#009B63] text-white text-[11px] font-bold transition-colors">
-                                Accept
-                              </button>
-                              <button onClick={() => setRaiseDisputeModal({ open: true, awb: order.awbNumber })}
-                                className="flex-1 h-8 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-[11px] font-bold transition-colors">
-                                Raise Dispute
-                              </button>
-                            </>
-                          )}
-                          {!isPending && !isDisputeRaised && (
-                            <div className="relative shrink-0 ml-auto">
-                              <button
-                                onClick={() => setMobileRowMenuId(mobileRowMenuId === key ? null : String(key))}
-                                className="w-8 h-8 rounded-full border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC] transition-colors"
-                              >
-                                <MoreVertical className="w-4 h-4" />
-                              </button>
-                              {mobileRowMenuId === String(key) && (
-                                <>
-                                  <div className="fixed inset-0 z-40" onClick={() => setMobileRowMenuId(null)} />
-                                  <div className="absolute right-0 bottom-full mb-2 w-40 bg-white rounded-xl shadow-xl border border-[#E2E8F0] py-1.5 z-50">
-                                    <button
-                                      onClick={() => { setMobileRowMenuId(null); copyAwb(order.awbNumber, `mobile-${idx}`); }}
-                                      className="w-full text-left px-4 py-2 text-[12px] font-medium text-[#475569] hover:bg-[#F8FAFC]"
-                                    >
-                                      Copy AWB
-                                    </button>
-                                  </div>
-                                </>
-                              )}
-                            </div>
-                          )}
-                        </div>
+                            )}
+                            {isAdminView && isDisputeRaised && (
+                              <>
+                                <button onClick={() => setAcceptModal({ open: true, awb: order.awbNumber })}
+                                  className="flex-1 h-8 rounded-full bg-[#00A86B] hover:bg-[#009B63] text-white text-[11px] font-bold transition-colors">
+                                  Accept
+                                </button>
+                                <button onClick={() => setDeclineModal({ open: true, awbs: [order.awbNumber] })}
+                                  className="flex-1 h-8 rounded-full bg-red-500 hover:bg-red-600 text-white text-[11px] font-bold transition-colors">
+                                  Decline
+                                </button>
+                              </>
+                            )}
+                            {!isAdminView && isPending && (
+                              <>
+                                <button onClick={() => setUserAcceptModal({ open: true, awb: order.awbNumber })}
+                                  className="flex-1 h-8 rounded-full bg-[#00A86B] hover:bg-[#009B63] text-white text-[11px] font-bold transition-colors">
+                                  Accept
+                                </button>
+                                <button onClick={() => setRaiseDisputeModal({ open: true, awb: order.awbNumber })}
+                                  className="flex-1 h-8 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-[11px] font-bold transition-colors">
+                                  Raise Dispute
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   );

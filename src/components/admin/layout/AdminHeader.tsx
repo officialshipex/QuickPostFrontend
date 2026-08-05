@@ -187,6 +187,9 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
   // KYC is a self-contained onboarding flow — the page-context search/date/quick-action tools don't apply there.
   const isKycPage = location.pathname === '/admin/kyc' || location.pathname.startsWith('/admin/kyc/');
 
+  // Mobile navbar search icon/bar is dashboard-only — every other page hides it.
+  const isDashboardPage = location.pathname === '/admin/dashboard' || location.pathname === '/user/dashboard';
+
   // Pages (both /admin/* and /user/*) that either have their own in-page date
   // filter or don't need one at all — the navbar date filter is dashboard-only.
   // Deliberately separate from isSetupPage/isKycPage so it doesn't also hide
@@ -312,22 +315,24 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
             </div>
 
             <div className="flex items-center gap-1 shrink-0">
-              {/* Search trigger */}
-              <button
-                onClick={() => {
-                  setShowMobileSearch(true);
-                  setSearchQuery('');
-                  setShowOrderSearchResults(false);
-                  setShowNotifications(false);
-                  setShowQuickActions(false);
-                  setShowProfileMenu(false);
-                  setShowMobileWalletSummary(false);
-                  setShowDateDropdown(false);
-                }}
-                className="w-8 h-8 flex items-center justify-center rounded-full text-[#64748B] hover:bg-[#F8FAFC] transition-colors"
-              >
-                <Search className="w-[18px] h-[18px]" />
-              </button>
+              {/* Search trigger — dashboard only */}
+              {isDashboardPage && (
+                <button
+                  onClick={() => {
+                    setShowMobileSearch(true);
+                    setSearchQuery('');
+                    setShowOrderSearchResults(false);
+                    setShowNotifications(false);
+                    setShowQuickActions(false);
+                    setShowProfileMenu(false);
+                    setShowMobileWalletSummary(false);
+                    setShowDateDropdown(false);
+                  }}
+                  className="w-8 h-8 flex items-center justify-center rounded-full text-[#64748B] hover:bg-[#F8FAFC] transition-colors"
+                >
+                  <Search className="w-[18px] h-[18px]" />
+                </button>
+              )}
 
               {/* Notifications — only for non-admin users */}
               {!(isAdmin && adminTab) && (

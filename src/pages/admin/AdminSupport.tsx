@@ -713,7 +713,7 @@ export function AdminSupport() {
 
         {/* ── Ticket Cards (mobile) ── */}
         <div className="md:hidden bg-[#F8FAFC] flex flex-col flex-1 min-h-0 overflow-hidden">
-          <div className="flex-1 overflow-y-auto overflow-x-hidden w-full relative px-4 py-3 space-y-3">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden w-full relative px-3 py-2.5 space-y-2">
             {loading && <TableLoader />}
             {!loading && paginatedTickets.length === 0 && (
               <EmptyState title="No tickets found" />
@@ -730,8 +730,8 @@ export function AdminSupport() {
                     {STATUS_LABEL[statusKey] || statusKey}
                   </div>
 
-                  <div className="pt-8 px-4 pb-4">
-                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                  <div className="pt-6 px-3 pb-3">
+                    <div className="flex items-center justify-between gap-2 mb-1">
                       <span className="text-[12px] font-semibold text-[#64748B]">Ticket ID</span>
                       <span className="flex items-center gap-1.5 shrink-0">
                         <span className="text-[12px] font-semibold text-[#00A86B]">{ticket.ticketNumber}</span>
@@ -739,17 +739,22 @@ export function AdminSupport() {
                       </span>
                     </div>
 
-                    <div className="flex items-center justify-between gap-2 mb-1.5">
-                      <span className="text-[12px] font-normal text-[#64748B]">
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <span className="text-[12px] font-normal text-[#64748B] truncate flex-1">
                         AWB(s): {ticket.awbNumbers.length > 0 ? ticket.awbNumbers.slice(0, 2).join(', ') + (ticket.awbNumbers.length > 2 ? ` +${ticket.awbNumbers.length - 2}` : '') : 'N/A'}
                       </span>
-                      <span className="text-[12px] font-normal text-[#64748B] text-right truncate max-w-[55%]">{ticket.subcategory}</span>
+                      <TruncatedText
+                        text={ticket.subcategory}
+                        maxLength={18}
+                        tooltipAlign="right"
+                        className="text-[12px] font-normal text-[#64748B] shrink-0"
+                      />
                     </div>
 
-                    <div className="text-[12px] font-normal text-[#94A3B8] mb-1">
+                    <div className="text-[12px] font-normal text-[#94A3B8] mb-0.5">
                       Resolution Due By: {formatDate(new Date(new Date(ticket.createdAt).getTime() + 24 * 60 * 60 * 1000).toISOString())}
                     </div>
-                    <div className="text-[12px] font-normal text-[#94A3B8] mb-3">
+                    <div className="text-[12px] font-normal text-[#94A3B8] mb-2">
                       Last Updated: {formatDate(ticket.lastRepliedAt || ticket.createdAt)}
                     </div>
 

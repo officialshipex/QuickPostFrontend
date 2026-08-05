@@ -11,7 +11,7 @@ import {
   Search, ChevronDown, RefreshCcw, Send, Calendar, Check, MoreHorizontal,
   IndianRupee, Package, User, Settings, MapPin, X, Truck, CreditCard,
   CheckCircle2, Clock, AlertTriangle, Flame, History, Layers, RefreshCw, Mail,
-  Filter, Copy, PackagePlus, FileText, Download
+  Filter, Copy, PackagePlus, FileText, Download, MoreVertical
 } from 'lucide-react';
 import { usePagination, DesktopPagination } from '../../hooks/usePagination';
 import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
@@ -329,6 +329,7 @@ export function AdminOrders() {
   const actionMenuRef               = useRef<HTMLDivElement>(null);
   const mobileActionMenuRef         = useRef<HTMLDivElement>(null);
   const [showActionMenu, setShowActionMenu] = useState(false);
+  const [mobileActionMenuPos, setMobileActionMenuPos] = useState<{ top: number; right: number } | null>(null);
 
   // ── Orders data ──
   const [orders, setOrders]         = useState<any[]>([]);
@@ -828,19 +829,79 @@ export function AdminOrders() {
     <AdminLayout>
       <div className={`flex flex-col ${isImpersonating ? 'h-[calc(100vh-104px)]' : 'h-[calc(100vh-72px)]'} -m-4 md:-m-6 bg-white ${!isAdminView ? 'overflow-hidden' : ''}`}>
 
-        {/* ── Mobile Search Bar ── */}
-        <div className="md:hidden px-4 py-3 border-b border-[#E2E8F0] bg-white shrink-0">
-          <div className="relative">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
-            <input
-              type="text"
-              placeholder="AWB/Order ID tracking"
-              value={mobileSearchQuery}
-              onChange={(e) => setMobileSearchQuery(e.target.value)}
-              className="w-full h-10 pl-10 pr-4 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] text-sm text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all"
-            />
+        {/* ── Mobile Search + Filter + Action + Add Order Row (matches Wallet page) ── */}
+        {!isPMTab && (
+          <div className="md:hidden relative z-[60] px-3 py-2.5 border-b border-[#E2E8F0] flex items-center gap-2 bg-white shrink-0">
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
+              <input
+                type="text"
+                placeholder="AWB/Order ID tracking"
+                value={mobileSearchQuery}
+                onChange={(e) => setMobileSearchQuery(e.target.value)}
+                className="w-full h-9 pl-9 pr-3 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] text-sm text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all"
+              />
+            </div>
+            {/* Filter icon */}
+            <button
+              onClick={() => setIsMobileFiltersOpen(true)}
+              className="w-9 h-9 rounded-xl border border-[#E2E8F0] flex items-center justify-center text-[#475569] bg-white shrink-0"
+            >
+              <Filter className="w-4 h-4" />
+            </button>
+            {/* Action icon */}
+            <div className="relative shrink-0" ref={mobileActionMenuRef}>
+              <button
+                onClick={(e) => {
+                  if (selectedOrders.length === 0) return;
+                  if (!showActionMenu) {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setMobileActionMenuPos({ top: rect.bottom + 8, right: window.innerWidth - rect.right });
+                  }
+                  setShowActionMenu(v => !v);
+                }}
+                disabled={selectedOrders.length === 0}
+                className="w-9 h-9 rounded-xl border border-[#E2E8F0] flex items-center justify-center text-[#475569] bg-white relative disabled:opacity-50"
+              >
+                <MoreVertical className="w-4 h-4" />
+                {selectedOrders.length > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[16px] h-4 rounded-full bg-[#00A86B] text-white text-[9px] font-bold flex items-center justify-center px-0.5">
+                    {selectedOrders.length}
+                  </span>
+                )}
+              </button>
+              {showActionMenu && mobileActionMenuPos && createPortal(
+                <>
+                  <div className="fixed inset-0 z-[998]" onClick={() => setShowActionMenu(false)} />
+                  <AnimatePresence>
+                    <motion.div
+                      initial={{ opacity: 0, y: -6, scale: 0.97 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -6, scale: 0.97 }}
+                      transition={{ duration: 0.16, ease: 'easeOut' }}
+                      style={{ top: mobileActionMenuPos.top, right: mobileActionMenuPos.right }}
+                      className="fixed w-[200px] bg-white rounded-xl shadow-[0_8px_28px_-6px_rgba(0,0,0,0.15)] border border-[#E2E8F0] py-1.5 z-[999] origin-top-right"
+                      onMouseDown={(e) => e.stopPropagation()}
+                    >
+                      {renderActionMenuItems()}
+                    </motion.div>
+                  </AnimatePresence>
+                </>,
+                document.body
+              )}
+            </div>
+            {/* Add Order icon */}
+            {!isAdminView && (
+              <button
+                onClick={() => navigate('/user/add-order')}
+                className="w-9 h-9 rounded-xl bg-[#00A86B] flex items-center justify-center text-white shadow-sm active:bg-[#009B63] transition-colors shrink-0"
+                title="Add Order"
+              >
+                <PackagePlus className="w-4 h-4" />
+              </button>
+            )}
           </div>
-        </div>
+        )}
 
         {/* ── Top Tab Bar ── */}
         <div className="bg-white relative z-50 shrink-0">
@@ -889,59 +950,6 @@ export function AdminOrders() {
               <RefreshCcw className="w-4 h-4" />
             </button>
           </div>
-
-          {/* ── Mobile Filters + Action Row ── */}
-          {!isPMTab && (
-            <div className="md:hidden px-4 py-3 border-b border-[#E2E8F0] flex items-center justify-between bg-white gap-2">
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setIsMobileFiltersOpen(true)}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#00A86B] text-white text-[12px] font-bold shadow-sm"
-                >
-                  <Filter className="w-3.5 h-3.5" /> Filters
-                </button>
-                {selectedOrders.length > 0 && (
-                  <span className="text-[11px] font-bold text-[#00A86B] bg-[#F0FDF4] border border-[#00A86B]/20 px-2.5 py-1 rounded-full">
-                    {selectedOrders.length} selected
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="relative" ref={mobileActionMenuRef}>
-                  <button
-                    onClick={() => selectedOrders.length > 0 && setShowActionMenu(v => !v)}
-                    disabled={selectedOrders.length === 0}
-                    className={`flex items-center gap-1.5 px-4 py-2 rounded-lg border text-[12px] font-semibold transition-colors ${selectedOrders.length === 0 ? 'border-[#E2E8F0] bg-[#F8FAFC] text-[#CBD5E1]' : 'border-[#E2E8F0] text-[#475569] bg-white active:bg-[#F8FAFC]'}`}
-                  >
-                    Action
-                    <ChevronDown className={`w-3.5 h-3.5 text-[#94A3B8] transition-transform duration-200 ${showActionMenu ? 'rotate-180' : ''}`} />
-                  </button>
-                  <AnimatePresence>
-                    {showActionMenu && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -6, scale: 0.97 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: -6, scale: 0.97 }}
-                        transition={{ duration: 0.16, ease: 'easeOut' }}
-                        className="absolute right-0 top-full mt-2 w-[190px] bg-white rounded-xl shadow-[0_8px_28px_-6px_rgba(0,0,0,0.15)] border border-[#E2E8F0] py-1.5 z-50 origin-top-right"
-                      >
-                        {renderActionMenuItems()}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-                {!isAdminView && (
-                  <button
-                    onClick={() => navigate('/user/add-order')}
-                    className="h-9 px-4 rounded-full bg-[#00A86B] flex items-center gap-2 text-white text-[13px] font-bold hover:bg-[#009B63] shadow-sm transition-colors shrink-0"
-                  >
-                    <PackagePlus className="w-4 h-4" />
-                    Add Order
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
 
           {/* ── Filter Row — hidden for Pickup & Manifest (that tab has its own UI) ── */}
           {!isPMTab && <div className="orders-filter-bar hidden md:flex py-3 px-6 border-b border-[#CBD5F5] flex-wrap items-center gap-3 bg-[#F8FAFC]/50">
@@ -1377,14 +1385,15 @@ export function AdminOrders() {
 
         {/* ── Mobile Card Layout (all other tabs) ── */}
         {!isPMTab && (
-          <div className="md:hidden flex-1 overflow-y-auto bg-[#F8FAFC] relative">
+          <div className="md:hidden flex-1 min-h-0 flex flex-col bg-[#F8FAFC]">
+          <div className="flex-1 overflow-y-auto relative">
             {loading && <TableLoader />}
             {paginatedOrders.length === 0 ? (
               <div className="flex items-center justify-center min-h-[60vh]">
                 <EmptyState title="No orders found" subtitle="Try changing filters" />
               </div>
             ) : (
-              <div className="p-4 space-y-4">
+              <div className="p-2.5 space-y-2">
                 {paginatedOrders.map((order) => {
                   const accent = getRibbonColor(order.status || activeTab);
                   return (
@@ -1397,9 +1406,9 @@ export function AdminOrders() {
                       {order.status || activeTab}
                     </div>
 
-                    <div className="pt-8 px-4 pb-4">
+                    <div className="pt-6 px-2.5 pb-2.5">
                       {/* User Details Row */}
-                      <div className="flex items-center justify-between mb-3 gap-2">
+                      <div className="flex items-center justify-between mb-1.5 gap-2">
                         <div className="flex items-center gap-2 min-w-0">
                           <input type="checkbox" checked={selectedOrders.includes(order._id)} onChange={() => toggleSelect(order._id)} className="rounded border-gray-300 accent-[#00A86B] w-4 h-4 shrink-0" />
                           <span className="text-[#64748B] font-medium text-[12px]">User Details</span>
@@ -1411,15 +1420,15 @@ export function AdminOrders() {
                       </div>
 
                       {/* Courier & Order Card */}
-                      <div className="rounded-xl p-3 mb-3 bg-white" style={{ border: `1px solid ${accent}` }}>
+                      <div className="rounded-xl p-2 mb-2 bg-white" style={{ border: `1px solid ${accent}` }}>
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex items-center gap-2.5 min-w-0 flex-1">
                             {order.courier && order.courier !== '—' ? (
-                              <div className="w-10 h-10 bg-white border border-[#E2E8F0] rounded-xl flex items-center justify-center shrink-0 overflow-hidden p-1 shadow-sm">
+                              <div className="w-9 h-9 bg-white border border-[#E2E8F0] rounded-xl flex items-center justify-center shrink-0 overflow-hidden p-1 shadow-sm">
                                 <img src={getCourierLogo(order.courier)} alt={order.courier} className="w-full h-full object-contain" />
                               </div>
                             ) : (
-                              <div className="w-10 h-10 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl flex items-center justify-center shrink-0">
+                              <div className="w-9 h-9 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl flex items-center justify-center shrink-0">
                                 <Truck className="w-4 h-4 text-[#94A3B8]" />
                               </div>
                             )}
@@ -1450,39 +1459,43 @@ export function AdminOrders() {
 
                       {/* Product & Weight Row */}
                       <div
-                        className="flex items-start justify-between mb-3 px-1 gap-2 cursor-help"
-                        onMouseEnter={(e) => {
-                          if (!order.products || order.products.length === 0) return;
-                          const rect = e.currentTarget.getBoundingClientRect();
-                          setProductHoverPos({ id: order._id, top: rect.bottom + 4, left: rect.left });
-                        }}
-                        onMouseLeave={() => setProductHoverPos(prev => (prev?.id === order._id ? null : prev))}
+                        className="flex items-start justify-between mb-2 px-1 gap-2 cursor-help"
                         onClick={(e) => {
+                          e.stopPropagation();
                           if (!order.products || order.products.length === 0) return;
                           const rect = e.currentTarget.getBoundingClientRect();
-                          setProductHoverPos(prev => (prev?.id === order._id ? null : { id: order._id, top: rect.bottom + 4, left: rect.left }));
+                          const next = { id: order._id, top: rect.bottom + 4, left: rect.left };
+                          setProductHoverPos(prev => (prev?.id === order._id ? null : next));
                         }}
                       >
-                        <TruncatedText text={order.productName || '—'} maxLength={22} className="text-[12px] font-medium text-[#0F172A] flex-1" />
+                        <div className="truncate text-[12px] font-medium text-[#0F172A] flex-1">{order.productName || '—'}</div>
                         <span className="text-[11px] font-medium text-[#64748B] shrink-0">Weight: {order.weight}</span>
                       </div>
 
                       {/* Pickup / Receiver Row */}
-                      <div className="flex items-start justify-between bg-[#F8FAFC] rounded-xl px-3 py-2.5 mb-3 gap-2">
+                      <div className="flex items-start justify-between bg-[#F8FAFC] rounded-xl px-2.5 py-1.5 mb-2 gap-2">
                         <div
                           className="min-w-0 cursor-help"
-                          onMouseEnter={(e) => setHoveredPickup({ id: order._id, rect: e.currentTarget.getBoundingClientRect(), name: order.pickupName, address: order.pickupAddressLine, city: order.pickupCity, state: order.pickupState, pinCode: order.pickupPinCode, phone: order.pickupPhone })}
-                          onMouseLeave={() => setHoveredPickup(null)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            const next = { id: order._id, rect, name: order.pickupName, address: order.pickupAddressLine, city: order.pickupCity, state: order.pickupState, pinCode: order.pickupPinCode, phone: order.pickupPhone };
+                            setHoveredPickup(prev => (prev?.id === order._id ? null : next));
+                          }}
                         >
-                          <TruncatedText text={order.pickupName} maxLength={16} className="text-[10px] font-normal text-[#94A3B8] uppercase tracking-wider underline decoration-dotted underline-offset-2" />
+                          <div className="truncate text-[10px] font-normal text-[#94A3B8] uppercase tracking-wider underline decoration-dotted underline-offset-2">{order.pickupName}</div>
                           <div className="text-[12px] font-medium text-[#0F172A] mt-0.5">{order.pickupPhone}</div>
                         </div>
                         <div
                           className="text-right min-w-0 cursor-help"
-                          onMouseEnter={(e) => setHoveredCustomer({ rect: e.currentTarget.getBoundingClientRect(), name: order.customerName, address: order.customerAddress, city: order.customerCity, state: order.customerState, pinCode: order.customerPinCode, email: order.customerEmail })}
-                          onMouseLeave={() => setHoveredCustomer(null)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            const next = { rect, name: order.customerName, address: order.customerAddress, city: order.customerCity, state: order.customerState, pinCode: order.customerPinCode, email: order.customerEmail };
+                            setHoveredCustomer(prev => (prev ? null : next));
+                          }}
                         >
-                          <TruncatedText text={order.customerName} maxLength={16} className="text-[10px] font-normal text-[#94A3B8] uppercase tracking-wider underline decoration-dotted underline-offset-2" />
+                          <div className="truncate text-[10px] font-normal text-[#94A3B8] uppercase tracking-wider underline decoration-dotted underline-offset-2">{order.customerName}</div>
                           <div className="text-[12px] font-medium text-[#0F172A] mt-0.5">{order.customerPhone}</div>
                         </div>
                       </div>
@@ -1492,14 +1505,14 @@ export function AdminOrders() {
                         {isNewTab ? (
                           <button
                             onClick={() => setShipOrder(order)}
-                            className="flex-1 py-2.5 rounded-xl bg-[#1e40af] text-white text-[12px] font-bold flex items-center justify-center gap-1.5 hover:bg-[#1e3a8a] transition-colors"
+                            className="flex-1 py-2 rounded-xl bg-[#1e40af] text-white text-[12px] font-bold flex items-center justify-center gap-1.5 hover:bg-[#1e3a8a] transition-colors"
                           >
                             Ship <Send className="w-3.5 h-3.5" />
                           </button>
                         ) : (
                           <button
                             onClick={() => navigate(`${isAdminView ? '/admin' : '/user'}/order-tracking?id=${order.orderId}`)}
-                            className="flex-1 py-2.5 rounded-xl bg-[#1e40af] text-white text-[12px] font-bold flex items-center justify-center gap-1.5 hover:bg-[#1e3a8a] transition-colors"
+                            className="flex-1 py-2 rounded-xl bg-[#1e40af] text-white text-[12px] font-bold flex items-center justify-center gap-1.5 hover:bg-[#1e3a8a] transition-colors"
                           >
                             View Details
                           </button>
@@ -1511,9 +1524,9 @@ export function AdminOrders() {
                             const rect = e.currentTarget.getBoundingClientRect();
                             setDropdownPos({ id: order._id, top: rect.bottom + 4, left: rect.right - 176 });
                           }}
-                          className={`w-10 h-10 rounded-full border flex items-center justify-center shrink-0 transition-colors ${dropdownPos?.id === order._id ? 'bg-green-100 border-[#00A86B] text-[#00A86B]' : 'border-[#E2E8F0] text-[#64748B] bg-white'}`}
+                          className={`w-9 h-9 rounded-full border flex items-center justify-center shrink-0 transition-colors ${dropdownPos?.id === order._id ? 'bg-green-100 border-[#00A86B] text-[#00A86B]' : 'border-[#E2E8F0] text-[#64748B] bg-white'}`}
                         >
-                          <MoreHorizontal className="w-4 h-4" />
+                          <MoreHorizontal className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </div>
@@ -1522,8 +1535,9 @@ export function AdminOrders() {
                 })}
               </div>
             )}
+          </div>
 
-            {/* Mobile Pagination */}
+            {/* Mobile Pagination — sibling of the scroll area, not inside it, so it stays pinned */}
             {<MobilePaginationBar {...({
               page,
               setPage,
@@ -1901,6 +1915,17 @@ export function AdminOrders() {
             onClose={() => setShipOrder(null)}
             onShipped={() => fetchOrders(page)}
           />
+        )}
+
+        {/* ── Shared backdrop — closes pickup/customer/product tooltips on any outside click/tap.
+             No rect/measurement work here (that's what crashed before under StrictMode's double-invoked
+             updaters) — this just nulls the three states directly. ── */}
+        {(hoveredPickup || hoveredCustomer || productHoverPos) && createPortal(
+          <div
+            className="fixed inset-0 z-[997]"
+            onClick={() => { setHoveredPickup(null); setHoveredCustomer(null); setProductHoverPos(null); }}
+          />,
+          document.body
         )}
 
         {/* ── Pickup Tooltip ── */}

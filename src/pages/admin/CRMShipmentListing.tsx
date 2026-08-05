@@ -176,14 +176,31 @@ export function CRMShipmentListing() {
   const [copiedAwb, setCopiedAwb] = useState<string | null>(null);
   const [copyToast, setCopyToast] = useState<string | null>(null);
   const handleCopyAwb = (awb: string) => {
-    navigator.clipboard.writeText(awb).then(() => {
+    const showCopied = () => {
       setCopiedAwb(awb);
       setCopyToast(awb);
       setTimeout(() => setCopiedAwb(prev => (prev === awb ? null : prev)), 1500);
       setTimeout(() => setCopyToast(prev => (prev === awb ? null : prev)), 2000);
-    });
+    };
+    const legacyCopy = () => {
+      const ta = document.createElement('textarea');
+      ta.value = awb;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); } catch { /* ignore */ }
+      document.body.removeChild(ta);
+      showCopied();
+    };
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(awb).then(showCopied).catch(legacyCopy);
+    } else {
+      legacyCopy();
+    }
   };
   const [openActionId, setOpenActionId] = useState<string | null>(null);
+  const [mobileActionMenuPos, setMobileActionMenuPos] = useState<{ top: number; right: number } | null>(null);
   const [showLastUpdate, setShowLastUpdate] = useState(false);
   const [showAgeingLegend, setShowAgeingLegend] = useState(false);
   const ageingLegendRef = useRef<HTMLTableHeaderCellElement>(null);
@@ -816,7 +833,7 @@ export function CRMShipmentListing() {
           {paginated.length === 0 ? (
             <EmptyState title="No shipments found" subtitle="Try changing filters" />
           ) : (
-            <div className="p-3 space-y-3">
+            <div className="p-2.5 space-y-2">
               {paginated.map((row, idx) => {
                 const accent = getRibbonColor(row.status);
                 return (
@@ -828,8 +845,8 @@ export function CRMShipmentListing() {
                       {row.status}
                     </div>
 
-                    <div className="pt-7 px-3 pb-3">
-                      <div className="flex items-center justify-between mb-2 gap-2">
+                    <div className="pt-6 px-2.5 pb-2.5">
+                      <div className="flex items-center justify-between mb-1.5 gap-2">
                         <div className="flex items-center gap-2 min-w-0">
                           <input type="checkbox" checked={selectedOrders.includes(row.awb)} onChange={() => toggleSelect(row.awb)} className="rounded border-gray-300 accent-[#00A86B] w-4 h-4 shrink-0" />
                           <span className="text-[#64748B] font-medium text-[12px]">{row.companyId}</span>
@@ -837,22 +854,22 @@ export function CRMShipmentListing() {
                         <span className="text-[12px] font-semibold text-[#009D64]">{row.orderId}</span>
                       </div>
 
-                      <div className="rounded-xl p-2.5 mb-2 bg-white" style={{ border: `1px solid ${accent}` }}>
+                      <div className="rounded-xl p-2 mb-1.5 bg-white" style={{ border: `1px solid ${accent}` }}>
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0 flex-1">
-                            <TruncatedText text={row.seller} maxLength={24} className="text-[14px] leading-[20px] font-semibold text-[#1E293B]" />
-                            <TruncatedText text={row.email} maxLength={28} className="text-[12px] leading-[18px] font-normal text-[#64748B]" />
+                            <TruncatedText text={row.seller} maxLength={18} className="text-[13px] leading-[18px] font-semibold text-[#1E293B]" />
+                            <TruncatedText text={row.email} maxLength={20} className="text-[12px] leading-[18px] font-normal text-[#64748B]" />
                           </div>
                           <div className="text-right shrink-0">
-                            <div className="text-[12px] font-semibold text-[#0F172A]">{row.shipmentValue}</div>
+                            <div className="text-[12px] font-normal text-[#059669]">{row.shipmentValue}</div>
                             <span className="px-2 py-0.5 rounded-full border border-blue-200 text-[#004AAD] font-semibold text-[10px] leading-4 bg-blue-50/50 inline-block w-fit mt-0.5">{row.paymentMode}</span>
                           </div>
                         </div>
                       </div>
 
-                      <div className="flex items-start justify-between mb-2 px-1 gap-2">
+                      <div className="flex items-start justify-between mb-1.5 px-1 gap-2">
                         <span
-                          className="text-[12px] font-medium text-[#0F172A] underline decoration-dotted underline-offset-2 truncate flex-1 cursor-help"
+                          className="text-[12px] font-normal text-[#1E293B] underline decoration-dotted underline-offset-2 truncate flex-1 cursor-help"
                           onClick={(e) => {
                             e.stopPropagation();
                             if (row.products.length === 0) return;
@@ -865,10 +882,10 @@ export function CRMShipmentListing() {
                         <span className="text-[11px] font-medium text-[#64748B] shrink-0">QTY: {row.qty}</span>
                       </div>
 
-                      <div className="flex items-start justify-between bg-[#F8FAFC] rounded-xl px-2.5 py-2 mb-2 gap-2">
+                      <div className="flex items-start justify-between bg-[#F8FAFC] rounded-xl px-2.5 py-1.5 mb-1.5 gap-2">
                         <div className="min-w-0">
                           <div className="text-[10px] font-normal text-[#94A3B8] uppercase tracking-wider">Courier</div>
-                          <div className="text-[12px] font-medium text-[#0F172A] mt-0.5">{row.courier}</div>
+                          <div className="text-[12px] font-normal text-[#1E293B] mt-0.5">{row.courier}</div>
                           <div className="flex items-center gap-1 mt-0.5">
                             <span className="text-[11px] text-[#64748B]">{row.awb}</span>
                             <button onClick={() => handleCopyAwb(row.awb)} className="text-[#94A3B8] hover:text-[#00A86B] transition-colors shrink-0">
@@ -879,7 +896,7 @@ export function CRMShipmentListing() {
                         <div className="text-right min-w-0">
                           <div className="text-[10px] font-normal text-[#94A3B8] uppercase tracking-wider">Pickup</div>
                           <div
-                            className="text-[12px] font-medium text-[#0F172A] mt-0.5 underline decoration-dotted underline-offset-2 cursor-help truncate"
+                            className="text-[12px] font-normal text-[#1E293B] mt-0.5 underline decoration-dotted underline-offset-2 cursor-help truncate"
                             onClick={(e) => {
                               e.stopPropagation();
                               setHoveredPickup({ id: row.awb, rect: e.currentTarget.getBoundingClientRect(), name: row.pickupName, address: row.pickupAddressLine, city: row.pickupCity, state: row.pickupState, pinCode: row.pickupPinCode, phone: row.pickupPhone });
@@ -892,22 +909,37 @@ export function CRMShipmentListing() {
                       </div>
 
                       <div className="flex items-center gap-2">
-                        <button onClick={() => navigate(`/admin/order-tracking?id=${row.orderId}`)} className="flex-1 py-2 rounded-xl bg-[#1e40af] text-white text-[12px] font-bold flex items-center justify-center gap-1.5 hover:bg-[#1e3a8a] transition-colors">
+                        <button onClick={() => navigate(`/admin/order-tracking?id=${row.orderId}`)} className="flex-1 h-8 rounded-xl bg-[#1e40af] text-white text-[12px] font-bold flex items-center justify-center gap-1.5 hover:bg-[#1e3a8a] transition-colors">
                           View Details
                         </button>
                         <div className="relative shrink-0">
                           <button
-                            onClick={(e) => { e.stopPropagation(); setOpenActionId(openActionId === row.awb ? null : row.awb); }}
-                            className="w-9 h-9 rounded-full border border-[#E2E8F0] text-[#64748B] bg-white flex items-center justify-center"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (openActionId !== row.awb) {
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                setMobileActionMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+                              }
+                              setOpenActionId(openActionId === row.awb ? null : row.awb);
+                            }}
+                            className="w-8 h-8 rounded-full border border-[#E2E8F0] text-[#64748B] bg-white flex items-center justify-center"
                           >
-                            <MoreHorizontal className="w-4 h-4" />
+                            <MoreHorizontal className="w-3.5 h-3.5" />
                           </button>
-                          {openActionId === row.awb && (
-                            <div className="absolute right-0 top-full mt-1 w-44 bg-white rounded-xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.15)] border border-[#E2E8F0] py-2 z-[60] text-left" onClick={(e) => e.stopPropagation()}>
-                              <button className="w-full text-left px-4 py-2 text-[12px] font-medium text-[#475569] hover:bg-[#F8FAFC]" onClick={() => navigate(`/admin/order-tracking?id=${row.orderId}`)}>Track Shipment</button>
-                              <button className="w-full text-left px-4 py-2 text-[12px] font-medium text-[#475569] hover:bg-[#F8FAFC]" onClick={() => { alert('Downloading Proof of Delivery (POD)...'); setOpenActionId(null); }}>Download POD</button>
-                              <button className="w-full text-left px-4 py-2 text-[12px] font-medium text-[#475569] hover:bg-[#F8FAFC]" onClick={() => { alert('Opening Support Ticket Escalation dialog...'); setOpenActionId(null); }}>Raise Ticket</button>
-                            </div>
+                          {openActionId === row.awb && mobileActionMenuPos && createPortal(
+                            <>
+                              <div className="fixed inset-0 z-[997]" onClick={() => setOpenActionId(null)} />
+                              <div
+                                style={{ top: mobileActionMenuPos.top, right: mobileActionMenuPos.right }}
+                                className="fixed w-44 bg-white rounded-xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.15)] border border-[#E2E8F0] py-2 z-[998] text-left"
+                                onMouseDown={(e) => e.stopPropagation()}
+                              >
+                                <button className="w-full text-left px-4 py-2 text-[12px] font-medium text-[#475569] hover:bg-[#F8FAFC]" onClick={() => navigate(`/admin/order-tracking?id=${row.orderId}`)}>Track Shipment</button>
+                                <button className="w-full text-left px-4 py-2 text-[12px] font-medium text-[#475569] hover:bg-[#F8FAFC]" onClick={() => { alert('Downloading Proof of Delivery (POD)...'); setOpenActionId(null); }}>Download POD</button>
+                                <button className="w-full text-left px-4 py-2 text-[12px] font-medium text-[#475569] hover:bg-[#F8FAFC]" onClick={() => { alert('Opening Support Ticket Escalation dialog...'); setOpenActionId(null); }}>Raise Ticket</button>
+                              </div>
+                            </>,
+                            document.body
                           )}
                         </div>
                       </div>

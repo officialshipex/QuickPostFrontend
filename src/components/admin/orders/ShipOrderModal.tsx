@@ -153,7 +153,7 @@ export function ShipOrderModal({ order, onClose, onShipped }: ShipOrderModalProp
     <AnimatePresence>
       <motion.div
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm z-[200] flex items-center justify-center p-4"
+        className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm z-[200] flex items-center justify-center p-0 md:p-4"
         onClick={onClose}
       >
         <motion.div
@@ -161,11 +161,11 @@ export function ShipOrderModal({ order, onClose, onShipped }: ShipOrderModalProp
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.96, y: 12 }}
           transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-          className="w-full max-w-6xl max-h-[90vh] bg-[#F8FAFC] rounded-[16px] shadow-[0_40px_80px_-16px_rgba(0,0,0,0.25)] overflow-hidden flex flex-col border border-[#E2E8F0]"
+          className="w-full max-w-6xl h-full md:h-auto max-h-full md:max-h-[90vh] bg-[#F8FAFC] rounded-none md:rounded-[16px] shadow-[0_40px_80px_-16px_rgba(0,0,0,0.25)] overflow-hidden flex flex-col border-0 md:border md:border-[#E2E8F0]"
           onClick={(e) => e.stopPropagation()}
         >
           {/* ── Header ── */}
-          <div className="px-5 py-3.5 bg-white border-b border-[#E2E8F0] flex items-center justify-between shrink-0">
+          <div className="px-4 md:px-5 py-3 md:py-3.5 bg-white border-b border-[#E2E8F0] flex items-center justify-between shrink-0">
             <div className={`${TXT.label} text-[#0F172A]`}>
               Order ID : <span className="text-[#00A86B]">{order?.userUserId || order?.orderId || '—'}</span>
             </div>
@@ -175,7 +175,7 @@ export function ShipOrderModal({ order, onClose, onShipped }: ShipOrderModalProp
           </div>
 
           {/* ── Summary strip ── */}
-          <div className="mx-5 mt-4 bg-white border border-[#E2E8F0] rounded-[12px] px-6 py-4 grid grid-cols-2 md:grid-cols-4 gap-6 shrink-0">
+          <div className="mx-3 md:mx-5 mt-3 md:mt-4 bg-white border border-[#E2E8F0] rounded-[12px] px-4 md:px-6 py-3 md:py-4 grid grid-cols-2 gap-4 md:gap-6 shrink-0">
 
             {/* FROM with address hover */}
             <div>
@@ -250,13 +250,13 @@ export function ShipOrderModal({ order, onClose, onShipped }: ShipOrderModalProp
 
           {/* ── Error banner ── */}
           {error && (
-            <div className="mx-5 mt-2 px-4 py-2 bg-[#FEF2F2] border border-[#FECACA] rounded-lg">
+            <div className="mx-3 md:mx-5 mt-2 px-4 py-2 bg-[#FEF2F2] border border-[#FECACA] rounded-lg">
               <p className="text-[12px] text-[#EF4444] font-medium">{error}</p>
             </div>
           )}
 
-          {/* ── Courier table ── */}
-          <div className="flex-1 min-h-0 mx-5 my-4 bg-white border border-[#E2E8F0] rounded-[12px] overflow-hidden flex flex-col">
+          {/* ── Courier list (desktop table) ── */}
+          <div className="hidden md:flex flex-1 min-h-0 mx-5 my-4 bg-white border border-[#E2E8F0] rounded-[12px] overflow-hidden flex-col">
             <div className="grid grid-cols-[1.6fr_0.8fr_1.1fr_1.1fr_1fr_1fr_0.9fr] gap-2 px-5 py-3 bg-[#00A86B] text-white shrink-0">
               <span className={TXT.label}>Courier Partner</span>
               <span className={`${TXT.label} text-center`}>Mode</span>
@@ -418,6 +418,81 @@ export function ShipOrderModal({ order, onClose, onShipped }: ShipOrderModalProp
                 </AnimatePresence>
               )}
             </div>
+          </div>
+
+          {/* ── Courier list (mobile cards) ── */}
+          <div className="md:hidden flex-1 min-h-0 mx-3 my-3 overflow-y-auto space-y-2.5">
+            {loading ? (
+              <div className="relative h-48 bg-white rounded-[12px] border border-[#E2E8F0]">
+                <TableLoader />
+              </div>
+            ) : rates.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-48 gap-2 bg-white rounded-[12px] border border-[#E2E8F0]">
+                <Truck className="w-8 h-8 text-[#CBD5E1]" />
+                <p className={`${TXT.value} text-[#94A3B8]`}>No courier options available for this pincode.</p>
+              </div>
+            ) : (
+              <AnimatePresence initial={false}>
+                {rates.map((item, i) => {
+                  const logo = getLogoForCourier(item.courierServiceName);
+                  const isAir = item.courierType === 'Domestic (Air)';
+                  const chargeableWeight = getChargeableWeight(item.courierServiceName, applicableWeight);
+                  return (
+                    <motion.div
+                      key={item._id}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.2, delay: Math.min(i * 0.04, 0.3) }}
+                      className={`rounded-[12px] border p-3 ${item.isRecommended ? 'bg-[#F0FDF4] border-[#00A86B]/30' : 'bg-white border-[#E2E8F0]'}`}
+                    >
+                      <div className="flex items-center gap-2.5 mb-2.5">
+                        <div className="w-9 h-9 rounded-[8px] border border-[#E2E8F0] bg-white flex items-center justify-center shrink-0 overflow-hidden">
+                          {logo ? (
+                            <img src={logo} alt={item.courierServiceName} className="max-w-full max-h-full object-contain"
+                              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                          ) : (
+                            <Truck className="w-4 h-4 text-[#94A3B8]" />
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className={`${TXT.label} text-[#0F172A] truncate`}>{item.courierServiceName}</p>
+                          <div className="flex items-center gap-1 text-[#64748B]">
+                            {isAir ? <Plane className="w-3 h-3" /> : <Truck className="w-3 h-3" />}
+                            <p className={`${TXT.value} truncate`}>{item.courierType}</p>
+                          </div>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className={`${TXT.label} text-[#0F172A]`}>₹{Number(item.forward?.finalCharges || 0).toFixed(2)}</p>
+                          <p className={`${TXT.value} text-[#94A3B8]`}>{chargeableWeight}</p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 mb-3 bg-[#F8FAFC] rounded-[8px] px-3 py-2">
+                        <div>
+                          <p className={`${TXT.value} text-[#94A3B8]`}>Est. Pickup</p>
+                          <p className={`${TXT.label} text-[#475569]`}>{formatPickupDate(item.pickupDate)}</p>
+                        </div>
+                        <div>
+                          <p className={`${TXT.value} text-[#94A3B8]`}>Est. Delivery</p>
+                          <p className={`${TXT.label} text-[#475569]`}>{formatDeliveryDate(item.estimatedDeliveryDate)}</p>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => handleShip(item)}
+                        disabled={shippingId !== null}
+                        className={`w-full h-9 rounded-full bg-[#00A86B] text-white ${TXT.label} hover:bg-[#009B63] active:bg-[#009B63] transition-colors shadow-sm disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-1.5`}
+                      >
+                        {shippingId === item._id
+                          ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          : <><Send className="w-3 h-3" />Ship Now</>
+                        }
+                      </button>
+                    </motion.div>
+                  );
+                })}
+              </AnimatePresence>
+            )}
           </div>
         </motion.div>
       </motion.div>
