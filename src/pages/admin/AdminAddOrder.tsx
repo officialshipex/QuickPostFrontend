@@ -8,6 +8,7 @@ import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { apiClient } from '../../services/apiClient';
 import { useAdminTab } from '../../context/AdminUserContext';
 import { BulkUploadModal } from '../../components/ui/BulkUploadModal';
+import { TableLoader } from '../../components/ui/TableLoader';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Product {
@@ -59,6 +60,7 @@ export function AdminAddOrder() {
   const [selectedPickupId, setSelectedPickupId] = useState('');
   const [pickupRefresh, setPickupRefresh] = useState(false);
   const [prefillPickup, setPrefillPickup] = useState<any>(null);
+  const [orderOwnerId, setOrderOwnerId] = useState<string | null>(null);
 
   // ── Add Pickup Modal ──
   const [showPickupModal, setShowPickupModal] = useState(false);
@@ -152,8 +154,13 @@ export function AdminAddOrder() {
 
   // ── Fetch pickup addresses ──
   useEffect(() => {
+    // On admin clone/update, wait until the order's userId is known before fetching
+    const needsOwner = isAdminView && !!(cloneId || updateId);
+    if (needsOwner && !orderOwnerId) return;
+
+    const qs = isAdminView && orderOwnerId ? `?userId=${orderOwnerId}&limit=1000` : '';
     apiClient
-      .get('/order/pickupAddress')
+      .get(`/order/pickupAddress${qs}`)
       .then(res => {
         const list: PickupAddress[] =
           res.data?.data || res.data?.addresses || (Array.isArray(res.data) ? res.data : []);
@@ -161,7 +168,7 @@ export function AdminAddOrder() {
         if (list.length > 0 && !selectedPickupId) setSelectedPickupId(list[0]._id);
       })
       .catch(() => {});
-  }, [pickupRefresh]);
+  }, [pickupRefresh, orderOwnerId]);
 
   // ── Prefill for clone / update ──
   useEffect(() => {
@@ -174,6 +181,7 @@ export function AdminAddOrder() {
         const order = res.data?.order || res.data?.data || res.data;
         if (!order) return;
 
+        if (order.userId) setOrderOwnerId(String(order.userId));
         if (order.pickupAddress) setPrefillPickup(order.pickupAddress);
 
         const r = order.receiverAddress || order.deliveryAddress || {};
@@ -424,7 +432,9 @@ export function AdminAddOrder() {
       } else {
         await apiClient.post('/order/neworder', payload);
       }
-      navigate(isAdminView ? '/admin/orders' : '/user/orders');
+      navigate(isAdminView ? '/admin/orders' : '/user/orders', {
+        state: { toast: { type: 'success', text: isUpdate ? 'Order updated successfully' : 'Order created successfully' } },
+      });
     } catch (err: any) {
       setErrors({
         submit:
@@ -446,8 +456,8 @@ export function AdminAddOrder() {
   if (loadingPrefill) {
     return (
       <AdminLayout>
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="w-8 h-8 animate-spin text-[#00A86B]" />
+        <div className="relative min-h-screen">
+          <TableLoader />
         </div>
       </AdminLayout>
     );

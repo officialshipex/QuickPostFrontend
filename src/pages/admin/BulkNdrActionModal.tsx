@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, ChevronDown } from 'lucide-react';
 import { apiClient } from '../../services/apiClient';
+import { Toast } from '../../components/ui/Toast';
+import { useToast } from '../../hooks/useToast';
 
 const ACTIONS = [
   { label: 'Re-attempt', value: 'RE-ATTEMPT' },
@@ -25,7 +27,7 @@ export function BulkNdrActionModal({ isOpen, onClose, selectedOrders, onRefresh 
   const [address, setAddress] = useState({ address1: '', address2: '', customer_name: '', city: '', state: '', pincode: '' });
   const [loading, setLoading] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [toast, setToast] = useState('');
+  const { toast, showToast, closeToast } = useToast();
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -36,7 +38,7 @@ export function BulkNdrActionModal({ isOpen, onClose, selectedOrders, onRefresh 
 
   if (!isOpen) return null;
 
-  const notify = (msg: string, type = 'info') => { setToast(msg); setTimeout(() => setToast(''), 3500); };
+  const notify = (msg: string, type: 'success' | 'error' | 'info' = 'info') => showToast(type, msg);
 
   const validate = () => {
     if (!action) { notify('Please select an action.'); return false; }
@@ -161,9 +163,7 @@ export function BulkNdrActionModal({ isOpen, onClose, selectedOrders, onRefresh 
         </div>
       </div>
 
-      {toast && (
-        <div className="fixed bottom-6 right-6 z-[300] bg-[#1E293B] text-white px-5 py-3 rounded-xl shadow-2xl text-[13px] font-medium">{toast}</div>
-      )}
+      <Toast toast={toast} onClose={closeToast} />
     </div>,
     document.body
   );

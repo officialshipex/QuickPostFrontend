@@ -3,6 +3,8 @@ import { useLocation } from 'react-router-dom';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { useAdminTab } from '../../context/AdminUserContext';
 import { apiClient } from '../../services/apiClient';
+import { Toast } from '../../components/ui/Toast';
+import { useToast } from '../../hooks/useToast';
 import { TableLoader } from '../../components/ui/TableLoader';
 import {
   Users, Plus, X, Eye, Edit2, Trash2, CheckCircle2,
@@ -335,7 +337,7 @@ export function AdminRoles() {
   const [deleteTarget, setDeleteTarget]   = useState<Employee | null>(null);
   const [togglingId, setTogglingId]       = useState<string | null>(null);
   const [deletingId, setDeletingId]       = useState<string | null>(null);
-  const [toast, setToast]                 = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const { toast, showToast, closeToast } = useToast();
   const [searchTerm, setSearchTerm]       = useState('');
   const [copied, setCopied]               = useState(false);
 
@@ -346,11 +348,6 @@ export function AdminRoles() {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
-  };
-
-  const showToast = (type: 'success' | 'error', text: string) => {
-    setToast({ type, text });
-    setTimeout(() => setToast(null), 3500);
   };
 
   // Lock body scroll whenever any modal is open
@@ -438,13 +435,7 @@ export function AdminRoles() {
 
   return (
     <AdminLayout>
-      {/* Toast */}
-      {toast && (
-        <div className={`fixed top-4 right-4 z-[300] flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg text-sm font-semibold text-white ${toast.type === 'success' ? 'bg-[#00A86B]' : 'bg-red-500'}`}>
-          {toast.type === 'success' ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
-          {toast.text}
-        </div>
-      )}
+      <Toast toast={toast} onClose={closeToast} />
 
       <div className="flex flex-col h-[calc(100vh-72px)] -m-4 md:-m-6 bg-white">
         <div className="bg-white relative z-50 shrink-0">

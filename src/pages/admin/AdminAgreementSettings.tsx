@@ -4,6 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { apiClient } from '../../services/apiClient';
 import { ArrowLeft, FileText, Download, BookOpen, CheckCircle2, X } from 'lucide-react';
+import { Toast } from '../../components/ui/Toast';
+import { useToast } from '../../hooks/useToast';
 
 interface Agreement {
   _id: string;
@@ -24,12 +26,8 @@ export function AdminAgreementSettings() {
   const navigate = useNavigate();
   const [agreements, setAgreements] = useState<Agreement[]>([]);
   const [loading, setLoading] = useState(true);
-  const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
-
-  const showToast = (msg: string, ok = true) => {
-    setToast({ msg, ok });
-    setTimeout(() => setToast(null), 3000);
-  };
+  const { toast, showToast: _showToast, closeToast } = useToast();
+  const showToast = (msg: string, ok = true) => _showToast(ok ? 'success' : 'error', msg);
 
   const fetchAgreements = async () => {
     try {
@@ -101,20 +99,7 @@ export function AdminAgreementSettings() {
 
   return (
     <AdminLayout>
-      {/* Toast */}
-      <AnimatePresence>
-        {toast && (
-          <motion.div
-            initial={{ opacity: 0, y: -16 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -16 }}
-            className={`fixed top-5 right-5 z-[9999] flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg text-[13px] font-semibold text-white ${toast.ok ? 'bg-[#00A86B]' : 'bg-[#EF4444]'}`}
-          >
-            {toast.ok ? <CheckCircle2 className="w-4 h-4" /> : <X className="w-4 h-4" />}
-            {toast.msg}
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <Toast toast={toast} onClose={closeToast} />
 
       <div className="max-w-[1400px] mx-auto pb-10">
         <button

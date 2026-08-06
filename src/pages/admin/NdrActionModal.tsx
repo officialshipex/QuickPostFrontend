@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown, X, MapPin, Phone, Calendar } from 'lucide-react';
+import { Toast } from '../../components/ui/Toast';
+import { useToast } from '../../hooks/useToast';
 
 const ACTIONS = [
   { label: 'Reattempt', value: 'RE-ATTEMPT' },
@@ -24,7 +26,7 @@ export function NdrActionModal({ isOpen, onClose, order, onSubmit }: Props) {
   const [address, setAddress] = useState({ line1: '', line2: '', city: '', state: '', pincode: '', customerName: '' });
   const [loading, setLoading] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [toast, setToast] = useState('');
+  const { toast, showToast, closeToast } = useToast();
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -42,7 +44,7 @@ export function NdrActionModal({ isOpen, onClose, order, onSubmit }: Props) {
 
   if (!isOpen) return null;
 
-  const notify = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
+  const notify = (msg: string) => showToast('info', msg);
 
   const provider = order?.provider || '';
   const partner  = order?.partner  || '';
@@ -256,12 +258,7 @@ export function NdrActionModal({ isOpen, onClose, order, onSubmit }: Props) {
         </div>
       </div>
 
-      {/* Toast */}
-      {toast && (
-        <div className="fixed bottom-6 right-6 z-[300] bg-[#1E293B] text-white px-5 py-3 rounded-xl shadow-2xl text-[13px] font-medium">
-          {toast}
-        </div>
-      )}
+      <Toast toast={toast} onClose={closeToast} />
     </div>,
     document.body
   );

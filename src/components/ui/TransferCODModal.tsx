@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiClient } from '../../services/apiClient';
+import { Toast } from './Toast';
+import { useToast } from '../../hooks/useToast';
 import { Wallet, Lock, Building2, UserCircle, FileText, Banknote, Scale, Archive } from 'lucide-react';
 
 interface Props {
@@ -21,14 +23,9 @@ export function TransferCODModal({ userId, selectedRemittanceIds, type = 'seller
   const [submitting, setSubmitting] = useState(false);
   const [adjustMode, setAdjustMode] = useState<'full' | 'negative_only' | null>('full');
   const [bypassHold, setBypassHold] = useState(false);
-  const [toast, setToast] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
+  const { toast, showToast, closeToast } = useToast();
 
   const displayType = type === 'courier' ? 'Courier' : 'Seller';
-
-  const showToast = (type: 'error' | 'success', text: string) => {
-    setToast({ type, text });
-    setTimeout(() => setToast(null), 3000);
-  };
 
   useEffect(() => { setAdjustMode('full'); }, [balance]);
 
@@ -145,11 +142,7 @@ export function TransferCODModal({ userId, selectedRemittanceIds, type = 'seller
           initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
           transition={{ type: 'spring', stiffness: 200, damping: 20 }}>
 
-          {toast && (
-            <div className={`fixed top-4 left-4 right-4 sm:left-auto sm:right-4 z-[400] px-4 py-3 rounded-xl text-sm font-medium shadow-lg ${toast.type === 'success' ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'}`}>
-              {toast.text}
-            </div>
-          )}
+          <Toast toast={toast} onClose={closeToast} />
 
           <button onClick={onClose} className="absolute top-4 right-4 sm:top-6 sm:right-6 text-gray-400 hover:text-gray-700 text-xl font-bold z-10 transition-colors">✕</button>
 

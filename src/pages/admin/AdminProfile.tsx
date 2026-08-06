@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { apiClient } from '../../services/apiClient';
+import { Toast } from '../../components/ui/Toast';
+import { useToast } from '../../hooks/useToast';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { useAdminTab } from '../../context/AdminUserContext';
 import {
@@ -174,12 +176,8 @@ export function AdminProfile() {
     isAdminSMSEnable: false,
     isAdminEmailEnable: false,
   });
-  const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
-
-  const showToast = (type: 'success' | 'error', msg: string) => {
-    setToast({ type, msg });
-    setTimeout(() => setToast(null), 3000);
-  };
+  const { toast, showToast: _showToast, closeToast } = useToast();
+  const showToast = (type: 'success' | 'error', msg: string) => _showToast(type, msg);
 
   const fetchRates = async (uid: string) => {
     if (!uid) return;
@@ -339,12 +337,7 @@ export function AdminProfile() {
 
   return (
     <AdminLayout>
-      {/* Toast */}
-      {toast && (
-        <div className={`fixed top-4 right-4 z-[200] px-4 py-2.5 rounded-lg text-white ${TXT.label} shadow-lg ${toast.type === 'success' ? 'bg-[#00A86B]' : 'bg-[#EF4444]'}`}>
-          {toast.msg}
-        </div>
-      )}
+      <Toast toast={toast} onClose={closeToast} />
 
       <div className="w-full px-4 md:px-8 pt-0 pb-4 h-[calc(100vh-32px)] md:h-[calc(100vh-48px)] flex flex-col min-h-0">
 

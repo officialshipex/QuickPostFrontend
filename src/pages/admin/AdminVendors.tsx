@@ -1,13 +1,15 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
+import { Toast } from '../../components/ui/Toast';
+import { useToast } from '../../hooks/useToast';
 import { usePagination } from '../../hooks/usePagination';
 import { 
   Search, Store, CheckCircle2, Clock, XCircle, IndianRupee, Package,
   TrendingUp, Eye, ChevronLeft, ChevronRight, SlidersHorizontal,
   Trash2, Edit3, Plus, X, Check, Building2, CreditCard, ArrowUpDown,
   ChevronDown, User, Mail, Phone, MapPin, Download, AlertTriangle,
-  ShieldAlert, Sparkles, AlertCircle, Ban, RefreshCcw, FileSpreadsheet, Copy
+  ShieldAlert, Sparkles, Ban, RefreshCcw, FileSpreadsheet, Copy
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -342,12 +344,8 @@ export function AdminVendors() {
   const [drawerTab, setDrawerTab] = useState<'overview' | 'financials' | 'shipments'>('overview');
 
   // Toasts
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
-
-  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 3000);
-  };
+  const { toast, showToast: _showToast, closeToast } = useToast();
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => _showToast(type, message);
 
   // Unique cities for city dropdown
   const uniqueCities = useMemo(() => {
@@ -2027,39 +2025,7 @@ export function AdminVendors() {
         )}
       </AnimatePresence>
 
-      {/* TOAST SYSTEM */}
-      <AnimatePresence>
-        {toast && (
-          <motion.div
-            initial={{ opacity: 0, y: 50, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 50, scale: 0.95 }}
-            className={`fixed bottom-6 right-6 z-50 px-5 py-3.5 rounded-xl shadow-2xl flex items-center gap-3 border min-w-[320px] max-w-md ${
-              toast.type === 'success' 
-                ? 'bg-slate-900 border-white/10 text-white' 
-                : toast.type === 'error' 
-                  ? 'bg-rose-950 border-rose-800 text-rose-100' 
-                  : 'bg-indigo-950 border-indigo-800 text-indigo-100'
-            }`}
-          >
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
-              toast.type === 'success' 
-                ? 'bg-emerald-500/20 text-[#34D399]' 
-                : toast.type === 'error' 
-                  ? 'bg-rose-500/20 text-rose-300' 
-                  : 'bg-indigo-500/20 text-indigo-300'
-            }`}>
-              {toast.type === 'success' && <CheckCircle2 className="w-4 h-4" />}
-              {toast.type === 'error' && <AlertCircle className="w-4 h-4" />}
-              {toast.type === 'info' && <AlertCircle className="w-4 h-4" />}
-            </div>
-            <p className="text-[12px] font-bold leading-snug flex-1">{toast.message}</p>
-            <button onClick={() => setToast(null)} className="text-slate-400 hover:text-white transition-colors">
-              <X className="w-4 h-4" />
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <Toast toast={toast} onClose={closeToast} />
 
     </AdminLayout>
   );

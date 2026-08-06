@@ -1,12 +1,14 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { apiClient } from '../../services/apiClient';
+import { Toast } from '../../components/ui/Toast';
+import { useToast } from '../../hooks/useToast';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { usePagination, DesktopPagination } from '../../hooks/usePagination';
 import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
 import { TableLoader } from '../../components/ui/TableLoader';
 import {
   Upload, Download, Briefcase,
-  Plus, Edit3, Trash2, X, CheckCircle2, AlertCircle,
+  Plus, Edit3, Trash2, X,
   ChevronDown, SlidersHorizontal, ScanLine, Tag, FileText, Activity, ArrowLeftRight, Settings,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -74,16 +76,13 @@ export function AdminStatusMap() {
   const [editRule, setEditRule] = useState<StatusMapRule | null>(null);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [uploadText, setUploadText] = useState('');
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const { toast, showToast: _showToast, closeToast } = useToast();
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => _showToast(type, message);
   const [deleteRule, setDeleteRule] = useState<{ partner: string; scanType: string } | null>(null);
 
   const [newFormData, setNewFormData] = useState<Record<string, string>>({});
   const [editForm, setEditForm] = useState<Partial<StatusMapRule>>({});
 
-  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 3000);
-  };
 
   // Close courier dropdown when clicking outside
   useEffect(() => {
@@ -798,26 +797,7 @@ export function AdminStatusMap() {
         )}
       </AnimatePresence>
 
-      {/* TOAST */}
-      <AnimatePresence>
-        {toast && (
-          <motion.div initial={{ opacity: 0, y: 50, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 50, scale: 0.95 }}
-            className={`fixed bottom-6 right-6 z-50 px-5 py-3.5 rounded-xl shadow-2xl flex items-center gap-3 border min-w-[300px] max-w-md ${
-              toast.type === 'success' ? 'bg-slate-900 border-white/10 text-white' : toast.type === 'error' ? 'bg-rose-950 border-rose-800 text-rose-100' : 'bg-indigo-950 border-indigo-800 text-indigo-100'
-            }`}>
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
-              toast.type === 'success' ? 'bg-emerald-500/20 text-[#34D399]' : toast.type === 'error' ? 'bg-rose-500/20 text-rose-300' : 'bg-indigo-500/20 text-indigo-300'
-            }`}>
-              {toast.type === 'success' && <CheckCircle2 className="w-4 h-4" />}
-              {toast.type !== 'success' && <AlertCircle className="w-4 h-4" />}
-            </div>
-            <p className="text-[12px] font-bold leading-snug flex-1">{toast.message}</p>
-            <button onClick={() => setToast(null)} className="text-slate-400 hover:text-white transition-colors">
-              <X className="w-4 h-4" />
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <Toast toast={toast} onClose={closeToast} />
     </AdminLayout>
   );
 }

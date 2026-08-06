@@ -25,6 +25,8 @@ import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
 import { AdminPickupManifest } from './AdminPickupManifest';
 import { useAdminTab } from '../../context/AdminUserContext';
 import { ShipOrderModal } from '../../components/admin/orders/ShipOrderModal';
+import { Toast } from '../../components/ui/Toast';
+import { useToast } from '../../hooks/useToast';
 
 // ─── Courier logo lookup — mobile card layout (mirrors AdminWallet.tsx convention) ──
 const getCourierLogo = (courierName: string) => {
@@ -300,6 +302,12 @@ export function AdminOrders() {
     setActiveTab(prev => (prev === tabFromUrl ? prev : tabFromUrl));
   }, [tabSlug]);
 
+  useEffect(() => {
+    if (location.state?.toast) {
+      showToast(location.state.toast.type, location.state.toast.text);
+    }
+  }, []);
+
   // Deep-link support for the global navbar search: ?orderId=<id> opens that order's drawer directly.
   const [searchParams, setSearchParams] = useSearchParams();
   useEffect(() => {
@@ -374,13 +382,9 @@ export function AdminOrders() {
   // dropdownPos renders the row-action dropdown via portal (fixed position) so overflow-auto doesn't clip it
   const [dropdownPos,      setDropdownPos]       = useState<{ id: string; top: number; left: number } | null>(null);
   // productHoverPos renders the Product-column line-item breakdown via portal, same reason as dropdownPos
-  const [productHoverPos,  setProductHoverPos]   = useState<{ id: string; top: number; left: number } | null>(null);
+  const [productHoverPos,  setProductHoverPos]   = useState<{ id: string; rect: DOMRect } | null>(null);
   const [showAgeingLegend, setShowAgeingLegend] = useState(false);
-  const [toast, setToast] = useState<{ type: 'error' | 'success', text: string } | null>(null);
-  const showToast = (type: 'error' | 'success', text: string) => {
-    setToast({ type, text });
-    setTimeout(() => setToast(null), 3000);
-  };
+  const { toast, showToast, closeToast } = useToast();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const ageingLegendRef = useRef<any>(null);
   const [hoveredPickup,   setHoveredPickup]     = useState<{ id: string; rect: DOMRect; name: string; address: string; city: string; state: string; pinCode: string; phone: string } | null>(null);
@@ -403,8 +407,10 @@ export function AdminOrders() {
       setShowPackageModal(false);
       setPackageForm({ weight: '', length: '', width: '', height: '' });
       fetchOrders(page);
+      showToast('success', 'Package details updated successfully');
     } catch (e) {
       console.error('Update package details failed', e);
+      showToast('error', 'Failed to update package details');
     } finally {
       setPackageSaving(false);
     }
@@ -447,8 +453,10 @@ export function AdminOrders() {
       setShowPickupModal(false);
       setSelectedPickupAddr(null);
       fetchOrders(page);
+      showToast('success', 'Pickup address updated successfully');
     } catch (e) {
       console.error('Update pickup address failed', e);
+      showToast('error', 'Failed to update pickup address');
     } finally {
       setPickupSaving(false);
     }
@@ -1270,17 +1278,16 @@ export function AdminOrders() {
                               </span>
                             </div>
                           </td>
-                          <td
-                            className="p-3"
-                            onMouseEnter={(e) => {
-                              if (order.products.length === 0) return;
-                              const rect = e.currentTarget.getBoundingClientRect();
-                              setProductHoverPos({ id: order._id, top: rect.bottom + 4, left: rect.left });
-                            }}
-                            onMouseLeave={() => setProductHoverPos(prev => (prev?.id === order._id ? null : prev))}
-                          >
+                          <td className="p-3">
                             <div className="flex flex-col gap-1">
-                              <div className="text-[12px] leading-[18px] font-normal text-[#1E293B] underline decoration-dotted underline-offset-2 hover:text-[#00A86B] truncate max-w-[120px] cursor-help">{order.productName || '—'}</div>
+                              <div
+                                className="text-[12px] leading-[18px] font-normal text-[#1E293B] underline decoration-dotted underline-offset-2 hover:text-[#00A86B] truncate max-w-[120px] cursor-help"
+                                onMouseEnter={(e) => {
+                                  if (order.products.length === 0) return;
+                                  setProductHoverPos({ id: order._id, rect: e.currentTarget.getBoundingClientRect() });
+                                }}
+                                onMouseLeave={() => setProductHoverPos(prev => (prev?.id === order._id ? null : prev))}
+                              >{order.productName || '—'}</div>
                               <div className="text-[12px] leading-[18px] font-normal text-[#1E293B] truncate max-w-[120px]">SKU: {order.sku || '—'}</div>
                               <div className="text-[12px] leading-[18px] font-normal text-[#1E293B]">QTY: {order.qty}</div>
                             </div>
@@ -1349,7 +1356,17 @@ export function AdminOrders() {
                                 </div>
                               )}
                               <span className="text-[10px] text-[#64748B] pl-3.5">
-                                {new Date(order.lastUpdateDate).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                {(() => {
+                                  const d = new Date(order.lastUpdateDate);
+                                  if (isNaN(d.getTime())) return order.lastUpdateDate;
+                                  const day = String(d.getUTCDate()).padStart(2, '0');
+                                  const month = d.toLocaleString('en-US', { month: 'short', timeZone: 'UTC' });
+                                  let h = d.getUTCHours();
+                                  const min = String(d.getUTCMinutes()).padStart(2, '0');
+                                  const amPm = h >= 12 ? 'PM' : 'AM';
+                                  h = h % 12 || 12;
+                                  return `${day} ${month} ${d.getUTCFullYear()}, ${h}:${min} ${amPm}`;
+                                })()}
                               </span>
                             </div>
                           ) : (
@@ -1754,6 +1771,8 @@ export function AdminOrders() {
           )}
         </AnimatePresence>
 
+        <Toast toast={toast} onClose={closeToast} />
+
         {/* ── Excel Export Modal ── */}
         {showExportModal && createPortal(
           <div className="fixed inset-0 z-[300] flex items-center justify-center">
@@ -1945,16 +1964,6 @@ export function AdminOrders() {
           />
         )}
 
-        {/* ── Shared backdrop — closes pickup/customer/product tooltips on any outside click/tap.
-             No rect/measurement work here (that's what crashed before under StrictMode's double-invoked
-             updaters) — this just nulls the three states directly. ── */}
-        {(hoveredPickup || hoveredCustomer || productHoverPos) && createPortal(
-          <div
-            className="fixed inset-0 z-[997]"
-            onClick={() => { setHoveredPickup(null); setHoveredCustomer(null); setProductHoverPos(null); }}
-          />,
-          document.body
-        )}
 
         {/* ── Pickup Tooltip — portaled to document.body so it isn't clipped by the page root's
              overflow-hidden (active on the user side), which was causing it to flicker/disappear ── */}
@@ -2044,50 +2053,60 @@ export function AdminOrders() {
         document.body
       )}
 
-      {/* ── Product line-item hover card — rendered on document.body to escape overflow-auto clipping ── */}
+      {/* ── Product line-item hover card — portaled, matches address tooltip style ── */}
       {productHoverPos && (() => {
         const hoveredOrder = orders.find(o => o._id === productHoverPos.id);
         if (!hoveredOrder || hoveredOrder.products.length === 0) return null;
         const grandTotal = hoveredOrder.products.reduce((s: number, p: any) => s + p.total, 0);
+        const { rect } = productHoverPos;
+        const showBelow = rect.top < 260;
         return createPortal(
           <div
-            className="fixed z-[999] w-[320px] bg-white border border-[#E2E8F0] rounded-xl shadow-[0_4px_24px_-4px_rgba(0,0,0,0.15)] p-3 pointer-events-none"
+            className="fixed z-[9999] pointer-events-none bg-[#0F172A] text-white text-xs p-3 rounded-xl shadow-xl w-[300px]"
             style={{
-              top: productHoverPos.top,
-              left: Math.max(4, Math.min(productHoverPos.left, window.innerWidth - 336)),
+              top: showBelow ? rect.bottom + 10 : rect.top - 10,
+              left: Math.min(Math.max(rect.left + rect.width / 2, 160), window.innerWidth - 160),
+              transform: showBelow ? 'translate(-50%, 0)' : 'translate(-50%, -100%)',
             }}
           >
-            <table className="w-full text-[11px] border-collapse">
+            <div className="font-bold flex items-center gap-1.5 mb-1.5">
+              <Package className="w-3.5 h-3.5 text-[#00A86B] shrink-0" />Products
+            </div>
+            <table className="w-full text-[11px] border-collapse border-t border-white/10 pt-1.5 mt-0.5">
               <thead>
-                <tr className="text-[#64748B] border-b border-[#E2E8F0]">
-                  <th className="text-left font-semibold pb-1.5 pr-2">Name</th>
-                  <th className="text-left font-semibold pb-1.5 pr-2">SKU</th>
-                  <th className="text-left font-semibold pb-1.5 pr-2">Qty</th>
-                  <th className="text-left font-semibold pb-1.5 pr-2">Price</th>
-                  <th className="text-left font-semibold pb-1.5">Total</th>
+                <tr className="text-slate-400">
+                  <th className="text-left font-semibold py-1.5 pr-2">Name</th>
+                  <th className="text-left font-semibold py-1.5 pr-2">SKU</th>
+                  <th className="text-left font-semibold py-1.5 pr-2">Qty</th>
+                  <th className="text-left font-semibold py-1.5 pr-2">Price</th>
+                  <th className="text-left font-semibold py-1.5">Total</th>
                 </tr>
               </thead>
               <tbody>
                 {hoveredOrder.products.map((p: any, i: number) => (
-                  <tr key={i} className="text-[#0F172A]">
+                  <tr key={i} className="text-slate-300 border-t border-white/5">
                     <td className="py-1 pr-2 break-words">{p.name}</td>
-                    <td className="py-1 pr-2 text-[#64748B] break-words">{p.sku}</td>
+                    <td className="py-1 pr-2 text-slate-400 break-words">{p.sku || '—'}</td>
                     <td className="py-1 pr-2">{p.qty}</td>
                     <td className="py-1 pr-2">₹{p.price.toLocaleString('en-IN')}</td>
-                    <td className="py-1 font-semibold">₹{p.total.toLocaleString('en-IN')}</td>
+                    <td className="py-1 font-semibold text-white">₹{p.total.toLocaleString('en-IN')}</td>
                   </tr>
                 ))}
               </tbody>
               <tfoot>
-                <tr className="border-t border-[#E2E8F0] font-bold text-[#0F172A]">
-                  <td className="pt-1.5">Total</td>
-                  <td className="pt-1.5"></td>
+                <tr className="border-t border-white/10 font-bold text-white">
+                  <td className="pt-1.5" colSpan={2}>Grand Total</td>
                   <td className="pt-1.5">{hoveredOrder.qty}</td>
                   <td className="pt-1.5"></td>
                   <td className="pt-1.5">₹{grandTotal.toLocaleString('en-IN')}</td>
                 </tr>
               </tfoot>
             </table>
+            {showBelow ? (
+              <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 border-[6px] border-transparent border-b-[#0F172A]" />
+            ) : (
+              <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 border-[6px] border-transparent border-t-[#0F172A]" />
+            )}
           </div>,
           document.body
         );

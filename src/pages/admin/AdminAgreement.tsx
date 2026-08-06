@@ -2,8 +2,10 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { apiClient } from '../../services/apiClient';
-import { FileText, Upload, Download, X, Plus, CheckCircle2, Hash, Calendar } from 'lucide-react';
+import { FileText, Upload, Download, X, Plus, Hash, Calendar } from 'lucide-react';
 import { TableLoader } from '../../components/ui/TableLoader';
+import { Toast } from '../../components/ui/Toast';
+import { useToast } from '../../hooks/useToast';
 
 interface Agreement {
   _id: string;
@@ -23,13 +25,9 @@ export function AdminAgreement() {
   const [versionName, setVersionName] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
+  const { toast, showToast: _showToast, closeToast } = useToast();
+  const showToast = (msg: string, ok = true) => _showToast(ok ? 'success' : 'error', msg);
   const fileRef = useRef<HTMLInputElement>(null);
-
-  const showToast = (msg: string, ok = true) => {
-    setToast({ msg, ok });
-    setTimeout(() => setToast(null), 3000);
-  };
 
   const fetchAgreements = async () => {
     try {
@@ -76,20 +74,7 @@ export function AdminAgreement() {
 
   return (
     <AdminLayout>
-      {/* Toast */}
-      <AnimatePresence>
-        {toast && (
-          <motion.div
-            initial={{ opacity: 0, y: -16 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -16 }}
-            className={`fixed top-5 right-5 z-[9999] flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg text-[13px] font-semibold text-white ${toast.ok ? 'bg-[#00A86B]' : 'bg-[#EF4444]'}`}
-          >
-            {toast.ok ? <CheckCircle2 className="w-4 h-4" /> : <X className="w-4 h-4" />}
-            {toast.msg}
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <Toast toast={toast} onClose={closeToast} />
 
       <div className="flex flex-col h-[calc(100vh-72px)] -m-4 md:-m-6 bg-white">
         {/* Header */}
