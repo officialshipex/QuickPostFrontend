@@ -359,16 +359,16 @@ function MisReportTable({ userId, isAdminView, fillHeight }: {
           {!loading && reports.length === 0 ? (
             <EmptyState title="No reports yet" subtitle="Click &quot;Generate Report&quot; to create one" />
           ) : !loading && (
-            <div className="p-4 space-y-4">
+            <div className="p-2.5 space-y-2">
               {reports.map((r, i) => (
                 <div key={r._id} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
                   <div className="absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide"
                     style={{ background: '#00A86B', clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}>
                     #{(page - 1) * rowsPerPage + i + 1}
                   </div>
-                  <div className="pt-8 px-4 pb-4">
-                    <div className="rounded-xl p-3 mb-3 bg-white border border-[#E2E8F0]">
-                      <div className="flex items-start justify-between gap-2 mb-1.5">
+                  <div className="pt-6 px-2.5 pb-2.5">
+                    <div className="rounded-xl p-2 mb-1.5 bg-white border border-[#E2E8F0]">
+                      <div className="flex items-start justify-between gap-2 mb-1">
                         <span className={`px-2 py-0.5 rounded-md text-[12px] font-semibold ${typeColor(r.reportType)}`}>{r.reportType}</span>
                         <span className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold border capitalize flex items-center ${statusStyle(r.status)}`}>
                           {r.status === 'pending' && <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse mr-1" />}
@@ -383,7 +383,7 @@ function MisReportTable({ userId, isAdminView, fillHeight }: {
                       )}
                     </div>
 
-                    <div className="bg-[#F8FAFC] rounded-xl px-3 py-2.5 mb-3 space-y-2">
+                    <div className="bg-[#F8FAFC] rounded-xl px-2.5 py-2 mb-1.5 space-y-1.5">
                       <div className="flex items-start justify-between gap-2">
                         <span className="text-[10px] font-normal text-[#94A3B8] uppercase tracking-wider shrink-0">Date Range</span>
                         <span className="text-[12px] font-normal text-[#0F172A] text-right whitespace-nowrap">{fmtDate(r.fromDate)} → {fmtDate(r.toDate)}</span>
@@ -406,11 +406,11 @@ function MisReportTable({ userId, isAdminView, fillHeight }: {
 
                     {r.status === 'completed' && r.downloadUrl ? (
                       <a href={r.downloadUrl} target="_blank" rel="noopener noreferrer"
-                        className="w-full py-2.5 rounded-xl bg-[#1e40af] text-white text-[12px] font-bold flex items-center justify-center gap-1.5 hover:bg-[#1e3a8a] transition-colors">
+                        className="w-full py-2 rounded-xl bg-[#1e40af] text-white text-[12px] font-bold flex items-center justify-center gap-1.5 hover:bg-[#1e3a8a] transition-colors">
                         <Download className="w-3.5 h-3.5" /> Download
                       </a>
                     ) : (
-                      <div className="w-full py-2.5 rounded-xl bg-[#F1F5F9] text-[#94A3B8] text-[12px] font-bold flex items-center justify-center gap-1.5">
+                      <div className="w-full py-2 rounded-xl bg-[#F1F5F9] text-[#94A3B8] text-[12px] font-bold flex items-center justify-center gap-1.5">
                         {r.status === 'pending' ? 'Processing…' : 'Not Available'}
                       </div>
                     )}
@@ -421,7 +421,7 @@ function MisReportTable({ userId, isAdminView, fillHeight }: {
           )}
         </div>
 
-        <div className="shrink-0">
+        <div className="hidden md:block shrink-0">
         <DesktopPagination
           page={page}
           setPage={setPage}
@@ -433,15 +433,16 @@ function MisReportTable({ userId, isAdminView, fillHeight }: {
           totalItems={totalReports}
         />
         </div>
-        {totalPages > 1 && (
-          <div className="md:hidden shrink-0 flex items-center justify-center gap-2 p-3 border-t border-[#E2E8F0]">
-            <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-              className="px-3 py-1.5 text-xs font-bold border border-[#E2E8F0] rounded-lg disabled:opacity-40 hover:bg-[#F8FAFC]">← Prev</button>
-            <span className="text-xs text-[#64748B] font-medium">Page {page} of {totalPages}</span>
-            <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-              className="px-3 py-1.5 text-xs font-bold border border-[#E2E8F0] rounded-lg disabled:opacity-40 hover:bg-[#F8FAFC]">Next →</button>
-          </div>
-        )}
+        {<MobilePaginationBar {...({
+          page,
+          setPage,
+          totalPages,
+          rowsPerPage,
+          setRowsPerPage,
+          startIndex: totalReports === 0 ? 0 : (page - 1) * rowsPerPage + 1,
+          endIndex: Math.min(page * rowsPerPage, totalReports),
+          totalItems: totalReports,
+        })} />}
       </div>
     </div>
   );
@@ -706,17 +707,24 @@ export function AdminReports() {
     return (
       <AdminLayout>
         <div className="flex flex-col h-[calc(100vh-72px)] -m-4 md:-m-6 bg-white overflow-hidden">
-          <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4 px-4 md:px-6 py-4 border-b border-[#E2E8F0] shrink-0">
-            <div>
+          <div className="flex flex-row justify-between items-center md:items-start gap-4 px-4 md:px-6 py-4 border-b border-[#E2E8F0] shrink-0">
+            <div className="hidden md:block">
               <h2 className="text-xl font-bold text-[#0F172A] flex items-center gap-2">
                 <FileText className="w-5 h-5 text-[#00A86B]" /> MIS Reports
               </h2>
               <p className="text-xs text-[#64748B] mt-1">Generate and download Excel reports for your shipments and transactions.</p>
             </div>
+            <h2 className="md:hidden text-base font-bold text-[#0F172A] flex items-center gap-2">
+              <FileText className="w-4 h-4 text-[#00A86B]" /> MIS Reports
+            </h2>
             <div className="flex items-center gap-2 shrink-0">
-              <button onClick={() => openGenerate(null, '')}
-                className="h-9 px-4 rounded-xl bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors flex items-center gap-1.5 shadow-sm shrink-0">
+              <button onClick={() => openGenerate(null, '')} title="Generate Report"
+                className="h-9 px-4 rounded-xl bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors hidden md:flex items-center gap-1.5 shadow-sm shrink-0">
                 <FileText className="w-3.5 h-3.5" /> Generate Report
+              </button>
+              <button onClick={() => openGenerate(null, '')} title="Generate Report"
+                className="md:hidden w-9 h-9 flex items-center justify-center rounded-xl bg-[#00A86B] text-white hover:bg-[#009B63] transition-colors shadow-sm shrink-0">
+                <FileText className="w-3.5 h-3.5" />
               </button>
               <button onClick={() => setMisRefreshKey(k => k + 1)} title="Refresh"
                 className="w-9 h-9 flex items-center justify-center rounded-xl border border-[#E2E8F0] text-[#64748B] hover:text-[#00A86B] hover:border-[#00A86B] transition-colors shrink-0">

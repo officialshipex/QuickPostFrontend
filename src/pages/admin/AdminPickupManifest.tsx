@@ -537,14 +537,15 @@ export function AdminPickupManifest({ isAdminView }: Props) {
       )}
 
       {/* ── Mobile Card Layout ── */}
-      <div className="md:hidden flex-1 overflow-y-auto bg-[#F8FAFC] relative">
+      <div className="md:hidden flex-1 min-h-0 flex flex-col bg-[#F8FAFC]">
+      <div className="flex-1 overflow-y-auto relative">
         {loading && <TableLoader />}
         {paginatedManifests.length === 0 ? (
           <div className="flex items-center justify-center min-h-[60vh]">
             <EmptyState title="No manifests found" subtitle="Try changing filters" />
           </div>
         ) : (
-          <div className="p-4 space-y-4">
+          <div className="p-2.5 space-y-2">
             {paginatedManifests.map((m) => (
               <div key={m._id} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
                 {/* Ribbon Tag */}
@@ -555,27 +556,40 @@ export function AdminPickupManifest({ isAdminView }: Props) {
                   {(m.status || 'Pickup Scheduled').replace(/_/g, ' ')}
                 </div>
 
-                <div className="pt-8 px-4 pb-4">
-                  {/* User Details Row */}
-                  <div className="flex items-center justify-between mb-3 gap-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <input type="checkbox" checked={selectedManifests.includes(m._id)} onChange={() => toggleOne(m._id)} className="rounded border-gray-300 accent-[#00A86B] w-4 h-4 shrink-0" />
-                      <span className="text-[#64748B] font-medium text-[12px]">User Details</span>
-                    </div>
-                    <span className="text-[12px] inline-flex items-baseline gap-1 max-w-[190px] justify-end text-right">
-                      <TruncatedText text={m.userId?.fullname || m.pickupAddress?.contactName || '—'} maxLength={16} className="font-semibold text-[#0F172A] text-[12px]" />
-                      <span className="text-[#00A86B] font-semibold shrink-0">({m.userId?.userId || m.pickupId})</span>
-                    </span>
+                {/* Checkbox — top-right, parallel to the status ribbon */}
+                <input type="checkbox" checked={selectedManifests.includes(m._id)} onChange={() => toggleOne(m._id)}
+                  className="absolute top-2 right-2.5 rounded border-gray-300 accent-[#00A86B] w-4 h-4 shrink-0 z-10" />
+
+                <div className="pt-6 px-2 pb-2">
+                  {/* User Details Row — name/user-id hidden on the user side; admin still sees who the manifest belongs to.
+                       On the user side, Pickup ID moves up here instead of a separate row below. */}
+                  <div className="flex items-center justify-between mb-1 gap-2 pr-6">
+                    {isAdminView ? (
+                      <>
+                        <span className="text-[#64748B] font-medium text-[12px] shrink-0">User Details</span>
+                        <span className="text-[12px] inline-flex items-baseline gap-1 max-w-[190px] justify-end text-right">
+                          <TruncatedText text={m.userId?.fullname || m.pickupAddress?.contactName || '—'} maxLength={16} className="font-semibold text-[#0F172A] text-[12px]" />
+                          <span className="text-[#00A86B] font-semibold shrink-0">({m.userId?.userId || m.pickupId})</span>
+                        </span>
+                      </>
+                    ) : (
+                      <span className="flex items-baseline gap-2 shrink-0">
+                        <span className="text-[13px] font-bold text-[#00A86B]">{m.pickupId}</span>
+                        <span className="text-[12px] font-medium text-[#94A3B8]">{(m.orderIds || []).length} shipments</span>
+                      </span>
+                    )}
                   </div>
 
-                  {/* Pickup ID & Item Count Row */}
-                  <div className="flex items-center justify-between mb-3 px-1">
-                    <span className="text-[13px] font-bold text-[#00A86B]">{m.pickupId}</span>
-                    <span className="text-[12px] font-medium text-[#94A3B8]">{(m.orderIds || []).length} items</span>
-                  </div>
+                  {/* Pickup ID & Shipment Count Row — admin view only; user view already shows both above */}
+                  {isAdminView && (
+                    <div className="flex items-center justify-between mb-1 px-1">
+                      <span className="text-[13px] font-bold text-[#00A86B]">{m.pickupId}</span>
+                      <span className="text-[12px] font-medium text-[#94A3B8]">{(m.orderIds || []).length} shipments</span>
+                    </div>
+                  )}
 
                   {/* Pickup Req. Date / Pickup Address / Pickup Date strip */}
-                  <div className="flex items-start justify-between bg-white border border-[#E2E8F0] rounded-xl px-3 py-2.5 mb-3 gap-2">
+                  <div className="flex items-start justify-between bg-white border border-[#E2E8F0] rounded-xl px-2.5 py-1.5 mb-1.5 gap-2">
                     <div className="min-w-0">
                       <div className="text-[10px] font-normal text-[#94A3B8]">Pickup Req. Date</div>
                       <div className="text-[12px] font-medium text-[#0F172A] mt-0.5 whitespace-nowrap">{fmt(m.createdAt)}</div>
@@ -601,7 +615,7 @@ export function AdminPickupManifest({ isAdminView }: Props) {
                   {/* Actions Row */}
                   <button
                     onClick={() => handleDownloadManifest(m)}
-                    className="w-full py-2.5 rounded-full bg-[#1e40af] text-white text-[13px] font-bold flex items-center justify-center gap-1.5 hover:bg-[#1e3a8a] transition-colors"
+                    className="w-full h-8 rounded-full bg-[#1e40af] text-white text-[13px] font-bold flex items-center justify-center gap-1.5 hover:bg-[#1e3a8a] transition-colors"
                   >
                     Download Manifest
                   </button>
@@ -610,8 +624,9 @@ export function AdminPickupManifest({ isAdminView }: Props) {
             ))}
           </div>
         )}
+      </div>
 
-        {/* Mobile Pagination */}
+        {/* Mobile Pagination — sibling of the scroll area, not inside it, so it stays pinned */}
         {<MobilePaginationBar {...({
           page,
           setPage,
@@ -683,7 +698,7 @@ export function AdminPickupManifest({ isAdminView }: Props) {
                       placeholder="Search user..."
                       value={userQuery}
                       onChange={(e) => setUserQuery(e.target.value)}
-                      className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
+                      className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
                     />
                   </div>
                 )}
@@ -695,7 +710,7 @@ export function AdminPickupManifest({ isAdminView }: Props) {
                     placeholder="Search by pickup ID..."
                     value={searchId}
                     onChange={(e) => setSearchId(e.target.value)}
-                    className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
+                    className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
                   />
                 </div>
 
@@ -706,7 +721,7 @@ export function AdminPickupManifest({ isAdminView }: Props) {
                     placeholder="Search by AWB..."
                     value={awbNumber}
                     onChange={(e) => setAwbNumber(e.target.value)}
-                    className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
+                    className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
                   />
                 </div>
 
@@ -715,7 +730,7 @@ export function AdminPickupManifest({ isAdminView }: Props) {
                   <select
                     value={selectedPickupAddresses[0] || ''}
                     onChange={(e) => setSelectedPickupAddresses(e.target.value ? [e.target.value] : [])}
-                    className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
+                    className="w-full h-11 px-3 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
                   >
                     <option value="">All Pickup Addresses</option>
                     {pickupOptions.map((opt) => (
@@ -729,7 +744,7 @@ export function AdminPickupManifest({ isAdminView }: Props) {
                   <select
                     value={selectedCouriers[0] || ''}
                     onChange={(e) => setSelectedCouriers(e.target.value ? [e.target.value] : [])}
-                    className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
+                    className="w-full h-11 px-3 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
                   >
                     <option value="">All Couriers</option>
                     {courierOptions.map((opt) => (
@@ -741,7 +756,7 @@ export function AdminPickupManifest({ isAdminView }: Props) {
                 <div>
                   <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Date Range</label>
                   <GlassDateFilter
-                    className="w-full [&_.glass-dropdown-trigger]:w-full [&_.glass-dropdown-trigger]:h-11"
+                    className="w-full [&_.glass-dropdown-trigger]:!w-full [&_.glass-dropdown-trigger]:!h-11 [&_.glass-dropdown-trigger]:!min-w-0 [&_.glass-dropdown-trigger]:!rounded-full"
                     startDate={dateStart}
                     endDate={dateEnd}
                     onDateChange={(s, e) => { setDateStart(s); setDateEnd(e); }}

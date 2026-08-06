@@ -439,9 +439,9 @@ export function AdminAddOrder() {
 
   const backPath = isAdminView ? '/admin/orders' : '/user/orders';
 
-  // ── Field class helper ──
+  // ── Field class helper ── (rounded-full on mobile, rounded-lg preserved on desktop)
   const fieldCls = (err?: string) =>
-    `w-full h-11 px-4 border rounded-lg text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B] ${err ? 'border-red-400' : 'border-[#E2E8F0]'}`;
+    `w-full h-11 px-4 border rounded-full md:rounded-lg text-[12px] md:text-[13px] font-normal placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B] ${err ? 'border-red-400' : 'border-[#E2E8F0]'}`;
 
   if (loadingPrefill) {
     return (
@@ -485,19 +485,19 @@ export function AdminAddOrder() {
           {/* ── Pickup Details ── */}
           <div className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm overflow-hidden">
             <div className="px-3 md:px-6 py-2.5 md:py-4 border-b border-[#E2E8F0]">
-              <h2 className="text-[13px] md:text-[14px] font-bold text-[#0F172A]">Pickup Details</h2>
+              <h2 className="text-[14px] font-semibold text-[#0F172A]">Pickup Details</h2>
             </div>
             <div className="p-3 md:p-6">
               <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">
                 Address <span className="text-red-500">*</span>
               </label>
-              {errors.pickup && <p className="text-[11px] text-red-500 mb-1">{errors.pickup}</p>}
+              {errors.pickup && <p className="text-[12px] md:text-[11px] text-red-500 mb-1">{errors.pickup}</p>}
               <div className="flex flex-col md:flex-row md:items-center gap-4">
                 <div className="flex-1 relative">
                   <select
                     value={selectedPickupId}
                     onChange={e => setSelectedPickupId(e.target.value)}
-                    className={`w-full h-11 pl-4 pr-10 border rounded-lg text-[13px] text-[#475569] font-medium appearance-none focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B] ${errors.pickup ? 'border-red-400' : 'border-[#E2E8F0]'}`}
+                    className={`w-full h-11 pl-4 pr-10 border rounded-full md:rounded-lg text-[12px] md:text-[13px] text-[#475569] font-medium appearance-none focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B] ${errors.pickup ? 'border-red-400' : 'border-[#E2E8F0]'}`}
                   >
                     {pickupAddresses.length === 0 ? (
                       <option value="">No pickup addresses found</option>
@@ -525,13 +525,13 @@ export function AdminAddOrder() {
           {/* ── Delivery Details ── */}
           <div className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm overflow-hidden">
             <div className="px-3 md:px-6 py-2.5 md:py-4 border-b border-[#E2E8F0]">
-              <h2 className="text-[13px] md:text-[14px] font-bold text-[#0F172A]">Delivery Details</h2>
+              <h2 className="text-[14px] font-semibold text-[#0F172A]">Delivery Details</h2>
             </div>
             <div className="p-3 md:p-6 space-y-3 md:space-y-5">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-5">
                 <div>
                   <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Contact Name <span className="text-red-500">*</span></label>
-                  {errors.contactName && <p className="text-[11px] text-red-500 mb-1">{errors.contactName}</p>}
+                  {errors.contactName && <p className="text-[12px] md:text-[11px] text-red-500 mb-1">{errors.contactName}</p>}
                   <input type="text" value={contactName} onChange={e => setContactName(e.target.value)} placeholder="Enter Contact Name" className={fieldCls(errors.contactName)} />
                 </div>
                 <div>
@@ -540,14 +540,14 @@ export function AdminAddOrder() {
                 </div>
                 <div>
                   <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Phone Number <span className="text-red-500">*</span></label>
-                  {errors.phoneNumber && <p className="text-[11px] text-red-500 mb-1">{errors.phoneNumber}</p>}
+                  {errors.phoneNumber && <p className="text-[12px] md:text-[11px] text-red-500 mb-1">{errors.phoneNumber}</p>}
                   <div className="flex relative">
-                    <select className="h-11 w-20 pl-3 pr-6 border border-[#E2E8F0] rounded-l-lg border-r-0 bg-[#F8FAFC] text-[13px] text-[#475569] font-medium appearance-none focus:outline-none">
+                    <select className="h-11 w-20 pl-3 pr-6 border border-[#E2E8F0] rounded-l-full md:rounded-l-lg border-r-0 bg-[#F8FAFC] text-[12px] md:text-[13px] text-[#475569] font-medium appearance-none focus:outline-none">
                       <option>+91</option>
                     </select>
                     <ChevronDown className="w-3.5 h-3.5 text-[#94A3B8] absolute left-14 top-1/2 -translate-y-1/2 pointer-events-none" />
                     <input type="text" value={phoneNumber} onChange={e => setPhoneNumber(e.target.value.replace(/\D/g, '').slice(0, 10))} placeholder="Enter Phone Number"
-                      className={`flex-1 h-11 px-4 border rounded-r-lg text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B] ${errors.phoneNumber ? 'border-red-400' : 'border-[#E2E8F0]'}`} />
+                      className={`flex-1 h-11 px-4 border rounded-r-full md:rounded-r-lg text-[12px] md:text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B] ${errors.phoneNumber ? 'border-red-400' : 'border-[#E2E8F0]'}`} />
                   </div>
                 </div>
               </div>
@@ -555,12 +555,12 @@ export function AdminAddOrder() {
               <div className="grid grid-cols-1 md:grid-cols-4 gap-3 md:gap-5">
                 <div className="md:col-span-2">
                   <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Address <span className="text-red-500">*</span></label>
-                  {errors.address && <p className="text-[11px] text-red-500 mb-1">{errors.address}</p>}
+                  {errors.address && <p className="text-[12px] md:text-[11px] text-red-500 mb-1">{errors.address}</p>}
                   <input type="text" value={address} onChange={e => setAddress(e.target.value)} placeholder="Enter Address" className={fieldCls(errors.address)} />
                 </div>
                 <div>
                   <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Pincode <span className="text-red-500">*</span></label>
-                  {errors.pinCode && <p className="text-[11px] text-red-500 mb-1">{errors.pinCode}</p>}
+                  {errors.pinCode && <p className="text-[12px] md:text-[11px] text-red-500 mb-1">{errors.pinCode}</p>}
                   <div className="relative">
                     <input type="text" value={pinCode} onChange={e => setPinCode(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="Enter Pincode"
                       className={fieldCls(errors.pinCode)} />
@@ -591,10 +591,10 @@ export function AdminAddOrder() {
           {/* ── Product Details ── */}
           <div className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm overflow-hidden">
             <div className="px-3 md:px-6 py-2.5 md:py-4 border-b border-[#E2E8F0]">
-              <h2 className="text-[13px] md:text-[14px] font-bold text-[#0F172A]">Product Details</h2>
+              <h2 className="text-[14px] font-semibold text-[#0F172A]">Product Details</h2>
             </div>
             <div className="p-3 md:p-6 space-y-3 md:space-y-5">
-              {errors.products && <p className="text-[11px] text-red-500">{errors.products}</p>}
+              {errors.products && <p className="text-[12px] md:text-[11px] text-red-500">{errors.products}</p>}
 
               {products.map((product, index) => (
                 <div key={product.id} className="space-y-3">
@@ -614,26 +614,26 @@ export function AdminAddOrder() {
                       <div className="w-full md:w-[140px]">
                         {index === 0 && <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Unit Price <span className="text-red-500">*</span></label>}
                         <div className="relative">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] font-medium text-[#94A3B8]">₹</span>
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[12px] md:text-[13px] font-medium text-[#94A3B8]">₹</span>
                           <input type="number" value={product.unitPrice || ''} onChange={e => updateProduct(product.id, 'unitPrice', Number(e.target.value))}
-                            placeholder="0.00" min={0} className="w-full h-11 pl-8 pr-4 border border-[#E2E8F0] rounded-lg text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]" />
+                            placeholder="0.00" min={0} className="w-full h-11 pl-8 pr-4 border border-[#E2E8F0] rounded-full md:rounded-lg text-[12px] md:text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]" />
                         </div>
                       </div>
                       <div className="w-full md:w-[120px]">
                         {index === 0 && <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Qty</label>}
-                        <div className="flex h-11 border border-[#E2E8F0] rounded-lg">
+                        <div className="flex h-11 border border-[#E2E8F0] rounded-full md:rounded-lg">
                           <button
                             type="button"
                             onClick={() => updateProduct(product.id, 'qty', Math.max(1, product.qty - 1))}
-                            className="w-10 shrink-0 flex items-center justify-center rounded-l-lg bg-[#F8FAFC] hover:bg-[#F1F5F9] text-[#64748B] border-r border-[#E2E8F0] cursor-pointer"
+                            className="w-10 shrink-0 flex items-center justify-center rounded-l-full md:rounded-l-lg bg-[#F8FAFC] hover:bg-[#F1F5F9] text-[#64748B] border-r border-[#E2E8F0] cursor-pointer"
                           >
                             <Minus className="w-3.5 h-3.5" />
                           </button>
-                          <input type="text" value={product.qty} readOnly className="flex-1 text-center text-[13px] font-medium text-[#0F172A] focus:outline-none min-w-0" />
+                          <input type="text" value={product.qty} readOnly className="flex-1 text-center text-[12px] md:text-[13px] font-medium text-[#0F172A] focus:outline-none min-w-0" />
                           <button
                             type="button"
                             onClick={() => updateProduct(product.id, 'qty', product.qty + 1)}
-                            className="w-10 shrink-0 flex items-center justify-center rounded-r-lg bg-[#F8FAFC] hover:bg-[#F1F5F9] text-[#64748B] border-l border-[#E2E8F0] cursor-pointer"
+                            className="w-10 shrink-0 flex items-center justify-center rounded-r-full md:rounded-r-lg bg-[#F8FAFC] hover:bg-[#F1F5F9] text-[#64748B] border-l border-[#E2E8F0] cursor-pointer"
                           >
                             <Plus className="w-3.5 h-3.5" />
                           </button>
@@ -643,9 +643,9 @@ export function AdminAddOrder() {
                         <div className="flex-1">
                           {index === 0 && <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Total</label>}
                           <div className="relative">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] font-medium text-[#94A3B8]">₹</span>
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[12px] md:text-[13px] font-medium text-[#94A3B8]">₹</span>
                             <input type="text" value={(product.unitPrice * product.qty).toFixed(2)} readOnly
-                              className="w-full h-11 pl-8 pr-4 border border-[#E2E8F0] bg-[#F8FAFC] rounded-lg text-[13px] text-[#475569] font-medium focus:outline-none cursor-not-allowed" />
+                              className="w-full h-11 pl-8 pr-4 border border-[#E2E8F0] bg-[#F8FAFC] rounded-full md:rounded-lg text-[12px] md:text-[13px] text-[#475569] font-medium focus:outline-none cursor-not-allowed" />
                           </div>
                         </div>
                         <button type="button" onClick={() => handleRemoveProduct(product.id)} disabled={products.length === 1}
@@ -665,16 +665,16 @@ export function AdminAddOrder() {
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pl-0">
                       <input type="text" value={product.category} onChange={e => updateProduct(product.id, 'category', e.target.value)}
                         placeholder="Product Category"
-                        className="h-10 px-4 border border-[#E2E8F0] rounded-lg text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]" />
+                        className="h-10 px-4 border border-[#E2E8F0] rounded-full md:rounded-lg text-[12px] md:text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]" />
                       <input type="text" value={product.sku} onChange={e => updateProduct(product.id, 'sku', e.target.value)}
                         placeholder="SKU"
-                        className="h-10 px-4 border border-[#E2E8F0] rounded-lg text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]" />
+                        className="h-10 px-4 border border-[#E2E8F0] rounded-full md:rounded-lg text-[12px] md:text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]" />
                       <input type="number" value={product.discount} onChange={e => updateProduct(product.id, 'discount', e.target.value)}
                         placeholder="Discount" min={0}
-                        className="h-10 px-4 border border-[#E2E8F0] rounded-lg text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]" />
+                        className="h-10 px-4 border border-[#E2E8F0] rounded-full md:rounded-lg text-[12px] md:text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]" />
                       <input type="number" value={product.tax} onChange={e => updateProduct(product.id, 'tax', e.target.value)}
                         placeholder="Tax %" min={0}
-                        className="h-10 px-4 border border-[#E2E8F0] rounded-lg text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]" />
+                        className="h-10 px-4 border border-[#E2E8F0] rounded-full md:rounded-lg text-[12px] md:text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]" />
                     </div>
                   )}
                 </div>
@@ -699,7 +699,7 @@ export function AdminAddOrder() {
                   className="flex items-start md:items-center justify-between md:justify-start gap-2 w-full md:w-auto text-left text-[13px] font-bold text-[#0F172A]">
                   <span className="flex-1 md:flex-none">
                     Add Shipping Charges, Gift Wrap, Transaction Fee
-                    <span className="text-[11px] font-normal text-[#94A3B8]"> (Optional)</span>
+                    <span className="text-[12px] md:text-[11px] font-normal text-[#94A3B8]"> (Optional)</span>
                   </span>
                   <ChevronDown className={`w-4 h-4 text-[#94A3B8] transition-transform shrink-0 mt-0.5 md:mt-0 ${showExtraFees ? 'rotate-180' : ''}`} />
                 </button>
@@ -714,9 +714,9 @@ export function AdminAddOrder() {
                       <div key={label}>
                         <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">{label}</label>
                         <div className="relative">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] font-medium text-[#94A3B8]">₹</span>
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[12px] md:text-[13px] font-medium text-[#94A3B8]">₹</span>
                           <input type="number" value={value} onChange={e => setter(e.target.value)} placeholder="0.00" min={0}
-                            className="w-full h-11 pl-8 pr-4 border border-[#E2E8F0] rounded-lg text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]" />
+                            className="w-full h-11 pl-8 pr-4 border border-[#E2E8F0] rounded-full md:rounded-lg text-[12px] md:text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]" />
                         </div>
                       </div>
                     ))}
@@ -725,29 +725,29 @@ export function AdminAddOrder() {
               </div>
 
               <div className="bg-[#F8FAFC] rounded-xl p-5 border border-[#E2E8F0] space-y-3">
-                <div className="flex justify-between items-center text-[13px]">
+                <div className="flex justify-between items-center text-[12px] md:text-[13px]">
                   <span className="text-[#64748B] font-medium">Sub-total for Product</span>
-                  <span className="font-bold text-[#0F172A]">₹{subTotal.toFixed(2)}</span>
+                  <span className="font-semibold text-[#0F172A]">₹{subTotal.toFixed(2)}</span>
                 </div>
                 {showExtraFees && (
-                  <div className="flex justify-between items-center text-[13px]">
+                  <div className="flex justify-between items-center text-[12px] md:text-[13px]">
                     <span className="text-[#64748B] font-medium">Other Charges / Discounts</span>
-                    <span className="font-bold text-[#0F172A]">₹{extraFees.toFixed(2)}</span>
+                    <span className="font-semibold text-[#0F172A]">₹{extraFees.toFixed(2)}</span>
                   </div>
                 )}
                 <div className="flex justify-between items-center pt-3 border-t border-[#E2E8F0] text-[14px]">
-                  <span className="font-bold text-[#0F172A]">Total Order Value</span>
-                  <span className="font-bold text-[#0F172A]">₹{totalOrderValue.toFixed(2)}</span>
+                  <span className="font-semibold text-[#0F172A]">Total Order Value</span>
+                  <span className="font-semibold text-[#0F172A]">₹{totalOrderValue.toFixed(2)}</span>
                 </div>
               </div>
-              <p className="text-[11px] text-[#94A3B8]">Note: All the Prices/Charges are inclusive of GST.</p>
+              <p className="text-[12px] md:text-[11px] text-[#94A3B8]">Note: All the Prices/Charges are inclusive of GST.</p>
             </div>
           </div>
 
           {/* ── Package Details ── */}
           <div className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm overflow-hidden">
             <div className="px-3 md:px-6 py-2.5 md:py-4 border-b border-[#E2E8F0]">
-              <h2 className="text-[13px] md:text-[14px] font-bold text-[#0F172A]">Package Details</h2>
+              <h2 className="text-[14px] font-semibold text-[#0F172A]">Package Details</h2>
             </div>
             <div className="p-3 md:p-6 space-y-3 md:space-y-6">
 
@@ -757,7 +757,7 @@ export function AdminAddOrder() {
                   <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Package Type:</label>
                   <div className="relative">
                     <select value={orderType} onChange={e => setOrderType(e.target.value)}
-                      className="w-full h-11 pl-4 pr-10 border border-[#E2E8F0] rounded-lg text-[13px] text-[#475569] font-medium appearance-none focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]">
+                      className="w-full h-11 pl-4 pr-10 border border-[#E2E8F0] rounded-full md:rounded-lg text-[12px] md:text-[13px] text-[#475569] font-medium appearance-none focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]">
                       <option value="B2C">B2C</option>
                       {/* <option value="B2B">B2B</option> */}
                     </select>
@@ -769,7 +769,7 @@ export function AdminAddOrder() {
                     <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">ROV Type:</label>
                     <div className="relative">
                       <select value={rovType} onChange={e => setRovType(e.target.value)}
-                        className="w-full h-11 pl-4 pr-10 border border-[#E2E8F0] rounded-lg text-[13px] text-[#475569] font-medium appearance-none focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]">
+                        className="w-full h-11 pl-4 pr-10 border border-[#E2E8F0] rounded-full md:rounded-lg text-[12px] md:text-[13px] text-[#475569] font-medium appearance-none focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]">
                         <option value="ROV Owner">ROV Owner</option>
                         <option value="ROV Carrier">ROV Carrier</option>
                       </select>
@@ -791,10 +791,10 @@ export function AdminAddOrder() {
                     ].map(({ label, value, setter, unit, err }) => (
                       <div key={label}>
                         <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">{label}: <span className="text-red-500">*</span></label>
-                        {err && <p className="text-[11px] text-red-500 mb-1">{err}</p>}
+                        {err && <p className="text-[12px] md:text-[11px] text-red-500 mb-1">{err}</p>}
                         <div className="relative">
                           <input type="number" value={value} onChange={e => setter(e.target.value)} placeholder="0" min={0}
-                            className={`w-full h-11 pl-4 pr-10 border rounded-lg text-[13px] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B] ${err ? 'border-red-400' : 'border-[#E2E8F0]'}`} />
+                            className={`w-full h-11 pl-4 pr-10 border rounded-full md:rounded-lg text-[12px] md:text-[13px] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B] ${err ? 'border-red-400' : 'border-[#E2E8F0]'}`} />
                           <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[12px] font-medium text-[#94A3B8]">{unit}</span>
                         </div>
                       </div>
@@ -802,19 +802,19 @@ export function AdminAddOrder() {
                   </div>
                   <div className="bg-[#F8FAFC] rounded-xl p-5 border border-[#E2E8F0] space-y-3">
                     <div className="flex justify-between items-center">
-                      <span className="text-[13px] font-bold text-[#0F172A]">Applicable Weight</span>
-                      <span className="font-bold text-[#0F172A] text-[13px]">{applicableWeight.toFixed(2)} kg</span>
+                      <span className="text-[12px] md:text-[13px] font-semibold text-[#0F172A]">Applicable Weight</span>
+                      <span className="font-semibold text-[#0F172A] text-[12px] md:text-[13px]">{applicableWeight.toFixed(2)} kg</span>
                     </div>
-                    <p className="text-[11px] text-[#64748B]">Applicable weight is the heavier among Dead Weight vs Volumetric Weight.</p>
+                    <p className="text-[12px] md:text-[11px] text-[#64748B]">Applicable weight is the heavier among Dead Weight vs Volumetric Weight.</p>
                     <div className="h-px bg-[#E2E8F0] w-full" />
                     <div className="flex justify-between items-center py-1">
-                      <span className="text-[13px] font-bold text-[#0F172A]">Volumetric Weight</span>
-                      <span className="font-bold text-[#0F172A] text-[13px]">{volWeight.toFixed(2)} Kg</span>
+                      <span className="text-[12px] md:text-[13px] font-semibold text-[#0F172A]">Volumetric Weight</span>
+                      <span className="font-semibold text-[#0F172A] text-[12px] md:text-[13px]">{volWeight.toFixed(2)} Kg</span>
                     </div>
                     <div className="h-px bg-[#E2E8F0] w-full" />
                     <div className="flex justify-between items-center py-1">
-                      <span className="text-[13px] font-bold text-[#0F172A]">Total Order Value</span>
-                      <span className="font-bold text-[#0F172A] text-[13px]">₹{totalOrderValue.toFixed(2)}</span>
+                      <span className="text-[14px] font-semibold text-[#0F172A]">Total Order Value</span>
+                      <span className="font-semibold text-[#0F172A] text-[14px]">₹{totalOrderValue.toFixed(2)}</span>
                     </div>
                   </div>
                 </>
@@ -823,7 +823,7 @@ export function AdminAddOrder() {
               {/* B2B fields */}
               {orderType === 'B2B' && (
                 <>
-                  {errors.b2bPackages && <p className="text-[11px] text-red-500">{errors.b2bPackages}</p>}
+                  {errors.b2bPackages && <p className="text-[12px] md:text-[11px] text-red-500">{errors.b2bPackages}</p>}
                   <div className="space-y-3">
                     {b2bPackages.map((pkg, index) => (
                       <div key={pkg.id} className="grid grid-cols-2 md:grid-cols-5 gap-3 items-end">
@@ -847,7 +847,7 @@ export function AdminAddOrder() {
                               onChange={e => updateB2bPackage(pkg.id, key as keyof B2BPackage, e.target.value.replace(/[^0-9.]/g, ''))}
                               placeholder={placeholder}
                               min={0}
-                              className="w-full h-11 px-4 border border-[#E2E8F0] rounded-lg text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]"
+                              className="w-full h-11 px-4 border border-[#E2E8F0] rounded-full md:rounded-lg text-[12px] md:text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]"
                             />
                           </div>
                         ))}
@@ -864,29 +864,29 @@ export function AdminAddOrder() {
                   </div>
                   <div className="bg-[#F8FAFC] rounded-xl p-5 border border-[#E2E8F0] space-y-3">
                     <div className="flex justify-between items-center">
-                      <span className="text-[13px] font-bold text-[#0F172A]">Applicable Weight</span>
-                      <span className="font-bold text-[#0F172A] text-[13px]">{b2bApplicable.toFixed(2)} kg</span>
+                      <span className="text-[12px] md:text-[13px] font-semibold text-[#0F172A]">Applicable Weight</span>
+                      <span className="font-semibold text-[#0F172A] text-[12px] md:text-[13px]">{b2bApplicable.toFixed(2)} kg</span>
                     </div>
                     <div className="h-px bg-[#E2E8F0] w-full" />
                     <div className="flex justify-between items-center py-1">
-                      <span className="text-[13px] font-bold text-[#0F172A]">Total Dead Weight</span>
-                      <span className="font-bold text-[#0F172A] text-[13px]">{b2bTotalDead.toFixed(2)} Kg</span>
+                      <span className="text-[12px] md:text-[13px] font-semibold text-[#0F172A]">Total Dead Weight</span>
+                      <span className="font-semibold text-[#0F172A] text-[12px] md:text-[13px]">{b2bTotalDead.toFixed(2)} Kg</span>
                     </div>
                     <div className="h-px bg-[#E2E8F0] w-full" />
                     <div className="flex justify-between items-center py-1">
-                      <span className="text-[13px] font-bold text-[#0F172A]">Total Volumetric Weight</span>
-                      <span className="font-bold text-[#0F172A] text-[13px]">{b2bTotalVol.toFixed(2)} Kg</span>
+                      <span className="text-[12px] md:text-[13px] font-semibold text-[#0F172A]">Total Volumetric Weight</span>
+                      <span className="font-semibold text-[#0F172A] text-[12px] md:text-[13px]">{b2bTotalVol.toFixed(2)} Kg</span>
                     </div>
                     <div className="h-px bg-[#E2E8F0] w-full" />
                     <div className="flex justify-between items-center py-1">
-                      <span className="text-[13px] font-bold text-[#0F172A]">Total Order Value</span>
-                      <span className="font-bold text-[#0F172A] text-[13px]">₹{totalOrderValue.toFixed(2)}</span>
+                      <span className="text-[14px] font-semibold text-[#0F172A]">Total Order Value</span>
+                      <span className="font-semibold text-[#0F172A] text-[14px]">₹{totalOrderValue.toFixed(2)}</span>
                     </div>
                   </div>
                 </>
               )}
 
-              <p className="text-[11px] text-[#64748B]">
+              <p className="text-[12px] md:text-[11px] text-[#64748B]">
                 <span className="text-red-500 font-bold">Note:</span> The minimum chargeable weight is <span className="font-bold">0.50 Kg.</span> Dimensions should be in <span className="font-bold">centimetres only</span> and value should be greater than <span className="font-bold">0.50 cm.</span>
               </p>
             </div>
@@ -895,22 +895,25 @@ export function AdminAddOrder() {
           {/* ── Payment Details ── */}
           <div className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm overflow-hidden">
             <div className="px-3 md:px-6 py-2.5 md:py-4 border-b border-[#E2E8F0]">
-              <h2 className="text-[13px] md:text-[14px] font-bold text-[#0F172A]">Payment Details</h2>
+              <h2 className="text-[14px] font-semibold text-[#0F172A]">Payment Details</h2>
             </div>
             <div className="p-3 md:p-6">
-              <p className="text-[11px] text-[#94A3B8] mb-4">Select Mode of Payment that your buyer has chosen for the order</p>
-              {errors.paymentMode && <p className="text-[11px] text-red-500 mb-3">{errors.paymentMode}</p>}
-              <div className="flex gap-8">
+              <p className="text-[12px] md:text-[12px] text-[#94A3B8] mb-4">Select Mode of Payment that your buyer has chosen for the order</p>
+              {errors.paymentMode && <p className="text-[12px] text-red-500 mb-3">{errors.paymentMode}</p>}
+              <div className="flex flex-col md:flex-row gap-3 md:gap-8">
                 {['Prepaid', 'COD'].map(mode => (
-                  <label key={mode} className="flex items-center gap-2 cursor-pointer group">
+                  <label
+                    key={mode}
+                    onClick={() => setPaymentMode(mode)}
+                    className={`flex items-center gap-3 cursor-pointer group border rounded-full md:rounded-lg px-4 py-3 md:p-0 md:border-0 transition-colors ${paymentMode === mode ? 'border-[#00A86B] bg-[#F0FDF4] md:bg-transparent' : 'border-[#E2E8F0] md:border-0'}`}
+                  >
                     <div
-                      onClick={() => setPaymentMode(mode)}
-                      className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors cursor-pointer ${paymentMode === mode ? 'border-[#00A86B]' : 'border-[#CBD5E1] group-hover:border-[#94A3B8]'}`}
+                      className={`w-4 h-4 shrink-0 rounded-full border-2 flex items-center justify-center transition-colors ${paymentMode === mode ? 'border-[#00A86B]' : 'border-[#CBD5E1] group-hover:border-[#94A3B8]'}`}
                     >
                       {paymentMode === mode && <div className="w-2 h-2 rounded-full bg-[#00A86B]" />}
                     </div>
-                    <span className="text-[13px] font-bold text-[#0F172A]">
-                      {mode} <span className="font-normal text-[#64748B] text-[11px]">{mode === 'Prepaid' ? '(No Additional charges.)' : '(Additional charges may be applicable.)'}</span>
+                    <span className="text-[14px] md:text-[13px] font-semibold text-[#0F172A]">
+                      {mode} <span className="font-normal text-[#64748B] text-[12px] md:text-[12px] md:text-[11px]">{mode === 'Prepaid' ? '(No Additional charges.)' : '(Additional charges may be applicable.)'}</span>
                     </span>
                     <input type="radio" className="hidden" checked={paymentMode === mode} onChange={() => setPaymentMode(mode)} />
                   </label>
@@ -922,7 +925,7 @@ export function AdminAddOrder() {
           {/* ── Other Details ── */}
           <div className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm overflow-hidden">
             <div className="px-3 md:px-6 py-2.5 md:py-4 border-b border-[#E2E8F0]">
-              <h2 className="text-[13px] md:text-[14px] font-bold text-[#0F172A]">Other Details</h2>
+              <h2 className="text-[14px] font-semibold text-[#0F172A]">Other Details</h2>
             </div>
             <div className="p-3 md:p-6">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-5">
@@ -939,7 +942,7 @@ export function AdminAddOrder() {
                     GST E-Waybill Number
                     {totalOrderValue >= 50000 && <span className="text-red-500 ml-1">(Required) *</span>}
                   </label>
-                  {errors.ewaybill && <p className="text-[11px] text-red-500 mb-1">{errors.ewaybill}</p>}
+                  {errors.ewaybill && <p className="text-[12px] md:text-[11px] text-red-500 mb-1">{errors.ewaybill}</p>}
                   <input type="text" value={ewaybill} onChange={e => setEwaybill(e.target.value)} placeholder="E-Waybill Number"
                     className={fieldCls(errors.ewaybill)} />
                 </div>
@@ -991,7 +994,7 @@ export function AdminAddOrder() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Contact Name <span className="text-red-500">*</span></label>
-                  {pickupFormErrors.contactName && <p className="text-[11px] text-red-500 mb-1">{pickupFormErrors.contactName}</p>}
+                  {pickupFormErrors.contactName && <p className="text-[12px] md:text-[11px] text-red-500 mb-1">{pickupFormErrors.contactName}</p>}
                   <input type="text" value={pickupForm.contactName}
                     onChange={e => setPickupForm(p => ({ ...p, contactName: e.target.value }))}
                     placeholder="Contact Name"
@@ -1007,7 +1010,7 @@ export function AdminAddOrder() {
               </div>
               <div>
                 <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Phone Number <span className="text-red-500">*</span></label>
-                {pickupFormErrors.phoneNumber && <p className="text-[11px] text-red-500 mb-1">{pickupFormErrors.phoneNumber}</p>}
+                {pickupFormErrors.phoneNumber && <p className="text-[12px] md:text-[11px] text-red-500 mb-1">{pickupFormErrors.phoneNumber}</p>}
                 <input type="text" value={pickupForm.phoneNumber}
                   onChange={e => {
                     const v = e.target.value.replace(/\D/g, '').slice(0, 10);
@@ -1018,7 +1021,7 @@ export function AdminAddOrder() {
               </div>
               <div>
                 <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Address <span className="text-red-500">*</span></label>
-                {pickupFormErrors.address && <p className="text-[11px] text-red-500 mb-1">{pickupFormErrors.address}</p>}
+                {pickupFormErrors.address && <p className="text-[12px] md:text-[11px] text-red-500 mb-1">{pickupFormErrors.address}</p>}
                 <input type="text" value={pickupForm.address}
                   onChange={e => setPickupForm(p => ({ ...p, address: e.target.value }))}
                   placeholder="Street Address"
@@ -1027,7 +1030,7 @@ export function AdminAddOrder() {
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Pincode <span className="text-red-500">*</span></label>
-                  {pickupFormErrors.pinCode && <p className="text-[11px] text-red-500 mb-1">{pickupFormErrors.pinCode}</p>}
+                  {pickupFormErrors.pinCode && <p className="text-[12px] md:text-[11px] text-red-500 mb-1">{pickupFormErrors.pinCode}</p>}
                   <div className="relative">
                     <input type="text" value={pickupForm.pinCode}
                       onChange={e => setPickupForm(p => ({ ...p, pinCode: e.target.value.replace(/\D/g, '').slice(0, 6) }))}
@@ -1038,13 +1041,13 @@ export function AdminAddOrder() {
                 </div>
                 <div>
                   <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">City <span className="text-red-500">*</span></label>
-                  {pickupFormErrors.city && <p className="text-[11px] text-red-500 mb-1">{pickupFormErrors.city}</p>}
+                  {pickupFormErrors.city && <p className="text-[12px] md:text-[11px] text-red-500 mb-1">{pickupFormErrors.city}</p>}
                   <input type="text" value={pickupForm.city} readOnly placeholder="Auto-filled"
                     className={`w-full h-11 px-4 border rounded-lg text-[13px] bg-[#F8FAFC] placeholder:text-[#94A3B8] focus:outline-none ${pickupFormErrors.city ? 'border-red-400' : 'border-[#E2E8F0]'}`} />
                 </div>
                 <div>
                   <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">State <span className="text-red-500">*</span></label>
-                  {pickupFormErrors.state && <p className="text-[11px] text-red-500 mb-1">{pickupFormErrors.state}</p>}
+                  {pickupFormErrors.state && <p className="text-[12px] md:text-[11px] text-red-500 mb-1">{pickupFormErrors.state}</p>}
                   <input type="text" value={pickupForm.state} readOnly placeholder="Auto-filled"
                     className={`w-full h-11 px-4 border rounded-lg text-[13px] bg-[#F8FAFC] placeholder:text-[#94A3B8] focus:outline-none ${pickupFormErrors.state ? 'border-red-400' : 'border-[#E2E8F0]'}`} />
                 </div>

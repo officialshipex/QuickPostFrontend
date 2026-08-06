@@ -7,8 +7,9 @@ import { AnimatePresence, motion } from 'framer-motion';
 import {
   Bell, MessageSquare, Smartphone, Mail, History,
   RefreshCw, CreditCard, Edit2, X, Send, Search,
-  AlertTriangle, CheckCircle, Plus, PhoneCall, Copy,
+  AlertTriangle, CheckCircle, Plus, PhoneCall, Copy, Filter,
 } from 'lucide-react';
+import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface NotifSettings { [key: string]: any }
@@ -339,20 +340,20 @@ function ChannelTab({ channelCfg, settings, targetUserId, onUpdate }: {
       )}
 
       {/* Master toggle */}
-      <div className={`flex items-center justify-between bg-white border border-[#E2E8F0] rounded-xl px-4 py-3 mb-4 shadow-sm ${adminBlocked ? 'opacity-60 pointer-events-none' : ''}`}>
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${color}18` }}>
-            <Icon className="w-4 h-4" style={{ color }} />
+      <div className={`flex items-center justify-between bg-white border border-[#E2E8F0] rounded-xl px-3 md:px-4 py-2.5 md:py-3 mb-3 md:mb-4 shadow-sm gap-2 ${adminBlocked ? 'opacity-60 pointer-events-none' : ''}`}>
+        <div className="flex items-center gap-2 md:gap-2.5 min-w-0">
+          <div className="w-7 h-7 md:w-8 md:h-8 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: `${color}18` }}>
+            <Icon className="w-3.5 h-3.5 md:w-4 md:h-4" style={{ color }} />
           </div>
-          <div>
-            <span className="text-sm font-bold text-[#0F172A]">{label} Notifications</span>
+          <div className="min-w-0 flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-0">
+            <span className="text-[13px] md:text-sm font-bold text-[#0F172A] truncate">{label} Notifications</span>
             {paid
-              ? <span className="ml-2 text-[10px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-md">Paid · 1 Credit / message</span>
-              : <span className="ml-2 text-[10px] font-bold text-[#00A86B] bg-[#F0FDF4] px-1.5 py-0.5 rounded-md">Free</span>}
+              ? <span className="sm:ml-2 text-[9px] md:text-[10px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-md whitespace-nowrap self-start">Paid · 1 Credit / message</span>
+              : <span className="sm:ml-2 text-[9px] md:text-[10px] font-bold text-[#00A86B] bg-[#F0FDF4] px-1.5 py-0.5 rounded-md whitespace-nowrap self-start">Free</span>}
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold text-[#64748B]">{masterEnabled ? 'Enabled' : 'Disabled'}</span>
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="hidden sm:inline text-xs font-semibold text-[#64748B]">{masterEnabled ? 'Enabled' : 'Disabled'}</span>
           <Toggle checked={masterEnabled} onChange={handleMaster} disabled={adminBlocked || saving === masterField} />
         </div>
       </div>
@@ -518,13 +519,13 @@ function AICallingTab({ settings, targetUserId, onUpdate }: { settings: NotifSet
         const adminBlocked = settings[f.adminField] === false;
         const enabled = !!settings[f.field];
         return (
-          <div key={f.field} className={`bg-white border border-[#E2E8F0] rounded-2xl p-5 shadow-sm ${adminBlocked ? 'opacity-60' : ''}`}>
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex items-start gap-3">
+          <div key={f.field} className={`bg-white border border-[#E2E8F0] rounded-2xl p-4 md:p-5 shadow-sm ${adminBlocked ? 'opacity-60' : ''}`}>
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-4">
+              <div className="flex items-start gap-3 min-w-0">
                 <div className="w-10 h-10 bg-[#F0FDF4] rounded-xl flex items-center justify-center shrink-0">
                   <PhoneCall className="w-5 h-5 text-[#00A86B]" />
                 </div>
-                <div>
+                <div className="min-w-0">
                   <div className="text-sm font-bold text-[#0F172A]">{f.label}</div>
                   <div className="text-xs text-[#64748B] mt-0.5 leading-relaxed">{f.desc}</div>
                   {adminBlocked && (
@@ -534,7 +535,7 @@ function AICallingTab({ settings, targetUserId, onUpdate }: { settings: NotifSet
                   )}
                 </div>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex items-center gap-2 shrink-0 self-end sm:self-start">
                 <span className="text-xs font-semibold text-[#64748B]">{enabled ? 'On' : 'Off'}</span>
                 <Toggle checked={enabled} onChange={v => putField(f.field, v)} disabled={adminBlocked || saving === f.field} />
               </div>
@@ -927,37 +928,42 @@ function CreditHistoryTab({ targetUserId, isAdminView }: { targetUserId: string 
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(20);
+  const [totalItems, setTotalItems] = useState(0);
   const [category, setCategory] = useState('');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
-  const LIMIT = 20;
+  const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
+  const totalPages = Math.ceil(totalItems / rowsPerPage);
 
   const fetchTxns = useCallback(async () => {
     if (isAdminView && !targetUserId) return;
     setLoading(true);
     try {
-      const params: any = { page, limit: LIMIT };
+      const params: any = { page, limit: rowsPerPage };
       if (targetUserId) params.userId = targetUserId;
       if (category) params.category = category;
       if (fromDate) params.fromDate = new Date(fromDate).toISOString();
       if (toDate) params.toDate = new Date(toDate + 'T23:59:59').toISOString();
       const res = await apiClient.get('/notification/getUserPassbookTransactions', { params });
       setTransactions(res.data.results || []);
-      setTotalPages(Math.ceil((res.data.total || 0) / LIMIT));
+      setTotalItems(res.data.total || 0);
     } catch { setTransactions([]); }
     finally { setLoading(false); }
-  }, [page, category, fromDate, toDate, targetUserId, isAdminView]);
+  }, [page, rowsPerPage, category, fromDate, toDate, targetUserId, isAdminView]);
 
   useEffect(() => { fetchTxns(); }, [fetchTxns]);
+  useEffect(() => { setPage(1); }, [rowsPerPage]);
 
   const clearFilters = () => { setFromDate(''); setToDate(''); setCategory(''); setPage(1); };
   const anyFilter = !!(fromDate || toDate || category);
+  const startIndex = totalItems === 0 ? 0 : (page - 1) * rowsPerPage + 1;
+  const endIndex = Math.min(page * rowsPerPage, totalItems);
 
   return (
-    <div className="space-y-4">
-      {/* Filters */}
-      <div className="flex flex-wrap gap-2 items-center">
+    <div className="space-y-3 md:space-y-4">
+      {/* Filters — desktop */}
+      <div className="hidden md:flex flex-wrap gap-2 items-center">
         <input type="date" value={fromDate} onChange={e => { setFromDate(e.target.value); setPage(1); }}
           className="h-9 px-3 text-xs rounded-lg border border-[#E2E8F0] focus:outline-none focus:border-[#00A86B] bg-white text-[#0F172A]" />
         <span className="text-xs text-[#94A3B8] font-medium">to</span>
@@ -972,6 +978,17 @@ function CreditHistoryTab({ targetUserId, isAdminView }: { targetUserId: string 
         {anyFilter && (
           <button onClick={clearFilters} className="h-9 px-3 text-xs font-bold text-red-500 hover:text-red-700 transition-colors">Clear Filters</button>
         )}
+      </div>
+
+      {/* Filters — mobile (filter icon, matches other pages) */}
+      <div className="md:hidden flex items-center justify-end">
+        <button
+          onClick={() => setIsMobileFiltersOpen(true)}
+          className="relative w-9 h-9 rounded-xl border border-[#E2E8F0] flex items-center justify-center text-[#475569] bg-white shrink-0"
+        >
+          <Filter className="w-4 h-4" />
+          {anyFilter && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-[#00A86B] border-2 border-white" />}
+        </button>
       </div>
 
       {/* Table */}
@@ -1019,29 +1036,29 @@ function CreditHistoryTab({ targetUserId, isAdminView }: { targetUserId: string 
         {/* Mobile */}
         <div className="md:hidden divide-y divide-[#F1F5F9]">
           {loading ? (
-            <div className="text-center py-10 text-xs text-[#94A3B8]">Loading…</div>
+            <div className="text-center py-10 text-[12px] text-[#94A3B8]">Loading…</div>
           ) : transactions.length === 0 ? (
-            <div className="text-center py-10 text-sm font-medium text-[#94A3B8]">No transactions found</div>
+            <div className="text-center py-10 text-[12px] font-semibold text-[#94A3B8]">No transactions found</div>
           ) : transactions.map((t, i) => (
-            <div key={i} className="p-4 flex items-start justify-between">
-              <div>
-                <div className="text-xs font-semibold text-[#0F172A]">{t.description}</div>
-                <div className="text-[10px] text-[#94A3B8] mt-0.5">{fmtDate(t.date)} · {t.channelOrderId || '—'}</div>
+            <div key={i} className="p-3 flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <div className="text-[12px] font-semibold text-[#0F172A] truncate">{t.description}</div>
+                <div className="text-[12px] font-normal text-[#94A3B8] mt-0.5 truncate">{fmtDate(t.date)} · {t.channelOrderId || '—'}</div>
               </div>
-              <div className="text-right ml-4">
-                <div className={`text-sm font-bold ${t.category === 'credit' ? 'text-[#00A86B]' : 'text-red-500'}`}>
+              <div className="text-right shrink-0">
+                <div className={`text-[14px] font-semibold ${t.category === 'credit' ? 'text-[#00A86B]' : 'text-red-500'}`}>
                   {t.category === 'credit' ? '+' : '−'}₹{Number(t.amount).toFixed(2)}
                 </div>
-                <div className="text-[10px] text-[#94A3B8]">Bal: ₹{Number(t.balanceAfterTransaction).toFixed(2)}</div>
+                <div className="text-[12px] font-normal text-[#94A3B8]">Bal: ₹{Number(t.balanceAfterTransaction).toFixed(2)}</div>
               </div>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Pagination */}
+      {/* Pagination — desktop */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2">
+        <div className="hidden md:flex items-center justify-center gap-2">
           <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
             className="px-3 py-1.5 text-xs font-bold border border-[#E2E8F0] rounded-lg disabled:opacity-40 hover:bg-[#F8FAFC] transition-colors">
             ← Prev
@@ -1053,6 +1070,78 @@ function CreditHistoryTab({ targetUserId, isAdminView }: { targetUserId: string 
           </button>
         </div>
       )}
+
+      {/* Pagination — mobile, from hooks */}
+      {<MobilePaginationBar {...({
+        page, setPage, totalPages, rowsPerPage, setRowsPerPage,
+        startIndex, endIndex, totalItems,
+      })} />}
+
+      {/* Mobile Filters Bottom Sheet */}
+      <AnimatePresence>
+        {isMobileFiltersOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[140] md:hidden flex items-end justify-center"
+            onClick={() => setIsMobileFiltersOpen(false)}
+          >
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="bg-white rounded-t-3xl border-t border-[#E2E8F0] shadow-2xl w-full max-h-[80vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="px-6 py-4 border-b border-[#E2E8F0] flex items-center justify-between sticky top-0 bg-white z-10">
+                <h3 className="font-bold text-slate-800 text-base">Filters</h3>
+                <button onClick={() => setIsMobileFiltersOpen(false)} className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">From Date</label>
+                  <input type="date" value={fromDate} onChange={e => { setFromDate(e.target.value); setPage(1); }}
+                    className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]" />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">To Date</label>
+                  <input type="date" value={toDate} onChange={e => { setToDate(e.target.value); setPage(1); }}
+                    className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]" />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Type</label>
+                  <select value={category} onChange={e => { setCategory(e.target.value); setPage(1); }}
+                    className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white">
+                    <option value="">All Types</option>
+                    <option value="credit">Credit</option>
+                    <option value="debit">Debit</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="px-6 py-4 border-t border-[#E2E8F0] flex items-center gap-3 sticky bottom-0 bg-white">
+                <button
+                  onClick={() => { clearFilters(); setIsMobileFiltersOpen(false); }}
+                  className="flex-1 h-11 rounded-full border border-[#00A86B] text-[#00A86B] text-sm font-bold hover:bg-[#F0FDF4] transition-colors"
+                >
+                  Reset All
+                </button>
+                <button
+                  onClick={() => { setPage(1); fetchTxns(); setIsMobileFiltersOpen(false); }}
+                  className="flex-1 h-11 rounded-full bg-[#009D64] text-white text-sm font-bold hover:bg-[#009B63] transition-colors shadow-sm"
+                >
+                  Apply Filters
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -1180,43 +1269,46 @@ export function AdminNotification() {
         <div className="px-4 md:px-6 pt-4 md:pt-6 shrink-0">
 
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4 mb-6">
-          <div>
-            <h2 className="text-xl font-bold text-[#0F172A] flex items-center gap-2">
-              <Bell className="w-5 h-5 text-[#00A86B]" />
+        <div className="flex flex-row md:flex-row justify-between items-center md:items-start gap-3 md:gap-4 mb-4 md:mb-6">
+          <div className="min-w-0">
+            <h2 className="text-base md:text-xl font-bold text-[#0F172A] flex items-center gap-2">
+              <Bell className="w-4 h-4 md:w-5 md:h-5 text-[#00A86B]" />
               Notification Settings
             </h2>
-            <p className="text-xs text-[#64748B] mt-1">
+            <p className="hidden md:block text-xs text-[#64748B] mt-1">
               Configure WhatsApp, SMS & Email alerts sent to customers at each shipment milestone.
             </p>
           </div>
 
           {showContent && (
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
               {/* Credit balance chip */}
-              <div className="flex items-center gap-2 bg-white border border-[#E2E8F0] rounded-xl px-3 py-2 shadow-sm">
-                <CreditCard className="w-4 h-4 text-[#00A86B]" />
-                <div>
+              <div className="flex items-center gap-1.5 md:gap-2 bg-white border border-[#E2E8F0] rounded-xl px-2 md:px-3 py-1.5 md:py-2 shadow-sm">
+                <CreditCard className="w-3.5 h-3.5 md:w-4 md:h-4 text-[#00A86B] shrink-0" />
+                <div className="hidden sm:block">
                   <div className="text-[9px] font-bold text-[#64748B] uppercase tracking-wide leading-tight">Credits</div>
                   <div className="text-sm font-extrabold text-[#0F172A] leading-tight">
                     {creditBalance === null || loadingBal ? '—' : creditBalance}
                   </div>
                 </div>
+                <span className="sm:hidden text-[12px] font-extrabold text-[#0F172A]">
+                  {creditBalance === null || loadingBal ? '—' : creditBalance}
+                </span>
                 <button onClick={fetchBalance} title="Refresh balance"
-                  className={`text-[#94A3B8] hover:text-[#00A86B] transition-colors ml-1 ${loadingBal ? 'animate-spin' : ''}`}>
+                  className={`hidden md:inline-flex text-[#94A3B8] hover:text-[#00A86B] transition-colors ml-1 ${loadingBal ? 'animate-spin' : ''}`}>
                   <RefreshCw className="w-3.5 h-3.5" />
                 </button>
               </div>
 
-              <button onClick={() => setBuyOpen(true)}
-                className="h-9 px-4 rounded-xl border border-[#00A86B] text-[#00A86B] text-xs font-bold hover:bg-[#F0FDF4] transition-colors flex items-center gap-1.5">
-                <Plus className="w-3.5 h-3.5" /> Buy Credits
+              <button onClick={() => setBuyOpen(true)} title="Buy Credits"
+                className="h-8 w-8 md:h-9 md:w-auto md:px-4 rounded-xl border border-[#00A86B] text-[#00A86B] text-xs font-bold hover:bg-[#F0FDF4] transition-colors flex items-center justify-center gap-1.5 shrink-0">
+                <Plus className="w-3.5 h-3.5" /> <span className="hidden md:inline">Buy Credits</span>
               </button>
 
               {isAdminView && (
-                <button onClick={() => setAlertOpen(true)}
-                  className="h-9 px-4 rounded-xl bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors flex items-center gap-1.5 shadow-sm">
-                  <Send className="w-3.5 h-3.5" /> Send Alert
+                <button onClick={() => setAlertOpen(true)} title="Send Alert"
+                  className="h-8 w-8 md:h-9 md:w-auto md:px-4 rounded-xl bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors flex items-center justify-center gap-1.5 shadow-sm shrink-0">
+                  <Send className="w-3.5 h-3.5" /> <span className="hidden md:inline">Send Alert</span>
                 </button>
               )}
             </div>
@@ -1287,17 +1379,17 @@ export function AdminNotification() {
           <>
             {/* Metrics */}
             {settings && (
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-3 mb-4 md:mb-6">
                 {[
                   { label: 'Credit Balance', value: creditBalance ?? 0, sub: '₹1 = 1 Credit', colorCls: 'text-[#00A86B]', bg: 'bg-[#F0FDF4]', border: 'border-[#DCFCE7]' },
                   { label: 'WhatsApp Active', value: `${countActive('WhatsApp')}/${STATUSES.length}`, sub: 'statuses enabled', colorCls: 'text-[#16A34A]', bg: 'bg-[#F0FDF4]', border: 'border-[#BBF7D0]' },
                   { label: 'SMS Active', value: `${countActive('SMS')}/${STATUSES.length}`, sub: 'statuses enabled', colorCls: 'text-orange-500', bg: 'bg-[#FFF7ED]', border: 'border-[#FED7AA]' },
                   { label: 'Email Active', value: `${countActive('Email')}/${STATUSES.length}`, sub: 'statuses enabled', colorCls: 'text-blue-500', bg: 'bg-[#EFF6FF]', border: 'border-[#BFDBFE]' },
                 ].map(m => (
-                  <div key={m.label} className={`${m.bg} border ${m.border} rounded-xl p-4 shadow-sm`}>
-                    <div className={`text-xl font-extrabold ${m.colorCls}`}>{m.value}</div>
-                    <div className="text-[10px] font-bold text-[#64748B] uppercase tracking-wide mt-0.5">{m.label}</div>
-                    <div className="text-[10px] text-[#94A3B8]">{m.sub}</div>
+                  <div key={m.label} className={`${m.bg} border ${m.border} rounded-xl p-2.5 md:p-4 shadow-sm`}>
+                    <div className={`text-base md:text-xl font-extrabold ${m.colorCls}`}>{m.value}</div>
+                    <div className="text-[9px] md:text-[10px] font-bold text-[#64748B] uppercase tracking-wide mt-0.5 truncate">{m.label}</div>
+                    <div className="hidden md:block text-[10px] text-[#94A3B8]">{m.sub}</div>
                   </div>
                 ))}
               </div>
@@ -1305,7 +1397,23 @@ export function AdminNotification() {
 
             {/* Tabs */}
             <div className="bg-white border border-[#E2E8F0] rounded-2xl shadow-sm overflow-hidden">
-              <div className="flex border-b border-[#E2E8F0] px-6 overflow-x-auto no-scrollbar">
+              {/* Mobile — scrollable pill tabs */}
+              <div className="md:hidden flex items-center gap-2 px-3 py-2.5 border-b border-[#E2E8F0] overflow-x-auto no-scrollbar">
+                {TABS.filter(t => !t.adminOnly || isAdminView).map(tab => {
+                  const Ico = tab.Icon;
+                  return (
+                    <button key={tab.key} onClick={() => navigate(`${notifBase}/${tab.key}`)}
+                      className={`flex items-center gap-1.5 text-[12px] font-semibold py-1.5 px-3 rounded-full whitespace-nowrap shrink-0 transition-colors ${
+                        activeTab === tab.key ? 'bg-[#00A86B] text-white' : 'bg-[#F8FAFC] text-[#64748B] border border-[#E2E8F0]'
+                      }`}>
+                      <Ico className="w-3.5 h-3.5" />{tab.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Desktop — underline tabs */}
+              <div className="hidden md:flex border-b border-[#E2E8F0] px-6 overflow-x-auto no-scrollbar">
                 {TABS.filter(t => !t.adminOnly || isAdminView).map(tab => {
                   const Ico = tab.Icon;
                   return (
@@ -1319,7 +1427,7 @@ export function AdminNotification() {
                 })}
               </div>
 
-              <div className="p-4 md:p-6">
+              <div className="p-3 md:p-6">
                 {loadingSettings ? (
                   <div className="py-16 text-center text-sm text-[#94A3B8]">Loading settings…</div>
                 ) : !settings ? (
