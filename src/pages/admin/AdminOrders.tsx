@@ -1945,12 +1945,15 @@ export function AdminOrders() {
           />
         )}
 
-        {/* ── Shared backdrop — closes pickup/customer/product tooltips on any outside click/tap.
+        {/* ── Shared backdrop — closes pickup/customer/product tooltips on outside tap (mobile only).
+             On desktop the tooltips are hover-driven (onMouseEnter/onMouseLeave on the trigger cell);
+             a full-viewport backdrop there would sit over the trigger and steal pointer events from it,
+             causing the enter/leave handlers to fire back-to-back and the tooltip to flicker.
              No rect/measurement work here (that's what crashed before under StrictMode's double-invoked
              updaters) — this just nulls the three states directly. ── */}
         {(hoveredPickup || hoveredCustomer || productHoverPos) && createPortal(
           <div
-            className="fixed inset-0 z-[997]"
+            className="fixed inset-0 z-[997] md:hidden"
             onClick={() => { setHoveredPickup(null); setHoveredCustomer(null); setProductHoverPos(null); }}
           />,
           document.body
