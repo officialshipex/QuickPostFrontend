@@ -464,7 +464,19 @@ export function AdminOrders() {
   };
   const copyToClipboard = async (text: string, label: string) => {
     try {
-      await navigator.clipboard.writeText(text);
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.left = '-9999px';
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
       showMobileToast('success', `${label} copied!`);
     } catch {
       showMobileToast('error', `Failed to copy ${label}.`);
@@ -1415,21 +1427,28 @@ export function AdminOrders() {
                       {order.status || activeTab}
                     </div>
 
-                    <div className="pt-6 px-2.5 pb-2.5">
-                      {/* User Details Row */}
-                      <div className="flex items-center justify-between mb-1.5 gap-2">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <input type="checkbox" checked={selectedOrders.includes(order._id)} onChange={() => toggleSelect(order._id)} className="rounded border-gray-300 accent-[#00A86B] w-4 h-4 shrink-0" />
-                          <span className="text-[#64748B] font-medium text-[12px]">User Details</span>
-                        </div>
-                        <span className="text-[12px] inline-flex items-baseline gap-1 max-w-[190px] justify-end text-right">
-                          <TruncatedText text={order.userName || order.customerName} maxLength={16} className="font-semibold text-[#0F172A] text-[12px]" />
-                          <span className="text-[#64748B] font-semibold shrink-0">({order.userUserId || order.orderId})</span>
-                        </span>
+                    {/* Checkbox — top-right, parallel to the status ribbon */}
+                    <input type="checkbox" checked={selectedOrders.includes(order._id)} onChange={() => toggleSelect(order._id)}
+                      className="absolute top-2 right-2.5 rounded border-gray-300 accent-[#00A86B] w-4 h-4 shrink-0 z-10" />
+
+                    <div className="pt-6 px-2 pb-2">
+                      {/* User Details Row — name shown admin-only; the QuickPost Order ID (not the channel's own order id) always shows here */}
+                      <div className="flex items-center justify-between mb-1 gap-2 pr-6">
+                        {isAdminView ? (
+                          <>
+                            <span className="text-[#64748B] font-medium text-[12px] shrink-0">User Details</span>
+                            <span className="text-[12px] inline-flex items-baseline gap-1 max-w-[190px] justify-end text-right">
+                              <TruncatedText text={order.userName || order.customerName} maxLength={16} className="font-semibold text-[#0F172A] text-[12px]" />
+                              <span className="text-[#64748B] font-semibold shrink-0">({order.userUserId || order.orderId})</span>
+                            </span>
+                          </>
+                        ) : (
+                          <span className="text-[12px] font-semibold text-[#0F172A] bg-[#F1F5F9] px-2 py-0.5 rounded-full shrink-0">{order.orderId}</span>
+                        )}
                       </div>
 
                       {/* Courier & Order Card */}
-                      <div className="rounded-xl p-2 mb-2 bg-white" style={{ border: `1px solid ${accent}` }}>
+                      <div className="rounded-xl p-1.5 mb-1.5 bg-white" style={{ border: `1px solid ${accent}` }}>
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex items-center gap-2.5 min-w-0 flex-1">
                             {order.courier && order.courier !== '—' ? (
@@ -1468,7 +1487,7 @@ export function AdminOrders() {
 
                       {/* Product & Weight Row */}
                       <div
-                        className="flex items-start justify-between mb-2 px-1 gap-2 cursor-help"
+                        className="flex items-start justify-between mb-1.5 px-1 gap-2 cursor-help"
                         onClick={(e) => {
                           e.stopPropagation();
                           if (!order.products || order.products.length === 0) return;
@@ -1482,7 +1501,7 @@ export function AdminOrders() {
                       </div>
 
                       {/* Pickup / Receiver Row */}
-                      <div className="flex items-start justify-between bg-[#F8FAFC] rounded-xl px-2.5 py-1.5 mb-2 gap-2">
+                      <div className="flex items-start justify-between bg-[#F8FAFC] rounded-xl px-2.5 py-1.5 mb-1.5 gap-2">
                         <div
                           className="min-w-0 cursor-help"
                           onClick={(e) => {
@@ -1591,7 +1610,7 @@ export function AdminOrders() {
                   <div>
                     <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Date Range</label>
                     <GlassDateFilter
-                      className="w-full [&_.glass-dropdown-trigger]:w-full [&_.glass-dropdown-trigger]:h-11"
+                      className="w-full [&_.glass-dropdown-trigger]:!w-full [&_.glass-dropdown-trigger]:!h-11 [&_.glass-dropdown-trigger]:!min-w-0 [&_.glass-dropdown-trigger]:!rounded-full"
                       startDate={dateStart}
                       endDate={dateEnd}
                       onDateChange={onOrderDateChange}
@@ -1607,7 +1626,7 @@ export function AdminOrders() {
                           placeholder="Search user..."
                           value={userQuery}
                           onChange={(e) => onUserQueryChange(e.target.value)}
-                          className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
+                          className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
                         />
                         {userMongoId && (
                           <button onClick={clearUserFilter} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#94A3B8] hover:text-red-500">
@@ -1640,7 +1659,7 @@ export function AdminOrders() {
                       placeholder="Order Id"
                       value={orderId}
                       onChange={(e) => setOrderId(e.target.value)}
-                      className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
+                      className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
                     />
                   </div>
 
@@ -1652,7 +1671,7 @@ export function AdminOrders() {
                         placeholder="Search by AWB..."
                         value={awbNumber}
                         onChange={(e) => setAwbNumber(e.target.value)}
-                        className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
+                        className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
                       />
                     </div>
                   )}
@@ -1662,7 +1681,7 @@ export function AdminOrders() {
                     <select
                       value={selectedPaymentTypes[0] || ''}
                       onChange={(e) => setSelectedPaymentTypes(e.target.value ? [e.target.value] : [])}
-                      className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
+                      className="w-full h-11 px-3 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
                     >
                       <option value="">All Payment Types</option>
                       {PAYMENT_TYPE_OPTIONS.map(opt => (
@@ -1676,7 +1695,7 @@ export function AdminOrders() {
                     <select
                       value={selectedPickupAddresses[0] || ''}
                       onChange={(e) => setSelectedPickupAddresses(e.target.value ? [e.target.value] : [])}
-                      className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
+                      className="w-full h-11 px-3 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
                     >
                       <option value="">All Pickup Addresses</option>
                       {pickupOptions.map((opt) => (
@@ -1691,7 +1710,7 @@ export function AdminOrders() {
                       <select
                         value={selectedCouriers[0] || ''}
                         onChange={(e) => setSelectedCouriers(e.target.value ? [e.target.value] : [])}
-                        className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
+                        className="w-full h-11 px-3 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
                       >
                         <option value="">All Couriers</option>
                         {courierOptions.map((opt) => (
@@ -1937,11 +1956,12 @@ export function AdminOrders() {
           document.body
         )}
 
-        {/* ── Pickup Tooltip ── */}
+        {/* ── Pickup Tooltip — portaled to document.body so it isn't clipped by the page root's
+             overflow-hidden (active on the user side), which was causing it to flicker/disappear ── */}
         {hoveredPickup && (() => {
           // Flip below the trigger when there isn't enough room above to show the full tooltip without clipping.
           const showBelow = hoveredPickup.rect.top < 260;
-          return (
+          return createPortal(
             <div className="fixed z-[9999] pointer-events-none bg-[#0F172A] text-white text-xs p-3 rounded-xl shadow-xl w-64"
               style={{
                 top: showBelow ? hoveredPickup.rect.bottom + 10 : hoveredPickup.rect.top - 10,
@@ -1961,15 +1981,16 @@ export function AdminOrders() {
               ) : (
                 <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 border-[6px] border-transparent border-t-[#0F172A]" />
               )}
-            </div>
+            </div>,
+            document.body
           );
         })()}
 
-        {/* ── Customer Tooltip ── */}
+        {/* ── Customer Tooltip — also portaled for the same reason ── */}
         {hoveredCustomer && (() => {
           // Flip below the trigger when there isn't enough room above to show the full tooltip without clipping.
           const showBelow = hoveredCustomer.rect.top < 260;
-          return (
+          return createPortal(
             <div className="fixed z-[9999] pointer-events-none bg-[#0F172A] text-white text-xs font-normal p-3 rounded-xl shadow-xl w-72"
               style={{
                 top: showBelow ? hoveredCustomer.rect.bottom + 10 : hoveredCustomer.rect.top - 10,
@@ -1998,7 +2019,8 @@ export function AdminOrders() {
               ) : (
                 <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 border-[6px] border-transparent border-t-[#0F172A]" />
               )}
-            </div>
+            </div>,
+            document.body
           );
         })()}
       </div>

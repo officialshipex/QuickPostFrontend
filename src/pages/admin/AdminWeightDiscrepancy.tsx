@@ -408,6 +408,7 @@ export function AdminWeightDiscrepancy() {
   const [totalPages, setTotalPages] = useState(0);
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [courierOptions, setCourierOptions] = useState<string[]>([]);
+  const [showMobileWDStats, setShowMobileWDStats] = useState(false);
 
   // ── Filters
   const [searchInput, setSearchInput] = useState('');
@@ -778,44 +779,98 @@ export function AdminWeightDiscrepancy() {
             </div>
           </div>
 
-          {/* ── Summary cards ── */}
-          <div className="p-3 md:p-4 border-b border-[#E2E8F0] bg-[#F8FAFC]/30 grid grid-cols-2 md:flex md:flex-wrap gap-2.5 md:gap-4">
-            <div className="min-w-0 md:flex-1 md:min-w-[180px] bg-white rounded-xl p-2.5 md:p-3 border border-[#E2E8F0] flex items-center gap-2 md:gap-3 shadow-sm">
-              <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-[#E0F2FE] flex items-center justify-center shrink-0">
-                <Package className="w-3.5 h-3.5 md:w-4 md:h-4 text-[#0EA5E9]" />
+          {/* ── Summary cards (desktop) ── */}
+          <div className="hidden md:flex p-4 border-b border-[#E2E8F0] bg-[#F8FAFC]/30 flex-wrap gap-4">
+            <div className="flex-1 min-w-[180px] bg-white rounded-xl p-3 border border-[#E2E8F0] flex items-center gap-3 shadow-sm">
+              <div className="w-8 h-8 rounded-full bg-[#E0F2FE] flex items-center justify-center shrink-0">
+                <Package className="w-4 h-4 text-[#0EA5E9]" />
               </div>
               <div className="min-w-0">
-                <div className="text-[15px] md:text-[18px] font-bold text-[#0F172A] leading-tight">{counts['pending'] ?? 0}</div>
-                <div className="text-[9.5px] md:text-[10px] font-semibold text-[#64748B] leading-tight truncate">New Discrepancies</div>
+                <div className="text-[18px] font-bold text-[#0F172A] leading-tight">{counts['pending'] ?? 0}</div>
+                <div className="text-[10px] font-semibold text-[#64748B] leading-tight truncate">New Discrepancies</div>
               </div>
             </div>
-            <div className="min-w-0 md:flex-1 md:min-w-[180px] bg-[#F0FDF4] rounded-xl p-2.5 md:p-3 border border-[#BBF7D0] flex items-center gap-2 md:gap-3 shadow-sm">
-              <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-[#BBF7D0] flex items-center justify-center shrink-0">
-                <Check className="w-3.5 h-3.5 md:w-4 md:h-4 text-[#16A34A]" />
+            <div className="flex-1 min-w-[180px] bg-[#F0FDF4] rounded-xl p-3 border border-[#BBF7D0] flex items-center gap-3 shadow-sm">
+              <div className="w-8 h-8 rounded-full bg-[#BBF7D0] flex items-center justify-center shrink-0">
+                <Check className="w-4 h-4 text-[#16A34A]" />
               </div>
               <div className="min-w-0">
-                <div className="text-[15px] md:text-[18px] font-bold text-[#0F172A] leading-tight">{counts['accepted'] ?? 0}</div>
-                <div className="text-[9.5px] md:text-[10px] font-semibold text-[#64748B] leading-tight truncate">Accepted</div>
+                <div className="text-[18px] font-bold text-[#0F172A] leading-tight">{counts['accepted'] ?? 0}</div>
+                <div className="text-[10px] font-semibold text-[#64748B] leading-tight truncate">Accepted</div>
               </div>
             </div>
-            <div className="min-w-0 md:flex-1 md:min-w-[180px] bg-[#FFFBEB] rounded-xl p-2.5 md:p-3 border border-[#FDE68A] flex items-center gap-2 md:gap-3 shadow-sm">
-              <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-[#FDE68A] flex items-center justify-center shrink-0">
-                <AlertTriangle className="w-3.5 h-3.5 md:w-4 md:h-4 text-[#D97706]" />
+            <div className="flex-1 min-w-[180px] bg-[#FFFBEB] rounded-xl p-3 border border-[#FDE68A] flex items-center gap-3 shadow-sm">
+              <div className="w-8 h-8 rounded-full bg-[#FDE68A] flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-4 h-4 text-[#D97706]" />
               </div>
               <div className="min-w-0">
-                <div className="text-[15px] md:text-[18px] font-bold text-[#0F172A] leading-tight">{counts['discrepancy raised'] ?? 0}</div>
-                <div className="text-[9.5px] md:text-[10px] font-semibold text-[#64748B] leading-tight truncate">Disputes</div>
+                <div className="text-[18px] font-bold text-[#0F172A] leading-tight">{counts['discrepancy raised'] ?? 0}</div>
+                <div className="text-[10px] font-semibold text-[#64748B] leading-tight truncate">Disputes</div>
               </div>
             </div>
-            <div className="min-w-0 md:flex-1 md:min-w-[180px] bg-[#FFF1F2] rounded-xl p-2.5 md:p-3 border border-[#FECDD3] flex items-center gap-2 md:gap-3 shadow-sm">
-              <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-[#FECDD3] flex items-center justify-center shrink-0">
-                <AlertTriangle className="w-3.5 h-3.5 md:w-4 md:h-4 text-[#E11D48]" />
+            <div className="flex-1 min-w-[180px] bg-[#FFF1F2] rounded-xl p-3 border border-[#FECDD3] flex items-center gap-3 shadow-sm">
+              <div className="w-8 h-8 rounded-full bg-[#FECDD3] flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-4 h-4 text-[#E11D48]" />
               </div>
               <div className="min-w-0">
-                <div className="text-[15px] md:text-[18px] font-bold text-[#0F172A] leading-tight">{counts['escalated'] ?? 0}</div>
-                <div className="text-[9.5px] md:text-[10px] font-semibold text-[#64748B] leading-tight truncate">Escalated</div>
+                <div className="text-[18px] font-bold text-[#0F172A] leading-tight">{counts['escalated'] ?? 0}</div>
+                <div className="text-[10px] font-semibold text-[#64748B] leading-tight truncate">Escalated</div>
               </div>
             </div>
+          </div>
+
+          {/* ── Summary cards (mobile, collapsible) ── */}
+          <div className="md:hidden border-b border-[#E2E8F0] bg-white">
+            <button onClick={() => setShowMobileWDStats(v => !v)}
+              className="w-full flex items-center justify-between px-4 py-3 text-[13px] font-bold text-[#0F172A]">
+              Summary
+              <ChevronDown className={`w-4 h-4 text-[#64748B] transition-transform ${showMobileWDStats ? 'rotate-180' : ''}`} />
+            </button>
+            <AnimatePresence>
+              {showMobileWDStats && (
+                <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.18, ease: 'easeOut' }} className="overflow-hidden">
+                  <div className="grid grid-cols-2 gap-2.5 px-3 pb-3">
+                    <div className="bg-white rounded-xl p-2.5 border border-[#E2E8F0] flex items-center gap-2 shadow-sm">
+                      <div className="w-7 h-7 rounded-full bg-[#E0F2FE] flex items-center justify-center shrink-0">
+                        <Package className="w-3.5 h-3.5 text-[#0EA5E9]" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-[15px] font-bold text-[#0F172A] leading-tight">{counts['pending'] ?? 0}</div>
+                        <div className="text-[9.5px] font-semibold text-[#64748B] leading-tight truncate">New Discrepancies</div>
+                      </div>
+                    </div>
+                    <div className="bg-[#F0FDF4] rounded-xl p-2.5 border border-[#BBF7D0] flex items-center gap-2 shadow-sm">
+                      <div className="w-7 h-7 rounded-full bg-[#BBF7D0] flex items-center justify-center shrink-0">
+                        <Check className="w-3.5 h-3.5 text-[#16A34A]" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-[15px] font-bold text-[#0F172A] leading-tight">{counts['accepted'] ?? 0}</div>
+                        <div className="text-[9.5px] font-semibold text-[#64748B] leading-tight truncate">Accepted</div>
+                      </div>
+                    </div>
+                    <div className="bg-[#FFFBEB] rounded-xl p-2.5 border border-[#FDE68A] flex items-center gap-2 shadow-sm">
+                      <div className="w-7 h-7 rounded-full bg-[#FDE68A] flex items-center justify-center shrink-0">
+                        <AlertTriangle className="w-3.5 h-3.5 text-[#D97706]" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-[15px] font-bold text-[#0F172A] leading-tight">{counts['discrepancy raised'] ?? 0}</div>
+                        <div className="text-[9.5px] font-semibold text-[#64748B] leading-tight truncate">Disputes</div>
+                      </div>
+                    </div>
+                    <div className="bg-[#FFF1F2] rounded-xl p-2.5 border border-[#FECDD3] flex items-center gap-2 shadow-sm">
+                      <div className="w-7 h-7 rounded-full bg-[#FECDD3] flex items-center justify-center shrink-0">
+                        <AlertTriangle className="w-3.5 h-3.5 text-[#E11D48]" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-[15px] font-bold text-[#0F172A] leading-tight">{counts['escalated'] ?? 0}</div>
+                        <div className="text-[9.5px] font-semibold text-[#64748B] leading-tight truncate">Escalated</div>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* ── Filter row (desktop) ── */}
@@ -1221,13 +1276,15 @@ export function AdminWeightDiscrepancy() {
                         {statusText || 'Pending'}
                       </div>
 
+                      {/* Checkbox — top-right, parallel to the status ribbon */}
+                      <input type="checkbox" className="absolute top-2 right-2.5 rounded accent-[#00A86B] w-4 h-4 shrink-0 z-10"
+                        checked={selectedItems.includes(order._id)}
+                        onChange={() => toggleOne(order._id)} />
+
                       <div className="pt-7 px-3 pb-2.5">
-                        {/* Checkbox + User */}
-                        <div className="flex items-start justify-between gap-2 mb-1.5">
+                        {/* User */}
+                        <div className="flex items-start justify-between gap-2 mb-1.5 pr-6">
                           <div className="flex items-center gap-2 min-w-0 flex-1">
-                            <input type="checkbox" className="rounded accent-[#00A86B] w-4 h-4 shrink-0"
-                              checked={selectedItems.includes(order._id)}
-                              onChange={() => toggleOne(order._id)} />
                             {isAdminView ? (
                               <div className="w-7 h-7 rounded-full bg-[#F0FDF4] flex items-center justify-center text-[#00A86B] text-[11px] font-bold shrink-0">
                                 {(order.user?.fullname || order.user?.name || '?').charAt(0).toUpperCase()}
@@ -1255,8 +1312,13 @@ export function AdminWeightDiscrepancy() {
                         </div>
 
                         {/* Weights row */}
-                        <div className="text-[12px] text-[#64748B] mb-1">
-                          Charged weight: <span className="font-semibold text-[#0F172A]">{order.chargedWeight?.applicableWeight ?? '—'} Kg</span>
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <div className="text-[12px] text-[#64748B]">
+                            Charged weight: <span className="font-semibold text-[#0F172A]">{order.chargedWeight?.applicableWeight ?? '—'} Kg</span>
+                          </div>
+                          <div className="text-[12px] text-[#64748B] shrink-0">
+                            Pending: <span className="font-semibold text-[#059669]">₹{Number(order.excessWeightCharges?.pendingAmount || 0).toFixed(2)}</span>
+                          </div>
                         </div>
                         <div className="text-[12px] text-[#64748B] mb-1.5">
                           Applied weight: <span className="font-semibold text-[#0F172A]">{order.enteredWeight?.applicableWeight ?? '—'} Kg</span>
@@ -1269,7 +1331,7 @@ export function AdminWeightDiscrepancy() {
                               {logo ? <img src={logo} alt="" className="w-5 h-5 object-contain" /> : <Truck className="w-3.5 h-3.5 text-[#94A3B8]" />}
                             </div>
                             <div className="min-w-0">
-                              <div className="text-[11px] font-semibold text-[#0F172A] truncate">{safeText(order.courierServiceName) || 'Courier'} {order.chargedWeight?.applicableWeight ?? ''}KG</div>
+                              <div className="text-[11px] font-semibold text-[#64748B] truncate">{safeText(order.courierServiceName) || 'Courier'} {order.chargedWeight?.applicableWeight ?? ''}KG</div>
                               <div className="relative flex items-center gap-1">
                                 <button
                                   onClick={() => order.awbNumber && navigate(`${isAdminView ? '/admin' : '/user'}/tracking?awb=${order.awbNumber}`)}
@@ -1427,7 +1489,7 @@ export function AdminWeightDiscrepancy() {
               <div className="p-6 space-y-3">
                 {/* Date range */}
                 <GlassDateFilter
-                  className="w-full [&_.glass-dropdown-trigger]:w-full [&_.glass-dropdown-trigger]:h-12 [&_.glass-dropdown-trigger]:rounded-full"
+                  className="w-full [&_.glass-dropdown-trigger]:!w-full [&_.glass-dropdown-trigger]:!h-12 [&_.glass-dropdown-trigger]:!min-w-0 [&_.glass-dropdown-trigger]:!rounded-full"
                   startDate={dateStart}
                   endDate={dateEnd}
                   onDateChange={(s, e) => { onDateChange(s, e); setPage(1); }}
@@ -1496,7 +1558,7 @@ export function AdminWeightDiscrepancy() {
                   selected={selectedCouriers}
                   onChange={v => { setSelectedCouriers(v); setPage(1); }}
                   placeholder="Courier Service"
-                  className="w-full [&_.glass-dropdown-trigger]:w-full [&_.glass-dropdown-trigger]:h-12 [&_.glass-dropdown-trigger]:rounded-full"
+                  className="w-full [&_.glass-dropdown-trigger]:!w-full [&_.glass-dropdown-trigger]:!h-12 [&_.glass-dropdown-trigger]:!min-w-0 [&_.glass-dropdown-trigger]:!rounded-full"
                 />
 
                 {/* Status — mirrors the tabs */}
