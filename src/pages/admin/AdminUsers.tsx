@@ -114,6 +114,7 @@ export function AdminUsers() {
   const [rateCardFilterOptions, setRateCardFilterOptions] = useState<{ label: string; value: string }[]>([]);
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
   const [mobileActionOpen, setMobileActionOpen] = useState(false);
+  const [showMobileSummary, setShowMobileSummary] = useState(false);
 
   // ─── Helpers ────────────────────────────────────────────────────────────────
   const copyToClipboard = async (text: string, label: string) => {
@@ -330,9 +331,9 @@ export function AdminUsers() {
       <div className="flex flex-col h-[calc(100vh-72px)] -m-4 md:-m-6 bg-white">
         <div className="bg-white relative z-50 shrink-0">
 
-          {/* Mobile Search Bar */}
-          <div className="md:hidden px-4 py-3 border-b border-[#E2E8F0] bg-white">
-            <div className="relative">
+          {/* Mobile Search + Filter + Action Row (matches Orders page) */}
+          <div className="md:hidden relative z-[60] px-3 py-2.5 border-b border-[#E2E8F0] flex items-center gap-2 bg-white shrink-0">
+            <div className="relative flex-1">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
               <input
                 type="text"
@@ -340,25 +341,23 @@ export function AdminUsers() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
-                className="w-full h-10 pl-10 pr-4 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] text-sm text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all"
+                className="w-full h-9 pl-9 pr-3 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] text-sm text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all"
               />
             </div>
-          </div>
-
-          {/* Mobile Filters + Action Row */}
-          <div className="md:hidden px-4 py-3 border-b border-[#E2E8F0] flex items-center justify-between bg-white gap-2">
+            {/* Filter icon */}
             <button
               onClick={() => setIsMobileFiltersOpen(true)}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#00A86B] text-white text-[12px] font-bold shadow-sm shrink-0"
+              className="w-9 h-9 rounded-xl border border-[#E2E8F0] flex items-center justify-center text-[#475569] bg-white shrink-0"
             >
-              <Filter className="w-3.5 h-3.5" /> Filters
+              <Filter className="w-4 h-4" />
             </button>
+            {/* Action icon */}
             <div className="relative shrink-0">
               <button
                 onClick={() => setMobileActionOpen(v => !v)}
-                className="h-9 px-4 rounded-lg border border-[#E2E8F0] text-[12px] font-semibold text-[#475569] bg-white active:bg-[#F8FAFC] flex items-center gap-1"
+                className="w-9 h-9 rounded-xl border border-[#E2E8F0] flex items-center justify-center text-[#475569] bg-white"
               >
-                Action <ChevronDown className={`w-3.5 h-3.5 transition-transform ${mobileActionOpen ? 'rotate-180' : ''}`} />
+                <MoreVertical className="w-4 h-4" />
               </button>
               {mobileActionOpen && (
                 <div className="absolute right-0 top-full mt-2 w-40 bg-white border border-[#E2E8F0] rounded-lg shadow-lg py-1 z-50">
@@ -404,44 +403,58 @@ export function AdminUsers() {
             </div>
           </div>
 
-          {/* Mobile Stat Cards */}
-          <div className="md:hidden p-4 border-b border-[#E2E8F0] bg-white grid grid-cols-2 gap-2.5">
-            <div className="bg-[#F4F9FF] rounded-xl p-3 border border-[#E0F2FE] flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shrink-0 shadow-sm border border-[#E0F2FE]">
-                <Users className="w-4 h-4 text-[#3B82F6]" />
-              </div>
-              <div className="min-w-0">
-                <div className="text-[13px] font-bold text-[#0F172A] truncate">{isLoading ? '—' : totalCount.toLocaleString('en-IN')}</div>
-                <div className="text-[10px] font-semibold text-[#64748B] truncate">Total Users</div>
-              </div>
-            </div>
-            <div className="bg-[#FDF4FF] rounded-xl p-3 border border-[#F3E8FF] flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shrink-0 shadow-sm border border-[#F3E8FF]">
-                <Users className="w-4 h-4 text-[#A855F7]" />
-              </div>
-              <div className="min-w-0">
-                <div className="text-[13px] font-bold text-[#0F172A] truncate">{isLoading ? '—' : newUsersCount.toLocaleString('en-IN')}</div>
-                <div className="text-[10px] font-semibold text-[#64748B] truncate">New Users</div>
-              </div>
-            </div>
-            <div className="bg-[#FAF5FF] rounded-xl p-3 border border-[#F3E8FF] flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shrink-0 shadow-sm border border-[#F3E8FF]">
-                <Clock className="w-4 h-4 text-[#A855F7]" />
-              </div>
-              <div className="min-w-0">
-                <div className="text-[13px] font-bold text-[#0F172A] truncate">{isLoading ? '—' : verifiedKycCount.toLocaleString('en-IN')}</div>
-                <div className="text-[10px] font-semibold text-[#64748B] truncate">Verified KYC</div>
-              </div>
-            </div>
-            <div className="bg-[#F0FDF4] rounded-xl p-3 border border-[#DCFCE7] flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shrink-0 shadow-sm border border-[#DCFCE7]">
-                <ShieldAlert className="w-4 h-4 text-[#22C55E]" />
-              </div>
-              <div className="min-w-0">
-                <div className="text-[13px] font-bold text-[#0F172A] truncate">{isLoading ? '—' : pendingKycCount.toLocaleString('en-IN')}</div>
-                <div className="text-[10px] font-semibold text-[#64748B] truncate">Pending KYC</div>
-              </div>
-            </div>
+          {/* Mobile Stat Cards — collapsible Summary (matches Weight Discrepancy page) */}
+          <div className="md:hidden border-b border-[#E2E8F0] bg-white">
+            <button onClick={() => setShowMobileSummary(v => !v)}
+              className="w-full flex items-center justify-between px-4 py-3 text-[13px] font-bold text-[#0F172A]">
+              Summary
+              <ChevronDown className={`w-4 h-4 text-[#64748B] transition-transform ${showMobileSummary ? 'rotate-180' : ''}`} />
+            </button>
+            <AnimatePresence>
+              {showMobileSummary && (
+                <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.18, ease: 'easeOut' }} className="overflow-hidden">
+                  <div className="grid grid-cols-2 gap-2.5 px-4 pb-4">
+                    <div className="bg-[#F4F9FF] rounded-xl p-3 border border-[#E0F2FE] flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shrink-0 shadow-sm border border-[#E0F2FE]">
+                        <Users className="w-4 h-4 text-[#3B82F6]" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-[13px] font-bold text-[#0F172A] truncate">{isLoading ? '—' : totalCount.toLocaleString('en-IN')}</div>
+                        <div className="text-[10px] font-semibold text-[#64748B] truncate">Total Users</div>
+                      </div>
+                    </div>
+                    <div className="bg-[#FDF4FF] rounded-xl p-3 border border-[#F3E8FF] flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shrink-0 shadow-sm border border-[#F3E8FF]">
+                        <Users className="w-4 h-4 text-[#A855F7]" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-[13px] font-bold text-[#0F172A] truncate">{isLoading ? '—' : newUsersCount.toLocaleString('en-IN')}</div>
+                        <div className="text-[10px] font-semibold text-[#64748B] truncate">New Users</div>
+                      </div>
+                    </div>
+                    <div className="bg-[#FAF5FF] rounded-xl p-3 border border-[#F3E8FF] flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shrink-0 shadow-sm border border-[#F3E8FF]">
+                        <Clock className="w-4 h-4 text-[#A855F7]" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-[13px] font-bold text-[#0F172A] truncate">{isLoading ? '—' : verifiedKycCount.toLocaleString('en-IN')}</div>
+                        <div className="text-[10px] font-semibold text-[#64748B] truncate">Verified KYC</div>
+                      </div>
+                    </div>
+                    <div className="bg-[#F0FDF4] rounded-xl p-3 border border-[#DCFCE7] flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shrink-0 shadow-sm border border-[#DCFCE7]">
+                        <ShieldAlert className="w-4 h-4 text-[#22C55E]" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-[13px] font-bold text-[#0F172A] truncate">{isLoading ? '—' : pendingKycCount.toLocaleString('en-IN')}</div>
+                        <div className="text-[10px] font-semibold text-[#64748B] truncate">Pending KYC</div>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* Filters Row — desktop only */}
@@ -703,7 +716,7 @@ export function AdminUsers() {
             {filteredUsers.length === 0 ? (
               <div className="p-8 text-center text-[#94A3B8] font-medium text-sm">No users found.</div>
             ) : (
-              <div className="p-4 space-y-4">
+              <div className="p-2 space-y-2">
                 {filteredUsers.map((user) => {
                   const uid = String(user.id);
                   const kycLabel = user.kycStatus ? 'Verified' : 'Pending';

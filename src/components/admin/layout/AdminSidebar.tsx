@@ -137,7 +137,7 @@ const MENU_GROUPS: MenuGroup[] = [
     permission: 'support',
     items: [
       { name: 'Support Tickets', path: '/admin/support', icon: Mail },
-      { name: 'System Settings', path: '/admin/settings', icon: Settings, noEmployee: true },
+      // { name: 'System Settings', path: '/admin/settings', icon: Settings, noEmployee: true },
       { name: 'Admin Accounts', path: '/admin/accounts', icon: Users, noEmployee: true },
     ]
   },

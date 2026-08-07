@@ -296,7 +296,7 @@ export function CRMSellerAccounts() {
             {paginatedData.length === 0 ? (
               <EmptyState title="No sellers found" subtitle="Try changing filters" />
             ) : (
-              <div className="p-4 space-y-4">
+              <div className="p-2 space-y-2">
                 {paginatedData.map((seller, i) => {
                   const accent = ACCOUNT_RIBBON[seller.accountStatus] || '#00A86B';
                   return (

@@ -892,7 +892,7 @@ export function CRMShipmentListing() {
           {paginated.length === 0 ? (
             <EmptyState title="No shipments found" subtitle="Try changing filters" />
           ) : (
-            <div className="p-2.5 space-y-2">
+            <div className="p-2 space-y-2">
               {paginated.map((row, idx) => {
                 const accent = getRibbonColor(row.status);
                 return (

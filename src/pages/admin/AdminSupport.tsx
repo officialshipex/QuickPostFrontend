@@ -713,7 +713,7 @@ export function AdminSupport() {
 
         {/* ── Ticket Cards (mobile) ── */}
         <div className="md:hidden bg-[#F8FAFC] flex flex-col flex-1 min-h-0 overflow-hidden">
-          <div className="flex-1 overflow-y-auto overflow-x-hidden w-full relative px-3 py-2.5 space-y-2">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden w-full relative p-2 space-y-2">
             {loading && <TableLoader />}
             {!loading && paginatedTickets.length === 0 && (
               <EmptyState title="No tickets found" />

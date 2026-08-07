@@ -1806,7 +1806,7 @@ export function AdminWallet() {
                 {paginatedShippingData.length === 0 ? (
                   <EmptyState title="No shipping records found" />
                 ) : (
-                  <div className="p-3 space-y-3 bg-[#F8FAFC]">
+                  <div className="p-2 space-y-2 bg-[#F8FAFC]">
                     {paginatedShippingData.map((order) => {
                       const isPaid = order.status === 'Paid';
                       const accent = isPaid ? '#00A86B' : '#F59E0B';
@@ -2125,7 +2125,7 @@ export function AdminWallet() {
                 {paginatedPassbookData.length === 0 ? (
                   <EmptyState title="No passbook records found" />
                 ) : (
-                  <div className="p-3 space-y-3 bg-[#F8FAFC]">
+                  <div className="p-2 space-y-2 bg-[#F8FAFC]">
                     {paginatedPassbookData.map((order) => {
                       const isDebit = order.category === 'Debit';
                       const accent = isDebit ? '#EF4444' : '#00A86B';
@@ -2389,7 +2389,7 @@ export function AdminWallet() {
                 {paginatedRechargeData.length === 0 ? (
                   <EmptyState title="No recharge transactions found" />
                 ) : (
-                  <div className="p-3 space-y-3 bg-[#F8FAFC]">
+                  <div className="p-2 space-y-2 bg-[#F8FAFC]">
                     {paginatedRechargeData.map((recharge) => {
                       const isSuccess = recharge.status === 'Success';
                       const accent = isSuccess ? '#00A86B' : recharge.status === 'Failed' ? '#EF4444' : '#F59E0B';
@@ -2648,7 +2648,7 @@ export function AdminWallet() {
                 {paginatedInvoicesData.length === 0 ? (
                   <EmptyState title="No invoice records found" />
                 ) : (
-                  <div className="p-3 space-y-3 bg-[#F8FAFC]">
+                  <div className="p-2 space-y-2 bg-[#F8FAFC]">
                     {paginatedInvoicesData.map((invoice) => {
                       const accent = invoice.status === 'PAID' ? '#00A86B' : '#EF4444';
                       return (

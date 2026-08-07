@@ -514,7 +514,7 @@ export function AdminStatusMap() {
               <span>{selectedCourier ? `No data found for ${selectedCourier}.` : 'Select a courier to view data.'}</span>
             </div>
           ) : (
-            <div className="p-4 space-y-4">
+            <div className="p-2 space-y-2">
               {paginatedData.map((item, idx) => {
                 const syStatusVal = String(item.syStatus || item.Sy_status || item.sy_status || item.systemStatus || item['Sy Status'] || '');
                 return (

@@ -1217,7 +1217,7 @@ export function AdminWeightDiscrepancy() {
               <EmptyState title="No discrepancies found" subtitle="Try changing filters" />
             )}
             {!loading && filteredOrders.length > 0 && (
-              <div className="p-3 space-y-2">
+              <div className="p-2 space-y-2">
                 {filteredOrders.map((order, idx) => {
                   const products: any[] = Array.isArray(order.productDetails) ? order.productDetails : [];
                   const rem = daysLeft(order.createdAt);

@@ -1443,7 +1443,7 @@ export function AdminOrders() {
                 <EmptyState title="No orders found" subtitle="Try changing filters" />
               </div>
             ) : (
-              <div className="p-2.5 space-y-2">
+              <div className="p-2 space-y-2">
                 {paginatedOrders.map((order) => {
                   const accent = getRibbonColor(order.status || activeTab);
                   return (
@@ -2078,48 +2078,43 @@ export function AdminOrders() {
         document.body
       )}
 
-      {/* ── Product line-item hover card — portaled, matches address tooltip style ── */}
+      {/* ── Product line-item hover card — portaled, matches CRM listing's product tooltip style ── */}
       {productHoverPos && (() => {
         const hoveredOrder = orders.find(o => o._id === productHoverPos.id);
         if (!hoveredOrder || hoveredOrder.products.length === 0) return null;
         const grandTotal = hoveredOrder.products.reduce((s: number, p: any) => s + p.total, 0);
         const { rect } = productHoverPos;
-        const showBelow = rect.top < 260;
         return createPortal(
           <div
-            className="fixed z-[9999] pointer-events-none bg-[#0F172A] text-white text-xs p-3 rounded-xl shadow-xl w-[300px]"
+            className="fixed z-[999] w-[320px] bg-white border border-[#E2E8F0] rounded-xl shadow-[0_4px_24px_-4px_rgba(0,0,0,0.15)] p-3 pointer-events-none"
             style={{
-              top: showBelow ? rect.bottom + 10 : rect.top - 10,
-              left: Math.min(Math.max(rect.left + rect.width / 2, 160), window.innerWidth - 160),
-              transform: showBelow ? 'translate(-50%, 0)' : 'translate(-50%, -100%)',
+              top: rect.bottom + 4,
+              left: Math.max(4, Math.min(rect.left, window.innerWidth - 336)),
             }}
           >
-            <div className="font-bold flex items-center gap-1.5 mb-1.5">
-              <Package className="w-3.5 h-3.5 text-[#00A86B] shrink-0" />Products
-            </div>
-            <table className="w-full text-[11px] border-collapse border-t border-white/10 pt-1.5 mt-0.5">
+            <table className="w-full text-[11px] border-collapse">
               <thead>
-                <tr className="text-slate-400">
-                  <th className="text-left font-semibold py-1.5 pr-2">Name</th>
-                  <th className="text-left font-semibold py-1.5 pr-2">SKU</th>
-                  <th className="text-left font-semibold py-1.5 pr-2">Qty</th>
-                  <th className="text-left font-semibold py-1.5 pr-2">Price</th>
-                  <th className="text-left font-semibold py-1.5">Total</th>
+                <tr className="text-[#64748B] border-b border-[#E2E8F0]">
+                  <th className="text-left font-semibold pb-1.5 pr-2">Name</th>
+                  <th className="text-left font-semibold pb-1.5 pr-2">SKU</th>
+                  <th className="text-left font-semibold pb-1.5 pr-2">Qty</th>
+                  <th className="text-left font-semibold pb-1.5 pr-2">Price</th>
+                  <th className="text-left font-semibold pb-1.5">Total</th>
                 </tr>
               </thead>
               <tbody>
                 {hoveredOrder.products.map((p: any, i: number) => (
-                  <tr key={i} className="text-slate-300 border-t border-white/5">
-                    <td className="py-1 pr-2 break-words">{p.name}</td>
-                    <td className="py-1 pr-2 text-slate-400 break-words">{p.sku || '—'}</td>
-                    <td className="py-1 pr-2">{p.qty}</td>
-                    <td className="py-1 pr-2">₹{p.price.toLocaleString('en-IN')}</td>
-                    <td className="py-1 font-semibold text-white">₹{p.total.toLocaleString('en-IN')}</td>
+                  <tr key={i} className="text-[#0F172A] border-b border-[#F1F5F9] last:border-0">
+                    <td className="py-1.5 pr-2 break-words">{p.name}</td>
+                    <td className="py-1.5 pr-2 text-[#64748B] break-words">{p.sku || '—'}</td>
+                    <td className="py-1.5 pr-2">{p.qty}</td>
+                    <td className="py-1.5 pr-2">₹{p.price.toLocaleString('en-IN')}</td>
+                    <td className="py-1.5 font-semibold">₹{p.total.toLocaleString('en-IN')}</td>
                   </tr>
                 ))}
               </tbody>
               <tfoot>
-                <tr className="border-t border-white/10 font-bold text-white">
+                <tr className="border-t border-[#E2E8F0] font-bold text-[#0F172A]">
                   <td className="pt-1.5" colSpan={2}>Grand Total</td>
                   <td className="pt-1.5">{hoveredOrder.qty}</td>
                   <td className="pt-1.5"></td>
@@ -2127,11 +2122,6 @@ export function AdminOrders() {
                 </tr>
               </tfoot>
             </table>
-            {showBelow ? (
-              <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 border-[6px] border-transparent border-b-[#0F172A]" />
-            ) : (
-              <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 border-[6px] border-transparent border-t-[#0F172A]" />
-            )}
           </div>,
           document.body
         );

@@ -359,7 +359,7 @@ export function AdminEDDMapping() {
           {!loading && paginatedData.length === 0 ? (
             <div className="p-8 text-center text-[#94A3B8] font-semibold text-sm">No EDD mapping records found.</div>
           ) : (
-            <div className="p-4 space-y-4">
+            <div className="p-2 space-y-2">
               {paginatedData.map((row) => (
                 <div key={row._id} className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden p-4">
                   <div className="flex items-center justify-between mb-3">
