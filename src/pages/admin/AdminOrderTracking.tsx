@@ -99,10 +99,27 @@ interface OrderData {
 
 interface DiscrepancyData {
   _id?: string;
-  enteredWeight?: number;
-  chargedWeight?: number;
-  chargeDimension?: string;
-  excessWeightCharges?: number;
+  enteredWeight?: {
+    applicableWeight?: number | string;
+    deadWeight?: number | string;
+    volumetricWeight?: { length?: number | string; breadth?: number | string; height?: number | string };
+  };
+  chargedWeight?: {
+    applicableWeight?: number | string;
+    deadWeight?: number | string;
+  };
+  chargeDimension?: {
+    length?: number | string;
+    breadth?: number | string;
+    height?: number | string;
+  };
+  excessWeightCharges?: {
+    excessWeight?: number | string;
+    excessCharges?: number | string;
+    pendingAmount?: number | string;
+    priceBreakup?: { freight?: number; gst?: number };
+  };
+  status?: string;
   clientStatus?: string;
   adminStatus?: string;
 }
@@ -344,7 +361,7 @@ export function AdminOrderTracking() {
       params: { id: order.userId, awbNumber: order.awb_number, page: 1, limit: 1 },
     })
       .then(res => {
-        const list = res.data?.data || res.data?.discrepancies || (Array.isArray(res.data) ? res.data : []);
+        const list = res.data?.results || res.data?.data || res.data?.discrepancies || (Array.isArray(res.data) ? res.data : []);
         if (list.length > 0) setDiscrepancy(list[0]);
       })
       .catch(() => {});
@@ -471,7 +488,8 @@ export function AdminOrderTracking() {
   const courierName = order?.courierName || order?.courierServiceName || '—';
   const awbNumber = order?.awb_number || '—';
   const displayOrderId = String(order?.orderId || orderId);
-  const isDisputeRaised = discrepancy?.clientStatus === 'Discrepancy Raised';
+  const isDisputeRaised = discrepancy?.status === 'Discrepancy Raised';
+  const isDisputeAccepted = discrepancy?.status === 'Accepted';
 
   // ── Header actions — match AdminOrders renderRowActions per status ────────────
   const rawStatus = order?.status || 'New';
@@ -1000,7 +1018,7 @@ export function AdminOrderTracking() {
                 </button>
                 <button onClick={() => setChargesTab('dispute')} className={`flex-1 py-2 text-center text-[13px] font-medium transition-all flex items-center justify-center gap-1.5 ${chargesTab === 'dispute' ? 'bg-white rounded-lg shadow-[0_1px_3px_rgba(0,0,0,0.08)] text-[#0F172A]' : 'text-[#94A3B8] hover:text-[#0F172A]'}`}>
                   Weight Dispute
-                  {isDisputeRaised && <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" />}
+                  {discrepancy && !isDisputeAccepted && <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" />}
                 </button>
               </div>
 
@@ -1030,7 +1048,7 @@ export function AdminOrderTracking() {
                         {isDisputeRaised && <span className="bg-[#FFF3E0] text-[#E65100] text-[10px] leading-4 font-medium px-2 py-0.5 rounded ml-2">Disputed</span>}
                       </div>
                       <span className="text-[12px] leading-[18px] font-normal text-[#0F172A]">
-                        {discrepancy.excessWeightCharges != null ? `₹${discrepancy.excessWeightCharges.toFixed(2)}` : '—'}
+                        {discrepancy.excessWeightCharges?.excessCharges != null ? `₹${Number(discrepancy.excessWeightCharges.excessCharges).toFixed(2)}` : '—'}
                       </span>
                     </div>
                   )}
@@ -1054,26 +1072,34 @@ export function AdminOrderTracking() {
                 <div className="space-y-5">
                   {discrepancy ? (
                     <>
-                      <div className="bg-[#FFF8E8] border border-[#FAC775] rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-sm">
+                      <div className={`border rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-sm ${isDisputeAccepted ? 'bg-[#F0FDF4] border-[#BCE8D8]' : 'bg-[#FFF8E8] border-[#FAC775]'}`}>
                         <div className="flex items-center gap-2.5">
-                          <div className="text-amber-700 shrink-0"><AlertTriangle className="w-[18px] h-[18px] text-amber-700" /></div>
-                          <span className="text-[12px] leading-[18px] font-normal text-amber-800">
-                            {isDisputeRaised
+                          <div className={`shrink-0 ${isDisputeAccepted ? 'text-emerald-600' : 'text-amber-700'}`}>
+                            <AlertTriangle className={`w-[18px] h-[18px] ${isDisputeAccepted ? 'text-emerald-600' : 'text-amber-700'}`} />
+                          </div>
+                          <span className={`text-[12px] leading-[18px] font-normal ${isDisputeAccepted ? 'text-emerald-800' : 'text-amber-800'}`}>
+                            {isDisputeAccepted
+                              ? `Discrepancy accepted. Excess charges have been applied.`
+                              : isDisputeRaised
                               ? `Dispute raised. Status: ${discrepancy.clientStatus}.`
                               : 'Weight discrepancy detected on this shipment.'}
                           </span>
                         </div>
-                        {!isDisputeRaised ? (
+                        {isDisputeAccepted ? (
+                          <span className="bg-[#F0FDF4] text-[#009B63] text-[10px] leading-4 font-semibold px-3 py-1 rounded-full border border-[#BCE8D8] shrink-0">
+                            Accepted
+                          </span>
+                        ) : isDisputeRaised ? (
+                          <span className="bg-[#F0FDF4] text-[#009B63] text-[10px] leading-4 font-semibold px-3 py-1 rounded-full border border-[#BCE8D8] shrink-0">
+                            Dispute Raised
+                          </span>
+                        ) : (
                           <button
                             onClick={() => setShowRaiseDisputeModal(true)}
                             className="border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-800 text-[12px] font-medium py-1.5 px-3.5 rounded-lg transition-colors shrink-0"
                           >
                             Raise Dispute
                           </button>
-                        ) : (
-                          <span className="bg-[#F0FDF4] text-[#009B63] text-[10px] leading-4 font-semibold px-3 py-1 rounded-full border border-[#BCE8D8] shrink-0">
-                            Dispute Raised
-                          </span>
                         )}
                       </div>
 
@@ -1090,7 +1116,7 @@ export function AdminOrderTracking() {
                             <tr className="border-b border-[#F8FAFC]">
                               <td className="py-3">Dead Weight</td>
                               <td className="py-3">{order?.packageDetails?.deadWeight != null ? `${order.packageDetails.deadWeight} KG` : '—'}</td>
-                              <td className="py-3 text-red-500">{discrepancy.enteredWeight != null ? `${discrepancy.enteredWeight} KG` : '—'}</td>
+                              <td className="py-3 text-red-500">{discrepancy.chargedWeight?.deadWeight != null ? `${discrepancy.chargedWeight.deadWeight} KG` : '—'}</td>
                             </tr>
                             <tr className="border-b border-[#F8FAFC]">
                               <td className="py-3">Dimensions</td>
@@ -1099,7 +1125,11 @@ export function AdminOrderTracking() {
                                   ? `${order.packageDetails.volumetricWeight.length ?? '—'}×${order.packageDetails.volumetricWeight.width ?? '—'}×${order.packageDetails.volumetricWeight.height ?? '—'}cm`
                                   : '—'}
                               </td>
-                              <td className="py-3 text-red-500">{discrepancy.chargeDimension || '—'}</td>
+                              <td className="py-3 text-red-500">
+                                {discrepancy.chargeDimension?.length != null
+                                  ? `${discrepancy.chargeDimension.length}×${discrepancy.chargeDimension.breadth}×${discrepancy.chargeDimension.height}cm`
+                                  : '—'}
+                              </td>
                             </tr>
                             <tr className="border-b border-[#F8FAFC]">
                               <td className="py-3">Vol. Weight</td>
@@ -1109,12 +1139,12 @@ export function AdminOrderTracking() {
                             <tr className="border-b border-[#F8FAFC]">
                               <td className="py-3">Charged Weight</td>
                               <td className="py-3">{order?.packageDetails?.applicableWeight != null ? `${order.packageDetails.applicableWeight} KG` : '—'}</td>
-                              <td className="py-3 text-red-500">{discrepancy.chargedWeight != null ? `${discrepancy.chargedWeight} KG` : '—'}</td>
+                              <td className="py-3 text-red-500">{discrepancy.chargedWeight?.applicableWeight != null ? `${discrepancy.chargedWeight.applicableWeight} KG` : '—'}</td>
                             </tr>
                             <tr className="border-b last:border-0 border-[#F8FAFC]">
                               <td className="py-3 font-semibold">Charges</td>
                               <td className="py-3 font-semibold">{order?.priceBreakup?.freight != null ? `₹${order.priceBreakup.freight.toFixed(2)}` : '—'}</td>
-                              <td className="py-3 font-semibold text-red-500">{discrepancy.excessWeightCharges != null ? `₹${discrepancy.excessWeightCharges.toFixed(2)}` : '—'}</td>
+                              <td className="py-3 font-semibold text-red-500">{discrepancy.excessWeightCharges?.excessCharges != null ? `₹${Number(discrepancy.excessWeightCharges.excessCharges).toFixed(2)}` : '—'}</td>
                             </tr>
                           </tbody>
                         </table>
