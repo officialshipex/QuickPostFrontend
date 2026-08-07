@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { Navbar } from '../components/layout/Navbar';
 import { Footer } from '../components/layout/Footer';
+import { apiClient } from '../services/apiClient';
 
 /* ── Easing curve used site-wide ── */
 const EASE = [0.16, 1, 0.3, 1] as const;
@@ -43,7 +44,7 @@ interface TimelineEvent {
 }
 
 interface TrackingResult {
-  status: 'Delivered' | 'In Transit' | 'Out for Delivery' | 'Exception' | 'Delayed';
+  status: string;
   courierName: string;
   courierLogo: string;
   awb: string;
@@ -62,40 +63,98 @@ interface TrackingResult {
   timeline: TimelineEvent[];
 }
 
-const DEMO_RESULT: TrackingResult = {
-  status: 'Out for Delivery',
-  courierName: 'Delhivery',
-  courierLogo: '/brands/delhivery.png',
-  awb: '14235980012456',
-  orderId: 'QP2408417',
-  pickup: 'Bengaluru, KA',
-  destination: 'Gurugram, HR',
-  expectedDelivery: '05 Aug 2026',
-  weight: '1.2 kg',
-  dimensions: '25 × 18 × 10 cm',
-  paymentMode: 'COD',
-  codAmount: 1899,
-  serviceType: 'Surface — Express',
-  currentHub: 'Gurugram Sector 18 Hub',
-  customerRef: 'REF-88213',
-  timeline: [
-    { status: 'Booked', date: '01 Aug', time: '11:42 AM', location: 'Bengaluru, KA', description: 'Shipment booked and label generated.', done: true },
-    { status: 'Picked Up', date: '01 Aug', time: '04:10 PM', location: 'Bengaluru, KA', description: 'Package picked up from seller warehouse.', done: true },
-    { status: 'In Transit', date: '02 Aug', time: '09:05 AM', location: 'Bengaluru Hub', description: 'Shipment departed from origin facility.', done: true },
-    { status: 'Reached Hub', date: '03 Aug', time: '06:20 AM', location: 'Gurugram Sector 18 Hub', description: 'Arrived at destination hub for processing.', done: true },
-    { status: 'Out for Delivery', date: '04 Aug', time: '08:15 AM', location: 'Gurugram, HR', description: 'Out for delivery with courier partner.', done: true },
-    { status: 'Delivered', date: '—', time: '—', location: 'Gurugram, HR', description: 'Awaiting delivery confirmation.', done: false },
-  ],
-};
-
 const STATUS_STEP_ICONS = [Package, Truck, ScanLine, Warehouse, Zap, PackageCheck];
 
-const STATUS_STYLES: Record<TrackingResult['status'], { bg: string; text: string; border: string; dot: string }> = {
+const fmtEvt = (dateStr?: string): { date: string; time: string } => {
+  if (!dateStr) return { date: '—', time: '—' };
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return { date: String(dateStr), time: '' };
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = d.toLocaleString('en-US', { month: 'short' });
+  let h = d.getHours();
+  const min = String(d.getMinutes()).padStart(2, '0');
+  const amPm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  return { date: `${day} ${month} ${d.getFullYear()}`, time: `${h}:${min} ${amPm}` };
+};
+
+
+const getCourierLogoPublic = (name: string): string => {
+  const n = (name || '').toLowerCase();
+  if (n.includes('delhivery')) return '/brands/delhivery.png';
+  if (n.includes('amazon')) return '/brands/amazon.png';
+  if (n.includes('dtdc')) return '/brands/dtdc.png';
+  if (n.includes('ekart')) return '/brands/ekart.png';
+  if (n.includes('losung') || n.includes('lousung')) return '/brands/losung.jpg';
+  if (n.includes('shadowfax')) return '/brands/shadowfax.png';
+  if (n.includes('shiprocket')) return '/brands/shiprocket.jpg';
+  if (n.includes('shree') || n.includes('maruti')) return '/brands/shree_maruti.jpg';
+  if (n.includes('xpressbees')) return '/brands/xpressbees.png';
+  if (n.includes('bluedart') || n.includes('blue dart')) return '/brands/bluedart.png';
+  return '/brands/default.png';
+};
+
+const mapApiToResult = (d: any, query: string): TrackingResult => {
+  const courierName = d.courierServiceName || d.courierName || '—';
+  const rawTracking: any[] = d.tracking || [];
+  const deduped = [...new Map(
+    rawTracking.filter((t: any) => t.StatusDateTime).map((t: any) => [t.StatusDateTime, t])
+  ).values()].reverse();
+
+  const timeline: TimelineEvent[] = deduped.map((t: any) => {
+    const { date, time } = fmtEvt(t.StatusDateTime);
+    return {
+      status: t.status || t.Instructions || '—',
+      date,
+      time,
+      location: t.StatusLocation || '',
+      description: t.Instructions || t.status || '',
+      done: true,
+    };
+  });
+
+  const pickup = [d.pickupAddress?.city, d.pickupAddress?.state].filter(Boolean).join(', ') || '—';
+  const destination = [d.receiverAddress?.city, d.receiverAddress?.state].filter(Boolean).join(', ') || '—';
+  const deliveredOn = (d.status === 'Delivered' || d.status === 'RTO Delivered') && deduped[0]
+    ? fmtEvt(deduped[0].StatusDateTime).date
+    : undefined;
+
+  return {
+    status: d.status || '',
+    courierName,
+    courierLogo: getCourierLogoPublic(courierName),
+    awb: d.awb_number || query,
+    orderId: d.orderId || '—',
+    pickup,
+    destination,
+    expectedDelivery: fmtEvt(d.estimatedDeliveryDate).date,
+    deliveredOn,
+    weight: d.totalWeight ? `${d.totalWeight} kg` : '—',
+    dimensions: '—',
+    paymentMode: d.paymentDetails?.method === 'COD' ? 'COD' : 'Prepaid',
+    codAmount: d.paymentDetails?.codAmount || d.paymentDetails?.amount || undefined,
+    serviceType: courierName,
+    currentHub: deduped[0]?.StatusLocation || '—',
+    customerRef: d.channelId || d.orderId || '—',
+    timeline,
+  };
+};
+
+const DEFAULT_STATUS_STYLE = { bg: 'bg-[#F1F5F9]', text: 'text-[#475569]', border: 'border-[#475569]/20', dot: 'bg-[#475569]' };
+
+const STATUS_STYLES: Record<string, { bg: string; text: string; border: string; dot: string }> = {
   'Delivered':        { bg: 'bg-[#F0FDF4]', text: 'text-[#00A86B]', border: 'border-[#00A86B]/25', dot: 'bg-[#00A86B]' },
+  'RTO Delivered':    { bg: 'bg-[#FFF7ED]', text: 'text-[#EA580C]', border: 'border-[#EA580C]/20', dot: 'bg-[#EA580C]' },
   'Out for Delivery': { bg: 'bg-[#EFF6FF]', text: 'text-[#2563EB]', border: 'border-[#2563EB]/20', dot: 'bg-[#2563EB]' },
-  'In Transit':       { bg: 'bg-[#F5F3FF]', text: 'text-[#7C3AED]', border: 'border-[#7C3AED]/20', dot: 'bg-[#7C3AED]' },
-  'Delayed':          { bg: 'bg-[#FFFBEB]', text: 'text-[#D97706]', border: 'border-[#D97706]/20', dot: 'bg-[#D97706]' },
-  'Exception':        { bg: 'bg-[#FEF2F2]', text: 'text-[#DC2626]', border: 'border-[#DC2626]/20', dot: 'bg-[#DC2626]' },
+  'In-transit':       { bg: 'bg-[#F5F3FF]', text: 'text-[#7C3AED]', border: 'border-[#7C3AED]/20', dot: 'bg-[#7C3AED]' },
+  'Ready To Ship':    { bg: 'bg-[#F0F9FF]', text: 'text-[#0369A1]', border: 'border-[#0369A1]/20', dot: 'bg-[#0369A1]' },
+  'Booked':           { bg: 'bg-[#F0F9FF]', text: 'text-[#0369A1]', border: 'border-[#0369A1]/20', dot: 'bg-[#0369A1]' },
+  'Undelivered':      { bg: 'bg-[#FFFBEB]', text: 'text-[#D97706]', border: 'border-[#D97706]/20', dot: 'bg-[#D97706]' },
+  'RTO':              { bg: 'bg-[#FFFBEB]', text: 'text-[#D97706]', border: 'border-[#D97706]/20', dot: 'bg-[#D97706]' },
+  'RTO In-transit':   { bg: 'bg-[#FFFBEB]', text: 'text-[#D97706]', border: 'border-[#D97706]/20', dot: 'bg-[#D97706]' },
+  'Cancelled':        { bg: 'bg-[#FEF2F2]', text: 'text-[#DC2626]', border: 'border-[#DC2626]/20', dot: 'bg-[#DC2626]' },
+  'Lost':             { bg: 'bg-[#FEF2F2]', text: 'text-[#DC2626]', border: 'border-[#DC2626]/20', dot: 'bg-[#DC2626]' },
+  'Not Picked':       { bg: 'bg-[#FEF2F2]', text: 'text-[#DC2626]', border: 'border-[#DC2626]/20', dot: 'bg-[#DC2626]' },
 };
 
 /* ── Dot-grid background, same recipe as TrustedBrands ── */
@@ -243,7 +302,7 @@ export function Track() {
   const [copied, setCopied] = useState<'awb' | 'order' | null>(null);
   const resultRef = useRef<HTMLDivElement>(null);
 
-  const runSearch = (value: string) => {
+  const runSearch = async (value: string) => {
     if (!value.trim()) {
       setError(`Please enter a valid ${searchMode === 'awb' ? 'AWB number' : 'Order ID'}.`);
       return;
@@ -251,12 +310,18 @@ export function Track() {
     setError('');
     setLoading(true);
     setResult(null);
-    // Simulated lookup — swap for apiClient.get(`/track/${searchMode}/${value}`) when a public endpoint exists.
-    setTimeout(() => {
-      setResult(DEMO_RESULT);
-      setLoading(false);
+    try {
+      const endpoint = searchMode === 'order'
+        ? `/orders/GetTrackingByOrderId/${encodeURIComponent(value.trim())}`
+        : `/orders/GetTrackingByAwb/${encodeURIComponent(value.trim())}`;
+      const res = await apiClient.get(endpoint);
+      setResult(mapApiToResult(res.data, value.trim()));
       setTimeout(() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
-    }, 1400);
+    } catch (err: any) {
+      setError(err?.response?.status === 404 ? 'Order not found. Please check and try again.' : 'Failed to fetch tracking info. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const copyValue = (value: string, key: 'awb' | 'order') => {
@@ -265,7 +330,7 @@ export function Track() {
     setTimeout(() => setCopied(null), 1500);
   };
 
-  const statusStyle = result ? STATUS_STYLES[result.status] : STATUS_STYLES['In Transit'];
+  const statusStyle = result ? (STATUS_STYLES[result.status] ?? DEFAULT_STATUS_STYLE) : DEFAULT_STATUS_STYLE;
   const doneCount = result ? result.timeline.filter(t => t.done).length : 0;
 
   return (

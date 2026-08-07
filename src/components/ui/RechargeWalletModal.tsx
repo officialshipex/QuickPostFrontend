@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Wallet, Banknote, ArrowLeft, Shield, ChevronUp, ChevronDown } from 'lucide-react';
 import { apiClient } from '../../services/apiClient';
+import { Toast } from './Toast';
+import { useToast } from '../../hooks/useToast';
 
 interface Props {
   open: boolean;
@@ -16,20 +18,14 @@ export function RechargeWalletModal({ open, onClose, walletBalance, onSuccess }:
   const [rechargeMode, setRechargeMode] = useState<'Payment' | 'COD'>('Payment');
   const [availableCodBalance, setAvailableCodBalance] = useState(0);
   const [showBillSummary, setShowBillSummary] = useState(true);
-  const [toast, setToast] = useState<string | null>(null);
-  const [toastType, setToastType] = useState<'success' | 'error'>('success');
+  const { toast, showToast: _showToast, closeToast } = useToast();
+  const showToast = (msg: string, type: 'success' | 'error' = 'success') => _showToast(type, msg);
   const [loading, setLoading] = useState(false);
-
-  const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
-    setToast(msg);
-    setToastType(type);
-    setTimeout(() => setToast(null), 3000);
-  };
 
   const handleClose = () => {
     setRechargeAmount(0);
     setRechargeMode('Payment');
-    setToast(null);
+    closeToast();
     setLoading(false);
     onClose();
   };
@@ -39,7 +35,7 @@ export function RechargeWalletModal({ open, onClose, walletBalance, onSuccess }:
     if (open) {
       setRechargeAmount(0);
       setRechargeMode('Payment');
-      setToast(null);
+      closeToast();
       setLoading(false);
     }
   }, [open]);
@@ -157,12 +153,7 @@ export function RechargeWalletModal({ open, onClose, walletBalance, onSuccess }:
                 {/* Scrollable card */}
                 <div className="max-h-[88vh] sm:max-h-[92vh] overflow-y-auto bg-white rounded-2xl sm:rounded-3xl shadow-[0_24px_48px_rgba(0,0,0,0.16)] p-4 sm:p-6 border border-slate-100">
 
-                {/* Toast */}
-                {toast && (
-                  <div className={`mb-3 px-3 py-2 rounded-xl text-[12px] font-semibold text-center ${toastType === 'error' ? 'bg-[#FFF1F1] text-[#E53E3E]' : 'bg-[#F0FDF4] text-[#00A86B]'}`}>
-                    {toast}
-                  </div>
-                )}
+                <Toast toast={toast} onClose={closeToast} />
 
                 {/* Header */}
                 <div className="flex justify-between items-center mb-3 sm:mb-5 mt-1 sm:mt-2">

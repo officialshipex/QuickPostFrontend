@@ -3,6 +3,8 @@ import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { apiClient } from '../../services/apiClient';
+import { Toast } from '../../components/ui/Toast';
+import { useToast } from '../../hooks/useToast';
 import { getToken } from '../../utils/session';
 import { PDFDocument } from 'pdf-lib';
 import * as XLSX from 'xlsx';
@@ -236,11 +238,7 @@ export function AdminNDR() {
   const [showBulkNdrModal,   setShowBulkNdrModal]   = useState(false);
 
   // ── Toast ──
-  const [toast, setToast] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
-  const showToast = (type: 'error' | 'success', text: string) => {
-    setToast({ type, text });
-    setTimeout(() => setToast(null), 3000);
-  };
+  const { toast, showToast, closeToast } = useToast();
 
   const actionMenuRef = useRef<HTMLDivElement>(null);
 
@@ -988,11 +986,7 @@ export function AdminNDR() {
           onRefresh={() => setRefreshTrigger(t => t + 1)}
         />
       )}
-      {toast && (
-        <div className={`fixed bottom-6 left-4 right-4 sm:left-auto sm:right-6 z-[100] px-5 py-3 rounded-xl shadow-xl flex items-center gap-3 text-white text-sm font-medium ${toast.type === 'success' ? 'bg-[#00A86B]' : 'bg-red-500'}`}>
-          {toast.text}
-        </div>
-      )}
+      <Toast toast={toast} onClose={closeToast} />
     </AdminLayout>
   );
 }

@@ -4,6 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { useAdminTab } from '../../context/AdminUserContext';
 import { apiClient } from '../../services/apiClient';
+import { Toast } from '../../components/ui/Toast';
+import { useToast } from '../../hooks/useToast';
 import { usePagination, DesktopPagination } from '../../hooks/usePagination';
 import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
 import { useUserSearchFilter } from '../../hooks/filters/useUserSearchFilter';
@@ -182,15 +184,10 @@ export function AdminWallet() {
     newParams.set('tab', tab);
     setSearchParams(newParams);
   };
-  const [toast, setToast] = useState<{ type: 'error' | 'success', text: string } | null>(null);
+  const { toast, showToast, closeToast } = useToast();
   const [pricePopupPos, setPricePopupPos] = useState<{ x: number; y: number; dir: string; order: any } | null>(null);
   const pricePopupTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [mobilePricePopupOrder, setMobilePricePopupOrder] = useState<any | null>(null);
-
-  const showToast = (type: 'error' | 'success', text: string) => {
-    setToast({ type, text });
-    setTimeout(() => setToast(null), 3000);
-  };
 
   const getCourierLogo = (courierName: string) => {
     const name = (courierName || '').toLowerCase();
@@ -2763,28 +2760,7 @@ export function AdminWallet() {
         </div>
       </div>
 
-      <AnimatePresence>
-        {toast && (
-          <motion.div
-            initial={{ opacity: 0, y: 50, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 50, scale: 0.95 }}
-            transition={{ duration: 0.2 }}
-            className={`fixed ${activeTab === 'Passbook' ? 'bottom-24' : 'bottom-6'} right-6 z-[100] bg-[#1E293B] text-white px-5 py-3.5 rounded-xl shadow-2xl flex items-center gap-3 border border-white/10 min-w-[320px] transition-all duration-300`}
-          >
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${toast.type === 'error' ? 'bg-red-500/20' : 'bg-emerald-500/20'}`}>
-              {toast.type === 'error' ? (
-                <AlertCircle className="w-4 h-4 text-[#F87171]" />
-              ) : (
-                <CheckCircle2 className="w-4 h-4 text-[#34D399]" />
-              )}
-            </div>
-            <p className="text-[13px] font-medium pr-4">{toast.text}</p>
-            <button onClick={() => setToast(null)} className="p-1 hover:bg-white/10 rounded-md transition-colors ml-auto text-[#94A3B8] hover:text-white">
-              <X className="w-4 h-4" />
-            </button>
-          </motion.div>
-        )}
+      <Toast toast={toast} onClose={closeToast} />
 
         <RechargeWalletModal
           open={isRechargeModalOpen}
@@ -3692,6 +3668,7 @@ export function AdminWallet() {
         )}
 
         {/* ── Reverse Transaction Confirmation Modal ────────────────────────── */}
+        <AnimatePresence>
         {reverseConfirmOrder && (
           <motion.div
             initial={{ opacity: 0 }}

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Truck, Plane, Info, X, ArrowRight, Loader2, Send } from 'lucide-react';
+import { Truck, Plane, Info, X, ArrowRight, Loader2, Send, MapPin } from 'lucide-react';
 import { apiClient } from '../../../services/apiClient';
 import { TableLoader } from '../../ui/TableLoader';
 
@@ -72,6 +72,8 @@ export function ShipOrderModal({ order, onClose, onShipped }: ShipOrderModalProp
   const [hoveredInfo, setHoveredInfo] = useState<string | null>(null);
   const [hoveredWeight, setHoveredWeight] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const [selectedCourier, setSelectedCourier] = useState<RateItem | null>(null);
+  const [openPopup, setOpenPopup] = useState<string | null>(null);
 
   const orderId = order?._id || order?.orderId;
 
@@ -103,7 +105,7 @@ export function ShipOrderModal({ order, onClose, onShipped }: ShipOrderModalProp
       setError('Missing or invalid fields: id, provider, courierServiceName, or charges must be > 0');
       return;
     }
-    setShippingId(item._id); setError('');
+    setShippingId(item.courierServiceName); setError('');
     try {
       await apiClient.post(`/${safeProvider}/createShipment`, {
         id: orderId,
@@ -174,8 +176,8 @@ export function ShipOrderModal({ order, onClose, onShipped }: ShipOrderModalProp
             </button>
           </div>
 
-          {/* ── Summary strip ── */}
-          <div className="mx-3 md:mx-5 mt-3 md:mt-4 bg-white border border-[#E2E8F0] rounded-[12px] px-4 md:px-6 py-3 md:py-4 grid grid-cols-2 gap-4 md:gap-6 shrink-0">
+          {/* ── Summary strip (desktop only) ── */}
+          <div className="hidden md:grid mx-5 mt-4 bg-white border border-[#E2E8F0] rounded-[12px] px-6 py-4 grid-cols-2 gap-6 shrink-0">
 
             {/* FROM with address hover */}
             <div>
@@ -248,6 +250,85 @@ export function ShipOrderModal({ order, onClose, onShipped }: ShipOrderModalProp
             </div>
           </div>
 
+          {/* ── Mobile summary card (old-UI style) ── */}
+          <div className="md:hidden mx-3 mt-6 shrink-0" onClick={() => setOpenPopup(null)}>
+            <div className="relative bg-white rounded-lg shadow-md border flex py-3 px-0 min-h-[115px]">
+              {/* FROM / TO column */}
+              <div className="flex-1 flex flex-col items-center justify-center relative border-r">
+                <div className="absolute -top-5 left-1/2 -translate-x-1/2 z-50">
+                  <span className="w-9 h-9 flex items-center justify-center bg-white rounded-full shadow-lg border">
+                    <MapPin className="w-4 h-4 text-[#00A86B]" />
+                  </span>
+                </div>
+                <div className="mt-6 flex flex-col items-center w-full px-1">
+                  {/* Pickup */}
+                  <div className="flex flex-col items-center relative" onClick={(e) => { e.stopPropagation(); setOpenPopup(openPopup === 'pickup' ? null : 'pickup'); }}>
+                    <span className="text-[12px] font-semibold text-[#0F172A] border-b border-dashed border-[#94A3B8] cursor-pointer">{pickupState || pickupCity}</span>
+                    <span className="text-[#94A3B8] text-[11px] font-semibold">{pickupPin}</span>
+                    {openPopup === 'pickup' && pickup && (
+                      <div className="absolute z-[300] bg-white border border-[#E2E8F0] shadow-2xl rounded-lg p-3 w-[200px] top-0 left-full ml-3 text-[10px] leading-snug" onClick={(e) => e.stopPropagation()}>
+                        {pickup.contactName && <p className="font-semibold text-[#0F172A] mb-1">{pickup.contactName}</p>}
+                        {pickup.address && <p className="text-[#475569]">{pickup.address}</p>}
+                        <p className="text-[#475569]">{[pickup.city, pickup.state].filter(Boolean).join(', ')}{pickup.pinCode ? ` - ${pickup.pinCode}` : ''}</p>
+                        {pickup.phoneNumber && <p className="text-[#64748B] mt-1">{pickup.phoneNumber}</p>}
+                      </div>
+                    )}
+                  </div>
+                  <span className="text-[#94A3B8] text-[14px] my-0.5">↓</span>
+                  {/* Delivery */}
+                  <div className="flex flex-col items-center relative" onClick={(e) => { e.stopPropagation(); setOpenPopup(openPopup === 'delivery' ? null : 'delivery'); }}>
+                    <span className="text-[12px] font-semibold text-[#0F172A] border-b border-dashed border-[#94A3B8] cursor-pointer">{deliveryState || deliveryCity}</span>
+                    <span className="text-[#94A3B8] text-[11px] font-semibold">{deliveryPin}</span>
+                    {openPopup === 'delivery' && delivery && (
+                      <div className="absolute z-[300] bg-white border border-[#E2E8F0] shadow-2xl rounded-lg p-3 w-[200px] bottom-0 left-full ml-3 text-[10px] leading-snug" onClick={(e) => e.stopPropagation()}>
+                        {delivery.contactName && <p className="font-semibold text-[#0F172A] mb-1">{delivery.contactName}</p>}
+                        {delivery.address && <p className="text-[#475569]">{delivery.address}</p>}
+                        <p className="text-[#475569]">{[delivery.city, delivery.state].filter(Boolean).join(', ')}{delivery.pinCode ? ` - ${delivery.pinCode}` : ''}</p>
+                        {delivery.phoneNumber && <p className="text-[#64748B] mt-1">{delivery.phoneNumber}</p>}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+              {/* ORDER VALUE column */}
+              <div className="flex-1 flex flex-col items-center justify-center relative border-r">
+                <div className="absolute -top-5 left-1/2 -translate-x-1/2 z-50">
+                  <span className="w-9 h-9 flex items-center justify-center bg-white rounded-full shadow-lg border text-[#00A86B] font-bold text-[13px]">₹</span>
+                </div>
+                <div className="mt-6 flex flex-col items-center">
+                  {paymentMethod && <span className="font-semibold text-[12px] text-[#0F172A] uppercase">{paymentMethod}</span>}
+                  <span className="text-[#64748B] text-[11px] font-semibold mt-0.5">Order Value</span>
+                  <span className="text-[12px] font-semibold text-[#0F172A] mt-0.5">₹{Number(orderValue).toFixed(2)}</span>
+                </div>
+              </div>
+              {/* WEIGHT column */}
+              <div className="flex-1 flex flex-col items-center justify-center relative">
+                <div className="absolute -top-5 left-1/2 -translate-x-1/2 z-50">
+                  <span className="w-9 h-9 flex items-center justify-center bg-white rounded-full shadow-lg border">
+                    <Truck className="w-4 h-4 text-[#00A86B]" />
+                  </span>
+                </div>
+                <div className="mt-6 flex flex-col items-center relative" onClick={(e) => { e.stopPropagation(); setOpenPopup(openPopup === 'weight' ? null : 'weight'); }}>
+                  <span className="text-[#64748B] text-[11px] font-semibold">Weight</span>
+                  <span className="text-[12px] font-semibold text-[#0F172A] border-b border-dashed border-[#94A3B8] cursor-pointer">{applicableWeight} kg</span>
+                  {openPopup === 'weight' && pkg && (
+                    <div className="absolute z-[300] bg-white border border-[#E2E8F0] shadow-2xl rounded-lg p-3 w-[200px] top-0 right-full mr-3 text-[10px] leading-snug" onClick={(e) => e.stopPropagation()}>
+                      <p className="font-semibold text-[#0F172A] mb-1.5 border-b border-[#F1F5F9] pb-1">Weight Details</p>
+                      <div className="space-y-1">
+                        <div className="flex justify-between"><span className="text-[#94A3B8]">Dead Weight:</span><span className="font-semibold">{pkg.weight || pkg.applicableWeight} kg</span></div>
+                        {volW && <>
+                          <div className="flex justify-between"><span className="text-[#94A3B8]">Volumetric:</span><span className="font-semibold">{volWeightKg} kg</span></div>
+                          <div className="flex justify-between"><span className="text-[#94A3B8]">L×W×H:</span><span className="font-semibold">{volW.length}×{volW.width}×{volW.height}</span></div>
+                        </>}
+                        <div className="flex justify-between border-t border-[#F1F5F9] pt-1"><span className="font-semibold text-[#0F172A]">Applicable:</span><span className="font-semibold text-[#00A86B]">{pkg.applicableWeight} kg</span></div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* ── Error banner ── */}
           {error && (
             <div className="mx-3 md:mx-5 mt-2 px-4 py-2 bg-[#FEF2F2] border border-[#FECACA] rounded-lg">
@@ -285,7 +366,7 @@ export function ShipOrderModal({ order, onClose, onShipped }: ShipOrderModalProp
                     const chargeableWeight = getChargeableWeight(item.courierServiceName, applicableWeight);
                     return (
                       <motion.div
-                        key={item._id}
+                        key={item.courierServiceName}
                         initial={{ opacity: 0, y: 8 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.2, delay: Math.min(i * 0.04, 0.3) }}
@@ -404,9 +485,9 @@ export function ShipOrderModal({ order, onClose, onShipped }: ShipOrderModalProp
                           <button
                             onClick={() => handleShip(item)}
                             disabled={shippingId !== null}
-                            className={`h-8 px-4 rounded-full bg-[#00A86B] text-white ${TXT.label} hover:bg-[#009B63] transition-colors shadow-sm disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 min-w-[96px]`}
+                            className={`h-8 px-4 rounded-full bg-[#00A86B] text-white ${TXT.label} transition-colors shadow-sm flex items-center justify-center gap-1.5 min-w-[96px] ${shippingId === item.courierServiceName ? 'opacity-60 cursor-not-allowed' : shippingId !== null ? 'cursor-not-allowed pointer-events-none' : 'hover:bg-[#009B63]'}`}
                           >
-                            {shippingId === item._id
+                            {shippingId === item.courierServiceName
                               ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
                               : <><Send className="w-3 h-3" />Ship Now</>
                             }
@@ -421,78 +502,119 @@ export function ShipOrderModal({ order, onClose, onShipped }: ShipOrderModalProp
           </div>
 
           {/* ── Courier list (mobile cards) ── */}
-          <div className="md:hidden flex-1 min-h-0 mx-3 my-3 overflow-y-auto space-y-2.5">
+          <div className="md:hidden flex-1 min-h-0 mx-3 mt-3 mb-0 overflow-y-auto space-y-2 pb-2" onClick={() => setOpenPopup(null)}>
             {loading ? (
-              <div className="relative h-48 bg-white rounded-[12px] border border-[#E2E8F0]">
+              <div className="relative h-48 bg-white rounded-lg border border-[#E2E8F0]">
                 <TableLoader />
               </div>
             ) : rates.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-48 gap-2 bg-white rounded-[12px] border border-[#E2E8F0]">
+              <div className="flex flex-col items-center justify-center h-48 gap-2 bg-white rounded-lg border border-[#E2E8F0]">
                 <Truck className="w-8 h-8 text-[#CBD5E1]" />
                 <p className={`${TXT.value} text-[#94A3B8]`}>No courier options available for this pincode.</p>
               </div>
             ) : (
-              <AnimatePresence initial={false}>
-                {rates.map((item, i) => {
-                  const logo = getLogoForCourier(item.courierServiceName);
-                  const isAir = item.courierType === 'Domestic (Air)';
-                  const chargeableWeight = getChargeableWeight(item.courierServiceName, applicableWeight);
-                  return (
-                    <motion.div
-                      key={item._id}
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.2, delay: Math.min(i * 0.04, 0.3) }}
-                      className={`rounded-[12px] border p-3 ${item.isRecommended ? 'bg-[#F0FDF4] border-[#00A86B]/30' : 'bg-white border-[#E2E8F0]'}`}
-                    >
-                      <div className="flex items-center gap-2.5 mb-2.5">
-                        <div className="w-9 h-9 rounded-[8px] border border-[#E2E8F0] bg-white flex items-center justify-center shrink-0 overflow-hidden">
-                          {logo ? (
-                            <img src={logo} alt={item.courierServiceName} className="max-w-full max-h-full object-contain"
-                              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                          ) : (
-                            <Truck className="w-4 h-4 text-[#94A3B8]" />
+              rates.map((item, i) => {
+                const logo = getLogoForCourier(item.courierServiceName);
+                const isAir = item.courierType === 'Domestic (Air)';
+                const chargeableWeight = getChargeableWeight(item.courierServiceName, applicableWeight);
+                const isSelected = selectedCourier?.courierServiceName === item.courierServiceName;
+                return (
+                  <div
+                    key={item.courierServiceName}
+                    className={`relative border text-[10px] rounded-lg p-3 shadow-sm bg-white cursor-pointer transition-all ${isSelected ? 'border-[#00A86B] ring-1 ring-[#00A86B]' : 'border-[#E2E8F0]'}`}
+                    onClick={() => setSelectedCourier(item)}
+                  >
+                    {/* Top row: logo + name + mode/weight */}
+                    <div className="flex items-center gap-3 mb-2.5">
+                      <div className="w-9 h-9 rounded-[8px] border border-[#E2E8F0] bg-white flex items-center justify-center shrink-0 overflow-hidden">
+                        {logo ? (
+                          <img src={logo} alt={item.courierServiceName} className="max-w-full max-h-full object-contain"
+                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                        ) : (
+                          <Truck className="w-4 h-4 text-[#94A3B8]" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[12px] font-semibold text-[#0F172A] truncate">{item.courierServiceName}</p>
+                        <p className="text-[11px] text-[#64748B] truncate">{item.courierType}</p>
+                      </div>
+                      <div className="flex flex-col items-end shrink-0 gap-0.5">
+                        <div className="flex items-center gap-1 text-[#64748B]">
+                          <span className="text-[11px] font-semibold">Mode:</span>
+                          {isAir ? <Plane className="w-3.5 h-3.5" /> : <Truck className="w-3.5 h-3.5" />}
+                        </div>
+                        {/* Chargeable weight with tap popup */}
+                        <div className="relative" onClick={(e) => { e.stopPropagation(); setOpenPopup(openPopup === `weight_${i}` ? null : `weight_${i}`); }}>
+                          <span className="text-[11px] font-semibold text-[#64748B] border-b border-dashed border-[#94A3B8] cursor-pointer">{chargeableWeight}</span>
+                          {openPopup === `weight_${i}` && pkg && (
+                            <div className={`absolute z-[500] bg-white border border-[#E2E8F0] shadow-xl rounded-lg p-3 w-[190px] right-0 text-[10px] ${i === 0 ? 'top-full mt-2' : 'bottom-full mb-2'}`} onClick={(e) => e.stopPropagation()}>
+                              <p className="font-semibold text-[#0F172A] mb-1.5 border-b border-[#F1F5F9] pb-1">Weight Details</p>
+                              <div className="space-y-1">
+                                <div className="flex justify-between"><span className="text-[#94A3B8]">Dead Weight:</span><span className="font-semibold">{pkg.weight || pkg.applicableWeight} kg</span></div>
+                                {volW && <>
+                                  <div className="flex justify-between"><span className="text-[#94A3B8]">Volumetric:</span><span className="font-semibold">{volWeightKg} kg</span></div>
+                                  <div className="flex justify-between"><span className="text-[#94A3B8]">L×W×H:</span><span className="font-semibold">{volW.length}×{volW.width}×{volW.height}</span></div>
+                                </>}
+                                <div className="flex justify-between border-t border-[#F1F5F9] pt-1"><span className="font-semibold text-[#0F172A]">Applicable:</span><span className="font-semibold text-[#00A86B]">{pkg.applicableWeight} kg</span></div>
+                              </div>
+                            </div>
                           )}
                         </div>
-                        <div className="min-w-0 flex-1">
-                          <p className={`${TXT.label} text-[#0F172A] truncate`}>{item.courierServiceName}</p>
-                          <div className="flex items-center gap-1 text-[#64748B]">
-                            {isAir ? <Plane className="w-3 h-3" /> : <Truck className="w-3 h-3" />}
-                            <p className={`${TXT.value} truncate`}>{item.courierType}</p>
-                          </div>
-                        </div>
-                        <div className="text-right shrink-0">
-                          <p className={`${TXT.label} text-[#0F172A]`}>₹{Number(item.forward?.finalCharges || 0).toFixed(2)}</p>
-                          <p className={`${TXT.value} text-[#94A3B8]`}>{chargeableWeight}</p>
+                      </div>
+                    </div>
+
+                    {/* Info section — green tint like old UI */}
+                    <div className="grid grid-cols-1 gap-1 p-2 bg-[#F0FDF4] rounded-lg font-semibold border-t border-[#E2E8F0] text-[11px]">
+                      <div className="flex justify-between">
+                        <span className="text-[#64748B]">Est. Pickup Date</span>
+                        <span className="text-[#0F172A]">{formatPickupDate(item.pickupDate)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-[#64748B]">Est. Delivery Date</span>
+                        <span className="text-[#0F172A]">{formatDeliveryDate(item.estimatedDeliveryDate)}</span>
+                      </div>
+                      <div className="flex justify-between relative">
+                        <span className="text-[#64748B]">Charges</span>
+                        <div className="flex items-center gap-1">
+                          <span className="text-[#0F172A]">₹{Number(item.forward?.finalCharges || 0).toFixed(2)}</span>
+                          <Info
+                            className="w-3.5 h-3.5 text-[#00A86B] cursor-pointer"
+                            onClick={(e) => { e.stopPropagation(); setOpenPopup(openPopup === `charges_${i}` ? null : `charges_${i}`); }}
+                          />
+                          {openPopup === `charges_${i}` && (
+                            <div className={`absolute z-[500] bg-white border border-[#E2E8F0] shadow-xl rounded-lg p-3 w-[190px] right-0 text-[10px] ${i === 0 ? 'top-full mt-2' : 'bottom-full mb-2'}`} onClick={(e) => e.stopPropagation()}>
+                              <p className="font-semibold text-[#0F172A] mb-1.5 border-b border-[#F1F5F9] pb-1">Price Details</p>
+                              <div className="space-y-1">
+                                <div className="flex justify-between"><span className="text-[#94A3B8]">Freight:</span><span className="font-semibold">₹{Number(item.forward?.charges || 0).toFixed(2)}</span></div>
+                                <div className="flex justify-between"><span className="text-[#94A3B8]">COD:</span><span className="font-semibold">₹{Number(item.cod || 0).toFixed(2)}</span></div>
+                                <div className="flex justify-between"><span className="text-[#94A3B8]">GST:</span><span className="font-semibold">₹{Number(item.forward?.gst || 0).toFixed(2)}</span></div>
+                                <div className="flex justify-between border-t border-[#F1F5F9] pt-1"><span className="font-semibold text-[#0F172A]">Total:</span><span className="font-semibold text-[#00A86B]">₹{Number(item.forward?.finalCharges || 0).toFixed(2)}</span></div>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
-
-                      <div className="grid grid-cols-2 gap-2 mb-3 bg-[#F8FAFC] rounded-[8px] px-3 py-2">
-                        <div>
-                          <p className={`${TXT.value} text-[#94A3B8]`}>Est. Pickup</p>
-                          <p className={`${TXT.label} text-[#475569]`}>{formatPickupDate(item.pickupDate)}</p>
-                        </div>
-                        <div>
-                          <p className={`${TXT.value} text-[#94A3B8]`}>Est. Delivery</p>
-                          <p className={`${TXT.label} text-[#475569]`}>{formatDeliveryDate(item.estimatedDeliveryDate)}</p>
-                        </div>
-                      </div>
-
-                      <button
-                        onClick={() => handleShip(item)}
-                        disabled={shippingId !== null}
-                        className={`w-full h-9 rounded-full bg-[#00A86B] text-white ${TXT.label} hover:bg-[#009B63] active:bg-[#009B63] transition-colors shadow-sm disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-1.5`}
-                      >
-                        {shippingId === item._id
-                          ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          : <><Send className="w-3 h-3" />Ship Now</>
-                        }
-                      </button>
-                    </motion.div>
-                  );
-                })}
-              </AnimatePresence>
+                    </div>
+                  </div>
+                );
+              })
             )}
+          </div>
+
+          {/* ── Mobile bottom ship button ── */}
+          <div className="md:hidden shrink-0 px-3 pb-3 pt-2 bg-gradient-to-t from-[#F8FAFC] via-[#F8FAFC] to-transparent">
+            <button
+              onClick={() => selectedCourier && handleShip(selectedCourier)}
+              disabled={!selectedCourier || shippingId !== null}
+              className={`w-full h-11 rounded-lg font-semibold text-[13px] text-white bg-[#00A86B] shadow-lg transition-all flex items-center justify-center gap-2 ${(!selectedCourier || shippingId !== null) ? 'opacity-50 cursor-not-allowed' : 'active:bg-[#009B63]'}`}
+            >
+              {shippingId !== null
+                ? <><Loader2 className="w-4 h-4 animate-spin" />Processing...</>
+                : selectedCourier
+                  ? <><Send className="w-4 h-4" />Ship With {selectedCourier.courierServiceName}</>
+                  : 'Select a courier to ship'
+              }
+            </button>
           </div>
         </motion.div>
       </motion.div>

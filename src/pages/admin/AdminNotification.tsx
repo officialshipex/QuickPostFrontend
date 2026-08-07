@@ -10,6 +10,8 @@ import {
   AlertTriangle, CheckCircle, Plus, PhoneCall, Copy, Filter,
 } from 'lucide-react';
 import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
+import { Toast } from '../../components/ui/Toast';
+import { useToast } from '../../hooks/useToast';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface NotifSettings { [key: string]: any }
@@ -295,9 +297,8 @@ function ChannelTab({ channelCfg, settings, targetUserId, onUpdate }: {
   const { label, Icon, color, masterField, adminField, togglePrefix, dataPrefix, hasSubject, paid } = channelCfg;
   const [saving, setSaving] = useState<string | null>(null);
   const [editModal, setEditModal] = useState<typeof STATUSES[number] | null>(null);
-  const [localToast, setLocalToast] = useState<{ ok: boolean; text: string } | null>(null);
-
-  const showToast = (ok: boolean, text: string) => { setLocalToast({ ok, text }); setTimeout(() => setLocalToast(null), 2500); };
+  const { toast: localToast, showToast: _localShowToast, closeToast: closeLocalToast } = useToast(2500);
+  const showToast = (ok: boolean, text: string) => _localShowToast(ok ? 'success' : 'error', text);
   const masterEnabled: boolean = settings[masterField] ?? false;
   const adminBlocked: boolean = settings[adminField] === false;
 
@@ -430,16 +431,7 @@ function ChannelTab({ channelCfg, settings, targetUserId, onUpdate }: {
         )}
       </AnimatePresence>
 
-      {/* Channel-level toast */}
-      <AnimatePresence>
-        {localToast && (
-          <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 40 }}
-            className={`fixed bottom-4 right-4 z-[120] px-4 py-2.5 rounded-xl shadow-xl text-xs font-semibold flex items-center gap-2 ${localToast.ok ? 'bg-[#0F172A] text-white' : 'bg-red-600 text-white'}`}>
-            {localToast.ok ? <CheckCircle className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
-            {localToast.text}
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <Toast toast={localToast} onClose={closeLocalToast} />
     </div>
   );
 }
@@ -465,7 +457,7 @@ const SERVICE_LABELS: Record<string, string> = {
 
 function AICallingTab({ settings, targetUserId, onUpdate }: { settings: NotifSettings; targetUserId: string | null; onUpdate: (s: NotifSettings) => void }) {
   const [saving, setSaving] = useState<string | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
+  const { toast, showToast: _aiShowToast, closeToast: closeAiToast } = useToast(2500);
 
   // Call logs state
   const [logs, setLogs] = useState<CallLog[]>([]);
@@ -476,7 +468,7 @@ function AICallingTab({ settings, targetUserId, onUpdate }: { settings: NotifSet
   const [callStatusFilter, setCallStatusFilter] = useState('');
   const LOGS_LIMIT = 20;
 
-  const showToast = (t: string) => { setToast(t); setTimeout(() => setToast(null), 2500); };
+  const showToast = (t: string) => _aiShowToast('info', t);
 
   const putField = async (field: string, value: boolean) => {
     setSaving(field);
@@ -694,14 +686,7 @@ function AICallingTab({ settings, targetUserId, onUpdate }: { settings: NotifSet
         )}
       </div>
 
-      <AnimatePresence>
-        {toast && (
-          <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 40 }}
-            className="fixed bottom-4 right-4 z-[120] px-4 py-2.5 rounded-xl bg-[#0F172A] text-white shadow-xl text-xs font-semibold">
-            {toast}
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <Toast toast={toast} onClose={closeAiToast} />
     </div>
   );
 }
@@ -1190,8 +1175,8 @@ export function AdminNotification() {
   }, [tabSlug]);
   const [buyOpen, setBuyOpen] = useState(false);
   const [alertOpen, setAlertOpen] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
-  const showToast = (t: string) => { setToast(t); setTimeout(() => setToast(null), 3000); };
+  const { toast, showToast: _pageShowToast, closeToast: closePageToast } = useToast();
+  const showToast = (t: string) => _pageShowToast('success', t);
 
   const targetUserId = isAdminView ? (selectedUser?._id || null) : currentUserId;
   const targetUserName = selectedUser?.fullname || selectedUser?.name || '';
@@ -1477,15 +1462,7 @@ export function AdminNotification() {
           )}
         </AnimatePresence>
 
-        {/* Page-level toast */}
-        <AnimatePresence>
-          {toast && (
-            <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 40 }}
-              className="fixed bottom-4 right-4 z-[120] px-4 py-2.5 rounded-xl bg-[#0F172A] text-white shadow-xl text-xs font-semibold flex items-center gap-2">
-              <CheckCircle className="w-4 h-4 text-emerald-400" />{toast}
-            </motion.div>
-          )}
-        </AnimatePresence>
+        <Toast toast={toast} onClose={closePageToast} />
 
       </div>
     </AdminLayout>

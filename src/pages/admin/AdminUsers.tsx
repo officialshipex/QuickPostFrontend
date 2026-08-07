@@ -16,6 +16,8 @@ import { DesktopPagination } from '../../hooks/usePagination';
 import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
 import { getTier } from '../../hooks/useTier';
 import { apiClient } from '../../services/apiClient';
+import { Toast } from '../../components/ui/Toast';
+import { useToast } from '../../hooks/useToast';
 
 const STATUS_BADGE_STYLES: Record<string, string> = {
   'Verified': 'bg-emerald-50 text-emerald-700 border-emerald-200',
@@ -108,17 +110,12 @@ export function AdminUsers() {
 
   // ─── UI state ───────────────────────────────────────────────────────────────
   const [actionDropdownOpen, setActionDropdownOpen] = useState(false);
-  const [toast, setToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const { toast, showToast, closeToast } = useToast();
   const [rateCardFilterOptions, setRateCardFilterOptions] = useState<{ label: string; value: string }[]>([]);
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
   const [mobileActionOpen, setMobileActionOpen] = useState(false);
 
   // ─── Helpers ────────────────────────────────────────────────────────────────
-  const showToast = (type: 'success' | 'error', text: string) => {
-    setToast({ type, text });
-    setTimeout(() => setToast(null), 3000);
-  };
-
   const copyToClipboard = async (text: string, label: string) => {
     try {
       await navigator.clipboard.writeText(String(text));
@@ -1094,21 +1091,7 @@ export function AdminUsers() {
         </div>
       )}
 
-      {/* Toast */}
-      {toast && (
-        <div className="fixed bottom-6 right-6 z-[100] bg-[#1E293B] text-white px-5 py-3.5 rounded-xl shadow-2xl flex items-center gap-3 border border-white/10 min-w-[280px]">
-          <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${toast.type === 'error' ? 'bg-red-500/20' : 'bg-emerald-500/20'}`}>
-            {toast.type === 'error'
-              ? <AlertCircle className="w-4 h-4 text-[#F87171]" />
-              : <CheckCircle2 className="w-4 h-4 text-[#34D399]" />
-            }
-          </div>
-          <p className="text-[13px] font-medium pr-4">{toast.text}</p>
-          <button onClick={() => setToast(null)} className="p-1 hover:bg-white/10 rounded-md transition-colors ml-auto text-[#94A3B8] hover:text-white">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      )}
+      <Toast toast={toast} onClose={closeToast} />
     </AdminLayout>
   );
 }

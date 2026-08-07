@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Upload, X, Loader2, Download, FileText } from 'lucide-react';
 import { apiClient } from '../../services/apiClient';
+import { Toast } from './Toast';
+import { useToast } from '../../hooks/useToast';
 
 interface Props {
   open: boolean;
@@ -15,16 +17,12 @@ export function BulkUploadModal({ open, onClose }: Props) {
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [downloading, setDownloading] = useState(false);
-  const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
-
-  const showToast = (msg: string, ok: boolean) => {
-    setToast({ msg, ok });
-    setTimeout(() => setToast(null), 4000);
-  };
+  const { toast, showToast: _showToast, closeToast } = useToast(4000);
+  const showToast = (msg: string, ok: boolean) => _showToast(ok ? 'success' : 'error', msg);
 
   const handleClose = () => {
     setFile(null);
-    setToast(null);
+    closeToast();
     onClose();
   };
 
@@ -115,12 +113,7 @@ export function BulkUploadModal({ open, onClose }: Props) {
 
               <div className="h-[1px] bg-slate-100 mb-4" />
 
-              {/* Toast */}
-              {toast && (
-                <div className={`mb-4 px-3 py-2 rounded-lg text-[12px] font-semibold ${toast.ok ? 'bg-[#F0FDF4] text-[#00A86B]' : 'bg-red-50 text-red-600'}`}>
-                  {toast.msg}
-                </div>
-              )}
+              <Toast toast={toast} onClose={closeToast} />
 
               {/* Sample download */}
               <div className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 mb-4 flex items-center justify-between">

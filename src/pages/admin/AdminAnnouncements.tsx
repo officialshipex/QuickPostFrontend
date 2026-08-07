@@ -6,6 +6,8 @@ import { usePagination, DesktopPagination } from '../../hooks/usePagination';
 import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
 import { TableLoader } from '../../components/ui/TableLoader';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { Toast } from '../../components/ui/Toast';
+import { useToast } from '../../hooks/useToast';
 
 interface AnnouncementUser {
   _id: string;
@@ -64,15 +66,11 @@ export function AdminAnnouncements() {
   const [form, setForm] = useState<FormState>(DEFAULT_FORM);
   const [userQuery, setUserQuery] = useState('');
   const [userSuggestions, setUserSuggestions] = useState<any[]>([]);
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const { toast, showToast: _showToast, closeToast } = useToast();
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => _showToast(type, message);
   const [searchTerm, setSearchTerm] = useState(
     (window as unknown as { __adminSearchQuery?: string }).__adminSearchQuery?.toLowerCase() || ''
   );
-
-  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 3000);
-  };
 
   useEffect(() => {
     const handleSearch = (e: Event) =>
@@ -716,17 +714,7 @@ export function AdminAnnouncements() {
           </div>
         )}
 
-        {/* Toast */}
-        {toast && (
-          <div className={`fixed bottom-4 right-4 z-[120] px-4 py-2.5 rounded-xl border shadow-xl text-xs font-semibold flex items-center gap-2 animate-fade-in ${
-            toast.type === 'error'
-              ? 'bg-red-600 text-white border-red-700'
-              : 'bg-[#0F172A] text-white border-[#1E293B]'
-          }`}>
-            <Check className="w-4 h-4 text-emerald-400" />
-            {toast.message}
-          </div>
-        )}
+        <Toast toast={toast} onClose={closeToast} />
 
     </AdminLayout>
   );

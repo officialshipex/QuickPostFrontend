@@ -10,6 +10,8 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BulkUploadModal } from '../../ui/BulkUploadModal';
 import { RechargeWalletModal } from '../../ui/RechargeWalletModal';
+import { Toast } from '../../ui/Toast';
+import { useToast } from '../../../hooks/useToast';
 
 interface AdminHeaderProps {
   onMobileMenuToggle?: () => void;
@@ -28,7 +30,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
   const [showOrderSearchResults, setShowOrderSearchResults] = useState(false);
   const orderSearchRef = useRef<HTMLDivElement>(null);
   const [showDateDropdown, setShowDateDropdown] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
+  const { toast, showToast: _showToast, closeToast } = useToast();
   const [isCustomMode, setIsCustomMode] = useState(false);
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
@@ -143,10 +145,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
     }
   };
 
-  const showToast = (message: string) => {
-    setToast(message);
-    setTimeout(() => setToast(null), 3000);
-  };
+  const showToast = (message: string) => _showToast('success', message);
 
   const isImpersonating = !!localStorage.getItem('admin_token_backup');
 
@@ -1179,25 +1178,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
           </AnimatePresence>
         </div>
       </div>
-      {typeof document !== 'undefined' && createPortal(
-        <AnimatePresence>
-          {toast && (
-            <motion.div
-              initial={{ opacity: 0, y: 50, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 50, scale: 0.95 }}
-              transition={{ duration: 0.2 }}
-              className="fixed bottom-6 left-4 right-4 sm:left-auto sm:right-6 z-[250] bg-[#1E293B] text-white px-5 py-3.5 rounded-xl shadow-2xl flex items-center gap-3 border border-white/10 sm:min-w-[280px]"
-            >
-              <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
-                <Check className="w-4 h-4 text-[#34D399]" />
-              </div>
-              <p className="text-[13px] font-medium pr-4">{toast}</p>
-            </motion.div>
-          )}
-        </AnimatePresence>,
-        document.body
-      )}
+      <Toast toast={toast} onClose={closeToast} />
 
       <RechargeWalletModal
         open={showRechargeModal}

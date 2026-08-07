@@ -8,6 +8,8 @@ import {
   ArrowLeft, AlertTriangle, Copy, Check, Truck, ClipboardList, MapPin, Navigation,
   Package, Receipt, Map, History, X, Phone, Clock, Home, Info, FileText,
 } from 'lucide-react';
+import { Toast } from '../../components/ui/Toast';
+import { useToast } from '../../hooks/useToast';
 
 // Milestone timeline icons are looked up dynamically by name (see getMilestonesFromStatus).
 const MILESTONE_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -305,7 +307,8 @@ export function AdminOrderTracking() {
   const [isHeaderDropdownOpen, setIsHeaderDropdownOpen] = useState(false);
   const [chargesTab, setChargesTab] = useState<'billed' | 'dispute'>('billed');
   const [showNdrHistory, setShowNdrHistory] = useState(false);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const { toast: toastState, showToast: showToastMsg, closeToast } = useToast();
+  const setToastMessage = (msg: string | null) => msg ? showToastMsg('success', msg) : closeToast();
   const [showUpdateInfoModal, setShowUpdateInfoModal] = useState(false);
   const [newPhoneNumber, setNewPhoneNumber] = useState('');
   const [shipOrder, setShipOrder] = useState<any | null>(null);
@@ -345,13 +348,6 @@ export function AdminOrderTracking() {
       })
       .catch(() => {});
   }, [order?.awb_number, order?.userId]);
-
-  // Toast auto-dismiss
-  useEffect(() => {
-    if (!toastMessage) return;
-    const t = setTimeout(() => setToastMessage(null), 3000);
-    return () => clearTimeout(t);
-  }, [toastMessage]);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -1475,18 +1471,7 @@ export function AdminOrderTracking() {
         />
       )}
 
-      {/* ── TOAST ───────────────────────────────────────────────────────────────── */}
-      {toastMessage && (
-        <div className="fixed bottom-5 right-5 z-[210] bg-[#0F172A] text-white text-[13px] px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2.5 animate-fade-in">
-          <div className="w-5 h-5 rounded-full bg-[#00A86B] flex items-center justify-center shrink-0">
-            <Check className="w-2.5 h-2.5 text-white" />
-          </div>
-          <span className="font-medium">{toastMessage}</span>
-          <button onClick={() => setToastMessage(null)} className="text-white/50 hover:text-white ml-2 focus:outline-none">
-            <X className="w-2.5 h-2.5" />
-          </button>
-        </div>
-      )}
+      <Toast toast={toastState} onClose={closeToast} />
     </AdminLayout>
   );
 }

@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { apiClient } from '../../services/apiClient';
+import { Toast } from '../../components/ui/Toast';
+import { useToast } from '../../hooks/useToast';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import {
   LayoutGrid, Truck, MapPin, Plus, Edit2, Trash2,
-  X, CheckCircle2, AlertCircle, ChevronDown, Settings,
+  X, ChevronDown, Settings,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePagination, DesktopPagination } from '../../hooks/usePagination';
@@ -45,7 +47,8 @@ export function AdminEDDMapping() {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editMapping, setEditMapping] = useState<any | null>(null);
   const [deleteMapping, setDeleteMapping] = useState<any | null>(null);
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const { toast, showToast: _showToast, closeToast } = useToast();
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => _showToast(type, message);
 
   // Add form
   const [addForm, setAddForm] = useState<{ couriers: string[]; serviceNames: string[] } & ZoneForm>({
@@ -65,10 +68,6 @@ export function AdminEDDMapping() {
   const editCourierRef = useRef<HTMLDivElement>(null);
   const editServiceRef = useRef<HTMLDivElement>(null);
 
-  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 3000);
-  };
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -635,19 +634,7 @@ export function AdminEDDMapping() {
         )}
       </AnimatePresence>
 
-      {/* TOAST */}
-      <AnimatePresence>
-        {toast && (
-          <motion.div initial={{ opacity: 0, y: 50, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 50, scale: 0.95 }}
-            className={`fixed bottom-6 right-6 z-50 px-5 py-3.5 rounded-xl shadow-2xl flex items-center gap-3 border min-w-[300px] max-w-md ${toast.type === 'success' ? 'bg-slate-900 border-white/10 text-white' : 'bg-rose-950 border-rose-800 text-rose-100'}`}>
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${toast.type === 'success' ? 'bg-emerald-500/20 text-[#34D399]' : 'bg-rose-500/20 text-rose-300'}`}>
-              {toast.type === 'success' ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
-            </div>
-            <p className="text-[12px] font-bold leading-snug flex-1">{toast.message}</p>
-            <button onClick={() => setToast(null)} className="text-slate-400 hover:text-white transition-colors"><X className="w-4 h-4" /></button>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <Toast toast={toast} onClose={closeToast} />
     </AdminLayout>
   );
 }
