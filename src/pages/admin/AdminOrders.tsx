@@ -363,7 +363,7 @@ export function AdminOrders() {
   const [selectedPaymentTypes,   setSelectedPaymentTypes]  = useState<string[]>([]);
   const [selectedPickupAddresses,setSelectedPickupAddresses] = useState<string[]>([]);
   const [selectedCouriers,       setSelectedCouriers]      = useState<string[]>([]);
-  const { dateStart, dateEnd, setDateStart, setDateEnd, onDateChange: onOrderDateChange } = useDateRangeFilter();
+  const { dateStart, dateEnd, setDateStart, setDateEnd, onDateChange: onOrderDateChange, defStart, defEnd } = useDateRangeFilter();
 
   // ── Dynamic options from API ──
   const [courierOptions,  setCourierOptions]  = useState<{ label: string; value: string }[]>([]);
@@ -708,7 +708,7 @@ export function AdminOrders() {
     setSelectedOrders([]);
     fetchOrders(page);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, page, refreshTrigger, loadingAdminTab]);
+  }, [activeTab, page, refreshTrigger, loadingAdminTab, dateStart, dateEnd]);
 
   useEffect(() => {
     if (loadingAdminTab) return;
@@ -739,7 +739,7 @@ export function AdminOrders() {
     setShowMore(false);
     setMobileSearchQuery('');
     setOrderId(''); setAwbNumber(''); setSelectedPaymentTypes([]); setSelectedPickupAddresses([]);
-    setSelectedCouriers([]); setDateStart(''); setDateEnd('');
+    setSelectedCouriers([]); setDateStart(defStart); setDateEnd(defEnd);
     setUserQuery(''); setUserSuggestions([]); setUserMongoId('');
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
@@ -760,11 +760,11 @@ export function AdminOrders() {
 
   const handleApplyFilters = () => { setPage(1); setRefreshTrigger(t => t + 1); };
 
-  const hasActiveFilters = orderId || awbNumber || selectedPaymentTypes.length > 0 || selectedPickupAddresses.length > 0 || selectedCouriers.length > 0 || (dateStart && dateEnd) || (isAdminView && userMongoId);
+  const hasActiveFilters = orderId || awbNumber || selectedPaymentTypes.length > 0 || selectedPickupAddresses.length > 0 || selectedCouriers.length > 0 || (dateStart && dateEnd && !(dateStart === defStart && dateEnd === defEnd)) || (isAdminView && userMongoId);
 
   const handleClearAllFilters = () => {
     setOrderId(''); setAwbNumber(''); setSelectedPaymentTypes([]); setSelectedPickupAddresses([]);
-    setSelectedCouriers([]); setDateStart(''); setDateEnd('');
+    setSelectedCouriers([]); setDateStart(defStart); setDateEnd(defEnd);
     if (isAdminView) { setUserQuery(''); setUserSuggestions([]); setUserMongoId(''); }
     setPage(1);
     setRefreshTrigger(t => t + 1); // fires useEffect after all state updates are committed
@@ -1084,6 +1084,8 @@ export function AdminOrders() {
               startDate={dateStart}
               endDate={dateEnd}
               onDateChange={onOrderDateChange}
+              defaultStart={defStart}
+              defaultEnd={defEnd}
             />
 
             <button onClick={handleApplyFilters} className="py-2 px-4 shrink-0 rounded-[32px] bg-[#009D64] border border-[#009D64] text-white text-xs font-medium leading-[18px] hover:bg-[#008a57] transition-colors cursor-pointer">
@@ -1656,6 +1658,8 @@ export function AdminOrders() {
                       startDate={dateStart}
                       endDate={dateEnd}
                       onDateChange={onOrderDateChange}
+                      defaultStart={defStart}
+                      defaultEnd={defEnd}
                     />
                   </div>
 

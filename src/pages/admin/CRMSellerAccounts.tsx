@@ -5,6 +5,7 @@ import { Search, Download, Building2, CheckCircle2, AlertCircle, Clock, Trending
 import { apiClient } from '../../services/apiClient';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
+import { getLast7DaysStr } from '../../hooks/filters/useDateRangeFilter';
 import { TableLoader } from '../../components/ui/TableLoader';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { usePagination, DesktopPagination } from '../../hooks/usePagination';
@@ -36,8 +37,9 @@ export function CRMSellerAccounts() {
   const [kycFilter, setKycFilter] = useState('All');
   const [statusFilter, setStatusFilter] = useState('All');
   const [cityFilter, setCityFilter] = useState<string[]>([]);
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
+  const [dateFrom, setDateFrom] = useState(() => getLast7DaysStr()[0]);
+  const [dateTo, setDateTo] = useState(() => getLast7DaysStr()[1]);
+  const [defStart, defEnd] = getLast7DaysStr();
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
   const perPage = 10;
 
@@ -106,13 +108,13 @@ export function CRMSellerAccounts() {
 
   const { page, setPage, totalPages, paginatedData, startIndex, endIndex, rowsPerPage, setRowsPerPage } = usePagination({ data: displaySellers, perPage });
 
-  const hasActiveFilters = !!search || kycFilter !== 'All' || statusFilter !== 'All' || cityFilter.length > 0 || (dateFrom && dateTo);
+  const hasActiveFilters = !!search || kycFilter !== 'All' || statusFilter !== 'All' || cityFilter.length > 0 || (dateFrom && dateTo && !(dateFrom === defStart && dateTo === defEnd));
 
   const handleApplyFilters = () => { fetchSellers(); };
 
   const handleClearAllFilters = () => {
     setSearch(''); setKycFilter('All'); setStatusFilter('All');
-    setCityFilter([]); setDateFrom(''); setDateTo('');
+    setCityFilter([]); setDateFrom(defStart); setDateTo(defEnd);
   };
 
   const stats = [
@@ -203,6 +205,8 @@ export function CRMSellerAccounts() {
                 startDate={dateFrom}
                 endDate={dateTo}
                 onDateChange={(s, e) => { setDateFrom(s); setDateTo(e); }}
+                defaultStart={defStart}
+                defaultEnd={defEnd}
               />
 
               <div className="flex items-center gap-3">
@@ -407,6 +411,8 @@ export function CRMSellerAccounts() {
                     className="w-full [&_.glass-dropdown-trigger]:w-full [&_.glass-dropdown-trigger]:h-11"
                     startDate={dateFrom} endDate={dateTo}
                     onDateChange={(s, e) => { setDateFrom(s); setDateTo(e); }}
+                    defaultStart={defStart}
+                    defaultEnd={defEnd}
                   />
                 </div>
               </div>

@@ -7,6 +7,8 @@ interface GlassDateFilterProps {
   onDateChange: (start: string, end: string) => void;
   className?: string;
   align?: 'left' | 'right';
+  defaultStart?: string; // when startDate+endDate match these, the X clear button is hidden
+  defaultEnd?: string;
 }
 
 const MONTHS = [
@@ -63,6 +65,8 @@ export function GlassDateFilter({
   onDateChange,
   className = '',
   align = 'left',
+  defaultStart,
+  defaultEnd,
 }: GlassDateFilterProps) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -173,16 +177,17 @@ export function GlassDateFilter({
   const isToday = (day: Date): boolean => isSameDay(day, today);
 
   const hasRange = startDate && endDate;
+  const isAtDefault = !!(defaultStart && defaultEnd && startDate === defaultStart && endDate === defaultEnd);
 
   return (
-    <div ref={containerRef} className={`relative ${className}`}>
+    <div ref={containerRef} className={`relative shrink-0 ${className || 'w-[150px]'}`}>
       {/* Trigger */}
       <div
         role="button"
         tabIndex={0}
         onClick={() => setOpen(!open)}
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpen(!open); } }}
-        className="glass-dropdown-trigger group"
+        className="glass-dropdown-trigger glass-date-trigger group"
       >
         <Calendar className="glass-dropdown-icon-svg" />
         <span className={`glass-dropdown-label ${hasRange ? 'has-value' : ''}`}>
@@ -191,7 +196,7 @@ export function GlassDateFilter({
             : 'Select Date Range'
           }
         </span>
-        {hasRange && (
+        {hasRange && !isAtDefault && (
           <button
             onClick={(e) => {
               e.stopPropagation();

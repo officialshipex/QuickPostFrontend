@@ -306,20 +306,21 @@ export function AdminSupport() {
   const [draftSubcategories, setDraftSubcategories] = useState<string[]>(persisted?.selectedSubcategories || []);
   const [draftStatuses, setDraftStatuses]           = useState<string[]>(persisted?.selectedStatuses || []);
   const [draftSort, setDraftSort]                   = useState<string[]>(persisted?.selectedSort || ['Most Recently Created']);
-  const { dateStart: draftDateStart, dateEnd: draftDateEnd, onDateChange: onDraftDateChange, clearDateRange: clearDraftDateRange } =
-    useDateRangeFilter(persisted?.dateStart || '', persisted?.dateEnd || '');
+  const { dateStart: draftDateStart, dateEnd: draftDateEnd, onDateChange: onDraftDateChange, clearDateRange: clearDraftDateRange, defStart, defEnd } =
+    useDateRangeFilter(persisted?.dateStart || undefined, persisted?.dateEnd || undefined);
 
   const [selectedSubcategories, setSelectedSubcategories] = useState<string[]>(persisted?.selectedSubcategories || []);
   const [selectedStatuses, setSelectedStatuses]           = useState<string[]>(persisted?.selectedStatuses || []);
   const [selectedSort, setSelectedSort]                   = useState<string[]>(persisted?.selectedSort || ['Most Recently Created']);
-  const [dateStart, setDateStart]                         = useState(persisted?.dateStart || '');
-  const [dateEnd, setDateEnd]                             = useState(persisted?.dateEnd || '');
+  const [dateStart, setDateStart]                         = useState(persisted?.dateStart || defStart);
+  const [dateEnd, setDateEnd]                             = useState(persisted?.dateEnd || defEnd);
 
   const [globalSearchQuery, setGlobalSearchQuery] = useState(
     ((window as any).__adminSearchQuery || '').toLowerCase()
   );
 
-  const hasDraftFilters = draftSubcategories.length > 0 || draftStatuses.length > 0 || !!draftDateStart || !!draftDateEnd
+  const hasDraftFilters = draftSubcategories.length > 0 || draftStatuses.length > 0
+    || (!!draftDateStart && draftDateStart !== defStart) || (!!draftDateEnd && draftDateEnd !== defEnd)
     || (draftSort[0] && draftSort[0] !== 'Most Recently Created');
 
   const handleApplyFilters = () => {
@@ -336,7 +337,7 @@ export function AdminSupport() {
     setDraftSubcategories([]); setSelectedSubcategories([]);
     setDraftStatuses([]); setSelectedStatuses([]);
     setDraftSort(['Most Recently Created']); setSelectedSort(['Most Recently Created']);
-    clearDraftDateRange(); setDateStart(''); setDateEnd('');
+    onDraftDateChange(defStart, defEnd); setDateStart(defStart); setDateEnd(defEnd);
     setSearchTerm('');
     setCurrentPage(1);
   };
@@ -590,6 +591,8 @@ export function AdminSupport() {
                 startDate={draftDateStart}
                 endDate={draftDateEnd}
                 onDateChange={onDraftDateChange}
+                defaultStart={defStart}
+                defaultEnd={defEnd}
               />
 
               <GlassDropdown
@@ -854,6 +857,8 @@ export function AdminSupport() {
                   startDate={draftDateStart}
                   endDate={draftDateEnd}
                   onDateChange={onDraftDateChange}
+                  defaultStart={defStart}
+                  defaultEnd={defEnd}
                 />
 
                 {/* Search */}

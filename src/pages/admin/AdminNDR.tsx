@@ -208,7 +208,7 @@ export function AdminNDR() {
   const [selectedPaymentTypes, setSelectedPaymentTypes] = useState<string[]>([]);
   const [selectedPickups,      setSelectedPickups]      = useState<string[]>([]);
   const [selectedCouriers,     setSelectedCouriers]     = useState<string[]>([]);
-  const { dateStart, dateEnd, setDateStart, setDateEnd, onDateChange } = useDateRangeFilter();
+  const { dateStart, dateEnd, setDateStart, setDateEnd, onDateChange, defStart, defEnd } = useDateRangeFilter();
   const [refreshTrigger,       setRefreshTrigger]       = useState(0);
 
   // ── Dynamic options ──
@@ -341,7 +341,7 @@ export function AdminNDR() {
     setSelectedOrders([]);
     fetchOrders(page);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, page, refreshTrigger, loadingAdminTab]);
+  }, [activeTab, page, refreshTrigger, loadingAdminTab, dateStart, dateEnd]);
 
   useEffect(() => {
     if (loadingAdminTab) return;
@@ -354,7 +354,7 @@ export function AdminNDR() {
     setPage(1);
     setSelectedOrders([]);
     setOrderId(''); setAwbNumber(''); setSelectedPaymentTypes([]); setSelectedPickups([]);
-    setSelectedCouriers([]); setDateStart(''); setDateEnd('');
+    setSelectedCouriers([]); setDateStart(defStart); setDateEnd(defEnd);
     if (isAdminView) { clearUserFilter(); }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
@@ -363,10 +363,10 @@ export function AdminNDR() {
     navigate(`${ndrBase}/${TAB_SLUG_MAP[tab] || 'undelivered'}`);
   };
   const handleApplyFilters = () => { setPage(1); setRefreshTrigger(t => t + 1); };
-  const hasActiveFilters = !!(orderId || awbNumber || selectedPaymentTypes.length || selectedPickups.length || selectedCouriers.length || (dateStart && dateEnd) || (isAdminView && userMongoId));
+  const hasActiveFilters = !!(orderId || awbNumber || selectedPaymentTypes.length || selectedPickups.length || selectedCouriers.length || (dateStart && dateEnd && !(dateStart === defStart && dateEnd === defEnd)) || (isAdminView && userMongoId));
   const handleClearAllFilters = () => {
     setOrderId(''); setAwbNumber(''); setSelectedPaymentTypes([]); setSelectedPickups([]);
-    setSelectedCouriers([]); setDateStart(''); setDateEnd('');
+    setSelectedCouriers([]); setDateStart(defStart); setDateEnd(defEnd);
     if (isAdminView) { clearUserFilter(); }
     setPage(1); setRefreshTrigger(t => t + 1);
   };
@@ -588,7 +588,7 @@ export function AdminNDR() {
               placeholder="Search courier..." icon={<Truck className="w-3.5 h-3.5" />} />
 
             <GlassDateFilter align="right" startDate={dateStart} endDate={dateEnd}
-              onDateChange={onDateChange} />
+              onDateChange={onDateChange} defaultStart={defStart} defaultEnd={defEnd} />
 
             <button onClick={handleApplyFilters}
               className="py-2 px-4 shrink-0 rounded-[32px] bg-[#009D64] border border-[#009D64] text-white text-xs font-medium leading-[18px] hover:bg-[#008a57] transition-colors cursor-pointer">

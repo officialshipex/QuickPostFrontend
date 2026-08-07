@@ -531,6 +531,10 @@ thead.sticky tr.border-\[\#B9EFDB\] > th:last-child {
    GLASSMORPHISM DATE FILTER PANEL
    ============================================ */
 
+.glass-date-trigger {
+  width: 100%;
+}
+
 .glass-date-panel {
   position: absolute;
   top: calc(100% + 6px);

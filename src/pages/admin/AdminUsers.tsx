@@ -86,7 +86,7 @@ export function AdminUsers() {
   const [selectedWalletBalances, setSelectedWalletBalances] = useState<string[]>([]);
   const [selectedTiers, setSelectedTiers] = useState<string[]>([]);
   const [selectedUserTypes, setSelectedUserTypes] = useState<string[]>([]);
-  const { dateStart, dateEnd, setDateStart, setDateEnd, onDateChange } = useDateRangeFilter();
+  const { dateStart, dateEnd, setDateStart, setDateEnd, onDateChange, defStart, defEnd } = useDateRangeFilter();
 
   // ─── Applied filters (trigger API call) ────────────────────────────────────
   const [appliedSearch, setAppliedSearch] = useState('');
@@ -236,23 +236,23 @@ export function AdminUsers() {
     setSelectedWalletBalances([]);
     setSelectedTiers([]);
     setSelectedUserTypes([]);
-    setDateStart('');
-    setDateEnd('');
+    setDateStart(defStart);
+    setDateEnd(defEnd);
     setAppliedSearch('');
     setAppliedKyc([]);
     setAppliedRateCard([]);
     setAppliedBalance([]);
     setAppliedTiers([]);
     setAppliedUserTypes([]);
-    setAppliedDateStart('');
-    setAppliedDateEnd('');
+    setAppliedDateStart(defStart);
+    setAppliedDateEnd(defEnd);
     setCurrentPage(1);
     setActionDropdownOpen(false);
   };
 
   // Matches Wallet's behavior: show "Clear All" as soon as a filter is picked (draft state),
   // not only after Apply — so it's visible the moment the user selects anything.
-  const hasActiveFilters = !!(searchQuery || selectedKycStatuses.length || selectedRateCards.length || selectedWalletBalances.length || selectedTiers.length || selectedUserTypes.length || (dateStart && dateEnd));
+  const hasActiveFilters = !!(searchQuery || selectedKycStatuses.length || selectedRateCards.length || selectedWalletBalances.length || selectedTiers.length || selectedUserTypes.length || (dateStart && dateEnd && !(dateStart === defStart && dateEnd === defEnd)));
 
   // ─── Rate card modal ─────────────────────────────────────────────────────────
   const openRateCardModal = async (user: any) => {
@@ -518,6 +518,8 @@ export function AdminUsers() {
               startDate={dateStart}
               endDate={dateEnd}
               onDateChange={onDateChange}
+              defaultStart={defStart}
+              defaultEnd={defEnd}
             />
 
             <button
@@ -944,6 +946,8 @@ export function AdminUsers() {
                     startDate={dateStart}
                     endDate={dateEnd}
                     onDateChange={onDateChange}
+                    defaultStart={defStart}
+                    defaultEnd={defEnd}
                   />
                 </div>
 

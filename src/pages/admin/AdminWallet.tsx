@@ -316,7 +316,7 @@ export function AdminWallet() {
   const [searchTypeId, setSearchTypeId] = useState('');
   const [selectedCouriers, setSelectedCouriers] = useState<string[]>([]);
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
-  const { dateStart: shippingDateStart, dateEnd: shippingDateEnd, setDateStart: setShippingDateStart, setDateEnd: setShippingDateEnd, onDateChange: onShippingDateChange } = useDateRangeFilter();
+  const { dateStart: shippingDateStart, dateEnd: shippingDateEnd, setDateStart: setShippingDateStart, setDateEnd: setShippingDateEnd, onDateChange: onShippingDateChange, defStart, defEnd } = useDateRangeFilter();
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
 
   // Passbook Filters State
@@ -1271,6 +1271,8 @@ export function AdminWallet() {
                   startDate={shippingDateStart}
                   endDate={shippingDateEnd}
                   onDateChange={onShippingDateChange}
+                  defaultStart={defStart}
+                  defaultEnd={defEnd}
                 />
 
                 <button
@@ -1385,6 +1387,8 @@ export function AdminWallet() {
                   startDate={passbookDateStart}
                   endDate={passbookDateEnd}
                   onDateChange={onPassbookDateChange}
+                  defaultStart={defStart}
+                  defaultEnd={defEnd}
                 />
 
                 <button
@@ -1486,6 +1490,8 @@ export function AdminWallet() {
                   startDate={rechargeDateStart}
                   endDate={rechargeDateEnd}
                   onDateChange={onRechargeDateChange}
+                  defaultStart={defStart}
+                  defaultEnd={defEnd}
                 />
 
                 <button
@@ -1580,6 +1586,8 @@ export function AdminWallet() {
                   startDate={invoiceDateStart}
                   endDate={invoiceDateEnd}
                   onDateChange={onInvoiceDateChange}
+                  defaultStart={defStart}
+                  defaultEnd={defEnd}
                 />
 
                 <button
@@ -3454,6 +3462,8 @@ export function AdminWallet() {
                         startDate={passbookDateStart}
                         endDate={passbookDateEnd}
                         onDateChange={onPassbookDateChange}
+                        defaultStart={defStart}
+                        defaultEnd={defEnd}
                       />
                     </div>
 
@@ -3529,6 +3539,8 @@ export function AdminWallet() {
                         startDate={rechargeDateStart}
                         endDate={rechargeDateEnd}
                         onDateChange={onRechargeDateChange}
+                        defaultStart={defStart}
+                        defaultEnd={defEnd}
                       />
                     </div>
 
@@ -3593,6 +3605,8 @@ export function AdminWallet() {
                         startDate={invoiceDateStart}
                         endDate={invoiceDateEnd}
                         onDateChange={onInvoiceDateChange}
+                        defaultStart={defStart}
+                        defaultEnd={defEnd}
                       />
                     </div>
 

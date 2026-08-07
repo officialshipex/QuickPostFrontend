@@ -13,6 +13,7 @@ import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
 import { TruncatedText } from '../../components/ui/TruncatedText';
 import { useUserSearchFilter } from '../../hooks/filters/useUserSearchFilter';
+import { getLast7DaysStr } from '../../hooks/filters/useDateRangeFilter';
 import { TableLoader } from '../../components/ui/TableLoader';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
@@ -44,7 +45,7 @@ const STATUS_STYLES: Record<string, string> = {
   'RTO Damaged': 'bg-rose-50 text-rose-700 border-rose-200',
   'Lost': 'bg-slate-100 text-slate-500 border-slate-200',
   'Damaged': 'bg-red-50 text-red-600 border-red-200',
-  'Cancelled': 'bg-slate-100 text-slate-400 border-slate-200',
+  'Cancelled': 'bg-rose-50 text-rose-700 border-rose-200',
 };
 
 const STATUS_RIBBON_COLORS: Record<string, string> = {
@@ -63,7 +64,7 @@ const STATUS_RIBBON_COLORS: Record<string, string> = {
   'RTO Damaged': '#E11D48',
   'Lost': '#94A3B8',
   'Damaged': '#DC2626',
-  'Cancelled': '#94A3B8',
+  'Cancelled': '#E11D48',
 };
 const getRibbonColor = (status: string) => STATUS_RIBBON_COLORS[status] || '#00A86B';
 
@@ -194,13 +195,14 @@ export function CRMShipmentListing() {
   const { userQuery, userSuggestions, userMongoId, onQueryChange, selectUser, clearUser } = useUserSearchFilter(true);
   const [courierOptions, setCourierOptions] = useState<string[]>([]);
   const [pickupOptions, setPickupOptions] = useState<string[]>([]);
-  const [weightRange, setWeightRange] = useState('');
+  const [selectedWeightRanges, setSelectedWeightRanges] = useState<string[]>([]);
   const [orderId, setOrderId] = useState('');
   const [productSpecs, setProductSpecs] = useState('');
   const [forwardAwb, setForwardAwb] = useState('');
   const [rtoAwb, setRtoAwb] = useState('');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
+  const [dateFrom, setDateFrom] = useState(() => getLast7DaysStr()[0]);
+  const [dateTo, setDateTo] = useState(() => getLast7DaysStr()[1]);
+  const [defStart, defEnd] = getLast7DaysStr();
 
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
@@ -278,8 +280,8 @@ export function CRMShipmentListing() {
       if (userMongoId) params.userId = userMongoId;
       if (orderId) params.orderId = orderId;
       if (productSpecs) params.product = productSpecs;
-      if (weightRange) {
-        const wopt = WEIGHT_RANGE_OPTS.find(o => o.value === weightRange);
+      if (selectedWeightRanges.length === 1) {
+        const wopt = WEIGHT_RANGE_OPTS.find(o => o.value === selectedWeightRanges[0]);
         if (wopt) { if (wopt.min) params.minWeight = String(wopt.min); if (wopt.max !== undefined) params.maxWeight = String(wopt.max); }
       }
       if (forwardAwb) params.awb = forwardAwb;
@@ -301,7 +303,7 @@ export function CRMShipmentListing() {
     } finally {
       setLoading(false);
     }
-  }, [selectedCouriers, selectedStatuses, selectedChannels, selectedOrderTypes, selectedPickupAddrs, userMongoId, orderId, productSpecs, weightRange, forwardAwb, rtoAwb, dateFrom, dateTo]);
+  }, [selectedCouriers, selectedStatuses, selectedChannels, selectedOrderTypes, selectedPickupAddrs, userMongoId, orderId, productSpecs, selectedWeightRanges, forwardAwb, rtoAwb, dateFrom, dateTo]);
 
   // Always-latest ref — prevents stale closure in setPage / setRowsPerPage wrappers
   const fetchRef = useRef(fetchOrders);
@@ -360,13 +362,13 @@ export function CRMShipmentListing() {
     return () => document.removeEventListener('pointerdown', handler);
   }, [productHoverPos, hoveredPickup]);
 
-  const hasActiveFilters = selectedCouriers.length > 0 || selectedStatuses.length > 0 || selectedChannels.length > 0 || selectedOrderTypes.length > 0 || selectedPickupAddrs.length > 0 || !!userMongoId || orderId || productSpecs || weightRange || forwardAwb || rtoAwb || (dateFrom && dateTo);
+  const hasActiveFilters = selectedCouriers.length > 0 || selectedStatuses.length > 0 || selectedChannels.length > 0 || selectedOrderTypes.length > 0 || selectedPickupAddrs.length > 0 || !!userMongoId || orderId || productSpecs || selectedWeightRanges.length > 0 || forwardAwb || rtoAwb || (dateFrom && dateTo && !(dateFrom === defStart && dateTo === defEnd));
 
   const handleClearAllFilters = () => {
     setSelectedCouriers([]); setSelectedStatuses([]); setSelectedChannels([]);
     setSelectedOrderTypes([]); setSelectedPickupAddrs([]);
-    clearUser(); setOrderId(''); setProductSpecs(''); setWeightRange('');
-    setForwardAwb(''); setRtoAwb(''); setDateFrom(''); setDateTo('');
+    clearUser(); setOrderId(''); setProductSpecs(''); setSelectedWeightRanges([]);
+    setForwardAwb(''); setRtoAwb(''); setDateFrom(defStart); setDateTo(defEnd);
     pageRef.current = 1; setPageState(1);
     // Fetch with empty params — don't use stale closure
     setLoading(true);
@@ -514,14 +516,14 @@ export function CRMShipmentListing() {
               className="glass-search-input w-full"
             />
 
-            <select
-              value={weightRange}
-              onChange={e => setWeightRange(e.target.value)}
-              className="glass-search-input w-full bg-white"
-            >
-              <option value="">All Weights</option>
-              {WEIGHT_RANGE_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
+            <GlassDropdown
+              label="Weight"
+              options={WEIGHT_RANGE_OPTS.map(o => ({ label: o.label, value: o.value }))}
+              selected={selectedWeightRanges}
+              onChange={setSelectedWeightRanges}
+              placeholder="Weight range..."
+              icon={<Package className="w-3.5 h-3.5" />}
+            />
 
             <input
               type="text"
@@ -595,6 +597,8 @@ export function CRMShipmentListing() {
               startDate={dateFrom}
               endDate={dateTo}
               onDateChange={(s, e) => { setDateFrom(s); setDateTo(e); }}
+              defaultStart={defStart}
+              defaultEnd={defEnd}
             />
 
             <div className="flex items-center justify-end gap-3 col-span-6">
@@ -1071,11 +1075,15 @@ export function CRMShipmentListing() {
                 </div>
                 <div>
                   <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Weight Range</label>
-                  <select value={weightRange} onChange={e => setWeightRange(e.target.value)}
-                    className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white">
-                    <option value="">All Weights</option>
-                    {WEIGHT_RANGE_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                  </select>
+                  <GlassDropdown
+                    label="Weight"
+                    options={WEIGHT_RANGE_OPTS.map(o => ({ label: o.label, value: o.value }))}
+                    selected={selectedWeightRanges}
+                    onChange={setSelectedWeightRanges}
+                    placeholder="Weight range..."
+                    icon={<Package className="w-3.5 h-3.5" />}
+                    className="w-full [&_.glass-dropdown-trigger]:w-full [&_.glass-dropdown-trigger]:h-11"
+                  />
                 </div>
                 <div>
                   <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Forward AWB</label>
@@ -1149,6 +1157,8 @@ export function CRMShipmentListing() {
                     startDate={dateFrom}
                     endDate={dateTo}
                     onDateChange={(s, e) => { setDateFrom(s); setDateTo(e); }}
+                    defaultStart={defStart}
+                    defaultEnd={defEnd}
                   />
                 </div>
               </div>

@@ -356,7 +356,7 @@ export function AdminWeightDiscrepancy() {
   const [searchInput, setSearchInput] = useState('');
   const [searchBy, setSearchBy] = useState('awbNumber');
   const [selectedCouriers, setSelectedCouriers] = useState<string[]>([]);
-  const { dateStart, dateEnd, setDateStart, setDateEnd, onDateChange } = useDateRangeFilter();
+  const { dateStart, dateEnd, setDateStart, setDateEnd, onDateChange, defStart, defEnd } = useDateRangeFilter();
   const {
     userQuery: userSearchText, userMongoId, userSuggestions: userResults,
     setUserQuery: setUserSearchText, setUserMongoId, setUserSuggestions: setUserResults,
@@ -624,13 +624,13 @@ export function AdminWeightDiscrepancy() {
   const clearFilters = () => {
     setSearchInput('');
     setSelectedCouriers([]);
-    setDateStart('');
-    setDateEnd('');
+    setDateStart(defStart);
+    setDateEnd(defEnd);
     setUserMongoId('');
     setUserSearchText('');
     setPage(1);
   };
-  const hasFilters = !!(searchInput || selectedCouriers.length || dateStart || dateEnd || userMongoId);
+  const hasFilters = !!(searchInput || selectedCouriers.length || (dateStart && dateStart !== defStart) || (dateEnd && dateEnd !== defEnd) || userMongoId);
 
   // ── Courier options for GlassDropdown
   const courierDropOptions = courierOptions.map(c => ({ label: c, value: c }));
@@ -892,6 +892,8 @@ export function AdminWeightDiscrepancy() {
               startDate={dateStart}
               endDate={dateEnd}
               onDateChange={(s, e) => { onDateChange(s, e); setPage(1); }}
+              defaultStart={defStart}
+              defaultEnd={defEnd}
             />
 
             <button onClick={() => { setPage(1); fetchDiscrepancy(); }}
@@ -1457,6 +1459,8 @@ export function AdminWeightDiscrepancy() {
                   startDate={dateStart}
                   endDate={dateEnd}
                   onDateChange={(s, e) => { onDateChange(s, e); setPage(1); }}
+                  defaultStart={defStart}
+                  defaultEnd={defEnd}
                 />
 
                 {/* Search user (admin only) */}

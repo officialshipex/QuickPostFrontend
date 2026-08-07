@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
+import { getLast7DaysStr } from '../../hooks/filters/useDateRangeFilter';
 import { usePagination, DesktopPagination } from '../../hooks/usePagination';
 import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
 import { TableLoader } from '../../components/ui/TableLoader';
@@ -60,8 +61,9 @@ export function AdminPickupManifest({ isAdminView }: Props) {
   const [awbNumber,              setAwbNumber]              = useState('');
   const [selectedCouriers,       setSelectedCouriers]       = useState<string[]>([]);
   const [selectedPickupAddresses,setSelectedPickupAddresses] = useState<string[]>([]);
-  const [dateStart,              setDateStart]              = useState('');
-  const [dateEnd,                setDateEnd]                = useState('');
+  const [dateStart,              setDateStart]              = useState(() => getLast7DaysStr()[0]);
+  const [dateEnd,                setDateEnd]                = useState(() => getLast7DaysStr()[1]);
+  const [defStart, defEnd] = getLast7DaysStr();
 
   const [courierOptions, setCourierOptions] = useState<{ label: string; value: string }[]>([]);
   const [pickupOptions,  setPickupOptions]  = useState<{ label: string; value: string }[]>([]);
@@ -189,12 +191,12 @@ export function AdminPickupManifest({ isAdminView }: Props) {
   const handleApply = () => { setPage(1); setRefreshTrigger(t => t + 1); };
   const handleClear = () => {
     setSearchId(''); setAwbNumber(''); setSelectedCouriers([]); setSelectedPickupAddresses([]);
-    setDateStart(''); setDateEnd('');
+    setDateStart(defStart); setDateEnd(defEnd);
     if (isAdminView) { setUserQuery(''); setUserSuggestions([]); setUserMongoId(''); }
     setPage(1); setRefreshTrigger(t => t + 1);
   };
 
-  const hasActiveFilters = searchId || awbNumber || selectedCouriers.length > 0 || selectedPickupAddresses.length > 0 || (dateStart && dateEnd) || (isAdminView && userMongoId);
+  const hasActiveFilters = searchId || awbNumber || selectedCouriers.length > 0 || selectedPickupAddresses.length > 0 || (dateStart && dateEnd && !(dateStart === defStart && dateEnd === defEnd)) || (isAdminView && userMongoId);
 
   // ── Download helpers (native fetch, no auth interceptor redirect) ──
   const downloadManifestForIds = async (orderIds: string[]) => {
@@ -383,6 +385,8 @@ export function AdminPickupManifest({ isAdminView }: Props) {
           startDate={dateStart}
           endDate={dateEnd}
           onDateChange={(s, e) => { setDateStart(s); setDateEnd(e); }}
+          defaultStart={defStart}
+          defaultEnd={defEnd}
         />
 
         <button onClick={handleApply} className="py-2 px-4 shrink-0 rounded-[32px] bg-[#009D64] border border-[#009D64] text-white text-xs font-medium leading-[18px] hover:bg-[#008a57] transition-colors cursor-pointer">
@@ -760,6 +764,8 @@ export function AdminPickupManifest({ isAdminView }: Props) {
                     startDate={dateStart}
                     endDate={dateEnd}
                     onDateChange={(s, e) => { setDateStart(s); setDateEnd(e); }}
+                    defaultStart={defStart}
+                    defaultEnd={defEnd}
                   />
                 </div>
               </div>

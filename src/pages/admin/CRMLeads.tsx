@@ -5,6 +5,7 @@ import { Search, UserPlus, Phone, TrendingUp, Clock, CheckCircle2, XCircle, Load
 import { apiClient } from '../../services/apiClient';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
+import { getLast7DaysStr } from '../../hooks/filters/useDateRangeFilter';
 import { TableLoader } from '../../components/ui/TableLoader';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { usePagination, DesktopPagination } from '../../hooks/usePagination';
@@ -35,8 +36,9 @@ export function CRMLeads() {
   const [stage, setStage] = useState('All');
   const [source, setSource] = useState('All Sources');
   const [cityFilter, setCityFilter] = useState<string[]>([]);
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
+  const [dateFrom, setDateFrom] = useState(() => getLast7DaysStr()[0]);
+  const [dateTo, setDateTo] = useState(() => getLast7DaysStr()[1]);
+  const [defStart, defEnd] = getLast7DaysStr();
 
   const [leads, setLeads] = useState<any[]>([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -102,13 +104,13 @@ export function CRMLeads() {
 
   const { page, setPage, totalPages, paginatedData, startIndex, endIndex, rowsPerPage, setRowsPerPage } = usePagination({ data: displayLeads, perPage: 10 });
 
-  const hasActiveFilters = !!search || stage !== 'All' || source !== 'All Sources' || cityFilter.length > 0 || (dateFrom && dateTo);
+  const hasActiveFilters = !!search || stage !== 'All' || source !== 'All Sources' || cityFilter.length > 0 || (dateFrom && dateTo && !(dateFrom === defStart && dateTo === defEnd));
 
   const handleApplyFilters = () => { fetchLeads(); };
 
   const handleClearAllFilters = () => {
     setSearch(''); setStage('All'); setSource('All Sources');
-    setCityFilter([]); setDateFrom(''); setDateTo('');
+    setCityFilter([]); setDateFrom(defStart); setDateTo(defEnd);
   };
 
   const funnelStats = [
@@ -197,6 +199,8 @@ export function CRMLeads() {
                 startDate={dateFrom}
                 endDate={dateTo}
                 onDateChange={(s, e) => { setDateFrom(s); setDateTo(e); }}
+                defaultStart={defStart}
+                defaultEnd={defEnd}
               />
 
               <div className="flex items-center gap-3 col-span-2">
@@ -388,6 +392,8 @@ export function CRMLeads() {
                     className="w-full [&_.glass-dropdown-trigger]:w-full [&_.glass-dropdown-trigger]:h-11"
                     startDate={dateFrom} endDate={dateTo}
                     onDateChange={(s, e) => { setDateFrom(s); setDateTo(e); }}
+                    defaultStart={defStart}
+                    defaultEnd={defEnd}
                   />
                 </div>
               </div>

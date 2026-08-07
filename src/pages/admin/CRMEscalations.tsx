@@ -6,6 +6,7 @@ import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
 import { Search, AlertCircle, Clock, CheckCircle2, XCircle, Plus, Hash, User, Truck, Tag, Flame, Timer, UserCog, Calendar, History, Filter, X } from 'lucide-react';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
+import { getLast7DaysStr } from '../../hooks/filters/useDateRangeFilter';
 import { EmptyState } from '../../components/ui/EmptyState';
 
 const PRIORITY_RIBBON: Record<string, string> = {
@@ -52,8 +53,9 @@ export function CRMEscalations() {
   const [priority, setPriority] = useState('All');
   const [ticketStatus, setTicketStatus] = useState('All');
   const [category, setCategory] = useState('All Categories');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
+  const [dateFrom, setDateFrom] = useState(() => getLast7DaysStr()[0]);
+  const [dateTo, setDateTo] = useState(() => getLast7DaysStr()[1]);
+  const [defStart, defEnd] = getLast7DaysStr();
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
   // usePagination initialization below filtered definition
 
@@ -70,13 +72,13 @@ export function CRMEscalations() {
     return true;
   });
 
-  const hasActiveFilters = !!search || ticketStatus !== 'All' || category !== 'All Categories' || (dateFrom && dateTo);
+  const hasActiveFilters = !!search || ticketStatus !== 'All' || category !== 'All Categories' || (dateFrom && dateTo && !(dateFrom === defStart && dateTo === defEnd));
 
   const handleApplyFilters = () => { /* client-side filtering is already live; kept for pattern parity */ };
 
   const handleClearAllFilters = () => {
     setSearch(''); setTicketStatus('All'); setCategory('All Categories');
-    setDateFrom(''); setDateTo('');
+    setDateFrom(defStart); setDateTo(defEnd);
   };
 
   const {
@@ -174,6 +176,8 @@ export function CRMEscalations() {
                 startDate={dateFrom}
                 endDate={dateTo}
                 onDateChange={(s, e) => { setDateFrom(s); setDateTo(e); }}
+                defaultStart={defStart}
+                defaultEnd={defEnd}
               />
 
               <div className="flex items-center gap-3 col-span-2">
@@ -350,6 +354,8 @@ export function CRMEscalations() {
                     className="w-full [&_.glass-dropdown-trigger]:w-full [&_.glass-dropdown-trigger]:h-11"
                     startDate={dateFrom} endDate={dateTo}
                     onDateChange={(s, e) => { setDateFrom(s); setDateTo(e); }}
+                    defaultStart={defStart}
+                    defaultEnd={defEnd}
                   />
                 </div>
               </div>

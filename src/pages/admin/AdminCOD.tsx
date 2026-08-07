@@ -236,7 +236,7 @@ export function AdminCOD() {
   const [codOrdersList, setCodOrdersList] = useState<any[]>([]);
   const [codOrdersTotal, setCodOrdersTotal] = useState(0);
   const [codSummary, setCodSummary] = useState({ totalCODAmount: 0, paidCODAmount: 0, pendingCODAmount: 0 });
-  const { dateStart, dateEnd, setDateStart, setDateEnd, onDateChange } = useDateRangeFilter();
+  const { dateStart, dateEnd, setDateStart, setDateEnd, onDateChange, defStart, defEnd } = useDateRangeFilter();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
   const [selectedCouriers, setSelectedCouriers] = useState<string[]>([]);
@@ -704,29 +704,29 @@ export function AdminCOD() {
 
   const clearCodOrderFilters = () => {
     setCodOrderId(''); setCodAwb(''); setSelectedStatuses([]); setSelectedCouriers([]);
-    setDateStart(''); setDateEnd('');
+    setDateStart(defStart); setDateEnd(defEnd);
     if (isAdminView) { clearCodUserFilter(); }
     setCurrentPage(1);
     setRefreshTrigger(t => t + 1);
   };
-  const hasCodOrderFilters = !!(codOrderId || codAwb || selectedStatuses.length || selectedCouriers.length || (dateStart && dateEnd) || (isAdminView && codUserMongoId));
+  const hasCodOrderFilters = !!(codOrderId || codAwb || selectedStatuses.length || selectedCouriers.length || (dateStart && dateEnd && !(dateStart === defStart && dateEnd === defEnd)) || (isAdminView && codUserMongoId));
 
   const clearSellerRemittanceFilters = () => {
-    setSellerRemittanceId(''); setSelectedCodStatuses([]); setCodDateStart(''); setCodDateEnd('');
+    setSellerRemittanceId(''); setSelectedCodStatuses([]); setCodDateStart(defStart); setCodDateEnd(defEnd);
     if (isAdminView) { clearSellerUserFilter(); }
     setSellerPage(1);
     setRefreshTrigger(t => t + 1);
   };
-  const hasSellerRemittanceFilters = !!(sellerRemittanceId || selectedCodStatuses.length || (codDateStart && codDateEnd) || (isAdminView && sellerUserMongoId));
+  const hasSellerRemittanceFilters = !!(sellerRemittanceId || selectedCodStatuses.length || (codDateStart && codDateEnd && !(codDateStart === defStart && codDateEnd === defEnd)) || (isAdminView && sellerUserMongoId));
 
   const clearCourierRemittanceFilters = () => {
     setCourierOrderId(''); setCourierAwb(''); setSelectedCourierCodStatuses([]); setSelectedCourierCouriers([]);
-    setCourierCodDateStart(''); setCourierCodDateEnd('');
+    setCourierCodDateStart(defStart); setCourierCodDateEnd(defEnd);
     if (isAdminView) { clearCourierUserFilter(); }
     setCourierPage(1);
     setRefreshTrigger(t => t + 1);
   };
-  const hasCourierRemittanceFilters = !!(courierOrderId || courierAwb || selectedCourierCodStatuses.length || selectedCourierCouriers.length || (courierCodDateStart && courierCodDateEnd) || (isAdminView && courierUserMongoId));
+  const hasCourierRemittanceFilters = !!(courierOrderId || courierAwb || selectedCourierCodStatuses.length || selectedCourierCouriers.length || (courierCodDateStart && courierCodDateEnd && !(courierCodDateStart === defStart && courierCodDateEnd === defEnd)) || (isAdminView && courierUserMongoId));
 
 
 
@@ -1140,7 +1140,7 @@ export function AdminCOD() {
                 className="glass-search-input w-[130px] shrink-0" />
               <GlassDropdown label="Status" options={STATUS_OPTIONS} selected={selectedStatuses} onChange={setSelectedStatuses} placeholder="Status..." icon={<CheckCircle2 className="w-3.5 h-3.5" />} />
               <GlassDropdown label="Courier" options={codCourierOptions} selected={selectedCouriers} onChange={setSelectedCouriers} placeholder="Courier..." icon={<Truck className="w-3.5 h-3.5" />} />
-              <GlassDateFilter startDate={dateStart} endDate={dateEnd} onDateChange={onDateChange} />
+              <GlassDateFilter startDate={dateStart} endDate={dateEnd} onDateChange={onDateChange} defaultStart={defStart} defaultEnd={defEnd} />
               <button onClick={() => { setCurrentPage(1); fetchCodOrders(1); }}
                 className="py-2 px-4 shrink-0 rounded-[32px] bg-[#009D64] border border-[#009D64] text-white text-xs font-medium leading-[18px] hover:bg-[#008a57] transition-colors cursor-pointer">Apply Filters</button>
               {hasCodOrderFilters && (
@@ -1356,7 +1356,7 @@ export function AdminCOD() {
               <input type="text" placeholder="Remittance ID" value={sellerRemittanceId} onChange={e => setSellerRemittanceId(e.target.value)}
                 className="glass-search-input w-[140px] shrink-0" />
               <GlassDropdown label="Status" options={STATUS_OPTIONS} selected={selectedCodStatuses} onChange={setSelectedCodStatuses} placeholder="Status..." icon={<CheckCircle2 className="w-3.5 h-3.5" />} />
-              <GlassDateFilter startDate={codDateStart} endDate={codDateEnd} onDateChange={onCodDateChange} />
+              <GlassDateFilter startDate={codDateStart} endDate={codDateEnd} onDateChange={onCodDateChange} defaultStart={defStart} defaultEnd={defEnd} />
               <button onClick={() => { setSellerPage(1); fetchSellerRemittance(1); }}
                 className="py-2 px-4 shrink-0 rounded-[32px] bg-[#009D64] border border-[#009D64] text-white text-xs font-medium leading-[18px] hover:bg-[#008a57] transition-colors cursor-pointer">Apply Filters</button>
               {hasSellerRemittanceFilters && (
@@ -1614,7 +1614,7 @@ export function AdminCOD() {
                 className="glass-search-input w-[130px] shrink-0" />
               <GlassDropdown label="Status" options={STATUS_OPTIONS} selected={selectedCourierCodStatuses} onChange={setSelectedCourierCodStatuses} placeholder="Status..." icon={<CheckCircle2 className="w-3.5 h-3.5" />} />
               <GlassDropdown label="Courier" options={courierCourierOptions} selected={selectedCourierCouriers} onChange={setSelectedCourierCouriers} placeholder="Courier..." icon={<Truck className="w-3.5 h-3.5" />} />
-              <GlassDateFilter startDate={courierCodDateStart} endDate={courierCodDateEnd} onDateChange={onCourierCodDateChange} />
+              <GlassDateFilter startDate={courierCodDateStart} endDate={courierCodDateEnd} onDateChange={onCourierCodDateChange} defaultStart={defStart} defaultEnd={defEnd} />
               <button onClick={() => { setCourierPage(1); fetchCourierRemittance(1); }}
                 className="py-2 px-4 shrink-0 rounded-[32px] bg-[#009D64] border border-[#009D64] text-white text-xs font-medium leading-[18px] hover:bg-[#008a57] transition-colors cursor-pointer">Apply Filters</button>
               {hasCourierRemittanceFilters && (
@@ -1978,6 +1978,8 @@ export function AdminCOD() {
                     startDate={dateStart}
                     endDate={dateEnd}
                     onDateChange={onDateChange}
+                    defaultStart={defStart}
+                    defaultEnd={defEnd}
                   />
                 </div>
 
@@ -2110,6 +2112,8 @@ export function AdminCOD() {
                     startDate={codDateStart}
                     endDate={codDateEnd}
                     onDateChange={onCodDateChange}
+                    defaultStart={defStart}
+                    defaultEnd={defEnd}
                   />
                 </div>
 
@@ -2217,6 +2221,8 @@ export function AdminCOD() {
                     startDate={courierCodDateStart}
                     endDate={courierCodDateEnd}
                     onDateChange={onCourierCodDateChange}
+                    defaultStart={defStart}
+                    defaultEnd={defEnd}
                   />
                 </div>
 
