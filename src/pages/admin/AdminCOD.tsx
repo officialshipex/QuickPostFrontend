@@ -17,6 +17,7 @@ import { TruncatedText } from '../../components/ui/TruncatedText';
 import { TableLoader } from '../../components/ui/TableLoader';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { TransferCODModal } from '../../components/ui/TransferCODModal';
+import { SharedUploadModal } from '../../components/ui/SharedUploadModal';
 import { Toast } from '../../components/ui/Toast';
 import { useToast } from '../../hooks/useToast';
 import { useTableLoader } from '../../hooks/useTableLoader';
@@ -250,9 +251,7 @@ export function AdminCOD() {
   const [selectedCodOrders, setSelectedCodOrders] = useState<string[]>([]);
   const [bankExportLoading, setBankExportLoading] = useState(false);
   const [showBankResponseUpload, setShowBankResponseUpload] = useState(false);
-  const [bankResponseUploading, setBankResponseUploading] = useState(false);
-  const [selectedBankFile, setSelectedBankFile] = useState<File | null>(null);
-  const bankFileInputRef = useRef<HTMLInputElement>(null);
+  const [showCourierUpload, setShowCourierUpload] = useState(false);
   const {
     userQuery: sellerUserQuery, userMongoId: sellerUserMongoId, userSuggestions: sellerUserSuggestions,
     setUserQuery: setSellerUserQuery, setUserMongoId: setSellerUserMongoId, setUserSuggestions: setSellerUserSuggestions,
@@ -580,39 +579,58 @@ export function AdminCOD() {
   };
 
   // Parse and submit bank response Excel
-  const handleBankResponseSubmit = async () => {
-    if (!selectedBankFile) return;
-    setBankResponseUploading(true);
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      try {
-        const text = new TextDecoder().decode(e.target?.result as ArrayBuffer);
-        const lines = text.trim().split('\n');
-        const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim());
-        const rows = lines.slice(1).map(line => {
-          const vals = line.split(',').map(v => v.replace(/"/g, '').trim());
-          return Object.fromEntries(headers.map((h, i) => [h, vals[i] ?? '']));
-        });
-        const mappedRows = rows.map(r => ({
-          remarks: r['Remarks'] || '',
-          referenceNumber: r['Reference Number'] || '',
-          utrNumber: r['UTR Number'] || r['UTR'] || '',
-          beneficiaryName: r['Beneficiary Name'] || '',
-          beneficiaryAccount: r['Beneficiary Account'] || '',
-          amount: Number(r['Amount'] || 0),
-          status: r['Status'] || '',
-          reason: r['Reason of failure/return'] || '',
-        }));
-        const res = await apiClient.post('/cod/uploadBankResponse', { rows: mappedRows, selectedRemittanceIds: selectedCodOrders });
-        const { successCount = 0, skippedCount = 0, errorCount = 0 } = res.data;
-        showToast('success', `Processed: ${successCount} paid, ${skippedCount} skipped, ${errorCount} errors`);
-        setShowBankResponseUpload(false); setSelectedBankFile(null);
-        fetchSellerRemittance(sellerPage);
-      } catch (err: any) {
-        showToast('error', err?.response?.data?.message || 'Failed to process bank response');
-      } finally { setBankResponseUploading(false); }
-    };
-    reader.readAsArrayBuffer(selectedBankFile);
+  const handleCODUpload = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          const text = new TextDecoder().decode(e.target?.result as ArrayBuffer);
+          const lines = text.trim().split('\n');
+          const headers = lines[0].split(',').map((h: string) => h.replace(/"/g, '').trim());
+          const rows = lines.slice(1).map((line: string) => {
+            const vals = line.split(',').map((v: string) => v.replace(/"/g, '').trim());
+            return Object.fromEntries(headers.map((h: string, i: number) => [h, vals[i] ?? '']));
+          });
+          const mappedRows = rows.map((r: any) => ({
+            remarks: r['Remarks'] || '',
+            referenceNumber: r['Reference Number'] || '',
+            utrNumber: r['UTR Number'] || r['UTR'] || '',
+            beneficiaryName: r['Beneficiary Name'] || '',
+            beneficiaryAccount: r['Beneficiary Account'] || '',
+            amount: Number(r['Amount'] || 0),
+            status: r['Status'] || '',
+            reason: r['Reason of failure/return'] || '',
+          }));
+          const res = await apiClient.post('/cod/uploadBankResponse', { rows: mappedRows, selectedRemittanceIds: selectedCodOrders });
+          const { successCount = 0, skippedCount = 0, errorCount = 0 } = res.data;
+          fetchSellerRemittance(sellerPage);
+          resolve(`Processed: ${successCount} paid, ${skippedCount} skipped, ${errorCount} errors`);
+        } catch (err: any) {
+          reject(new Error(err?.response?.data?.message || 'Failed to process bank response'));
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    });
+
+  const handleCourierCodDownloadSample = async () => {
+    const res = await apiClient.get('/cod/download-excel-courier', { responseType: 'blob' });
+    const blob = new Blob([res.data], { type: String(res.headers['content-type'] ?? 'application/octet-stream') });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'Courier_COD_Remittance_Sample_Format.xlsx';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  };
+
+  const handleCourierCodUpload = async (file: File): Promise<string> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await apiClient.post('/cod/upload_courier', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    fetchCourierRemittance(courierPage);
+    return res.data?.message || 'Courier COD remittance uploaded successfully!';
   };
 
   // Client-side global search on All COD Orders (server handles all other filters)
@@ -854,8 +872,7 @@ export function AdminCOD() {
             {activeTab === 'Courier COD Remittance' && showMobileCourierActionMenu && (
               <div className="absolute right-0 top-full mt-2 w-[190px] bg-white rounded-xl shadow-[0_8px_28px_-6px_rgba(0,0,0,0.15)] border border-[#E2E8F0] py-1.5 z-[200]">
                 <button onClick={() => { const rows = courierRemittanceList.filter(r => selectedCourierCodOrders.includes(r.id)); handleExportCsv(rows, 'courier_cod.csv'); setShowMobileCourierActionMenu(false); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] flex items-center gap-2"><Download className="w-4 h-4 text-[#00A86B]" />Export Data</button>
-                <div className="border-t border-[#E2E8F0] my-1" />
-                <button onClick={() => { setShowMobileCourierActionMenu(false); handleTransferCOD('courier'); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#00A86B] hover:bg-[#F0FDF4] flex items-center gap-2"><Send className="w-4 h-4" />Transfer COD</button>
+                <button onClick={() => { setShowCourierUpload(true); setShowMobileCourierActionMenu(false); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] flex items-center gap-2"><Upload className="w-4 h-4 text-orange-500" />Upload Courier COD</button>
               </div>
             )}
           </div>
@@ -1606,16 +1623,18 @@ export function AdminCOD() {
                   Clear All
                 </button>
               )}
-              <div className="relative shrink-0 ml-auto action-dropdown-container">
+              <button onClick={() => setShowCourierUpload(true)}
+                className="py-2 px-4 shrink-0 rounded-[32px] bg-[#00A86B] text-white text-xs font-bold leading-[18px] flex items-center gap-1.5 hover:bg-[#009B63] transition-colors ml-auto cursor-pointer">
+                <Upload className="w-3.5 h-3.5" /> Upload
+              </button>
+              <div className="relative shrink-0 action-dropdown-container">
                 <button onClick={() => selectedCourierCodOrders.length > 0 && setShowCourierActionMenu(!showCourierActionMenu)} disabled={selectedCourierCodOrders.length === 0}
                   className={`py-2 pl-4 pr-8 rounded-[32px] border text-xs leading-[18px] flex items-center font-medium relative transition-colors ${selectedCourierCodOrders.length > 0 ? 'border-[#03C27D] bg-white text-[#64748B] hover:bg-[#F0FDF9] cursor-pointer' : 'border-[#E2E8F0] bg-[#F8FAFC] text-[#CBD5E1] cursor-not-allowed'}`}>
                   Actions <ChevronDown className="w-3.5 h-3.5 absolute right-3 top-1/2 -translate-y-1/2" />
                 </button>
                 {showCourierActionMenu && selectedCourierCodOrders.length > 0 && (
                   <div className="absolute right-0 top-full mt-2 w-[180px] bg-white rounded-xl shadow-lg border border-[#E2E8F0] py-2 z-50">
-                    <button onClick={() => { const rows = courierRemittanceList.filter(r => selectedCourierCodOrders.includes(r.id)); handleExportCsv(rows, 'courier_cod.csv'); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A] flex items-center gap-2"><Download className="w-4 h-4 text-[#00A86B]" />Export Data</button>
-                    <div className="border-t border-[#E2E8F0] my-1" />
-                    <button onClick={() => { setShowCourierActionMenu(false); handleTransferCOD('courier'); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#00A86B] hover:bg-[#F0FDF4] flex items-center gap-2"><Send className="w-4 h-4" />Transfer COD</button>
+                    <button onClick={() => { const rows = courierRemittanceList.filter(r => selectedCourierCodOrders.includes(r.id)); handleExportCsv(rows, 'courier_cod.csv'); setShowCourierActionMenu(false); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A] flex items-center gap-2"><Download className="w-4 h-4 text-[#00A86B]" />Export Data</button>
                   </div>
                 )}
               </div>
@@ -1623,7 +1642,6 @@ export function AdminCOD() {
             {selectedCourierCodOrders.length > 0 && (
               <div className="hidden md:flex px-4 py-2 bg-emerald-50 border-b border-emerald-100 items-center gap-3 shrink-0">
                 <span className="text-xs font-bold text-emerald-700">{selectedCourierCodOrders.length} selected</span>
-                <button onClick={() => handleTransferCOD('courier')} className="h-7 px-3 rounded-md bg-[#00A86B] text-white text-xs font-bold shadow-sm hover:bg-[#009B63]">Transfer COD</button>
                 <button onClick={() => setSelectedCourierCodOrders([])} className="text-xs text-[#64748B] hover:text-red-500">Clear</button>
               </div>
             )}
@@ -1791,63 +1809,40 @@ export function AdminCOD() {
       </div>
 
       {/* ── Bank Response Upload Modal ── */}
-      <AnimatePresence>
-        {showBankResponseUpload && (
-          <motion.div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200] p-4"
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            onClick={() => { setShowBankResponseUpload(false); setSelectedBankFile(null); }}>
-            <motion.div className="bg-white rounded-2xl shadow-2xl w-full max-w-[420px] p-5 relative"
-              initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
-              onClick={e => e.stopPropagation()}>
-              <button onClick={() => { setShowBankResponseUpload(false); setSelectedBankFile(null); }} className="absolute top-4 right-4 text-[#94A3B8] hover:text-red-500">
-                <X className="w-5 h-5" />
-              </button>
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-2 bg-green-50 rounded-xl border border-green-100"><Upload className="w-6 h-6 text-[#00A86B]" /></div>
-                <div>
-                  <h2 className="text-[14px] font-bold text-[#0F172A]">Upload Bank Response</h2>
-                  <p className="text-[11px] text-[#64748B]">Upload the CSV/Excel file received from the bank</p>
-                </div>
-              </div>
-              <div className="bg-[#F8FAFC] border border-dashed border-[#E2E8F0] rounded-xl p-5 text-center mb-4">
-                {selectedBankFile ? (
-                  <div className="flex flex-col items-center gap-2">
-                    <CheckCircle2 className="w-8 h-8 text-[#00A86B]" />
-                    <p className="text-[12px] font-bold text-[#0F172A] break-all">{selectedBankFile.name}</p>
-                    <p className="text-[11px] text-[#94A3B8]">{(selectedBankFile.size / 1024).toFixed(1)} KB</p>
-                    <div className="flex gap-2 mt-1">
-                      <button onClick={() => setSelectedBankFile(null)} className="px-3 py-1.5 border border-[#E2E8F0] rounded-lg text-[11px] font-bold text-[#64748B] hover:bg-[#F8FAFC]">Remove</button>
-                      <button onClick={handleBankResponseSubmit} disabled={bankResponseUploading}
-                        className="px-4 py-1.5 bg-[#00A86B] text-white rounded-lg text-[11px] font-bold hover:bg-[#009B63] flex items-center gap-1.5">
-                        {bankResponseUploading ? <><span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" /> Processing…</> : 'Confirm & Submit'}
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div>
-                    <Upload className="w-8 h-8 text-[#94A3B8] mx-auto mb-2" />
-                    <p className="text-[12px] font-bold text-[#475569] mb-1">Select Bank Response File</p>
-                    <p className="text-[11px] text-[#94A3B8] mb-3">Expected: Beneficiary Account, UTR Number, Status, Amount</p>
-                    <input ref={bankFileInputRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" id="bankRespFile"
-                      onChange={e => { const f = e.target.files?.[0]; if (f) setSelectedBankFile(f); }} />
-                    <label htmlFor="bankRespFile" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-[11px] font-bold cursor-pointer bg-[#00A86B] text-white hover:bg-[#009B63]">
-                      <Upload className="w-4 h-4" /> Choose File
-                    </label>
-                  </div>
-                )}
-              </div>
-              <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 text-[11px] text-blue-700">
-                <p className="font-bold mb-1">How it works:</p>
-                <ul className="list-disc list-inside space-y-0.5">
-                  <li>Only rows with <strong>Status = "Successful"</strong> are processed.</li>
-                  <li>Matched by <strong>Beneficiary Account + Amount</strong>.</li>
-                  <li>Matched items are automatically marked as <strong>Paid</strong>.</li>
-                </ul>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <SharedUploadModal
+        open={showBankResponseUpload}
+        onClose={() => setShowBankResponseUpload(false)}
+        title="Upload Bank Response"
+        subtitle="Upload the CSV/Excel file received from the bank"
+        accept=".xlsx,.xls,.csv"
+        fileHint="XLSX, XLS or CSV supported"
+        chooseFileLabel="Choose Bank Response File"
+        uploadButtonLabel="Confirm & Submit"
+        onUpload={handleCODUpload}
+        extraContent={
+          <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 text-[11px] text-blue-700">
+            <p className="font-bold mb-1">How it works:</p>
+            <ul className="list-disc list-inside space-y-0.5">
+              <li>Only rows with <strong>Status = "Successful"</strong> are processed.</li>
+              <li>Matched by <strong>Beneficiary Account + Amount</strong>.</li>
+              <li>Matched items are automatically marked as <strong>Paid</strong>.</li>
+            </ul>
+          </div>
+        }
+      />
+
+      {/* ── Courier COD Upload Modal ── */}
+      <SharedUploadModal
+        open={showCourierUpload}
+        onClose={() => setShowCourierUpload(false)}
+        title="Upload Courier COD Remittance"
+        subtitle="Upload the courier COD remittance file"
+        chooseFileLabel="Choose Excel File"
+        onDownloadSample={handleCourierCodDownloadSample}
+        downloadSampleLabel="Download Sample"
+        uploadButtonLabel="Submit"
+        onUpload={handleCourierCodUpload}
+      />
 
       {/* ── Remittance Detail Modal (Seller tab) ── */}
       <AnimatePresence>

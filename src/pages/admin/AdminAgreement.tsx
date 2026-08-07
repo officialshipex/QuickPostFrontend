@@ -1,11 +1,11 @@
-import { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect } from 'react';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { apiClient } from '../../services/apiClient';
-import { FileText, Upload, Download, X, Plus, Hash, Calendar } from 'lucide-react';
+import { FileText, Download, Plus, Hash, Calendar } from 'lucide-react';
 import { TableLoader } from '../../components/ui/TableLoader';
 import { Toast } from '../../components/ui/Toast';
 import { useToast } from '../../hooks/useToast';
+import { SharedUploadModal } from '../../components/ui/SharedUploadModal';
 
 interface Agreement {
   _id: string;
@@ -23,11 +23,8 @@ export function AdminAgreement() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [versionName, setVersionName] = useState('');
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [uploading, setUploading] = useState(false);
   const { toast, showToast: _showToast, closeToast } = useToast();
   const showToast = (msg: string, ok = true) => _showToast(ok ? 'success' : 'error', msg);
-  const fileRef = useRef<HTMLInputElement>(null);
 
   const fetchAgreements = async () => {
     try {
@@ -42,34 +39,19 @@ export function AdminAgreement() {
 
   useEffect(() => { fetchAgreements(); }, []);
 
-  const closeModal = () => {
-    if (uploading) return;
-    setShowModal(false);
-    setVersionName('');
-    setSelectedFile(null);
-  };
-
-  const handleUpload = async () => {
-    if (!versionName.trim()) { showToast('Please enter version name', false); return; }
-    if (!selectedFile) { showToast('Please select a file', false); return; }
-    setUploading(true);
-    try {
-      const formData = new FormData();
-      formData.append('agreementFile', selectedFile);
-      formData.append('versionName', versionName);
-      const res = await apiClient.post('/agreement/admin/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      if (res.data.success) {
-        showToast('Agreement uploaded successfully');
-        closeModal();
-        fetchAgreements();
-      }
-    } catch {
-      showToast('Failed to upload agreement', false);
-    } finally {
-      setUploading(false);
+  const handleAgreementUpload = async (file: File): Promise<string> => {
+    if (!versionName.trim()) throw new Error('Please enter a version name');
+    const formData = new FormData();
+    formData.append('agreementFile', file);
+    formData.append('versionName', versionName);
+    const res = await apiClient.post('/agreement/admin/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    if (res.data.success) {
+      fetchAgreements();
+      return 'Agreement uploaded successfully';
     }
+    throw new Error('Upload failed');
   };
 
   return (
@@ -188,96 +170,29 @@ export function AdminAgreement() {
         </div>
       </div>
 
-      {/* Upload Modal */}
-      <AnimatePresence>
-        {showModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4"
-            onClick={closeModal}
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 16 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 16 }}
-              transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-              className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6"
-              onClick={e => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between mb-5">
-                <div className="flex items-center gap-2">
-                  <div className="w-9 h-9 rounded-xl bg-[#F0FDF4] flex items-center justify-center">
-                    <Upload className="w-4.5 h-4.5 text-[#00A86B]" />
-                  </div>
-                  <h2 className="text-[15px] font-bold text-[#0F172A]">Upload Agreement</h2>
-                </div>
-                <button
-                  onClick={closeModal}
-                  disabled={uploading}
-                  className="w-8 h-8 flex items-center justify-center rounded-full bg-[#F8FAFC] hover:bg-[#F1F5F9] text-[#64748B] transition-colors disabled:opacity-50"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-[12px] font-semibold text-[#0F172A] mb-1.5">Version Name</label>
-                  <input
-                    type="text"
-                    value={versionName}
-                    onChange={e => setVersionName(e.target.value)}
-                    placeholder="e.g. v1.0, June 2026"
-                    className="w-full border border-[#E2E8F0] rounded-xl px-3.5 py-2.5 text-[13px] text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]/20 transition-colors"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[12px] font-semibold text-[#0F172A] mb-1.5">Upload Word File</label>
-                  <div
-                    onClick={() => fileRef.current?.click()}
-                    className="w-full border-2 border-dashed border-[#E2E8F0] rounded-xl px-4 py-5 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-[#00A86B] hover:bg-[#F0FDF4] transition-colors"
-                  >
-                    <FileText className="w-6 h-6 text-[#94A3B8]" />
-                    {selectedFile ? (
-                      <span className="text-[12px] font-semibold text-[#00A86B]">{selectedFile.name}</span>
-                    ) : (
-                      <>
-                        <span className="text-[12px] font-semibold text-[#64748B]">Click to select file</span>
-                        <span className="text-[11px] text-[#94A3B8]">.doc, .docx accepted</span>
-                      </>
-                    )}
-                  </div>
-                  <input
-                    ref={fileRef}
-                    type="file"
-                    accept=".doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                    onChange={e => setSelectedFile(e.target.files?.[0] || null)}
-                    className="hidden"
-                  />
-                </div>
-
-                <button
-                  onClick={handleUpload}
-                  disabled={uploading}
-                  className="w-full bg-[#00A86B] hover:bg-[#009B63] text-white py-2.5 rounded-xl font-bold text-[13px] transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                >
-                  {uploading ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                      Uploading...
-                    </>
-                  ) : (
-                    <><Upload className="w-4 h-4" /> Upload</>
-                  )}
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <SharedUploadModal
+        open={showModal}
+        onClose={() => { setShowModal(false); setVersionName(''); }}
+        title="Upload Agreement"
+        subtitle="Upload and manage platform agreements"
+        accept=".doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        fileHint=".doc or .docx accepted"
+        chooseFileLabel="Choose Word File"
+        uploadButtonLabel="Upload"
+        onUpload={handleAgreementUpload}
+        extraContent={
+          <div>
+            <label className="block text-[12px] font-semibold text-[#0F172A] mb-1.5">Version Name</label>
+            <input
+              type="text"
+              value={versionName}
+              onChange={e => setVersionName(e.target.value)}
+              placeholder="e.g. v1.0, June 2026"
+              className="w-full border border-[#E2E8F0] rounded-xl px-3.5 py-2.5 text-[13px] text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]/20 transition-colors"
+            />
+          </div>
+        }
+      />
     </AdminLayout>
   );
 }

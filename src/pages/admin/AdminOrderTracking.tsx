@@ -6,7 +6,7 @@ import { getToken } from '../../utils/session';
 import { ShipOrderModal } from '../../components/admin/orders/ShipOrderModal';
 import {
   ArrowLeft, AlertTriangle, Copy, Check, Truck, ClipboardList, MapPin, Navigation,
-  Package, Receipt, Map, History, X, Phone, Clock, Home, Info, FileText,
+  Package, Receipt, Map, History, X, Phone, Clock, Home, Info, FileText, Loader2,
 } from 'lucide-react';
 import { Toast } from '../../components/ui/Toast';
 import { useToast } from '../../hooks/useToast';
@@ -305,6 +305,7 @@ export function AdminOrderTracking() {
   const [copiedId, setCopiedId] = useState(false);
   const [copiedAwb, setCopiedAwb] = useState(false);
   const [isHeaderDropdownOpen, setIsHeaderDropdownOpen] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const [chargesTab, setChargesTab] = useState<'billed' | 'dispute'>('billed');
   const [showNdrHistory, setShowNdrHistory] = useState(false);
   const { toast: toastState, showToast: showToastMsg, closeToast } = useToast();
@@ -449,14 +450,19 @@ export function AdminOrderTracking() {
   };
 
   const handleCancelOrder = async () => {
-    if (!order?._id) return;
+    if (!order?._id || cancelling) return;
+    setCancelling(true);
     const isBooked = ['Booked', 'Not Picked', 'Ready To Ship'].includes(order.status || '');
     const endpoint = isBooked ? '/order/cancelOrdersAtBooked' : '/order/cancelOrdersAtNotShipped';
     try {
       await apiClient.post(endpoint, { orderId: order._id });
       setToastMessage('Order cancelled successfully.');
       apiClient.get(`/order/getOrderById/${orderId}`).then(res => setOrder(res.data?.order || res.data?.data || res.data));
-    } catch { setToastMessage('Failed to cancel order. Please try again.'); }
+    } catch {
+      setToastMessage('Failed to cancel order. Please try again.');
+    } finally {
+      setCancelling(false);
+    }
   };
 
   // ── Derived values ───────────────────────────────────────────────────────────
@@ -625,13 +631,16 @@ export function AdminOrderTracking() {
             </button>
             <div className="relative">
               <button
-                onClick={(e) => { e.stopPropagation(); setIsHeaderDropdownOpen(!isHeaderDropdownOpen); }}
+                onClick={(e) => { e.stopPropagation(); if (!cancelling) setIsHeaderDropdownOpen(!isHeaderDropdownOpen); }}
                 className="border border-[#E2E8F0] hover:bg-[#F8FAFC] rounded-lg w-9 h-9 flex items-center justify-center text-slate-600 transition-all focus:outline-none"
-                title="More Actions"
+                title={cancelling ? 'Cancelling…' : 'More Actions'}
               >
-                <span className="font-bold text-[14px] leading-[8px] -mt-1.5">...</span>
+                {cancelling
+                  ? <Loader2 className="w-4 h-4 animate-spin text-rose-500" />
+                  : <span className="font-bold text-[14px] leading-[8px] -mt-1.5">...</span>
+                }
               </button>
-              {isHeaderDropdownOpen && (
+              {isHeaderDropdownOpen && !cancelling && (
                 <div className="absolute right-0 mt-2 w-48 bg-white border border-[#E2E8F0] rounded-xl shadow-lg overflow-hidden z-[105] py-1">
                   {dropdownOptions.map((opt, i) => (
                     <React.Fragment key={i}>

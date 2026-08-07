@@ -11,7 +11,7 @@ import {
   Search, ChevronDown, RefreshCcw, Send, Calendar, Check, MoreHorizontal,
   IndianRupee, Package, User, Settings, MapPin, X, Truck, CreditCard,
   CheckCircle2, Clock, AlertTriangle, Flame, History, Layers, RefreshCw, Mail,
-  Filter, Copy, PackagePlus, FileText, Download, MoreVertical
+  Filter, Copy, PackagePlus, FileText, Download, MoreVertical, Loader2
 } from 'lucide-react';
 import { usePagination, DesktopPagination } from '../../hooks/usePagination';
 import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
@@ -377,6 +377,7 @@ export function AdminOrders() {
 
   // ── UI state ──
   const [selectedOrders,   setSelectedOrders]   = useState<string[]>([]);
+  const [cancellingIds,    setCancellingIds]    = useState<Set<string>>(new Set());
   const [drawerOrder,      setDrawerOrder]       = useState<any | null>(null);
   const [shipOrder,        setShipOrder]         = useState<any | null>(null);
   // dropdownPos renders the row-action dropdown via portal (fixed position) so overflow-auto doesn't clip it
@@ -612,6 +613,8 @@ export function AdminOrders() {
   const handleCancelOrder = async (order: any) => {
     const isBooked = ['Booked', 'Not Picked', 'Ready To Ship'].includes(order.status);
     const endpoint = isBooked ? '/order/cancelOrdersAtBooked' : '/order/cancelOrdersAtNotShipped';
+    setCancellingIds(prev => new Set(prev).add(order._id));
+    setDropdownPos(null); // close any open per-row dropdown immediately
     try {
       await apiClient.post(endpoint, { orderId: order._id });
       showToast('success', 'Order cancelled successfully');
@@ -619,6 +622,8 @@ export function AdminOrders() {
     } catch (e: any) {
       console.error('Cancel failed', e);
       showToast('error', e?.response?.data?.error || 'Failed to cancel order');
+    } finally {
+      setCancellingIds(prev => { const s = new Set(prev); s.delete(order._id); return s; });
     }
   };
 
@@ -1210,7 +1215,7 @@ export function AdminOrders() {
                       </td>
                     </tr>
                   ) : paginatedOrders.map((order, _idx) => (
-                    <tr key={order._id} className={`border-b border-[#E2E8F0] transition-colors group ${_idx % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]/20'}`}>
+                    <tr key={order._id} className={`border-b border-[#E2E8F0] transition-colors group ${_idx % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]/20'} ${cancellingIds.has(order._id) ? 'opacity-50 pointer-events-none' : ''}`}>
                       <td className="p-3">
                         <input type="checkbox" checked={selectedOrders.includes(order._id)} onChange={() => toggleSelect(order._id)} className="rounded border-gray-300 accent-[#00A86B] w-3.5 h-3.5" />
                       </td>
@@ -1379,33 +1384,40 @@ export function AdminOrders() {
 
                       <td className="p-3">
                         <div className="flex items-center gap-2">
-                          {isNewTab && (
-                            <button
-                              onClick={(e) => { e.stopPropagation(); setShipOrder(order); }}
-                              className="h-7 px-3 rounded-full bg-[#1e40af] text-white font-bold text-[10px] flex items-center gap-1 hover:bg-[#1e3a8a] shadow-sm cursor-pointer"
-                            >
-                              Ship <Send className="w-3 h-3" />
-                            </button>
+                          {cancellingIds.has(order._id) ? (
+                            <span className="flex items-center gap-1.5 text-[10px] font-bold text-rose-500 bg-rose-50 border border-rose-100 rounded-full px-2.5 py-1 whitespace-nowrap">
+                              <Loader2 className="w-3 h-3 animate-spin" /> Cancelling…
+                            </span>
+                          ) : (
+                            <>
+                              {isNewTab && (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setShipOrder(order); }}
+                                  className="h-7 px-3 rounded-full bg-[#1e40af] text-white font-bold text-[10px] flex items-center gap-1 hover:bg-[#1e3a8a] shadow-sm cursor-pointer"
+                                >
+                                  Ship <Send className="w-3 h-3" />
+                                </button>
+                              )}
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (dropdownPos?.id === order._id) { setDropdownPos(null); return; }
+                                  const rect = e.currentTarget.getBoundingClientRect();
+                                  setDropdownPos({ id: order._id, top: rect.bottom + 4, left: rect.right - 176 });
+                                }}
+                                className={`w-7 h-7 rounded-full border flex items-center justify-center z-10 transition-colors cursor-pointer ${dropdownPos?.id === order._id ? 'bg-green-100 border-[#00A86B] text-[#00A86B]' : 'border-[#E2E8F0] text-[#64748B] hover:bg-[#F1F5F9]'}`}
+                              >
+                                <MoreHorizontal className="w-3.5 h-3.5" />
+                              </button>
+                            </>
                           )}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (dropdownPos?.id === order._id) { setDropdownPos(null); return; }
-                              const rect = e.currentTarget.getBoundingClientRect();
-                              setDropdownPos({ id: order._id, top: rect.bottom + 4, left: rect.right - 176 });
-                            }}
-                            className={`w-7 h-7 rounded-full border flex items-center justify-center z-10 transition-colors cursor-pointer ${dropdownPos?.id === order._id ? 'bg-green-100 border-[#00A86B] text-[#00A86B]' : 'border-[#E2E8F0] text-[#64748B] hover:bg-[#F1F5F9]'}`}
-                          >
-                            <MoreHorizontal className="w-3.5 h-3.5" />
-                          </button>
                         </div>
                       </td>
                     </tr>
                   ))}
-                </tbody>
-              </table>
+              </tbody>
+            </table>
           </div>
-
           {/* ── Pagination ── */}
           {totalRecords > 0 && (
             <DesktopPagination
@@ -1436,6 +1448,13 @@ export function AdminOrders() {
                   const accent = getRibbonColor(order.status || activeTab);
                   return (
                   <div key={order._id} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
+                    {cancellingIds.has(order._id) && (
+                      <div className="absolute inset-0 z-20 bg-white/80 rounded-2xl flex items-center justify-center">
+                        <span className="flex items-center gap-2 text-[11px] font-bold text-rose-500 bg-rose-50 border border-rose-100 rounded-full px-3 py-1.5">
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" /> Cancelling…
+                        </span>
+                      </div>
+                    )}
                     {/* Ribbon Tag */}
                     <div
                       className="absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide"
@@ -1549,29 +1568,35 @@ export function AdminOrders() {
                       <div className="flex items-center gap-2">
                         {isNewTab ? (
                           <button
-                            onClick={() => setShipOrder(order)}
-                            className="flex-1 py-2 rounded-xl bg-[#1e40af] text-white text-[12px] font-bold flex items-center justify-center gap-1.5 hover:bg-[#1e3a8a] transition-colors"
+                            onClick={() => !cancellingIds.has(order._id) && setShipOrder(order)}
+                            disabled={cancellingIds.has(order._id)}
+                            className="flex-1 py-2 rounded-xl bg-[#1e40af] text-white text-[12px] font-bold flex items-center justify-center gap-1.5 hover:bg-[#1e3a8a] transition-colors disabled:opacity-50 disabled:pointer-events-none"
                           >
                             Ship <Send className="w-3.5 h-3.5" />
                           </button>
                         ) : (
                           <button
-                            onClick={() => navigate(`${isAdminView ? '/admin' : '/user'}/order-tracking?id=${order.orderId}`)}
-                            className="flex-1 py-2 rounded-xl bg-[#1e40af] text-white text-[12px] font-bold flex items-center justify-center gap-1.5 hover:bg-[#1e3a8a] transition-colors"
+                            onClick={() => !cancellingIds.has(order._id) && navigate(`${isAdminView ? '/admin' : '/user'}/order-tracking?id=${order.orderId}`)}
+                            disabled={cancellingIds.has(order._id)}
+                            className="flex-1 py-2 rounded-xl bg-[#1e40af] text-white text-[12px] font-bold flex items-center justify-center gap-1.5 hover:bg-[#1e3a8a] transition-colors disabled:opacity-50 disabled:pointer-events-none"
                           >
                             View Details
                           </button>
                         )}
                         <button
                           onClick={(e) => {
+                            if (cancellingIds.has(order._id)) return;
                             e.stopPropagation();
                             if (dropdownPos?.id === order._id) { setDropdownPos(null); return; }
                             const rect = e.currentTarget.getBoundingClientRect();
                             setDropdownPos({ id: order._id, top: rect.bottom + 4, left: rect.right - 176 });
                           }}
-                          className={`w-9 h-9 rounded-full border flex items-center justify-center shrink-0 transition-colors ${dropdownPos?.id === order._id ? 'bg-green-100 border-[#00A86B] text-[#00A86B]' : 'border-[#E2E8F0] text-[#64748B] bg-white'}`}
+                          className={`w-9 h-9 rounded-full border flex items-center justify-center shrink-0 transition-colors ${cancellingIds.has(order._id) ? 'border-rose-200 bg-rose-50 cursor-not-allowed' : dropdownPos?.id === order._id ? 'bg-green-100 border-[#00A86B] text-[#00A86B]' : 'border-[#E2E8F0] text-[#64748B] bg-white'}`}
                         >
-                          <MoreHorizontal className="w-3.5 h-3.5" />
+                          {cancellingIds.has(order._id)
+                            ? <Loader2 className="w-3.5 h-3.5 animate-spin text-rose-500" />
+                            : <MoreHorizontal className="w-3.5 h-3.5" />
+                          }
                         </button>
                       </div>
                     </div>

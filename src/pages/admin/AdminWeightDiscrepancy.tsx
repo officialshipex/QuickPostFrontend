@@ -21,6 +21,7 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { TruncatedText } from '../../components/ui/TruncatedText';
 import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
 import { getCourierLogo } from '../../utils/courierLogo';
+import { SharedUploadModal } from '../../components/ui/SharedUploadModal';
 
 // ── Date helpers ──────────────────────────────────────────────────────────────
 const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -271,66 +272,6 @@ function DeclineModal({ awbNumbers, onClose, onDone }: { awbNumbers: string[]; o
   );
 }
 
-// ── Inline: Upload Modal ──────────────────────────────────────────────────────
-function UploadModal({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
-  const [file, setFile] = useState<File | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [downloading, setDownloading] = useState(false);
-
-  const download = async () => {
-    setDownloading(true);
-    try {
-      const res = await apiClient.get('/dispreancy/download-excel', { responseType: 'arraybuffer' });
-      const blob = new Blob([res.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = 'Weight_Discrepancy_Sample_Format.xlsx';
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    } catch { alert('Download failed'); }
-    finally { setDownloading(false); }
-  };
-
-  const submit = async () => {
-    if (!file) { alert('Please select a file first'); return; }
-    if (uploading) return;
-    setUploading(true);
-    try {
-      const fd = new FormData();
-      fd.append('file', file);
-      await apiClient.post('/dispreancy/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
-      onDone();
-      onClose();
-    } catch (e: any) {
-      alert(e?.response?.data?.error || 'Upload failed');
-    } finally { setUploading(false); }
-  };
-
-  return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50">
-      <div className="bg-white p-6 rounded-lg shadow-lg w-96 relative">
-        <button onClick={onClose} disabled={uploading} className="absolute top-2 right-2 text-gray-400 hover:text-gray-700"><X size={18} /></button>
-        <h2 className="text-sm font-bold mb-3">Upload Weight Discrepancy</h2>
-        <p className="text-xs text-gray-600 mb-3">
-          Download sample file:{' '}
-          <span onClick={!downloading ? download : undefined}
-            className={`text-[#00A86B] underline cursor-pointer ${downloading ? 'opacity-50 pointer-events-none' : ''}`}>
-            {downloading ? 'Downloading...' : 'click here'}
-          </span>
-        </p>
-        <label className="flex items-center justify-between gap-2 border border-[#00A86B] text-[#00A86B] rounded-lg px-4 py-2 text-sm cursor-pointer hover:bg-green-50">
-          <span>{file ? file.name : 'Select File'}</span>
-          <Upload className="w-4 h-4" />
-          <input type="file" className="hidden" onChange={e => setFile(e.target.files?.[0] || null)} />
-        </label>
-        <button onClick={submit} disabled={uploading || !file}
-          className="mt-3 w-full py-2 bg-[#00A86B] text-white rounded-lg text-sm font-semibold disabled:opacity-50">
-          {uploading ? 'Uploading...' : 'Submit'}
-        </button>
-      </div>
-    </div>
-  );
-}
-
 // ── Inline: Details Modal ─────────────────────────────────────────────────────
 function DetailsModal({ text, imageUrl, onClose }: { text: string; imageUrl: string; onClose: () => void }) {
   return (
@@ -380,7 +321,8 @@ export function AdminWeightDiscrepancy() {
   // ── Tabs — each tab is its own URL sub-route (/admin/weight-discrepancy/:tabSlug) ──
   const navigate = useNavigate();
   const location = useLocation();
-  const wdBase = location.pathname.startsWith('/user/') ? '/user/weight-discrepancy' : '/admin/weight-discrepancy';
+  const isUserRoute = location.pathname.startsWith('/user/');
+  const wdBase = isUserRoute ? '/user/weight-discrepancy' : '/admin/weight-discrepancy';
   const { tabSlug } = useParams<{ tabSlug?: string }>();
   const [activeTab, setActiveTab] = useState<TabName>(() => (tabSlug && SLUG_TO_TAB[tabSlug]) || 'All');
 
@@ -450,6 +392,24 @@ export function AdminWeightDiscrepancy() {
   const [declineModal, setDeclineModal] = useState<{ open: boolean; awbs: string[] }>({ open: false, awbs: [] });
   const [bulkAcceptModal, setBulkAcceptModal] = useState<{ open: boolean; orderIds: string[]; label: string }>({ open: false, orderIds: [], label: '' });
   const [detailsModal, setDetailsModal] = useState<{ open: boolean; text: string; imageUrl: string }>({ open: false, text: '', imageUrl: '' });
+
+  const handleWdDownloadSample = async () => {
+    const res = await apiClient.get('/dispreancy/download-excel', { responseType: 'arraybuffer' });
+    const blob = new Blob([res.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'Weight_Discrepancy_Sample_Format.xlsx';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  };
+
+  const handleWdUpload = async (file: File): Promise<string> => {
+    const fd = new FormData();
+    fd.append('file', file);
+    await apiClient.post('/dispreancy/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+    fetchDiscrepancy();
+    fetchCounts();
+    return 'Weight discrepancy uploaded successfully!';
+  };
 
   const actionMenuRef = useRef<HTMLDivElement>(null);
   const userDropRef = useRef<HTMLDivElement>(null);
@@ -743,14 +703,16 @@ export function AdminWeightDiscrepancy() {
               </>
             )}
           </div>
-          {/* Upload icon */}
-          <button
-            onClick={() => setShowUpload(true)}
-            className="w-9 h-9 rounded-xl bg-[#00A86B] flex items-center justify-center text-white shadow-sm active:bg-[#009B63] transition-colors shrink-0"
-            title="Upload discrepancy"
-          >
-            <Upload className="w-4 h-4" />
-          </button>
+          {/* Upload icon — admin only */}
+          {!isUserRoute && (
+            <button
+              onClick={() => setShowUpload(true)}
+              className="w-9 h-9 rounded-xl bg-[#00A86B] flex items-center justify-center text-white shadow-sm active:bg-[#009B63] transition-colors shrink-0"
+              title="Upload discrepancy"
+            >
+              <Upload className="w-4 h-4" />
+            </button>
+          )}
         </div>
 
         {/* ── Tab bar ── */}
@@ -990,12 +952,14 @@ export function AdminWeightDiscrepancy() {
                 )}
               </div>
 
-              {/* Upload button */}
-              <button onClick={() => setShowUpload(true)}
-                className="w-9 h-9 rounded-full bg-[#00A86B] flex items-center justify-center text-white shadow-sm hover:bg-[#009B63] transition-colors"
-                title="Upload discrepancy">
-                <Upload className="w-4 h-4" />
-              </button>
+              {/* Upload button — admin only */}
+              {!isUserRoute && (
+                <button onClick={() => setShowUpload(true)}
+                  className="w-9 h-9 rounded-full bg-[#00A86B] flex items-center justify-center text-white shadow-sm hover:bg-[#009B63] transition-colors"
+                  title="Upload discrepancy">
+                  <Upload className="w-4 h-4" />
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -1664,10 +1628,16 @@ export function AdminWeightDiscrepancy() {
           onClose={() => setBulkAcceptModal({ open: false, orderIds: [], label: '' })}
           onDone={() => { fetchDiscrepancy(); fetchCounts(); setSelectedItems([]); }} />
       )}
-      {showUpload && (
-        <UploadModal onClose={() => setShowUpload(false)}
-          onDone={() => { fetchDiscrepancy(); fetchCounts(); }} />
-      )}
+      <SharedUploadModal
+        open={showUpload}
+        onClose={() => setShowUpload(false)}
+        title="Upload Weight Discrepancy"
+        subtitle="Upload bulk weight discrepancy data"
+        onDownloadSample={handleWdDownloadSample}
+        downloadSampleLabel="Download Sample"
+        uploadButtonLabel="Submit"
+        onUpload={handleWdUpload}
+      />
       {detailsModal.open && (
         <DetailsModal text={detailsModal.text} imageUrl={detailsModal.imageUrl}
           onClose={() => setDetailsModal({ open: false, text: '', imageUrl: '' })} />

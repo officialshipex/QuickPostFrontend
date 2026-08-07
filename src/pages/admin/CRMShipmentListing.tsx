@@ -12,37 +12,58 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
 import { TruncatedText } from '../../components/ui/TruncatedText';
+import { useUserSearchFilter } from '../../hooks/filters/useUserSearchFilter';
 import { TableLoader } from '../../components/ui/TableLoader';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
 
-const COURIER_OPTS = ['Delhivery', 'Ekart', 'XpressBees', 'Shadowfax', 'DTDC', 'BlueDart', 'Ecom Express'];
-const STATUS_OPTS = ['Booked', 'Picked Up', 'In Transit', 'Out for Delivery', 'Delivered', 'RTO Initiated', 'RTO Delivered', 'Lost'];
-const CHANNEL_OPTS = ['Shopify', 'WooCommerce', 'Manual', 'API', 'Wix', 'Amazon'];
+const STATUS_OPTS = ['Ready To Ship', 'Not Picked', 'Booked', 'Pickup Scheduled', 'Picked Up', 'In Transit', 'Out for Delivery', 'Delivered', 'RTO Initiated', 'RTO In Transit', 'RTO Delivered', 'RTO Lost', 'RTO Damaged', 'Lost', 'Damaged', 'Cancelled'];
+const CHANNEL_OPTS = ['custom', 'api', 'shopify', 'woocommerce'];
 const ORDER_TYPE_OPTS = ['Prepaid', 'COD'];
-const VENDOR_OPTS = ['Vendor A', 'Vendor B', 'Vendor C'];
-const PICKUP_ADDR_OPTS = ['Mumbai, MH', 'Delhi, DL', 'Bangalore, KA', 'Hyderabad, TS', 'Chennai, TN'];
+const WEIGHT_RANGE_OPTS = [
+  { label: 'Under 500g', value: 'under500', min: 0, max: 0.5 },
+  { label: '500g – 1 kg', value: '500to1', min: 0.5, max: 1 },
+  { label: '1 – 2 kg', value: '1to2', min: 1, max: 2 },
+  { label: '2 – 5 kg', value: '2to5', min: 2, max: 5 },
+  { label: '5 kg+', value: 'over5', min: 5, max: undefined as number | undefined },
+];
 
 const STATUS_STYLES: Record<string, string> = {
+  'Ready To Ship': 'bg-teal-50 text-teal-700 border-teal-200',
+  'Not Picked': 'bg-yellow-50 text-yellow-700 border-yellow-200',
   'Booked': 'bg-slate-50 text-slate-700 border-slate-200',
+  'Pickup Scheduled': 'bg-slate-50 text-slate-600 border-slate-200',
   'Picked Up': 'bg-indigo-50 text-indigo-700 border-indigo-200',
   'In Transit': 'bg-sky-50 text-sky-700 border-sky-200',
   'Out for Delivery': 'bg-amber-50 text-amber-700 border-amber-200',
   'Delivered': 'bg-emerald-50 text-emerald-700 border-emerald-200',
   'RTO Initiated': 'bg-orange-50 text-orange-700 border-orange-200',
+  'RTO In Transit': 'bg-orange-50 text-orange-600 border-orange-200',
   'RTO Delivered': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  'RTO Lost': 'bg-red-50 text-red-700 border-red-200',
+  'RTO Damaged': 'bg-rose-50 text-rose-700 border-rose-200',
   'Lost': 'bg-slate-100 text-slate-500 border-slate-200',
+  'Damaged': 'bg-red-50 text-red-600 border-red-200',
+  'Cancelled': 'bg-slate-100 text-slate-400 border-slate-200',
 };
 
 const STATUS_RIBBON_COLORS: Record<string, string> = {
+  'Ready To Ship': '#0D9488',
+  'Not Picked': '#CA8A04',
   'Booked': '#64748B',
+  'Pickup Scheduled': '#64748B',
   'Picked Up': '#4F46E5',
   'In Transit': '#0284C7',
   'Out for Delivery': '#D97706',
   'Delivered': '#059669',
   'RTO Initiated': '#EA580C',
+  'RTO In Transit': '#EA580C',
   'RTO Delivered': '#059669',
+  'RTO Lost': '#DC2626',
+  'RTO Damaged': '#E11D48',
   'Lost': '#94A3B8',
+  'Damaged': '#DC2626',
+  'Cancelled': '#94A3B8',
 };
 const getRibbonColor = (status: string) => STATUS_RIBBON_COLORS[status] || '#00A86B';
 
@@ -93,7 +114,7 @@ const mapOrder = (o: any) => ({
   orderType: o.paymentDetails?.method || 'Prepaid',
   courier: o.courierServiceName || '—',
   channel: o.channel || 'API',
-  seller: o.userId?.company || o.userId?.fullname || 'Unknown',
+  seller: o.userId?.fullname || o.userId?.company || 'Unknown',
   companyId: String(o.userId?.userId || ''),
   email: o.userId?.email || '',
   pickupName: o.pickupAddress?.contactName || '—',
@@ -129,11 +150,19 @@ const mapOrder = (o: any) => ({
       total: Number(p.total ?? p.lineTotal ?? (price * qty)),
     };
   }),
-  weight: o.packageDetails?.deadWeight ? `${o.packageDetails.deadWeight}g` : '—',
-  dimensions: '—',
-  volWeight: o.packageDetails?.volumetricWeight?.calculatedWeight
-    ? `${o.packageDetails.volumetricWeight.calculatedWeight} KG`
-    : '—',
+  weight: o.packageDetails?.applicableWeight
+    ? `${o.packageDetails.applicableWeight} kg`
+    : (o.packageDetails?.deadWeight ? `${(o.packageDetails.deadWeight / 1000).toFixed(2)} kg` : '—'),
+  dimensions: (() => {
+    const v = o.packageDetails?.volumetricWeight;
+    return (v?.length && v?.width && v?.height) ? `${v.length}×${v.width}×${v.height} cm` : '—';
+  })(),
+  volWeight: (() => {
+    const v = o.packageDetails?.volumetricWeight;
+    if (!v) return '—';
+    const cw = v.calculatedWeight || (v.length && v.width && v.height ? (v.length * v.width * v.height) / 5000 : null);
+    return cw ? `${Number(cw).toFixed(2)} kg` : '—';
+  })(),
 });
 
 const populateTrackingFromOrders = (rawOrders: any[]): Record<string, TrackingEvent[]> => {
@@ -162,10 +191,12 @@ export function CRMShipmentListing() {
   const [selectedOrderTypes, setSelectedOrderTypes] = useState<string[]>([]);
   const [selectedPickupAddrs, setSelectedPickupAddrs] = useState<string[]>([]);
 
-  const [userDetails, setUserDetails] = useState('');
+  const { userQuery, userSuggestions, userMongoId, onQueryChange, selectUser, clearUser } = useUserSearchFilter(true);
+  const [courierOptions, setCourierOptions] = useState<string[]>([]);
+  const [pickupOptions, setPickupOptions] = useState<string[]>([]);
+  const [weightRange, setWeightRange] = useState('');
   const [orderId, setOrderId] = useState('');
   const [productSpecs, setProductSpecs] = useState('');
-  const [packageSpecs, setPackageSpecs] = useState('');
   const [forwardAwb, setForwardAwb] = useState('');
   const [rtoAwb, setRtoAwb] = useState('');
   const [dateFrom, setDateFrom] = useState('');
@@ -207,7 +238,7 @@ export function CRMShipmentListing() {
   const [hoveredTracking, setHoveredTracking] = useState<{id: string, rect: DOMRect, activity: string, location: string, date: string, time: string} | null>(null);
   const [hoveredPickup, setHoveredPickup] = useState<{ id: string; rect: DOMRect; name: string; address: string; city: string; state: string; pinCode: string; phone: string } | null>(null);
   const [hoveredCustomer, setHoveredCustomer] = useState<{ rect: DOMRect; name: string; address: string; city: string; state: string; pinCode: string; email: string } | null>(null);
-  const [productHoverPos, setProductHoverPos] = useState<{ id: string; top: number; left: number } | null>(null);
+  const [productHoverPos, setProductHoverPos] = useState<{ id: string; rect: DOMRect } | null>(null);
 
   const [trackingData, setTrackingData] = useState<Record<string, TrackingEvent[]>>({});
   const [trackingLoading] = useState<Record<string, boolean>>({});
@@ -243,10 +274,14 @@ export function CRMShipmentListing() {
       if (selectedStatuses.length) params.status = selectedStatuses.join(',');
       if (selectedChannels.length) params.channel = selectedChannels.join(',');
       if (selectedOrderTypes.length) params.orderType = selectedOrderTypes.join(',');
-      if (selectedPickupAddrs.length) params.pickupCity = selectedPickupAddrs.map(a => a.split(',')[0].trim()).join(',');
-      if (userDetails) params.userId = userDetails;
+      if (selectedPickupAddrs.length) params.pickupCity = selectedPickupAddrs.join(',');
+      if (userMongoId) params.userId = userMongoId;
       if (orderId) params.orderId = orderId;
       if (productSpecs) params.product = productSpecs;
+      if (weightRange) {
+        const wopt = WEIGHT_RANGE_OPTS.find(o => o.value === weightRange);
+        if (wopt) { if (wopt.min) params.minWeight = String(wopt.min); if (wopt.max !== undefined) params.maxWeight = String(wopt.max); }
+      }
       if (forwardAwb) params.awb = forwardAwb;
       if (rtoAwb) params.rtoAwb = rtoAwb;
       if (dateFrom) params.dateFrom = dateFrom;
@@ -266,7 +301,7 @@ export function CRMShipmentListing() {
     } finally {
       setLoading(false);
     }
-  }, [selectedCouriers, selectedStatuses, selectedChannels, selectedOrderTypes, selectedPickupAddrs, userDetails, orderId, productSpecs, forwardAwb, rtoAwb, dateFrom, dateTo]);
+  }, [selectedCouriers, selectedStatuses, selectedChannels, selectedOrderTypes, selectedPickupAddrs, userMongoId, orderId, productSpecs, weightRange, forwardAwb, rtoAwb, dateFrom, dateTo]);
 
   // Always-latest ref — prevents stale closure in setPage / setRowsPerPage wrappers
   const fetchRef = useRef(fetchOrders);
@@ -292,6 +327,20 @@ export function CRMShipmentListing() {
   // Initial load
   useEffect(() => { fetchRef.current(1, rowsPerPageRef.current); }, []);
 
+  // Fetch courier names dynamically from /courierServices/couriers
+  useEffect(() => {
+    apiClient.get('/courierServices/couriers')
+      .then(res => setCourierOptions((res.data || []).map((c: any) => c.name).filter(Boolean)))
+      .catch(() => {});
+  }, []);
+
+  // Fetch distinct pickup cities for filter
+  useEffect(() => {
+    apiClient.get('/crm/pickup-cities')
+      .then(res => setPickupOptions((res.data || []).filter(Boolean)))
+      .catch(() => {});
+  }, []);
+
   // Close popovers on outside click
   useEffect(() => {
     function handler(e: MouseEvent) {
@@ -311,12 +360,12 @@ export function CRMShipmentListing() {
     return () => document.removeEventListener('pointerdown', handler);
   }, [productHoverPos, hoveredPickup]);
 
-  const hasActiveFilters = selectedCouriers.length > 0 || selectedStatuses.length > 0 || selectedChannels.length > 0 || selectedOrderTypes.length > 0 || selectedPickupAddrs.length > 0 || userDetails || orderId || productSpecs || packageSpecs || forwardAwb || rtoAwb || (dateFrom && dateTo);
+  const hasActiveFilters = selectedCouriers.length > 0 || selectedStatuses.length > 0 || selectedChannels.length > 0 || selectedOrderTypes.length > 0 || selectedPickupAddrs.length > 0 || !!userMongoId || orderId || productSpecs || weightRange || forwardAwb || rtoAwb || (dateFrom && dateTo);
 
   const handleClearAllFilters = () => {
     setSelectedCouriers([]); setSelectedStatuses([]); setSelectedChannels([]);
     setSelectedOrderTypes([]); setSelectedPickupAddrs([]);
-    setUserDetails(''); setOrderId(''); setProductSpecs(''); setPackageSpecs('');
+    clearUser(); setOrderId(''); setProductSpecs(''); setWeightRange('');
     setForwardAwb(''); setRtoAwb(''); setDateFrom(''); setDateTo('');
     pageRef.current = 1; setPageState(1);
     // Fetch with empty params — don't use stale closure
@@ -346,8 +395,8 @@ export function CRMShipmentListing() {
       if (selectedStatuses.length) params.status = selectedStatuses.join(',');
       if (selectedChannels.length) params.channel = selectedChannels.join(',');
       if (selectedOrderTypes.length) params.orderType = selectedOrderTypes.join(',');
-      if (selectedPickupAddrs.length) params.pickupCity = selectedPickupAddrs.map(a => a.split(',')[0].trim()).join(',');
-      if (userDetails) params.userId = userDetails;
+      if (selectedPickupAddrs.length) params.pickupCity = selectedPickupAddrs.join(',');
+      if (userMongoId) params.userId = userMongoId;
       if (orderId) params.orderId = orderId;
       if (productSpecs) params.product = productSpecs;
       if (forwardAwb) params.awb = forwardAwb;
@@ -435,8 +484,18 @@ export function CRMShipmentListing() {
           {/* Filter Row — evenly distributed 2-row grid, uniform pill sizes */}
           <div className="filter-grid hidden md:grid grid-cols-6 gap-3 mt-3">
             <div className="relative">
-              <input type="text" placeholder="Search user..." value={userDetails} onChange={e => setUserDetails(e.target.value)} className="glass-search-input w-full" />
+              <input type="text" placeholder="Search user..." value={userQuery} onChange={e => onQueryChange(e.target.value)} className="glass-search-input w-full" />
               <Search className="w-3.5 h-3.5 text-[#94A3B8] absolute right-2.5 top-1/2 -translate-y-1/2" />
+              {userSuggestions.length > 0 && (
+                <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white border border-[#E2E8F0] rounded-xl shadow-lg overflow-hidden">
+                  {userSuggestions.map(u => (
+                    <button key={u._id} onClick={() => selectUser(u)} className="w-full text-left px-3 py-2 text-[12px] hover:bg-[#F0FDF4] transition-colors border-b border-[#F1F5F9] last:border-0">
+                      <div className="font-semibold text-[#1E293B]">{u.fullname}</div>
+                      <div className="text-[#64748B] text-[11px]">{u.email}</div>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             <input
@@ -455,13 +514,14 @@ export function CRMShipmentListing() {
               className="glass-search-input w-full"
             />
 
-            <input
-              type="text"
-              placeholder="Search weight / dims..."
-              value={packageSpecs}
-              onChange={e => setPackageSpecs(e.target.value)}
-              className="glass-search-input w-full"
-            />
+            <select
+              value={weightRange}
+              onChange={e => setWeightRange(e.target.value)}
+              className="glass-search-input w-full bg-white"
+            >
+              <option value="">All Weights</option>
+              {WEIGHT_RANGE_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
 
             <input
               type="text"
@@ -482,7 +542,7 @@ export function CRMShipmentListing() {
             <GlassDropdown
               className="w-full [&_.glass-dropdown-trigger]:w-full"
               label="Pickup Address"
-              options={PICKUP_ADDR_OPTS.map(o => ({ label: o, value: o }))}
+              options={pickupOptions.map(o => ({ label: o, value: o }))}
               selected={selectedPickupAddrs}
               onChange={setSelectedPickupAddrs}
               placeholder="Search pickup..."
@@ -501,8 +561,8 @@ export function CRMShipmentListing() {
 
             <GlassDropdown
               className="w-full [&_.glass-dropdown-trigger]:w-full"
-              label="All Couriers"
-              options={COURIER_OPTS.map(o => ({ label: o, value: o }))}
+              label="Courier Service"
+              options={courierOptions.map(o => ({ label: o, value: o }))}
               selected={selectedCouriers}
               onChange={setSelectedCouriers}
               placeholder="Search courier…"
@@ -512,7 +572,7 @@ export function CRMShipmentListing() {
             <GlassDropdown
               className="w-full [&_.glass-dropdown-trigger]:w-full"
               label="All Channels"
-              options={CHANNEL_OPTS.map(o => ({ label: o, value: o }))}
+              options={CHANNEL_OPTS.map(o => ({ label: o.charAt(0).toUpperCase() + o.slice(1), value: o }))}
               selected={selectedChannels}
               onChange={setSelectedChannels}
               placeholder="Search channel…"
@@ -664,17 +724,16 @@ export function CRMShipmentListing() {
                         </span>
                       </div>
                     </td>
-                    <td
-                      className="p-3"
-                      onMouseEnter={(e) => {
-                        if (row.products.length === 0) return;
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        setProductHoverPos({ id: row.awb, top: rect.bottom + 4, left: rect.left });
-                      }}
-                      onMouseLeave={() => setProductHoverPos(prev => (prev?.id === row.awb ? null : prev))}
-                    >
+                    <td className="p-3">
                       <div className="flex flex-col gap-1">
-                        <div className="text-[12px] leading-[18px] font-normal text-[#1E293B] underline decoration-dotted underline-offset-2 truncate max-w-[120px] cursor-default">{row.productName || '—'}</div>
+                        <div
+                          className="text-[12px] leading-[18px] font-normal text-[#1E293B] underline decoration-dotted underline-offset-2 truncate max-w-[120px] cursor-help"
+                          onMouseEnter={(e) => {
+                            if (row.products.length === 0) return;
+                            setProductHoverPos({ id: row.awb, rect: e.currentTarget.getBoundingClientRect() });
+                          }}
+                          onMouseLeave={() => setProductHoverPos(prev => (prev?.id === row.awb ? null : prev))}
+                        >{row.productName || '—'}</div>
                         <div className="text-[12px] leading-[18px] font-normal text-[#1E293B] truncate max-w-[120px]">SKU: {row.sku || '—'}</div>
                         <div className="text-[12px] leading-[18px] font-normal text-[#1E293B]">QTY: {row.qty || 1}</div>
                       </div>
@@ -874,7 +933,7 @@ export function CRMShipmentListing() {
                             e.stopPropagation();
                             if (row.products.length === 0) return;
                             const rect = e.currentTarget.getBoundingClientRect();
-                            setProductHoverPos({ id: row.awb, top: rect.bottom + 4, left: rect.left });
+                            setProductHoverPos({ id: row.awb, rect });
                           }}
                         >
                           {row.productName || '—'}
@@ -985,8 +1044,20 @@ export function CRMShipmentListing() {
               <div className="p-6 space-y-4">
                 <div>
                   <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Search User</label>
-                  <input type="text" value={userDetails} onChange={e => setUserDetails(e.target.value)} placeholder="Search user..."
-                    className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]" />
+                  <div className="relative">
+                    <input type="text" value={userQuery} onChange={e => onQueryChange(e.target.value)} placeholder="Search user..."
+                      className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]" />
+                    {userSuggestions.length > 0 && (
+                      <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white border border-[#E2E8F0] rounded-xl shadow-lg overflow-hidden">
+                        {userSuggestions.map(u => (
+                          <button key={u._id} onClick={() => selectUser(u)} className="w-full text-left px-3 py-2.5 text-[12px] hover:bg-[#F0FDF4] transition-colors border-b border-[#F1F5F9] last:border-0">
+                            <div className="font-semibold text-[#1E293B]">{u.fullname}</div>
+                            <div className="text-[#64748B] text-[11px]">{u.email}</div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div>
                   <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Order ID</label>
@@ -999,9 +1070,12 @@ export function CRMShipmentListing() {
                     className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]" />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Weight / Dimensions</label>
-                  <input type="text" value={packageSpecs} onChange={e => setPackageSpecs(e.target.value)} placeholder="Search weight / dims..."
-                    className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]" />
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Weight Range</label>
+                  <select value={weightRange} onChange={e => setWeightRange(e.target.value)}
+                    className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white">
+                    <option value="">All Weights</option>
+                    {WEIGHT_RANGE_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Forward AWB</label>
@@ -1021,7 +1095,7 @@ export function CRMShipmentListing() {
                     className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
                   >
                     <option value="">All Pickup Addresses</option>
-                    {PICKUP_ADDR_OPTS.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+                    {pickupOptions.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
                   </select>
                 </div>
                 <div>
@@ -1036,14 +1110,14 @@ export function CRMShipmentListing() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Courier</label>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Courier Service</label>
                   <select
                     value={selectedCouriers[0] || ''}
                     onChange={(e) => setSelectedCouriers(e.target.value ? [e.target.value] : [])}
                     className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
                   >
                     <option value="">All Couriers</option>
-                    {COURIER_OPTS.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+                    {courierOptions.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
                   </select>
                 </div>
                 <div>
@@ -1054,7 +1128,7 @@ export function CRMShipmentListing() {
                     className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
                   >
                     <option value="">All Channels</option>
-                    {CHANNEL_OPTS.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+                    {CHANNEL_OPTS.map((opt) => <option key={opt} value={opt}>{opt.charAt(0).toUpperCase() + opt.slice(1)}</option>)}
                   </select>
                 </div>
                 <div>
@@ -1189,45 +1263,55 @@ export function CRMShipmentListing() {
         const hoveredOrder = orders.find(o => o.awb === productHoverPos.id);
         if (!hoveredOrder || hoveredOrder.products.length === 0) return null;
         const grandTotal = hoveredOrder.products.reduce((s: number, p: any) => s + p.total, 0);
+        const { rect } = productHoverPos;
+        const showBelow = rect.top < 260;
         return createPortal(
           <div
-            className="fixed z-[999] w-[260px] md:w-[320px] bg-white border border-[#E2E8F0] rounded-xl shadow-[0_4px_24px_-4px_rgba(0,0,0,0.15)] p-2 md:p-3 pointer-events-none"
+            className="fixed z-[9999] pointer-events-none bg-[#0F172A] text-white text-xs p-3 rounded-xl shadow-xl w-[300px]"
             style={{
-              top: productHoverPos.top,
-              left: Math.max(4, Math.min(productHoverPos.left, window.innerWidth - 276)),
+              top: showBelow ? rect.bottom + 10 : rect.top - 10,
+              left: Math.min(Math.max(rect.left + rect.width / 2, 160), window.innerWidth - 160),
+              transform: showBelow ? 'translate(-50%, 0)' : 'translate(-50%, -100%)',
             }}
           >
-            <table className="w-full text-[10px] md:text-[11px] border-collapse">
+            <div className="font-bold flex items-center gap-1.5 mb-1.5">
+              <Package className="w-3.5 h-3.5 text-[#00A86B] shrink-0" />Products
+            </div>
+            <table className="w-full text-[11px] border-collapse border-t border-white/10 pt-1.5 mt-0.5">
               <thead>
-                <tr className="text-[#64748B] border-b border-[#E2E8F0]">
-                  <th className="text-left font-semibold pb-1.5 pr-2">Name</th>
-                  <th className="text-left font-semibold pb-1.5 pr-2">SKU</th>
-                  <th className="text-left font-semibold pb-1.5 pr-2">Qty</th>
-                  <th className="text-left font-semibold pb-1.5 pr-2">Price</th>
-                  <th className="text-left font-semibold pb-1.5">Total</th>
+                <tr className="text-slate-400">
+                  <th className="text-left font-semibold py-1.5 pr-2">Name</th>
+                  <th className="text-left font-semibold py-1.5 pr-2">SKU</th>
+                  <th className="text-left font-semibold py-1.5 pr-2">Qty</th>
+                  <th className="text-left font-semibold py-1.5 pr-2">Price</th>
+                  <th className="text-left font-semibold py-1.5">Total</th>
                 </tr>
               </thead>
               <tbody>
                 {hoveredOrder.products.map((p: any, i: number) => (
-                  <tr key={i} className="text-[#0F172A]">
+                  <tr key={i} className="text-slate-300 border-t border-white/5">
                     <td className="py-1 pr-2 break-words">{p.name}</td>
-                    <td className="py-1 pr-2 text-[#64748B] break-words">{p.sku}</td>
+                    <td className="py-1 pr-2 text-slate-400 break-words">{p.sku || '—'}</td>
                     <td className="py-1 pr-2">{p.qty}</td>
                     <td className="py-1 pr-2">₹{p.price.toLocaleString('en-IN')}</td>
-                    <td className="py-1 font-semibold">₹{p.total.toLocaleString('en-IN')}</td>
+                    <td className="py-1 font-semibold text-white">₹{p.total.toLocaleString('en-IN')}</td>
                   </tr>
                 ))}
               </tbody>
               <tfoot>
-                <tr className="border-t border-[#E2E8F0] font-bold text-[#0F172A]">
-                  <td className="pt-1.5">Total</td>
-                  <td className="pt-1.5"></td>
+                <tr className="border-t border-white/10 font-bold text-white">
+                  <td className="pt-1.5" colSpan={2}>Grand Total</td>
                   <td className="pt-1.5">{hoveredOrder.qty}</td>
                   <td className="pt-1.5"></td>
                   <td className="pt-1.5">₹{grandTotal.toLocaleString('en-IN')}</td>
                 </tr>
               </tfoot>
             </table>
+            {showBelow ? (
+              <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 border-[6px] border-transparent border-b-[#0F172A]" />
+            ) : (
+              <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 border-[6px] border-transparent border-t-[#0F172A]" />
+            )}
           </div>,
           document.body
         );
