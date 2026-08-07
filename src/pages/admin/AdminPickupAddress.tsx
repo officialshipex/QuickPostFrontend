@@ -445,7 +445,7 @@ export function AdminPickupAddress() {
             </div>
 
             {/* ── Mobile cards ───────────────────────────────────────────── */}
-            <div className="flex flex-col gap-3 md:hidden flex-1 min-h-0 overflow-y-auto p-4 bg-[#F8FAFC]">
+            <div className="flex flex-col gap-2 md:hidden flex-1 min-h-0 overflow-y-auto p-2 bg-[#F8FAFC]">
               {filteredAddresses.map(doc => {
                 const a = doc.pickupAddress;
                 return (

@@ -182,7 +182,7 @@ function App() {
               <Route path="/admin/reports" element={<AdminReports />} />
               <Route path="/admin/support" element={<AdminSupport />} />
               <Route path="/admin/support/:tabSlug" element={<AdminSupport />} />
-              <Route path="/admin/settings" element={<AdminSettings />} />
+              {/* <Route path="/admin/settings" element={<AdminSettings />} /> */}
               <Route path="/admin/accounts" element={<AdminAccounts />} />
               <Route path="/admin/audit" element={<AdminAuditLogs />} />
               <Route path="/admin/profile" element={<AdminProfile />} />

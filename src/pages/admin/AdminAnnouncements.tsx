@@ -417,7 +417,7 @@ export function AdminAnnouncements() {
               <EmptyState title="No announcements found" subtitle="Try changing your search" />
             )}
             {!loading && paginatedData.length > 0 && (
-              <div className="p-2.5 space-y-2">
+              <div className="p-2 space-y-2">
                 {paginatedData.map(ann => {
                   const accent = ann.enabled ? '#00A86B' : '#94A3B8';
                   return (

@@ -1212,7 +1212,7 @@ export function AdminCOD() {
                 {paginatedOrders.length === 0 ? (
                   <EmptyState title="No COD orders found" />
                 ) : (
-                  <div className="p-3 space-y-3">
+                  <div className="p-2 space-y-2">
                     {paginatedOrders.map((order) => {
                       const accent = order.status === 'Paid' ? '#00A86B' : '#F59E0B';
                       return (
@@ -1470,7 +1470,7 @@ export function AdminCOD() {
                 {filteredSellerRemittanceList.length === 0 ? (
                   <EmptyState title="No seller remittance records found" />
                 ) : (
-                  <div className="p-3 space-y-3">
+                  <div className="p-2 space-y-2">
                     {filteredSellerRemittanceList.map((order) => {
                       const accent = order.status === 'Paid' ? '#00A86B' : '#F59E0B';
                       return (
@@ -1694,7 +1694,7 @@ export function AdminCOD() {
                 {filteredCourierRemittanceList.length === 0 ? (
                   <EmptyState title="No courier remittance records found" />
                 ) : (
-                  <div className="p-3 space-y-3">
+                  <div className="p-2 space-y-2">
                     {filteredCourierRemittanceList.map((order) => {
                       const accent = order.status === 'Paid' ? '#00A86B' : '#F59E0B';
                       return (

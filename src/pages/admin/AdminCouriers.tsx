@@ -587,7 +587,7 @@ export function AdminCouriers() {
         </div>
 
         {/* Card List — mobile only */}
-        <div className="md:hidden flex-1 overflow-y-auto p-4 space-y-4">
+        <div className="md:hidden flex-1 overflow-y-auto p-2 space-y-2">
           {loading ? (
             <div className="flex flex-col items-center justify-center gap-3 py-16">
               <div className="w-8 h-8 border-[3px] border-[#E2E8F0] border-t-[#00A86B] rounded-full animate-spin" />

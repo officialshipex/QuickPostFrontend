@@ -254,7 +254,7 @@ export function CRMEscalations() {
             {paginated.length === 0 ? (
               <EmptyState title="No escalations found" subtitle="Try changing filters" />
             ) : (
-              <div className="p-4 space-y-4">
+              <div className="p-2 space-y-2">
                 {paginated.map((ticket, i) => {
                   const accent = PRIORITY_RIBBON[ticket.priority] || '#00A86B';
                   const isBreached = ticket.breached && ticket.status !== 'Resolved' && ticket.status !== 'Closed';

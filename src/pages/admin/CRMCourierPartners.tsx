@@ -227,7 +227,7 @@ export function CRMCourierPartners() {
             {paginatedData.length === 0 ? (
               <EmptyState title="No courier partners found" subtitle="Try changing filters" />
             ) : (
-              <div className="p-4 space-y-4">
+              <div className="p-2 space-y-2">
                 {paginatedData.map((c, i) => {
                   const accent = STATUS_RIBBON[c.status] || '#00A86B';
                   return (

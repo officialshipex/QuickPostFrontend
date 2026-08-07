@@ -545,7 +545,7 @@ export function AdminPickupManifest({ isAdminView }: Props) {
             <EmptyState title="No manifests found" subtitle="Try changing filters" />
           </div>
         ) : (
-          <div className="p-2.5 space-y-2">
+          <div className="p-2 space-y-2">
             {paginatedManifests.map((m) => (
               <div key={m._id} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
                 {/* Ribbon Tag */}

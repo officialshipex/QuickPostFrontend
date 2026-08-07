@@ -359,7 +359,7 @@ function MisReportTable({ userId, isAdminView, fillHeight }: {
           {!loading && reports.length === 0 ? (
             <EmptyState title="No reports yet" subtitle="Click &quot;Generate Report&quot; to create one" />
           ) : !loading && (
-            <div className="p-2.5 space-y-2">
+            <div className="p-2 space-y-2">
               {reports.map((r, i) => (
                 <div key={r._id} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
                   <div className="absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide"
@@ -927,7 +927,7 @@ export function AdminReports() {
                 ) : !loadingSellers && sellers.length === 0 ? (
                   <EmptyState title="No sellers found" subtitle="Try changing filters" />
                 ) : !loadingSellers && (
-                  <div className="p-4 space-y-4">
+                  <div className="p-2 space-y-2">
                     {sellers.map((s, i) => {
                       const tier = getTier(s.totalOrders ?? 0);
                       const accent = '#00A86B';

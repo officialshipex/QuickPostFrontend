@@ -284,7 +284,7 @@ export function CRMLeads() {
             {paginatedData.length === 0 ? (
               <EmptyState title="No leads found" subtitle="Try changing filters" />
             ) : (
-              <div className="p-4 space-y-4">
+              <div className="p-2 space-y-2">
                 {paginatedData.map((lead, i) => {
                   const accent = STAGE_RIBBON[lead.stage] || '#00A86B';
                   return (
