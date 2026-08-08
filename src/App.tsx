@@ -61,6 +61,7 @@ import { AdminKYC } from './pages/admin/AdminKYC';
 import { AdminAgreement } from './pages/admin/AdminAgreement';
 import { AdminAgreementSettings } from './pages/admin/AdminAgreementSettings';
 import { AdminPickupAddress } from './pages/admin/AdminPickupAddress';
+import { AdminShell } from './components/admin/layout/AdminShell';
 
 function GlobalOrderClickInterceptor() {
   const navigate = useNavigate();
@@ -157,9 +158,12 @@ function App() {
           <Route path="/login" element={<AuthRedirect><Login /></AuthRedirect>} />
           <Route path="/employee-login" element={<AuthRedirect><EmployeeLogin /></AuthRedirect>} />
           <Route path="/forgot-password" element={<AuthRedirect><ForgotPassword /></AuthRedirect>} />
-          
+
           {/* Protected Routes — auth check + context providers */}
           <Route element={<AdminUserProvider><DashboardFilterProvider><ProtectedRoute /></DashboardFilterProvider></AdminUserProvider>}>
+
+            {/* Persistent shell — sidebar + header mount once, only content area animates */}
+            <Route element={<AdminShell />}>
 
             {/* ── Admin-only routes (/admin/*, /internal-crm/*) ── */}
             <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
@@ -245,6 +249,7 @@ function App() {
               <Route path="/user/employees" element={<AdminRoles />} />
             </Route>
 
+            </Route>{/* /AdminShell */}
           </Route>
         </Routes>
       </Router>

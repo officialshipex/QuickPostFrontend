@@ -5,12 +5,14 @@ import { AdminHeader } from './AdminHeader';
 import { TableLoader } from '../../ui/TableLoader';
 import { useAdminTab } from '../../../context/AdminUserContext';
 import { Lock } from 'lucide-react';
+import { useAdminLayoutShell } from './AdminLayoutContext';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
 }
 
 export function AdminLayout({ children }: AdminLayoutProps) {
+  const isInsideShell = useAdminLayoutShell();
   const location = useLocation();
   const { loadingAdminTab } = useAdminTab();
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
@@ -18,12 +20,17 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const isImpersonating = !!localStorage.getItem('admin_token_backup');
 
   useEffect(() => {
+    if (isInsideShell) return;
     const handler = (e: Event) => {
       setAccessDeniedMsg((e as CustomEvent).detail || 'You do not have permission to perform this action.');
     };
     window.addEventListener('access-denied', handler);
     return () => window.removeEventListener('access-denied', handler);
-  }, []);
+  }, [isInsideShell]);
+
+  // When inside AdminShell, the shell already renders sidebar, header, animation,
+  // and the access-denied modal — just pass children through.
+  if (isInsideShell) return <>{children}</>;
 
   const showHeader =
     location.pathname.startsWith('/admin/') ||
@@ -33,7 +40,6 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   return (
     <div className="admin-dashboard-layout flex min-h-screen bg-[#F8FAFC] text-[#0F172A] selection:bg-[#00A86B]/20 selection:text-[#00A86B] text-sm">
 
-      {/* Global loader — shown while auth context is initialising */}
       {loadingAdminTab && (
         <div className="fixed inset-0 z-[400] bg-white">
           <TableLoader />
@@ -53,7 +59,6 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         </main>
       </div>
 
-      {/* Access Denied Modal — shown when backend returns 403 */}
       {accessDeniedMsg && (
         <div className="fixed inset-0 z-[500] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setAccessDeniedMsg(null)} />
@@ -75,4 +80,3 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     </div>
   );
 }
-
