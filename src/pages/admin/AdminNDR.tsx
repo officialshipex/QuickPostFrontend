@@ -137,6 +137,10 @@ const mapOrder = (o: any) => {
     userName:      o.userId?.fullname || o.userId?.name || '',
     userEmail:     o.userId?.email || '',
     userUserId:    o.userId?.userId || '',
+    // kept as-is so NdrActionModal can build courier-specific payloads
+    awb_number:    o.awb_number || o.awbNumber || '',
+    provider:      o.provider || '',
+    partner:       o.partner  || '',
   };
 };
 
@@ -486,7 +490,7 @@ export function AdminNDR() {
 
   // ── Action menu items ──
   const renderActionMenuItems = () => {
-    const close = () => setShowActionMenu(false);
+    const close = () => { setShowActionMenu(false); setMobileActionOpen(false); };
     return (
       <>
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC]" onClick={() => { handleBulkLabel(selectedOrders); close(); }}>Download Labels</button>

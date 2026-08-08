@@ -61,6 +61,7 @@ import { AdminKYC } from './pages/admin/AdminKYC';
 import { AdminAgreement } from './pages/admin/AdminAgreement';
 import { AdminAgreementSettings } from './pages/admin/AdminAgreementSettings';
 import { AdminPickupAddress } from './pages/admin/AdminPickupAddress';
+import { AdminPickupManifestDetails } from './pages/admin/AdminPickupManifestDetails';
 import { AdminShell } from './components/admin/layout/AdminShell';
 
 function GlobalOrderClickInterceptor() {
@@ -208,6 +209,7 @@ function App() {
               <Route path="/admin/kyc" element={<AdminKYC />} />
               <Route path="/admin/agreement" element={<AdminAgreement />} />
               <Route path="/admin/settings/pickup-address" element={<AdminPickupAddress />} />
+              <Route path="/admin/pickup-manifest/:pickupId" element={<AdminPickupManifestDetails />} />
               <Route path="/internal-crm/shipments" element={<CRMShipmentListing />} />
               <Route path="/internal-crm/sellers" element={<CRMSellerAccounts />} />
               <Route path="/internal-crm/leads" element={<CRMLeads />} />
@@ -246,6 +248,7 @@ function App() {
               <Route path="/user/settings/webhook" element={<AdminWebhookSettings />} />
               <Route path="/user/settings/agreement" element={<AdminAgreementSettings />} />
               <Route path="/user/settings/pickup-address" element={<AdminPickupAddress />} />
+              <Route path="/user/pickup-manifest/:pickupId" element={<AdminPickupManifestDetails />} />
               <Route path="/user/employees" element={<AdminRoles />} />
             </Route>
 

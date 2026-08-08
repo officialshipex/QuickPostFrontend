@@ -458,7 +458,12 @@ export function AdminPickupManifest({ isAdminView }: Props) {
                   )}
 
                   <td className="p-3">
-                    <div className="text-xs font-semibold text-[#00A86B]">{m.pickupId}</div>
+                    <div
+                      className="text-xs font-semibold text-[#00A86B] underline decoration-dotted cursor-pointer hover:text-[#009B63] inline-block"
+                      onClick={() => navigate(`${isAdminView ? '/admin' : '/user'}/pickup-manifest/${m.pickupId}`)}
+                    >
+                      {m.pickupId}
+                    </div>
                     <div className="text-xs font-normal text-[#94A3B8] mt-0.5">{fmtTime(m.createdAt)}</div>
                   </td>
 
@@ -578,7 +583,10 @@ export function AdminPickupManifest({ isAdminView }: Props) {
                       </>
                     ) : (
                       <span className="flex items-baseline gap-2 shrink-0">
-                        <span className="text-[13px] font-bold text-[#00A86B]">{m.pickupId}</span>
+                        <span
+                          className="text-[13px] font-bold text-[#00A86B] underline decoration-dotted cursor-pointer hover:text-[#009B63]"
+                          onClick={() => navigate(`/user/pickup-manifest/${m.pickupId}`)}
+                        >{m.pickupId}</span>
                         <span className="text-[12px] font-medium text-[#94A3B8]">{(m.orderIds || []).length} shipments</span>
                       </span>
                     )}
@@ -587,7 +595,10 @@ export function AdminPickupManifest({ isAdminView }: Props) {
                   {/* Pickup ID & Shipment Count Row — admin view only; user view already shows both above */}
                   {isAdminView && (
                     <div className="flex items-center justify-between mb-1 px-1">
-                      <span className="text-[13px] font-bold text-[#00A86B]">{m.pickupId}</span>
+                      <span
+                        className="text-[13px] font-bold text-[#00A86B] underline decoration-dotted cursor-pointer hover:text-[#009B63]"
+                        onClick={() => navigate(`/admin/pickup-manifest/${m.pickupId}`)}
+                      >{m.pickupId}</span>
                       <span className="text-[12px] font-medium text-[#94A3B8]">{(m.orderIds || []).length} shipments</span>
                     </div>
                   )}

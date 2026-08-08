@@ -287,6 +287,138 @@ function SendAlertModal({ open, onClose, targetUserId, targetUserName }: {
   );
 }
 
+// ─── SendTestModal ────────────────────────────────────────────────────────────
+function SendTestModal({ open, onClose, channelType, channelLabel, channelColor, initialUsed, targetUserId }: {
+  open: boolean; onClose: () => void;
+  channelType: 'whatsapp' | 'sms' | 'email';
+  channelLabel: string; channelColor: string;
+  initialUsed: number; targetUserId: string | null;
+}) {
+  const [recipient, setRecipient] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
+  const [usedCount, setUsedCount] = useState(initialUsed);
+
+  useEffect(() => {
+    if (open) { setRecipient(''); setResult(null); setUsedCount(initialUsed); }
+  }, [open, initialUsed]);
+
+  const MAX_TESTS = 5;
+  const remaining = MAX_TESTS - usedCount;
+  const isExhausted = remaining <= 0;
+
+  const inputLabel = channelType === 'email' ? 'Email Address' : 'Phone Number';
+  const inputType  = channelType === 'email' ? 'email' : 'tel';
+  const placeholder = channelType === 'email' ? 'customer@example.com' : '10-digit mobile number';
+
+  const handleSend = async () => {
+    if (!recipient.trim()) return;
+    setLoading(true); setResult(null);
+    try {
+      const body: any = { channel: channelType, recipient: recipient.trim() };
+      if (targetUserId) body.userId = targetUserId;
+      const res = await apiClient.post('/notification/sendTestMessage', body);
+      const rem = res.data?.remaining ?? 0;
+      setUsedCount(MAX_TESTS - rem);
+      setResult({ ok: true, text: res.data?.message || 'Test message sent!' });
+    } catch (e: any) {
+      setResult({ ok: false, text: e?.response?.data?.error || 'Failed to send test message' });
+    } finally { setLoading(false); }
+  };
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        className="absolute inset-0 bg-[#0F172A]/40 backdrop-blur-sm" onClick={onClose} />
+      <motion.div initial={{ opacity: 0, scale: 0.95, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 10 }}
+        className="relative z-10 w-full max-w-sm bg-white rounded-2xl shadow-2xl overflow-hidden">
+
+        {/* Header */}
+        <div className="flex items-center justify-between p-5 border-b border-[#E2E8F0] bg-[#F8FAFC]">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: `${channelColor}18` }}>
+              <Send className="w-3.5 h-3.5" style={{ color: channelColor }} />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-[#0F172A]">Send Test Message</h3>
+              <p className="text-[10px] text-[#64748B]">via {channelLabel}</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center text-[#64748B] hover:bg-[#E2E8F0] transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="p-5 space-y-4">
+          {/* Usage dots */}
+          <div className="flex items-center justify-between bg-[#F8FAFC] rounded-xl px-3.5 py-2.5 border border-[#E2E8F0]">
+            <span className="text-xs font-semibold text-[#64748B]">Tests used</span>
+            <div className="flex items-center gap-2">
+              <div className="flex gap-1">
+                {Array.from({ length: MAX_TESTS }).map((_, i) => (
+                  <div key={i} className={`w-2.5 h-2.5 rounded-full border transition-colors ${i < usedCount ? 'bg-[#00A86B] border-[#00A86B]' : 'bg-white border-[#CBD5E1]'}`} />
+                ))}
+              </div>
+              <span className="text-xs font-extrabold text-[#0F172A]">{usedCount} / {MAX_TESTS}</span>
+            </div>
+          </div>
+
+          {isExhausted ? (
+            <div className="flex items-center gap-2 text-xs font-semibold p-3 rounded-xl bg-amber-50 text-amber-600 border border-amber-200">
+              <AlertTriangle className="w-4 h-4 shrink-0" />
+              You've used all {MAX_TESTS} test messages for this account.
+            </div>
+          ) : (
+            <>
+              <div>
+                <label className="block text-xs font-bold text-[#475569] mb-1.5 uppercase tracking-wide">{inputLabel}</label>
+                <input
+                  type={inputType}
+                  value={recipient}
+                  onChange={e => setRecipient(e.target.value)}
+                  placeholder={placeholder}
+                  onKeyDown={e => e.key === 'Enter' && !loading && !result?.ok && handleSend()}
+                  className="w-full h-10 px-3 rounded-lg border border-[#E2E8F0] text-sm focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]/20 transition-all placeholder:text-[#94A3B8]"
+                />
+              </div>
+              <div className="flex items-center gap-1.5 text-[10px] text-[#00A86B] font-semibold bg-[#F0FDF4] px-3 py-1.5 rounded-lg border border-[#DCFCE7]">
+                <CheckCircle className="w-3 h-3 shrink-0" />
+                Free — no credits deducted. Max {MAX_TESTS} tests per account.
+              </div>
+            </>
+          )}
+
+          {result && (
+            <div className={`flex items-start gap-2 text-xs font-semibold p-3 rounded-xl ${result.ok ? 'bg-green-50 text-[#00A86B] border border-green-200' : 'bg-red-50 text-red-600 border border-red-200'}`}>
+              {result.ok ? <CheckCircle className="w-4 h-4 shrink-0 mt-px" /> : <AlertTriangle className="w-4 h-4 shrink-0 mt-px" />}
+              {result.text}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex justify-end gap-3 p-5 border-t border-[#E2E8F0] bg-[#F8FAFC]">
+          <button onClick={onClose} className="px-4 py-2 rounded-xl text-xs font-bold text-[#64748B] hover:bg-[#E2E8F0] transition-colors">
+            {result?.ok ? 'Close' : 'Cancel'}
+          </button>
+          {!isExhausted && !result?.ok && (
+            <button onClick={handleSend} disabled={loading || !recipient.trim()}
+              className="px-4 py-2 rounded-xl bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors disabled:opacity-60 flex items-center gap-1.5">
+              {loading
+                ? <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                : <Send className="w-3 h-3" />}
+              {loading ? 'Sending…' : 'Send Test'}
+            </button>
+          )}
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
 // ─── ChannelTab ───────────────────────────────────────────────────────────────
 function ChannelTab({ channelCfg, settings, targetUserId, onUpdate }: {
   channelCfg: typeof CHANNELS[number];
@@ -297,6 +429,7 @@ function ChannelTab({ channelCfg, settings, targetUserId, onUpdate }: {
   const { label, Icon, color, masterField, adminField, togglePrefix, dataPrefix, hasSubject, paid } = channelCfg;
   const [saving, setSaving] = useState<string | null>(null);
   const [editModal, setEditModal] = useState<typeof STATUSES[number] | null>(null);
+  const [testOpen, setTestOpen] = useState(false);
   const { toast: localToast, showToast: _localShowToast, closeToast: closeLocalToast } = useToast(2500);
   const showToast = (ok: boolean, text: string) => _localShowToast(ok ? 'success' : 'error', text);
   const masterEnabled: boolean = settings[masterField] ?? false;
@@ -354,6 +487,14 @@ function ChannelTab({ channelCfg, settings, targetUserId, onUpdate }: {
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={() => setTestOpen(true)}
+            title="Send a test notification"
+            className="h-7 w-7 sm:h-8 sm:w-auto sm:px-3 rounded-lg border border-[#E2E8F0] text-[#64748B] text-[11px] font-bold hover:border-[#00A86B] hover:text-[#00A86B] transition-colors flex items-center justify-center gap-1.5 shrink-0"
+          >
+            <Send className="w-3 h-3" />
+            <span className="hidden sm:inline">Test</span>
+          </button>
           <span className="hidden sm:inline text-xs font-semibold text-[#64748B]">{masterEnabled ? 'Enabled' : 'Disabled'}</span>
           <Toggle checked={masterEnabled} onChange={handleMaster} disabled={adminBlocked || saving === masterField} />
         </div>
@@ -432,6 +573,20 @@ function ChannelTab({ channelCfg, settings, targetUserId, onUpdate }: {
       </AnimatePresence>
 
       <Toast toast={localToast} onClose={closeLocalToast} />
+
+      <AnimatePresence>
+        {testOpen && (
+          <SendTestModal
+            open
+            onClose={() => setTestOpen(false)}
+            channelType={channelCfg.type}
+            channelLabel={label}
+            channelColor={color}
+            initialUsed={settings.testMessageCount ?? 0}
+            targetUserId={targetUserId}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

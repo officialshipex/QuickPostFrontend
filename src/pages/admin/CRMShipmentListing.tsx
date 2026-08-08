@@ -200,7 +200,7 @@ export function CRMShipmentListing() {
   const [orderId, setOrderId] = useState('');
   const [productSpecs, setProductSpecs] = useState('');
   const [forwardAwb, setForwardAwb] = useState('');
-  const [rtoAwb, setRtoAwb] = useState('');
+  const [pendingPickupOnly, setPendingPickupOnly] = useState(false);
   const [dateFrom, setDateFrom] = useState(() => getLast7DaysStr()[0]);
   const [dateTo, setDateTo] = useState(() => getLast7DaysStr()[1]);
   const [defStart, defEnd] = getLast7DaysStr();
@@ -274,7 +274,19 @@ export function CRMShipmentListing() {
     try {
       const params: Record<string, string> = { page: String(pg), limit: String(lim) };
       if (selectedCouriers.length) params.courier = selectedCouriers.join(',');
-      if (selectedStatuses.length) params.status = selectedStatuses.join(',');
+      // pendingPickupOnly takes precedence over the status dropdown
+      if (pendingPickupOnly) {
+        params.status = 'Not Picked,Ready To Ship,Booked,Pickup Scheduled';
+        // Exclude today — shipments created today are still within the courier's pickup window
+        const yd = new Date(); yd.setDate(yd.getDate() - 1);
+        const yesterday = yd.toISOString().split('T')[0];
+        if (dateFrom) params.dateFrom = dateFrom;
+        params.dateTo = yesterday;
+      } else {
+        if (selectedStatuses.length) params.status = selectedStatuses.join(',');
+        if (dateFrom) params.dateFrom = dateFrom;
+        if (dateTo) params.dateTo = dateTo;
+      }
       if (selectedChannels.length) params.channel = selectedChannels.join(',');
       if (selectedOrderTypes.length) params.orderType = selectedOrderTypes.join(',');
       if (selectedPickupAddrs.length) params.pickupCity = selectedPickupAddrs.join(',');
@@ -286,9 +298,6 @@ export function CRMShipmentListing() {
         if (wopt) { if (wopt.min) params.minWeight = String(wopt.min); if (wopt.max !== undefined) params.maxWeight = String(wopt.max); }
       }
       if (forwardAwb) params.awb = forwardAwb;
-      if (rtoAwb) params.rtoAwb = rtoAwb;
-      if (dateFrom) params.dateFrom = dateFrom;
-      if (dateTo) params.dateTo = dateTo;
 
       const res = await apiClient.get('/crm/shipments', { params });
       setOrders((res.data.orders || []).map(mapOrder));
@@ -304,7 +313,7 @@ export function CRMShipmentListing() {
     } finally {
       setLoading(false);
     }
-  }, [selectedCouriers, selectedStatuses, selectedChannels, selectedOrderTypes, selectedPickupAddrs, userMongoId, orderId, productSpecs, selectedWeightRanges, forwardAwb, rtoAwb, dateFrom, dateTo]);
+  }, [selectedCouriers, selectedStatuses, selectedChannels, selectedOrderTypes, selectedPickupAddrs, userMongoId, orderId, productSpecs, selectedWeightRanges, forwardAwb, pendingPickupOnly, dateFrom, dateTo]);
 
   // Always-latest ref — prevents stale closure in setPage / setRowsPerPage wrappers
   const fetchRef = useRef(fetchOrders);
@@ -364,13 +373,13 @@ export function CRMShipmentListing() {
     return () => document.removeEventListener('pointerdown', handler);
   }, [hoveredPickup]);
 
-  const hasActiveFilters = selectedCouriers.length > 0 || selectedStatuses.length > 0 || selectedChannels.length > 0 || selectedOrderTypes.length > 0 || selectedPickupAddrs.length > 0 || !!userMongoId || orderId || productSpecs || selectedWeightRanges.length > 0 || forwardAwb || rtoAwb || (dateFrom && dateTo && !(dateFrom === defStart && dateTo === defEnd));
+  const hasActiveFilters = selectedCouriers.length > 0 || selectedStatuses.length > 0 || selectedChannels.length > 0 || selectedOrderTypes.length > 0 || selectedPickupAddrs.length > 0 || !!userMongoId || orderId || productSpecs || selectedWeightRanges.length > 0 || forwardAwb || pendingPickupOnly || (dateFrom && dateTo && !(dateFrom === defStart && dateTo === defEnd));
 
   const handleClearAllFilters = () => {
     setSelectedCouriers([]); setSelectedStatuses([]); setSelectedChannels([]);
     setSelectedOrderTypes([]); setSelectedPickupAddrs([]);
     clearUser(); setOrderId(''); setProductSpecs(''); setSelectedWeightRanges([]);
-    setForwardAwb(''); setRtoAwb(''); setDateFrom(defStart); setDateTo(defEnd);
+    setForwardAwb(''); setPendingPickupOnly(false); setDateFrom(defStart); setDateTo(defEnd);
     pageRef.current = 1; setPageState(1);
     // Fetch with empty params — don't use stale closure
     setLoading(true);
@@ -396,7 +405,17 @@ export function CRMShipmentListing() {
       const params: Record<string, string> = { export: 'true' };
       if (selectedOrders.length) params.awbs = selectedOrders.join(',');
       if (selectedCouriers.length) params.courier = selectedCouriers.join(',');
-      if (selectedStatuses.length) params.status = selectedStatuses.join(',');
+      if (pendingPickupOnly) {
+        params.status = 'Not Picked,Ready To Ship,Booked,Pickup Scheduled';
+        const yd = new Date(); yd.setDate(yd.getDate() - 1);
+        const yesterday = yd.toISOString().split('T')[0];
+        if (dateFrom) params.dateFrom = dateFrom;
+        params.dateTo = yesterday;
+      } else {
+        if (selectedStatuses.length) params.status = selectedStatuses.join(',');
+        if (dateFrom) params.dateFrom = dateFrom;
+        if (dateTo) params.dateTo = dateTo;
+      }
       if (selectedChannels.length) params.channel = selectedChannels.join(',');
       if (selectedOrderTypes.length) params.orderType = selectedOrderTypes.join(',');
       if (selectedPickupAddrs.length) params.pickupCity = selectedPickupAddrs.join(',');
@@ -404,9 +423,6 @@ export function CRMShipmentListing() {
       if (orderId) params.orderId = orderId;
       if (productSpecs) params.product = productSpecs;
       if (forwardAwb) params.awb = forwardAwb;
-      if (rtoAwb) params.rtoAwb = rtoAwb;
-      if (dateFrom) params.dateFrom = dateFrom;
-      if (dateTo) params.dateTo = dateTo;
       const res = await apiClient.get('/crm/shipments', { params, responseType: 'blob' });
       const url = URL.createObjectURL(res.data);
       const a = document.createElement('a');
@@ -535,13 +551,29 @@ export function CRMShipmentListing() {
               className="glass-search-input w-full"
             />
 
-            <input
-              type="text"
-              placeholder="Search RTO AWB..."
-              value={rtoAwb}
-              onChange={e => setRtoAwb(e.target.value)}
-              className="glass-search-input w-full"
-            />
+            <button
+              type="button"
+              onClick={() => {
+                const next = !pendingPickupOnly;
+                setPendingPickupOnly(next);
+                pageRef.current = 1;
+                setPageState(1);
+                setTimeout(() => fetchRef.current(1, rowsPerPageRef.current), 0);
+              }}
+              className={`glass-search-input w-full flex items-center gap-2 !cursor-pointer transition-all text-left ${
+                pendingPickupOnly
+                  ? 'border-amber-400 bg-amber-50 text-amber-700'
+                  : 'text-[#94A3B8] hover:border-amber-300'
+              }`}
+            >
+              <Package className="w-3.5 h-3.5 shrink-0" />
+              <span className={`text-[12px] flex-1 ${pendingPickupOnly ? 'font-bold text-amber-700' : 'font-normal'}`}>
+                Pending Pickup
+              </span>
+              {pendingPickupOnly && (
+                <span className="text-[9px] font-bold bg-amber-400 text-white px-1.5 py-0.5 rounded-full shrink-0">ON</span>
+              )}
+            </button>
 
             <GlassDropdown
               className="w-full [&_.glass-dropdown-trigger]:w-full"
@@ -1091,9 +1123,24 @@ export function CRMShipmentListing() {
                     className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]" />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">RTO AWB</label>
-                  <input type="text" value={rtoAwb} onChange={e => setRtoAwb(e.target.value)} placeholder="Search RTO AWB..."
-                    className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]" />
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Pending Pickup</label>
+                  <button
+                    type="button"
+                    onClick={() => setPendingPickupOnly(p => !p)}
+                    className={`w-full h-11 px-4 rounded-full border flex items-center gap-2 cursor-pointer transition-all ${
+                      pendingPickupOnly
+                        ? 'border-amber-400 bg-amber-50 text-amber-700'
+                        : 'border-slate-200 text-slate-400 hover:border-amber-300'
+                    }`}
+                  >
+                    <Package className="w-4 h-4 shrink-0" />
+                    <span className={`text-sm flex-1 text-left ${pendingPickupOnly ? 'font-bold text-amber-700' : 'font-normal'}`}>
+                      {pendingPickupOnly ? 'Pending Pickup — Active' : 'Show Pending Pickup'}
+                    </span>
+                    {pendingPickupOnly && (
+                      <span className="text-[10px] font-bold bg-amber-400 text-white px-2 py-0.5 rounded-full shrink-0">ON</span>
+                    )}
+                  </button>
                 </div>
                 <div>
                   <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Pickup Address</label>
