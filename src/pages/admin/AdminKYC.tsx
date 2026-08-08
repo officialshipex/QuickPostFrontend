@@ -5,6 +5,8 @@ import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { apiClient } from '../../services/apiClient';
 import { useTableLoader } from '../../hooks/useTableLoader';
 import { TableLoader } from '../../components/ui/TableLoader';
+import { useToast } from '../../hooks/useToast';
+import { Toast } from '../../components/ui/Toast';
 import {
   Check,
   X,
@@ -102,6 +104,7 @@ function SectionCard({ icon: Icon, title, required, note, children }: { icon: Re
 /* ── MAIN COMPONENT ── */
 export function AdminKYC() {
   const navigate = useNavigate();
+  const { toast, showToast, closeToast } = useToast();
   const [copyToast, setCopyToast] = useState(false);
   const copyValue = (v: string) => {
     navigator.clipboard.writeText(v);
@@ -166,14 +169,15 @@ export function AdminKYC() {
           setKycComplete(true);
         } else {
           // KYC not complete — fetch all existing data to resume where user left off
-          const [billRes, aRes, pRes, bRes] = await Promise.allSettled([
+          const [billRes, gstRes, aRes, pRes, bRes] = await Promise.allSettled([
             apiClient.get('/getKyc/getBillingInfo'),
+            apiClient.get('/getKyc/getGST'),
             apiClient.get('/getKyc/getAadhaar'),
             apiClient.get('/getKyc/getPan'),
             apiClient.get('/getKyc/getBankAccount'),
           ]);
 
-          // Pre-fill Step 1 billing fields if already submitted
+          // Pre-fill Step 1 billing fields (INDIVIDUAL) if already submitted
           const bill = billRes.status === 'fulfilled' ? billRes.value.data : null;
           if (bill?.address) {
             setAddress(bill.address);
@@ -182,6 +186,23 @@ export function AdminKYC() {
             setPincode(bill.postalCode || '');
             setBillingPreFilled(true);
             // Auto-jump to Step 2 only when billing + phone + email are all verified
+            if (userData?.isPhoneVerified && userData?.isEmailVerified) {
+              setStep(2);
+            }
+          }
+
+          // Pre-fill Step 1 GST fields (COMPANY) if already verified
+          const g = gstRes.status === 'fulfilled' ? gstRes.value.data : null;
+          if (g?.gstin) {
+            setBusinessType('COMPANY');
+            setGstin(g.gstin);
+            setCompanyName(g.legalNameOfBusiness || g.nameOfBusiness || '');
+            setAddress(g.address || '');
+            setCity(g.city || '');
+            setState(g.state || '');
+            setPincode(g.pincode || '');
+            setIsGstinVerified(true);
+            setBillingPreFilled(true);
             if (userData?.isPhoneVerified && userData?.isEmailVerified) {
               setStep(2);
             }
@@ -275,8 +296,15 @@ export function AdminKYC() {
   const [isBankLoading, setIsBankLoading] = useState(false);
   const [bankData, setBankData] = useState({ beneficiaryName: '', bankName: '', branchName: '', city: '' });
 
-  const [otpValues, setOtpValues] = useState(['', '', '', '']);
+  const [aadhaarRefId, setAadhaarRefId] = useState('');
+  const [sendingAadhaarOtp, setSendingAadhaarOtp] = useState(false);
+  const [verifyingAadhaarOtp, setVerifyingAadhaarOtp] = useState(false);
+  const [aadhaarOtpTimer, setAadhaarOtpTimer] = useState(0);
+
+  const [otpValues, setOtpValues] = useState(['', '', '', '', '', '']);
   const otpInputRefs = [
+    useRef<HTMLInputElement>(null),
+    useRef<HTMLInputElement>(null),
     useRef<HTMLInputElement>(null),
     useRef<HTMLInputElement>(null),
     useRef<HTMLInputElement>(null),
@@ -289,7 +317,7 @@ export function AdminKYC() {
     const newOtpValues = [...otpValues];
     newOtpValues[index] = cleanValue.slice(-1);
     setOtpValues(newOtpValues);
-    if (cleanValue !== '' && index < 3) otpInputRefs[index + 1].current?.focus();
+    if (cleanValue !== '' && index < 5) otpInputRefs[index + 1].current?.focus();
   };
 
   const handleOtpKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -298,16 +326,49 @@ export function AdminKYC() {
     }
   };
 
-  const closeOtpModal = () => { setIsOtpModalOpen(false); setOtpValues(['', '', '', '']); };
+  const closeOtpModal = () => { setIsOtpModalOpen(false); setOtpValues(['', '', '', '', '', '']); };
 
-  const handleVerifyOtp = () => {
-    const enteredOtp = otpValues.join('');
-    if (enteredOtp.length < 4) return;
-    if (otpTarget === 'aadhaar') {
-      setIsAadhaarVerified(true);
-      setAadhaarData({ name: 'Dinesh Tharwani', guardianName: 'Ram Tharwani', address: 'Flat 302, Galaxy Apartments, Sector 45', state: 'HARYANA', city: 'GURUGRAM' });
+  const sendAadhaarOtpAndOpen = async () => {
+    if (aadhaarOtpTimer > 0 || sendingAadhaarOtp) return;
+    setSendingAadhaarOtp(true);
+    try {
+      const res = await apiClient.post('/merchant/verfication/generate-otp', { aadhaarNo: aadhaarNumber });
+      if (res.data?.data?.ref_id) {
+        setAadhaarRefId(res.data.data.ref_id);
+        setOtpValues(['', '', '', '', '', '']);
+        setAadhaarOtpTimer(180);
+        setIsOtpModalOpen(true);
+        showToast('success', res.data?.message || 'OTP sent to your Aadhaar-linked mobile');
+      } else {
+        showToast('error', res.data?.message || 'Failed to send OTP');
+      }
+    } catch (err: any) {
+      showToast('error', err?.response?.data?.message || 'Failed to send OTP');
+    } finally {
+      setSendingAadhaarOtp(false);
     }
-    closeOtpModal();
+  };
+
+  const handleVerifyOtp = async () => {
+    const otp = otpValues.join('');
+    if (otp.length < 6) return;
+    setVerifyingAadhaarOtp(true);
+    try {
+      const res = await apiClient.post('/merchant/verfication/verify-otp', { otp, aadhaarNo: aadhaarNumber, refId: aadhaarRefId });
+      if (res.data?.success) {
+        const d = res.data.data || {};
+        setIsAadhaarVerified(true);
+        setAadhaarData({ name: d.name || '', guardianName: d.sonOf || '', address: d.address || '', state: d.state || '', city: d.city || '' });
+        showToast('success', 'Aadhaar verified successfully!');
+        closeOtpModal();
+      } else {
+        showToast('error', res.data?.message || 'OTP verification failed');
+      }
+    } catch (err: any) {
+      showToast('error', err?.response?.data?.message || 'OTP verification failed');
+    } finally {
+      setVerifyingAadhaarOtp(false);
+    }
   };
 
   useEffect(() => {
@@ -337,24 +398,74 @@ export function AdminKYC() {
     return () => clearInterval(interval);
   }, [emailOtpTimer]);
 
-  const handleVerifyPan = () => {
+  useEffect(() => {
+    if (aadhaarOtpTimer <= 0) return;
+    const interval = setInterval(() => setAadhaarOtpTimer(t => t - 1), 1000);
+    return () => clearInterval(interval);
+  }, [aadhaarOtpTimer]);
+
+  const handleVerifyPan = async () => {
     if (!panNumber || panNumber.length < 10) return;
     setIsPanLoading(true);
-    setTimeout(() => {
-      setIsPanVerified(true);
+    try {
+      const res = await apiClient.post('/merchant/verfication/pan', { pan: panNumber });
+      if (res.data?.success) {
+        const d = res.data.data || {};
+        setIsPanVerified(true);
+        setPanData({ panType: d.panType || '', name: d.nameProvided || d.name || '' });
+        showToast('success', 'PAN verified successfully!');
+      } else {
+        showToast('error', res.data?.message || 'PAN verification failed');
+      }
+    } catch (err: any) {
+      showToast('error', err?.response?.data?.message || 'PAN verification failed');
+    } finally {
       setIsPanLoading(false);
-      setPanData({ panType: businessType === 'COMPANY' ? 'PRIVATE LIMITED' : 'INDIVIDUAL', name: 'DINESH THARWANI' });
-    }, 1200);
+    }
   };
 
-  const handleVerifyBank = () => {
+  const handleVerifyBank = async () => {
     if (!accountNumber || !ifscCode || ifscCode.length < 11) return;
     setIsBankLoading(true);
-    setTimeout(() => {
-      setIsBankVerified(true);
+    try {
+      const res = await apiClient.post('/merchant/verfication/bank-account', { accountNo: accountNumber, ifsc: ifscCode });
+      if (res.data?.success) {
+        const d = res.data.data || {};
+        setIsBankVerified(true);
+        setBankData({ beneficiaryName: d.nameAtBank || '', bankName: d.bank || '', branchName: d.branch || '', city: d.city || '' });
+        showToast('success', 'Bank account verified successfully!');
+      } else {
+        showToast('error', res.data?.message || 'Bank verification failed');
+      }
+    } catch (err: any) {
+      showToast('error', err?.response?.data?.message || 'Bank verification failed');
+    } finally {
       setIsBankLoading(false);
-      setBankData({ beneficiaryName: 'DINESH THARWANI', bankName: 'HDFC BANK', branchName: 'SOHNA ROAD BRANCH', city: 'GURUGRAM' });
-    }, 1200);
+    }
+  };
+
+  const handleVerifyGstin = async () => {
+    if (!gstin || gstin.length < 15) return;
+    setIsGstinLoading(true);
+    try {
+      const res = await apiClient.post('/merchant/verfication/gstin', { GSTIN: gstin });
+      if (res.data?.success) {
+        const d = res.data.data || {};
+        setIsGstinVerified(true);
+        setCompanyName(d.legalNameOfBusiness || d.nameOfBusiness || '');
+        setAddress(d.address || '');
+        setCity(d.city || '');
+        setState(d.state || '');
+        setPincode(d.pincode || '');
+        showToast('success', 'GST verified successfully!');
+      } else {
+        showToast('error', res.data?.message || 'GST verification failed');
+      }
+    } catch (err: any) {
+      showToast('error', err?.response?.data?.message || 'GST verification failed');
+    } finally {
+      setIsGstinLoading(false);
+    }
   };
 
   const handleKycSubmit = async (e: React.FormEvent) => {
@@ -601,6 +712,44 @@ export function AdminKYC() {
             <motion.div key={step} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -15 }} transition={{ duration: 0.25 }}>
               {step === 1 ? (
                 <div className="space-y-4 md:space-y-6">
+
+                  {/* ── 1. Mandatory Information ── */}
+                  <SectionCard icon={Lock} title="Mandatory Information" required={!billingPreFilled}>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
+                      {/* Email */}
+                      <div>
+                        <label className="block text-[11px] md:text-xs font-semibold text-[#64748B] mb-1.5">Email<span className="text-red-500">*</span></label>
+                        <div className="relative flex items-center">
+                          <input type="email" value={email} onChange={(e) => !isEmailVerified && !billingPreFilled && setEmail(e.target.value)} readOnly={isEmailVerified || billingPreFilled} placeholder="Enter your email" className={`w-full h-11 md:h-10 pl-10 pr-28 rounded-lg border text-[13px] md:text-xs focus:outline-none font-bold transition-all ${isEmailVerified || billingPreFilled ? 'border-[#E2E8F0] text-[#334155] bg-[#F8FAFC]' : 'border-[#E2E8F0] text-[#0F172A] focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10'}`} />
+                          <Mail className="w-4 h-4 text-[#94A3B8] absolute left-3.5" />
+                          {isEmailVerified ? (
+                            <span className="absolute right-3.5 flex items-center gap-1 text-[11px] font-bold text-[#00A86B] bg-[#00A86B]/5 border border-[#00A86B]/15 px-2 py-0.5 rounded-full"><Check className="w-3 h-3" /> Verified</span>
+                          ) : (
+                            <button type="button" onClick={sendEmailOtp} disabled={emailOtpTimer > 0 || loadingEmailOtp || !email || !email.includes('@')} className="absolute right-3.5 text-[11px] font-bold text-[#00A86B] hover:text-[#009B63] disabled:opacity-40 disabled:pointer-events-none select-none focus:outline-none">
+                              {loadingEmailOtp ? 'Sending...' : emailOtpTimer > 0 ? `Resend in ${emailOtpTimer}s` : 'Send OTP'}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      {/* Phone */}
+                      <div>
+                        <label className="block text-[11px] md:text-xs font-semibold text-[#64748B] mb-1.5">Phone Number<span className="text-red-500">*</span></label>
+                        <div className="relative flex items-center">
+                          <input type="tel" value={phoneNumber} onChange={(e) => { if (!isPhoneVerified && !billingPreFilled) { let v = e.target.value.replace(/\D/g, ''); if (v.length > 10) v = v.slice(0, 10); setPhoneNumber(v); } }} readOnly={isPhoneVerified || billingPreFilled} placeholder="Enter 10-digit mobile number" className={`w-full h-11 md:h-10 pl-10 pr-28 rounded-lg border text-[13px] md:text-xs focus:outline-none font-bold transition-all ${isPhoneVerified || billingPreFilled ? 'border-[#E2E8F0] text-[#334155] bg-[#F8FAFC]' : 'border-[#E2E8F0] text-[#0F172A] focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10'}`} />
+                          <Phone className="w-4 h-4 text-[#94A3B8] absolute left-3.5" />
+                          {isPhoneVerified ? (
+                            <span className="absolute right-3.5 flex items-center gap-1 text-[11px] font-bold text-[#00A86B] bg-[#00A86B]/5 border border-[#00A86B]/15 px-2 py-0.5 rounded-full"><Check className="w-3 h-3" /> Verified</span>
+                          ) : (
+                            <button type="button" onClick={sendPhoneOtp} disabled={phoneOtpTimer > 0 || loadingPhoneOtp || phoneNumber.replace(/\D/g, '').length !== 10} className="absolute right-3.5 text-[11px] font-bold text-[#00A86B] hover:text-[#009B63] disabled:opacity-40 disabled:pointer-events-none select-none focus:outline-none">
+                              {loadingPhoneOtp ? 'Sending...' : phoneOtpTimer > 0 ? `Resend in ${phoneOtpTimer}s` : 'Send OTP'}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </SectionCard>
+
+                  {/* ── 2. Business Type ── */}
                   <SectionCard
                     icon={Building2}
                     title="Select Business Type"
@@ -681,23 +830,53 @@ export function AdminKYC() {
                     </div>
                   </SectionCard>
 
+                  {/* ── 3. Type-specific sections (animate in after selection) ── */}
                   <AnimatePresence>
                     {(businessType || billingPreFilled) && (
                       <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -15 }} transition={{ duration: 0.3 }} className="space-y-4 md:space-y-6">
-                        {!billingPreFilled && businessType === 'COMPANY' && (
-                          <SectionCard icon={Building} title="Company Legal & GST Details">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
+
+                        {/* INDIVIDUAL → Billing Address */}
+                        {(businessType === 'INDIVIDUAL' || (billingPreFilled && businessType !== 'COMPANY')) && (
+                          <SectionCard icon={MapPin} title="Billing Information">
+                            <div className="space-y-3.5 md:space-y-4">
                               <div>
-                                <label className="block text-[11px] md:text-xs font-semibold text-[#64748B] mb-1.5">Legal Company Name<span className="text-red-500">*</span></label>
-                                <input type="text" value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Enter Registered Company Name" className="w-full h-11 md:h-10 px-3 rounded-lg border border-[#E2E8F0] text-[#0F172A] text-[13px] md:text-xs focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all font-bold" />
+                                <label className="block text-[11px] md:text-xs font-semibold text-[#64748B] mb-1.5">Address<span className="text-red-500">*</span></label>
+                                <textarea rows={2} required value={address} onChange={(e) => setAddress(e.target.value)} readOnly={billingPreFilled} placeholder="Enter your registered billing address" className={`w-full p-3.5 md:p-4 rounded-xl border border-[#E2E8F0] text-[#0F172A] text-[13px] md:text-xs focus:outline-none font-medium leading-relaxed resize-none ${billingPreFilled ? 'bg-[#F8FAFC] text-[#475569] cursor-default' : 'focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]'}`} />
                               </div>
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 md:gap-4">
+                                <div>
+                                  <label className="block text-[11px] md:text-xs font-semibold text-[#64748B] mb-1.5">Pincode<span className="text-red-500">*</span></label>
+                                  <input type="text" required maxLength={6} placeholder="Enter 6-digit Pincode" value={pincode} onChange={(e) => !billingPreFilled && setPincode(e.target.value.replace(/\D/g, ''))} readOnly={billingPreFilled} className={`w-full h-11 md:h-10 px-3 rounded-lg border border-[#E2E8F0] text-[#0F172A] text-[13px] md:text-xs focus:outline-none font-bold ${billingPreFilled ? 'bg-[#F8FAFC] text-[#475569] cursor-default' : 'focus:border-[#00A86B]'}`} />
+                                </div>
+                                <div className="grid grid-cols-2 md:contents gap-3.5">
+                                  <div>
+                                    <label className="block text-[11px] md:text-xs font-semibold text-[#64748B] mb-1.5">City<span className="text-red-500">*</span></label>
+                                    <input type="text" required readOnly value={city} placeholder="Auto-filled" className="w-full h-11 md:h-10 px-3 rounded-lg border border-[#E2E8F0] text-[#334155] bg-[#F8FAFC] text-[13px] md:text-xs focus:outline-none font-bold uppercase" />
+                                  </div>
+                                  <div>
+                                    <label className="block text-[11px] md:text-xs font-semibold text-[#64748B] mb-1.5">State<span className="text-red-500">*</span></label>
+                                    <div className="relative flex items-center">
+                                      <input type="text" required readOnly value={state} placeholder="Auto-filled" className="w-full h-11 md:h-10 pl-3 pr-3 md:pr-24 rounded-lg border border-[#E2E8F0] text-[#334155] bg-[#F8FAFC] text-[13px] md:text-xs focus:outline-none font-bold uppercase" />
+                                      {city && state && <span className="hidden md:flex absolute right-3.5 items-center gap-1 text-[10px] font-bold text-[#00A86B] bg-[#00A86B]/5 border border-[#00A86B]/15 px-2 py-0.5 rounded-full select-none"><Check className="w-3 h-3" /> Submitted</span>}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </SectionCard>
+                        )}
+
+                        {/* COMPANY → GST Verification only; other fields auto-fill from GST */}
+                        {(businessType === 'COMPANY' || (billingPreFilled && businessType === 'COMPANY')) && (
+                          <SectionCard icon={Building} title="GST Verification">
+                            <div className="space-y-4">
                               <div>
                                 <label className="block text-[11px] md:text-xs font-semibold text-[#64748B] mb-1.5">GSTIN Number<span className="text-red-500">*</span></label>
                                 <div className="relative flex items-center">
-                                  <input type="text" maxLength={15} value={gstin} onChange={(e) => setGstin(e.target.value.toUpperCase())} disabled={isGstinVerified} placeholder="Enter 15-digit GSTIN" className="w-full h-11 md:h-10 px-3 pr-24 rounded-lg border border-[#E2E8F0] text-[#0F172A] text-[13px] md:text-xs focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all font-bold uppercase" />
-                                  {!isGstinVerified ? (
-                                    <button type="button" onClick={() => { setIsGstinLoading(true); setTimeout(() => { setIsGstinVerified(true); setIsGstinLoading(false); }, 1000); }} disabled={isGstinLoading || gstin.length < 15} className="absolute right-3.5 text-xs font-bold text-[#00A86B] hover:text-[#009B63] select-none cursor-pointer focus:outline-none flex items-center gap-1.5 disabled:opacity-50">
-                                      {isGstinLoading ? <RefreshCcw className="w-3.5 h-3.5 animate-spin" /> : "Verify GST"}
+                                  <input type="text" maxLength={15} value={gstin} onChange={(e) => setGstin(e.target.value.toUpperCase())} disabled={isGstinVerified || billingPreFilled} placeholder="Enter 15-digit GSTIN" className="w-full h-11 md:h-10 px-3 pr-28 rounded-lg border border-[#E2E8F0] text-[#0F172A] text-[13px] md:text-xs focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all font-bold uppercase disabled:bg-[#F8FAFC] disabled:text-[#475569]" />
+                                  {!(isGstinVerified || billingPreFilled) ? (
+                                    <button type="button" onClick={handleVerifyGstin} disabled={isGstinLoading || gstin.length < 15} className="absolute right-3.5 text-xs font-bold text-[#00A86B] hover:text-[#009B63] select-none cursor-pointer focus:outline-none flex items-center gap-1.5 disabled:opacity-50">
+                                      {isGstinLoading ? <RefreshCcw className="w-3.5 h-3.5 animate-spin" /> : 'Verify GST'}
                                     </button>
                                   ) : (
                                     <span className="absolute right-3.5 flex items-center gap-1 text-[11px] font-bold text-[#00A86B] bg-[#00A86B]/5 border border-[#00A86B]/15 px-2 py-0.5 rounded-full">
@@ -706,106 +885,40 @@ export function AdminKYC() {
                                   )}
                                 </div>
                               </div>
+                              <AnimatePresence>
+                                {(isGstinVerified || billingPreFilled) && (
+                                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.2 }} className="overflow-hidden">
+                                    <div className="pt-3 border-t border-dashed border-[#E2E8F0] grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                                      <div className="col-span-1 md:col-span-2 flex items-center gap-1.5 text-[10px] md:text-[10.5px] font-bold text-[#00A86B] mb-0.5">
+                                        <BadgeCheck className="w-3.5 h-3.5 shrink-0" /> Auto-fetched from GST Registry
+                                      </div>
+                                      <div>
+                                        <label className="block text-[10px] font-semibold text-[#94A3B8] mb-1.5">Legal Company Name</label>
+                                        <input type="text" readOnly value={companyName} className="w-full h-10 px-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg text-[12.5px] md:text-xs text-[#475569] font-bold" />
+                                      </div>
+                                      <div>
+                                        <label className="block text-[10px] font-semibold text-[#94A3B8] mb-1.5">Pincode</label>
+                                        <input type="text" readOnly value={pincode} className="w-full h-10 px-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg text-[12.5px] md:text-xs text-[#475569] font-bold" />
+                                      </div>
+                                      <div>
+                                        <label className="block text-[10px] font-semibold text-[#94A3B8] mb-1.5">City</label>
+                                        <input type="text" readOnly value={city} className="w-full h-10 px-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg text-[12.5px] md:text-xs text-[#475569] font-bold uppercase" />
+                                      </div>
+                                      <div>
+                                        <label className="block text-[10px] font-semibold text-[#94A3B8] mb-1.5">State</label>
+                                        <input type="text" readOnly value={state} className="w-full h-10 px-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg text-[12.5px] md:text-xs text-[#475569] font-bold uppercase" />
+                                      </div>
+                                      <div className="col-span-1 md:col-span-2">
+                                        <label className="block text-[10px] font-semibold text-[#94A3B8] mb-1.5">Registered Address</label>
+                                        <input type="text" readOnly value={address} className="w-full h-10 px-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg text-[12.5px] md:text-xs text-[#475569] font-bold" />
+                                      </div>
+                                    </div>
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
                             </div>
                           </SectionCard>
                         )}
-
-                        <SectionCard icon={Lock} title="Mandatory Information">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
-                            {/* Email */}
-                            <div>
-                              <label className="block text-[11px] md:text-xs font-semibold text-[#64748B] mb-1.5">Email<span className="text-red-500">*</span></label>
-                              <div className="relative flex items-center">
-                                <input
-                                  type="email"
-                                  value={email}
-                                  onChange={(e) => !isEmailVerified && !billingPreFilled && setEmail(e.target.value)}
-                                  readOnly={isEmailVerified || billingPreFilled}
-                                  placeholder="Enter your email"
-                                  className={`w-full h-11 md:h-10 pl-10 pr-28 rounded-lg border text-[13px] md:text-xs focus:outline-none font-bold transition-all ${isEmailVerified || billingPreFilled ? 'border-[#E2E8F0] text-[#334155] bg-[#F8FAFC]' : 'border-[#E2E8F0] text-[#0F172A] focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10'}`}
-                                />
-                                <Mail className="w-4 h-4 text-[#94A3B8] absolute left-3.5" />
-                                {isEmailVerified ? (
-                                  <span className="absolute right-3.5 flex items-center gap-1 text-[11px] font-bold text-[#00A86B] bg-[#00A86B]/5 border border-[#00A86B]/15 px-2 py-0.5 rounded-full">
-                                    <Check className="w-3 h-3" /> Verified
-                                  </span>
-                                ) : (
-                                  <button
-                                    type="button"
-                                    onClick={sendEmailOtp}
-                                    disabled={emailOtpTimer > 0 || loadingEmailOtp || !email || !email.includes('@')}
-                                    className="absolute right-3.5 text-[11px] font-bold text-[#00A86B] hover:text-[#009B63] disabled:opacity-40 disabled:pointer-events-none select-none focus:outline-none"
-                                  >
-                                    {loadingEmailOtp ? 'Sending...' : emailOtpTimer > 0 ? `Resend in ${emailOtpTimer}s` : 'Send OTP'}
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                            {/* Phone */}
-                            <div>
-                              <label className="block text-[11px] md:text-xs font-semibold text-[#64748B] mb-1.5">Phone Number<span className="text-red-500">*</span></label>
-                              <div className="relative flex items-center">
-                                <input
-                                  type="tel"
-                                  value={phoneNumber}
-                                  onChange={(e) => {
-                                    if (!isPhoneVerified && !billingPreFilled) {
-                                      let v = e.target.value.replace(/\D/g, '');
-                                      if (v.length > 10) v = v.slice(0, 10);
-                                      setPhoneNumber(v);
-                                    }
-                                  }}
-                                  readOnly={isPhoneVerified || billingPreFilled}
-                                  placeholder="Enter 10-digit mobile number"
-                                  className={`w-full h-11 md:h-10 pl-10 pr-28 rounded-lg border text-[13px] md:text-xs focus:outline-none font-bold transition-all ${isPhoneVerified || billingPreFilled ? 'border-[#E2E8F0] text-[#334155] bg-[#F8FAFC]' : 'border-[#E2E8F0] text-[#0F172A] focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10'}`}
-                                />
-                                <Phone className="w-4 h-4 text-[#94A3B8] absolute left-3.5" />
-                                {isPhoneVerified ? (
-                                  <span className="absolute right-3.5 flex items-center gap-1 text-[11px] font-bold text-[#00A86B] bg-[#00A86B]/5 border border-[#00A86B]/15 px-2 py-0.5 rounded-full">
-                                    <Check className="w-3 h-3" /> Verified
-                                  </span>
-                                ) : (
-                                  <button
-                                    type="button"
-                                    onClick={sendPhoneOtp}
-                                    disabled={phoneOtpTimer > 0 || loadingPhoneOtp || phoneNumber.replace(/\D/g, '').length !== 10}
-                                    className="absolute right-3.5 text-[11px] font-bold text-[#00A86B] hover:text-[#009B63] disabled:opacity-40 disabled:pointer-events-none select-none focus:outline-none"
-                                  >
-                                    {loadingPhoneOtp ? 'Sending...' : phoneOtpTimer > 0 ? `Resend in ${phoneOtpTimer}s` : 'Send OTP'}
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </SectionCard>
-
-                        <SectionCard icon={MapPin} title={businessType === 'COMPANY' ? 'Registered Office / Billing Address' : 'Billing Information'}>
-                          <div className="space-y-3.5 md:space-y-4">
-                            <div>
-                              <label className="block text-[11px] md:text-xs font-semibold text-[#64748B] mb-1.5">Address<span className="text-red-500">*</span></label>
-                              <textarea rows={2} required value={address} onChange={(e) => setAddress(e.target.value)} readOnly={billingPreFilled} placeholder="Enter your registered billing address" className={`w-full p-3.5 md:p-4 rounded-xl border border-[#E2E8F0] text-[#0F172A] text-[13px] md:text-xs focus:outline-none font-medium leading-relaxed resize-none ${billingPreFilled ? 'bg-[#F8FAFC] text-[#475569] cursor-default' : 'focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]'}`} />
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 md:gap-4">
-                              <div>
-                                <label className="block text-[11px] md:text-xs font-semibold text-[#64748B] mb-1.5">Pincode<span className="text-red-500">*</span></label>
-                                <input type="text" required maxLength={6} placeholder="Enter 6-digit Pincode" value={pincode} onChange={(e) => !billingPreFilled && setPincode(e.target.value.replace(/\D/g, ''))} readOnly={billingPreFilled} className={`w-full h-11 md:h-10 px-3 rounded-lg border border-[#E2E8F0] text-[#0F172A] text-[13px] md:text-xs focus:outline-none font-bold ${billingPreFilled ? 'bg-[#F8FAFC] text-[#475569] cursor-default' : 'focus:border-[#00A86B]'}`} />
-                              </div>
-                              <div className="grid grid-cols-2 md:contents gap-3.5">
-                                <div>
-                                  <label className="block text-[11px] md:text-xs font-semibold text-[#64748B] mb-1.5">City<span className="text-red-500">*</span></label>
-                                  <input type="text" required readOnly value={city} placeholder="Auto-filled" className="w-full h-11 md:h-10 px-3 rounded-lg border border-[#E2E8F0] text-[#334155] bg-[#F8FAFC] text-[13px] md:text-xs focus:outline-none font-bold uppercase" />
-                                </div>
-                                <div>
-                                  <label className="block text-[11px] md:text-xs font-semibold text-[#64748B] mb-1.5">State<span className="text-red-500">*</span></label>
-                                  <div className="relative flex items-center">
-                                    <input type="text" required readOnly value={state} placeholder="Auto-filled" className="w-full h-11 md:h-10 pl-3 pr-3 md:pr-24 rounded-lg border border-[#E2E8F0] text-[#334155] bg-[#F8FAFC] text-[13px] md:text-xs focus:outline-none font-bold uppercase" />
-                                    {city && state && <span className="hidden md:flex absolute right-3.5 items-center gap-1 text-[10px] font-bold text-[#00A86B] bg-[#00A86B]/5 border border-[#00A86B]/15 px-2 py-0.5 rounded-full select-none"><Check className="w-3 h-3" /> Submitted</span>}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </SectionCard>
 
                         <div className="flex justify-end pt-1 md:pt-2">
                           {billingPreFilled ? (
@@ -813,7 +926,12 @@ export function AdminKYC() {
                               Go to Documents <ArrowRight className="w-4 h-4" />
                             </button>
                           ) : (
-                            <button type="button" disabled={!address || !pincode || (businessType === 'COMPANY' && (!companyName || !gstin))} onClick={() => setStep(2)} className="w-full md:w-auto h-12 md:h-11 px-6 rounded-xl bg-[#00A86B] hover:bg-[#009B63] text-white text-[13px] md:text-xs font-bold shadow-sm transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:pointer-events-none cursor-pointer">
+                            <button
+                              type="button"
+                              disabled={businessType === 'INDIVIDUAL' ? (!address || !pincode) : businessType === 'COMPANY' ? !isGstinVerified : true}
+                              onClick={() => setStep(2)}
+                              className="w-full md:w-auto h-12 md:h-11 px-6 rounded-xl bg-[#00A86B] hover:bg-[#009B63] text-white text-[13px] md:text-xs font-bold shadow-sm transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+                            >
                               Next <ArrowRight className="w-4 h-4" />
                             </button>
                           )}
@@ -832,7 +950,9 @@ export function AdminKYC() {
                         <div className="relative flex items-center">
                           <input type="text" required maxLength={12} placeholder="Enter 12-digit Aadhaar Number" value={aadhaarNumber} onChange={(e) => setAadhaarNumber(e.target.value.replace(/\D/g, ''))} disabled={isAadhaarVerified} className="w-full h-11 md:h-10 px-3 pr-24 rounded-lg border border-[#E2E8F0] text-[#0F172A] text-[13px] md:text-xs focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all font-bold" />
                           {aadhaarNumber.length === 12 && !isAadhaarVerified && (
-                            <button type="button" onClick={() => { setOtpTarget('aadhaar'); setIsOtpModalOpen(true); }} className="absolute right-3.5 text-xs font-bold text-[#00A86B] hover:text-[#009B63] select-none cursor-pointer focus:outline-none">Send OTP</button>
+                            <button type="button" onClick={sendAadhaarOtpAndOpen} disabled={sendingAadhaarOtp || aadhaarOtpTimer > 0} className="absolute right-3.5 text-xs font-bold text-[#00A86B] hover:text-[#009B63] disabled:opacity-50 select-none cursor-pointer focus:outline-none flex items-center gap-1">
+                              {sendingAadhaarOtp ? <><RefreshCcw className="w-3 h-3 animate-spin" /> Sending...</> : aadhaarOtpTimer > 0 ? `Resend in ${aadhaarOtpTimer}s` : 'Send OTP'}
+                            </button>
                           )}
                           {isAadhaarVerified && <span className="absolute right-3.5 flex items-center gap-1 text-[11px] font-bold text-[#00A86B] bg-[#00A86B]/5 border border-[#00A86B]/15 px-2 py-0.5 rounded-full"><Check className="w-3 h-3" /> Verified</span>}
                         </div>
@@ -1091,15 +1211,22 @@ export function AdminKYC() {
                     <p className="text-xs text-[#64748B] leading-relaxed px-4">Verify your identity with the OTP sent to your phone!</p>
                   </div>
                   <div className="h-[1px] bg-[#F1F5F9] mb-6" />
-                  <div className="flex justify-center gap-3.5 mb-5">
+                  <div className="flex justify-center gap-2 mb-5">
                     {otpValues.map((value, idx) => (
-                      <input key={idx} ref={otpInputRefs[idx]} type="text" maxLength={1} inputMode="numeric" pattern="[0-9]*" value={value} onChange={(e) => handleOtpChange(idx, e.target.value)} onKeyDown={(e) => handleOtpKeyDown(idx, e)} className={`w-16 h-16 rounded-xl border text-center text-2xl font-bold text-[#00A86B] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/15 bg-white shadow-sm otp-box transition-all ${value ? 'border-[#00A86B]/40 bg-[#F0FDF4]/40' : 'border-[#E2E8F0]'}`} />
+                      <input key={idx} ref={otpInputRefs[idx]} type="text" maxLength={1} inputMode="numeric" pattern="[0-9]*" value={value} onChange={(e) => handleOtpChange(idx, e.target.value)} onKeyDown={(e) => handleOtpKeyDown(idx, e)} className={`w-12 h-12 rounded-xl border text-center text-xl font-bold text-[#00A86B] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/15 bg-white shadow-sm transition-all ${value ? 'border-[#00A86B]/40 bg-[#F0FDF4]/40' : 'border-[#E2E8F0]'}`} />
                     ))}
                   </div>
-                  <p className="text-xs text-[#94A3B8] font-medium mb-6">Didn't get a code? <span className="text-[#00A86B] font-bold cursor-pointer hover:underline">Click to resend.</span></p>
+                  <p className="text-xs text-[#94A3B8] font-medium mb-6">
+                    Didn't get a code?{' '}
+                    <button type="button" onClick={sendAadhaarOtpAndOpen} disabled={aadhaarOtpTimer > 0 || sendingAadhaarOtp} className="text-[#00A86B] font-bold hover:underline disabled:opacity-50 focus:outline-none">
+                      {aadhaarOtpTimer > 0 ? `Resend in ${aadhaarOtpTimer}s` : 'Click to resend.'}
+                    </button>
+                  </p>
                   <div className="flex gap-3">
                     <button type="button" onClick={closeOtpModal} className="flex-1 h-11 rounded-xl border border-[#E2E8F0] text-[#64748B] hover:text-[#334155] hover:bg-[#F8FAFC] text-xs font-bold transition-all focus:outline-none cursor-pointer">Cancel</button>
-                    <button type="button" onClick={handleVerifyOtp} disabled={otpValues.join('').length < 4} className="flex-1 h-11 rounded-xl bg-[#00A86B] hover:bg-[#009B63] text-white text-xs font-bold shadow-sm transition-all disabled:opacity-50 disabled:pointer-events-none cursor-pointer focus:outline-none">Verify</button>
+                    <button type="button" onClick={handleVerifyOtp} disabled={otpValues.join('').length < 6 || verifyingAadhaarOtp} className="flex-1 h-11 rounded-xl bg-[#00A86B] hover:bg-[#009B63] text-white text-xs font-bold shadow-sm transition-all disabled:opacity-50 disabled:pointer-events-none cursor-pointer focus:outline-none flex items-center justify-center gap-1.5">
+                      {verifyingAadhaarOtp ? <><RefreshCcw className="w-3.5 h-3.5 animate-spin" /> Verifying...</> : 'Verify'}
+                    </button>
                   </div>
                 </motion.div>
               </div>
@@ -1107,6 +1234,7 @@ export function AdminKYC() {
           )}
         </AnimatePresence>
       </div>
+      <Toast toast={toast} onClose={closeToast} />
     </AdminLayout>
   );
 }

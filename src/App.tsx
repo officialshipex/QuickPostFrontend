@@ -86,6 +86,9 @@ function GlobalOrderClickInterceptor() {
       const target = event.target as HTMLElement;
       if (!target) return;
 
+      // Skip on KYC page — bank account numbers, GSTIN, IFSC false-positive as AWB/order IDs
+      if (window.location.pathname.includes('/kyc')) return;
+
       // Skip form elements and currency text early
       if (target.closest('input, select, textarea')) return;
       const text = target.textContent?.trim() || "";
