@@ -12,7 +12,7 @@ import * as XLSX from 'xlsx';
 import { useAdminTab } from '../../context/AdminUserContext';
 import { useUserSearchFilter } from '../../hooks/filters/useUserSearchFilter';
 import {
-  Search, ChevronDown, RefreshCcw, Check, IndianRupee, Package,
+  Search, ChevronDown, ChevronRight, RefreshCcw, Check, IndianRupee, Package,
   User, Settings, MapPin, X, Truck,
   AlertTriangle, Mail, FileText, Download, Copy, Filter, MoreVertical,
 } from 'lucide-react';
@@ -412,7 +412,7 @@ export function AdminNDR() {
   const toggleSelect = (id: string) => setSelectedOrders(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
   const isActionRequired = activeTab === 'Action Required';
-  const showActionsColumn = activeTab === 'Action Required' || activeTab === 'Action Requested';
+  const showActionsColumn = activeTab === 'Action Required';
 
   // ── Bulk download helpers ──
   const handleBulkLabel = async (ids: string[]) => {
@@ -610,7 +610,7 @@ export function AdminNDR() {
           {/* ── Mobile Tab Bar — outer pill wrapper, matches Orders/Weight Discrepancy pattern ── */}
           <div className="md:hidden px-3 py-2 border-b border-[#E2E8F0] bg-white">
             <div className="flex gap-1 items-center min-w-0 bg-[#F7FEFC] rounded-full p-1.5">
-              <div className="flex gap-1 items-center overflow-x-auto no-scrollbar min-w-0">
+              <div className="flex gap-1 items-center overflow-x-auto no-scrollbar min-w-0 flex-1">
                 {TABS.map(tab => (
                   <button key={tab} onClick={() => handleTabChange(tab)}
                     ref={(el) => { if (el && activeTab === tab) el.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }}
@@ -619,6 +619,7 @@ export function AdminNDR() {
                   </button>
                 ))}
               </div>
+              <ChevronRight className="w-4 h-4 text-[#94A3B8] shrink-0" />
             </div>
           </div>
 

@@ -24,6 +24,11 @@ import {
   Mail,
   Phone,
   Building2,
+  Pencil,
+  X,
+  Upload,
+  Trash2,
+  ChevronDown,
 } from 'lucide-react';
 
 const fmtProfileDate = (iso: string | null | undefined) => {
@@ -45,11 +50,6 @@ const fmtProfileCurrency = (amount: number | null | undefined) => {
   return (amount < 0 ? '-₹' : '₹') + f;
 };
 
-// ─── Type scale — only these four are allowed anywhere on this page ──────────
-// 14px semibold : section/card titles
-// 12px semibold : field labels, tags, table headers
-// 12px regular  : field values, body content
-// 10px semibold : small badges/meta text
 const TXT = {
   title: 'text-[14px] font-semibold',
   label: 'text-[12px] font-semibold',
@@ -80,6 +80,701 @@ function SectionCard({ icon: Icon, title, children, action }: { icon: any; title
   );
 }
 
+// ─── Shared modal wrapper ────────────────────────────────────────────────────
+function ModalWrap({ onClose, children }: { onClose: () => void; children: React.ReactNode }) {
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
+  }, []);
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className="bg-white rounded-[12px] shadow-xl w-full max-w-md relative" onClick={e => e.stopPropagation()}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function ModalHeader({ title, onClose }: { title: string; onClose: () => void }) {
+  return (
+    <div className="flex items-center justify-between px-5 py-4 border-b border-[#E2E8F0]">
+      <h3 className={`${TXT.title} text-[#0F172A]`}>{title}</h3>
+      <button onClick={onClose} className="text-[#94A3B8] hover:text-[#0F172A] transition-colors">
+        <X className="w-4 h-4" />
+      </button>
+    </div>
+  );
+}
+
+function ModalInput({ label, ...props }: { label: string } & React.InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <div className="flex flex-col gap-1">
+      <label className={`${TXT.label} text-[#64748B]`}>{label}</label>
+      <input
+        {...props}
+        className={`border border-[#E2E8F0] rounded-[8px] px-3 py-2 ${TXT.value} text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#00A86B]/40 focus:border-[#00A86B] transition-colors disabled:bg-[#F8FAFC] disabled:text-[#94A3B8] ${props.className || ''}`}
+      />
+    </div>
+  );
+}
+
+function ModalTextarea({ label, ...props }: { label: string } & React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  return (
+    <div className="flex flex-col gap-1">
+      <label className={`${TXT.label} text-[#64748B]`}>{label}</label>
+      <textarea
+        {...props}
+        rows={3}
+        className={`border border-[#E2E8F0] rounded-[8px] px-3 py-2 ${TXT.value} text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#00A86B]/40 focus:border-[#00A86B] transition-colors resize-none ${props.className || ''}`}
+      />
+    </div>
+  );
+}
+
+function ModalActions({ onClose, onSave, saving, saveLabel = 'Save' }: {
+  onClose: () => void; onSave?: () => void; saving?: boolean; saveLabel?: string;
+}) {
+  return (
+    <div className="flex justify-end gap-3 px-5 py-4 border-t border-[#E2E8F0]">
+      <button onClick={onClose} className={`${TXT.label} text-[#64748B] px-4 py-2 rounded-[8px] border border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors`}>
+        Cancel
+      </button>
+      {onSave && (
+        <button onClick={onSave} disabled={saving} className={`${TXT.label} text-white px-4 py-2 rounded-[8px] bg-[#00A86B] hover:bg-[#008F5C] transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}>
+          {saving ? 'Saving…' : saveLabel}
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ─── Bank Edit Modal ─────────────────────────────────────────────────────────
+function BankEditModal({ userId, onClose, onSuccess }: { userId: string; onClose: () => void; onSuccess: () => void }) {
+  const [accountNumber, setAccountNumber] = useState('');
+  const [ifsc, setIfsc] = useState('');
+  const [verified, setVerified] = useState<{ bankName: string; branchName: string; nameAtBank: string; city: string } | null>(null);
+  const [verifying, setVerifying] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const { toast: _t, showToast } = useToast();
+
+  useEffect(() => {
+    apiClient.get('/getKyc/getBankAccount', { params: { id: userId } })
+      .then(res => {
+        const d = res.data;
+        setAccountNumber(d.accountNumber || '');
+        setIfsc(d.ifsc || '');
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [userId]);
+
+  const handleVerify = async () => {
+    if (!accountNumber || !ifsc) { showToast('error', 'Enter account number and IFSC'); return; }
+    setVerifying(true);
+    try {
+      const res = await apiClient.post('/merchant/verfication/bank-account', { accountNo: accountNumber, ifsc }, { params: { id: userId } });
+      if (res.data.success) {
+        const d = res.data.data;
+        setVerified({ bankName: d.bank, branchName: d.branch, nameAtBank: d.nameAtBank, city: d.city });
+        showToast('success', 'Bank account verified successfully!');
+        setTimeout(() => { onSuccess(); onClose(); }, 1000);
+      } else {
+        showToast('error', res.data.message || 'Verification failed');
+      }
+    } catch (err: any) {
+      showToast('error', err.response?.data?.message || 'Error verifying bank account');
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  return (
+    <ModalWrap onClose={onClose}>
+      <Toast toast={_t} onClose={() => {}} />
+      <ModalHeader title="Edit Bank Details" onClose={onClose} />
+      <div className="px-5 py-4 flex flex-col gap-3">
+        {loading ? (
+          <p className={`${TXT.value} text-[#94A3B8]`}>Loading…</p>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 gap-3">
+              <ModalInput label="Account Number" value={accountNumber} onChange={e => setAccountNumber(e.target.value)} placeholder="Enter account number" />
+              <ModalInput label="IFSC Code" value={ifsc} onChange={e => setIfsc(e.target.value.toUpperCase())} placeholder="Enter IFSC" />
+            </div>
+            <button
+              onClick={handleVerify}
+              disabled={!accountNumber || !ifsc || verifying}
+              className={`${TXT.label} text-white px-4 py-2 rounded-[8px] w-full bg-[#00A86B] hover:bg-[#008F5C] transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
+            >
+              {verifying ? 'Verifying…' : 'Verify & Save'}
+            </button>
+            {verified && (
+              <div className="bg-[#ECFDF5] border border-[#A7F3D0] rounded-[8px] p-3 grid grid-cols-2 gap-2">
+                <Field label="Bank" value={verified.bankName} />
+                <Field label="Branch" value={verified.branchName} />
+                <Field label="Account Holder" value={verified.nameAtBank} />
+                <Field label="City" value={verified.city} />
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </ModalWrap>
+  );
+}
+
+// ─── Aadhaar Edit Modal ──────────────────────────────────────────────────────
+function AadhaarEditModal({ userId, onClose, onSuccess }: { userId: string; onClose: () => void; onSuccess: () => void }) {
+  const [form, setForm] = useState({ aadhaarNumber: '', name: '', address: '', city: '', state: '' });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const { toast: _t, showToast } = useToast();
+
+  useEffect(() => {
+    apiClient.get('/getKyc/getAadhaar', { params: { id: userId } })
+      .then(res => {
+        const d = res.data?.data;
+        if (d) setForm({ aadhaarNumber: d.aadhaarNumber || '', name: d.name || '', address: d.address || '', city: d.city || '', state: d.state || '' });
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [userId]);
+
+  const handleSave = async () => {
+    if (!form.aadhaarNumber || !form.name) { showToast('error', 'Aadhaar number and name are required'); return; }
+    setSaving(true);
+    try {
+      const res = await apiClient.post('/merchant/verfication/updateAadhaar', form, { params: { id: userId } });
+      if (res.data.success) {
+        showToast('success', 'Aadhaar details updated successfully!');
+        onSuccess();
+        onClose();
+      } else {
+        showToast('error', res.data.message || 'Update failed');
+      }
+    } catch (err: any) {
+      showToast('error', err.response?.data?.message || 'Error updating Aadhaar details');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setForm(f => ({ ...f, [k]: e.target.value }));
+
+  return (
+    <ModalWrap onClose={onClose}>
+      <Toast toast={_t} onClose={() => {}} />
+      <ModalHeader title="Update Aadhaar Details" onClose={onClose} />
+      <div className="px-5 py-4 flex flex-col gap-3">
+        {loading ? <p className={`${TXT.value} text-[#94A3B8]`}>Loading…</p> : (
+          <>
+            <ModalInput label="Aadhaar Number" value={form.aadhaarNumber} onChange={set('aadhaarNumber')} placeholder="12-digit Aadhaar number" maxLength={12} />
+            <ModalInput label="Name" value={form.name} onChange={set('name')} placeholder="Name on Aadhaar" />
+            <ModalTextarea label="Address" value={form.address} onChange={set('address')} placeholder="Full address" />
+            <div className="grid grid-cols-2 gap-3">
+              <ModalInput label="City" value={form.city} onChange={set('city')} placeholder="City" />
+              <ModalInput label="State" value={form.state} onChange={set('state')} placeholder="State" />
+            </div>
+          </>
+        )}
+      </div>
+      <ModalActions onClose={onClose} onSave={loading ? undefined : handleSave} saving={saving} />
+    </ModalWrap>
+  );
+}
+
+// ─── COD Cycle Modal ─────────────────────────────────────────────────────────
+const COD_PLANS = [
+  { name: 'D+2', amount: 0.99, label: 'D + 2 Days' },
+  { name: 'D+3', amount: 0.69, label: 'D + 3 Days' },
+  { name: 'D+4', amount: 0.49, label: 'D + 4 Days' },
+];
+const COD_CYCLES = ['D+1', 'D+2', 'D+3', 'D+4', 'D+5', 'D+6'];
+const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+function CODModal({ userId, onClose, onSuccess }: { userId: string; onClose: () => void; onSuccess: () => void }) {
+  const [currentPlan, setCurrentPlan] = useState('');
+  const [showCustom, setShowCustom] = useState(false);
+  const [customPlan, setCustomPlan] = useState({ planName: 'D+1', codCharge: '', remittanceDay: ['Monday'] });
+  const [activating, setActivating] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [existingData, setExistingData] = useState<any>(null);
+  const { toast: _t, showToast } = useToast();
+
+  useEffect(() => {
+    apiClient.get('/cod/CheckCodplan', { params: { id: userId } })
+      .then(res => { setCurrentPlan(String(res.data.codplaneName || '')); setExistingData(res.data); })
+      .catch(() => {});
+  }, [userId]);
+
+  const handleActivate = async (planName: string, codAmount: number) => {
+    setActivating(planName);
+    try {
+      await apiClient.post('/cod/codPlanUpdate', { planName, codAmount }, { params: { id: userId } });
+      showToast('success', `${planName} plan activated!`);
+      setCurrentPlan(planName);
+      onSuccess();
+    } catch {
+      showToast('error', 'Failed to activate plan');
+    } finally {
+      setActivating('');
+    }
+  };
+
+  const handleCustomSave = async () => {
+    if (!customPlan.codCharge) { showToast('error', 'Enter COD charge percentage'); return; }
+    if (!customPlan.remittanceDay.length) { showToast('error', 'Select at least one remittance day'); return; }
+    setSaving(true);
+    try {
+      await apiClient.post('/cod/saveCustomCodPlan', {
+        planName: customPlan.planName,
+        codCharge: Number(customPlan.codCharge),
+        remittanceDay: customPlan.remittanceDay,
+      }, { params: { id: userId } });
+      showToast('success', 'Custom COD plan saved!');
+      setCurrentPlan(customPlan.planName);
+      onSuccess();
+      onClose();
+    } catch {
+      showToast('error', 'Failed to save custom plan');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const toggleDay = (day: string) => {
+    setCustomPlan(p => ({
+      ...p,
+      remittanceDay: p.remittanceDay.includes(day)
+        ? p.remittanceDay.filter(d => d !== day)
+        : [...p.remittanceDay, day],
+    }));
+  };
+
+  return (
+    <ModalWrap onClose={onClose}>
+      <Toast toast={_t} onClose={() => {}} />
+      <ModalHeader title={showCustom ? 'Custom COD Plan' : 'Update COD Cycle'} onClose={onClose} />
+      <div className="px-5 py-4">
+        {showCustom ? (
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-1">
+              <label className={`${TXT.label} text-[#64748B]`}>COD Cycle</label>
+              <div className="relative">
+                <select
+                  value={customPlan.planName}
+                  onChange={e => setCustomPlan(p => ({ ...p, planName: e.target.value }))}
+                  className={`w-full border border-[#E2E8F0] rounded-[8px] px-3 py-2 ${TXT.value} text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#00A86B]/40 focus:border-[#00A86B] appearance-none bg-white`}
+                >
+                  {COD_CYCLES.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#94A3B8] pointer-events-none" />
+              </div>
+            </div>
+            <ModalInput label="COD Charge (%)" type="number" min="0" step="0.01" value={customPlan.codCharge} onChange={e => setCustomPlan(p => ({ ...p, codCharge: e.target.value }))} placeholder="e.g. 1.5" />
+            <div className="flex flex-col gap-2">
+              <label className={`${TXT.label} text-[#64748B]`}>Remittance Days</label>
+              <div className="grid grid-cols-2 gap-1.5">
+                {DAYS_OF_WEEK.map(day => {
+                  const sel = customPlan.remittanceDay.includes(day);
+                  return (
+                    <button key={day} type="button" onClick={() => toggleDay(day)}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-[8px] border ${TXT.value} transition-colors ${sel ? 'border-[#00A86B] bg-[#ECFDF5] text-[#00A86B]' : 'border-[#E2E8F0] text-[#64748B] hover:bg-[#F8FAFC]'}`}
+                    >
+                      <span className={`w-3.5 h-3.5 rounded border-2 flex items-center justify-center flex-shrink-0 ${sel ? 'border-[#00A86B] bg-[#00A86B]' : 'border-[#CBD5E1]'}`}>
+                        {sel && <span className="text-white" style={{ fontSize: 8, lineHeight: 1 }}>✓</span>}
+                      </span>
+                      {day}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 mt-2">
+              <button onClick={() => setShowCustom(false)} className={`${TXT.label} text-[#64748B] px-4 py-2 rounded-[8px] border border-[#E2E8F0] hover:bg-[#F8FAFC]`}>Back</button>
+              <button onClick={handleCustomSave} disabled={saving} className={`${TXT.label} text-white px-4 py-2 rounded-[8px] bg-[#00A86B] hover:bg-[#008F5C] disabled:opacity-50`}>
+                {saving ? 'Saving…' : 'Save Custom Plan'}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3">
+            <div className="grid grid-cols-3 gap-2">
+              {COD_PLANS.map(plan => {
+                const isActive = currentPlan === plan.name;
+                return (
+                  <div key={plan.name} className={`p-3 rounded-[10px] border flex flex-col gap-1.5 ${isActive ? 'border-[#00A86B] bg-[#ECFDF5]' : 'border-[#E2E8F0] bg-white'}`}>
+                    {plan.name === 'D+2' && <span className={`${TXT.meta} bg-amber-400 text-white px-1.5 py-0.5 rounded w-fit`}>BEST</span>}
+                    <p className={`${TXT.label} text-[#0F172A]`}>{plan.label}</p>
+                    <p className={`${TXT.value} text-[#64748B]`}>{plan.amount}% of COD</p>
+                    <button
+                      onClick={() => !isActive && handleActivate(plan.name, plan.amount)}
+                      disabled={isActive || !!activating}
+                      className={`w-full py-1.5 rounded-[6px] ${TXT.meta} transition-colors ${isActive ? 'bg-[#E2E8F0] text-[#94A3B8] cursor-default' : 'bg-[#00A86B] text-white hover:bg-[#008F5C] disabled:opacity-50'}`}
+                    >
+                      {activating === plan.name ? 'Activating…' : isActive ? 'Active' : 'Activate'}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+            <button
+              onClick={() => {
+                if (existingData?.isCustom) {
+                  setCustomPlan({ planName: existingData.codplaneName || 'D+1', codCharge: String(existingData.planCharges ?? ''), remittanceDay: Array.isArray(existingData.remittanceDay) ? existingData.remittanceDay : [existingData.remittanceDay || 'Monday'] });
+                }
+                setShowCustom(true);
+              }}
+              className={`${TXT.label} w-full py-2 rounded-[8px] border border-[#00A86B] text-[#00A86B] hover:bg-[#ECFDF5] transition-colors`}
+            >
+              Custom Plan
+            </button>
+          </div>
+        )}
+      </div>
+    </ModalWrap>
+  );
+}
+
+// ─── Assign Rate Card Modal ──────────────────────────────────────────────────
+function AssignRateCardModal({ userId, userName, rateCardType, onClose, onSuccess }: {
+  userId: string; userName: string; rateCardType: 'B2C' | 'B2B'; onClose: () => void; onSuccess: () => void;
+}) {
+  const [planNames, setPlanNames] = useState<string[]>([]);
+  const [rateCards, setRateCards] = useState<any[]>([]);
+  const [selected, setSelected] = useState('');
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const { toast: _t, showToast } = useToast();
+  const dropRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const planEndpoint = rateCardType === 'B2C' ? '/saveRate/getPlanNames' : '/b2b/saveRate/getPlanNames';
+    const rcEndpoint = rateCardType === 'B2C' ? '/saveRate/getRateCard' : '/b2b/saveRate/getRateCard';
+    Promise.all([
+      apiClient.get(planEndpoint),
+      apiClient.get(rcEndpoint),
+    ]).then(([pRes, rcRes]) => {
+      setPlanNames(pRes.data.planNames || []);
+      setRateCards(rateCardType === 'B2C' ? (rcRes.data.rateCards || []) : (rcRes.data.B2BRateCard || []));
+    }).catch(() => {}).finally(() => setLoading(false));
+  }, [rateCardType]);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => { if (dropRef.current && !dropRef.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const handleAssign = async () => {
+    if (!selected) { showToast('error', 'Please select a plan'); return; }
+    setSaving(true);
+    try {
+      const filtered = rateCardType === 'B2C'
+        ? rateCards.filter(c => c.plan === selected)
+        : rateCards.filter(c => c.planName === selected);
+
+      if (!filtered.length) { showToast('error', 'No rate cards found for selected plan'); setSaving(false); return; }
+
+      if (rateCardType === 'B2C') {
+        await apiClient.put('/users/assignPlan', { userId, userName, planName: selected, rateCards: filtered });
+      } else {
+        await apiClient.put('/users/assign/plan', { userId, userName, planName: selected, B2BRateCard: filtered });
+      }
+      showToast('success', 'Plan assigned successfully!');
+      onSuccess();
+      onClose();
+    } catch (err: any) {
+      showToast('error', err.response?.data?.error || 'Failed to assign plan');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <ModalWrap onClose={onClose}>
+      <Toast toast={_t} onClose={() => {}} />
+      <ModalHeader title={`Assign ${rateCardType} Rate Card Plan`} onClose={onClose} />
+      <div className="px-5 py-4 flex flex-col gap-3">
+        <p className={`${TXT.value} text-[#64748B]`}>User: <span className="font-semibold text-[#0F172A]">{userName}</span></p>
+        {loading ? <p className={`${TXT.value} text-[#94A3B8]`}>Loading plans…</p> : (
+          <div ref={dropRef} className="relative">
+            <button
+              onClick={() => setOpen(o => !o)}
+              className={`w-full flex items-center justify-between border border-[#E2E8F0] rounded-[8px] px-3 py-2 ${TXT.value} text-[#1E293B] bg-white hover:border-[#00A86B] focus:outline-none focus:ring-2 focus:ring-[#00A86B]/40 transition-colors`}
+            >
+              <span>{selected || 'Select a plan…'}</span>
+              <ChevronDown className={`w-3.5 h-3.5 text-[#94A3B8] transition-transform ${open ? 'rotate-180' : ''}`} />
+            </button>
+            {open && (
+              <div className="absolute z-10 top-full mt-1 w-full bg-white border border-[#E2E8F0] rounded-[8px] shadow-lg max-h-48 overflow-y-auto">
+                {planNames.map(p => (
+                  <button key={p} type="button" onClick={() => { setSelected(p); setOpen(false); }}
+                    className={`w-full text-left px-3 py-2 ${TXT.value} transition-colors ${selected === p ? 'bg-[#ECFDF5] text-[#00A86B] font-semibold' : 'text-[#374151] hover:bg-[#F8FAFC]'}`}
+                  >{p}</button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+      <ModalActions onClose={onClose} onSave={loading ? undefined : handleAssign} saving={saving} saveLabel="Assign" />
+    </ModalWrap>
+  );
+}
+
+// ─── Upload Rate Card Modal ──────────────────────────────────────────────────
+function UploadRateCardModal({ userId, planName, onClose, onSuccess }: {
+  userId: string; planName: string; onClose: () => void; onSuccess: () => void;
+}) {
+  const [file, setFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const { toast: _t, showToast } = useToast();
+
+  const handleDownloadSample = async () => {
+    try {
+      const res = await apiClient.get('/saveRate/download-excel', { params: { hidePlan: 'true' }, responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const a = document.createElement('a'); a.href = url; a.download = 'Rate_Card_Sample.xlsx';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch { showToast('error', 'Failed to download sample'); }
+  };
+
+  const handleUpload = async () => {
+    if (!file) { showToast('error', 'Please select a file'); return; }
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('plan', planName);
+      formData.append('replaceExisting', 'true');
+      formData.append('userId', userId);
+      const res = await apiClient.post('/saveRate/uploadRatecard', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const { message, errors } = res.data;
+      if (errors?.length) {
+        showToast('error', `${message} — top error: ${errors[0]}`);
+      } else {
+        showToast('success', message || 'Upload successful');
+        onSuccess();
+        onClose();
+      }
+    } catch (err: any) {
+      showToast('error', err.response?.data?.error || err.response?.data?.message || 'Upload failed');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <ModalWrap onClose={onClose}>
+      <Toast toast={_t} onClose={() => {}} />
+      <ModalHeader title="Upload Rate Card" onClose={onClose} />
+      <div className="px-5 py-4 flex flex-col gap-4">
+        <div className="flex items-center justify-between bg-[#F8FAFC] border border-[#E2E8F0] rounded-[8px] px-3 py-2">
+          <span className={`${TXT.value} text-[#64748B]`}>Need the template?</span>
+          <button onClick={handleDownloadSample} className={`${TXT.label} text-[#00A86B] flex items-center gap-1.5 hover:underline`}>
+            <Download className="w-3.5 h-3.5" /> Download Sample
+          </button>
+        </div>
+        <div
+          className={`border-2 border-dashed rounded-[10px] p-8 flex flex-col items-center justify-center cursor-pointer transition-colors ${file ? 'border-[#00A86B] bg-[#ECFDF5]/30' : 'border-[#E2E8F0] hover:border-[#00A86B] hover:bg-[#F8FAFC]'}`}
+          onClick={() => inputRef.current?.click()}
+        >
+          <Upload className={`w-6 h-6 mb-2 ${file ? 'text-[#00A86B]' : 'text-[#CBD5E1]'}`} />
+          <span className={`${TXT.label} text-[#64748B]`}>{file ? 'Change File' : 'Choose Excel File (.xlsx, .xls)'}</span>
+          <input ref={inputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={e => setFile(e.target.files?.[0] || null)} />
+        </div>
+        {file && (
+          <div className="flex items-center gap-3 bg-white border border-[#E2E8F0] rounded-[8px] p-3">
+            <FileText className="w-4 h-4 text-[#00A86B] flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className={`${TXT.label} text-[#0F172A] truncate`}>{file.name}</p>
+              <p className={`${TXT.meta} text-[#94A3B8]`}>{(file.size / 1024).toFixed(1)} KB</p>
+            </div>
+            <button onClick={() => setFile(null)} className="text-[#94A3B8] hover:text-[#EF4444] transition-colors">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+      </div>
+      <ModalActions onClose={onClose} onSave={handleUpload} saving={uploading} saveLabel="Confirm & Upload" />
+    </ModalWrap>
+  );
+}
+
+// ─── Credit Limit Modal ──────────────────────────────────────────────────────
+function CreditLimitModal({ userId, currentValue, onClose, onSuccess }: {
+  userId: string; currentValue: string; onClose: () => void; onSuccess: () => void;
+}) {
+  const [value, setValue] = useState(currentValue || '0');
+  const [saving, setSaving] = useState(false);
+  const { toast: _t, showToast } = useToast();
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await apiClient.put('/user/updateCreditLimit', { userId, creditLimit: Number(value) });
+      showToast('success', 'Credit limit updated!');
+      onSuccess();
+      onClose();
+    } catch {
+      showToast('error', 'Failed to update credit limit');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <ModalWrap onClose={onClose}>
+      <Toast toast={_t} onClose={() => {}} />
+      <ModalHeader title="Update Credit Limit" onClose={onClose} />
+      <div className="px-5 py-4">
+        <ModalInput label="Credit Limit (₹)" type="number" min="0" value={value} onChange={e => setValue(e.target.value)} placeholder="Enter credit limit" />
+      </div>
+      <ModalActions onClose={onClose} onSave={handleSave} saving={saving} />
+    </ModalWrap>
+  );
+}
+
+// ─── Referral Commission Modal ───────────────────────────────────────────────
+function ReferralCommissionModal({ userId, currentValue, onClose, onSuccess }: {
+  userId: string; currentValue: string; onClose: () => void; onSuccess: () => void;
+}) {
+  const [value, setValue] = useState(currentValue?.replace('%', '') || '0');
+  const [saving, setSaving] = useState(false);
+  const { toast: _t, showToast } = useToast();
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await apiClient.post('/user/updateReferralCommission', { userId, referralCommissionPercentage: Number(value) });
+      showToast('success', 'Referral commission updated!');
+      onSuccess();
+      onClose();
+    } catch {
+      showToast('error', 'Failed to update referral commission');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <ModalWrap onClose={onClose}>
+      <Toast toast={_t} onClose={() => {}} />
+      <ModalHeader title="Update Referral Commission" onClose={onClose} />
+      <div className="px-5 py-4">
+        <ModalInput label="Commission (%)" type="number" min="0" max="100" step="0.1" value={value} onChange={e => setValue(e.target.value)} placeholder="Enter commission %" />
+      </div>
+      <ModalActions onClose={onClose} onSave={handleSave} saving={saving} />
+    </ModalWrap>
+  );
+}
+
+// ─── KAM Details Modal ───────────────────────────────────────────────────────
+function KAMModal({ userId, onClose, onSuccess }: { userId: string; onClose: () => void; onSuccess: () => void }) {
+  const [form, setForm] = useState({ kamName: '', kamEmail: '', kamPhone: '' });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const { toast: _t, showToast } = useToast();
+
+  useEffect(() => {
+    apiClient.get(`/user/getKamDetails/${userId}`)
+      .then(res => { const d = res.data; setForm({ kamName: d.kamName || '', kamEmail: d.kamEmail || '', kamPhone: d.kamPhone || '' }); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [userId]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await apiClient.put(`/user/updateKamDetails/${userId}`, form);
+      showToast('success', 'KAM details updated!');
+      onSuccess();
+      onClose();
+    } catch {
+      showToast('error', 'Failed to update KAM details');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement>) => setForm(f => ({ ...f, [k]: e.target.value }));
+
+  return (
+    <ModalWrap onClose={onClose}>
+      <Toast toast={_t} onClose={() => {}} />
+      <ModalHeader title="Update KAM Details" onClose={onClose} />
+      <div className="px-5 py-4 flex flex-col gap-3">
+        {loading ? <p className={`${TXT.value} text-[#94A3B8]`}>Loading…</p> : (
+          <>
+            <ModalInput label="KAM Name" value={form.kamName} onChange={set('kamName')} placeholder="Account manager name" />
+            <ModalInput label="KAM Email" type="email" value={form.kamEmail} onChange={set('kamEmail')} placeholder="Account manager email" />
+            <ModalInput label="KAM Phone" value={form.kamPhone} onChange={set('kamPhone')} placeholder="Account manager phone" />
+          </>
+        )}
+      </div>
+      <ModalActions onClose={onClose} onSave={loading ? undefined : handleSave} saving={saving} />
+    </ModalWrap>
+  );
+}
+
+// ─── Change Password Modal ───────────────────────────────────────────────────
+function ChangePasswordModal({ email, onClose, onSuccess }: { email: string; onClose: () => void; onSuccess: () => void }) {
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const { toast: _t, showToast } = useToast();
+
+  const handleSave = async () => {
+    if (password.length < 8) { setError('Password must be at least 8 characters'); return; }
+    setSaving(true);
+    try {
+      await apiClient.post('/external/changePasswordAdmin', { email, newPassword: password });
+      showToast('success', 'Password updated successfully!');
+      onSuccess();
+      onClose();
+    } catch (err: any) {
+      showToast('error', err.response?.data?.message || 'Failed to update password');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <ModalWrap onClose={onClose}>
+      <Toast toast={_t} onClose={() => {}} />
+      <ModalHeader title="Change Password" onClose={onClose} />
+      <div className="px-5 py-4 flex flex-col gap-3">
+        <p className={`${TXT.value} text-[#64748B]`}>Account: <span className="font-semibold text-[#0F172A]">{email}</span></p>
+        <div className="flex flex-col gap-1">
+          <label className={`${TXT.label} text-[#64748B]`}>New Password</label>
+          <input
+            type="password"
+            value={password}
+            onChange={e => { setPassword(e.target.value); if (e.target.value.length >= 8) setError(''); }}
+            placeholder="Minimum 8 characters"
+            className={`border rounded-[8px] px-3 py-2 ${TXT.value} text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#00A86B]/40 focus:border-[#00A86B] transition-colors ${error ? 'border-[#EF4444]' : 'border-[#E2E8F0]'}`}
+          />
+          {error && <span className={`${TXT.meta} text-[#EF4444]`}>{error}</span>}
+        </div>
+      </div>
+      <ModalActions onClose={onClose} onSave={handleSave} saving={saving} saveLabel="Update Password" />
+    </ModalWrap>
+  );
+}
+
+// ─── Small edit icon button ──────────────────────────────────────────────────
+function EditBtn({ onClick }: { onClick: () => void }) {
+  return (
+    <button onClick={onClick} className="p-1.5 rounded-[6px] text-[#94A3B8] hover:text-[#00A86B] hover:bg-[#ECFDF5] transition-colors flex-shrink-0">
+      <Pencil className="w-3.5 h-3.5" />
+    </button>
+  );
+}
+
 const TABS = [
   { id: 'overview', label: 'Overview', icon: LayoutGrid },
   { id: 'kyc', label: 'KYC & Documents', icon: IdCard },
@@ -98,13 +793,22 @@ export function AdminProfile() {
   const { currentUserId, isAdmin, adminTab } = useAdminTab();
   const isAdminView = isAdmin && adminTab;
   const apiUser = location.state?.user;
-  // getAllUsers returns ObjectId as `id` (not `_id`), getUserById does the same
   const mongoId = String(apiUser?.id || '');
-  // When navigating from header dropdown (no route state), fall back to own user ID
   const effectiveId = mongoId || currentUserId;
-  const isOwnProfile = !mongoId;
 
   const [activeTab, setActiveTab] = useState<TabId>('overview');
+
+  // Modal visibility
+  const [showBankModal, setShowBankModal] = useState(false);
+  const [showAadhaarModal, setShowAadhaarModal] = useState(false);
+  const [showCODModal, setShowCODModal] = useState(false);
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showCreditModal, setShowCreditModal] = useState(false);
+  const [showReferralModal, setShowReferralModal] = useState(false);
+  const [showKAMModal, setShowKAMModal] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [assignRateCardType, setAssignRateCardType] = useState<'B2C' | 'B2B'>('B2C');
 
   const buildInitialData = () => {
     if (apiUser) {
@@ -167,10 +871,10 @@ export function AdminProfile() {
   const [isKycVerified, setIsKycVerified] = useState(apiUser ? !!apiUser.kycStatus : false);
   const [apiAccess, setApiAccess] = useState(apiUser ? !!apiUser.adminApiAccess : false);
   const [holdAmount, setHoldAmount] = useState(0);
-  // logo comes from getUserById (profileImage field) — not available in getAllUsers initial state
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [rates, setRates] = useState<any[]>([]);
   const [rateLoading, setRateLoading] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [notificationSettings, setNotificationSettings] = useState({
     isAdminWhatsAppEnable: false,
     isAdminSMSEnable: false,
@@ -192,10 +896,8 @@ export function AdminProfile() {
     }
   };
 
-  useEffect(() => {
+  const refreshUser = () => {
     if (!effectiveId) return;
-
-    // Fresh user details — getUserById returns the full nested user document
     apiClient.get('/user/getUserById', { params: { id: effectiveId } })
       .then(res => {
         const fresh = res.data.userDetails;
@@ -247,8 +949,12 @@ export function AdminProfile() {
         }));
       })
       .catch(() => {});
+  };
 
-    // Wallet balance + hold
+  useEffect(() => {
+    if (!effectiveId) return;
+    refreshUser();
+
     apiClient.get('/recharge/getWalletBalanceAndHoldAmount', { params: { id: effectiveId } })
       .then(res => {
         if (res.data.success) {
@@ -262,19 +968,17 @@ export function AdminProfile() {
       })
       .catch(() => {});
 
-    // Notification settings
     apiClient.get('/notification/getNotification', { params: { userId: effectiveId } })
       .then(res => { if (res.data) setNotificationSettings(res.data); })
       .catch(() => {});
 
-    // Rate cards
     fetchRates(effectiveId);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [effectiveId]);
 
   const handleToggle = async () => {
     const currentActive = isActive;
-    const newBlocked = currentActive; // if currently active, clicking = block
+    const newBlocked = currentActive;
     setIsActive(!currentActive);
     try {
       const res = await apiClient.post('/user/updateBlockStatus', { userId: effectiveId, isBlocked: newBlocked });
@@ -323,6 +1027,20 @@ export function AdminProfile() {
     }
   };
 
+  const handleDeleteRateCard = async (rateId: string) => {
+    if (!window.confirm('Delete this rate card? This cannot be undone.')) return;
+    setDeletingId(rateId);
+    try {
+      await apiClient.delete(`/saveRate/deleteRateCard/${rateId}`, { data: { userId: effectiveId } });
+      showToast('success', 'Rate card deleted.');
+      fetchRates(effectiveId);
+    } catch {
+      showToast('error', 'Failed to delete rate card.');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   const Toggle = ({ on, onClick, disabled }: { on: boolean; onClick: () => void; disabled?: boolean }) => (
     <button
       onClick={disabled ? undefined : onClick}
@@ -334,10 +1052,22 @@ export function AdminProfile() {
   );
 
   const isCompany = userData.gstin && userData.gstin !== '—';
+  const userPlanName = userData.rateCard !== 'N/A' ? userData.rateCard : `${userData.name.replace(/\s+/g, '_')}_${userData.id}`;
 
   return (
     <AdminLayout>
       <Toast toast={toast} onClose={closeToast} />
+
+      {/* Modals */}
+      {showBankModal && <BankEditModal userId={effectiveId} onClose={() => setShowBankModal(false)} onSuccess={refreshUser} />}
+      {showAadhaarModal && <AadhaarEditModal userId={effectiveId} onClose={() => setShowAadhaarModal(false)} onSuccess={refreshUser} />}
+      {showCODModal && <CODModal userId={effectiveId} onClose={() => setShowCODModal(false)} onSuccess={refreshUser} />}
+      {showAssignModal && <AssignRateCardModal userId={effectiveId} userName={userData.name} rateCardType={assignRateCardType} onClose={() => setShowAssignModal(false)} onSuccess={() => { refreshUser(); fetchRates(effectiveId); }} />}
+      {showUploadModal && <UploadRateCardModal userId={effectiveId} planName={userPlanName} onClose={() => setShowUploadModal(false)} onSuccess={() => fetchRates(effectiveId)} />}
+      {showCreditModal && <CreditLimitModal userId={effectiveId} currentValue={userData.creditLimit} onClose={() => setShowCreditModal(false)} onSuccess={refreshUser} />}
+      {showReferralModal && <ReferralCommissionModal userId={effectiveId} currentValue={userData.referralCommission} onClose={() => setShowReferralModal(false)} onSuccess={refreshUser} />}
+      {showKAMModal && <KAMModal userId={effectiveId} onClose={() => setShowKAMModal(false)} onSuccess={refreshUser} />}
+      {showPasswordModal && <ChangePasswordModal email={userData.email} onClose={() => setShowPasswordModal(false)} onSuccess={() => {}} />}
 
       <div className="w-full px-4 md:px-8 pt-0 pb-4 h-[calc(100vh-32px)] md:h-[calc(100vh-48px)] flex flex-col min-h-0">
 
@@ -353,7 +1083,7 @@ export function AdminProfile() {
 
         <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-4 items-start flex-1 min-h-0">
 
-          {/* ── Left Sidebar — profile summary, stays visible ── */}
+          {/* ── Left Sidebar ── */}
           <div className="bg-white border border-[#E2E8F0] rounded-[12px] p-5 lg:sticky lg:top-0 flex flex-col gap-5 lg:max-h-full lg:overflow-y-auto no-scrollbar">
             {/* Avatar + name */}
             <div className="flex flex-col items-center text-center gap-3">
@@ -452,7 +1182,7 @@ export function AdminProfile() {
 
           {/* ── Right Content — tabs ── */}
           <div className="flex flex-col gap-4 min-w-0 h-full min-h-0">
-            {/* Tab bar — fixed, never scrolls */}
+            {/* Tab bar */}
             <div className="bg-white border border-[#E2E8F0] rounded-[12px] p-1.5 flex items-center gap-1 overflow-x-auto no-scrollbar shrink-0">
               {TABS.map(tab => {
                 const Icon = tab.icon;
@@ -471,14 +1201,14 @@ export function AdminProfile() {
               })}
             </div>
 
-            {/* Tab content — only this area scrolls */}
+            {/* Tab content */}
             <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar pr-0.5">
 
             {/* ── Overview ── */}
             {activeTab === 'overview' && (
               <div className="flex flex-col gap-4">
                 <SectionCard icon={LayoutGrid} title="Account Summary">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-4">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-4">
                     <Field label="User ID" value={userData.id} />
                     <Field label="Registration Date" value={userData.regDate} />
                     <Field label="Last Login" value={userData.lastLogin} />
@@ -490,13 +1220,68 @@ export function AdminProfile() {
                         </span>
                       }
                     />
-                    <Field label="COD Cycle" value={userData.codPlan} />
-                    <Field label="B2C Rate Card Plan" value={userData.rateCard} />
-                    <Field label="B2B Rate Card Plan" value={userData.b2bRateCard} />
-                    <Field label="Credit Limit" value={`₹${userData.creditLimit}`} />
+
+                    {/* COD Cycle */}
+                    <div className="flex flex-col gap-1">
+                      <span className={`${TXT.label} text-[#94A3B8]`}>COD Cycle</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className={`${TXT.value} text-[#1E293B]`}>{userData.codPlan}</span>
+                        {isAdminView && <EditBtn onClick={() => setShowCODModal(true)} />}
+                      </div>
+                    </div>
+
+                    {/* B2C Rate Card */}
+                    <div className="flex flex-col gap-1">
+                      <span className={`${TXT.label} text-[#94A3B8]`}>B2C Rate Card Plan</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className={`${TXT.value} text-[#1E293B]`}>{userData.rateCard}</span>
+                        {isAdminView && <EditBtn onClick={() => { setAssignRateCardType('B2C'); setShowAssignModal(true); }} />}
+                      </div>
+                    </div>
+
+                    {/* B2B Rate Card */}
+                    <div className="flex flex-col gap-1">
+                      <span className={`${TXT.label} text-[#94A3B8]`}>B2B Rate Card Plan</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className={`${TXT.value} text-[#1E293B]`}>{userData.b2bRateCard}</span>
+                        {isAdminView && <EditBtn onClick={() => { setAssignRateCardType('B2B'); setShowAssignModal(true); }} />}
+                      </div>
+                    </div>
+
+                    {/* Credit Limit */}
+                    <div className="flex flex-col gap-1">
+                      <span className={`${TXT.label} text-[#94A3B8]`}>Credit Limit</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className={`${TXT.value} text-[#1E293B]`}>₹{userData.creditLimit}</span>
+                        {isAdminView && <EditBtn onClick={() => setShowCreditModal(true)} />}
+                      </div>
+                    </div>
+
                     <Field label="Referral Code" value={userData.referralCode} />
-                    <Field label="Referral Commission" value={userData.referralCommission} />
+
+                    {/* Referral Commission */}
+                    <div className="flex flex-col gap-1">
+                      <span className={`${TXT.label} text-[#94A3B8]`}>Referral Commission</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className={`${TXT.value} text-[#1E293B]`}>{userData.referralCommission}</span>
+                        {isAdminView && <EditBtn onClick={() => setShowReferralModal(true)} />}
+                      </div>
+                    </div>
+
                     <Field label="Total Orders" value={String(userData.orderCount)} />
+
+                    {/* Change Password */}
+                    {isAdminView && (
+                      <div className="flex flex-col gap-1">
+                        <span className={`${TXT.label} text-[#94A3B8]`}>Password</span>
+                        <button
+                          onClick={() => setShowPasswordModal(true)}
+                          className={`${TXT.value} text-[#00A86B] hover:underline flex items-center gap-1 w-fit`}
+                        >
+                          <Settings className="w-3.5 h-3.5" /> Change Password
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </SectionCard>
 
@@ -511,7 +1296,11 @@ export function AdminProfile() {
                   </div>
                 </SectionCard>
 
-                <SectionCard icon={ShieldCheck} title="KAM Details">
+                <SectionCard
+                  icon={ShieldCheck}
+                  title="KAM Details"
+                  action={isAdminView ? <EditBtn onClick={() => setShowKAMModal(true)} /> : undefined}
+                >
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-4">
                     <Field label="Name" value={userData.kamName} />
                     <Field label="Email" value={userData.kamEmail} />
@@ -524,7 +1313,11 @@ export function AdminProfile() {
             {/* ── KYC & Documents ── */}
             {activeTab === 'kyc' && (
               <div className="flex flex-col gap-4">
-                <SectionCard icon={IdCard} title="Aadhar Details">
+                <SectionCard
+                  icon={IdCard}
+                  title="Aadhar Details"
+                  action={isAdminView ? <EditBtn onClick={() => setShowAadhaarModal(true)} /> : undefined}
+                >
                   <div className="grid grid-cols-2 gap-x-6 gap-y-4">
                     <Field label="Name" value={userData.aadharName} />
                     <Field label="Aadhar Number" value={userData.aadhaar} />
@@ -553,7 +1346,11 @@ export function AdminProfile() {
 
             {/* ── Bank & Payout ── */}
             {activeTab === 'bank' && (
-              <SectionCard icon={Landmark} title="Bank Details">
+              <SectionCard
+                icon={Landmark}
+                title="Bank Details"
+                action={isAdminView ? <EditBtn onClick={() => setShowBankModal(true)} /> : undefined}
+              >
                 <div className="grid grid-cols-2 gap-x-6 gap-y-4">
                   <Field label="Bank Name" value={userData.bankName} />
                   <Field label="Account Number" value={userData.accountNumber} />
@@ -570,19 +1367,43 @@ export function AdminProfile() {
                 icon={CreditCard}
                 title="Rate Card Management"
                 action={
-                  <button
-                    onClick={() => fetchRates(effectiveId)}
-                    className={`${TXT.label} text-[#00A86B] px-3 py-1.5 rounded-lg border border-[#00A86B] hover:bg-[#ECFDF5] transition-colors`}
-                  >
-                    Refresh
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {isAdminView && (
+                      <>
+                        <button
+                          onClick={() => { setAssignRateCardType('B2C'); setShowAssignModal(true); }}
+                          className={`${TXT.label} text-[#00A86B] px-3 py-1.5 rounded-lg border border-[#00A86B] hover:bg-[#ECFDF5] transition-colors`}
+                        >
+                          Assign B2C
+                        </button>
+                        <button
+                          onClick={() => { setAssignRateCardType('B2B'); setShowAssignModal(true); }}
+                          className={`${TXT.label} text-[#00A86B] px-3 py-1.5 rounded-lg border border-[#00A86B] hover:bg-[#ECFDF5] transition-colors`}
+                        >
+                          Assign B2B
+                        </button>
+                        <button
+                          onClick={() => setShowUploadModal(true)}
+                          className={`${TXT.label} text-white px-3 py-1.5 rounded-lg bg-[#00A86B] hover:bg-[#008F5C] flex items-center gap-1.5 transition-colors`}
+                        >
+                          <Upload className="w-3.5 h-3.5" /> Upload
+                        </button>
+                      </>
+                    )}
+                    <button
+                      onClick={() => fetchRates(effectiveId)}
+                      className={`${TXT.label} text-[#64748B] px-3 py-1.5 rounded-lg border border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors`}
+                    >
+                      Refresh
+                    </button>
+                  </div>
                 }
               >
                 <div className="overflow-x-auto border border-[#E2E8F0] rounded-[10px]">
                   <table className="w-full text-center border-collapse">
                     <thead>
                       <tr className="bg-[#E6F9F2] border-b border-[#E2E8F0]">
-                        {['Provider', 'Service', 'Mode', 'Weight', 'Zone A', 'Zone B', 'Zone C', 'Zone D', 'Zone E', 'COD'].map(h => (
+                        {['Provider', 'Service', 'Mode', 'Weight', 'Zone A', 'Zone B', 'Zone C', 'Zone D', 'Zone E', 'COD', ...(isAdminView ? ['Action'] : [])].map(h => (
                           <th key={h} className={`px-3 py-2.5 ${TXT.label} text-[#64748B] whitespace-nowrap`}>{h}</th>
                         ))}
                       </tr>
@@ -590,7 +1411,7 @@ export function AdminProfile() {
                     <tbody>
                       {rateLoading ? (
                         <tr>
-                          <td colSpan={10} className={`py-10 text-[#94A3B8] ${TXT.value}`}>Loading rate cards…</td>
+                          <td colSpan={isAdminView ? 11 : 10} className={`py-10 text-[#94A3B8] ${TXT.value}`}>Loading rate cards…</td>
                         </tr>
                       ) : rates.length > 0 ? (
                         rates.map((card: any, i: number) => (
@@ -606,6 +1427,24 @@ export function AdminProfile() {
                               <td className={`px-3 py-2 ${TXT.value}`}>₹{card.weightPriceBasic?.[0]?.zoneD}</td>
                               <td className={`px-3 py-2 ${TXT.value}`}>₹{card.weightPriceBasic?.[0]?.zoneE}</td>
                               <td className={`px-3 py-2 ${TXT.value}`} rowSpan={2}>₹{card.codCharge} / {card.codPercent}%</td>
+                              {isAdminView && (
+                                <td className={`px-3 py-2`} rowSpan={2}>
+                                  <div className="flex items-center justify-center gap-2">
+                                    <button
+                                      onClick={() => handleDeleteRateCard(card._id)}
+                                      disabled={deletingId === card._id}
+                                      className="text-[#94A3B8] hover:text-[#EF4444] transition-colors disabled:opacity-40"
+                                      title="Delete rate card"
+                                    >
+                                      {deletingId === card._id ? (
+                                        <span className={`${TXT.meta} text-[#94A3B8]`}>…</span>
+                                      ) : (
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      )}
+                                    </button>
+                                  </div>
+                                </td>
+                              )}
                             </tr>
                             <tr className="border-b border-[#F1F5F9] text-[#374151]">
                               <td className={`px-3 py-2 ${TXT.value} text-[#94A3B8]`}>Addl: {card.weightPriceAdditional?.[0]?.weight}gm</td>
@@ -619,7 +1458,7 @@ export function AdminProfile() {
                         ))
                       ) : (
                         <tr>
-                          <td colSpan={10} className={`py-10 text-[#94A3B8] ${TXT.value}`}>No rate cards found for this user.</td>
+                          <td colSpan={isAdminView ? 11 : 10} className={`py-10 text-[#94A3B8] ${TXT.value}`}>No rate cards found for this user.</td>
                         </tr>
                       )}
                     </tbody>

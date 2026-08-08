@@ -146,6 +146,79 @@ const formatCreatedAt = (rawDate: string) => {
   return `${datePart} | ${hours}hr:${minutes}min:${seconds}sec`;
 };
 
+// ─── Early COD Plan Modal (user self-service) ────────────────────────────────
+const EARLY_COD_PLANS = [
+  { name: 'D+2', amount: 0.99, label: 'D + 2 Days' },
+  { name: 'D+3', amount: 0.69, label: 'D + 3 Days' },
+  { name: 'D+4', amount: 0.49, label: 'D + 4 Days' },
+];
+function EarlyCODPlanModal({ userId, onClose }: { userId: string; onClose: () => void }) {
+  const [currentPlan, setCurrentPlan] = useState('');
+  const [activating, setActivating] = useState('');
+  const { toast: _t, showToast, closeToast: _c } = useToast();
+
+  useEffect(() => {
+    if (!userId) return;
+    apiClient.get('/cod/CheckCodplan', { params: { id: userId } })
+      .then(res => setCurrentPlan(String(res.data.codplaneName || '')))
+      .catch(() => {});
+  }, [userId]);
+
+  const handleActivate = async (planName: string, codAmount: number) => {
+    setActivating(planName);
+    try {
+      await apiClient.post('/cod/codPlanUpdate', { planName, codAmount }, { params: { id: userId } });
+      showToast('success', `${planName} plan activated!`);
+      setCurrentPlan(planName);
+    } catch {
+      showToast('error', 'Failed to activate plan');
+    } finally {
+      setActivating('');
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+      <Toast toast={_t} onClose={_c} />
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[#E2E8F0]">
+          <span className="text-[15px] font-bold text-[#0F172A]">Early COD</span>
+          <button onClick={onClose} className="w-7 h-7 rounded-full flex items-center justify-center text-[#94A3B8] hover:bg-[#F1F5F9] hover:text-[#0F172A] transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        {/* Plans */}
+        <div className="px-5 py-4 flex flex-col gap-3">
+          <p className="text-[12px] text-[#64748B]">Select your COD remittance cycle. Charges apply as a percentage of COD amount.</p>
+          <div className="grid grid-cols-3 gap-2">
+            {EARLY_COD_PLANS.map(plan => {
+              const isActive = currentPlan === plan.name;
+              return (
+                <div key={plan.name} className={`p-3 rounded-[10px] border flex flex-col gap-1.5 ${isActive ? 'border-[#00A86B] bg-[#ECFDF5]' : 'border-[#E2E8F0] bg-white'}`}>
+                  {plan.name === 'D+2' && <span className="text-[9px] font-bold bg-amber-400 text-white px-1.5 py-0.5 rounded w-fit">BEST</span>}
+                  <p className="text-[12px] font-semibold text-[#0F172A]">{plan.label}</p>
+                  <p className="text-[11px] text-[#64748B]">{plan.amount}% of COD</p>
+                  <button
+                    onClick={() => !isActive && handleActivate(plan.name, plan.amount)}
+                    disabled={isActive || !!activating}
+                    className={`w-full py-1.5 rounded-[6px] text-[11px] font-semibold transition-colors ${isActive ? 'bg-[#E2E8F0] text-[#94A3B8] cursor-default' : 'bg-[#00A86B] text-white hover:bg-[#008F5C] disabled:opacity-50'}`}
+                  >
+                    {activating === plan.name ? 'Activating…' : isActive ? 'Active' : 'Activate'}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+          <button onClick={onClose} className="w-full py-2 text-[12px] font-semibold text-[#64748B] rounded-[8px] border border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors mt-1">
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function AdminCOD() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -270,6 +343,7 @@ export function AdminCOD() {
   const [remittanceDetailLoading, setRemittanceDetailLoading] = useState(false);
 
   const [showTransferModal, setShowTransferModal] = useState(false);
+  const [showEarlyCODModal, setShowEarlyCODModal] = useState(false);
   const [transferUserId, setTransferUserId] = useState('');
   const [transferIds, setTransferIds] = useState<string[]>([]);
 
@@ -817,6 +891,15 @@ export function AdminCOD() {
           >
             <Filter className="w-4 h-4" />
           </button>
+          {/* Early COD button — user view only */}
+          {!isAdminView && (
+            <button
+              onClick={() => setShowEarlyCODModal(true)}
+              className="w-9 h-9 rounded-xl bg-[#00A86B] flex items-center justify-center text-white hover:bg-[#008F5C] transition-colors shrink-0"
+            >
+              <Banknote className="w-4 h-4" />
+            </button>
+          )}
           {/* Action icon + per-tab dropdowns */}
           <div className="relative action-dropdown-container shrink-0">
             <button
@@ -880,7 +963,7 @@ export function AdminCOD() {
 
         {/* Tab Navigation */}
         <div className="bg-white relative z-50 shrink-0">
-          <div className="flex justify-between items-center px-4 md:px-6 py-2 border-b border-[#E2E8F0]">
+          <div className={`flex justify-between items-center px-4 md:px-6 py-2 border-b border-[#E2E8F0]${!isAdminView ? ' hidden md:flex' : ''}`}>
             <div className="flex gap-1 items-center bg-[#F7FEFC] rounded-full p-1.5 min-w-0">
               <div className="flex gap-1 items-center overflow-x-auto no-scrollbar flex-1 min-w-0">
                 {(isAdminView ? MAIN_TABS : MAIN_TABS.filter(t => t.name === 'All COD Orders')).map(tab => (
@@ -896,9 +979,17 @@ export function AdminCOD() {
                   </button>
                 ))}
               </div>
-              <ChevronRight className="md:hidden w-4 h-4 text-[#94A3B8] shrink-0" />
+              {isAdminView && <ChevronRight className="md:hidden w-4 h-4 text-[#94A3B8] shrink-0" />}
             </div>
             <div className="hidden md:flex items-center gap-3 shrink-0 ml-4">
+              {!isAdminView && (
+                <button
+                  onClick={() => setShowEarlyCODModal(true)}
+                  className="px-3 py-1.5 rounded-lg bg-[#00A86B] text-white text-[12px] font-semibold hover:bg-[#008F5C] transition-colors whitespace-nowrap"
+                >
+                  Early COD
+                </button>
+              )}
               <button onClick={handleRefresh} className="w-8 h-8 rounded-full border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC]">
                 <RefreshCcw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
               </button>
@@ -2321,6 +2412,11 @@ export function AdminCOD() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ── Early COD Plan Modal (user view) ── */}
+      {showEarlyCODModal && (
+        <EarlyCODPlanModal userId={currentUserId} onClose={() => setShowEarlyCODModal(false)} />
+      )}
 
       {/* ── Transfer COD Modal ── */}
       {showTransferModal && (
