@@ -27,6 +27,7 @@ import { useAdminTab } from '../../context/AdminUserContext';
 import { ShipOrderModal } from '../../components/admin/orders/ShipOrderModal';
 import { Toast } from '../../components/ui/Toast';
 import { useToast } from '../../hooks/useToast';
+import { useProductTooltip, ProductTooltipCard } from '../../hooks/useProductTooltip';
 
 // ─── Courier logo lookup — mobile card layout (mirrors AdminWallet.tsx convention) ──
 const getCourierLogo = (courierName: string) => {
@@ -383,7 +384,7 @@ export function AdminOrders() {
   // dropdownPos renders the row-action dropdown via portal (fixed position) so overflow-auto doesn't clip it
   const [dropdownPos,      setDropdownPos]       = useState<{ id: string; top: number; left: number } | null>(null);
   // productHoverPos renders the Product-column line-item breakdown via portal, same reason as dropdownPos
-  const [productHoverPos,  setProductHoverPos]   = useState<{ id: string; rect: DOMRect } | null>(null);
+  const { productHoverPos, openProductTooltip, hoverOpenProductTooltip, closeProductTooltip } = useProductTooltip();
   const [showAgeingLegend, setShowAgeingLegend] = useState(false);
   const { toast, showToast, closeToast } = useToast();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1291,9 +1292,9 @@ export function AdminOrders() {
                                 className="text-[12px] leading-[18px] font-normal text-[#1E293B] underline decoration-dotted underline-offset-2 hover:text-[#00A86B] truncate max-w-[120px] cursor-help"
                                 onMouseEnter={(e) => {
                                   if (order.products.length === 0) return;
-                                  setProductHoverPos({ id: order._id, rect: e.currentTarget.getBoundingClientRect() });
+                                  hoverOpenProductTooltip(order._id, e);
                                 }}
-                                onMouseLeave={() => setProductHoverPos(prev => (prev?.id === order._id ? null : prev))}
+                                onMouseLeave={() => closeProductTooltip(order._id)}
                               >{order.productName || '—'}</div>
                               <div className="text-[12px] leading-[18px] font-normal text-[#1E293B] truncate max-w-[120px]">SKU: {order.sku || '—'}</div>
                               <div className="text-[12px] leading-[18px] font-normal text-[#1E293B]">QTY: {order.qty}</div>
@@ -1527,14 +1528,11 @@ export function AdminOrders() {
                       <div
                         className="flex items-start justify-between mb-1.5 px-1 gap-2 cursor-help"
                         onClick={(e) => {
-                          e.stopPropagation();
                           if (!order.products || order.products.length === 0) return;
-                          const rect = e.currentTarget.getBoundingClientRect();
-                          const next = { id: order._id, top: rect.bottom + 4, left: rect.left };
-                          setProductHoverPos(prev => (prev?.id === order._id ? null : next));
+                          openProductTooltip(order._id, e);
                         }}
                       >
-                        <div className="truncate text-[12px] font-medium text-[#0F172A] flex-1">{order.productName || '—'}</div>
+                        <TruncatedText text={order.productName || '—'} maxLength={30} className="text-[12px] font-normal text-[#0F172A] underline decoration-dotted underline-offset-2 flex-1" />
                         <span className="text-[11px] font-medium text-[#64748B] shrink-0">Weight: {order.weight}</span>
                       </div>
 
@@ -1994,6 +1992,16 @@ export function AdminOrders() {
         )}
 
 
+        {/* ── Shared backdrop — closes pickup/customer tooltips on outside tap (mobile only, where they're click-triggered).
+             The product tooltip closes itself via a document pointerdown listener in useProductTooltip. ── */}
+        {(hoveredPickup || hoveredCustomer) && createPortal(
+          <div
+            className="fixed inset-0 z-[997] md:hidden"
+            onClick={() => { setHoveredPickup(null); setHoveredCustomer(null); }}
+          />,
+          document.body
+        )}
+
         {/* ── Pickup Tooltip — portaled to document.body so it isn't clipped by the page root's
              overflow-hidden (active on the user side), which was causing it to flicker/disappear ── */}
         {hoveredPickup && (() => {
@@ -2082,54 +2090,11 @@ export function AdminOrders() {
         document.body
       )}
 
-      {/* ── Product line-item hover card — portaled, matches CRM listing's product tooltip style ── */}
-      {productHoverPos && (() => {
-        const hoveredOrder = orders.find(o => o._id === productHoverPos.id);
-        if (!hoveredOrder || hoveredOrder.products.length === 0) return null;
-        const grandTotal = hoveredOrder.products.reduce((s: number, p: any) => s + p.total, 0);
-        const { rect } = productHoverPos;
-        return createPortal(
-          <div
-            className="fixed z-[999] w-[320px] bg-white border border-[#E2E8F0] rounded-xl shadow-[0_4px_24px_-4px_rgba(0,0,0,0.15)] p-3 pointer-events-none"
-            style={{
-              top: rect.bottom + 4,
-              left: Math.max(4, Math.min(rect.left, window.innerWidth - 336)),
-            }}
-          >
-            <table className="w-full text-[11px] border-collapse">
-              <thead>
-                <tr className="text-[#64748B] border-b border-[#E2E8F0]">
-                  <th className="text-left font-semibold pb-1.5 pr-2">Name</th>
-                  <th className="text-left font-semibold pb-1.5 pr-2">SKU</th>
-                  <th className="text-left font-semibold pb-1.5 pr-2">Qty</th>
-                  <th className="text-left font-semibold pb-1.5 pr-2">Price</th>
-                  <th className="text-left font-semibold pb-1.5">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {hoveredOrder.products.map((p: any, i: number) => (
-                  <tr key={i} className="text-[#0F172A] border-b border-[#F1F5F9] last:border-0">
-                    <td className="py-1.5 pr-2 break-words">{p.name}</td>
-                    <td className="py-1.5 pr-2 text-[#64748B] break-words">{p.sku || '—'}</td>
-                    <td className="py-1.5 pr-2">{p.qty}</td>
-                    <td className="py-1.5 pr-2">₹{p.price.toLocaleString('en-IN')}</td>
-                    <td className="py-1.5 font-semibold">₹{p.total.toLocaleString('en-IN')}</td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr className="border-t border-[#E2E8F0] font-bold text-[#0F172A]">
-                  <td className="pt-1.5" colSpan={2}>Grand Total</td>
-                  <td className="pt-1.5">{hoveredOrder.qty}</td>
-                  <td className="pt-1.5"></td>
-                  <td className="pt-1.5">₹{grandTotal.toLocaleString('en-IN')}</td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>,
-          document.body
-        );
-      })()}
+      {/* ── Product line-item hover card — shared component/hook, matches CRM listing's style ── */}
+      <ProductTooltipCard
+        productHoverPos={productHoverPos}
+        order={orders.find(o => o._id === productHoverPos?.id)}
+      />
     </AdminLayout>
   );
 }

@@ -4,12 +4,15 @@ import { apiClient } from '../../services/apiClient';
 import { useAdminTab } from '../../context/AdminUserContext';
 import {
   Plus, Download, Pencil, Trash2, Star, Loader2, X, MapPin, Phone, Mail, AlertCircle, Search,
-  User, Hash, CheckCircle2, Settings,
+  User, Hash, CheckCircle2, Settings, Filter,
 } from 'lucide-react';
 import { useUserSearchFilter } from '../../hooks/filters/useUserSearchFilter';
 import { useTableLoader } from '../../hooks/useTableLoader';
 import { TableLoader } from '../../components/ui/TableLoader';
 import { TruncatedText } from '../../components/ui/TruncatedText';
+import { usePagination, DesktopPagination } from '../../hooks/usePagination';
+import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
+import { AnimatePresence, motion } from 'framer-motion';
 
 const BACKEND_BASE = (import.meta.env.VITE_API_URL as string) || 'http://localhost:5000/v1';
 
@@ -107,6 +110,14 @@ export function AdminPickupAddress() {
       );
     });
   }, [addresses, searchQuery]);
+
+  // ── pagination ────────────────────────────────────────────────────────────
+  const {
+    page, setPage, totalPages, paginatedData: paginatedAddresses,
+    startIndex, endIndex, totalItems, rowsPerPage, setRowsPerPage,
+  } = usePagination({ data: filteredAddresses, perPage: 20 });
+
+  const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
 
   // ── pincode auto-fill ────────────────────────────────────────────────────
   useEffect(() => {
@@ -247,8 +258,8 @@ export function AdminPickupAddress() {
     <AdminLayout>
       <div className={`flex flex-col ${isImpersonating ? 'h-[calc(100vh-104px)]' : 'h-[calc(100vh-72px)]'} -m-4 md:-m-6 bg-white ${!isAdminView ? 'overflow-hidden' : ''}`}>
 
-        {/* Top bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 md:px-6 py-4 border-b border-[#E2E8F0] shrink-0">
+        {/* Top bar — desktop */}
+        <div className="hidden md:flex md:flex-row md:items-center justify-between gap-3 px-4 md:px-6 py-4 border-b border-[#E2E8F0] shrink-0">
           <div>
             <h1 className="text-[20px] font-bold text-[#0F172A]">Pickup Addresses</h1>
             <p className="text-[13px] text-[#64748B] mt-0.5">
@@ -321,6 +332,45 @@ export function AdminPickupAddress() {
           </div>
         </div>
 
+        {/* Mobile Search + Filter + Add Row (matches Orders page) */}
+        <div className="md:hidden relative z-[60] px-3 py-2.5 border-b border-[#E2E8F0] flex items-center gap-2 bg-white shrink-0">
+          <div className="relative flex-1">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
+            <input
+              type="text"
+              placeholder={isAdminView ? 'Search by name, user, city…' : 'Search by name, city…'}
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="w-full h-9 pl-9 pr-3 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] text-sm text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all"
+            />
+          </div>
+          {isAdminView && (
+            <button
+              onClick={() => setIsMobileFiltersOpen(true)}
+              className="relative w-9 h-9 rounded-xl border border-[#E2E8F0] flex items-center justify-center text-[#475569] bg-white shrink-0"
+            >
+              <Filter className="w-4 h-4" />
+              {userMongoId && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-[#00A86B] border-2 border-white" />}
+            </button>
+          )}
+          <button
+            onClick={handleDownload}
+            aria-label="Export Excel"
+            className="w-9 h-9 rounded-xl border border-[#E2E8F0] flex items-center justify-center text-[#475569] bg-white shrink-0"
+          >
+            <Download className="w-4 h-4" />
+          </button>
+          {!isAdminView && (
+            <button
+              onClick={openAdd}
+              aria-label="Add Address"
+              className="w-9 h-9 rounded-xl bg-[#00A86B] hover:bg-[#009B63] text-white flex items-center justify-center shrink-0 shadow-sm"
+            >
+              <Plus className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+
         {/* Error */}
         {fetchError && (
           <div className="flex items-center gap-2 p-3 mx-4 md:mx-6 mt-4 bg-red-50 border border-red-100 rounded-xl text-red-600 text-[13px] shrink-0">
@@ -378,7 +428,7 @@ export function AdminPickupAddress() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredAddresses.map((doc, i) => {
+                  {paginatedAddresses.map((doc, i) => {
                     const a = doc.pickupAddress;
                     return (
                       <tr key={doc._id} className={`border-b border-[#E2E8F0] transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]/20'}`}>
@@ -442,93 +492,189 @@ export function AdminPickupAddress() {
                 </tbody>
               </table>
               </div>
+              <DesktopPagination
+                page={page} setPage={setPage} totalPages={totalPages}
+                rowsPerPage={rowsPerPage} setRowsPerPage={setRowsPerPage}
+                startIndex={startIndex} endIndex={endIndex} totalItems={totalItems}
+              />
             </div>
 
             {/* ── Mobile cards ───────────────────────────────────────────── */}
-            <div className="flex flex-col gap-2 md:hidden flex-1 min-h-0 overflow-y-auto p-2 bg-[#F8FAFC]">
-              {filteredAddresses.map(doc => {
-                const a = doc.pickupAddress;
-                return (
-                  <div key={doc._id} className="bg-white border border-[#E2E8F0] rounded-2xl p-4 shadow-sm">
-                    {/* Admin: show user info banner */}
-                    {isAdminView && doc.userId && (
-                      <div className="flex items-center gap-1.5 mb-3 pb-3 border-b border-[#F1F5F9]">
-                        <div className="w-6 h-6 rounded-full bg-[#F0FDF4] flex items-center justify-center shrink-0">
-                          <span className="text-[10px] font-bold text-[#00A86B]">
-                            {doc.userId.fullname?.[0]?.toUpperCase() || 'U'}
-                          </span>
+            <div className="md:hidden flex flex-col flex-1 min-h-0 bg-[#F8FAFC]">
+              <div className="flex-1 overflow-y-auto relative">
+                <div className="p-2 space-y-2">
+                  {paginatedAddresses.map(doc => {
+                    const a = doc.pickupAddress;
+                    const accent = doc.isPrimary ? '#00A86B' : '#94A3B8';
+                    return (
+                      <div key={doc._id} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
+                        {/* Ribbon Tag */}
+                        <div
+                          className="absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide"
+                          style={{ background: accent, clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}
+                        >
+                          {doc.isPrimary ? 'Primary' : 'Address'}
                         </div>
-                        <div>
-                          <p className="text-[12px] font-semibold text-[#0F172A]">{doc.userId.fullname}</p>
-                          {doc.userId.company && <p className="text-[11px] text-[#94A3B8]">{doc.userId.company}</p>}
-                        </div>
-                      </div>
-                    )}
 
-                    {/* Header row */}
-                    <div className="flex items-start justify-between mb-3">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <p className="text-[14px] font-bold text-[#0F172A]">{a.contactName}</p>
-                          {doc.isPrimary && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#D1FAE5] text-[#059669] text-[10px] font-bold">
-                              <Star className="w-2.5 h-2.5 fill-[#059669]" /> Primary
-                            </span>
+                        <div className="pt-6 px-2.5 pb-2.5">
+                          {/* Admin: user info row */}
+                          {isAdminView && doc.userId && (
+                            <div className="flex items-center gap-1.5 mb-1.5 pb-1.5 border-b border-[#F1F5F9]">
+                              <div className="w-6 h-6 rounded-full bg-[#F0FDF4] flex items-center justify-center shrink-0">
+                                <span className="text-[10px] font-bold text-[#00A86B]">
+                                  {doc.userId.fullname?.[0]?.toUpperCase() || 'U'}
+                                </span>
+                              </div>
+                              <div className="min-w-0">
+                                <TruncatedText text={doc.userId.fullname || '—'} maxLength={22} className="text-[12px] font-semibold text-[#0F172A]" />
+                                {doc.userId.company && <TruncatedText text={doc.userId.company} maxLength={26} className="text-[12px] font-normal text-[#94A3B8]" />}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Header row */}
+                          <div className="flex items-start justify-between gap-2 mb-1.5">
+                            <div className="min-w-0">
+                              <TruncatedText text={a.contactName} maxLength={22} className="text-[12px] font-semibold text-[#0F172A]" />
+                              {a.email && (
+                                <div className="flex items-center gap-1 mt-0.5">
+                                  <Mail className="w-3 h-3 text-[#94A3B8] shrink-0" />
+                                  <TruncatedText text={a.email} maxLength={26} className="text-[12px] font-normal text-[#94A3B8]" />
+                                </div>
+                              )}
+                            </div>
+                            {!isAdminView && (
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <button
+                                  onClick={() => openEdit(doc)}
+                                  className="w-7 h-7 flex items-center justify-center rounded-lg border border-[#E2E8F0] text-[#475569] hover:border-[#00A86B] hover:text-[#00A86B] transition-colors"
+                                >
+                                  <Pencil className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={() => setDeleteId(doc._id)}
+                                  className="w-7 h-7 flex items-center justify-center rounded-lg border border-[#E2E8F0] text-[#475569] hover:border-red-400 hover:text-red-500 transition-colors"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Details */}
+                          <div className="bg-[#F8FAFC] rounded-xl px-2.5 py-1.5 mb-2 space-y-1">
+                            <div className="flex items-start gap-1.5">
+                              <Phone className="w-3.5 h-3.5 text-[#94A3B8] mt-0.5 shrink-0" />
+                              <p className="text-[12px] font-normal text-[#0F172A]">{a.phoneNumber}</p>
+                            </div>
+                            <div className="flex items-start gap-1.5">
+                              <MapPin className="w-3.5 h-3.5 text-[#94A3B8] mt-0.5 shrink-0" />
+                              <p className="text-[12px] font-normal text-[#0F172A]">{a.address}, {a.city}, {a.state} - {a.pinCode}</p>
+                            </div>
+                          </div>
+
+                          {/* Set primary — user only */}
+                          {!isAdminView && !doc.isPrimary && (
+                            <button
+                              onClick={() => handleSetPrimary(doc._id)}
+                              disabled={!!primaryLoading}
+                              className="w-full flex items-center justify-center gap-1.5 h-8 rounded-xl border border-[#E2E8F0] text-[12px] font-semibold text-[#64748B] hover:border-[#00A86B] hover:text-[#00A86B] transition-colors disabled:opacity-50"
+                            >
+                              {primaryLoading === doc._id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Star className="w-3.5 h-3.5" />}
+                              Set as Primary
+                            </button>
                           )}
                         </div>
-                        {a.email && (
-                          <div className="flex items-center gap-1 mt-0.5">
-                            <Mail className="w-3 h-3 text-[#94A3B8]" />
-                            <p className="text-[12px] text-[#94A3B8]">{a.email}</p>
-                          </div>
-                        )}
                       </div>
-                      {!isAdminView && (
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            onClick={() => openEdit(doc)}
-                            className="w-8 h-8 flex items-center justify-center rounded-lg border border-[#E2E8F0] text-[#475569] hover:border-[#00A86B] hover:text-[#00A86B] transition-colors"
-                          >
-                            <Pencil className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => setDeleteId(doc._id)}
-                            className="w-8 h-8 flex items-center justify-center rounded-lg border border-[#E2E8F0] text-[#475569] hover:border-red-400 hover:text-red-500 transition-colors"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      )}
-                    </div>
+                    );
+                  })}
+                </div>
+              </div>
 
-                    {/* Details */}
-                    <div className="flex items-start gap-2 mb-2">
-                      <Phone className="w-3.5 h-3.5 text-[#94A3B8] mt-0.5 shrink-0" />
-                      <p className="text-[13px] text-[#475569]">{a.phoneNumber}</p>
-                    </div>
-                    <div className="flex items-start gap-2 mb-3">
-                      <MapPin className="w-3.5 h-3.5 text-[#94A3B8] mt-0.5 shrink-0" />
-                      <p className="text-[13px] text-[#475569]">{a.address}, {a.city}, {a.state} - {a.pinCode}</p>
-                    </div>
-
-                    {/* Set primary — user only */}
-                    {!isAdminView && !doc.isPrimary && (
-                      <button
-                        onClick={() => handleSetPrimary(doc._id)}
-                        disabled={!!primaryLoading}
-                        className="w-full flex items-center justify-center gap-1.5 h-9 rounded-lg border border-[#E2E8F0] text-[13px] font-semibold text-[#64748B] hover:border-[#00A86B] hover:text-[#00A86B] transition-colors disabled:opacity-50"
-                      >
-                        {primaryLoading === doc._id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Star className="w-3.5 h-3.5" />}
-                        Set as Primary
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
+              {/* Mobile Pagination — sibling of the scroll area, not inside it, so it stays pinned */}
+              {<MobilePaginationBar {...({
+                page, setPage, totalPages, rowsPerPage, setRowsPerPage,
+                startIndex, endIndex, totalItems,
+              })} />}
             </div>
           </>
         )}
       </div>
+
+      {/* ── Mobile Filters Bottom Sheet (admin only — user search) ── */}
+      <AnimatePresence>
+        {isMobileFiltersOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[140] md:hidden flex items-end justify-center"
+            onClick={() => setIsMobileFiltersOpen(false)}
+          >
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="bg-white rounded-t-3xl border-t border-[#E2E8F0] shadow-2xl w-full max-h-[85vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="px-6 py-4 border-b border-[#E2E8F0] flex items-center justify-between sticky top-0 bg-white z-10">
+                <h3 className="font-bold text-slate-800 text-base">Filters</h3>
+                <button onClick={() => setIsMobileFiltersOpen(false)} className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4">
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Search by name, email, or contact..."
+                    value={userQuery}
+                    onChange={e => onUserQueryChange(e.target.value)}
+                    className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
+                  />
+                  {(userQuery || userMongoId) && (
+                    <button onClick={clearUserFilter} className="absolute right-4 top-1/2 -translate-y-1/2 text-[#94A3B8] hover:text-red-500">
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                  {userSuggestions.length > 0 && !userMongoId && (
+                    <div className="mt-1.5 bg-white border border-[#E2E8F0] rounded-2xl shadow-lg max-h-52 overflow-y-auto py-1">
+                      {userSuggestions.map((u: any) => (
+                        <button key={u._id} type="button" onClick={() => selectUserSuggestion(u)}
+                          className="w-full text-left px-4 py-2.5 hover:bg-[#F0FDF4] flex items-start gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="text-[12px] font-bold text-slate-800 truncate">{u.fullname}</div>
+                            <div className="text-[11px] text-slate-400 truncate">{u.email} · {u.phoneNumber}</div>
+                          </div>
+                          <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded shrink-0">{u.userId}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="px-6 py-4 border-t border-[#E2E8F0] flex items-center gap-3 sticky bottom-0 bg-white">
+                <button
+                  onClick={() => { clearUserFilter(); setIsMobileFiltersOpen(false); }}
+                  className="flex-1 h-11 rounded-full border border-[#E2E8F0] text-[#475569] text-sm font-bold hover:bg-[#F8FAFC] transition-colors"
+                >
+                  Reset All
+                </button>
+                <button
+                  onClick={() => setIsMobileFiltersOpen(false)}
+                  className="flex-1 h-11 rounded-full bg-[#009D64] text-white text-sm font-bold hover:bg-[#009B63] transition-colors shadow-sm"
+                >
+                  Apply Filters
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── Add / Edit Modal (user only) ──────────────────────────────────── */}
       {showModal && !isAdminView && (

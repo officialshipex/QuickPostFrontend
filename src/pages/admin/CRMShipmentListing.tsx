@@ -17,6 +17,7 @@ import { getLast7DaysStr } from '../../hooks/filters/useDateRangeFilter';
 import { TableLoader } from '../../components/ui/TableLoader';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
+import { useProductTooltip, ProductTooltipCard } from '../../hooks/useProductTooltip';
 
 const STATUS_OPTS = ['Ready To Ship', 'Not Picked', 'Booked', 'Pickup Scheduled', 'Picked Up', 'In Transit', 'Out for Delivery', 'Delivered', 'RTO Initiated', 'RTO In Transit', 'RTO Delivered', 'RTO Lost', 'RTO Damaged', 'Lost', 'Damaged', 'Cancelled'];
 const CHANNEL_OPTS = ['custom', 'api', 'shopify', 'woocommerce'];
@@ -240,7 +241,7 @@ export function CRMShipmentListing() {
   const [hoveredTracking, setHoveredTracking] = useState<{id: string, rect: DOMRect, activity: string, location: string, date: string, time: string} | null>(null);
   const [hoveredPickup, setHoveredPickup] = useState<{ id: string; rect: DOMRect; name: string; address: string; city: string; state: string; pinCode: string; phone: string } | null>(null);
   const [hoveredCustomer, setHoveredCustomer] = useState<{ rect: DOMRect; name: string; address: string; city: string; state: string; pinCode: string; email: string } | null>(null);
-  const [productHoverPos, setProductHoverPos] = useState<{ id: string; rect: DOMRect } | null>(null);
+  const { productHoverPos, openProductTooltip, hoverOpenProductTooltip, closeProductTooltip } = useProductTooltip();
 
   const [trackingData, setTrackingData] = useState<Record<string, TrackingEvent[]>>({});
   const [trackingLoading] = useState<Record<string, boolean>>({});
@@ -354,13 +355,14 @@ export function CRMShipmentListing() {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // Close tap-triggered mobile tooltips (product/pickup) on any outside tap
+  // Close tap-triggered mobile pickup tooltip on any outside tap (product tooltip
+  // closes itself via its own document pointerdown listener in useProductTooltip)
   useEffect(() => {
-    if (!productHoverPos && !hoveredPickup) return;
-    const handler = () => { setProductHoverPos(null); setHoveredPickup(null); };
+    if (!hoveredPickup) return;
+    const handler = () => setHoveredPickup(null);
     document.addEventListener('pointerdown', handler);
     return () => document.removeEventListener('pointerdown', handler);
-  }, [productHoverPos, hoveredPickup]);
+  }, [hoveredPickup]);
 
   const hasActiveFilters = selectedCouriers.length > 0 || selectedStatuses.length > 0 || selectedChannels.length > 0 || selectedOrderTypes.length > 0 || selectedPickupAddrs.length > 0 || !!userMongoId || orderId || productSpecs || selectedWeightRanges.length > 0 || forwardAwb || rtoAwb || (dateFrom && dateTo && !(dateFrom === defStart && dateTo === defEnd));
 
@@ -734,9 +736,9 @@ export function CRMShipmentListing() {
                           className="text-[12px] leading-[18px] font-normal text-[#1E293B] underline decoration-dotted underline-offset-2 truncate max-w-[120px] cursor-help"
                           onMouseEnter={(e) => {
                             if (row.products.length === 0) return;
-                            setProductHoverPos({ id: row.awb, rect: e.currentTarget.getBoundingClientRect() });
+                            hoverOpenProductTooltip(row.awb, e);
                           }}
-                          onMouseLeave={() => setProductHoverPos(prev => (prev?.id === row.awb ? null : prev))}
+                          onMouseLeave={() => closeProductTooltip(row.awb)}
                         >{row.productName || '—'}</div>
                         <div className="text-[12px] leading-[18px] font-normal text-[#1E293B] truncate max-w-[120px]">SKU: {row.sku || '—'}</div>
                         <div className="text-[12px] leading-[18px] font-normal text-[#1E293B]">QTY: {row.qty || 1}</div>
@@ -934,10 +936,8 @@ export function CRMShipmentListing() {
                         <span
                           className="text-[12px] font-normal text-[#1E293B] underline decoration-dotted underline-offset-2 truncate flex-1 cursor-help"
                           onClick={(e) => {
-                            e.stopPropagation();
                             if (row.products.length === 0) return;
-                            const rect = e.currentTarget.getBoundingClientRect();
-                            setProductHoverPos({ id: row.awb, rect });
+                            openProductTooltip(row.awb, e);
                           }}
                         >
                           {row.productName || '—'}
@@ -1268,64 +1268,11 @@ export function CRMShipmentListing() {
         );
       })()}
 
-      {/* ── Product line-item hover card — rendered on document.body to escape overflow-auto clipping ── */}
-      {productHoverPos && (() => {
-        const hoveredOrder = orders.find(o => o.awb === productHoverPos.id);
-        if (!hoveredOrder || hoveredOrder.products.length === 0) return null;
-        const grandTotal = hoveredOrder.products.reduce((s: number, p: any) => s + p.total, 0);
-        const { rect } = productHoverPos;
-        const showBelow = rect.top < 260;
-        return createPortal(
-          <div
-            className="fixed z-[9999] pointer-events-none bg-[#0F172A] text-white text-xs p-3 rounded-xl shadow-xl w-[300px]"
-            style={{
-              top: showBelow ? rect.bottom + 10 : rect.top - 10,
-              left: Math.min(Math.max(rect.left + rect.width / 2, 160), window.innerWidth - 160),
-              transform: showBelow ? 'translate(-50%, 0)' : 'translate(-50%, -100%)',
-            }}
-          >
-            <div className="font-bold flex items-center gap-1.5 mb-1.5">
-              <Package className="w-3.5 h-3.5 text-[#00A86B] shrink-0" />Products
-            </div>
-            <table className="w-full text-[11px] border-collapse border-t border-white/10 pt-1.5 mt-0.5">
-              <thead>
-                <tr className="text-slate-400">
-                  <th className="text-left font-semibold py-1.5 pr-2">Name</th>
-                  <th className="text-left font-semibold py-1.5 pr-2">SKU</th>
-                  <th className="text-left font-semibold py-1.5 pr-2">Qty</th>
-                  <th className="text-left font-semibold py-1.5 pr-2">Price</th>
-                  <th className="text-left font-semibold py-1.5">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {hoveredOrder.products.map((p: any, i: number) => (
-                  <tr key={i} className="text-slate-300 border-t border-white/5">
-                    <td className="py-1 pr-2 break-words">{p.name}</td>
-                    <td className="py-1 pr-2 text-slate-400 break-words">{p.sku || '—'}</td>
-                    <td className="py-1 pr-2">{p.qty}</td>
-                    <td className="py-1 pr-2">₹{p.price.toLocaleString('en-IN')}</td>
-                    <td className="py-1 font-semibold text-white">₹{p.total.toLocaleString('en-IN')}</td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr className="border-t border-white/10 font-bold text-white">
-                  <td className="pt-1.5" colSpan={2}>Grand Total</td>
-                  <td className="pt-1.5">{hoveredOrder.qty}</td>
-                  <td className="pt-1.5"></td>
-                  <td className="pt-1.5">₹{grandTotal.toLocaleString('en-IN')}</td>
-                </tr>
-              </tfoot>
-            </table>
-            {showBelow ? (
-              <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 border-[6px] border-transparent border-b-[#0F172A]" />
-            ) : (
-              <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 border-[6px] border-transparent border-t-[#0F172A]" />
-            )}
-          </div>,
-          document.body
-        );
-      })()}
+      {/* ── Product line-item hover card — shared component/hook, matches Orders page style ── */}
+      <ProductTooltipCard
+        productHoverPos={productHoverPos}
+        order={orders.find(o => o.awb === productHoverPos?.id)}
+      />
     </AdminLayout>
   );
 }
