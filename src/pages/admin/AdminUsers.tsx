@@ -942,7 +942,7 @@ export function AdminUsers() {
                 <div>
                   <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Date Range</label>
                   <GlassDateFilter
-                    className="w-full [&_.glass-dropdown-trigger]:w-full [&_.glass-dropdown-trigger]:h-11"
+                    className="w-full [&_.glass-dropdown-trigger]:!w-full [&_.glass-dropdown-trigger]:!h-11 [&_.glass-dropdown-trigger]:!min-w-0 [&_.glass-dropdown-trigger]:!rounded-full"
                     startDate={dateStart}
                     endDate={dateEnd}
                     onDateChange={onDateChange}
@@ -958,7 +958,7 @@ export function AdminUsers() {
                     placeholder="User ID / Name / Email"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
+                    className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
                   />
                 </div>
 
@@ -967,7 +967,7 @@ export function AdminUsers() {
                   <select
                     value={selectedKycStatuses[0] || ''}
                     onChange={(e) => setSelectedKycStatuses(e.target.value ? [e.target.value] : [])}
-                    className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
+                    className="w-full h-11 px-3 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
                   >
                     <option value="">All Statuses</option>
                     {KYC_OPTIONS.map(opt => (
@@ -981,7 +981,7 @@ export function AdminUsers() {
                   <select
                     value={selectedRateCards[0] || ''}
                     onChange={(e) => setSelectedRateCards(e.target.value ? [e.target.value] : [])}
-                    className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
+                    className="w-full h-11 px-3 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
                   >
                     <option value="">All Rate Cards</option>
                     {rateCardFilterOptions.map((opt) => (
@@ -995,7 +995,7 @@ export function AdminUsers() {
                   <select
                     value={selectedWalletBalances[0] || ''}
                     onChange={(e) => setSelectedWalletBalances(e.target.value ? [e.target.value] : [])}
-                    className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
+                    className="w-full h-11 px-3 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
                   >
                     <option value="">All Balances</option>
                     {WALLET_BALANCE_OPTIONS.map(opt => (
@@ -1009,7 +1009,7 @@ export function AdminUsers() {
                   <select
                     value={selectedTiers[0] || ''}
                     onChange={(e) => setSelectedTiers(e.target.value ? [e.target.value] : [])}
-                    className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
+                    className="w-full h-11 px-3 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
                   >
                     <option value="">All Tiers</option>
                     {TIER_OPTIONS.map(opt => (
@@ -1023,7 +1023,7 @@ export function AdminUsers() {
                   <select
                     value={selectedUserTypes[0] || ''}
                     onChange={(e) => setSelectedUserTypes(e.target.value ? [e.target.value] : [])}
-                    className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
+                    className="w-full h-11 px-3 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
                   >
                     <option value="">All Types</option>
                     {USER_TYPE_OPTIONS.map(opt => (

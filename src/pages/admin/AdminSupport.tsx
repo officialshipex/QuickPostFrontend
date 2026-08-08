@@ -183,20 +183,20 @@ function CreateTicketModal({ onClose, onCreated }: CreateTicketModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[60] flex items-end md:items-center justify-center md:p-4">
       <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto z-10">
-        <div className="sticky top-0 bg-white z-10 px-6 py-4 border-b border-[#E2E8F0] flex items-center justify-between">
-          <h2 className="text-base font-bold text-[#0F172A]">Create Support Ticket</h2>
-          <button onClick={onClose} className="w-7 h-7 rounded-lg border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC]"><X className="w-4 h-4" /></button>
+      <div className="relative bg-white md:rounded-2xl rounded-t-[24px] shadow-2xl w-full md:max-w-lg max-h-[92vh] md:max-h-[90vh] overflow-y-auto z-10">
+        <div className="sticky top-0 bg-white z-10 px-4 md:px-6 py-4 border-b border-[#E2E8F0] flex items-center justify-between">
+          <h2 className="text-[14px] md:text-base font-bold text-[#0F172A]">Create Support Ticket</h2>
+          <button onClick={onClose} className="w-7 h-7 rounded-full border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC] shrink-0"><X className="w-4 h-4" /></button>
         </div>
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {error && <p className="text-[11px] text-red-500 font-semibold bg-red-50 rounded-lg px-3 py-2">{error}</p>}
+        <form onSubmit={handleSubmit} className="p-4 md:p-6 space-y-4">
+          {error && <p className="text-[12px] text-red-500 font-semibold bg-red-50 rounded-xl px-3 py-2">{error}</p>}
 
           {/* Category */}
           <div>
-            <label className="block text-[11px] font-bold text-[#475569] mb-1">Category *</label>
-            <select value={category} onChange={e => { setCategory(e.target.value); setSubcategory(''); }} className="w-full h-9 px-3 rounded-lg border border-[#E2E8F0] text-xs focus:outline-none focus:border-[#00A86B] bg-white">
+            <label className="block text-[12px] font-semibold text-[#475569] mb-1.5">Category *</label>
+            <select value={category} onChange={e => { setCategory(e.target.value); setSubcategory(''); }} className="w-full h-11 md:h-9 px-4 md:px-3 rounded-full md:rounded-lg border border-[#E2E8F0] text-[12px] focus:outline-none focus:border-[#00A86B] bg-white">
               <option value="">Select category</option>
               {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
@@ -204,8 +204,8 @@ function CreateTicketModal({ onClose, onCreated }: CreateTicketModalProps) {
 
           {/* Subcategory */}
           <div>
-            <label className="block text-[11px] font-bold text-[#475569] mb-1">Subcategory *</label>
-            <select value={subcategory} onChange={e => setSubcategory(e.target.value)} disabled={!category} className="w-full h-9 px-3 rounded-lg border border-[#E2E8F0] text-xs focus:outline-none focus:border-[#00A86B] bg-white disabled:bg-slate-50 disabled:text-slate-400">
+            <label className="block text-[12px] font-semibold text-[#475569] mb-1.5">Subcategory *</label>
+            <select value={subcategory} onChange={e => setSubcategory(e.target.value)} disabled={!category} className="w-full h-11 md:h-9 px-4 md:px-3 rounded-full md:rounded-lg border border-[#E2E8F0] text-[12px] focus:outline-none focus:border-[#00A86B] bg-white disabled:bg-slate-50 disabled:text-slate-400">
               <option value="">Select subcategory</option>
               {subcategoryOptions.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
@@ -213,7 +213,7 @@ function CreateTicketModal({ onClose, onCreated }: CreateTicketModalProps) {
 
           {/* AWB */}
           <div>
-            <label className="block text-[11px] font-bold text-[#475569] mb-1">
+            <label className="block text-[12px] font-semibold text-[#475569] mb-1.5">
               AWB Number(s) <span className="font-normal text-slate-400">(optional, comma-separated)</span>
             </label>
             <input
@@ -221,13 +221,13 @@ function CreateTicketModal({ onClose, onCreated }: CreateTicketModalProps) {
               onChange={e => { setAwbNumbers(e.target.value); setAwbWarning(''); }}
               onBlur={e => { if (e.target.value.trim()) validateAwbs(e.target.value); }}
               placeholder="AWB123, AWB456"
-              className={`w-full h-9 px-3 rounded-lg border text-xs focus:outline-none focus:border-[#00A86B] ${awbWarning ? 'border-amber-400 bg-amber-50' : 'border-[#E2E8F0]'}`}
+              className={`w-full h-11 md:h-9 px-4 md:px-3 rounded-full md:rounded-lg border text-[12px] focus:outline-none focus:border-[#00A86B] ${awbWarning ? 'border-amber-400 bg-amber-50' : 'border-[#E2E8F0]'}`}
             />
             {awbValidating && (
-              <p className="text-[10px] text-[#64748B] mt-1">Validating AWB(s)…</p>
+              <p className="text-[12px] text-[#64748B] mt-1">Validating AWB(s)…</p>
             )}
             {awbWarning && !awbValidating && (
-              <p className="text-[10px] text-amber-600 font-semibold mt-1 flex items-center gap-1">
+              <p className="text-[12px] text-amber-600 font-semibold mt-1 flex items-center gap-1">
                 <span>⚠</span> {awbWarning}
               </p>
             )}
@@ -235,13 +235,13 @@ function CreateTicketModal({ onClose, onCreated }: CreateTicketModalProps) {
 
           {/* Message */}
           <div>
-            <label className="block text-[11px] font-bold text-[#475569] mb-1">Message *</label>
-            <textarea value={message} onChange={e => setMessage(e.target.value)} placeholder="Describe the issue in detail..." rows={4} className="w-full px-3 py-2 rounded-lg border border-[#E2E8F0] text-xs focus:outline-none focus:border-[#00A86B] resize-none" />
+            <label className="block text-[12px] font-semibold text-[#475569] mb-1.5">Message *</label>
+            <textarea value={message} onChange={e => setMessage(e.target.value)} placeholder="Describe the issue in detail..." rows={4} className="w-full px-4 py-3 rounded-2xl md:rounded-lg border border-[#E2E8F0] text-[12px] focus:outline-none focus:border-[#00A86B] resize-none" />
           </div>
 
           <div className="flex gap-3 pt-1">
-            <button type="button" onClick={onClose} className="flex-1 h-9 rounded-full border border-[#E2E8F0] text-[#475569] text-xs font-semibold hover:bg-[#F8FAFC]">Cancel</button>
-            <button type="submit" disabled={submitting || !userInfo} className="flex-1 h-9 rounded-full bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] disabled:opacity-50">
+            <button type="button" onClick={onClose} className="flex-1 h-11 md:h-9 rounded-full border border-[#E2E8F0] text-[#475569] text-[12px] font-semibold hover:bg-[#F8FAFC]">Cancel</button>
+            <button type="submit" disabled={submitting || !userInfo} className="flex-1 h-11 md:h-9 rounded-full bg-[#00A86B] text-white text-[12px] font-bold hover:bg-[#009B63] disabled:opacity-50">
               {submitting ? 'Creating...' : 'Create Ticket'}
             </button>
           </div>
@@ -509,6 +509,37 @@ export function AdminSupport() {
       <div className="flex flex-col h-[calc(100vh-72px)] -m-4 md:-m-6 bg-white">
         <div className="bg-white relative z-50 shrink-0">
 
+          {/* ── Mobile Search + Filter + Create Row (matches Orders page) ── */}
+          <div className="md:hidden relative z-[60] px-3 py-2.5 border-b border-[#E2E8F0] flex items-center gap-2 bg-white shrink-0">
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
+              <input
+                type="text"
+                placeholder="Search tickets..."
+                value={searchTerm}
+                onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+                className="w-full h-9 pl-9 pr-3 rounded-full border border-[#E2E8F0] bg-[#F8FAFC] text-sm text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all"
+              />
+            </div>
+            {/* Filter icon */}
+            <button
+              onClick={() => setIsMobileFiltersOpen(true)}
+              className="w-9 h-9 rounded-full border border-[#E2E8F0] flex items-center justify-center text-[#475569] bg-white shrink-0"
+            >
+              <Filter className="w-4 h-4" />
+            </button>
+            {/* Create Ticket icon */}
+            {!isAdminView && (
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="w-9 h-9 rounded-full bg-[#00A86B] flex items-center justify-center text-white shadow-sm active:bg-[#009B63] transition-colors shrink-0"
+                title="Create Ticket"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+
           {/* ── Tabs ── */}
           <div className="flex justify-between items-center px-4 md:px-6 py-2 border-b border-[#E2E8F0] bg-white">
             <div className="flex gap-1 items-center min-w-0 bg-[#F7FEFC] rounded-full p-1.5">
@@ -533,24 +564,6 @@ export function AdminSupport() {
                 <RefreshCcw className="w-4 h-4" />
               </button>
             </div>
-          </div>
-
-          {/* ── Mobile Filters + Create Ticket Row ── */}
-          <div className="md:hidden px-4 py-3 border-b border-[#E2E8F0] flex items-center justify-between bg-white gap-2">
-            <button
-              onClick={() => setIsMobileFiltersOpen(true)}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#00A86B] text-white text-[12px] font-bold shadow-sm"
-            >
-              <Filter className="w-3.5 h-3.5" /> Filters
-            </button>
-            {!isAdminView && (
-              <button
-                onClick={() => setShowCreateModal(true)}
-                className="h-9 px-4 rounded-full bg-[#00A86B] text-white text-[12px] font-bold hover:bg-[#009B63] transition-colors shadow-sm whitespace-nowrap flex items-center gap-1.5"
-              >
-                <Plus className="w-3.5 h-3.5" /> Create Ticket
-              </button>
-            )}
           </div>
 
           {/* ── Filter Row (desktop) ── */}
@@ -853,7 +866,7 @@ export function AdminSupport() {
               <div className="p-6 space-y-3">
                 {/* Date range — pill style, matches reference */}
                 <GlassDateFilter
-                  className="w-full [&_.glass-dropdown-trigger]:w-full [&_.glass-dropdown-trigger]:h-12 [&_.glass-dropdown-trigger]:rounded-full"
+                  className="w-full [&_.glass-dropdown-trigger]:!w-full [&_.glass-dropdown-trigger]:!h-11 [&_.glass-dropdown-trigger]:!min-w-0 [&_.glass-dropdown-trigger]:!rounded-full"
                   startDate={draftDateStart}
                   endDate={draftDateEnd}
                   onDateChange={onDraftDateChange}
@@ -868,7 +881,7 @@ export function AdminSupport() {
                     placeholder="Search by name, email, or contact..."
                     value={searchTerm}
                     onChange={e => setSearchTerm(e.target.value)}
-                    className="w-full h-12 pl-4 pr-10 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] placeholder:text-slate-400"
+                    className="w-full h-11 pl-4 pr-10 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] placeholder:text-slate-400"
                   />
                   <Search className="w-4 h-4 text-slate-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
                 </div>
@@ -880,7 +893,7 @@ export function AdminSupport() {
                   selected={draftSubcategories}
                   onChange={setDraftSubcategories}
                   placeholder="Choose Subcategory"
-                  className="w-full [&_.glass-dropdown-trigger]:w-full [&_.glass-dropdown-trigger]:h-12 [&_.glass-dropdown-trigger]:rounded-full"
+                  className="w-full [&_.glass-dropdown-trigger]:!w-full [&_.glass-dropdown-trigger]:!h-11 [&_.glass-dropdown-trigger]:!min-w-0 [&_.glass-dropdown-trigger]:!rounded-full"
                 />
 
                 {/* Status */}
@@ -890,7 +903,7 @@ export function AdminSupport() {
                   selected={draftStatuses}
                   onChange={setDraftStatuses}
                   placeholder="Select Status"
-                  className="w-full [&_.glass-dropdown-trigger]:w-full [&_.glass-dropdown-trigger]:h-12 [&_.glass-dropdown-trigger]:rounded-full"
+                  className="w-full [&_.glass-dropdown-trigger]:!w-full [&_.glass-dropdown-trigger]:!h-11 [&_.glass-dropdown-trigger]:!min-w-0 [&_.glass-dropdown-trigger]:!rounded-full"
                 />
 
                 {/* Sort By */}
@@ -900,7 +913,7 @@ export function AdminSupport() {
                   selected={draftSort}
                   onChange={setDraftSort}
                   placeholder="Sort By"
-                  className="w-full [&_.glass-dropdown-trigger]:w-full [&_.glass-dropdown-trigger]:h-12 [&_.glass-dropdown-trigger]:rounded-full"
+                  className="w-full [&_.glass-dropdown-trigger]:!w-full [&_.glass-dropdown-trigger]:!h-11 [&_.glass-dropdown-trigger]:!min-w-0 [&_.glass-dropdown-trigger]:!rounded-full"
                 />
               </div>
 

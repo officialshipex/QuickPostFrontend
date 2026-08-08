@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { Search, ChevronRight, Save, Filter, X, Upload, Download, Plus, Edit2, CheckCircle2, Truck, Hash, Layers } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -98,6 +99,8 @@ export function AdminRateCard() {
 
   const [selectedPlan, setSelectedPlan] = useState('');
   const [isPlanDropdownOpen, setIsPlanDropdownOpen] = useState(false);
+  const [mobilePlanDropdownPos, setMobilePlanDropdownPos] = useState<{ top: number; left: number; width: number } | null>(null);
+  const mobilePlanTriggerRef = useRef<HTMLButtonElement>(null);
   const [expandedProviderId, setExpandedProviderId] = useState<string | null>(null);
   const [editingProviderId, setEditingProviderId] = useState<string | null>(null);
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
@@ -383,7 +386,7 @@ export function AdminRateCard() {
         <div className="bg-white relative z-50 shrink-0">
 
         {/* Header Tab */}
-        <div className="px-4 md:px-6 py-2 border-b border-[#E2E8F0]">
+        <div className="hidden md:block px-4 md:px-6 py-2 border-b border-[#E2E8F0]">
           <div className="flex gap-1 items-center bg-[#F7FEFC] rounded-full p-1.5 w-fit overflow-x-auto no-scrollbar">
             <button className="px-4 py-2 text-[13px] font-bold text-[#00A86B] underline underline-offset-4 decoration-2 rounded-full whitespace-nowrap">
               Rate Card Management
@@ -516,14 +519,14 @@ export function AdminRateCard() {
           </div>
         </div>
 
-        {/* Filters & Actions — mobile */}
-        <div className="md:hidden p-4 flex items-center gap-2 border-b border-[#E2E8F0]">
+        {/* Search + Filter — mobile (matches Orders page) */}
+        <div className="md:hidden relative z-[60] px-3 py-2.5 border-b border-[#E2E8F0] flex items-center gap-2 bg-white shrink-0">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8]" />
             <input
               type="text"
               placeholder="Search by courier name"
-              className="w-full h-10 pl-10 pr-4 rounded-xl border border-[#E2E8F0] bg-white text-sm outline-none focus:border-[#00A86B] text-[#0F172A]"
+              className="w-full h-9 pl-9 pr-3 rounded-full border border-[#E2E8F0] bg-[#F8FAFC] text-sm outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 text-[#0F172A] placeholder:text-[#94A3B8] transition-all"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
@@ -531,57 +534,71 @@ export function AdminRateCard() {
           </div>
           <button
             onClick={() => setIsMobileFiltersOpen(true)}
-            className="flex items-center gap-1.5 h-10 px-4 rounded-xl bg-[#00A86B] text-white text-[12px] font-bold shadow-sm shrink-0"
+            className="w-9 h-9 rounded-full border border-[#E2E8F0] flex items-center justify-center text-[#475569] bg-white shrink-0"
           >
-            <Filter className="w-3.5 h-3.5" /> Filters
+            <Filter className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="md:hidden px-4 pb-3 border-b border-[#E2E8F0] flex items-center gap-2 overflow-x-auto no-scrollbar">
-          <button onClick={handleDownloadTemplate}
-            className="flex items-center justify-center gap-1.5 h-9 px-4 shrink-0 rounded-xl border border-[#E2E8F0] bg-white text-[#475569] text-[12px] font-bold">
-            <Download className="w-3.5 h-3.5" /> Template
+        {/* Actions — mobile, icon-only circular buttons */}
+        <div className="md:hidden px-3 py-2.5 border-b border-[#E2E8F0] flex items-center gap-2 overflow-x-auto no-scrollbar">
+          <button onClick={handleDownloadTemplate} title="Download Template"
+            className="w-9 h-9 rounded-full border border-[#E2E8F0] bg-white text-[#475569] flex items-center justify-center shrink-0">
+            <Download className="w-4 h-4" />
           </button>
-          <label className={`flex items-center justify-center gap-1.5 h-9 px-4 shrink-0 rounded-xl border border-[#E2E8F0] bg-white text-[#475569] text-[12px] font-bold cursor-pointer ${uploading ? 'opacity-60 pointer-events-none' : ''}`}>
-            {uploading ? <><Spinner /> Uploading</> : <><Upload className="w-3.5 h-3.5" /> Upload</>}
+          <label title="Upload Rate Card" className={`w-9 h-9 rounded-full border border-[#E2E8F0] bg-white text-[#475569] flex items-center justify-center shrink-0 cursor-pointer ${uploading ? 'opacity-60 pointer-events-none' : ''}`}>
+            {uploading ? <Spinner /> : <Upload className="w-4 h-4" />}
             <input type="file" accept=".xlsx,.xls,.csv" className="hidden" disabled={uploading}
               onChange={(e) => { const f = e.target.files?.[0]; if (f) { handleUpload(f); e.target.value = ''; } }} />
           </label>
-          <button onClick={() => { setNewPlanName(''); setPlanError(''); setAddPlanModal(true); }}
-            className="flex items-center justify-center gap-1.5 h-9 px-4 shrink-0 rounded-xl border border-[#00A86B] text-[#00A86B] text-[12px] font-bold bg-white">
-            <Plus className="w-3.5 h-3.5" /> Add Plan
+          <button onClick={() => { setNewPlanName(''); setPlanError(''); setAddPlanModal(true); }} title="Add Plan"
+            className="w-9 h-9 rounded-full border border-[#00A86B] text-[#00A86B] bg-white flex items-center justify-center shrink-0">
+            <Plus className="w-4 h-4" />
           </button>
-          <button onClick={() => { setAddRateForm({ ...emptyAddRateForm, plan: selectedPlan || plans[0] || '' }); setAddRateError(''); setAddRateModal(true); }}
-            className="flex items-center justify-center gap-1.5 h-9 px-4 shrink-0 rounded-xl bg-[#00A86B] text-white text-[12px] font-bold">
-            <Plus className="w-3.5 h-3.5" /> Add Rate
+          <button onClick={() => { setAddRateForm({ ...emptyAddRateForm, plan: selectedPlan || plans[0] || '' }); setAddRateError(''); setAddRateModal(true); }} title="Add Rate Card"
+            className="w-9 h-9 rounded-full bg-[#00A86B] text-white flex items-center justify-center shrink-0 shadow-sm">
+            <Plus className="w-4 h-4" />
           </button>
-          <div className="relative min-w-[200px] shrink-0">
-            <button onClick={() => setIsPlanDropdownOpen(!isPlanDropdownOpen)}
-              className={`w-full h-9 px-4 border rounded-xl text-[12px] font-bold transition-all flex items-center justify-between ${isPlanDropdownOpen ? 'border-[#00A86B] ring-1 ring-[#00A86B]/20 bg-white text-[#00A86B]' : 'border-[#E2E8F0] bg-white text-[#0F172A]'}`}>
-              <span className="truncate pr-2">{selectedPlan || 'Select Plan'}</span>
-              <motion.div animate={{ rotate: isPlanDropdownOpen ? 180 : 0 }} transition={{ duration: 0.2 }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+          <div className="relative min-w-[130px] shrink-0">
+            <button
+              ref={mobilePlanTriggerRef}
+              onClick={() => {
+                if (!isPlanDropdownOpen && mobilePlanTriggerRef.current) {
+                  const r = mobilePlanTriggerRef.current.getBoundingClientRect();
+                  setMobilePlanDropdownPos({ top: r.bottom + 8, left: r.left, width: r.width });
+                }
+                setIsPlanDropdownOpen(!isPlanDropdownOpen);
+              }}
+              className={`w-full h-9 px-3 border rounded-full text-[11px] font-bold transition-all flex items-center justify-between gap-1 ${isPlanDropdownOpen ? 'border-[#00A86B] ring-1 ring-[#00A86B]/20 bg-white text-[#00A86B]' : 'border-[#E2E8F0] bg-white text-[#0F172A]'}`}>
+              <span className="truncate">{selectedPlan || 'Select Plan'}</span>
+              <motion.div animate={{ rotate: isPlanDropdownOpen ? 180 : 0 }} transition={{ duration: 0.2 }} className="shrink-0">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
               </motion.div>
             </button>
-            <AnimatePresence>
-              {isPlanDropdownOpen && (
-                <>
-                  <div className="fixed inset-0 z-10" onClick={() => setIsPlanDropdownOpen(false)} />
-                  <motion.div initial={{ opacity: 0, y: -10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -10, scale: 0.95 }} transition={{ duration: 0.15 }}
-                    className="absolute top-[calc(100%+8px)] left-0 w-[240px] bg-white border border-[#E2E8F0] rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] z-20 overflow-hidden py-1.5">
-                    <div className="max-h-[280px] overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
-                      {plans.map(plan => (
-                        <button key={plan} onClick={() => { setSelectedPlan(plan); setIsPlanDropdownOpen(false); }}
-                          className={`w-full text-left px-4 py-2.5 text-[13px] transition-colors flex items-center justify-between ${selectedPlan === plan ? 'bg-[#F0FDF4] text-[#00A86B] font-bold' : 'text-[#475569] font-semibold hover:bg-[#F8FAFC]'}`}>
-                          <span className="truncate">{plan}</span>
-                          {selectedPlan === plan && <svg className="w-4 h-4 text-[#00A86B] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>}
-                        </button>
-                      ))}
-                    </div>
-                  </motion.div>
-                </>
-              )}
-            </AnimatePresence>
+            {isPlanDropdownOpen && mobilePlanDropdownPos && createPortal(
+              <AnimatePresence>
+                <div className="fixed inset-0 z-[140]" onClick={() => setIsPlanDropdownOpen(false)} />
+                <motion.div initial={{ opacity: 0, y: -10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -10, scale: 0.95 }} transition={{ duration: 0.15 }}
+                  style={{
+                    position: 'fixed',
+                    top: mobilePlanDropdownPos.top,
+                    left: Math.max(8, Math.min(mobilePlanDropdownPos.left, window.innerWidth - 220)),
+                    width: 210,
+                  }}
+                  className="bg-white border border-[#E2E8F0] rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.15)] z-[141] overflow-hidden py-1.5">
+                  <div className="max-h-[280px] overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
+                    {plans.map(plan => (
+                      <button key={plan} onClick={() => { setSelectedPlan(plan); setIsPlanDropdownOpen(false); }}
+                        className={`w-full text-left px-4 py-2.5 text-[13px] transition-colors flex items-center justify-between ${selectedPlan === plan ? 'bg-[#F0FDF4] text-[#00A86B] font-bold' : 'text-[#475569] font-semibold hover:bg-[#F8FAFC]'}`}>
+                        <span className="truncate">{plan}</span>
+                        {selectedPlan === plan && <svg className="w-4 h-4 text-[#00A86B] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>}
+                      </button>
+                    ))}
+                  </div>
+                </motion.div>
+              </AnimatePresence>,
+              document.body
+            )}
           </div>
         </div>
         </div>

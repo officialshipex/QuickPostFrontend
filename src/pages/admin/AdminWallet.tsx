@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
@@ -2932,7 +2932,7 @@ export function AdminWallet() {
                         setUpbUserQuery(e.target.value);
                         if (!e.target.value.trim()) { setUpbSelectedUserId(''); setUpbSelectedMongoId(''); }
                       }}
-                      className="w-full h-10 pl-9 pr-4 rounded-xl border border-slate-200 text-slate-800 text-xs focus:outline-none focus:border-[#00A86B] font-semibold"
+                      className="w-full h-11 pl-9 pr-4 rounded-full border border-slate-200 text-slate-800 text-xs focus:outline-none focus:border-[#00A86B] font-semibold"
                     />
                     <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                   </div>
@@ -2971,20 +2971,20 @@ export function AdminWallet() {
                         <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Payment ID</label>
                         <input type="text" required value={upbPaymentId} onChange={(e) => setUpbPaymentId(e.target.value)}
                           placeholder="Payment ID"
-                          className="w-full h-10 px-3 rounded-xl border border-slate-200 text-slate-800 text-xs focus:outline-none focus:border-[#00A86B]" />
+                          className="w-full h-11 px-3 rounded-full border border-slate-200 text-slate-800 text-xs focus:outline-none focus:border-[#00A86B]" />
                       </div>
                       <div>
                         <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Order ID</label>
                         <input type="text" required value={upbRechOrderId} onChange={(e) => setUpbRechOrderId(e.target.value)}
                           placeholder="Order ID"
-                          className="w-full h-10 px-3 rounded-xl border border-slate-200 text-slate-800 text-xs focus:outline-none focus:border-[#00A86B]" />
+                          className="w-full h-11 px-3 rounded-full border border-slate-200 text-slate-800 text-xs focus:outline-none focus:border-[#00A86B]" />
                       </div>
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Amount (₹)</label>
                       <input type="number" required value={upbRechAmount} onChange={(e) => setUpbRechAmount(e.target.value)}
                         placeholder="Amount"
-                        className="w-full h-10 px-3 rounded-xl border border-slate-200 text-slate-800 text-xs focus:outline-none focus:border-[#00A86B] font-bold" />
+                        className="w-full h-11 px-3 rounded-full border border-slate-200 text-slate-800 text-xs focus:outline-none focus:border-[#00A86B] font-bold" />
                     </div>
                     <div className="flex items-center gap-3 pt-3 border-t border-slate-100 mt-auto">
                       <button type="submit" disabled={upbIsSubmitting || !upbSelectedUserId}
@@ -3005,7 +3005,7 @@ export function AdminWallet() {
                     <div>
                       <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Description</label>
                       <select value={upbUpdDesc} onChange={(e) => { setUpbUpdDesc(e.target.value); setUpbUpdAwb(''); setUpbUpdOrderId(''); }} required
-                        className="w-full h-10 px-3 rounded-xl border border-slate-200 text-slate-800 text-xs focus:outline-none focus:border-[#00A86B]">
+                        className="w-full h-11 px-3 rounded-full border border-slate-200 text-slate-800 text-xs focus:outline-none focus:border-[#00A86B]">
                         <option value="">Select description</option>
                         {['Freight Charges', 'COD Charges', 'RTO Freight Charges', 'Shipment Lost Liability', 'Shipment Damaged Liability', 'Weight Dispute Charges', 'Cashback', 'Credit Note', 'Wallet to bank', 'GST Charges'].map(d => (
                           <option key={d} value={d}>{d}</option>
@@ -3017,7 +3017,7 @@ export function AdminWallet() {
                         <div className="relative">
                           <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">AWB Number</label>
                           <input type="text" value={upbUpdAwb} onChange={(e) => setUpbUpdAwb(e.target.value)} placeholder="AWB Number"
-                            className="w-full h-10 px-3 rounded-xl border border-slate-200 text-slate-800 text-xs focus:outline-none focus:border-[#00A86B]" />
+                            className="w-full h-11 px-3 rounded-full border border-slate-200 text-slate-800 text-xs focus:outline-none focus:border-[#00A86B]" />
                           {upbUpdAwbSuggestions.length > 0 && (
                             <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-[#E2E8F0] rounded-xl shadow-xl max-h-40 overflow-y-auto z-[120] py-1">
                               {upbUpdAwbSuggestions.map((awb: any) => (
@@ -3033,7 +3033,7 @@ export function AdminWallet() {
                         <div>
                           <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Order ID</label>
                           <input type="text" value={upbUpdOrderId} readOnly placeholder="Auto-filled from AWB"
-                            className="w-full h-10 px-3 rounded-xl border border-slate-200 text-slate-500 text-xs bg-slate-50 focus:outline-none" />
+                            className="w-full h-11 px-3 rounded-full border border-slate-200 text-slate-500 text-xs bg-slate-50 focus:outline-none" />
                         </div>
                       </div>
                     )}
@@ -3041,12 +3041,12 @@ export function AdminWallet() {
                       <div>
                         <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Amount (₹)</label>
                         <input type="number" required value={upbUpdAmount} onChange={(e) => setUpbUpdAmount(e.target.value)} placeholder="Amount"
-                          className="w-full h-10 px-3 rounded-xl border border-slate-200 text-slate-800 text-xs focus:outline-none focus:border-[#00A86B] font-bold" />
+                          className="w-full h-11 px-3 rounded-full border border-slate-200 text-slate-800 text-xs focus:outline-none focus:border-[#00A86B] font-bold" />
                       </div>
                       <div>
                         <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Category</label>
                         <select value={upbUpdCategory} onChange={(e) => setUpbUpdCategory(e.target.value)} required
-                          className="w-full h-10 px-3 rounded-xl border border-slate-200 text-slate-800 text-xs focus:outline-none focus:border-[#00A86B]">
+                          className="w-full h-11 px-3 rounded-full border border-slate-200 text-slate-800 text-xs focus:outline-none focus:border-[#00A86B]">
                           <option value="">Select</option>
                           <option value="credit">Credit</option>
                           <option value="debit">Debit</option>
@@ -3072,7 +3072,7 @@ export function AdminWallet() {
                     <div>
                       <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Description</label>
                       <select value={upbDirDesc} onChange={(e) => setUpbDirDesc(e.target.value)} required
-                        className="w-full h-10 px-3 rounded-xl border border-slate-200 text-slate-800 text-xs focus:outline-none focus:border-[#00A86B]">
+                        className="w-full h-11 px-3 rounded-full border border-slate-200 text-slate-800 text-xs focus:outline-none focus:border-[#00A86B]">
                         <option value="">Select description</option>
                         {['Freight Charges', 'COD Charges', 'RTO Freight Charges', 'Shipment Lost Liability', 'Shipment Damaged Liability', 'Weight Dispute Charges', 'Cashback', 'Credit Note', 'Wallet to bank', 'GST Charges'].map(d => (
                           <option key={d} value={d}>{d}</option>
@@ -3083,12 +3083,12 @@ export function AdminWallet() {
                       <div>
                         <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Amount (₹)</label>
                         <input type="number" required value={upbDirAmount} onChange={(e) => setUpbDirAmount(e.target.value)} placeholder="Amount"
-                          className="w-full h-10 px-3 rounded-xl border border-slate-200 text-slate-800 text-xs focus:outline-none focus:border-[#00A86B] font-bold" />
+                          className="w-full h-11 px-3 rounded-full border border-slate-200 text-slate-800 text-xs focus:outline-none focus:border-[#00A86B] font-bold" />
                       </div>
                       <div>
                         <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Category</label>
                         <select value={upbDirCategory} onChange={(e) => setUpbDirCategory(e.target.value)} required
-                          className="w-full h-10 px-3 rounded-xl border border-slate-200 text-slate-800 text-xs focus:outline-none focus:border-[#00A86B]">
+                          className="w-full h-11 px-3 rounded-full border border-slate-200 text-slate-800 text-xs focus:outline-none focus:border-[#00A86B]">
                           <option value="">Select</option>
                           <option value="credit">Credit</option>
                           <option value="debit">Debit</option>
@@ -3375,7 +3375,7 @@ export function AdminWallet() {
                         placeholder="Search name, email..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
+                        className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
                       />
                     </div>
 
@@ -3385,7 +3385,7 @@ export function AdminWallet() {
                         <select
                           value={selectedSearchTypes[0] || ''}
                           onChange={(e) => setSelectedSearchTypes(e.target.value ? [e.target.value] : [])}
-                          className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
+                          className="w-full h-11 px-3 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
                         >
                           {SEARCH_TYPE_OPTIONS.map(opt => (
                             <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -3400,7 +3400,7 @@ export function AdminWallet() {
                           placeholder="Type ID..."
                           value={searchTypeId}
                           onChange={(e) => setSearchTypeId(e.target.value)}
-                          className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
+                          className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
                         />
                       </div>
                     </div>
@@ -3410,7 +3410,7 @@ export function AdminWallet() {
                       <select
                         value={selectedCouriers[0] || ''}
                         onChange={(e) => setSelectedCouriers(e.target.value ? [e.target.value] : [])}
-                        className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
+                        className="w-full h-11 px-3 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
                       >
                         <option value="">All Couriers</option>
                         {courierOptions.map((opt: { label: string; value: string }) => (
@@ -3424,7 +3424,7 @@ export function AdminWallet() {
                       <select
                         value={selectedStatuses[0] || ''}
                         onChange={(e) => setSelectedStatuses(e.target.value ? [e.target.value] : [])}
-                        className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
+                        className="w-full h-11 px-3 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
                       >
                         <option value="">All Statuses</option>
                         {SHIPPING_STATUS_OPTIONS.map(opt => (
@@ -3440,13 +3440,13 @@ export function AdminWallet() {
                           type="date"
                           value={shippingDateStart}
                           onChange={(e) => setShippingDateStart(e.target.value)}
-                          className="h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-xs focus:outline-none focus:border-[#00A86B]"
+                          className="h-11 px-3 rounded-full border border-slate-200 text-slate-800 text-xs focus:outline-none focus:border-[#00A86B]"
                         />
                         <input
                           type="date"
                           value={shippingDateEnd}
                           onChange={(e) => setShippingDateEnd(e.target.value)}
-                          className="h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-xs focus:outline-none focus:border-[#00A86B]"
+                          className="h-11 px-3 rounded-full border border-slate-200 text-slate-800 text-xs focus:outline-none focus:border-[#00A86B]"
                         />
                       </div>
                     </div>
@@ -3458,7 +3458,7 @@ export function AdminWallet() {
                     <div>
                       <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Date Range</label>
                       <GlassDateFilter
-                        className="w-full [&_.glass-dropdown-trigger]:w-full [&_.glass-dropdown-trigger]:h-11"
+                        className="w-full [&_.glass-dropdown-trigger]:!w-full [&_.glass-dropdown-trigger]:!h-11 [&_.glass-dropdown-trigger]:!min-w-0 [&_.glass-dropdown-trigger]:!rounded-full"
                         startDate={passbookDateStart}
                         endDate={passbookDateEnd}
                         onDateChange={onPassbookDateChange}
@@ -3474,7 +3474,7 @@ export function AdminWallet() {
                         placeholder="Search by name, email, or contact..."
                         value={passbookSearchTerm}
                         onChange={(e) => setPassbookSearchTerm(e.target.value)}
-                        className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
+                        className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
                       />
                     </div>
 
@@ -3485,7 +3485,7 @@ export function AdminWallet() {
                         placeholder="Order ID..."
                         value={passbookOrderId}
                         onChange={(e) => setPassbookOrderId(e.target.value)}
-                        className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
+                        className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
                       />
                     </div>
 
@@ -3496,7 +3496,7 @@ export function AdminWallet() {
                         placeholder="AWB Number..."
                         value={passbookAwb}
                         onChange={(e) => setPassbookAwb(e.target.value)}
-                        className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
+                        className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
                       />
                     </div>
 
@@ -3505,7 +3505,7 @@ export function AdminWallet() {
                       <select
                         value={selectedCategories[0] || ''}
                         onChange={(e) => setSelectedCategories(e.target.value ? [e.target.value] : [])}
-                        className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
+                        className="w-full h-11 px-3 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
                       >
                         <option value="">All Categories</option>
                         {CATEGORY_OPTIONS.map(opt => (
@@ -3519,7 +3519,7 @@ export function AdminWallet() {
                       <select
                         value={selectedDescriptions[0] || ''}
                         onChange={(e) => setSelectedDescriptions(e.target.value ? [e.target.value] : [])}
-                        className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
+                        className="w-full h-11 px-3 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
                       >
                         <option value="">All Descriptions</option>
                         {DESCRIPTION_OPTIONS.map(opt => (
@@ -3535,7 +3535,7 @@ export function AdminWallet() {
                     <div>
                       <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Date Range</label>
                       <GlassDateFilter
-                        className="w-full [&_.glass-dropdown-trigger]:w-full [&_.glass-dropdown-trigger]:h-11"
+                        className="w-full [&_.glass-dropdown-trigger]:!w-full [&_.glass-dropdown-trigger]:!h-11 [&_.glass-dropdown-trigger]:!min-w-0 [&_.glass-dropdown-trigger]:!rounded-full"
                         startDate={rechargeDateStart}
                         endDate={rechargeDateEnd}
                         onDateChange={onRechargeDateChange}
@@ -3551,7 +3551,7 @@ export function AdminWallet() {
                         placeholder="Search by name, email, or contact..."
                         value={rechargeSearchTerm}
                         onChange={(e) => setRechargeSearchTerm(e.target.value)}
-                        className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
+                        className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
                       />
                     </div>
 
@@ -3562,7 +3562,7 @@ export function AdminWallet() {
                         placeholder="Transaction ID..."
                         value={rechargeTxnId}
                         onChange={(e) => setRechargeTxnId(e.target.value)}
-                        className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
+                        className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
                       />
                     </div>
 
@@ -3571,7 +3571,7 @@ export function AdminWallet() {
                       <select
                         value={selectedPaymentMethods[0] || ''}
                         onChange={(e) => setSelectedPaymentMethods(e.target.value ? [e.target.value] : [])}
-                        className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
+                        className="w-full h-11 px-3 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
                       >
                         <option value="">All Payment Methods</option>
                         {PAYMENT_METHOD_OPTIONS.map(opt => (
@@ -3585,7 +3585,7 @@ export function AdminWallet() {
                       <select
                         value={selectedRechargeStatuses[0] || ''}
                         onChange={(e) => setSelectedRechargeStatuses(e.target.value ? [e.target.value] : [])}
-                        className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
+                        className="w-full h-11 px-3 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
                       >
                         <option value="">All Statuses</option>
                         {RECHARGE_STATUS_OPTIONS.map(opt => (
@@ -3601,7 +3601,7 @@ export function AdminWallet() {
                     <div>
                       <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Date Range</label>
                       <GlassDateFilter
-                        className="w-full [&_.glass-dropdown-trigger]:w-full [&_.glass-dropdown-trigger]:h-11"
+                        className="w-full [&_.glass-dropdown-trigger]:!w-full [&_.glass-dropdown-trigger]:!h-11 [&_.glass-dropdown-trigger]:!min-w-0 [&_.glass-dropdown-trigger]:!rounded-full"
                         startDate={invoiceDateStart}
                         endDate={invoiceDateEnd}
                         onDateChange={onInvoiceDateChange}
@@ -3617,7 +3617,7 @@ export function AdminWallet() {
                         placeholder="Search by name, email, or contact..."
                         value={invoiceSearchTerm}
                         onChange={(e) => setInvoiceSearchTerm(e.target.value)}
-                        className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
+                        className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
                       />
                     </div>
 
@@ -3626,7 +3626,7 @@ export function AdminWallet() {
                       <select
                         value={selectedMonths[0] || ''}
                         onChange={(e) => setSelectedMonths(e.target.value ? [e.target.value] : [])}
-                        className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
+                        className="w-full h-11 px-3 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
                       >
                         <option value="">All Months</option>
                         {MONTH_OPTIONS.map(opt => (
@@ -3640,7 +3640,7 @@ export function AdminWallet() {
                       <select
                         value={selectedYears[0] || ''}
                         onChange={(e) => setSelectedYears(e.target.value ? [e.target.value] : [])}
-                        className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
+                        className="w-full h-11 px-3 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
                       >
                         <option value="">All Years</option>
                         {YEAR_OPTIONS.map(opt => (
