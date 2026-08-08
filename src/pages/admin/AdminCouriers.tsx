@@ -96,6 +96,20 @@ export function AdminCouriers() {
   const [showAddCourier, setShowAddCourier] = useState(false);
   const [editServiceData, setEditServiceData] = useState<any | null>(null);
 
+  // Reset per-tab UI/filter state whenever the tab changes — otherwise an expanded
+  // row, search text, or applied filters from "Couriers" would incorrectly carry
+  // over and appear to apply to "Courier Services" (and vice versa).
+  useEffect(() => {
+    setExpandedProviderId(null);
+    setSearchQuery('');
+    setStatusFilter([]);
+    setTypeFilter([]);
+    setAppliedSearch('');
+    setAppliedStatus([]);
+    setAppliedType([]);
+    setIsMobileFiltersOpen(false);
+  }, [activeTab]);
+
 
   // ─── Global search listener (navbar search bar) ──────────────────────────────
   useEffect(() => {
@@ -240,6 +254,34 @@ export function AdminCouriers() {
       <div className="flex flex-col h-[calc(100vh-72px)] -m-4 md:-m-6 bg-white">
         <div className="bg-white relative z-50 shrink-0">
 
+        {/* Filters & Search — mobile (matches Orders page, sits above the tab pill) */}
+        <div className="md:hidden relative z-[60] px-3 py-2.5 border-b border-[#E2E8F0] flex items-center gap-2 bg-white shrink-0">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8]" />
+            <input
+              type="text"
+              placeholder="Search by courier name"
+              className="w-full h-9 pl-9 pr-3 rounded-full border border-[#E2E8F0] bg-[#F8FAFC] text-sm outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 text-[#0F172A] placeholder:text-[#94A3B8] transition-all"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
+            />
+          </div>
+          <button
+            onClick={() => setIsMobileFiltersOpen(true)}
+            className="w-9 h-9 rounded-full border border-[#E2E8F0] flex items-center justify-center text-[#475569] bg-white shrink-0"
+          >
+            <Filter className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => setShowAddCourier(true)}
+            className="w-9 h-9 rounded-full flex items-center justify-center text-white shadow-sm shrink-0 active:scale-95 transition-transform"
+            style={{ background: '#009D64' }}
+          >
+            <Plus className="w-4 h-4" />
+          </button>
+        </div>
+
         {/* Header Tabs */}
         <div className="px-4 md:px-6 py-2 border-b border-[#E2E8F0]">
           <div className="flex gap-1 items-center bg-[#F7FEFC] rounded-full p-1.5 w-fit overflow-x-auto no-scrollbar">
@@ -305,34 +347,6 @@ export function AdminCouriers() {
             onClick={() => setShowAddCourier(true)}
             aria-label="Add Courier"
             className="ml-auto w-9 h-9 rounded-[80px] border border-[#03C27D] flex items-center justify-center text-white shadow-sm transition-transform hover:scale-105"
-            style={{ background: 'linear-gradient(180deg, #03C27D 0%, #059669 50%, #065F46 100%)' }}
-          >
-            <Plus className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Filters & Search — mobile */}
-        <div className="md:hidden p-4 flex items-center gap-2 border-b border-[#E2E8F0]">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8]" />
-            <input
-              type="text"
-              placeholder="Search by courier name"
-              className="w-full h-10 pl-10 pr-4 rounded-xl border border-[#E2E8F0] bg-white text-sm outline-none focus:border-[#00A86B] text-[#0F172A]"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
-            />
-          </div>
-          <button
-            onClick={() => setIsMobileFiltersOpen(true)}
-            className="flex items-center gap-1.5 h-10 px-4 rounded-xl bg-[#00A86B] text-white text-[12px] font-bold shadow-sm shrink-0"
-          >
-            <Filter className="w-3.5 h-3.5" /> Filters
-          </button>
-          <button
-            onClick={() => setShowAddCourier(true)}
-            className="w-10 h-10 rounded-xl border border-[#03C27D] flex items-center justify-center text-white shadow-sm shrink-0 active:scale-95 transition-transform"
             style={{ background: 'linear-gradient(180deg, #03C27D 0%, #059669 50%, #065F46 100%)' }}
           >
             <Plus className="w-4 h-4" />
@@ -587,13 +601,9 @@ export function AdminCouriers() {
         </div>
 
         {/* Card List — mobile only */}
-        <div className="md:hidden flex-1 overflow-y-auto p-2 space-y-2">
-          {loading ? (
-            <div className="flex flex-col items-center justify-center gap-3 py-16">
-              <div className="w-8 h-8 border-[3px] border-[#E2E8F0] border-t-[#00A86B] rounded-full animate-spin" />
-              <div className="text-sm font-semibold text-[#94A3B8]">Loading couriers...</div>
-            </div>
-          ) : filteredProviders.length > 0 ? (
+        <div className="md:hidden flex-1 overflow-y-auto relative p-2 space-y-2">
+          {loading && <TableLoader />}
+          {loading ? null : filteredProviders.length > 0 ? (
             filteredProviders.map((provider) => {
               const name = provider.courierName || provider.courierProvider || '';
               const logo = LOGO_MAP[name] || '';

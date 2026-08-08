@@ -2065,7 +2065,7 @@ export function AdminCOD() {
                 <div>
                   <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Date Range</label>
                   <GlassDateFilter
-                    className="w-full [&_.glass-dropdown-trigger]:w-full [&_.glass-dropdown-trigger]:h-11"
+                    className="w-full [&_.glass-dropdown-trigger]:!w-full [&_.glass-dropdown-trigger]:!h-11 [&_.glass-dropdown-trigger]:!min-w-0 [&_.glass-dropdown-trigger]:!rounded-full"
                     startDate={dateStart}
                     endDate={dateEnd}
                     onDateChange={onDateChange}
@@ -2082,7 +2082,7 @@ export function AdminCOD() {
                       placeholder="Search user..."
                       value={codUserQuery}
                       onChange={(e) => onCodUserQueryChange(e.target.value)}
-                      className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
+                      className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
                     />
                     {codUserSuggestions.length > 0 && !codUserMongoId && (
                       <div className="mt-1 bg-white border border-[#E2E8F0] rounded-xl shadow-lg max-h-52 overflow-y-auto py-1">
@@ -2107,7 +2107,7 @@ export function AdminCOD() {
                     placeholder="Order Id"
                     value={codOrderId}
                     onChange={(e) => setCodOrderId(e.target.value)}
-                    className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
+                    className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
                   />
                 </div>
 
@@ -2118,7 +2118,7 @@ export function AdminCOD() {
                     placeholder="AWB Number"
                     value={codAwb}
                     onChange={(e) => setCodAwb(e.target.value)}
-                    className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
+                    className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
                   />
                 </div>
 
@@ -2127,7 +2127,7 @@ export function AdminCOD() {
                   <select
                     value={selectedStatuses[0] || ''}
                     onChange={(e) => setSelectedStatuses(e.target.value ? [e.target.value] : [])}
-                    className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
+                    className="w-full h-11 px-3 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
                   >
                     <option value="">All Statuses</option>
                     {STATUS_OPTIONS.map(opt => (
@@ -2141,7 +2141,7 @@ export function AdminCOD() {
                   <select
                     value={selectedCouriers[0] || ''}
                     onChange={(e) => setSelectedCouriers(e.target.value ? [e.target.value] : [])}
-                    className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
+                    className="w-full h-11 px-3 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
                   >
                     <option value="">All Couriers</option>
                     {codCourierOptions.map((opt) => (
@@ -2199,7 +2199,7 @@ export function AdminCOD() {
                 <div>
                   <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Date Range</label>
                   <GlassDateFilter
-                    className="w-full [&_.glass-dropdown-trigger]:w-full [&_.glass-dropdown-trigger]:h-11"
+                    className="w-full [&_.glass-dropdown-trigger]:!w-full [&_.glass-dropdown-trigger]:!h-11 [&_.glass-dropdown-trigger]:!min-w-0 [&_.glass-dropdown-trigger]:!rounded-full"
                     startDate={codDateStart}
                     endDate={codDateEnd}
                     onDateChange={onCodDateChange}
@@ -2216,7 +2216,7 @@ export function AdminCOD() {
                       placeholder="Search user..."
                       value={sellerUserQuery}
                       onChange={(e) => onSellerUserQueryChange(e.target.value)}
-                      className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
+                      className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
                     />
                     {sellerUserSuggestions.length > 0 && !sellerUserMongoId && (
                       <div className="mt-1 bg-white border border-[#E2E8F0] rounded-xl shadow-lg max-h-52 overflow-y-auto py-1">
@@ -2241,7 +2241,7 @@ export function AdminCOD() {
                     placeholder="Remittance ID"
                     value={sellerRemittanceId}
                     onChange={(e) => setSellerRemittanceId(e.target.value)}
-                    className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
+                    className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
                   />
                 </div>
 
@@ -2250,7 +2250,7 @@ export function AdminCOD() {
                   <select
                     value={selectedCodStatuses[0] || ''}
                     onChange={(e) => setSelectedCodStatuses(e.target.value ? [e.target.value] : [])}
-                    className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
+                    className="w-full h-11 px-3 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
                   >
                     <option value="">All Statuses</option>
                     {STATUS_OPTIONS.map(opt => (
@@ -2308,7 +2308,7 @@ export function AdminCOD() {
                 <div>
                   <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Date Range</label>
                   <GlassDateFilter
-                    className="w-full [&_.glass-dropdown-trigger]:w-full [&_.glass-dropdown-trigger]:h-11"
+                    className="w-full [&_.glass-dropdown-trigger]:!w-full [&_.glass-dropdown-trigger]:!h-11 [&_.glass-dropdown-trigger]:!min-w-0 [&_.glass-dropdown-trigger]:!rounded-full"
                     startDate={courierCodDateStart}
                     endDate={courierCodDateEnd}
                     onDateChange={onCourierCodDateChange}
@@ -2325,7 +2325,7 @@ export function AdminCOD() {
                       placeholder="Search user..."
                       value={courierUserQuery}
                       onChange={(e) => onCourierUserQueryChange(e.target.value)}
-                      className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
+                      className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
                     />
                     {courierUserSuggestions.length > 0 && !courierUserMongoId && (
                       <div className="mt-1 bg-white border border-[#E2E8F0] rounded-xl shadow-lg max-h-52 overflow-y-auto py-1">
@@ -2350,7 +2350,7 @@ export function AdminCOD() {
                     placeholder="Order Id"
                     value={courierOrderId}
                     onChange={(e) => setCourierOrderId(e.target.value)}
-                    className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
+                    className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
                   />
                 </div>
 
@@ -2361,7 +2361,7 @@ export function AdminCOD() {
                     placeholder="AWB Number"
                     value={courierAwb}
                     onChange={(e) => setCourierAwb(e.target.value)}
-                    className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
+                    className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
                   />
                 </div>
 
@@ -2370,7 +2370,7 @@ export function AdminCOD() {
                   <select
                     value={selectedCourierCodStatuses[0] || ''}
                     onChange={(e) => setSelectedCourierCodStatuses(e.target.value ? [e.target.value] : [])}
-                    className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
+                    className="w-full h-11 px-3 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
                   >
                     <option value="">All Statuses</option>
                     {STATUS_OPTIONS.map(opt => (
@@ -2384,7 +2384,7 @@ export function AdminCOD() {
                   <select
                     value={selectedCourierCouriers[0] || ''}
                     onChange={(e) => setSelectedCourierCouriers(e.target.value ? [e.target.value] : [])}
-                    className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
+                    className="w-full h-11 px-3 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
                   >
                     <option value="">All Couriers</option>
                     {courierCourierOptions.map((opt) => (

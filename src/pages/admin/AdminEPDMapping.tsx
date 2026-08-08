@@ -5,7 +5,7 @@ import { useToast } from '../../hooks/useToast';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import {
   LayoutGrid, Truck, Clock, Plus, Edit2, Trash2,
-  X, ChevronDown, Settings,
+  X, ChevronDown, Settings, Search,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePagination, DesktopPagination } from '../../hooks/usePagination';
@@ -237,20 +237,25 @@ export function AdminEPDMapping() {
             </div>
           </div>
 
-          {/* Mobile Search + Add Row */}
-          <div className="md:hidden p-4 border-b border-[#E2E8F0] bg-white flex items-center gap-2">
-            <input
-              type="text"
-              placeholder="Search Courier Services"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="flex-1 h-10 px-4 rounded-xl border border-[#E2E8F0] bg-white text-sm text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B]"
-            />
+          {/* Mobile Search + Add Row (matches Orders page) */}
+          <div className="md:hidden relative z-[60] px-3 py-2.5 border-b border-[#E2E8F0] flex items-center gap-2 bg-white shrink-0">
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
+              <input
+                type="text"
+                placeholder="Search Courier Services"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full h-9 pl-9 pr-3 rounded-full border border-[#E2E8F0] bg-[#F8FAFC] text-sm text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all"
+              />
+            </div>
+            {/* Add Cutoff Time icon */}
             <button
               onClick={() => { setAddForm({ couriers: [], serviceNames: [], cutoffTime: '10:00' }); setIsAddOpen(true); }}
-              className="h-10 px-4 rounded-xl bg-[#00A86B] text-white text-[12px] font-bold shadow-sm flex items-center gap-1.5 shrink-0 whitespace-nowrap active:bg-[#009B63] transition-colors"
+              className="w-9 h-9 rounded-full bg-[#00A86B] flex items-center justify-center text-white shadow-sm active:bg-[#009B63] transition-colors shrink-0"
+              title="Add Cutoff Time"
             >
-              Add Cutoff Time
+              <Plus className="w-4 h-4" />
             </button>
           </div>
         </div>

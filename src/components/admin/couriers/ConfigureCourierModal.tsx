@@ -134,22 +134,22 @@ export function ConfigureCourierModal({ isOpen, onClose, courier, onSave }: Conf
             onClick={onClose}
           />
 
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-6 pointer-events-none">
+          <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center md:p-6 pointer-events-none">
             <motion.div
               variants={modalVariants}
               initial="hidden"
               animate="visible"
               exit="exit"
-              className="w-full max-w-[520px] bg-[#ffffff]/90 backdrop-blur-2xl border border-white/60 shadow-[0_40px_80px_-16px_rgba(0,0,0,0.16),0_0_0_1px_rgba(0,0,0,0.04)] rounded-[28px] pointer-events-auto overflow-hidden flex flex-col"
+              className="w-full md:max-w-[520px] max-h-[92vh] md:max-h-none bg-white md:bg-[#ffffff]/90 md:backdrop-blur-2xl border-t md:border border-[#E2E8F0] md:border-white/60 shadow-[0_-8px_40px_-8px_rgba(0,0,0,0.16)] md:shadow-[0_40px_80px_-16px_rgba(0,0,0,0.16),0_0_0_1px_rgba(0,0,0,0.04)] rounded-t-[24px] md:rounded-[28px] pointer-events-auto overflow-hidden flex flex-col"
             >
               {/* Header */}
-              <div className="px-7 py-6 border-b border-[#E2E8F0]/60 flex items-start justify-between relative bg-white/40">
-                <div className="flex items-center gap-5">
+              <div className="px-4 md:px-7 py-4 md:py-6 border-b border-[#E2E8F0]/60 flex items-start justify-between relative bg-white/40 shrink-0">
+                <div className="flex items-center gap-3 md:gap-5 min-w-0">
                   <motion.div
                     initial={{ scale: 0.8, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     transition={{ type: 'spring', delay: 0.15 }}
-                    className="w-14 h-14 bg-white rounded-[16px] shadow-[0_2px_12px_rgba(0,0,0,0.06)] border border-[#E2E8F0]/80 p-2.5 flex items-center justify-center overflow-hidden shrink-0"
+                    className="w-10 h-10 md:w-14 md:h-14 bg-white rounded-xl md:rounded-[16px] shadow-[0_2px_12px_rgba(0,0,0,0.06)] border border-[#E2E8F0]/80 p-2 md:p-2.5 flex items-center justify-center overflow-hidden shrink-0"
                   >
                     <img
                       src={courier.logo}
@@ -161,16 +161,16 @@ export function ConfigureCourierModal({ isOpen, onClose, courier, onSave }: Conf
                       }}
                     />
                   </motion.div>
-                  <div>
+                  <div className="min-w-0">
                     <motion.h3
                       initial={{ opacity: 0, x: -5 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.25 }}
-                      className="text-xl font-bold text-[#0F172A] tracking-tight leading-none"
+                      className="text-[14px] md:text-xl font-bold text-[#0F172A] tracking-tight leading-none truncate"
                     >
                       {courier.name}
                     </motion.h3>
                     <motion.p
                       initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}
-                      className="text-xs text-[#94A3B8] mt-1"
+                      className="text-[12px] md:text-xs text-[#94A3B8] mt-1"
                     >
                       Configure API credentials
                     </motion.p>
@@ -180,19 +180,19 @@ export function ConfigureCourierModal({ isOpen, onClose, courier, onSave }: Conf
                   whileHover={{ scale: 1.08, backgroundColor: 'rgba(226, 232, 240, 0.9)' }}
                   whileTap={{ scale: 0.92 }}
                   onClick={onClose}
-                  className="w-8 h-8 rounded-full flex items-center justify-center text-[#64748B] hover:text-[#0F172A] transition-colors -mr-2 -mt-2"
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-[#64748B] hover:text-[#0F172A] transition-colors -mr-2 -mt-2 shrink-0"
                 >
                   <X className="w-4 h-4" />
                 </motion.button>
               </div>
 
               {/* Body */}
-              <div className="p-7 overflow-y-auto max-h-[60vh] bg-[#F8FAFC]/50 space-y-5">
+              <div className="p-4 md:p-7 overflow-y-auto max-h-[60vh] bg-[#F8FAFC]/50 space-y-4 md:space-y-5">
                 {fields.map((field) => {
                   const Icon = field.icon;
                   return (
                     <motion.div key={field.id} variants={itemVariants} className="group">
-                      <label className="block text-xs font-bold text-[#64748B] mb-2 ml-1 tracking-wide uppercase">
+                      <label className="block text-[12px] font-semibold text-[#64748B] mb-1.5 md:mb-2 ml-1 md:tracking-wide md:uppercase">
                         {field.label}
                       </label>
                       <div className="relative">
@@ -208,7 +208,7 @@ export function ConfigureCourierModal({ isOpen, onClose, courier, onSave }: Conf
                           autoComplete="new-password"
                           data-lpignore="true"
                           data-1p-ignore="true"
-                          className="w-full h-12 pl-11 pr-4 bg-white border border-[#E2E8F0] hover:border-[#CBD5E1] rounded-[14px] text-sm font-medium text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#00A86B]/20 focus:border-[#00A86B] transition-all shadow-[0_2px_6px_rgba(0,0,0,0.02)]"
+                          className="w-full h-11 md:h-12 pl-11 pr-4 bg-white border border-[#E2E8F0] hover:border-[#CBD5E1] rounded-full md:rounded-[14px] text-[12px] md:text-sm font-medium text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#00A86B]/20 focus:border-[#00A86B] transition-all shadow-[0_2px_6px_rgba(0,0,0,0.02)]"
                         />
                       </div>
                     </motion.div>
@@ -217,22 +217,23 @@ export function ConfigureCourierModal({ isOpen, onClose, courier, onSave }: Conf
               </div>
 
               {/* Footer */}
-              <div className="px-7 py-5 border-t border-[#E2E8F0]/60 bg-white/60 flex justify-end items-center">
-                <div className="flex gap-3">
+              <div className="px-4 md:px-7 py-4 md:py-5 border-t border-[#E2E8F0]/60 bg-white/60 flex justify-end items-center shrink-0">
+                <div className="flex gap-2.5 md:gap-3 w-full md:w-auto">
                   <motion.button
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.97 }}
                     onClick={onClose}
-                    className="px-5 h-11 rounded-[14px] font-semibold text-sm text-[#475569] bg-white border border-[#E2E8F0] shadow-sm hover:text-[#0F172A] hover:border-[#CBD5E1] hover:bg-[#F8FAFC] transition-all"
+                    className="flex-1 md:flex-none px-5 h-11 rounded-full font-semibold text-[12px] md:text-sm text-[#475569] bg-white border border-[#E2E8F0] shadow-sm hover:text-[#0F172A] hover:border-[#CBD5E1] hover:bg-[#F8FAFC] transition-all"
                   >
                     Cancel
                   </motion.button>
                   <motion.button
-                    whileHover={{ scale: 1.02, boxShadow: '0 8px 20px rgba(0,168,107,0.3)' }}
+                    whileHover={{ scale: 1.02, boxShadow: '0 8px 20px rgba(0,157,100,0.3)' }}
                     whileTap={{ scale: 0.97 }}
                     onClick={handleConnect}
                     disabled={saving}
-                    className="px-6 h-11 rounded-[14px] font-semibold text-sm text-white bg-gradient-to-b from-[#00b876] to-[#00A86B] shadow-[0_4px_12px_rgba(0,168,107,0.25),inset_0_1px_1px_rgba(255,255,255,0.2)] flex items-center gap-2 transition-all border border-[#009B63] disabled:opacity-60"
+                    className="flex-1 md:flex-none px-6 h-11 rounded-full font-semibold text-[12px] md:text-sm text-white flex items-center justify-center gap-2 transition-all shadow-[0_4px_12px_rgba(0,157,100,0.25)] disabled:opacity-60"
+                    style={{ background: '#009D64' }}
                   >
                     {saving ? 'Saving...' : 'Connect'} <ArrowRight className="w-4 h-4" />
                   </motion.button>

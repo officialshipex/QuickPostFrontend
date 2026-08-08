@@ -1050,7 +1050,7 @@ export function CRMShipmentListing() {
                   <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Search User</label>
                   <div className="relative">
                     <input type="text" value={userQuery} onChange={e => onQueryChange(e.target.value)} placeholder="Search user..."
-                      className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]" />
+                      className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]" />
                     {userSuggestions.length > 0 && (
                       <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white border border-[#E2E8F0] rounded-xl shadow-lg overflow-hidden">
                         {userSuggestions.map(u => (
@@ -1066,12 +1066,12 @@ export function CRMShipmentListing() {
                 <div>
                   <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Order ID</label>
                   <input type="text" value={orderId} onChange={e => setOrderId(e.target.value)} placeholder="Search order..."
-                    className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]" />
+                    className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]" />
                 </div>
                 <div>
                   <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">SKU / Item</label>
                   <input type="text" value={productSpecs} onChange={e => setProductSpecs(e.target.value)} placeholder="Search SKU / item..."
-                    className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]" />
+                    className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]" />
                 </div>
                 <div>
                   <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Weight Range</label>
@@ -1082,25 +1082,25 @@ export function CRMShipmentListing() {
                     onChange={setSelectedWeightRanges}
                     placeholder="Weight range..."
                     icon={<Package className="w-3.5 h-3.5" />}
-                    className="w-full [&_.glass-dropdown-trigger]:w-full [&_.glass-dropdown-trigger]:h-11"
+                    className="w-full [&_.glass-dropdown-trigger]:!w-full [&_.glass-dropdown-trigger]:!h-11 [&_.glass-dropdown-trigger]:!min-w-0 [&_.glass-dropdown-trigger]:!rounded-full"
                   />
                 </div>
                 <div>
                   <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Forward AWB</label>
                   <input type="text" value={forwardAwb} onChange={e => setForwardAwb(e.target.value)} placeholder="Search FWD AWB..."
-                    className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]" />
+                    className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]" />
                 </div>
                 <div>
                   <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">RTO AWB</label>
                   <input type="text" value={rtoAwb} onChange={e => setRtoAwb(e.target.value)} placeholder="Search RTO AWB..."
-                    className="w-full h-11 px-4 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]" />
+                    className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]" />
                 </div>
                 <div>
                   <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Pickup Address</label>
                   <select
                     value={selectedPickupAddrs[0] || ''}
                     onChange={(e) => setSelectedPickupAddrs(e.target.value ? [e.target.value] : [])}
-                    className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
+                    className="w-full h-11 px-3 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
                   >
                     <option value="">All Pickup Addresses</option>
                     {pickupOptions.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
@@ -1111,7 +1111,7 @@ export function CRMShipmentListing() {
                   <select
                     value={selectedStatuses[0] || ''}
                     onChange={(e) => setSelectedStatuses(e.target.value ? [e.target.value] : [])}
-                    className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
+                    className="w-full h-11 px-3 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
                   >
                     <option value="">All Statuses</option>
                     {STATUS_OPTS.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
@@ -1122,7 +1122,7 @@ export function CRMShipmentListing() {
                   <select
                     value={selectedCouriers[0] || ''}
                     onChange={(e) => setSelectedCouriers(e.target.value ? [e.target.value] : [])}
-                    className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
+                    className="w-full h-11 px-3 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
                   >
                     <option value="">All Couriers</option>
                     {courierOptions.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
@@ -1133,7 +1133,7 @@ export function CRMShipmentListing() {
                   <select
                     value={selectedChannels[0] || ''}
                     onChange={(e) => setSelectedChannels(e.target.value ? [e.target.value] : [])}
-                    className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
+                    className="w-full h-11 px-3 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
                   >
                     <option value="">All Channels</option>
                     {CHANNEL_OPTS.map((opt) => <option key={opt} value={opt}>{opt.charAt(0).toUpperCase() + opt.slice(1)}</option>)}
@@ -1144,7 +1144,7 @@ export function CRMShipmentListing() {
                   <select
                     value={selectedOrderTypes[0] || ''}
                     onChange={(e) => setSelectedOrderTypes(e.target.value ? [e.target.value] : [])}
-                    className="w-full h-11 px-3 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
+                    className="w-full h-11 px-3 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
                   >
                     <option value="">All Types</option>
                     {ORDER_TYPE_OPTS.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
@@ -1153,7 +1153,7 @@ export function CRMShipmentListing() {
                 <div>
                   <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Date Range</label>
                   <GlassDateFilter
-                    className="w-full [&_.glass-dropdown-trigger]:w-full [&_.glass-dropdown-trigger]:h-11"
+                    className="w-full [&_.glass-dropdown-trigger]:!w-full [&_.glass-dropdown-trigger]:!h-11 [&_.glass-dropdown-trigger]:!min-w-0 [&_.glass-dropdown-trigger]:!rounded-full"
                     startDate={dateFrom}
                     endDate={dateTo}
                     onDateChange={(s, e) => { setDateFrom(s); setDateTo(e); }}

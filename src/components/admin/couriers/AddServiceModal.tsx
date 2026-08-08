@@ -142,14 +142,14 @@ export function AddServiceModal({ isOpen, onClose, courier, onSuccess, editData 
           <motion.div variants={overlayVariants} initial="hidden" animate="visible" exit="exit"
             className="fixed inset-0 z-50 bg-[#0F172A]/20 pointer-events-auto" onClick={onClose} />
 
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+          <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center md:p-4 pointer-events-none">
             <motion.div variants={modalVariants} initial="hidden" animate="visible" exit="exit"
-              className="w-full max-w-[520px] bg-white/95 backdrop-blur-2xl border border-white/60 shadow-[0_40px_80px_-16px_rgba(0,0,0,0.16)] rounded-[28px] pointer-events-auto overflow-hidden flex flex-col"
+              className="w-full md:max-w-[520px] max-h-[92vh] md:max-h-none bg-white md:bg-white/95 md:backdrop-blur-2xl border-t md:border border-[#E2E8F0] md:border-white/60 shadow-[0_-8px_40px_-8px_rgba(0,0,0,0.16)] md:shadow-[0_40px_80px_-16px_rgba(0,0,0,0.16)] rounded-t-[24px] md:rounded-[28px] pointer-events-auto overflow-hidden flex flex-col"
             >
               {/* Header */}
-              <div className="px-7 py-6 border-b border-[#E2E8F0] flex items-center justify-between bg-white/40">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-white rounded-xl border border-[#E2E8F0] p-2 flex items-center justify-center overflow-hidden shrink-0">
+              <div className="px-4 md:px-7 py-4 md:py-6 border-b border-[#E2E8F0] flex items-center justify-between bg-white/40 shrink-0">
+                <div className="flex items-center gap-3 md:gap-4 min-w-0">
+                  <div className="w-10 h-10 md:w-12 md:h-12 bg-white rounded-xl border border-[#E2E8F0] p-2 flex items-center justify-center overflow-hidden shrink-0">
                     <img src={courier.logo || ''} alt={providerName}
                       className="max-w-full max-h-full object-contain"
                       onError={(e) => {
@@ -158,29 +158,29 @@ export function AddServiceModal({ isOpen, onClose, courier, onSuccess, editData 
                       }}
                     />
                   </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-[#0F172A]">{providerName}</h3>
-                    <p className="text-xs text-[#94A3B8]">{editData?._id ? 'Edit courier service' : 'Add courier service'}</p>
+                  <div className="min-w-0">
+                    <h3 className="text-[14px] md:text-lg font-bold text-[#0F172A] truncate">{providerName}</h3>
+                    <p className="text-[12px] md:text-xs text-[#94A3B8]">{editData?._id ? 'Edit courier service' : 'Add courier service'}</p>
                   </div>
                 </div>
                 <button onClick={onClose}
-                  className="w-8 h-8 rounded-full flex items-center justify-center text-[#64748B] hover:text-[#0F172A] hover:bg-[#F1F5F9] transition-colors">
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-[#64748B] hover:text-[#0F172A] hover:bg-[#F1F5F9] transition-colors shrink-0">
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
               {/* Body */}
-              <div className="p-7 overflow-y-auto max-h-[65vh] space-y-5 bg-[#F8FAFC]/50">
+              <div className="p-4 md:p-7 overflow-y-auto max-h-[65vh] space-y-4 md:space-y-5 bg-[#F8FAFC]/50">
 
                 {/* Sub-service selector — shown for NimbusPost, Xpressbees, Shiprocket, DTDC */}
                 {hasServiceDropdown && (
                   <div>
-                    <label className="block text-xs font-bold text-[#64748B] mb-2 uppercase tracking-wide">
+                    <label className="block text-[12px] font-semibold text-[#64748B] mb-1.5 md:mb-2 md:uppercase md:tracking-wide">
                       <Tag className="inline w-3 h-3 mr-1" />
                       {p === 'dtdc' ? 'Service Type' : 'Sub-Service'}
                     </label>
                     {loadingServices ? (
-                      <div className="h-12 bg-white border border-[#E2E8F0] rounded-[14px] flex items-center px-4 text-sm text-[#94A3B8]">
+                      <div className="h-11 md:h-12 bg-white border border-[#E2E8F0] rounded-full md:rounded-[14px] flex items-center px-4 text-[12px] md:text-sm text-[#94A3B8]">
                         Loading services...
                       </div>
                     ) : (
@@ -188,7 +188,7 @@ export function AddServiceModal({ isOpen, onClose, courier, onSuccess, editData 
                         <select
                           value={courier_field}
                           onChange={(e) => handleCourierSelect(e.target.value)}
-                          className="w-full h-12 pl-4 pr-10 bg-white border border-[#E2E8F0] rounded-[14px] text-sm font-medium text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#00A86B]/20 focus:border-[#00A86B] appearance-none"
+                          className="w-full h-11 md:h-12 pl-4 pr-10 bg-white border border-[#E2E8F0] rounded-full md:rounded-[14px] text-[12px] md:text-sm font-medium text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#00A86B]/20 focus:border-[#00A86B] appearance-none"
                         >
                           <option value="">Select sub-service</option>
                           {providerServices.map((svc, i) => (
@@ -204,7 +204,7 @@ export function AddServiceModal({ isOpen, onClose, courier, onSuccess, editData 
                 {/* BoxdLogistics — free text courier service ID */}
                 {isBoxd && (
                   <div>
-                    <label className="block text-xs font-bold text-[#64748B] mb-2 uppercase tracking-wide">
+                    <label className="block text-[12px] font-semibold text-[#64748B] mb-1.5 md:mb-2 md:uppercase md:tracking-wide">
                       <Hash className="inline w-3 h-3 mr-1" />Courier Service ID
                     </label>
                     <input
@@ -212,7 +212,7 @@ export function AddServiceModal({ isOpen, onClose, courier, onSuccess, editData 
                       placeholder="Enter courier service ID"
                       value={courier_field}
                       onChange={(e) => setCourierField(e.target.value)}
-                      className="w-full h-12 px-4 bg-white border border-[#E2E8F0] rounded-[14px] text-sm font-medium text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#00A86B]/20 focus:border-[#00A86B]"
+                      className="w-full h-11 md:h-12 px-4 bg-white border border-[#E2E8F0] rounded-full md:rounded-[14px] text-[12px] md:text-sm font-medium text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#00A86B]/20 focus:border-[#00A86B]"
                     />
                   </div>
                 )}
@@ -220,7 +220,7 @@ export function AddServiceModal({ isOpen, onClose, courier, onSuccess, editData 
                 {/* Losung360 — free text courier ID */}
                 {isLosung && (
                   <div>
-                    <label className="block text-xs font-bold text-[#64748B] mb-2 uppercase tracking-wide">
+                    <label className="block text-[12px] font-semibold text-[#64748B] mb-1.5 md:mb-2 md:uppercase md:tracking-wide">
                       <Hash className="inline w-3 h-3 mr-1" />Courier ID
                     </label>
                     <input
@@ -228,7 +228,7 @@ export function AddServiceModal({ isOpen, onClose, courier, onSuccess, editData 
                       placeholder="Enter courier ID"
                       value={courier_id}
                       onChange={(e) => setCourierId(e.target.value)}
-                      className="w-full h-12 px-4 bg-white border border-[#E2E8F0] rounded-[14px] text-sm font-medium text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#00A86B]/20 focus:border-[#00A86B]"
+                      className="w-full h-11 md:h-12 px-4 bg-white border border-[#E2E8F0] rounded-full md:rounded-[14px] text-[12px] md:text-sm font-medium text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#00A86B]/20 focus:border-[#00A86B]"
                     />
                   </div>
                 )}
@@ -236,28 +236,28 @@ export function AddServiceModal({ isOpen, onClose, courier, onSuccess, editData 
                 {/* Shiprocket: show auto-filled courier_id as read-only */}
                 {p === 'shiprocket' && courier_id && (
                   <div>
-                    <label className="block text-xs font-bold text-[#64748B] mb-2 uppercase tracking-wide">
+                    <label className="block text-[12px] font-semibold text-[#64748B] mb-1.5 md:mb-2 md:uppercase md:tracking-wide">
                       Courier ID (auto-filled)
                     </label>
                     <input
                       type="text"
                       readOnly
                       value={courier_id}
-                      className="w-full h-12 px-4 bg-[#F8FAFC] border border-[#E2E8F0] rounded-[14px] text-sm text-[#94A3B8] cursor-not-allowed"
+                      className="w-full h-11 md:h-12 px-4 bg-[#F8FAFC] border border-[#E2E8F0] rounded-full md:rounded-[14px] text-[12px] md:text-sm text-[#94A3B8] cursor-not-allowed"
                     />
                   </div>
                 )}
 
                 {/* Mode */}
                 <div>
-                  <label className="block text-xs font-bold text-[#64748B] mb-2 uppercase tracking-wide">
+                  <label className="block text-[12px] font-semibold text-[#64748B] mb-1.5 md:mb-2 md:uppercase md:tracking-wide">
                     <Tag className="inline w-3 h-3 mr-1" />Mode
                   </label>
                   <div className="relative">
                     <select
                       value={courierType}
                       onChange={(e) => setCourierType(e.target.value)}
-                      className="w-full h-12 pl-4 pr-10 bg-white border border-[#E2E8F0] rounded-[14px] text-sm font-medium text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#00A86B]/20 focus:border-[#00A86B] appearance-none"
+                      className="w-full h-11 md:h-12 pl-4 pr-10 bg-white border border-[#E2E8F0] rounded-full md:rounded-[14px] text-[12px] md:text-sm font-medium text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#00A86B]/20 focus:border-[#00A86B] appearance-none"
                     >
                       <option value="Domestic (Surface)">Domestic (Surface)</option>
                       <option value="Domestic (Air)">Domestic (Air)</option>
@@ -268,7 +268,7 @@ export function AddServiceModal({ isOpen, onClose, courier, onSuccess, editData 
 
                 {/* Service Name */}
                 <div>
-                  <label className="block text-xs font-bold text-[#64748B] mb-2 uppercase tracking-wide">
+                  <label className="block text-[12px] font-semibold text-[#64748B] mb-1.5 md:mb-2 md:uppercase md:tracking-wide">
                     <Type className="inline w-3 h-3 mr-1" />Service Name
                   </label>
                   <input
@@ -276,19 +276,19 @@ export function AddServiceModal({ isOpen, onClose, courier, onSuccess, editData 
                     placeholder="e.g. Delhivery 0.5 KG Surface"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="w-full h-12 px-4 bg-white border border-[#E2E8F0] rounded-[14px] text-sm font-medium text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#00A86B]/20 focus:border-[#00A86B]"
+                    className="w-full h-11 md:h-12 px-4 bg-white border border-[#E2E8F0] rounded-full md:rounded-[14px] text-[12px] md:text-sm font-medium text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#00A86B]/20 focus:border-[#00A86B]"
                   />
-                  <p className="text-[11px] text-[#94A3B8] mt-1 ml-1">Must be unique across all courier services</p>
+                  <p className="text-[12px] text-[#94A3B8] mt-1 ml-1">Must be unique across all courier services</p>
                 </div>
 
                 {/* Status */}
                 <div>
-                  <label className="block text-xs font-bold text-[#64748B] mb-2 uppercase tracking-wide">Status</label>
+                  <label className="block text-[12px] font-semibold text-[#64748B] mb-1.5 md:mb-2 md:uppercase md:tracking-wide">Status</label>
                   <div className="relative">
                     <select
                       value={status}
                       onChange={(e) => setStatus(e.target.value)}
-                      className="w-full h-12 pl-4 pr-10 bg-white border border-[#E2E8F0] rounded-[14px] text-sm font-medium text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#00A86B]/20 focus:border-[#00A86B] appearance-none"
+                      className="w-full h-11 md:h-12 pl-4 pr-10 bg-white border border-[#E2E8F0] rounded-full md:rounded-[14px] text-[12px] md:text-sm font-medium text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#00A86B]/20 focus:border-[#00A86B] appearance-none"
                     >
                       <option value="Enable">Enable</option>
                       <option value="Disable">Disable</option>
@@ -297,20 +297,21 @@ export function AddServiceModal({ isOpen, onClose, courier, onSuccess, editData 
                   </div>
                 </div>
 
-                {error && <p className="text-xs text-red-500 font-medium">{error}</p>}
+                {error && <p className="text-[12px] text-red-500 font-medium">{error}</p>}
               </div>
 
               {/* Footer */}
-              <div className="px-7 py-5 border-t border-[#E2E8F0] bg-white/60 flex justify-end gap-3">
+              <div className="px-4 md:px-7 py-4 md:py-5 border-t border-[#E2E8F0] bg-white/60 flex justify-end gap-2.5 md:gap-3 shrink-0">
                 <button onClick={onClose}
-                  className="px-5 h-11 rounded-[14px] font-semibold text-sm text-[#475569] bg-white border border-[#E2E8F0] hover:bg-[#F8FAFC] transition-all">
+                  className="flex-1 md:flex-none px-5 h-11 rounded-full font-semibold text-[12px] md:text-sm text-[#475569] bg-white border border-[#E2E8F0] hover:bg-[#F8FAFC] transition-all">
                   Cancel
                 </button>
                 <motion.button
                   whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
                   onClick={handleSubmit}
                   disabled={saving}
-                  className="px-6 h-11 rounded-[14px] font-semibold text-sm text-white bg-gradient-to-b from-[#00b876] to-[#00A86B] shadow-[0_4px_12px_rgba(0,168,107,0.25)] flex items-center gap-2 border border-[#009B63] disabled:opacity-60"
+                  className="flex-1 md:flex-none px-6 h-11 rounded-full font-semibold text-[12px] md:text-sm text-white flex items-center justify-center gap-2 shadow-[0_4px_12px_rgba(0,157,100,0.25)] disabled:opacity-60"
+                  style={{ background: '#009D64' }}
                 >
                   {saving ? 'Saving...' : editData?._id ? 'Save Changes' : 'Save Service'} <ArrowRight className="w-4 h-4" />
                 </motion.button>
