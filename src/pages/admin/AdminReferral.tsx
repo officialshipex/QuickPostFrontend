@@ -5,12 +5,15 @@ import { useAdminTab } from '../../context/AdminUserContext';
 import {
   RefreshCcw, User, Package, Truck, Wallet,
   Phone, Calendar, ChevronDown, X, Mail, Users, Download, Settings, MoreHorizontal,
+  Search, Filter, MoreVertical,
 } from 'lucide-react';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { TableLoader } from '../../components/ui/TableLoader';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { TruncatedText } from '../../components/ui/TruncatedText';
 import { DesktopPagination } from '../../hooks/usePagination';
+import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
+import { AnimatePresence, motion } from 'framer-motion';
 
 const MONTH_NAMES = [
   'January','February','March','April','May','June',
@@ -56,24 +59,24 @@ const DTXT = {
 
 function ReferralDetailsModal({ referral, onClose }: { referral: ReferralRow; onClose: () => void }) {
   return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
-      <div className="bg-white rounded-[12px] shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden border border-[#E2E8F0]">
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center md:p-4 z-[100]">
+      <div className="bg-white md:rounded-[12px] md:shadow-2xl w-full h-full md:h-auto md:max-w-4xl md:max-h-[90vh] flex flex-col overflow-hidden md:border md:border-[#E2E8F0]">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[#E2E8F0]">
-          <div>
+        <div className="flex items-center justify-between px-4 md:px-5 py-3 md:py-4 border-b border-[#E2E8F0] shrink-0">
+          <div className="min-w-0">
             <h2 className={`${DTXT.title} text-[#0F172A]`}>Referral Performance Details</h2>
             <p className={`${DTXT.value} text-[#94A3B8] mt-0.5`}>{getMonthFull(referral.month)} {referral.year}</p>
           </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC] transition-colors">
+          <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC] transition-colors shrink-0">
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="flex-1 overflow-y-auto p-3 md:p-5 flex flex-col gap-3 md:gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
             {/* Referrer Information */}
-            <div className="bg-white border border-[#E2E8F0] rounded-[10px] p-4">
-              <h3 className={`${DTXT.title} text-[#0F172A] flex items-center gap-2 mb-3`}>
+            <div className="bg-white border border-[#E2E8F0] rounded-[10px] p-3 md:p-4">
+              <h3 className={`${DTXT.title} text-[#0F172A] flex items-center gap-2 mb-2.5 md:mb-3`}>
                 <User className="w-4 h-4 text-[#64748B]" /> Referrer Information
               </h3>
               <div className="flex flex-col gap-2.5">
@@ -86,7 +89,7 @@ function ReferralDetailsModal({ referral, onClose }: { referral: ReferralRow; on
                   <span className={`${DTXT.value} text-[#00A86B]`}>{referral.userId || '—'}</span>
                 </div>
                 <div className="h-px bg-[#F1F5F9]" />
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 min-w-0">
                   <Mail className="w-3.5 h-3.5 text-[#94A3B8] shrink-0" />
                   <span className={`${DTXT.value} text-[#475569] truncate`}>{referral.email || '—'}</span>
                 </div>
@@ -98,8 +101,8 @@ function ReferralDetailsModal({ referral, onClose }: { referral: ReferralRow; on
             </div>
 
             {/* Monthly Summary */}
-            <div className="bg-white border border-[#E2E8F0] rounded-[10px] p-4">
-              <h3 className={`${DTXT.title} text-[#0F172A] mb-3`}>Monthly Summary</h3>
+            <div className="bg-white border border-[#E2E8F0] rounded-[10px] p-3 md:p-4">
+              <h3 className={`${DTXT.title} text-[#0F172A] mb-2.5 md:mb-3`}>Monthly Summary</h3>
               <div className="grid grid-cols-3 gap-2">
                 <div className="text-center p-2.5 bg-[#F8FAFC] rounded-[8px] border border-[#E2E8F0]">
                   <p className={`${DTXT.meta} text-[#94A3B8] mb-1`}>Orders</p>
@@ -118,16 +121,18 @@ function ReferralDetailsModal({ referral, onClose }: { referral: ReferralRow; on
           </div>
 
           {/* Referred Customers */}
-          <div className="bg-white border border-[#E2E8F0] rounded-[10px] p-4 flex flex-col min-h-0">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className={`${DTXT.title} text-[#0F172A] flex items-center gap-2`}>
+          <div className="bg-white border border-[#E2E8F0] rounded-[10px] p-3 md:p-4 flex flex-col min-h-0">
+            <div className="flex items-center justify-between mb-2.5 md:mb-3 gap-2">
+              <h3 className={`${DTXT.title} text-[#0F172A] flex items-center gap-2 shrink-0`}>
                 <Users className="w-4 h-4 text-[#64748B]" /> Referred Customers
               </h3>
-              <span className={`bg-[#F8FAFC] border border-[#E2E8F0] text-[#64748B] px-2.5 py-1 rounded-full ${DTXT.meta}`}>
+              <span className={`bg-[#F8FAFC] border border-[#E2E8F0] text-[#64748B] px-2.5 py-1 rounded-full ${DTXT.meta} shrink-0`}>
                 {referral.subUsers?.length || 0} TOTAL
               </span>
             </div>
-            <div className="max-h-[280px] overflow-y-auto border border-[#E2E8F0] rounded-[8px]">
+
+            {/* Desktop — table */}
+            <div className="hidden md:block max-h-[280px] overflow-y-auto border border-[#E2E8F0] rounded-[8px]">
               <table className="w-full border-collapse">
                 <thead className="bg-[#E6F9F2] sticky top-0">
                   <tr className="border-b border-[#E2E8F0]">
@@ -165,14 +170,50 @@ function ReferralDetailsModal({ referral, onClose }: { referral: ReferralRow; on
                 </tbody>
               </table>
             </div>
+
+            {/* Mobile — stacked cards */}
+            <div className="md:hidden max-h-[320px] overflow-y-auto -mx-1 px-1">
+              {referral.subUsers && referral.subUsers.length > 0 ? (
+                <div className="space-y-2">
+                  {referral.subUsers.map((sub: any, idx: number) => (
+                    <div key={idx} className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl px-3 py-2.5">
+                      <div className="flex items-start justify-between gap-2 mb-1.5">
+                        <div className="min-w-0">
+                          <TruncatedText text={sub.fullname || '—'} maxLength={20} className={`${DTXT.value} text-[#1E293B] font-semibold`} />
+                          <div className={`${DTXT.value} text-[#00A86B]`}>{sub.userId || '—'}</div>
+                        </div>
+                        <div className={`${DTXT.meta} text-[#94A3B8] shrink-0`}>{sub.orderCount || 0} orders</div>
+                      </div>
+                      <TruncatedText text={sub.email || '—'} maxLength={30} className={`${DTXT.value} text-[#94A3B8] mb-1.5`} />
+                      <div className="flex items-center justify-between pt-1.5 border-t border-[#E2E8F0]">
+                        <div>
+                          <span className={`${DTXT.meta} text-[#94A3B8]`}>Shipping </span>
+                          <span className={`${DTXT.value} text-[#475569]`}>
+                            ₹{Number(sub.totalShipping || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                        <div>
+                          <span className={`${DTXT.meta} text-[#94A3B8]`}>Commission </span>
+                          <span className={`${DTXT.value} text-[#00A86B] font-semibold`}>
+                            ₹{Number(sub.commission || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState title="No sub-user data available" size={140} />
+              )}
+            </div>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-3.5 bg-[#F8FAFC] border-t border-[#E2E8F0] flex justify-end">
+        <div className="px-4 md:px-5 py-3 md:py-3.5 bg-[#F8FAFC] border-t border-[#E2E8F0] flex justify-end shrink-0">
           <button
             onClick={onClose}
-            className={`px-4 py-2 bg-white border border-[#E2E8F0] rounded-lg ${DTXT.label} text-[#475569] hover:bg-[#F1F5F9] transition-colors`}
+            className={`w-full md:w-auto px-4 py-2 bg-white border border-[#E2E8F0] rounded-lg ${DTXT.label} text-[#475569] hover:bg-[#F1F5F9] transition-colors`}
           >
             Close
           </button>
@@ -227,6 +268,11 @@ export function AdminReferral() {
 
   // Per-row actions dropdown ("..." menu)
   const [rowActionOpenId, setRowActionOpenId] = useState<string | null>(null);
+
+  // Mobile-only UI state
+  const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
+  const [showMobileSummary, setShowMobileSummary] = useState(false);
+  const [mobileActionOpenId, setMobileActionOpenId] = useState<string | null>(null);
 
   // Transfer modal
   const [transferOpen, setTransferOpen] = useState(false);
@@ -459,8 +505,8 @@ export function AdminReferral() {
     <AdminLayout>
       <div className={`flex flex-col ${isImpersonating ? 'h-[calc(100vh-104px)]' : 'h-[calc(100vh-72px)]'} -m-4 md:-m-6 bg-white ${!isAdminView ? 'overflow-hidden' : ''}`}>
         <div className="bg-white relative z-50 shrink-0">
-          {/* Header */}
-          <div className="flex justify-between items-center px-6 py-3 border-b border-[#E2E8F0] bg-white">
+          {/* Header — desktop */}
+          <div className="hidden md:flex justify-between items-center px-6 py-3 border-b border-[#E2E8F0] bg-white">
             <h1 className="text-[20px] font-bold text-[#0F172A] tracking-tight">Referrals</h1>
             <button
               onClick={fetchReferrals}
@@ -470,8 +516,65 @@ export function AdminReferral() {
             </button>
           </div>
 
-          {/* Stats */}
-          <div className="p-4 border-b border-[#E2E8F0] grid grid-cols-1 md:grid-cols-4 gap-4 bg-white">
+          {/* Mobile Search + Filter + Action Row (matches Orders page) */}
+          <div className="md:hidden relative z-[60] px-3 py-2.5 border-b border-[#E2E8F0] flex items-center gap-2 bg-white shrink-0">
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
+              <input
+                type="text"
+                placeholder="Search by name, user ID or email"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
+                className="w-full h-9 pl-9 pr-3 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] text-sm text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all"
+              />
+            </div>
+            {/* Filter icon */}
+            <button
+              onClick={() => setIsMobileFiltersOpen(true)}
+              className="relative w-9 h-9 rounded-xl border border-[#E2E8F0] flex items-center justify-center text-[#475569] bg-white shrink-0"
+            >
+              <Filter className="w-4 h-4" />
+              {hasActiveFilters && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-[#00A86B] border-2 border-white" />}
+            </button>
+            {/* Action icon */}
+            <div className="relative shrink-0" ref={actionRef}>
+              <button
+                onClick={() => selectedRows.length > 0 && setActionOpen(v => !v)}
+                disabled={selectedRows.length === 0}
+                className="w-9 h-9 rounded-xl border border-[#E2E8F0] flex items-center justify-center text-[#475569] bg-white relative disabled:opacity-50"
+              >
+                <MoreVertical className="w-4 h-4" />
+                {selectedRows.length > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[16px] h-4 rounded-full bg-[#00A86B] text-white text-[9px] font-bold flex items-center justify-center px-0.5">
+                    {selectedRows.length}
+                  </span>
+                )}
+              </button>
+              {actionOpen && (
+                <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-gray-100 rounded-lg shadow-xl z-50 py-1">
+                  <button
+                    onClick={() => { setTransferOpen(true); setActionOpen(false); }}
+                    className="w-full text-left px-4 py-2.5 text-[12px] text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                  >
+                    <Wallet className="w-4 h-4 text-[#00A86B]" />
+                    Transfer Referral Amount
+                  </button>
+                  <button
+                    onClick={handleExportCSV}
+                    disabled={selectedRows.length === 0}
+                    className="w-full text-left px-4 py-2.5 text-[12px] text-gray-700 hover:bg-gray-50 flex items-center gap-2 border-t disabled:opacity-40"
+                  >
+                    <Download className="w-4 h-4 text-blue-500" />
+                    Export Selected (CSV)
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Stats — desktop */}
+          <div className="hidden md:grid p-4 border-b border-[#E2E8F0] grid-cols-1 md:grid-cols-4 gap-4 bg-white">
             {statsCards.map((s, i) => (
               <div key={i} className={`p-4 rounded-xl border border-[#E2E8F0] shadow-sm flex items-center gap-4 ${s.cardBg}`}>
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${s.iconBg} ${s.color}`}>
@@ -485,8 +588,37 @@ export function AdminReferral() {
             ))}
           </div>
 
-          {/* Filters */}
-          <div className="py-3 px-6 border-b border-[#CBD5F5] flex flex-wrap items-center gap-3 bg-[#F8FAFC]/50 relative z-20">
+          {/* Stats — mobile, collapsible Summary */}
+          <div className="md:hidden border-b border-[#E2E8F0] bg-white">
+            <button onClick={() => setShowMobileSummary(v => !v)}
+              className="w-full flex items-center justify-between px-4 py-3 text-[13px] font-bold text-[#0F172A]">
+              Summary
+              <ChevronDown className={`w-4 h-4 text-[#64748B] transition-transform ${showMobileSummary ? 'rotate-180' : ''}`} />
+            </button>
+            <AnimatePresence>
+              {showMobileSummary && (
+                <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.18, ease: 'easeOut' }} className="overflow-hidden">
+                  <div className="grid grid-cols-2 gap-2.5 px-4 pb-4">
+                    {statsCards.map((s, i) => (
+                      <div key={i} className={`rounded-xl p-2.5 border border-[#E2E8F0] flex items-center gap-2.5 ${s.cardBg}`}>
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${s.iconBg} ${s.color}`}>
+                          <s.icon className="w-4 h-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-[13px] font-bold text-[#0F172A] truncate">{s.value}</div>
+                          <div className="text-[10px] font-semibold text-[#64748B] truncate">{s.label}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Filters — desktop */}
+          <div className="hidden md:flex py-3 px-6 border-b border-[#CBD5F5] flex-wrap items-center gap-3 bg-[#F8FAFC]/50 relative z-20">
             <div ref={searchRef} className="relative shrink-0 w-[220px]">
               <input
                 type="text"
@@ -592,8 +724,8 @@ export function AdminReferral() {
           </div>
         </div>
 
-        {/* Table */}
-        <div className="bg-white flex flex-col flex-1 min-h-0 overflow-hidden border-t border-[#E2E8F0]">
+        {/* Table (desktop) */}
+        <div className="hidden md:flex bg-white flex-col flex-1 min-h-0 overflow-hidden border-t border-[#E2E8F0]">
           <div className="flex-1 overflow-auto w-full relative">
             {loading && <TableLoader />}
             <table className="w-full text-left border-collapse min-w-[900px]">
@@ -712,7 +844,199 @@ export function AdminReferral() {
             />
           )}
         </div>
+
+        {/* Card List (mobile) */}
+        <div className="md:hidden flex flex-col flex-1 min-h-0 bg-[#F8FAFC]">
+          <div className="flex-1 overflow-y-auto relative">
+            {loading && <TableLoader />}
+            {!loading && filteredReferrals.length === 0 ? (
+              <div className="flex items-center justify-center min-h-[60vh]">
+                <EmptyState title="No referral data found" />
+              </div>
+            ) : (
+              <div className="p-2 space-y-2">
+                {filteredReferrals.map((row) => {
+                  const isSelected = !!selectedRows.find(r => r._id === row._id);
+                  return (
+                    <div key={row._id} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
+                      {/* Ribbon Tag */}
+                      <div
+                        className="absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide"
+                        style={{ background: '#00A86B', clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}
+                      >
+                        {getMonthFull(row.month)} {row.year}
+                      </div>
+
+                      {/* Checkbox — top-right, parallel to the status ribbon */}
+                      <input type="checkbox" checked={isSelected} onChange={() => toggleSelect(row)}
+                        className="absolute top-2 right-2.5 rounded border-gray-300 accent-[#00A86B] w-4 h-4 shrink-0 z-10" />
+
+                      <div className="pt-6 px-2.5 pb-2.5">
+                        {/* User Details Row */}
+                        <div className="flex items-center justify-between mb-1.5 gap-2 pr-6">
+                          <span className="text-[#64748B] font-medium text-[12px] shrink-0">Refer By</span>
+                          <span className="text-[12px] inline-flex items-baseline gap-1 max-w-[190px] justify-end text-right">
+                            <TruncatedText text={row.userName || '—'} maxLength={16} className="font-semibold text-[#0F172A] text-[12px]" />
+                            <span className="text-[#00A86B] font-semibold shrink-0">({row.userId || '—'})</span>
+                          </span>
+                        </div>
+
+                        {/* Contact Row */}
+                        <div className="flex items-start justify-between bg-[#F8FAFC] rounded-xl px-2.5 py-1.5 mb-1.5 gap-2">
+                          <div className="min-w-0">
+                            <TruncatedText text={row.email || '—'} maxLength={26} className="text-[12px] font-normal text-[#0F172A]" />
+                            <div className="text-[12px] font-normal text-[#64748B] mt-0.5">{row.mobile || '—'}</div>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <div className="text-[10px] font-normal text-[#94A3B8] uppercase tracking-wider">Orders</div>
+                            <div className="text-[12px] font-semibold text-[#0F172A] mt-0.5">{row.totalOrderCount || 0}</div>
+                          </div>
+                        </div>
+
+                        {/* Shipping & Commission Card */}
+                        <div className="rounded-xl p-2 mb-2 bg-white border border-[#E2E8F0] flex items-center justify-between gap-2">
+                          <div>
+                            <div className="text-[10px] font-normal text-[#94A3B8] uppercase tracking-wider">Shipping</div>
+                            <div className="text-[12px] font-semibold text-[#00A86B] mt-0.5">
+                              ₹{Number(row.totalShipping || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-[10px] font-normal text-[#94A3B8] uppercase tracking-wider">Commission</div>
+                            <div className="text-[12px] font-semibold text-[#00A86B] mt-0.5">
+                              ₹{Number(row.totalCommission || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Actions Row */}
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => setDetailsRow(row)}
+                            className="flex-1 py-2 rounded-xl bg-[#1e40af] text-white text-[12px] font-bold flex items-center justify-center gap-1.5 hover:bg-[#1e3a8a] transition-colors"
+                          >
+                            View Details
+                          </button>
+                          <div className="relative shrink-0 row-action-dropdown-container">
+                            <button
+                              onClick={() => setMobileActionOpenId(prev => prev === row._id ? null : row._id)}
+                              className={`w-9 h-9 rounded-full border flex items-center justify-center transition-colors ${mobileActionOpenId === row._id ? 'bg-green-100 border-[#00A86B] text-[#00A86B]' : 'border-[#E2E8F0] text-[#64748B] bg-white'}`}
+                            >
+                              <MoreHorizontal className="w-3.5 h-3.5" />
+                            </button>
+                            {mobileActionOpenId === row._id && (
+                              <div className="absolute right-0 bottom-full mb-1 w-40 bg-white rounded-xl shadow-[0_4px_24px_-4px_rgba(0,0,0,0.15)] border border-[#E2E8F0] py-1.5 z-50">
+                                <button
+                                  onClick={() => { setDetailsRow(row); setMobileActionOpenId(null); }}
+                                  className="w-full text-left px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#00A86B] transition-colors"
+                                >
+                                  Details
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Mobile Pagination — sibling of the scroll area, not inside it, so it stays pinned */}
+          {<MobilePaginationBar {...({
+            page,
+            setPage,
+            totalPages,
+            rowsPerPage,
+            setRowsPerPage,
+            startIndex: totalCount === 0 ? 0 : (page - 1) * rowsPerPage + 1,
+            endIndex: Math.min(page * rowsPerPage, totalCount),
+            totalItems: totalCount,
+          })} />}
+        </div>
       </div>
+
+      {/* Mobile Filters Bottom Sheet */}
+      <AnimatePresence>
+        {isMobileFiltersOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[140] md:hidden flex items-end justify-center"
+            onClick={() => setIsMobileFiltersOpen(false)}
+          >
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="bg-white rounded-t-3xl border-t border-[#E2E8F0] shadow-2xl w-full max-h-[85vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="px-6 py-4 border-b border-[#E2E8F0] flex items-center justify-between sticky top-0 bg-white z-10">
+                <h3 className="font-bold text-slate-800 text-base">Filters</h3>
+                <button onClick={() => setIsMobileFiltersOpen(false)} className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Month</label>
+                  <div className="relative">
+                    <select
+                      value={selectedMonth[0] || ''}
+                      onChange={(e) => setSelectedMonth(e.target.value ? [e.target.value] : [])}
+                      className="w-full h-11 px-3 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white appearance-none"
+                    >
+                      <option value="">All Months</option>
+                      {MONTH_NAMES.map((m, i) => (
+                        <option key={m} value={String(i + 1)}>{m}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Year</label>
+                  <div className="relative">
+                    <select
+                      value={selectedYear[0] || ''}
+                      onChange={(e) => setSelectedYear(e.target.value ? [e.target.value] : [])}
+                      className="w-full h-11 px-3 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white appearance-none"
+                    >
+                      <option value="">All Years</option>
+                      {['2024', '2025', '2026', '2027'].map(y => (
+                        <option key={y} value={y}>{y}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="px-6 py-4 border-t border-[#E2E8F0] flex items-center gap-3 sticky bottom-0 bg-white">
+                <button
+                  onClick={() => { resetFilters(); setIsMobileFiltersOpen(false); }}
+                  className="flex-1 h-11 rounded-full border border-[#E2E8F0] text-[#475569] text-sm font-bold hover:bg-[#F8FAFC] transition-colors"
+                >
+                  Reset All
+                </button>
+                <button
+                  onClick={() => { applyFilters(); setIsMobileFiltersOpen(false); }}
+                  className="flex-1 h-11 rounded-full bg-[#009D64] text-white text-sm font-bold hover:bg-[#009B63] transition-colors shadow-sm"
+                >
+                  Apply Filters
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Details Modal */}
       {detailsRow && (

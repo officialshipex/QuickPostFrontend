@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { createPortal } from 'react-dom';
+import { AnimatePresence, motion } from 'framer-motion';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { apiClient } from '../../services/apiClient';
 import { Toast } from '../../components/ui/Toast';
@@ -13,7 +14,7 @@ import { useUserSearchFilter } from '../../hooks/filters/useUserSearchFilter';
 import {
   Search, ChevronDown, RefreshCcw, Check, IndianRupee, Package,
   User, Settings, MapPin, X, Truck,
-  AlertTriangle, Mail, FileText, Download, Copy
+  AlertTriangle, Mail, FileText, Download, Copy, Filter, MoreVertical,
 } from 'lucide-react';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
@@ -25,6 +26,8 @@ import { NdrActionModal } from './NdrActionModal';
 import { NdrStatusModal } from './NdrStatusModal';
 import { BulkNdrActionModal } from './BulkNdrActionModal';
 import { DesktopPagination } from '../../hooks/usePagination';
+import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
+import { getCourierLogo } from '../../utils/courierLogo';
 
 const BACKEND_BASE = (import.meta.env.VITE_API_URL as string) || 'http://localhost:5000/v1';
 
@@ -60,6 +63,15 @@ const STATUS_BADGE_STYLES: Record<string, string> = {
 };
 const getStatusBadgeClass = (s: string) =>
   `${STATUS_BADGE_STYLES[s] || 'bg-blue-50 text-blue-700 border-blue-200'} px-2.5 py-0.5 rounded-full border text-[10px] font-semibold uppercase tracking-wider whitespace-nowrap shadow-sm`;
+
+const STATUS_RIBBON_COLOR: Record<string, string> = {
+  'Undelivered':      '#7C3AED',
+  'Action Required':  '#E11D48',
+  'Action Requested': '#6366F1',
+  'Delivered':        '#00A86B',
+  'RTO Initiated':    '#F97316',
+};
+const getRibbonColor = (s: string) => STATUS_RIBBON_COLOR[s] || '#00A86B';
 
 
 
@@ -226,11 +238,13 @@ export function AdminNDR() {
 
   // ── UI state ──
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
-  const [hoveredPickup,  setHoveredPickup]  = useState<{ rect: DOMRect; name: string; address: string } | null>(null);
-  const [hoveredCustomer, setHoveredCustomer] = useState<{ rect: DOMRect; name: string; address: string; city: string; state: string; pinCode: string; email: string } | null>(null);
-  const [productHoverPos, setProductHoverPos] = useState<{ id: string; top: number; left: number } | null>(null);
+  const [hoveredPickup,  setHoveredPickup]  = useState<{ id?: string; rect: DOMRect; name: string; address: string } | null>(null);
+  const [hoveredCustomer, setHoveredCustomer] = useState<{ id?: string; rect: DOMRect; name: string; address: string; city: string; state: string; pinCode: string; email: string } | null>(null);
+  const [productHoverPos, setProductHoverPos] = useState<{ id: string; top: number; bottom: number; left: number } | null>(null);
   const [hoveredNdrReason, setHoveredNdrReason] = useState<{ rect: DOMRect; reason: string } | null>(null);
   const [showActionMenu, setShowActionMenu] = useState(false);
+  const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
+  const [mobileActionOpen, setMobileActionOpen] = useState(false);
 
   // ── Modals ──
   const [actionModalOrder,   setActionModalOrder]   = useState<any>(null);
@@ -240,7 +254,29 @@ export function AdminNDR() {
   // ── Toast ──
   const { toast, showToast, closeToast } = useToast();
 
+  const copyText = async (text: string, label: string) => {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.left = '-9999px';
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+      showToast('success', `${label} copied!`);
+    } catch {
+      showToast('error', `Failed to copy ${label}.`);
+    }
+  };
+
   const actionMenuRef = useRef<HTMLDivElement>(null);
+  const mobileActionMenuRef = useRef<HTMLDivElement>(null);
 
   // ── Global search ──
   const [globalSearchQuery, setGlobalSearchQuery] = useState((window as any).__adminSearchQuery?.toLowerCase() || '');
@@ -258,6 +294,7 @@ export function AdminNDR() {
   useEffect(() => {
     const fn = (e: MouseEvent) => {
       if (actionMenuRef.current && !actionMenuRef.current.contains(e.target as Node)) setShowActionMenu(false);
+      if (mobileActionMenuRef.current && !mobileActionMenuRef.current.contains(e.target as Node)) setMobileActionOpen(false);
     };
     document.addEventListener('mousedown', fn);
     return () => document.removeEventListener('mousedown', fn);
@@ -504,7 +541,7 @@ export function AdminNDR() {
 
         {/* ── Tab Bar ── */}
         <div className="bg-white relative z-50 shrink-0">
-          <div className="flex items-center px-6 py-2 border-b border-[#E2E8F0]">
+          <div className="hidden md:flex items-center px-6 py-2 border-b border-[#E2E8F0]">
             <div className="flex items-center flex-1 min-w-0">
               <div className="flex gap-1 items-center min-w-0 bg-[#F7FEFC] rounded-full p-1.5">
                 <div className="flex gap-1 items-center overflow-x-auto no-scrollbar min-w-0">
@@ -528,8 +565,65 @@ export function AdminNDR() {
             </button>
           </div>
 
-          {/* ── Filter Row ── */}
-          <div className="py-3 px-6 border-b border-[#CBD5F5] flex flex-wrap items-center gap-3 bg-[#F8FAFC]/50">
+          {/* ── Mobile Search + Filter + Action Row (matches Orders page) ── */}
+          <div className="md:hidden relative z-[60] px-3 py-2.5 border-b border-[#E2E8F0] flex items-center gap-2 bg-white shrink-0">
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
+              <input
+                type="text"
+                placeholder="AWB/Order ID tracking"
+                value={awbNumber || orderId}
+                onChange={(e) => { setAwbNumber(e.target.value); setOrderId(''); }}
+                onKeyDown={(e) => e.key === 'Enter' && handleApplyFilters()}
+                className="w-full h-9 pl-9 pr-3 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] text-sm text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all"
+              />
+            </div>
+            {/* Filter icon */}
+            <button
+              onClick={() => setIsMobileFiltersOpen(true)}
+              className="w-9 h-9 rounded-xl border border-[#E2E8F0] flex items-center justify-center text-[#475569] bg-white shrink-0"
+            >
+              <Filter className="w-4 h-4" />
+            </button>
+            {/* Action icon */}
+            <div className="relative shrink-0" ref={mobileActionMenuRef}>
+              <button
+                onClick={() => selectedOrders.length > 0 && setMobileActionOpen(v => !v)}
+                disabled={selectedOrders.length === 0}
+                className="w-9 h-9 rounded-xl border border-[#E2E8F0] flex items-center justify-center text-[#475569] bg-white relative disabled:opacity-50"
+              >
+                <MoreVertical className="w-4 h-4" />
+                {selectedOrders.length > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[16px] h-4 rounded-full bg-[#00A86B] text-white text-[9px] font-bold flex items-center justify-center px-0.5">
+                    {selectedOrders.length}
+                  </span>
+                )}
+              </button>
+              {mobileActionOpen && (
+                <div className="absolute right-0 top-full mt-2 w-[190px] bg-white rounded-xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1)] border border-[#E2E8F0] py-2 z-50">
+                  {renderActionMenuItems()}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* ── Mobile Tab Bar — outer pill wrapper, matches Orders/Weight Discrepancy pattern ── */}
+          <div className="md:hidden px-3 py-2 border-b border-[#E2E8F0] bg-white">
+            <div className="flex gap-1 items-center min-w-0 bg-[#F7FEFC] rounded-full p-1.5">
+              <div className="flex gap-1 items-center overflow-x-auto no-scrollbar min-w-0">
+                {TABS.map(tab => (
+                  <button key={tab} onClick={() => handleTabChange(tab)}
+                    ref={(el) => { if (el && activeTab === tab) el.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }}
+                    className={`relative px-4 py-2 text-[14px] font-semibold transition-colors whitespace-nowrap rounded-full cursor-pointer ${activeTab === tab ? 'text-[#00A86B] underline underline-offset-4 decoration-2' : 'text-[#64748B] hover:text-[#0F172A]'}`}>
+                    {tab}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* ── Filter Row (desktop) ── */}
+          <div className="hidden md:flex py-3 px-6 border-b border-[#CBD5F5] flex-wrap items-center gap-3 bg-[#F8FAFC]/50">
 
             {/* User search — admin-only */}
             {isAdminView && (
@@ -619,9 +713,9 @@ export function AdminNDR() {
             </div>
           </div>
 
-          {/* ── Selection toolbar ── */}
+          {/* ── Selection toolbar (desktop) ── */}
           {selectedOrders.length > 0 && (
-            <div className="px-4 py-2 bg-blue-50 border-b border-blue-100 flex items-center gap-3">
+            <div className="hidden md:flex px-4 py-2 bg-blue-50 border-b border-blue-100 items-center gap-3">
               <span className="text-xs font-bold text-blue-700">{selectedOrders.length} selected</span>
               <button className="h-8 px-3 rounded-md bg-white border border-blue-200 text-xs font-bold text-blue-700 shadow-sm"
                 onClick={() => handleBulkLabel(selectedOrders)}>Download Labels</button>
@@ -637,8 +731,8 @@ export function AdminNDR() {
           )}
         </div>
 
-        {/* ── Table ── */}
-        <div className="bg-white flex flex-col flex-1 min-h-0 overflow-hidden border-t border-[#E2E8F0]">
+        {/* ── Table (desktop) ── */}
+        <div className="hidden md:flex bg-white flex-col flex-1 min-h-0 overflow-hidden border-t border-[#E2E8F0]">
           <div className="flex-1 overflow-auto w-full relative">
             {loading && <TableLoader />}
             <table className="w-full text-left border-collapse min-w-full">
@@ -693,7 +787,7 @@ export function AdminNDR() {
                       <td className="p-4">
                         <div className="flex items-center gap-1 group/copy w-max">
                           <div className="text-[12px] font-semibold text-[#00A86B] underline cursor-pointer hover:text-[#009B63]" onClick={() => order.orderId && navigate(`${isAdminView ? '/admin' : '/user'}/order-tracking?id=${order.orderId}`)}>{order.orderId}</div>
-                          {order.orderId && <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(order.orderId).catch(()=>{}); showToast('success', 'Order ID copied!'); }} className="opacity-100 md:opacity-0 md:group-hover/copy:opacity-100 transition-opacity shrink-0 focus:outline-none" title="Copy Order ID"><Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" /></button>}
+                          {order.orderId && <button onClick={(e) => { e.stopPropagation(); copyText(order.orderId, 'Order ID'); }} className="opacity-100 md:opacity-0 md:group-hover/copy:opacity-100 transition-opacity shrink-0 focus:outline-none" title="Copy Order ID"><Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" /></button>}
                         </div>
                         <div className="text-[12px] font-normal text-[#94A3B8] mt-0.5">{order.date}</div>
                         <span className="px-2 py-0.5 rounded-full border border-blue-200 text-blue-600 font-semibold text-[10px] bg-blue-50/50 mt-1 inline-block">
@@ -707,7 +801,7 @@ export function AdminNDR() {
                         onMouseEnter={(e) => {
                           if (order.products.length === 0) return;
                           const rect = e.currentTarget.getBoundingClientRect();
-                          setProductHoverPos({ id: order._id, top: rect.bottom + 4, left: rect.left });
+                          setProductHoverPos({ id: order._id, top: rect.bottom + 4, bottom: rect.top - 4, left: rect.left });
                         }}
                         onMouseLeave={() => setProductHoverPos(prev => (prev?.id === order._id ? null : prev))}
                       >
@@ -751,7 +845,7 @@ export function AdminNDR() {
                         <div className="text-[12px] font-normal text-[#94A3B8] mt-0.5">Booked On | {order.bookedDate}</div>
                         <div className="flex items-center gap-1 group/copy mt-0.5">
                           <div onClick={() => order.awb && navigate(`${isAdminView ? '/admin' : '/user'}/tracking?awb=${order.awb}`)} className="text-[12px] font-semibold text-[#00A86B] underline hover:text-[#009B63] cursor-pointer truncate max-w-[120px]">{order.awb}</div>
-                          {order.awb && <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(order.awb).catch(()=>{}); showToast('success', 'AWB copied!'); }} className="opacity-100 md:opacity-0 md:group-hover/copy:opacity-100 transition-opacity shrink-0 focus:outline-none" title="Copy AWB"><Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" /></button>}
+                          {order.awb && <button onClick={(e) => { e.stopPropagation(); copyText(order.awb, 'AWB'); }} className="opacity-100 md:opacity-0 md:group-hover/copy:opacity-100 transition-opacity shrink-0 focus:outline-none" title="Copy AWB"><Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" /></button>}
                         </div>
                       </td>
 
@@ -810,25 +904,214 @@ export function AdminNDR() {
           )}
         </div>
 
-        {/* ── Pickup Tooltip ── */}
-        {hoveredPickup && (
-          <div className="fixed z-[9999] pointer-events-none bg-[#0F172A] text-white text-xs font-normal p-3 rounded-xl shadow-xl w-64"
-            style={{ top: hoveredPickup.rect.top - 10, left: hoveredPickup.rect.left + hoveredPickup.rect.width / 2, transform: 'translate(-50%, -100%)' }}>
-            <div className="font-normal flex items-center gap-1.5 mb-1.5"><MapPin className="w-3.5 h-3.5 text-[#00A86B]" />{hoveredPickup.name}</div>
-            {hoveredPickup.address && <div className="text-slate-300 font-normal leading-relaxed border-t border-white/10 pt-1.5">{hoveredPickup.address}</div>}
-            <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 border-[6px] border-transparent border-t-[#0F172A]" />
+        {/* ── Card List (mobile) — matches reference screenshot ── */}
+        <div className="md:hidden flex flex-col flex-1 min-h-0 bg-[#F8FAFC]">
+          <div className="flex-1 overflow-y-auto relative">
+            {loading && <TableLoader />}
+            {!loading && orders.length === 0 ? (
+              <div className="flex items-center justify-center min-h-[60vh]">
+                <EmptyState title="No NDR orders found" subtitle="Try changing filters" />
+              </div>
+            ) : (
+              <div className="p-2 space-y-2">
+                {orders.map((order) => {
+                  const logo = getCourierLogo(order.courier);
+                  const accent = getRibbonColor(activeTab);
+                  return (
+                    <div key={order._id} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
+                      {/* Ribbon Tag */}
+                      <div
+                        className="absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide"
+                        style={{ background: accent, clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}
+                      >
+                        {activeTab}
+                      </div>
+
+                      {/* Checkbox — top-right, parallel to the status ribbon */}
+                      <input type="checkbox" checked={selectedOrders.includes(order._id)} onChange={() => toggleSelect(order._id)}
+                        className="absolute top-2 right-2.5 rounded border-gray-300 accent-[#00A86B] w-4 h-4 shrink-0 z-10" />
+
+                      <div className="pt-6 px-2 pb-2">
+                        {/* User Details Row — admin-only; user side sees only the Order ID */}
+                        <div className="flex items-center justify-between mb-1 gap-2 pr-6">
+                          {isAdminView ? (
+                            <>
+                              <span className="text-[#64748B] font-medium text-[12px] shrink-0">User Details</span>
+                              <span className="text-[12px] inline-flex items-baseline gap-1 max-w-[190px] justify-end text-right">
+                                <TruncatedText text={order.userName} maxLength={16} className="font-semibold text-[#0F172A] text-[12px]" />
+                                <span className="text-[#009D64] font-semibold text-[12px] shrink-0">({order.userUserId})</span>
+                              </span>
+                            </>
+                          ) : (
+                            <span className="text-[12px] font-semibold text-[#0F172A] bg-[#F1F5F9] px-2 py-0.5 rounded-full shrink-0">{order.orderId}</span>
+                          )}
+                        </div>
+
+                        {/* Product Row */}
+                        <div
+                          className="flex items-start justify-between mb-1 px-1 gap-2 cursor-help"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (!order.products || order.products.length === 0) return;
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            const next = { id: order._id, top: rect.bottom + 4, bottom: rect.top - 4, left: rect.left };
+                            setProductHoverPos(prev => (prev?.id === order._id ? null : next));
+                          }}
+                        >
+                          <TruncatedText text={order.productName || '—'} maxLength={30} className="text-[12px] font-normal text-[#0F172A] underline decoration-dotted underline-offset-2 flex-1" />
+                        </div>
+
+                        {/* Customer / Pickup Row */}
+                        <div className="flex items-start justify-between bg-[#F8FAFC] rounded-xl px-2 py-1.5 mb-1 gap-2">
+                          <div
+                            className="min-w-0 cursor-help"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              const next = { id: order._id, rect, name: order.customerName, address: order.customerAddress, city: order.customerCity, state: order.customerState, pinCode: order.customerPinCode, email: order.customerEmail };
+                              setHoveredCustomer(prev => (prev?.id === order._id ? null : next));
+                            }}
+                          >
+                            <div className="truncate text-[10px] font-normal text-[#94A3B8] uppercase tracking-wider underline decoration-dotted underline-offset-2">{order.customerName}</div>
+                            <div className="text-[12px] font-medium text-[#0F172A] mt-0.5">{order.customerPhone}</div>
+                          </div>
+                          <div
+                            className="text-right min-w-0 cursor-help"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              const next = { id: order._id, rect, name: order.pickupName, address: order.pickupAddress };
+                              setHoveredPickup(prev => (prev?.id === order._id ? null : next));
+                            }}
+                          >
+                            <div className="truncate text-[10px] font-normal text-[#94A3B8] uppercase tracking-wider underline decoration-dotted underline-offset-2">{order.pickupName}</div>
+                          </div>
+                        </div>
+
+                        {/* Courier & Order Card */}
+                        <div className="rounded-xl p-1.5 mb-1.5 bg-white border border-[#E2E8F0]">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-center gap-2 min-w-0 flex-1">
+                              {order.courier && order.courier !== '—' ? (
+                                <div className="w-8 h-8 bg-white border border-[#E2E8F0] rounded-lg flex items-center justify-center shrink-0 overflow-hidden p-1 shadow-sm">
+                                  {logo ? <img src={logo} alt={order.courier} className="w-full h-full object-contain" /> : <Truck className="w-3.5 h-3.5 text-[#94A3B8]" />}
+                                </div>
+                              ) : (
+                                <div className="w-8 h-8 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg flex items-center justify-center shrink-0">
+                                  <Truck className="w-3.5 h-3.5 text-[#94A3B8]" />
+                                </div>
+                              )}
+                              <div className="min-w-0 flex-1">
+                                <div className="text-[12px] font-normal text-[#0F172A] truncate">
+                                  {order.courier && order.courier !== '—' ? order.courier : 'Courier not assigned'}
+                                </div>
+                                <div className="flex items-center gap-1.5 min-w-0 mt-0.5">
+                                  {order.awb ? (
+                                    <>
+                                      <span onClick={(e) => { e.stopPropagation(); navigate(`${isAdminView ? '/admin' : '/user'}/tracking?awb=${order.awb}`); }} className="text-[12px] font-semibold text-[#00A86B] underline truncate active:opacity-60 cursor-pointer">{order.awb}</span>
+                                      <button onClick={(e) => { e.stopPropagation(); copyText(order.awb, 'AWB'); }} className="shrink-0 focus:outline-none">
+                                        <Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" />
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <span className="text-[12px] font-semibold text-[#94A3B8] truncate">AWB not generated</span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <div className="text-[12px] font-normal text-[#0F172A]">{order.paymentType}</div>
+                              <div className="text-[12px] font-semibold text-[#00A86B]">&#8377;{Number(order.payment).toLocaleString('en-IN')}</div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Booked On / Attempted+History Row */}
+                        <div className="flex items-center justify-between mb-1.5 px-1 gap-2">
+                          <span className="text-[11px] font-medium text-[#64748B] truncate">Booked On | {order.bookedDate}</span>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span className="text-[11px] font-semibold text-[#00A86B]">{order.ndrAttempts} Attempted</span>
+                            {renderHistoryButton(order)}
+                          </div>
+                        </div>
+
+                        {/* Actions Row */}
+                        {showActionsColumn && (
+                          <button
+                            onClick={() => setActionModalOrder(order)}
+                            className="w-full py-2 rounded-xl bg-[#1e40af] text-white text-[12px] font-bold flex items-center justify-center gap-1.5 hover:bg-[#1e3a8a] transition-colors"
+                          >
+                            Take Action
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
+
+          {/* Mobile Pagination — sibling of the scroll area, not inside it, so it stays pinned */}
+          {<MobilePaginationBar {...({
+            page,
+            setPage,
+            totalPages,
+            rowsPerPage,
+            setRowsPerPage,
+            startIndex: Math.min((page - 1) * rowsPerPage + 1, totalRecords),
+            endIndex: Math.min(page * rowsPerPage, totalRecords),
+            totalItems: totalRecords,
+          })} />}
+        </div>
+
+        {/* ── Shared backdrop — closes pickup/customer/product tooltips on outside tap (mobile only, where they're click-triggered) ── */}
+        {(hoveredPickup || hoveredCustomer || productHoverPos) && createPortal(
+          <div
+            className="fixed inset-0 z-[997] md:hidden"
+            onClick={() => { setHoveredPickup(null); setHoveredCustomer(null); setProductHoverPos(null); }}
+          />,
+          document.body
         )}
 
-        {/* ── Customer Tooltip ── */}
+        {/* ── Pickup Tooltip — portaled to document.body so it isn't clipped by the page root's overflow-hidden (user side) ── */}
+        {hoveredPickup && (() => {
+          // Flip below the trigger when there isn't enough room above to show the full tooltip without clipping.
+          const showBelow = hoveredPickup.rect.top < 260;
+          const tw = Math.min(256, window.innerWidth - 24);
+          const half = tw / 2 + 8;
+          return createPortal(
+            <div className="fixed z-[9999] pointer-events-none bg-[#0F172A] text-white text-xs font-normal p-3 rounded-xl shadow-xl"
+              style={{
+                width: tw,
+                top: showBelow ? hoveredPickup.rect.bottom + 10 : hoveredPickup.rect.top - 10,
+                left: Math.min(Math.max(hoveredPickup.rect.left + hoveredPickup.rect.width / 2, half), window.innerWidth - half),
+                transform: showBelow ? 'translate(-50%, 0)' : 'translate(-50%, -100%)',
+              }}>
+              <div className="font-normal flex items-center gap-1.5 mb-1.5"><MapPin className="w-3.5 h-3.5 text-[#00A86B] shrink-0" />{hoveredPickup.name}</div>
+              {hoveredPickup.address && <div className="text-slate-300 font-normal leading-relaxed border-t border-white/10 pt-1.5 break-words whitespace-normal">{hoveredPickup.address}</div>}
+              {showBelow ? (
+                <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 border-[6px] border-transparent border-b-[#0F172A]" />
+              ) : (
+                <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 border-[6px] border-transparent border-t-[#0F172A]" />
+              )}
+            </div>,
+            document.body
+          );
+        })()}
+
+        {/* ── Customer Tooltip — also portaled for the same reason ── */}
         {hoveredCustomer && (() => {
           // Flip below the trigger when there isn't enough room above to show the full tooltip without clipping.
           const showBelow = hoveredCustomer.rect.top < 260;
-          return (
-            <div className="fixed z-[9999] pointer-events-none bg-[#0F172A] text-white text-xs font-normal p-3 rounded-xl shadow-xl w-72"
+          const tw = Math.min(288, window.innerWidth - 24);
+          const half = tw / 2 + 8;
+          return createPortal(
+            <div className="fixed z-[9999] pointer-events-none bg-[#0F172A] text-white text-xs font-normal p-3 rounded-xl shadow-xl"
               style={{
+                width: tw,
                 top: showBelow ? hoveredCustomer.rect.bottom + 10 : hoveredCustomer.rect.top - 10,
-                left: Math.min(Math.max(hoveredCustomer.rect.left + hoveredCustomer.rect.width / 2, 150), window.innerWidth - 150),
+                left: Math.min(Math.max(hoveredCustomer.rect.left + hoveredCustomer.rect.width / 2, half), window.innerWidth - half),
                 transform: showBelow ? 'translate(-50%, 0)' : 'translate(-50%, -100%)',
               }}>
               <div className="font-normal flex items-center gap-1.5 mb-1.5"><User className="w-3.5 h-3.5 text-[#00A86B] shrink-0" />{hoveredCustomer.name}</div>
@@ -853,7 +1136,8 @@ export function AdminNDR() {
               ) : (
                 <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 border-[6px] border-transparent border-t-[#0F172A]" />
               )}
-            </div>
+            </div>,
+            document.body
           );
         })()}
 
@@ -868,54 +1152,168 @@ export function AdminNDR() {
         )}
       </div>
 
-      {/* ── Product line-item hover card — rendered on document.body to escape overflow-auto clipping ── */}
+      {/* ── Product name tooltip — simple, name only ── */}
       {productHoverPos && (() => {
         const hoveredOrder = orders.find(o => o._id === productHoverPos.id);
         if (!hoveredOrder || hoveredOrder.products.length === 0) return null;
-        const grandTotal = hoveredOrder.products.reduce((s: number, p: any) => s + p.total, 0);
+        const tooltipWidth = Math.min(240, window.innerWidth - 16);
+        const maxTop = window.innerHeight - 8;
+        const showAbove = productHoverPos.top + 60 > maxTop;
         return createPortal(
           <div
-            className="fixed z-[999] w-[320px] bg-white border border-[#E2E8F0] rounded-xl shadow-[0_4px_24px_-4px_rgba(0,0,0,0.15)] p-3 pointer-events-none"
+            className="fixed z-[999] bg-[#0F172A] text-white text-[12px] font-normal rounded-xl shadow-xl p-3 pointer-events-none break-words"
             style={{
-              top: productHoverPos.top,
-              left: Math.max(4, Math.min(productHoverPos.left, window.innerWidth - 336)),
+              width: tooltipWidth,
+              top: showAbove ? undefined : productHoverPos.top,
+              bottom: showAbove ? window.innerHeight - productHoverPos.bottom : undefined,
+              left: Math.max(8, Math.min(productHoverPos.left, window.innerWidth - tooltipWidth - 8)),
             }}
           >
-            <table className="w-full text-[11px] border-collapse">
-              <thead>
-                <tr className="text-[#64748B] border-b border-[#E2E8F0]">
-                  <th className="text-left font-semibold pb-1.5 pr-2">Name</th>
-                  <th className="text-left font-semibold pb-1.5 pr-2">SKU</th>
-                  <th className="text-left font-semibold pb-1.5 pr-2">Qty</th>
-                  <th className="text-left font-semibold pb-1.5 pr-2">Price</th>
-                  <th className="text-left font-semibold pb-1.5">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {hoveredOrder.products.map((p: any, i: number) => (
-                  <tr key={i} className="text-[#0F172A]">
-                    <td className="py-1 pr-2 break-words">{p.name}</td>
-                    <td className="py-1 pr-2 text-[#64748B] break-words">{p.sku}</td>
-                    <td className="py-1 pr-2">{p.qty}</td>
-                    <td className="py-1 pr-2">₹{p.price.toLocaleString('en-IN')}</td>
-                    <td className="py-1 font-semibold">₹{p.total.toLocaleString('en-IN')}</td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr className="border-t border-[#E2E8F0] font-bold text-[#0F172A]">
-                  <td className="pt-1.5">Total</td>
-                  <td className="pt-1.5"></td>
-                  <td className="pt-1.5">{hoveredOrder.qty}</td>
-                  <td className="pt-1.5"></td>
-                  <td className="pt-1.5">₹{grandTotal.toLocaleString('en-IN')}</td>
-                </tr>
-              </tfoot>
-            </table>
+            {hoveredOrder.productName || '—'}
           </div>,
           document.body
         );
       })()}
+
+      {/* ── Mobile Filters Bottom Sheet ── */}
+      <AnimatePresence>
+        {isMobileFiltersOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[140] md:hidden flex items-end justify-center"
+            onClick={() => setIsMobileFiltersOpen(false)}
+          >
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="bg-white rounded-t-3xl border-t border-[#E2E8F0] shadow-2xl w-full max-h-[85vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="px-6 py-4 border-b border-[#E2E8F0] flex items-center justify-between sticky top-0 bg-white z-10">
+                <h3 className="font-bold text-slate-800 text-base">Filters</h3>
+                <button onClick={() => setIsMobileFiltersOpen(false)} className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4">
+                {/* Date range */}
+                <GlassDateFilter
+                  className="w-full [&_.glass-dropdown-trigger]:!w-full [&_.glass-dropdown-trigger]:!h-11 [&_.glass-dropdown-trigger]:!min-w-0 [&_.glass-dropdown-trigger]:!rounded-full"
+                  startDate={dateStart}
+                  endDate={dateEnd}
+                  onDateChange={(s, e) => { onDateChange(s, e); setPage(1); }}
+                />
+
+                {/* Search user — admin only */}
+                {isAdminView && (
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="Search by name, email, or contact..."
+                      value={userQuery}
+                      onChange={e => onUserQueryChange(e.target.value)}
+                      className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
+                    />
+                    {userMongoId && (
+                      <button onClick={() => clearUserFilter()} className="absolute right-4 top-1/2 -translate-y-1/2 text-[#94A3B8] hover:text-red-500">
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                    {userSuggestions.length > 0 && !userMongoId && (
+                      <div className="mt-1.5 bg-white border border-[#E2E8F0] rounded-2xl shadow-lg max-h-52 overflow-y-auto py-1">
+                        {userSuggestions.map((u: any) => (
+                          <button key={u._id} type="button" onClick={() => selectUserSuggestion(u)}
+                            className="w-full text-left px-4 py-2.5 hover:bg-[#F0FDF4] flex items-start gap-2">
+                            <div className="flex-1 min-w-0">
+                              <div className="text-[12px] font-bold text-slate-800 truncate">{u.fullname}</div>
+                              <div className="text-[11px] text-slate-400 truncate">{u.email} · {u.phoneNumber}</div>
+                            </div>
+                            <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded shrink-0">{u.userId}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Order Id */}
+                <input
+                  type="text"
+                  placeholder="Order Id"
+                  value={orderId}
+                  onChange={(e) => setOrderId(e.target.value)}
+                  className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
+                />
+
+                {/* Payment Type */}
+                <div className="relative">
+                  <select
+                    value={selectedPaymentTypes[0] || ''}
+                    onChange={(e) => setSelectedPaymentTypes(e.target.value ? [e.target.value] : [])}
+                    className="w-full h-11 px-3 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white appearance-none"
+                  >
+                    <option value="">All Payment Types</option>
+                    {PAYMENT_TYPE_OPTIONS.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="w-4 h-4 text-slate-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
+
+                {/* Pickup Address */}
+                <div className="relative">
+                  <select
+                    value={selectedPickups[0] || ''}
+                    onChange={(e) => setSelectedPickups(e.target.value ? [e.target.value] : [])}
+                    className="w-full h-11 px-3 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white appearance-none"
+                  >
+                    <option value="">All Pickup Addresses</option>
+                    {pickupOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="w-4 h-4 text-slate-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
+
+                {/* Courier Service */}
+                <div className="relative">
+                  <select
+                    value={selectedCouriers[0] || ''}
+                    onChange={(e) => setSelectedCouriers(e.target.value ? [e.target.value] : [])}
+                    className="w-full h-11 px-3 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white appearance-none"
+                  >
+                    <option value="">All Couriers</option>
+                    {courierOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="w-4 h-4 text-slate-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
+              </div>
+
+              <div className="px-6 py-4 border-t border-[#E2E8F0] flex items-center gap-3 sticky bottom-0 bg-white">
+                <button
+                  onClick={() => { handleClearAllFilters(); setIsMobileFiltersOpen(false); }}
+                  className="flex-1 h-11 rounded-full border border-[#E2E8F0] text-[#475569] text-sm font-bold hover:bg-[#F8FAFC] transition-colors"
+                >
+                  Reset All
+                </button>
+                <button
+                  onClick={() => { handleApplyFilters(); setIsMobileFiltersOpen(false); }}
+                  className="flex-1 h-11 rounded-full bg-[#009D64] text-white text-sm font-bold hover:bg-[#009B63] transition-colors shadow-sm"
+                >
+                  Apply Filters
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── Excel Export Modal ── */}
       {showExportModal && createPortal(
