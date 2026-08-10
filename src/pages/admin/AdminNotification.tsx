@@ -611,6 +611,8 @@ const SERVICE_LABELS: Record<string, string> = {
 };
 
 function AICallingTab({ settings, targetUserId, onUpdate }: { settings: NotifSettings; targetUserId: string | null; onUpdate: (s: NotifSettings) => void }) {
+  const navigate = useNavigate();
+  const isAdminView = window.location.pathname.startsWith('/admin');
   const [saving, setSaving] = useState<string | null>(null);
   const { toast, showToast: _aiShowToast, closeToast: closeAiToast } = useToast(2500);
 
@@ -752,7 +754,7 @@ function AICallingTab({ settings, targetUserId, onUpdate }: { settings: NotifSet
                     {log.awb_number ? (
                       <div className="flex items-center gap-1 group/copy">
                         <span className="text-xs font-mono font-semibold text-[#00A86B] underline cursor-pointer hover:text-[#009B63]" onClick={() => navigate(`${isAdminView ? '/admin' : '/user'}/tracking?awb=${log.awb_number}`)}>{log.awb_number}</span>
-                        <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(log.awb_number).catch(()=>{}); }} className="opacity-100 md:opacity-0 md:group-hover/copy:opacity-100 transition-opacity shrink-0 focus:outline-none" title="Copy AWB"><Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" /></button>
+                        <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(log.awb_number || '').catch(()=>{}); }} className="opacity-100 md:opacity-0 md:group-hover/copy:opacity-100 transition-opacity shrink-0 focus:outline-none" title="Copy AWB"><Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" /></button>
                       </div>
                     ) : <span className="text-xs font-mono font-semibold text-[#0F172A]">—</span>}
                     {log.orderDisplayId && <div className="text-[10px] text-[#94A3B8]">#{log.orderDisplayId}</div>}
@@ -799,7 +801,7 @@ function AICallingTab({ settings, targetUserId, onUpdate }: { settings: NotifSet
                   {log.awb_number ? (
                     <div className="flex items-center gap-1 group/copy">
                       <span className="text-xs font-bold text-[#00A86B] font-mono underline cursor-pointer active:opacity-60" onClick={(e) => { e.stopPropagation(); navigate(`${isAdminView ? '/admin' : '/user'}/tracking?awb=${log.awb_number}`); }}>{log.awb_number}</span>
-                      <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(log.awb_number).catch(()=>{}); }} className="opacity-100 md:opacity-0 md:group-hover/copy:opacity-100 transition-opacity shrink-0 focus:outline-none" title="Copy AWB"><Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" /></button>
+                      <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(log.awb_number || '').catch(()=>{}); }} className="opacity-100 md:opacity-0 md:group-hover/copy:opacity-100 transition-opacity shrink-0 focus:outline-none" title="Copy AWB"><Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" /></button>
                     </div>
                   ) : <span className="text-xs font-bold text-[#0F172A] font-mono">—</span>}
                   {log.orderDisplayId && <span className="text-[10px] text-[#94A3B8] ml-1">#{log.orderDisplayId}</span>}

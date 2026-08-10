@@ -867,7 +867,7 @@ export function AdminKYC() {
                         )}
 
                         {/* COMPANY → GST Verification only; other fields auto-fill from GST */}
-                        {(businessType === 'COMPANY' || (billingPreFilled && businessType === 'COMPANY')) && (
+                        {(String(businessType) === 'COMPANY' || billingPreFilled) && (
                           <SectionCard icon={Building} title="GST Verification">
                             <div className="space-y-4">
                               <div>
