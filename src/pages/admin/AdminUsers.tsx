@@ -10,6 +10,7 @@ import {
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
 import { useDateRangeFilter } from '../../hooks/filters/useDateRangeFilter';
+import { useUserSearchFilter } from '../../hooks/filters/useUserSearchFilter';
 import { TableLoader } from '../../components/ui/TableLoader';
 import { TruncatedText } from '../../components/ui/TruncatedText';
 import { DesktopPagination } from '../../hooks/usePagination';
@@ -106,6 +107,18 @@ export function AdminUsers() {
   // ─── Global search from admin header ────────────────────────────────────────
   const [globalSearch, setGlobalSearch] = useState('');
 
+  // ─── User autocomplete search (same hook as Orders/NDR/Wallet) ──────────────
+  const {
+    userQuery, userSuggestions,
+    onQueryChange: onUserQueryChange,
+    selectUser: _rawSelectUser,
+    clearUser: _rawClearUser,
+  } = useUserSearchFilter(true);
+  const [selectedUserEmail, setSelectedUserEmail] = useState('');
+  const [appliedUserEmail, setAppliedUserEmail] = useState('');
+  const selectUser = (u: any) => { _rawSelectUser(u); setSelectedUserEmail(u.email); };
+  const clearUser = () => { _rawClearUser(); setSelectedUserEmail(''); setAppliedUserEmail(''); };
+
   // ─── Rate card modal state ──────────────────────────────────────────────────
   const [rateCardModal, setRateCardModal] = useState({ open: false, userId: '', userName: '', currentPlan: '' });
   const [planNames, setPlanNames] = useState<string[]>([]);
@@ -168,7 +181,7 @@ export function AdminUsers() {
     setIsLoading(true);
     try {
       const params: Record<string, any> = { page, limit: rowsPerPage };
-      const search = globalSearch || appliedSearch;
+      const search = globalSearch || appliedUserEmail || appliedSearch;
       if (search.trim()) {
         if (/^\d+$/.test(search.trim())) {
           params.userId = search.trim();
@@ -201,7 +214,7 @@ export function AdminUsers() {
     } finally {
       setIsLoading(false);
     }
-  }, [globalSearch, appliedSearch, appliedKyc, appliedRateCard, appliedBalance, appliedDateStart, appliedDateEnd, rowsPerPage]);
+  }, [globalSearch, appliedSearch, appliedUserEmail, appliedKyc, appliedRateCard, appliedBalance, appliedDateStart, appliedDateEnd, rowsPerPage]);
 
   useEffect(() => {
     fetchUsers(currentPage);
@@ -224,6 +237,7 @@ export function AdminUsers() {
   // ─── Apply / reset filters ──────────────────────────────────────────────────
   const applyFilters = () => {
     setAppliedSearch(searchQuery);
+    setAppliedUserEmail(selectedUserEmail);
     setAppliedKyc(selectedKycStatuses);
     setAppliedRateCard(selectedRateCards);
     setAppliedBalance(selectedWalletBalances);
@@ -236,6 +250,8 @@ export function AdminUsers() {
 
   const resetFilters = () => {
     setSearchQuery('');
+    clearUser();
+    setAppliedUserEmail('');
     setSelectedKycStatuses([]);
     setSelectedRateCards([]);
     setSelectedWalletBalances([]);
@@ -257,7 +273,7 @@ export function AdminUsers() {
 
   // Matches Wallet's behavior: show "Clear All" as soon as a filter is picked (draft state),
   // not only after Apply — so it's visible the moment the user selects anything.
-  const hasActiveFilters = !!(searchQuery || selectedKycStatuses.length || selectedRateCards.length || selectedWalletBalances.length || selectedTiers.length || selectedUserTypes.length || (dateStart && dateEnd && !(dateStart === defStart && dateEnd === defEnd)));
+  const hasActiveFilters = !!(searchQuery || selectedUserEmail || appliedUserEmail || selectedKycStatuses.length || selectedRateCards.length || selectedWalletBalances.length || selectedTiers.length || selectedUserTypes.length || (dateStart && dateEnd && !(dateStart === defStart && dateEnd === defEnd)));
 
   // ─── Rate card modal ─────────────────────────────────────────────────────────
   const openRateCardModal = async (user: any) => {
@@ -464,14 +480,38 @@ export function AdminUsers() {
 
           {/* Filters Row — desktop only */}
           <div className="hidden md:flex py-3 px-6 border-b border-[#CBD5F5] flex-wrap items-center gap-3 bg-white relative z-20">
-            <input
-              type="text"
-              placeholder="User ID / Name / Email"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
-              className="glass-search-input w-[200px] shrink-0"
-            />
+            {/* User autocomplete search */}
+            <div className="relative shrink-0">
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Search user..."
+                  value={userQuery}
+                  onChange={e => onUserQueryChange(e.target.value)}
+                  className="glass-search-input w-[180px]"
+                  style={{ paddingLeft: '2rem', paddingRight: selectedUserEmail ? '2rem' : '0.5rem' }}
+                />
+                <Search className="w-3.5 h-3.5 text-[#94A3B8] absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                {selectedUserEmail && (
+                  <button onClick={clearUser} className="absolute right-2 top-1/2 -translate-y-1/2 text-[#94A3B8] hover:text-red-500">
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+              {userSuggestions.length > 0 && !selectedUserEmail && (
+                <div className="absolute left-0 top-full mt-1 bg-white border border-[#E2E8F0] rounded-xl shadow-xl z-50 w-64 max-h-52 overflow-y-auto py-1">
+                  {userSuggestions.map((u: any) => (
+                    <button key={u._id} type="button" onClick={() => selectUser(u)}
+                      className="w-full text-left px-3 py-2 hover:bg-[#F0FDF4] flex items-start gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[11px] font-bold text-slate-800 truncate">{u.fullname}</div>
+                        <div className="text-[10px] text-slate-500 truncate">{u.email}</div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
 
             <GlassDropdown
               label="KYC Status"

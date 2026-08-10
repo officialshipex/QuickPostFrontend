@@ -4,12 +4,12 @@ const couriers = [
   { name: "Delhivery",      logo: "/brands/delhivery.png" },
   { name: "Blue Dart",      logo: "/brands/bluedart.png" },
   { name: "DTDC",           logo: "/brands/dtdc.png" },
-  { name: "XpressBees",     logo: "/brands/xpressbees.png" },
+  // { name: "XpressBees",     logo: "/brands/xpressbees.png" },
   { name: "Ekart",          logo: "/brands/ekart.png" },
   { name: "Shadowfax",      logo: "/brands/shadowfax.png" },
   { name: "Amazon Shipping",logo: "/brands/amazon.png" },
   { name: "Shree Maruti",   logo: "/brands/shree_maruti.jpg" },
-  { name: "Losung360",      logo: "/brands/losung.jpg" },
+  // { name: "Losung360",      logo: "/brands/losung.jpg" },
 ];
 
 // Enough duplicates for a seamless loop (need ≥2 identical sets)
