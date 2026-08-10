@@ -232,7 +232,8 @@ export function AdminPickupManifestDetails() {
           copied.forEach(p => merged.addPage(p));
         } catch { /* skip */ }
       }
-      triggerDownload(new Blob([await merged.save()], { type: 'application/pdf' }), 'bulk-labels.pdf');
+      const labelsBytes = await merged.save();
+      triggerDownload(new Blob([labelsBytes.buffer.slice(labelsBytes.byteOffset, labelsBytes.byteOffset + labelsBytes.byteLength) as ArrayBuffer], { type: 'application/pdf' }), 'bulk-labels.pdf');
     } catch (e) { console.error(e); }
   };
 
@@ -248,7 +249,8 @@ export function AdminPickupManifestDetails() {
           copied.forEach(p => merged.addPage(p));
         } catch { /* skip */ }
       }
-      triggerDownload(new Blob([await merged.save()], { type: 'application/pdf' }), 'bulk-invoices.pdf');
+      const invoiceBytes = await merged.save();
+      triggerDownload(new Blob([invoiceBytes.buffer.slice(invoiceBytes.byteOffset, invoiceBytes.byteOffset + invoiceBytes.byteLength) as ArrayBuffer], { type: 'application/pdf' }), 'bulk-invoices.pdf');
     } catch (e) { console.error(e); }
   };
 

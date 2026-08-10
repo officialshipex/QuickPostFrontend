@@ -1288,7 +1288,7 @@ export function AdminReports() {
                                   {(t.awb_number || t.channelOrderId) ? (
                                     <div className="flex items-center gap-1 group/copy">
                                       <span className="text-[13px] font-normal text-[#64748B]">{t.awb_number || t.channelOrderId}</span>
-                                      <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(t.awb_number || t.channelOrderId).catch(()=>{}); }} className="opacity-100 md:opacity-0 md:group-hover/copy:opacity-100 transition-opacity shrink-0 focus:outline-none" title="Copy"><Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" /></button>
+                                      <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(t.awb_number || t.channelOrderId || '').catch(()=>{}); }} className="opacity-100 md:opacity-0 md:group-hover/copy:opacity-100 transition-opacity shrink-0 focus:outline-none" title="Copy"><Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" /></button>
                                     </div>
                                   ) : <span className="text-[13px] font-normal text-[#64748B]">—</span>}
                                 </td>
@@ -1324,7 +1324,7 @@ export function AdminReports() {
                                 {(t.awb_number || t.channelOrderId) && (
                                   <div className="flex items-center gap-1 group/copy mt-1">
                                     <span className="text-[10px] text-[#94A3B8]">AWB/Ref: {t.awb_number || t.channelOrderId}</span>
-                                    <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(t.awb_number || t.channelOrderId).catch(()=>{}); }} className="opacity-100 md:opacity-0 md:group-hover/copy:opacity-100 transition-opacity shrink-0 focus:outline-none" title="Copy"><Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" /></button>
+                                    <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(t.awb_number || t.channelOrderId || '').catch(()=>{}); }} className="opacity-100 md:opacity-0 md:group-hover/copy:opacity-100 transition-opacity shrink-0 focus:outline-none" title="Copy"><Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" /></button>
                                   </div>
                                 )}
                               </div>
