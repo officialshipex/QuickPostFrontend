@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ChevronDown, User, Users,
   UserCheck, ShieldAlert, IndianRupee, CreditCard, Building2,
@@ -79,20 +79,25 @@ export function AdminUsers() {
   const [hoveredManager, setHoveredManager] = useState<{ rect: DOMRect; name: string; email: string; phone: string } | null>(null);
   const [hoveredBusiness, setHoveredBusiness] = useState<{ rect: DOMRect; company: string; userType: string; isBlocked: boolean } | null>(null);
 
+  // ─── Deep-link: read URL params before state so initial values are correct ──
+  const [searchParams] = useSearchParams();
+  const _initKyc = searchParams.get('kycStatus') === 'pending' ? ['Pending'] : [];
+  const _initBal = searchParams.get('balanceType') === 'negative' ? ['Negative'] : [];
+
   // ─── Filter display state ───────────────────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedKycStatuses, setSelectedKycStatuses] = useState<string[]>([]);
+  const [selectedKycStatuses, setSelectedKycStatuses] = useState<string[]>(_initKyc);
   const [selectedRateCards, setSelectedRateCards] = useState<string[]>([]);
-  const [selectedWalletBalances, setSelectedWalletBalances] = useState<string[]>([]);
+  const [selectedWalletBalances, setSelectedWalletBalances] = useState<string[]>(_initBal);
   const [selectedTiers, setSelectedTiers] = useState<string[]>([]);
   const [selectedUserTypes, setSelectedUserTypes] = useState<string[]>([]);
   const { dateStart, dateEnd, setDateStart, setDateEnd, onDateChange, defStart, defEnd } = useDateRangeFilter();
 
   // ─── Applied filters (trigger API call) ────────────────────────────────────
   const [appliedSearch, setAppliedSearch] = useState('');
-  const [appliedKyc, setAppliedKyc] = useState<string[]>([]);
+  const [appliedKyc, setAppliedKyc] = useState<string[]>(_initKyc);
   const [appliedRateCard, setAppliedRateCard] = useState<string[]>([]);
-  const [appliedBalance, setAppliedBalance] = useState<string[]>([]);
+  const [appliedBalance, setAppliedBalance] = useState<string[]>(_initBal);
   const [appliedTiers, setAppliedTiers] = useState<string[]>([]);
   const [appliedUserTypes, setAppliedUserTypes] = useState<string[]>([]);
   const [appliedDateStart, setAppliedDateStart] = useState('');

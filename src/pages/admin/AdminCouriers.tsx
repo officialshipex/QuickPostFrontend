@@ -367,6 +367,9 @@ export function AdminCouriers() {
                 <th className="py-2 px-3 text-xs font-medium text-[#64748B] uppercase tracking-wider">
                   <div className="flex items-center gap-1.5"><Truck className="w-3.5 h-3.5 shrink-0" /><span>COURIER NAME</span></div>
                 </th>
+                <th className="py-2 px-3 text-xs font-medium text-[#64748B] uppercase tracking-wider">
+                  <div className="flex items-center gap-1.5"><Hash className="w-3.5 h-3.5 shrink-0" /><span>COURIER ID</span></div>
+                </th>
                 <th className="py-2 px-3 text-xs font-medium text-[#64748B] uppercase tracking-wider text-center">
                   <div className="flex items-center justify-center gap-1.5"><Filter className="w-3.5 h-3.5 shrink-0" /><span>TYPE</span></div>
                 </th>
@@ -428,6 +431,15 @@ export function AdminCouriers() {
                               </div>
                             </div>
                           </div>
+                        </td>
+                        <td className="py-4 px-6">
+                          {provider.courierId != null ? (
+                            <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-[#E6F9F2] text-[#009D64] text-xs font-bold border border-[#00A86B]/20">
+                              #{String(provider.courierId).padStart(2, '0')}
+                            </span>
+                          ) : (
+                            <span className="text-[#CBD5E1] text-xs font-medium">—</span>
+                          )}
                         </td>
                         <td className="py-4 px-6">
                           <div className="flex justify-center">
@@ -590,7 +602,7 @@ export function AdminCouriers() {
                   })
                 ) : (
                   <tr>
-                    <td colSpan={5}>
+                    <td colSpan={6}>
                       <EmptyState title="No couriers found" />
                     </td>
                   </tr>
@@ -643,6 +655,11 @@ export function AdminCouriers() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="text-[14px] font-bold text-[#0F172A] truncate">{name}</div>
+                        {provider.courierId != null && (
+                          <span className="inline-flex items-center gap-1 mt-0.5 px-2 py-0.5 rounded-full bg-[#E6F9F2] text-[#009D64] text-[10px] font-bold border border-[#00A86B]/20">
+                            #{String(provider.courierId).padStart(2, '0')}
+                          </span>
+                        )}
                         <span className="inline-block mt-1 px-2 py-0.5 bg-[#F1F5F9] text-[#475569] rounded-full text-[10px] font-bold">
                           Domestic
                         </span>

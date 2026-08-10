@@ -75,12 +75,13 @@ function StatCardWithTrend({ title, value, trend, isUp, isPrimary = false, icon:
   );
 }
 
-function MiniStatCard({ title, value, icon: Icon, iconColor, iconBg }: any) {
-  return (
-    <div className="min-w-0 bg-white rounded-xl border border-[#E2E8F0] p-2.5 md:p-4 shadow-sm flex items-start justify-between gap-1.5">
+function MiniStatCard({ title, value, icon: Icon, iconColor, iconBg, to }: any) {
+  const inner = (
+    <div className={`min-w-0 bg-white rounded-xl border border-[#E2E8F0] p-2.5 md:p-4 shadow-sm flex items-start justify-between gap-1.5 group ${to ? 'cursor-pointer hover:border-[#00A86B]/60 hover:shadow-md transition-all duration-150' : ''}`}>
       <div className="min-w-0 flex-1">
-        <div className="text-[10px] md:text-[11px] font-semibold text-[#64748B] mb-1 leading-tight break-words">{title}</div>
+        <div className={`text-[10px] md:text-[11px] font-semibold mb-1 leading-tight break-words transition-colors ${to ? 'text-[#64748B] group-hover:text-[#00A86B]' : 'text-[#64748B]'}`}>{title}</div>
         <div className="text-sm md:text-xl font-bold text-[#0F172A] truncate">{value}</div>
+        {to && <div className="text-[9px] font-semibold text-[#00A86B] opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">View details →</div>}
       </div>
       {Icon && (
         <div className={`w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center shrink-0 ${iconBg}`}>
@@ -89,6 +90,8 @@ function MiniStatCard({ title, value, icon: Icon, iconColor, iconBg }: any) {
       )}
     </div>
   );
+  if (to) return <Link to={to} className="block">{inner}</Link>;
+  return inner;
 }
 
 function SectionHeading({ title, rightText }: any) {
@@ -123,6 +126,7 @@ export function AdminDashboard() {
   const isAdminView = isAdmin && adminTab;
   const location = useLocation();
   const isUserRoute = location.pathname === '/user/dashboard';
+  const navBase = isUserRoute ? '/user' : '/admin';
 
   const { isLoading: loading, setIsLoading: setLoading } = useTableLoader(0);
   const [overview,    setOverview]    = useState<any>(null);
@@ -333,71 +337,77 @@ export function AdminDashboard() {
           <MiniStatCard title="Pickup Delays"
             value={fmtN(overview?.delayStats?.pickupDelays || 0)}
             icon={Clock} iconColor="text-amber-500" iconBg="bg-amber-50"
+            to={`${navBase}/orders/ready-to-ship`}
           />
           <MiniStatCard title="Delayed Deliveries"
             value={fmtN(overview?.delayStats?.delayedDeliveries || 0)}
             icon={AlertTriangle} iconColor="text-rose-500" iconBg="bg-rose-50"
+            to={`${navBase}/orders/in-transit`}
           />
           <MiniStatCard title="Weight Disputes"
             value={fmtN(weightData?.counts?.New || 0)}
             icon={ShieldAlert} iconColor="text-purple-500" iconBg="bg-purple-50"
+            to={`${navBase}/weight-discrepancy/pending`}
           />
           {isAdminView && (
             <MiniStatCard title="Pending KYC/Docs"
               value={fmtN(actionCards?.pendingKYC)}
               icon={FileText} iconColor="text-blue-500" iconBg="bg-blue-50"
+              to="/admin/users?kycStatus=pending"
             />
           )}
           {isAdminView && (
             <MiniStatCard title="Low Balance Sellers"
               value={fmtN(actionCards?.lowBalanceSellers)}
               icon={CreditCard} iconColor="text-red-500" iconBg="bg-red-50"
+              to="/admin/users?balanceType=negative"
             />
           )}
           <MiniStatCard title="Pending NDR"
             value={fmtN(ndr?.actionRequired || 0)}
             icon={RotateCcw} iconColor="text-indigo-500" iconBg="bg-indigo-50"
+            to={`${navBase}/ndr/action-required`}
           />
         </div>
 
         {/* ── Row 3: Shipments Details ───────────────────────────────── */}
         <SectionHeading title="Shipments Details" />
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
-          <MiniStatCard title="Total Shipments"   value={fmtN(ship.total)}           icon={Package}       iconColor="text-blue-500"    iconBg="bg-blue-50" />
-          <MiniStatCard title="Pending Pickups"   value={fmtN(ship.readyToShip)}     icon={ShoppingCart}  iconColor="text-purple-500"  iconBg="bg-purple-50" />
-          <MiniStatCard title="In-Transit"        value={fmtN(ship.inTransit)}       icon={RefreshCcw}    iconColor="text-amber-500"   iconBg="bg-amber-50" />
-          <MiniStatCard title="Out For Delivery"  value={fmtN(ship.outForDelivery)}  icon={Truck}         iconColor="text-emerald-500" iconBg="bg-emerald-50" />
-          <MiniStatCard title="Delivered"         value={fmtN(ship.delivered)}       icon={CheckCircle2}  iconColor="text-purple-400"  iconBg="bg-purple-50" />
-          <MiniStatCard title="Un-Delivered"      value={fmtN(ndr.totalNdr)}         icon={AlertTriangle} iconColor="text-rose-500"    iconBg="bg-rose-50" />
-          <MiniStatCard title="RTO In-Transit"    value={fmtN(ship.rtoInTransit)}    icon={RotateCcw}     iconColor="text-emerald-500" iconBg="bg-emerald-50" />
+          <MiniStatCard title="Total Shipments"   value={fmtN(ship.total)}           icon={Package}       iconColor="text-blue-500"    iconBg="bg-blue-50"    to={`${navBase}/orders/all`} />
+          <MiniStatCard title="Pending Pickups"   value={fmtN(ship.readyToShip)}     icon={ShoppingCart}  iconColor="text-purple-500"  iconBg="bg-purple-50"  to={`${navBase}/orders/ready-to-ship`} />
+          <MiniStatCard title="In-Transit"        value={fmtN(ship.inTransit)}       icon={RefreshCcw}    iconColor="text-amber-500"   iconBg="bg-amber-50"   to={`${navBase}/orders/in-transit`} />
+          <MiniStatCard title="Out For Delivery"  value={fmtN(ship.outForDelivery)}  icon={Truck}         iconColor="text-emerald-500" iconBg="bg-emerald-50" to={`${navBase}/orders/out-for-delivery`} />
+          <MiniStatCard title="Delivered"         value={fmtN(ship.delivered)}       icon={CheckCircle2}  iconColor="text-purple-400"  iconBg="bg-purple-50"  to={`${navBase}/orders/delivered`} />
+          <MiniStatCard title="Un-Delivered"      value={fmtN(ndr.totalNdr)}         icon={AlertTriangle} iconColor="text-rose-500"    iconBg="bg-rose-50"    to={`${navBase}/ndr/undelivered`} />
+          <MiniStatCard title="RTO In-Transit"    value={fmtN(ship.rtoInTransit)}    icon={RotateCcw}     iconColor="text-emerald-500" iconBg="bg-emerald-50" to={`${navBase}/orders/rto-in-transit`} />
         </div>
 
         {/* ── Row 4: NDR Details ────────────────────────────────────── */}
         <SectionHeading title="NDR Details" />
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-          <MiniStatCard title="Total NDR"        value={fmtN(ndr.totalNdr)}        icon={AlertTriangle} iconColor="text-blue-400"    iconBg="bg-blue-50" />
-          <MiniStatCard title="Action Required"  value={fmtN(ndr.actionRequired)}  icon={FileText}      iconColor="text-purple-500"  iconBg="bg-purple-50" />
-          <MiniStatCard title="Action Requested" value={fmtN(ndr.actionRequested)} icon={Package}       iconColor="text-amber-500"   iconBg="bg-amber-50" />
-          <MiniStatCard title="Delivered"        value={fmtN(ndr.ndrDelivered)}    icon={CheckCircle2}  iconColor="text-emerald-500" iconBg="bg-emerald-50" />
-          <MiniStatCard title="RTO Delivered"    value={fmtN(ship.rto)}            icon={RotateCcw}     iconColor="text-indigo-500"  iconBg="bg-indigo-50" />
+          <MiniStatCard title="Total NDR"        value={fmtN(ndr.totalNdr)}        icon={AlertTriangle} iconColor="text-blue-400"    iconBg="bg-blue-50"    to={`${navBase}/ndr/undelivered`} />
+          <MiniStatCard title="Action Required"  value={fmtN(ndr.actionRequired)}  icon={FileText}      iconColor="text-purple-500"  iconBg="bg-purple-50"  to={`${navBase}/ndr/action-required`} />
+          <MiniStatCard title="Action Requested" value={fmtN(ndr.actionRequested)} icon={Package}       iconColor="text-amber-500"   iconBg="bg-amber-50"   to={`${navBase}/ndr/action-requested`} />
+          <MiniStatCard title="Delivered"        value={fmtN(ndr.ndrDelivered)}    icon={CheckCircle2}  iconColor="text-emerald-500" iconBg="bg-emerald-50" to={`${navBase}/ndr/delivered`} />
+          <MiniStatCard title="RTO Delivered"    value={fmtN(ship.rto)}            icon={RotateCcw}     iconColor="text-indigo-500"  iconBg="bg-indigo-50"  to={`${navBase}/ndr/rto-initiated`} />
         </div>
 
         {/* ── Row 5: Weight Discrepancy ─────────────────────────────── */}
         <SectionHeading title="Weight Discrepancy Details" />
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <MiniStatCard title="Total Discrepancy"    value={fmtN(weightData.total)}                         icon={AlertTriangle} iconColor="text-teal-500"   iconBg="bg-teal-50" />
-          <MiniStatCard title="New Discrepancy"      value={fmtN(weightData.counts?.New || 0)}              icon={FileText}      iconColor="text-amber-500"  iconBg="bg-amber-50" />
-          <MiniStatCard title="Accepted Discrepancy" value={fmtN(weightData.counts?.Accepted || 0)}         icon={Package}       iconColor="text-blue-500"   iconBg="bg-blue-50" />
-          <MiniStatCard title="Discrepancy Raised"   value={fmtN(weightData.counts?.DiscrepancyRaised || 0)} icon={AlertTriangle} iconColor="text-rose-500"   iconBg="bg-rose-50" />
+          <MiniStatCard title="Total Discrepancy"    value={fmtN(weightData.total)}                          icon={AlertTriangle} iconColor="text-teal-500"  iconBg="bg-teal-50"   to={`${navBase}/weight-discrepancy/all`} />
+          <MiniStatCard title="New Discrepancy"      value={fmtN(weightData.counts?.New || 0)}               icon={FileText}      iconColor="text-amber-500" iconBg="bg-amber-50"  to={`${navBase}/weight-discrepancy/pending`} />
+          <MiniStatCard title="Accepted Discrepancy" value={fmtN(weightData.counts?.Accepted || 0)}          icon={Package}       iconColor="text-blue-500"  iconBg="bg-blue-50"   to={`${navBase}/weight-discrepancy/complete`} />
+          <MiniStatCard title="Discrepancy Raised"   value={fmtN(weightData.counts?.DiscrepancyRaised || 0)} icon={AlertTriangle} iconColor="text-rose-500"  iconBg="bg-rose-50"   to={`${navBase}/weight-discrepancy/dispute`} />
         </div>
 
         {/* ── Row 6: COD Status ─────────────────────────────────────── */}
         <SectionHeading title="COD Status" rightText="Last 30 days" />
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-          <MiniStatCard title="Total COD"          value={fmt(overview?.codTotal)}          icon={FileText}  iconColor="text-purple-500"  iconBg="bg-purple-50" />
-          <MiniStatCard title="Last COD Remitted"  value={fmt(overview?.lastCODRemitted)}   icon={RefreshCcw} iconColor="text-emerald-500" iconBg="bg-emerald-50" />
-          <MiniStatCard title="COD Initiated"      value={fmt(overview?.codAvailable)}      icon={FileText}  iconColor="text-sky-500"     iconBg="bg-sky-50" />
-          <MiniStatCard title="COD To Be Remitted" value={fmt(overview?.codPending)}        icon={Clock}     iconColor="text-rose-400"    iconBg="bg-rose-50" />
+          <MiniStatCard title="Total COD"          value={fmt(overview?.codTotal)}        icon={FileText}   iconColor="text-purple-500"  iconBg="bg-purple-50"  to={isAdminView ? `${navBase}/cod/all-cod-orders` : `${navBase}/cod`} />
+          <MiniStatCard title="Last COD Remitted"  value={fmt(overview?.lastCODRemitted)} icon={RefreshCcw} iconColor="text-emerald-500" iconBg="bg-emerald-50" to={isAdminView ? `${navBase}/cod/seller-cod-remittance` : `${navBase}/cod`} />
+          <MiniStatCard title="COD Initiated"      value={fmt(overview?.codAvailable)}    icon={FileText}   iconColor="text-sky-500"     iconBg="bg-sky-50"     to={isAdminView ? `${navBase}/cod/all-cod-orders` : `${navBase}/cod`} />
+          <MiniStatCard title="COD To Be Remitted" value={fmt(overview?.codPending)}      icon={Clock}      iconColor="text-rose-400"    iconBg="bg-rose-50"    to={isAdminView ? `${navBase}/cod/seller-cod-remittance` : `${navBase}/cod`} />
         </div>
 
         {/* ── Row 7: Charts Row 1 ───────────────────────────────────── */}
