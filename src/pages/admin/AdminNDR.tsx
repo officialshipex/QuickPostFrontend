@@ -28,6 +28,7 @@ import { BulkNdrActionModal } from './BulkNdrActionModal';
 import { DesktopPagination } from '../../hooks/usePagination';
 import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
 import { getCourierLogo } from '../../utils/courierLogo';
+import { useProductTooltip, ProductTooltipCard } from '../../hooks/useProductTooltip';
 
 const BACKEND_BASE = (import.meta.env.VITE_API_URL as string) || 'http://localhost:5000/v1';
 
@@ -244,7 +245,7 @@ export function AdminNDR() {
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
   const [hoveredPickup,  setHoveredPickup]  = useState<{ id?: string; rect: DOMRect; name: string; address: string } | null>(null);
   const [hoveredCustomer, setHoveredCustomer] = useState<{ id?: string; rect: DOMRect; name: string; address: string; city: string; state: string; pinCode: string; email: string } | null>(null);
-  const [productHoverPos, setProductHoverPos] = useState<{ id: string; top: number; bottom: number; left: number } | null>(null);
+  const { productHoverPos, openProductTooltip, hoverOpenProductTooltip, closeProductTooltip } = useProductTooltip();
   const [hoveredNdrReason, setHoveredNdrReason] = useState<{ rect: DOMRect; reason: string } | null>(null);
   const [showActionMenu, setShowActionMenu] = useState(false);
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
@@ -805,10 +806,9 @@ export function AdminNDR() {
                         className="p-4"
                         onMouseEnter={(e) => {
                           if (order.products.length === 0) return;
-                          const rect = e.currentTarget.getBoundingClientRect();
-                          setProductHoverPos({ id: order._id, top: rect.bottom + 4, bottom: rect.top - 4, left: rect.left });
+                          hoverOpenProductTooltip(order._id, e);
                         }}
-                        onMouseLeave={() => setProductHoverPos(prev => (prev?.id === order._id ? null : prev))}
+                        onMouseLeave={() => closeProductTooltip(order._id)}
                       >
                         <div className="text-[#0F172A] text-[12px] font-normal underline decoration-dotted underline-offset-2 hover:text-[#00A86B] truncate max-w-[140px] cursor-help">{order.productName || '—'}</div>
                         <div className="text-[#64748B] text-[12px] font-normal mt-0.5 truncate max-w-[140px]">SKU: {order.sku || '—'}</div>
@@ -956,11 +956,8 @@ export function AdminNDR() {
                         <div
                           className="flex items-start justify-between mb-1 px-1 gap-2 cursor-help"
                           onClick={(e) => {
-                            e.stopPropagation();
                             if (!order.products || order.products.length === 0) return;
-                            const rect = e.currentTarget.getBoundingClientRect();
-                            const next = { id: order._id, top: rect.bottom + 4, bottom: rect.top - 4, left: rect.left };
-                            setProductHoverPos(prev => (prev?.id === order._id ? null : next));
+                            openProductTooltip(order._id, e);
                           }}
                         >
                           <TruncatedText text={order.productName || '—'} maxLength={30} className="text-[12px] font-normal text-[#0F172A] underline decoration-dotted underline-offset-2 flex-1" />
@@ -977,7 +974,7 @@ export function AdminNDR() {
                               setHoveredCustomer(prev => (prev?.id === order._id ? null : next));
                             }}
                           >
-                            <div className="truncate text-[10px] font-normal text-[#94A3B8] uppercase tracking-wider underline decoration-dotted underline-offset-2">{order.customerName}</div>
+                            <div className="truncate max-w-[130px] text-[10px] font-normal text-[#94A3B8] uppercase tracking-wider underline decoration-dotted underline-offset-2">{order.customerName}</div>
                             <div className="text-[12px] font-medium text-[#0F172A] mt-0.5">{order.customerPhone}</div>
                           </div>
                           <div
@@ -989,7 +986,7 @@ export function AdminNDR() {
                               setHoveredPickup(prev => (prev?.id === order._id ? null : next));
                             }}
                           >
-                            <div className="truncate text-[10px] font-normal text-[#94A3B8] uppercase tracking-wider underline decoration-dotted underline-offset-2">{order.pickupName}</div>
+                            <div className="truncate max-w-[130px] ml-auto text-[10px] font-normal text-[#94A3B8] uppercase tracking-wider underline decoration-dotted underline-offset-2">{order.pickupName}</div>
                           </div>
                         </div>
 
@@ -1070,11 +1067,12 @@ export function AdminNDR() {
           })} />}
         </div>
 
-        {/* ── Shared backdrop — closes pickup/customer/product tooltips on outside tap (mobile only, where they're click-triggered) ── */}
-        {(hoveredPickup || hoveredCustomer || productHoverPos) && createPortal(
+        {/* ── Shared backdrop — closes pickup/customer tooltips on outside tap (mobile only, where they're click-triggered).
+             The product tooltip closes itself via a document pointerdown listener in useProductTooltip. ── */}
+        {(hoveredPickup || hoveredCustomer) && createPortal(
           <div
             className="fixed inset-0 z-[997] md:hidden"
-            onClick={() => { setHoveredPickup(null); setHoveredCustomer(null); setProductHoverPos(null); }}
+            onClick={() => { setHoveredPickup(null); setHoveredCustomer(null); }}
           />,
           document.body
         )}
@@ -1157,28 +1155,11 @@ export function AdminNDR() {
         )}
       </div>
 
-      {/* ── Product name tooltip — simple, name only ── */}
-      {productHoverPos && (() => {
-        const hoveredOrder = orders.find(o => o._id === productHoverPos.id);
-        if (!hoveredOrder || hoveredOrder.products.length === 0) return null;
-        const tooltipWidth = Math.min(240, window.innerWidth - 16);
-        const maxTop = window.innerHeight - 8;
-        const showAbove = productHoverPos.top + 60 > maxTop;
-        return createPortal(
-          <div
-            className="fixed z-[999] bg-[#0F172A] text-white text-[12px] font-normal rounded-xl shadow-xl p-3 pointer-events-none break-words"
-            style={{
-              width: tooltipWidth,
-              top: showAbove ? undefined : productHoverPos.top,
-              bottom: showAbove ? window.innerHeight - productHoverPos.bottom : undefined,
-              left: Math.max(8, Math.min(productHoverPos.left, window.innerWidth - tooltipWidth - 8)),
-            }}
-          >
-            {hoveredOrder.productName || '—'}
-          </div>,
-          document.body
-        );
-      })()}
+      {/* ── Product line-item hover card — shared component/hook, matches Orders/CRM style ── */}
+      <ProductTooltipCard
+        productHoverPos={productHoverPos}
+        order={orders.find(o => o._id === productHoverPos?.id)}
+      />
 
       {/* ── Mobile Filters Bottom Sheet ── */}
       <AnimatePresence>

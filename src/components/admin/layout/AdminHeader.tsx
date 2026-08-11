@@ -539,7 +539,11 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                         )}
                       </div>
                       {!isEmployee && (
-                        <Link to={isAdmin ? '/admin/profile' : '/user/profile'} className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A]" onClick={() => setShowProfileMenu(false)}>
+                        <Link
+                          to={isAdmin ? '/admin/profile' : '/user/profile'}
+                          className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A]"
+                          onClick={() => setTimeout(() => setShowProfileMenu(false), 0)}
+                        >
                           <User className="w-3.5 h-3.5" /> My Profile
                         </Link>
                       )}
@@ -1140,7 +1144,12 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                 </div>
                 
                 {!isEmployee && (
-                  <Link to={isAdmin ? '/admin/profile' : '/user/profile'} className="flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors" onClick={() => setShowProfileMenu(false)}>
+                  <Link
+                    to={isAdmin ? '/admin/profile' : '/user/profile'}
+                    className="flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => setShowProfileMenu(false)}
+                  >
                     <User className="w-4 h-4 text-[#94A3B8]" /> Profile
                   </Link>
                 )}
