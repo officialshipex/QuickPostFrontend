@@ -991,7 +991,7 @@ export function CRMShipmentListing() {
                         <div className="text-right min-w-0">
                           <div className="text-[10px] font-normal text-[#94A3B8] uppercase tracking-wider">Pickup</div>
                           <div
-                            className="text-[12px] font-normal text-[#1E293B] mt-0.5 underline decoration-dotted underline-offset-2 cursor-help truncate"
+                            className="text-[12px] font-normal text-[#1E293B] mt-0.5 underline decoration-dotted underline-offset-2 cursor-help truncate max-w-[130px] ml-auto"
                             onClick={(e) => {
                               e.stopPropagation();
                               setHoveredPickup({ id: row.awb, rect: e.currentTarget.getBoundingClientRect(), name: row.pickupName, address: row.pickupAddressLine, city: row.pickupCity, state: row.pickupState, pinCode: row.pickupPinCode, phone: row.pickupPhone });

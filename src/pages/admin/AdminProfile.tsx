@@ -59,7 +59,7 @@ const TXT = {
 
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-col gap-1 md:gap-1 py-2.5 md:py-0 border-b border-[#F1F5F9] md:border-0 last:border-b-0">
       <span className={`${TXT.label} text-[#94A3B8]`}>{label}</span>
       <span className={`${TXT.value} text-[#1E293B] break-words`}>{value}</span>
     </div>
@@ -68,10 +68,13 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
 
 function SectionCard({ icon: Icon, title, children, action }: { icon: any; title: string; children: React.ReactNode; action?: React.ReactNode }) {
   return (
-    <div className="bg-white border border-[#E2E8F0] rounded-[12px] p-5">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className={`${TXT.title} text-[#0F172A] flex items-center gap-2`}>
-          <Icon className="w-4 h-4 text-[#64748B]" /> {title}
+    <div className="bg-white border border-[#E2E8F0] rounded-2xl md:rounded-[12px] px-2 py-3.5 md:p-5 shadow-sm md:shadow-none">
+      <div className="flex items-center justify-between mb-3 md:mb-4 gap-2">
+        <h3 className="text-[13px] md:text-[14px] font-semibold text-[#0F172A] flex items-center gap-2">
+          <span className="w-7 h-7 rounded-lg bg-[#F0FDF4] md:bg-transparent flex items-center justify-center shrink-0">
+            <Icon className="w-3.5 h-3.5 md:w-4 md:h-4 text-[#00A86B] md:text-[#64748B]" />
+          </span>
+          {title}
         </h3>
         {action}
       </div>
@@ -80,15 +83,21 @@ function SectionCard({ icon: Icon, title, children, action }: { icon: any; title
   );
 }
 
-// ─── Shared modal wrapper ────────────────────────────────────────────────────
+// ─── Shared modal wrapper — bottom sheet on mobile, centered dialog on desktop ──
 function ModalWrap({ onClose, children }: { onClose: () => void; children: React.ReactNode }) {
   useEffect(() => {
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = ''; };
   }, []);
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className="bg-white rounded-[12px] shadow-xl w-full max-w-md relative" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-black/50 flex items-end md:items-center justify-center z-50 md:p-4" onClick={onClose}>
+      <div
+        className="bg-white rounded-t-[20px] md:rounded-[12px] shadow-xl w-full md:max-w-md relative max-h-[88vh] md:max-h-[85vh] flex flex-col overflow-hidden"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="md:hidden flex justify-center pt-2.5 pb-1 shrink-0">
+          <div className="w-9 h-1 rounded-full bg-[#E2E8F0]" />
+        </div>
         {children}
       </div>
     </div>
@@ -97,9 +106,9 @@ function ModalWrap({ onClose, children }: { onClose: () => void; children: React
 
 function ModalHeader({ title, onClose }: { title: string; onClose: () => void }) {
   return (
-    <div className="flex items-center justify-between px-5 py-4 border-b border-[#E2E8F0]">
-      <h3 className={`${TXT.title} text-[#0F172A]`}>{title}</h3>
-      <button onClick={onClose} className="text-[#94A3B8] hover:text-[#0F172A] transition-colors">
+    <div className="flex items-center justify-between px-5 py-3 md:py-4 border-b border-[#E2E8F0] shrink-0">
+      <h3 className="text-[15px] md:text-[14px] font-semibold text-[#0F172A]">{title}</h3>
+      <button onClick={onClose} className="w-8 h-8 rounded-lg border border-[#E2E8F0] md:border-0 flex items-center justify-center text-[#94A3B8] hover:text-[#0F172A] hover:bg-[#F8FAFC] transition-colors shrink-0">
         <X className="w-4 h-4" />
       </button>
     </div>
@@ -135,12 +144,12 @@ function ModalActions({ onClose, onSave, saving, saveLabel = 'Save' }: {
   onClose: () => void; onSave?: () => void; saving?: boolean; saveLabel?: string;
 }) {
   return (
-    <div className="flex justify-end gap-3 px-5 py-4 border-t border-[#E2E8F0]">
-      <button onClick={onClose} className={`${TXT.label} text-[#64748B] px-4 py-2 rounded-[8px] border border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors`}>
+    <div className="flex justify-end gap-2.5 md:gap-3 px-5 py-3.5 md:py-4 border-t border-[#E2E8F0] shrink-0 pb-[calc(0.875rem+env(safe-area-inset-bottom))] md:pb-4">
+      <button onClick={onClose} className={`${TXT.label} text-[#64748B] px-4 h-10 md:h-auto md:py-2 rounded-[8px] border border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors`}>
         Cancel
       </button>
       {onSave && (
-        <button onClick={onSave} disabled={saving} className={`${TXT.label} text-white px-4 py-2 rounded-[8px] bg-[#00A86B] hover:bg-[#008F5C] transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}>
+        <button onClick={onSave} disabled={saving} className={`${TXT.label} text-white px-4 h-10 md:h-auto md:py-2 flex-1 md:flex-none rounded-[8px] bg-[#00A86B] hover:bg-[#008F5C] transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}>
           {saving ? 'Saving…' : saveLabel}
         </button>
       )}
@@ -192,7 +201,7 @@ function BankEditModal({ userId, onClose, onSuccess }: { userId: string; onClose
     <ModalWrap onClose={onClose}>
       <Toast toast={_t} onClose={() => {}} />
       <ModalHeader title="Edit Bank Details" onClose={onClose} />
-      <div className="px-5 py-4 flex flex-col gap-3">
+      <div className="px-5 py-4 flex flex-col gap-3 overflow-y-auto min-h-0">
         {loading ? (
           <p className={`${TXT.value} text-[#94A3B8]`}>Loading…</p>
         ) : (
@@ -265,7 +274,7 @@ function AadhaarEditModal({ userId, onClose, onSuccess }: { userId: string; onCl
     <ModalWrap onClose={onClose}>
       <Toast toast={_t} onClose={() => {}} />
       <ModalHeader title="Update Aadhaar Details" onClose={onClose} />
-      <div className="px-5 py-4 flex flex-col gap-3">
+      <div className="px-5 py-4 flex flex-col gap-3 overflow-y-auto min-h-0">
         {loading ? <p className={`${TXT.value} text-[#94A3B8]`}>Loading…</p> : (
           <>
             <ModalInput label="Aadhaar Number" value={form.aadhaarNumber} onChange={set('aadhaarNumber')} placeholder="12-digit Aadhaar number" maxLength={12} />
@@ -355,7 +364,7 @@ function CODModal({ userId, onClose, onSuccess }: { userId: string; onClose: () 
     <ModalWrap onClose={onClose}>
       <Toast toast={_t} onClose={() => {}} />
       <ModalHeader title={showCustom ? 'Custom COD Plan' : 'Update COD Cycle'} onClose={onClose} />
-      <div className="px-5 py-4">
+      <div className="px-5 py-4 overflow-y-auto min-h-0">
         {showCustom ? (
           <div className="flex flex-col gap-3">
             <div className="flex flex-col gap-1">
@@ -496,7 +505,7 @@ function AssignRateCardModal({ userId, userName, rateCardType, onClose, onSucces
     <ModalWrap onClose={onClose}>
       <Toast toast={_t} onClose={() => {}} />
       <ModalHeader title={`Assign ${rateCardType} Rate Card Plan`} onClose={onClose} />
-      <div className="px-5 py-4 flex flex-col gap-3">
+      <div className="px-5 py-4 flex flex-col gap-3 overflow-y-auto min-h-0">
         <p className={`${TXT.value} text-[#64748B]`}>User: <span className="font-semibold text-[#0F172A]">{userName}</span></p>
         {loading ? <p className={`${TXT.value} text-[#94A3B8]`}>Loading plans…</p> : (
           <div ref={dropRef} className="relative">
@@ -572,7 +581,7 @@ function UploadRateCardModal({ userId, planName, onClose, onSuccess }: {
     <ModalWrap onClose={onClose}>
       <Toast toast={_t} onClose={() => {}} />
       <ModalHeader title="Upload Rate Card" onClose={onClose} />
-      <div className="px-5 py-4 flex flex-col gap-4">
+      <div className="px-5 py-4 flex flex-col gap-4 overflow-y-auto min-h-0">
         <div className="flex items-center justify-between bg-[#F8FAFC] border border-[#E2E8F0] rounded-[8px] px-3 py-2">
           <span className={`${TXT.value} text-[#64748B]`}>Need the template?</span>
           <button onClick={handleDownloadSample} className={`${TXT.label} text-[#00A86B] flex items-center gap-1.5 hover:underline`}>
@@ -631,7 +640,7 @@ function CreditLimitModal({ userId, currentValue, onClose, onSuccess }: {
     <ModalWrap onClose={onClose}>
       <Toast toast={_t} onClose={() => {}} />
       <ModalHeader title="Update Credit Limit" onClose={onClose} />
-      <div className="px-5 py-4">
+      <div className="px-5 py-4 overflow-y-auto min-h-0">
         <ModalInput label="Credit Limit (₹)" type="number" min="0" value={value} onChange={e => setValue(e.target.value)} placeholder="Enter credit limit" />
       </div>
       <ModalActions onClose={onClose} onSave={handleSave} saving={saving} />
@@ -665,7 +674,7 @@ function ReferralCommissionModal({ userId, currentValue, onClose, onSuccess }: {
     <ModalWrap onClose={onClose}>
       <Toast toast={_t} onClose={() => {}} />
       <ModalHeader title="Update Referral Commission" onClose={onClose} />
-      <div className="px-5 py-4">
+      <div className="px-5 py-4 overflow-y-auto min-h-0">
         <ModalInput label="Commission (%)" type="number" min="0" max="100" step="0.1" value={value} onChange={e => setValue(e.target.value)} placeholder="Enter commission %" />
       </div>
       <ModalActions onClose={onClose} onSave={handleSave} saving={saving} />
@@ -707,7 +716,7 @@ function KAMModal({ userId, onClose, onSuccess }: { userId: string; onClose: () 
     <ModalWrap onClose={onClose}>
       <Toast toast={_t} onClose={() => {}} />
       <ModalHeader title="Update KAM Details" onClose={onClose} />
-      <div className="px-5 py-4 flex flex-col gap-3">
+      <div className="px-5 py-4 flex flex-col gap-3 overflow-y-auto min-h-0">
         {loading ? <p className={`${TXT.value} text-[#94A3B8]`}>Loading…</p> : (
           <>
             <ModalInput label="KAM Name" value={form.kamName} onChange={set('kamName')} placeholder="Account manager name" />
@@ -747,7 +756,7 @@ function ChangePasswordModal({ email, onClose, onSuccess }: { email: string; onC
     <ModalWrap onClose={onClose}>
       <Toast toast={_t} onClose={() => {}} />
       <ModalHeader title="Change Password" onClose={onClose} />
-      <div className="px-5 py-4 flex flex-col gap-3">
+      <div className="px-5 py-4 flex flex-col gap-3 overflow-y-auto min-h-0">
         <p className={`${TXT.value} text-[#64748B]`}>Account: <span className="font-semibold text-[#0F172A]">{email}</span></p>
         <div className="flex flex-col gap-1">
           <label className={`${TXT.label} text-[#64748B]`}>New Password</label>
@@ -795,6 +804,7 @@ export function AdminProfile() {
   const apiUser = location.state?.user;
   const mongoId = String(apiUser?.id || '');
   const effectiveId = mongoId || currentUserId;
+  const isImpersonating = !!localStorage.getItem('admin_token_backup');
 
   const [activeTab, setActiveTab] = useState<TabId>('overview');
 
@@ -1069,22 +1079,99 @@ export function AdminProfile() {
       {showKAMModal && <KAMModal userId={effectiveId} onClose={() => setShowKAMModal(false)} onSuccess={refreshUser} />}
       {showPasswordModal && <ChangePasswordModal email={userData.email} onClose={() => setShowPasswordModal(false)} onSuccess={() => {}} />}
 
-      <div className="w-full px-4 md:px-8 pt-0 pb-4 h-[calc(100vh-32px)] md:h-[calc(100vh-48px)] flex flex-col min-h-0">
-
-        {/* Back Button */}
-        <div className="flex items-center mb-4 shrink-0">
-          <button
-            onClick={() => navigate(-1)}
-            className={`flex items-center gap-2 ${TXT.label} text-[#64748B] hover:text-[#0F172A] transition-colors bg-white px-3.5 py-2 rounded-lg border border-[#E2E8F0] hover:border-[#CBD5E1]`}
-          >
-            <ArrowLeft className="w-3.5 h-3.5" /> Back to Users
+      {/* ── Mobile hero header — distinct from desktop sidebar: gradient banner + overlapping avatar ── */}
+      <div className="md:hidden -m-4 bg-white border-b border-[#E2E8F0]">
+        <div className="flex items-center justify-between px-2 pt-3 pb-2">
+          <button onClick={() => navigate(-1)} className="w-9 h-9 rounded-full border border-[#E2E8F0] flex items-center justify-center text-[#475569] bg-white active:bg-[#F8FAFC]">
+            <ArrowLeft className="w-4 h-4" />
           </button>
+          <span className="text-[13px] font-bold text-[#0F172A]">Profile</span>
+          <div className="w-9 h-9" />
         </div>
+
+        <div className="h-16 bg-gradient-to-r from-[#00A86B] to-[#007A4D] relative">
+          <div className="absolute -bottom-8 left-2">
+            <div className="relative">
+              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#00A86B] to-[#007A4D] flex items-center justify-center border-4 border-white shadow-md overflow-hidden">
+                {logoUrl ? (
+                  <img src={logoUrl} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-[20px] font-semibold text-white leading-none select-none">
+                    {(userData.name || '?').charAt(0).toUpperCase()}
+                  </span>
+                )}
+              </div>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="absolute bottom-0 right-0 w-6 h-6 bg-white border border-[#E2E8F0] rounded-full flex items-center justify-center shadow-sm active:bg-[#F8FAFC]"
+                title="Change profile image"
+              >
+                <Camera className="w-3 h-3 text-[#64748B]" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="pt-9 pb-3 px-2">
+          <h1 className="text-[15px] font-bold text-[#0F172A] truncate">{userData.name}</h1>
+          <p className="text-[12px] text-[#64748B] truncate">{userData.email}</p>
+
+          <div className="flex items-center gap-1.5 flex-wrap mt-2">
+            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${isActive ? 'text-[#00A86B] border-[#A7F3D0] bg-[#ECFDF5]' : 'text-[#EF4444] border-[#FECACA] bg-[#FEF2F2]'}`}>
+              {isActive ? 'ACTIVE' : 'BLOCKED'}
+            </span>
+            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${isKycVerified ? 'text-[#10B981] border-[#A7F3D0] bg-[#ECFDF5]' : 'text-[#F59E0B] border-[#FDE68A] bg-[#FFFBEB]'}`}>
+              {isKycVerified ? 'KYC VERIFIED' : 'KYC PENDING'}
+            </span>
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold border border-[#E2E8F0] text-[#64748B] bg-[#F8FAFC]">
+              {isCompany ? 'BUSINESS' : 'INDIVIDUAL'}
+            </span>
+          </div>
+
+          {/* Wallet + quick toggles row */}
+          <div className="grid grid-cols-2 gap-2 mt-3">
+            <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl p-2.5">
+              <p className="text-[10px] font-semibold text-[#94A3B8]">Balance</p>
+              <p className="text-[13px] font-bold text-[#0F172A] mt-0.5 truncate">{userData.balance}</p>
+            </div>
+            <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl p-2.5">
+              <p className="text-[10px] font-semibold text-[#94A3B8]">On Hold</p>
+              <p className="text-[13px] font-bold text-[#0F172A] mt-0.5 truncate">{fmtProfileCurrency(holdAmount)}</p>
+            </div>
+          </div>
+
+          {isAdminView && (
+            <div className="flex items-center gap-4 mt-3 px-0.5">
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-semibold text-[#475569]">Active</span>
+                <Toggle on={isActive} onClick={handleToggle} />
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-semibold text-[#475569]">KYC</span>
+                <Toggle on={isKycVerified} onClick={handleKycToggle} />
+              </div>
+            </div>
+          )}
+        </div>
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={e => {
+            const file = e.target.files?.[0];
+            if (file) setLogoUrl(URL.createObjectURL(file));
+          }}
+        />
+      </div>
+
+      <div className={`w-full -mx-4 px-2 md:-m-6 md:px-2 md:py-2 pt-4 pb-4 ${isImpersonating ? 'md:h-[calc(100vh-120px)]' : 'md:h-[calc(100vh-88px)]'} flex flex-col min-h-0 md:overflow-hidden`}>
 
         <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-4 items-start flex-1 min-h-0">
 
-          {/* ── Left Sidebar ── */}
-          <div className="bg-white border border-[#E2E8F0] rounded-[12px] p-5 lg:sticky lg:top-0 flex flex-col gap-5 lg:max-h-full lg:overflow-y-auto no-scrollbar">
+          {/* ── Left Sidebar — desktop only; mobile uses the hero header above ── */}
+          <div className="hidden lg:flex bg-white border border-[#E2E8F0] rounded-[12px] p-5 lg:sticky lg:top-0 flex-col gap-5 lg:max-h-full lg:overflow-y-auto no-scrollbar">
             {/* Avatar + name */}
             <div className="flex flex-col items-center text-center gap-3">
               <div className="relative shrink-0">
@@ -1181,24 +1268,26 @@ export function AdminProfile() {
           </div>
 
           {/* ── Right Content — tabs ── */}
-          <div className="flex flex-col gap-4 min-w-0 h-full min-h-0">
-            {/* Tab bar */}
-            <div className="bg-white border border-[#E2E8F0] rounded-[12px] p-1.5 flex items-center gap-1 overflow-x-auto no-scrollbar shrink-0">
-              {TABS.map(tab => {
-                const Icon = tab.icon;
-                const active = activeTab === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`flex items-center gap-1.5 px-3.5 py-2 rounded-[8px] ${TXT.label} whitespace-nowrap transition-colors ${
-                      active ? 'bg-[#ECFDF5] text-[#00A86B]' : 'text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A]'
-                    }`}
-                  >
-                    <Icon className="w-3.5 h-3.5" /> {tab.label}
-                  </button>
-                );
-              })}
+          <div className="flex flex-col gap-3 md:gap-4 min-w-0 h-full min-h-0">
+            {/* Tab bar — sticky segmented pills on mobile, inline row on desktop */}
+            <div className="sticky top-0 z-10 md:static bg-[#F8FAFC] md:bg-white -mx-2 px-2 pt-2 pb-1 md:mx-0 md:px-1.5 md:py-1.5 md:border md:border-[#E2E8F0] md:rounded-[12px] shrink-0">
+              <div className="flex items-center gap-1.5 md:gap-1 overflow-x-auto no-scrollbar bg-white md:bg-transparent border border-[#E2E8F0] md:border-0 rounded-full md:rounded-none p-1 md:p-0 shadow-sm md:shadow-none">
+                {TABS.map(tab => {
+                  const Icon = tab.icon;
+                  const active = activeTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`flex items-center gap-1.5 px-3.5 py-2 rounded-full md:rounded-[8px] text-[12px] font-semibold whitespace-nowrap transition-colors shrink-0 ${
+                        active ? 'bg-[#00A86B] md:bg-[#ECFDF5] text-white md:text-[#00A86B]' : 'text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A]'
+                      }`}
+                    >
+                      <Icon className="w-3.5 h-3.5" /> {tab.label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             {/* Tab content */}
@@ -1208,7 +1297,7 @@ export function AdminProfile() {
             {activeTab === 'overview' && (
               <div className="flex flex-col gap-4">
                 <SectionCard icon={LayoutGrid} title="Account Summary">
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-0 md:gap-y-4">
                     <Field label="User ID" value={userData.id} />
                     <Field label="Registration Date" value={userData.regDate} />
                     <Field label="Last Login" value={userData.lastLogin} />
@@ -1286,7 +1375,7 @@ export function AdminProfile() {
                 </SectionCard>
 
                 <SectionCard icon={MapPin} title="Address Details">
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-0 md:gap-y-4">
                     <div className="col-span-2 md:col-span-3"><Field label="Address" value={userData.address} /></div>
                     <Field label="City" value={userData.city} />
                     <Field label="State" value={<span className="uppercase">{userData.state}</span>} />
@@ -1301,7 +1390,7 @@ export function AdminProfile() {
                   title="KAM Details"
                   action={isAdminView ? <EditBtn onClick={() => setShowKAMModal(true)} /> : undefined}
                 >
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-0 md:gap-y-4">
                     <Field label="Name" value={userData.kamName} />
                     <Field label="Email" value={userData.kamEmail} />
                     <Field label="Phone" value={userData.kamPhone} />
@@ -1318,7 +1407,7 @@ export function AdminProfile() {
                   title="Aadhar Details"
                   action={isAdminView ? <EditBtn onClick={() => setShowAadhaarModal(true)} /> : undefined}
                 >
-                  <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-0 md:gap-y-4">
                     <Field label="Name" value={userData.aadharName} />
                     <Field label="Aadhar Number" value={userData.aadhaar} />
                     <Field label="State" value={userData.aadharState} />
@@ -1327,7 +1416,7 @@ export function AdminProfile() {
                 </SectionCard>
 
                 <SectionCard icon={FileText} title="PAN Details">
-                  <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-0 md:gap-y-4">
                     <Field label="PAN Number" value={userData.panNumber} />
                     <Field label="Name" value={userData.panName} />
                     <Field label="Type" value={userData.panType} />
@@ -1336,7 +1425,7 @@ export function AdminProfile() {
                 </SectionCard>
 
                 <SectionCard icon={Building2} title="GST Details">
-                  <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-0 md:gap-y-4">
                     <Field label="GSTIN" value={userData.gstin} />
                     <Field label="Company Name" value={userData.business} />
                   </div>
@@ -1351,7 +1440,7 @@ export function AdminProfile() {
                 title="Bank Details"
                 action={isAdminView ? <EditBtn onClick={() => setShowBankModal(true)} /> : undefined}
               >
-                <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-0 md:gap-y-4">
                   <Field label="Bank Name" value={userData.bankName} />
                   <Field label="Account Number" value={userData.accountNumber} />
                   <Field label="Account Holder" value={userData.beneficiaryName || userData.name} />
@@ -1363,43 +1452,41 @@ export function AdminProfile() {
 
             {/* ── Rate Cards ── */}
             {activeTab === 'rates' && (
-              <SectionCard
-                icon={CreditCard}
-                title="Rate Card Management"
-                action={
-                  <div className="flex items-center gap-2">
-                    {isAdminView && (
-                      <>
-                        <button
-                          onClick={() => { setAssignRateCardType('B2C'); setShowAssignModal(true); }}
-                          className={`${TXT.label} text-[#00A86B] px-3 py-1.5 rounded-lg border border-[#00A86B] hover:bg-[#ECFDF5] transition-colors`}
-                        >
-                          Assign B2C
-                        </button>
-                        <button
-                          onClick={() => { setAssignRateCardType('B2B'); setShowAssignModal(true); }}
-                          className={`${TXT.label} text-[#00A86B] px-3 py-1.5 rounded-lg border border-[#00A86B] hover:bg-[#ECFDF5] transition-colors`}
-                        >
-                          Assign B2B
-                        </button>
-                        <button
-                          onClick={() => setShowUploadModal(true)}
-                          className={`${TXT.label} text-white px-3 py-1.5 rounded-lg bg-[#00A86B] hover:bg-[#008F5C] flex items-center gap-1.5 transition-colors`}
-                        >
-                          <Upload className="w-3.5 h-3.5" /> Upload
-                        </button>
-                      </>
-                    )}
-                    <button
-                      onClick={() => fetchRates(effectiveId)}
-                      className={`${TXT.label} text-[#64748B] px-3 py-1.5 rounded-lg border border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors`}
-                    >
-                      Refresh
-                    </button>
-                  </div>
-                }
-              >
-                <div className="overflow-x-auto border border-[#E2E8F0] rounded-[10px]">
+              <SectionCard icon={CreditCard} title="Rate Card Management">
+                {/* Toolbar — wraps cleanly on mobile instead of squeezing into one row */}
+                <div className="flex flex-wrap items-center gap-2 mb-4">
+                  {isAdminView && (
+                    <>
+                      <button
+                        onClick={() => { setAssignRateCardType('B2C'); setShowAssignModal(true); }}
+                        className="flex-1 md:flex-none min-w-[110px] text-[12px] font-semibold text-[#00A86B] px-3 py-2 md:py-1.5 rounded-full md:rounded-lg border border-[#00A86B] hover:bg-[#ECFDF5] transition-colors text-center"
+                      >
+                        Assign B2C
+                      </button>
+                      <button
+                        onClick={() => { setAssignRateCardType('B2B'); setShowAssignModal(true); }}
+                        className="flex-1 md:flex-none min-w-[110px] text-[12px] font-semibold text-[#00A86B] px-3 py-2 md:py-1.5 rounded-full md:rounded-lg border border-[#00A86B] hover:bg-[#ECFDF5] transition-colors text-center"
+                      >
+                        Assign B2B
+                      </button>
+                      <button
+                        onClick={() => setShowUploadModal(true)}
+                        className="flex-1 md:flex-none min-w-[110px] text-[12px] font-semibold text-white px-3 py-2 md:py-1.5 rounded-full md:rounded-lg bg-[#00A86B] hover:bg-[#008F5C] flex items-center justify-center gap-1.5 transition-colors"
+                      >
+                        <Upload className="w-3.5 h-3.5" /> Upload
+                      </button>
+                    </>
+                  )}
+                  <button
+                    onClick={() => fetchRates(effectiveId)}
+                    className="text-[12px] font-semibold text-[#64748B] px-3 py-2 md:py-1.5 rounded-full md:rounded-lg border border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors shrink-0 ml-auto md:ml-0"
+                  >
+                    Refresh
+                  </button>
+                </div>
+
+                {/* Desktop — table */}
+                <div className="hidden md:block overflow-x-auto border border-[#E2E8F0] rounded-[10px]">
                   <table className="w-full text-center border-collapse">
                     <thead>
                       <tr className="bg-[#E6F9F2] border-b border-[#E2E8F0]">
@@ -1463,6 +1550,79 @@ export function AdminProfile() {
                       )}
                     </tbody>
                   </table>
+                </div>
+
+                {/* Mobile — stacked rate cards */}
+                <div className="md:hidden flex flex-col gap-2.5">
+                  {rateLoading ? (
+                    <p className="text-center text-[12px] text-[#94A3B8] py-10">Loading rate cards…</p>
+                  ) : rates.length > 0 ? (
+                    rates.map((card: any, i: number) => {
+                      const zones = ['A', 'B', 'C', 'D', 'E'] as const;
+                      return (
+                        <div key={i} className="border border-[#E2E8F0] rounded-2xl overflow-hidden bg-white">
+                          {/* Header */}
+                          <div className="flex items-start justify-between gap-2 px-3 py-2.5 bg-[#F8FAFC] border-b border-[#E2E8F0]">
+                            <div className="min-w-0">
+                              <p className="text-[13px] font-bold text-[#0F172A] truncate">{card.courierProviderName}</p>
+                              <p className="text-[11px] text-[#64748B] truncate">{card.courierServiceName} · {card.mode}</p>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <span className="text-[11px] font-semibold text-[#00A86B] bg-[#ECFDF5] px-2 py-0.5 rounded-full whitespace-nowrap">
+                                COD ₹{card.codCharge} / {card.codPercent}%
+                              </span>
+                              {isAdminView && (
+                                <button
+                                  onClick={() => handleDeleteRateCard(card._id)}
+                                  disabled={deletingId === card._id}
+                                  className="text-[#94A3B8] hover:text-[#EF4444] transition-colors disabled:opacity-40 shrink-0"
+                                  title="Delete rate card"
+                                >
+                                  {deletingId === card._id ? (
+                                    <span className="text-[10px] font-semibold text-[#94A3B8]">…</span>
+                                  ) : (
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  )}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Basic weight zones */}
+                          <div className="px-3 pt-2.5">
+                            <p className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wide mb-1.5">
+                              Basic · {card.weightPriceBasic?.[0]?.weight}gm
+                            </p>
+                            <div className="grid grid-cols-5 gap-1.5">
+                              {zones.map(z => (
+                                <div key={z} className="bg-[#F8FAFC] rounded-lg py-1.5 text-center">
+                                  <p className="text-[9px] font-semibold text-[#94A3B8]">Zone {z}</p>
+                                  <p className="text-[11px] font-bold text-[#0F172A] mt-0.5">₹{card.weightPriceBasic?.[0]?.[`zone${z}`]}</p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Additional weight zones */}
+                          <div className="px-3 py-2.5">
+                            <p className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wide mb-1.5">
+                              Additional · {card.weightPriceAdditional?.[0]?.weight}gm
+                            </p>
+                            <div className="grid grid-cols-5 gap-1.5">
+                              {zones.map(z => (
+                                <div key={z} className="bg-[#F8FAFC] rounded-lg py-1.5 text-center">
+                                  <p className="text-[9px] font-semibold text-[#94A3B8]">Zone {z}</p>
+                                  <p className="text-[11px] font-bold text-[#0F172A] mt-0.5">₹{card.weightPriceAdditional?.[0]?.[`zone${z}`]}</p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <p className="text-center text-[12px] text-[#94A3B8] py-10">No rate cards found for this user.</p>
+                  )}
                 </div>
               </SectionCard>
             )}

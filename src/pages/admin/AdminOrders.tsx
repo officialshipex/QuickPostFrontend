@@ -1547,7 +1547,7 @@ export function AdminOrders() {
                             setHoveredPickup(prev => (prev?.id === order._id ? null : next));
                           }}
                         >
-                          <div className="truncate text-[10px] font-normal text-[#94A3B8] uppercase tracking-wider underline decoration-dotted underline-offset-2">{order.pickupName}</div>
+                          <div className="truncate max-w-[130px] text-[10px] font-normal text-[#94A3B8] uppercase tracking-wider underline decoration-dotted underline-offset-2">{order.pickupName}</div>
                           <div className="text-[12px] font-medium text-[#0F172A] mt-0.5">{order.pickupPhone}</div>
                         </div>
                         <div
@@ -1559,7 +1559,7 @@ export function AdminOrders() {
                             setHoveredCustomer(prev => (prev ? null : next));
                           }}
                         >
-                          <div className="truncate text-[10px] font-normal text-[#94A3B8] uppercase tracking-wider underline decoration-dotted underline-offset-2">{order.customerName}</div>
+                          <div className="truncate max-w-[130px] ml-auto text-[10px] font-normal text-[#94A3B8] uppercase tracking-wider underline decoration-dotted underline-offset-2">{order.customerName}</div>
                           <div className="text-[12px] font-medium text-[#0F172A] mt-0.5">{order.customerPhone}</div>
                         </div>
                       </div>

@@ -179,17 +179,21 @@ export function NdrActionModal({ isOpen, onClose, order, onSubmit }: Props) {
   return createPortal(
     <div className="fixed inset-0 flex items-end sm:items-center justify-center bg-black/50 z-[200] px-0 sm:px-4">
       {/* overflow-hidden clips child backgrounds to border-radius — prevents the square-inside-rounded visual artifact */}
-      <div className="bg-white w-full sm:max-w-md shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[88vh] border border-[#E2E8F0] rounded-t-2xl sm:rounded-2xl overflow-hidden">
+      <div className="bg-white w-full sm:max-w-md shadow-2xl flex flex-col max-h-[94vh] sm:max-h-[88vh] border border-[#E2E8F0] rounded-t-3xl sm:rounded-2xl overflow-hidden">
+
+        {/* Drag handle — mobile only, signals bottom-sheet affordance */}
+        <div className="sm:hidden flex justify-center pt-2.5 pb-1 shrink-0">
+          <div className="w-9 h-1 rounded-full bg-[#E2E8F0]" />
+        </div>
 
         {/* ── Header ── */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[#E2E8F0] shrink-0">
+        <div className="flex items-center justify-between px-5 py-3 sm:py-4 border-b border-[#E2E8F0] shrink-0">
           <div className="min-w-0">
-            <h2 className="text-sm font-bold text-[#0F172A]">Take NDR Action</h2>
-            <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-              <span className="text-[11px] text-[#64748B]">AWB:</span>
-              <span className="text-[11px] font-bold text-[#00A86B]">{awb || '—'}</span>
+            <h2 className="text-[15px] sm:text-sm font-bold text-[#0F172A]">Take NDR Action</h2>
+            <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+              <span className="text-[11px] font-semibold text-[#00A86B] bg-[#F0FDF4] px-2 py-0.5 rounded-full">{awb || '—'}</span>
               {order?.customerName && order.customerName !== '—' && (
-                <span className="text-[11px] text-[#94A3B8]">• {order.customerName}</span>
+                <span className="text-[11px] text-[#94A3B8] truncate">{order.customerName}</span>
               )}
             </div>
           </div>
@@ -201,17 +205,33 @@ export function NdrActionModal({ isOpen, onClose, order, onSubmit }: Props) {
           </button>
         </div>
 
-        {/* ── Action Dropdown trigger ── */}
-        {/* The open list is portaled as position:fixed to document.body — it won't be clipped by overflow-hidden */}
+        {/* ── Action selector — segmented pills on mobile, dropdown on desktop ── */}
         <div className="px-5 pt-4 pb-0 shrink-0">
-          <label className="text-[11px] font-bold text-[#475569] block mb-1.5">
+          <label className="text-[11px] font-bold text-[#475569] block mb-2">
             Action <span className="text-red-400">*</span>
           </label>
+
+          {/* Mobile: tap-friendly segmented options */}
+          <div className="sm:hidden grid grid-cols-1 gap-2">
+            {ACTIONS.map(({ label, value }) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => { setAction(value); resetActionFields(); }}
+                className={`w-full text-left px-3.5 py-3 rounded-xl border-2 text-[13px] font-semibold transition-all flex items-center justify-between ${action === value ? 'border-[#00A86B] bg-[#F0FDF4] text-[#00A86B]' : 'border-[#E2E8F0] bg-white text-[#475569]'}`}
+              >
+                {label}
+                {action === value && <span className="w-2 h-2 rounded-full bg-[#00A86B] shrink-0" />}
+              </button>
+            ))}
+          </div>
+
+          {/* Desktop: dropdown trigger — open list is portaled as position:fixed to document.body */}
           <button
             ref={dropdownBtnRef}
             type="button"
             onClick={handleDropdownToggle}
-            className="w-full border border-[#E2E8F0] px-3.5 py-2.5 text-[12px] font-semibold rounded-xl text-left flex justify-between items-center hover:border-[#00A86B] focus:outline-none focus:border-[#00A86B] transition-all bg-[#F8FAFC]"
+            className="hidden sm:flex w-full border border-[#E2E8F0] px-3.5 py-2.5 text-[12px] font-semibold rounded-xl text-left justify-between items-center hover:border-[#00A86B] focus:outline-none focus:border-[#00A86B] transition-all bg-[#F8FAFC]"
           >
             <span className={action ? 'text-[#0F172A]' : 'text-[#94A3B8]'}>
               {ACTIONS.find(a => a.value === action)?.label || 'Select action…'}
@@ -327,17 +347,23 @@ export function NdrActionModal({ isOpen, onClose, order, onSubmit }: Props) {
         {!action && <div className="flex-1" />}
 
         {/* ── Footer ── */}
-        <div className="flex items-center justify-end gap-2.5 px-5 py-4 border-t border-[#E2E8F0] shrink-0">
+        <div className="flex items-center justify-end gap-2.5 px-5 py-3.5 sm:py-4 border-t border-[#E2E8F0] shrink-0 pb-[calc(0.875rem+env(safe-area-inset-bottom))] sm:pb-4">
           <button
             onClick={onClose}
-            className="h-9 px-4 bg-white border border-[#E2E8F0] text-[#475569] font-bold text-[12px] rounded-xl hover:bg-[#F8FAFC] transition-all"
+            className="hidden sm:inline-flex h-9 px-4 bg-white border border-[#E2E8F0] text-[#475569] font-bold text-[12px] rounded-xl hover:bg-[#F8FAFC] transition-all"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onClose}
+            className="sm:hidden h-11 px-4 bg-white border border-[#E2E8F0] text-[#475569] font-bold text-[13px] rounded-xl transition-all"
           >
             Cancel
           </button>
           <button
             onClick={handleSubmit}
             disabled={loading || !action}
-            className={`h-9 px-5 text-white font-bold text-[12px] rounded-xl transition-all flex items-center gap-2 ${loading || !action ? 'bg-[#CBD5E1] cursor-not-allowed' : 'bg-[#00A86B] hover:bg-[#009B63] shadow-sm'}`}
+            className={`flex-1 sm:flex-none h-11 sm:h-9 px-5 text-white font-bold text-[13px] sm:text-[12px] rounded-xl transition-all flex items-center justify-center gap-2 ${loading || !action ? 'bg-[#CBD5E1] cursor-not-allowed' : 'bg-[#00A86B] hover:bg-[#009B63] shadow-sm'}`}
           >
             {loading && <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
             {loading ? 'Submitting…' : 'Submit Action'}
