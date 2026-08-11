@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Calendar, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { Calendar, ChevronDown, ChevronLeft, ChevronRight, X } from 'lucide-react';
 
 interface GlassDateFilterProps {
   startDate: string; // yyyy-mm-dd
@@ -189,7 +189,7 @@ export function GlassDateFilter({
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpen(!open); } }}
         className="glass-dropdown-trigger glass-date-trigger group"
       >
-        <Calendar className="glass-dropdown-icon-svg" />
+        <span className="glass-dropdown-icon"><Calendar className="glass-dropdown-icon-svg" /></span>
         <span className={`glass-dropdown-label ${hasRange ? 'has-value' : ''}`}>
           {hasRange
             ? `${displayDate(startDate)} — ${displayDate(endDate)}`
@@ -209,6 +209,7 @@ export function GlassDateFilter({
             <X className="w-3 h-3" />
           </button>
         )}
+        <ChevronDown className={`glass-dropdown-chevron ${open ? 'rotate' : ''}`} />
       </div>
 
       {/* Calendar Panel */}

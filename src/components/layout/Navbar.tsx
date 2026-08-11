@@ -137,10 +137,10 @@ export function Navbar() {
             </Link>
 
             <Link
-              to="/login"
+              to="/#signup"
               className="qp-cta-primary px-5 py-[9px] rounded-xl text-[13.5px] font-bold text-white tracking-[-0.01em]"
             >
-              Get Started Free&nbsp;→
+              Get Started&nbsp;→
             </Link>
           </div>
 
@@ -219,11 +219,11 @@ export function Navbar() {
                     Log In
                   </Link>
                   <Link
-                    to="/login"
+                    to="/#signup"
                     onClick={() => setMobileOpen(false)}
                     className="qp-cta-primary w-full text-center px-5 py-3 rounded-xl text-[14px] font-bold text-white"
                   >
-                    Get Started Free →
+                    Get Started →
                   </Link>
                 </div>
               </div>

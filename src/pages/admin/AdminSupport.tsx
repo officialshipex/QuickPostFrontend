@@ -549,7 +549,7 @@ export function AdminSupport() {
                     key={s}
                     onClick={() => { setActiveTab(s); setCurrentPage(1); startLoading(300); }}
                     ref={(el) => { if (el && activeTab === s) el.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }}
-                    className={`relative px-4 py-2 text-[12px] md:text-[13px] font-medium md:font-bold rounded-full transition-colors whitespace-nowrap cursor-pointer ${activeTab === s ? 'text-[#00A86B] underline underline-offset-4 decoration-2' : 'text-[#64748B] hover:text-[#0F172A]'}`}
+                    className={`relative px-4 py-2 text-[14px] md:text-[13px] font-semibold md:font-bold rounded-full transition-colors whitespace-nowrap cursor-pointer ${activeTab === s ? 'text-[#00A86B] underline underline-offset-4 decoration-2' : 'text-[#64748B] hover:text-[#0F172A]'}`}
                   >
                     {s}
                   </button>

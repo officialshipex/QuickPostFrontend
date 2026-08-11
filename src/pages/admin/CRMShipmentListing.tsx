@@ -892,15 +892,7 @@ export function CRMShipmentListing() {
                 {paginated.length === 0 && (
                   <tr>
                     <td colSpan={totalColumns} className="p-8 text-center">
-                      {apiError ? (
-                        <div>
-                          <div className="text-red-500 font-semibold text-xs mb-1">API Error</div>
-                          <div className="text-red-400 text-[11px] font-mono">{apiError}</div>
-                          <div className="text-[#94A3B8] text-[11px] mt-2">Make sure the backend is running and restarted after the CRM routes were added.</div>
-                        </div>
-                      ) : (
-                        <span className="text-[#64748B] font-medium">No records found matching your criteria</span>
-                      )}
+                      <EmptyState title="No shipments found" subtitle="Try changing filters" />
                     </td>
                   </tr>
                 )}

@@ -5,6 +5,8 @@ import heroImg from '../../assets/hero-image.png';
 interface MobileAuthHeroProps {
   ctaLabel: string;
   renderForm: (onBack: () => void) => React.ReactNode;
+  /** Skip the hero and show the form immediately (e.g. deep-linked from "Get Started"). */
+  initialShowForm?: boolean;
 }
 
 /**
@@ -12,8 +14,8 @@ interface MobileAuthHeroProps {
  * Tapping the CTA smoothly swaps in the form (signup or login) passed via renderForm.
  * Desktop keeps its own separate layout (AuthHeroLayout + flip card / plain card).
  */
-export function MobileAuthHero({ ctaLabel, renderForm }: MobileAuthHeroProps) {
-  const [showForm, setShowForm] = useState(false);
+export function MobileAuthHero({ ctaLabel, renderForm, initialShowForm = false }: MobileAuthHeroProps) {
+  const [showForm, setShowForm] = useState(initialShowForm);
 
   return (
     <section className="md:hidden bg-[#00A86B] pt-[88px] pb-10 px-4 overflow-hidden">

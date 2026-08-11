@@ -43,9 +43,21 @@ const renderManifestAgeing = (dateStr: string) => {
 
 interface Props {
   isAdminView: boolean;
+  /** When true, the component's own mobile search+filter+action row is hidden —
+   *  the caller (AdminOrders) renders an equivalent row above its shared tab bar instead,
+   *  wired to `mobileSearchOverride`/`onMobileSearchOverrideChange`. */
+  hideMobileSearchBar?: boolean;
+  /** Controlled search value from a search bar rendered outside this component. */
+  mobileSearchOverride?: string;
+  onMobileSearchOverrideChange?: (value: string) => void;
 }
 
-export function AdminPickupManifest({ isAdminView }: Props) {
+export function AdminPickupManifest({
+  isAdminView,
+  hideMobileSearchBar = false,
+  mobileSearchOverride,
+  onMobileSearchOverrideChange,
+}: Props) {
   const navigate = useNavigate();
   const { currentUserId, loadingAdminTab } = useAdminTab();
 
@@ -58,6 +70,11 @@ export function AdminPickupManifest({ isAdminView }: Props) {
 
   // Filters
   const [searchId,               setSearchId]               = useState('');
+  // When a search bar rendered outside this component (AdminOrders' shared mobile
+  // search row) is controlling search, keep our internal searchId in sync with it.
+  useEffect(() => {
+    if (mobileSearchOverride !== undefined) setSearchId(mobileSearchOverride);
+  }, [mobileSearchOverride]);
   const [awbNumber,              setAwbNumber]              = useState('');
   const [selectedCouriers,       setSelectedCouriers]       = useState<string[]>([]);
   const [selectedPickupAddresses,setSelectedPickupAddresses] = useState<string[]>([]);
@@ -240,16 +257,19 @@ export function AdminPickupManifest({ isAdminView }: Props) {
 
       {/* ── Mobile Search + Filter + Action + Add Order Row (matches Wallet page) ── */}
       <div className="md:hidden px-3 py-2.5 border-b border-[#E2E8F0] flex items-center gap-2 bg-white shrink-0">
-        <div className="relative flex-1">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
-          <input
-            type="text"
-            placeholder="Pickup ID tracking"
-            value={searchId}
-            onChange={(e) => setSearchId(e.target.value)}
-            className="w-full h-9 pl-9 pr-3 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] text-sm text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all"
-          />
-        </div>
+        {hideMobileSearchBar && <div className="flex-1" />}
+        {!hideMobileSearchBar && (
+          <div className="relative flex-1">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
+            <input
+              type="text"
+              placeholder="Pickup ID tracking"
+              value={searchId}
+              onChange={(e) => { setSearchId(e.target.value); onMobileSearchOverrideChange?.(e.target.value); }}
+              className="w-full h-9 pl-9 pr-3 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] text-sm text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all"
+            />
+          </div>
+        )}
         {/* Filter icon */}
         <button
           onClick={() => setIsMobileFiltersOpen(true)}
@@ -607,7 +627,7 @@ export function AdminPickupManifest({ isAdminView }: Props) {
                   <div className="flex items-start justify-between bg-white border border-[#E2E8F0] rounded-xl px-2.5 py-1.5 mb-1.5 gap-2">
                     <div className="min-w-0">
                       <div className="text-[10px] font-normal text-[#94A3B8]">Pickup Req. Date</div>
-                      <div className="text-[12px] font-medium text-[#0F172A] mt-0.5 whitespace-nowrap">{fmt(m.createdAt)}</div>
+                      <div className="text-[12px] font-normal text-[#0F172A] mt-0.5 whitespace-nowrap">{fmt(m.createdAt)}</div>
                     </div>
                     <div
                       className="min-w-0 text-center cursor-help"
@@ -619,11 +639,11 @@ export function AdminPickupManifest({ isAdminView }: Props) {
                       }}
                     >
                       <div className="text-[10px] font-normal text-[#94A3B8]">Pickup Address</div>
-                      <TruncatedText text={m.pickupAddress?.contactName || '—'} maxLength={16} className="text-[12px] font-medium text-[#0F172A] mt-0.5 underline decoration-dotted underline-offset-2" />
+                      <TruncatedText text={m.pickupAddress?.contactName || '—'} maxLength={16} className="text-[12px] font-normal text-[#0F172A] mt-0.5 underline decoration-dotted underline-offset-2" />
                     </div>
                     <div className="min-w-0 text-right">
                       <div className="text-[10px] font-normal text-[#94A3B8]">Pickup Date</div>
-                      <div className="text-[12px] font-medium text-[#0F172A] mt-0.5 whitespace-nowrap">{fmt(m.pickupDate)}</div>
+                      <div className="text-[12px] font-normal text-[#0F172A] mt-0.5 whitespace-nowrap">{fmt(m.pickupDate)}</div>
                     </div>
                   </div>
 

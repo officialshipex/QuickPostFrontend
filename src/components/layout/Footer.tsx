@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 
 // Inline Tabler Icons (Lucide-like)
 const IconLinkedIn = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4m0 2a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2z" /><path d="M8 11l0 5" /><path d="M8 8l0 .01" /><path d="M12 16l0 -5" /><path d="M16 16v-3a2 2 0 0 0 -4 0" /></svg>;
@@ -63,12 +64,12 @@ export function Footer() {
 
           {/* RIGHT: 45% */}
           <div className="w-full md:w-[45%] flex flex-col items-center md:items-end footer-cta-right">
-            <button className="w-full md:w-auto bg-white text-[#1D9E75] font-bold text-[14px] md:text-[15px] px-[24px] md:px-[32px] py-[13px] md:py-[16px] rounded-[10px] border-none hover:bg-[#F0FAF5] hover:-translate-y-[2px] transition-all duration-200 ease-in-out cursor-pointer">
-              Get Started Free &rarr;
-            </button>
-            <a href="#" className="block text-[12px] md:text-[13px] font-normal text-white/75 mt-[8px] hover:underline hover:text-white text-center md:text-right">
+            <Link to="/#signup" className="w-full md:w-auto inline-block text-center bg-white text-[#1D9E75] font-bold text-[14px] md:text-[15px] px-[24px] md:px-[32px] py-[13px] md:py-[16px] rounded-[10px] border-none hover:bg-[#F0FAF5] hover:-translate-y-[2px] transition-all duration-200 ease-in-out cursor-pointer">
+              Get Started &rarr;
+            </Link>
+            <Link to="/login" className="block text-[12px] md:text-[13px] font-normal text-white/75 mt-[8px] hover:underline hover:text-white text-center md:text-right">
               Already have an account? Log in
-            </a>
+            </Link>
           </div>
         </div>
       </div>

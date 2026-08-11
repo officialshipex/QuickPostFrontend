@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Truck, Plane, Info, X, ArrowRight, Loader2, Send, MapPin } from 'lucide-react';
 import { apiClient } from '../../../services/apiClient';
 import { TableLoader } from '../../ui/TableLoader';
+import { NetworkError } from '../../ui/NetworkError';
 
 const TXT = {
   label: 'text-[12px] font-semibold',
@@ -72,6 +73,7 @@ export function ShipOrderModal({ order, onClose, onShipped }: ShipOrderModalProp
   const [hoveredInfo, setHoveredInfo] = useState<string | null>(null);
   const [hoveredWeight, setHoveredWeight] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const [courierNetworkError, setCourierNetworkError] = useState(false);
   const [selectedCourier, setSelectedCourier] = useState<RateItem | null>(null);
   const [openPopup, setOpenPopup] = useState<string | null>(null);
 
@@ -105,7 +107,7 @@ export function ShipOrderModal({ order, onClose, onShipped }: ShipOrderModalProp
       setError('Missing or invalid fields: id, provider, courierServiceName, or charges must be > 0');
       return;
     }
-    setShippingId(item.courierServiceName); setError('');
+    setShippingId(item.courierServiceName); setError(''); setCourierNetworkError(false);
     try {
       await apiClient.post(`/${safeProvider}/createShipment`, {
         id: orderId,
@@ -119,13 +121,21 @@ export function ShipOrderModal({ order, onClose, onShipped }: ShipOrderModalProp
       onShipped?.();
       onClose();
     } catch (err: any) {
-      setError(
-        err?.response?.data?.error?.message ||
-        err?.response?.data?.error ||
-        err?.response?.data?.message ||
-        err?.message ||
-        'Something went wrong'
-      );
+      // No response (network drop) or a 5xx from the courier's own API — not a validation
+      // problem on our end, so show the friendly "courier network issue" panel instead of
+      // the raw error trace.
+      const status = err?.response?.status;
+      if (!err?.response || (status && status >= 500)) {
+        setCourierNetworkError(true);
+      } else {
+        setError(
+          err?.response?.data?.error?.message ||
+          err?.response?.data?.error ||
+          err?.response?.data?.message ||
+          err?.message ||
+          'Something went wrong'
+        );
+      }
     } finally {
       setShippingId(null);
     }
@@ -337,7 +347,10 @@ export function ShipOrderModal({ order, onClose, onShipped }: ShipOrderModalProp
           )}
 
           {/* ── Courier list (desktop table) ── */}
-          <div className="hidden md:flex flex-1 min-h-0 mx-5 my-4 bg-white border border-[#E2E8F0] rounded-[12px] overflow-hidden flex-col">
+          <div className="hidden md:flex relative flex-1 min-h-0 mx-5 my-4 bg-white border border-[#E2E8F0] rounded-[12px] overflow-hidden flex-col">
+            {courierNetworkError && (
+              <NetworkError onDone={() => setCourierNetworkError(false)} />
+            )}
             <div className="grid grid-cols-[1.6fr_0.8fr_1.1fr_1.1fr_1fr_1fr_0.9fr] gap-2 px-5 py-3 bg-[#00A86B] text-white shrink-0">
               <span className={TXT.label}>Courier Partner</span>
               <span className={`${TXT.label} text-center`}>Mode</span>
@@ -502,7 +515,10 @@ export function ShipOrderModal({ order, onClose, onShipped }: ShipOrderModalProp
           </div>
 
           {/* ── Courier list (mobile cards) ── */}
-          <div className="md:hidden flex-1 min-h-0 mx-3 mt-3 mb-0 overflow-y-auto space-y-2 pb-2" onClick={() => setOpenPopup(null)}>
+          <div className="md:hidden relative flex-1 min-h-0 mx-3 mt-3 mb-0 overflow-y-auto space-y-2 pb-2" onClick={() => setOpenPopup(null)}>
+            {courierNetworkError && (
+              <NetworkError onDone={() => setCourierNetworkError(false)} />
+            )}
             {loading ? (
               <div className="relative h-48 bg-white rounded-lg border border-[#E2E8F0]">
                 <TableLoader />
