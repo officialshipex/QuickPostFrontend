@@ -11,7 +11,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { apiClient } from '../../services/apiClient';
 import { getRoleFromToken } from '../../utils/session';
 
-const ALLOWED_EMAILS = ['bhanjabijayketan@gmail.com', 'vincesingal@gmail.com', 'test@gmail.com'];
+const ALLOWED_EMAILS = ['bhanjabijayketan@gmail.com', 'vincesingal@gmail.com', 'shubhamjha493@gmail.com'];
 
 const formSchema = z.object({
   email: z.string().min(1, 'Email is required').email('Invalid email address'),
