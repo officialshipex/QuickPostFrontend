@@ -540,7 +540,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                       </div>
                       {!isEmployee && (
                         <Link
-                          to={isAdmin ? '/admin/profile' : '/user/profile'}
+                          to={(isAdmin && adminTab) ? '/admin/profile' : '/user/profile'}
                           className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A]"
                           onClick={() => setTimeout(() => setShowProfileMenu(false), 0)}
                         >
@@ -1145,7 +1145,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                 
                 {!isEmployee && (
                   <Link
-                    to={isAdmin ? '/admin/profile' : '/user/profile'}
+                    to={(isAdmin && adminTab) ? '/admin/profile' : '/user/profile'}
                     className="flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors"
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => setShowProfileMenu(false)}

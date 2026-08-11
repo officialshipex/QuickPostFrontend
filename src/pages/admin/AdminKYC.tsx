@@ -380,11 +380,20 @@ export function AdminKYC() {
   }, []);
 
   useEffect(() => {
-    if (pincode.length === 6) {
-      if (pincode.startsWith('11')) { setCity('NEW DELHI'); setState('DELHI'); }
-      else if (pincode.startsWith('40')) { setCity('MUMBAI'); setState('MAHARASHTRA'); }
-    }
-  }, [pincode]);
+    if (pincode.length !== 6 || billingPreFilled) return;
+    setCity('');
+    setState('');
+    fetch(`https://api.postalpincode.in/pincode/${pincode}`)
+      .then(r => r.json())
+      .then(data => {
+        const po = data?.[0]?.PostOffice?.[0];
+        if (po) {
+          setCity((po.District || po.Name || '').toUpperCase());
+          setState((po.State || '').toUpperCase());
+        }
+      })
+      .catch(() => {});
+  }, [pincode, billingPreFilled]);
 
   useEffect(() => {
     if (phoneOtpTimer <= 0) return;
