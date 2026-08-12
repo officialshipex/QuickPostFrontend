@@ -137,12 +137,12 @@ export function Navbar() {
               Log In
             </a>
 
-            <a
-              href={appUrl('/login')}
+            <Link
+              to="/#signup"
               className="qp-cta-primary px-5 py-[9px] rounded-xl text-[13.5px] font-bold text-white tracking-[-0.01em]"
             >
-              Get Started Free&nbsp;→
-            </a>
+              Get Started&nbsp;→
+            </Link>
           </div>
 
           {/* ── Mobile Hamburger ── */}
@@ -208,8 +208,8 @@ export function Navbar() {
                 ))}
 
                 <div className={`flex flex-col gap-2.5 mt-3 pt-3 border-t ${isScrolled ? 'border-slate-100' : 'border-white/15'}`}>
-                  <a
-                    href={appUrl('/login')}
+                  <Link
+                    to={appUrl('/login')}
                     onClick={() => setMobileOpen(false)}
                     className={`w-full text-center px-5 py-3 rounded-xl text-[14px] font-semibold border transition-all ${
                       isScrolled
@@ -218,14 +218,14 @@ export function Navbar() {
                     }`}
                   >
                     Log In
-                  </a>
-                  <a
-                    href={appUrl('/login')}
+                  </Link>
+                  <Link
+                    to="/#signup"
                     onClick={() => setMobileOpen(false)}
                     className="qp-cta-primary w-full text-center px-5 py-3 rounded-xl text-[14px] font-bold text-white"
                   >
-                    Get Started Free →
-                  </a>
+                    Get Started →
+                  </Link>
                 </div>
               </div>
             </motion.div>

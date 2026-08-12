@@ -57,18 +57,21 @@ const TXT = {
   meta: 'text-[10px] font-semibold',
 };
 
-function Field({ label, value }: { label: string; value: React.ReactNode }) {
+function Field({ label, value, action }: { label: string; value: React.ReactNode; action?: React.ReactNode }) {
   return (
-    <div className="flex flex-col gap-1 md:gap-1 py-2.5 md:py-0 border-b border-[#F1F5F9] md:border-0 last:border-b-0">
-      <span className={`${TXT.label} text-[#94A3B8]`}>{label}</span>
-      <span className={`${TXT.value} text-[#1E293B] break-words`}>{value}</span>
+    <div className="flex items-center justify-between gap-3 md:flex-col md:items-start md:gap-1 py-2.5 md:py-0 border-b border-[#F1F5F9] md:border-0 last:border-b-0">
+      <span className={`${TXT.label} text-[#94A3B8] shrink-0`}>{label}</span>
+      <div className="flex items-center gap-1.5 min-w-0">
+        <span className={`${TXT.value} text-[#1E293B] text-right md:text-left break-words truncate md:whitespace-normal md:overflow-visible`}>{value}</span>
+        {action}
+      </div>
     </div>
   );
 }
 
 function SectionCard({ icon: Icon, title, children, action }: { icon: any; title: string; children: React.ReactNode; action?: React.ReactNode }) {
   return (
-    <div className="bg-white border border-[#E2E8F0] rounded-2xl md:rounded-[12px] px-2 py-3.5 md:p-5 shadow-sm md:shadow-none">
+    <div className="w-full bg-white border border-[#E2E8F0] rounded-2xl md:rounded-[12px] px-4 py-[18px] md:p-5 shadow-sm md:shadow-none">
       <div className="flex items-center justify-between mb-3 md:mb-4 gap-2">
         <h3 className="text-[13px] md:text-[14px] font-semibold text-[#0F172A] flex items-center gap-2">
           <span className="w-7 h-7 rounded-lg bg-[#F0FDF4] md:bg-transparent flex items-center justify-center shrink-0">
@@ -1113,8 +1116,25 @@ export function AdminProfile() {
         </div>
 
         <div className="pt-9 pb-3 px-2">
-          <h1 className="text-[15px] font-bold text-[#0F172A] truncate">{userData.name}</h1>
-          <p className="text-[12px] text-[#64748B] truncate">{userData.email}</p>
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h1 className="text-[15px] font-bold text-[#0F172A] truncate">{userData.name}</h1>
+              <p className="text-[12px] text-[#64748B] truncate">{userData.email}</p>
+            </div>
+
+            {isAdminView && (
+              <div className="flex items-center gap-3 shrink-0 pt-0.5">
+                <div className="flex flex-col items-center gap-1">
+                  <span className="text-[9px] font-semibold text-[#94A3B8] uppercase tracking-wide">Active</span>
+                  <Toggle on={isActive} onClick={handleToggle} />
+                </div>
+                <div className="flex flex-col items-center gap-1">
+                  <span className="text-[9px] font-semibold text-[#94A3B8] uppercase tracking-wide">KYC</span>
+                  <Toggle on={isKycVerified} onClick={handleKycToggle} />
+                </div>
+              </div>
+            )}
+          </div>
 
           <div className="flex items-center gap-1.5 flex-wrap mt-2">
             <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${isActive ? 'text-[#00A86B] border-[#A7F3D0] bg-[#ECFDF5]' : 'text-[#EF4444] border-[#FECACA] bg-[#FEF2F2]'}`}>
@@ -1128,7 +1148,7 @@ export function AdminProfile() {
             </span>
           </div>
 
-          {/* Wallet + quick toggles row */}
+          {/* Wallet row */}
           <div className="grid grid-cols-2 gap-2 mt-3">
             <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl p-2.5">
               <p className="text-[10px] font-semibold text-[#94A3B8]">Balance</p>
@@ -1139,19 +1159,6 @@ export function AdminProfile() {
               <p className="text-[13px] font-bold text-[#0F172A] mt-0.5 truncate">{fmtProfileCurrency(holdAmount)}</p>
             </div>
           </div>
-
-          {isAdminView && (
-            <div className="flex items-center gap-4 mt-3 px-0.5">
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] font-semibold text-[#475569]">Active</span>
-                <Toggle on={isActive} onClick={handleToggle} />
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] font-semibold text-[#475569]">KYC</span>
-                <Toggle on={isKycVerified} onClick={handleKycToggle} />
-              </div>
-            </div>
-          )}
         </div>
 
         <input
@@ -1166,7 +1173,7 @@ export function AdminProfile() {
         />
       </div>
 
-      <div className={`w-full -mx-4 px-2 md:-m-6 md:px-2 md:py-2 pt-4 pb-4 ${isImpersonating ? 'md:h-[calc(100vh-120px)]' : 'md:h-[calc(100vh-88px)]'} flex flex-col min-h-0 md:overflow-hidden`}>
+      <div className={`w-full -mx-4 px-2 md:mx-0 md:-m-6 md:px-2 md:py-2 pt-4 pb-4 ${isImpersonating ? 'md:h-[calc(100vh-120px)]' : 'md:h-[calc(100vh-88px)]'} flex flex-col min-h-0 md:overflow-hidden`}>
 
         <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-4 items-start flex-1 min-h-0">
 
@@ -1270,7 +1277,7 @@ export function AdminProfile() {
           {/* ── Right Content — tabs ── */}
           <div className="flex flex-col gap-3 md:gap-4 min-w-0 h-full min-h-0">
             {/* Tab bar — sticky segmented pills on mobile, inline row on desktop */}
-            <div className="sticky top-0 z-10 md:static bg-[#F8FAFC] md:bg-white -mx-2 px-2 pt-2 pb-1 md:mx-0 md:px-1.5 md:py-1.5 md:border md:border-[#E2E8F0] md:rounded-[12px] shrink-0">
+            <div className="sticky top-0 z-10 md:static bg-[#F8FAFC] md:bg-white -mx-4 px-2 pt-2 pb-1 md:mx-0 md:px-1.5 md:py-1.5 md:border md:border-[#E2E8F0] md:rounded-[12px] shrink-0">
               <div className="flex items-center gap-1.5 md:gap-1 overflow-x-auto no-scrollbar bg-white md:bg-transparent border border-[#E2E8F0] md:border-0 rounded-full md:rounded-none p-1 md:p-0 shadow-sm md:shadow-none">
                 {TABS.map(tab => {
                   const Icon = tab.icon;
@@ -1279,7 +1286,7 @@ export function AdminProfile() {
                     <button
                       key={tab.id}
                       onClick={() => setActiveTab(tab.id)}
-                      className={`flex items-center gap-1.5 px-3.5 py-2 rounded-full md:rounded-[8px] text-[12px] font-semibold whitespace-nowrap transition-colors shrink-0 ${
+                      className={`flex items-center gap-1.5 px-4 py-2.5 md:px-3.5 md:py-2 rounded-full md:rounded-[8px] text-[13px] md:text-[12px] font-semibold whitespace-nowrap transition-colors shrink-0 ${
                         active ? 'bg-[#00A86B] md:bg-[#ECFDF5] text-white md:text-[#00A86B]' : 'text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A]'
                       }`}
                     >
@@ -1291,7 +1298,7 @@ export function AdminProfile() {
             </div>
 
             {/* Tab content */}
-            <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar pr-0.5">
+            <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar">
 
             {/* ── Overview ── */}
             {activeTab === 'overview' && (
@@ -1310,62 +1317,46 @@ export function AdminProfile() {
                       }
                     />
 
-                    {/* COD Cycle */}
-                    <div className="flex flex-col gap-1">
-                      <span className={`${TXT.label} text-[#94A3B8]`}>COD Cycle</span>
-                      <div className="flex items-center gap-1.5">
-                        <span className={`${TXT.value} text-[#1E293B]`}>{userData.codPlan}</span>
-                        {isAdminView && <EditBtn onClick={() => setShowCODModal(true)} />}
-                      </div>
-                    </div>
+                    <Field
+                      label="COD Cycle"
+                      value={userData.codPlan}
+                      action={isAdminView ? <EditBtn onClick={() => setShowCODModal(true)} /> : undefined}
+                    />
 
-                    {/* B2C Rate Card */}
-                    <div className="flex flex-col gap-1">
-                      <span className={`${TXT.label} text-[#94A3B8]`}>B2C Rate Card Plan</span>
-                      <div className="flex items-center gap-1.5">
-                        <span className={`${TXT.value} text-[#1E293B]`}>{userData.rateCard}</span>
-                        {isAdminView && <EditBtn onClick={() => { setAssignRateCardType('B2C'); setShowAssignModal(true); }} />}
-                      </div>
-                    </div>
+                    <Field
+                      label="B2C Rate Card Plan"
+                      value={userData.rateCard}
+                      action={isAdminView ? <EditBtn onClick={() => { setAssignRateCardType('B2C'); setShowAssignModal(true); }} /> : undefined}
+                    />
 
-                    {/* B2B Rate Card */}
-                    <div className="flex flex-col gap-1">
-                      <span className={`${TXT.label} text-[#94A3B8]`}>B2B Rate Card Plan</span>
-                      <div className="flex items-center gap-1.5">
-                        <span className={`${TXT.value} text-[#1E293B]`}>{userData.b2bRateCard}</span>
-                        {isAdminView && <EditBtn onClick={() => { setAssignRateCardType('B2B'); setShowAssignModal(true); }} />}
-                      </div>
-                    </div>
+                    <Field
+                      label="B2B Rate Card Plan"
+                      value={userData.b2bRateCard}
+                      action={isAdminView ? <EditBtn onClick={() => { setAssignRateCardType('B2B'); setShowAssignModal(true); }} /> : undefined}
+                    />
 
-                    {/* Credit Limit */}
-                    <div className="flex flex-col gap-1">
-                      <span className={`${TXT.label} text-[#94A3B8]`}>Credit Limit</span>
-                      <div className="flex items-center gap-1.5">
-                        <span className={`${TXT.value} text-[#1E293B]`}>₹{userData.creditLimit}</span>
-                        {isAdminView && <EditBtn onClick={() => setShowCreditModal(true)} />}
-                      </div>
-                    </div>
+                    <Field
+                      label="Credit Limit"
+                      value={`₹${userData.creditLimit}`}
+                      action={isAdminView ? <EditBtn onClick={() => setShowCreditModal(true)} /> : undefined}
+                    />
 
                     <Field label="Referral Code" value={userData.referralCode} />
 
-                    {/* Referral Commission */}
-                    <div className="flex flex-col gap-1">
-                      <span className={`${TXT.label} text-[#94A3B8]`}>Referral Commission</span>
-                      <div className="flex items-center gap-1.5">
-                        <span className={`${TXT.value} text-[#1E293B]`}>{userData.referralCommission}</span>
-                        {isAdminView && <EditBtn onClick={() => setShowReferralModal(true)} />}
-                      </div>
-                    </div>
+                    <Field
+                      label="Referral Commission"
+                      value={userData.referralCommission}
+                      action={isAdminView ? <EditBtn onClick={() => setShowReferralModal(true)} /> : undefined}
+                    />
 
                     <Field label="Total Orders" value={String(userData.orderCount)} />
 
-                    {/* Change Password */}
                     {isAdminView && (
-                      <div className="flex flex-col gap-1">
+                      <div className="flex items-center justify-between gap-3 py-2.5 md:py-0 border-b border-[#F1F5F9] md:border-0 last:border-b-0">
                         <span className={`${TXT.label} text-[#94A3B8]`}>Password</span>
                         <button
                           onClick={() => setShowPasswordModal(true)}
-                          className={`${TXT.value} text-[#00A86B] hover:underline flex items-center gap-1 w-fit`}
+                          className={`${TXT.value} text-[#00A86B] flex items-center gap-1 w-fit shrink-0`}
                         >
                           <Settings className="w-3.5 h-3.5" /> Change Password
                         </button>
@@ -1631,25 +1622,25 @@ export function AdminProfile() {
             {activeTab === 'api' && (
               <div className="flex flex-col gap-4">
                 <SectionCard icon={Code2} title="API Access">
-                  <div className="flex flex-col gap-3.5">
-                    <div className="flex justify-between items-center">
+                  <div className="flex flex-col md:gap-3.5">
+                    <div className="flex justify-between items-center gap-3 py-2.5 md:py-0 border-b border-[#F1F5F9] md:border-0">
                       <span className={`${TXT.value} text-[#1E293B]`}>Check latest API documentation</span>
-                      <button onClick={() => window.open('https://api-docs.shipexindia.com/', '_blank')} className="text-[#00A86B] hover:opacity-80 transition-opacity">
+                      <button onClick={() => window.open('https://api-docs.shipexindia.com/', '_blank')} className="text-[#00A86B] hover:opacity-80 transition-opacity shrink-0">
                         <ExternalLink className="w-4 h-4" />
                       </button>
                     </div>
-                    <div className="flex justify-between items-center">
+                    <div className="flex justify-between items-center gap-3 py-2.5 md:py-0 border-b border-[#F1F5F9] md:border-0">
                       <span className={`${TXT.value} text-[#1E293B]`}>Download Postman Collection <span className={`${TXT.meta} text-[#10B981]`}>(Recommended)</span></span>
-                      <button onClick={() => window.open('https://documenter.getpostman.com/view/32361120/2sB3HetiH6', '_blank')} className="text-[#00A86B] hover:opacity-80 transition-opacity">
+                      <button onClick={() => window.open('https://documenter.getpostman.com/view/32361120/2sB3HetiH6', '_blank')} className="text-[#00A86B] hover:opacity-80 transition-opacity shrink-0">
                         <Download className="w-4 h-4" />
                       </button>
                     </div>
-                    <div className="flex justify-between items-center">
+                    <div className="flex justify-between items-center gap-3 py-2.5 md:py-0 border-b border-[#F1F5F9] md:border-0">
                       <span className={`${TXT.value} text-[#1E293B]`}>API Access</span>
                       <Toggle on={apiAccess} onClick={handleApiToggle} />
                     </div>
                     {userData.publicKey && userData.publicKey !== '—' && (
-                      <div className="flex justify-between items-center">
+                      <div className="flex justify-between items-center gap-3 py-2.5 md:py-0 border-b border-[#F1F5F9] md:border-0 last:border-b-0">
                         <span className={`${TXT.value} text-[#1E293B]`}>Public Key</span>
                         <span className={`${TXT.value} text-[#64748B] font-mono max-w-[180px] truncate`} title={userData.publicKey}>{userData.publicKey}</span>
                       </div>
@@ -1658,13 +1649,13 @@ export function AdminProfile() {
                 </SectionCard>
 
                 <SectionCard icon={Bell} title="Notification Preferences">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="flex flex-col md:grid md:grid-cols-3 md:gap-4">
                     {[
                       { label: 'WhatsApp Notification', field: 'isAdminWhatsAppEnable' },
                       { label: 'Email Notification', field: 'isAdminEmailEnable' },
                       { label: 'SMS Notification', field: 'isAdminSMSEnable' },
                     ].map(({ label, field }) => (
-                      <div key={field} className="flex justify-between items-center">
+                      <div key={field} className="flex justify-between items-center gap-3 py-2.5 md:py-0 border-b border-[#F1F5F9] md:border-0 last:border-b-0">
                         <span className={`${TXT.value} text-[#475569]`}>{label}</span>
                         <Toggle
                           on={!!(notificationSettings as any)[field]}

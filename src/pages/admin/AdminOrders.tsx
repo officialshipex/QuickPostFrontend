@@ -467,6 +467,7 @@ export function AdminOrders() {
   // ── Mobile view state ──
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
   const [mobileSearchQuery,   setMobileSearchQuery]   = useState('');
+  const [pmMobileSearch,      setPmMobileSearch]      = useState('');
   const [mobileToast, setMobileToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const showMobileToast = (type: 'success' | 'error', text: string) => {
     setMobileToast({ type, text });
@@ -864,6 +865,22 @@ export function AdminOrders() {
     <AdminLayout>
       <div className={`flex flex-col ${isImpersonating ? 'h-[calc(100vh-104px)]' : 'h-[calc(100vh-72px)]'} -m-4 md:-m-6 bg-white ${!isAdminView ? 'overflow-hidden' : ''}`}>
 
+        {/* ── Pickup & Manifest — mobile search row, hoisted above the tab bar like every other tab ── */}
+        {isPMTab && (
+          <div className="md:hidden relative z-[60] px-3 py-2.5 border-b border-[#E2E8F0] flex items-center gap-2 bg-white shrink-0">
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
+              <input
+                type="text"
+                placeholder="Pickup ID tracking"
+                value={pmMobileSearch}
+                onChange={(e) => setPmMobileSearch(e.target.value)}
+                className="w-full h-9 pl-9 pr-3 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] text-sm text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all"
+              />
+            </div>
+          </div>
+        )}
+
         {/* ── Mobile Search + Filter + Action + Add Order Row (matches Wallet page) ── */}
         {!isPMTab && (
           <div className="md:hidden relative z-[60] px-3 py-2.5 border-b border-[#E2E8F0] flex items-center gap-2 bg-white shrink-0">
@@ -1146,7 +1163,12 @@ export function AdminOrders() {
         {/* ── Pickup & Manifest tab — separate component with its own API + UI ── */}
         {isPMTab && (
           <div className="flex-1 min-h-0 overflow-hidden border-t border-[#E2E8F0]">
-            <AdminPickupManifest isAdminView={isAdminView} />
+            <AdminPickupManifest
+              isAdminView={isAdminView}
+              hideMobileSearchBar
+              mobileSearchOverride={pmMobileSearch}
+              onMobileSearchOverrideChange={setPmMobileSearch}
+            />
           </div>
         )}
 

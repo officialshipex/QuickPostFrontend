@@ -6,8 +6,13 @@ import { SignupCard } from '../forms/SignupCard';
 import { SignupCardMobile } from '../forms/SignupCardMobile';
 import { LiveLogisticsConsole } from './LiveLogisticsConsole';
 
-export function HeroSection() {
-  const [showSignup, setShowSignup] = useState(false);
+interface HeroSectionProps {
+  /** Skip straight to the signup form (e.g. deep-linked from a "Get Started" CTA elsewhere on the page). */
+  openSignupOnMount?: boolean;
+}
+
+export function HeroSection({ openSignupOnMount = false }: HeroSectionProps) {
+  const [showSignup, setShowSignup] = useState(openSignupOnMount);
 
   return (
     <>
@@ -15,6 +20,7 @@ export function HeroSection() {
       <MobileAuthHero
         ctaLabel="Get Started"
         renderForm={(onBack) => <SignupCardMobile onBack={onBack} />}
+        initialShowForm={openSignupOnMount}
       />
 
       {/* Desktop: 3D flip card (Live Logistics Console <-> Signup) inside AuthHeroLayout */}

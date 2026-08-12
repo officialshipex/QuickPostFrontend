@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Navbar } from '../components/layout/Navbar';
 import { Footer } from '../components/layout/Footer';
 import { HeroSection } from '../components/sections/HeroSection';
@@ -10,11 +11,21 @@ import { ServicesPortfolioSection } from '../components/sections/ServicesPortfol
 import { StatsSection } from '../components/sections/StatsSection';
 
 export function Home() {
+  const location = useLocation();
+  const heroRef = useRef<HTMLDivElement>(null);
+  const openSignup = location.hash === '#signup';
+
+  useEffect(() => {
+    if (openSignup) heroRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [openSignup]);
+
   return (
     <div className="min-h-screen flex flex-col bg-background font-sans text-secondary selection:bg-[#00A86B]/20 selection:text-[#00A86B]">
       <Navbar />
       <main className="flex-1">
-        <HeroSection />
+        <div ref={heroRef}>
+          <HeroSection openSignupOnMount={openSignup} />
+        </div>
         <TrustedBrands />
         <Features />
         <ProfitsSection />
