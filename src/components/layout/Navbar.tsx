@@ -6,7 +6,7 @@ import { appUrl } from '../../utils/domainUrl';
 
 const navLinks = [
   { label: 'Platform', href: '#features', badge: null },
-  { label: 'Solutions', href: '#services-portfolio', badge: null },
+  { label: 'Rate Calculator', href: '/rate-calculator', badge: null },
   { label: 'Pricing', href: '#pricing', badge: null },
   { label: 'Track Order', href: '/track', badge: 'Live' },
 ];
@@ -137,12 +137,12 @@ export function Navbar() {
               Log In
             </a>
 
-            <a
-              href={appUrl('/login')}
+            <Link
+              to="/#signup"
               className="qp-cta-primary px-5 py-[9px] rounded-xl text-[13.5px] font-bold text-white tracking-[-0.01em]"
             >
-              Get Started Free&nbsp;→
-            </a>
+              Get Started&nbsp;→
+            </Link>
           </div>
 
           {/* ── Mobile Hamburger ── */}
@@ -219,13 +219,13 @@ export function Navbar() {
                   >
                     Log In
                   </a>
-                  <a
-                    href={appUrl('/login')}
+                  <Link
+                    to="/#signup"
                     onClick={() => setMobileOpen(false)}
                     className="qp-cta-primary w-full text-center px-5 py-3 rounded-xl text-[14px] font-bold text-white"
                   >
-                    Get Started Free →
-                  </a>
+                    Get Started →
+                  </Link>
                 </div>
               </div>
             </motion.div>

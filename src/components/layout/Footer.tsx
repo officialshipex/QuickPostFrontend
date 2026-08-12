@@ -97,9 +97,9 @@ export function Footer() {
 
               <div className="flex flex-row gap-[10px]">
                 {[IconLinkedIn, IconInstagram, IconX, IconYouTube].map((Icon, idx) => (
-                  <a key={idx} href="#" className="w-[36px] h-[36px] rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white/60 hover:bg-[#1D9E75] hover:text-white hover:border-[#1D9E75] transition-all duration-200 ease-in-out">
+                  <span key={idx} className="w-[36px] h-[36px] rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white/60 cursor-default">
                     <Icon />
-                  </a>
+                  </span>
                 ))}
               </div>
 
@@ -121,9 +121,9 @@ export function Footer() {
               <h4 className="text-[12px] font-medium uppercase tracking-[0.1em] text-white/35 mb-[20px] m-0">Product</h4>
               <div className="flex flex-col gap-[12px]">
                 {['Order Management', 'Rate Calculator', 'Courier Comparison', 'NDR Management', 'COD Remittance', 'Tracking Page'].map((link) => (
-                  <a key={link} href="#" className="text-[14px] font-normal text-white/65 hover:text-[#1D9E75] hover:pl-[4px] transition-all duration-200 ease-in-out no-underline">
+                  <span key={link} className="text-[14px] font-normal text-white/65 cursor-default">
                     {link}
-                  </a>
+                  </span>
                 ))}
               </div>
             </div>
@@ -133,9 +133,9 @@ export function Footer() {
               <h4 className="text-[12px] font-medium uppercase tracking-[0.1em] text-white/35 mb-[20px] m-0">Company</h4>
               <div className="flex flex-col gap-[12px]">
                 {['About Us', 'Careers', 'Partner Program', 'Contact Us'].map((link) => (
-                  <a key={link} href="#" className="text-[14px] font-normal text-white/65 hover:text-[#1D9E75] hover:pl-[4px] transition-all duration-200 ease-in-out no-underline">
+                  <span key={link} className="text-[14px] font-normal text-white/65 cursor-default">
                     {link}
-                  </a>
+                  </span>
                 ))}
               </div>
             </div>
@@ -145,9 +145,9 @@ export function Footer() {
               <h4 className="text-[12px] font-medium uppercase tracking-[0.1em] text-white/35 mb-[20px] m-0">Integrations</h4>
               <div className="flex flex-col gap-[12px]">
                 {['Shopify', 'WooCommerce', 'API Documentation'].map((link) => (
-                  <a key={link} href="#" className="text-[14px] font-normal text-white/65 hover:text-[#1D9E75] hover:pl-[4px] transition-all duration-200 ease-in-out no-underline">
+                  <span key={link} className="text-[14px] font-normal text-white/65 cursor-default">
                     {link}
-                  </a>
+                  </span>
                 ))}
               </div>
             </div>
@@ -168,9 +168,9 @@ export function Footer() {
           <div className="flex flex-wrap items-center justify-center gap-x-[10px] gap-y-2">
             {['Terms & Conditions', 'Privacy Policy', 'Compliance', 'Refund & Cancellation Policy'].map((link, idx, arr) => (
               <React.Fragment key={link}>
-                <a href="#" className="text-[13px] font-normal text-white/35 hover:text-white/70 transition-colors duration-150 ease-in-out no-underline">
+                <span className="text-[13px] font-normal text-white/35 cursor-default">
                   {link}
-                </a>
+                </span>
                 {idx < arr.length - 1 && (
                   <span className="text-white/20">·</span>
                 )}

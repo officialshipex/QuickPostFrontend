@@ -177,9 +177,9 @@ export function HowItWorks() {
                     </div>
                   </div>
 
-                  <button className="rounded-full border-2 border-[#D7E2EA] text-[#D7E2EA] font-medium uppercase tracking-widest text-xs sm:text-sm px-6 py-2.5 hover:bg-[#D7E2EA]/10 transition-colors">
+                  <span className="cursor-default rounded-full border-2 border-[#D7E2EA] text-[#D7E2EA] font-medium uppercase tracking-widest text-xs sm:text-sm px-6 py-2.5 transition-colors">
                     {card.btnLabel}
-                  </button>
+                  </span>
                 </div>
 
                 {/* Card Body: Text Left + Image Right */}
