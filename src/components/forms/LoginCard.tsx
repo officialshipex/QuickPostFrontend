@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { landingUrl } from '../../utils/domainUrl';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -10,7 +11,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { apiClient } from '../../services/apiClient';
 import { getRoleFromToken } from '../../utils/session';
 
-const ALLOWED_EMAILS = ['bhanjabijayketan@gmail.com', 'vincesingal@gmail.com', 'test@gmail.com'];
+const ALLOWED_EMAILS = ['bhanjabijayketan@gmail.com', 'vincesingal@gmail.com', 'shubhamjha493@gmail.com'];
 
 const formSchema = z.object({
   email: z.string().min(1, 'Email is required').email('Invalid email address'),
@@ -153,7 +154,7 @@ export function LoginCard() {
 
       <div className="text-center mt-6 space-y-2">
         <p className="text-xs text-[#64748B]">
-          Don't have an account? <Link to="/" className="text-[#00A86B] font-semibold hover:underline">Sign up</Link>
+          Don't have an account? <a href={landingUrl()} className="text-[#00A86B] font-semibold hover:underline">Sign up</a>
         </p>
         <p className="text-xs text-[#64748B]">
           Employee?{' '}

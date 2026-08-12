@@ -1,0 +1,19 @@
+{
+  "redirects": [
+    {
+      "source": "/:path+",
+      "has": [{ "type": "host", "value": "quickpost.in" }],
+      "destination": "https://app.quickpost.in/:path*",
+      "permanent": false
+    },
+    {
+      "source": "/:path+",
+      "has": [{ "type": "host", "value": "www.quickpost.in" }],
+      "destination": "https://app.quickpost.in/:path*",
+      "permanent": false
+    }
+  ],
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}

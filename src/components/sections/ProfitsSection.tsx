@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import { appUrl } from '../../utils/domainUrl';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export function ProfitsSection() {
@@ -350,7 +351,7 @@ export function ProfitsSection() {
 
         {/* CTA BUTTON */}
         <div style={{ textAlign: 'center', marginTop: '56px' }}>
-          <a href="/signup" className="qp-profits-cta">
+          <a href={appUrl('/signup')} className="qp-profits-cta">
             Get Started
           </a>
         </div>

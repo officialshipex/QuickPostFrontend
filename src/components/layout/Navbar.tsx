@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence, useScroll, useMotionValueEvent } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
+import { appUrl } from '../../utils/domainUrl';
 
 const navLinks = [
   { label: 'Platform', href: '#features', badge: null },
@@ -125,8 +126,8 @@ export function Navbar() {
             {/* Vertical separator */}
             <div className={`w-px h-5 ${isScrolled ? 'bg-slate-200' : 'bg-white/20'}`} />
 
-            <Link
-              to="/login"
+            <a
+              href={appUrl('/login')}
               className={`px-5 py-[9px] rounded-xl text-[13.5px] font-semibold border transition-all duration-200 ${
                 isScrolled
                   ? 'border-[#D1D5DB] text-[#374151] hover:border-slate-400 hover:bg-slate-50'
@@ -134,14 +135,14 @@ export function Navbar() {
               }`}
             >
               Log In
-            </Link>
+            </a>
 
-            <Link
-              to="/#signup"
+            <a
+              href={appUrl('/login')}
               className="qp-cta-primary px-5 py-[9px] rounded-xl text-[13.5px] font-bold text-white tracking-[-0.01em]"
             >
-              Get Started&nbsp;→
-            </Link>
+              Get Started Free&nbsp;→
+            </a>
           </div>
 
           {/* ── Mobile Hamburger ── */}
@@ -207,8 +208,8 @@ export function Navbar() {
                 ))}
 
                 <div className={`flex flex-col gap-2.5 mt-3 pt-3 border-t ${isScrolled ? 'border-slate-100' : 'border-white/15'}`}>
-                  <Link
-                    to="/login"
+                  <a
+                    href={appUrl('/login')}
                     onClick={() => setMobileOpen(false)}
                     className={`w-full text-center px-5 py-3 rounded-xl text-[14px] font-semibold border transition-all ${
                       isScrolled
@@ -217,14 +218,14 @@ export function Navbar() {
                     }`}
                   >
                     Log In
-                  </Link>
-                  <Link
-                    to="/#signup"
+                  </a>
+                  <a
+                    href={appUrl('/login')}
                     onClick={() => setMobileOpen(false)}
                     className="qp-cta-primary w-full text-center px-5 py-3 rounded-xl text-[14px] font-bold text-white"
                   >
-                    Get Started →
-                  </Link>
+                    Get Started Free →
+                  </a>
                 </div>
               </div>
             </motion.div>
