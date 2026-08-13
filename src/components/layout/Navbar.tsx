@@ -208,8 +208,8 @@ export function Navbar() {
                 ))}
 
                 <div className={`flex flex-col gap-2.5 mt-3 pt-3 border-t ${isScrolled ? 'border-slate-100' : 'border-white/15'}`}>
-                  <Link
-                    to={appUrl('/login')}
+                  <a
+                    href={appUrl('/login')}
                     onClick={() => setMobileOpen(false)}
                     className={`w-full text-center px-5 py-3 rounded-xl text-[14px] font-semibold border transition-all ${
                       isScrolled
@@ -218,7 +218,7 @@ export function Navbar() {
                     }`}
                   >
                     Log In
-                  </Link>
+                  </a>
                   <Link
                     to="/#signup"
                     onClick={() => setMobileOpen(false)}
