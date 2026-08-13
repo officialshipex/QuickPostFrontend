@@ -262,9 +262,11 @@ export function AdminReferral() {
   // Details modal
   const [detailsRow, setDetailsRow] = useState<ReferralRow | null>(null);
 
-  // Bulk actions dropdown
+  // Bulk actions dropdown — rendered twice (mobile row + desktop filter bar), each needs
+  // its own ref since both are simultaneously present in the DOM (one hidden via CSS).
   const [actionOpen, setActionOpen] = useState(false);
   const actionRef = useRef<HTMLDivElement>(null);
+  const desktopActionRef = useRef<HTMLDivElement>(null);
 
   // Per-row actions dropdown ("..." menu)
   const [rowActionOpenId, setRowActionOpenId] = useState<string | null>(null);
@@ -272,7 +274,6 @@ export function AdminReferral() {
   // Mobile-only UI state
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
   const [showMobileSummary, setShowMobileSummary] = useState(false);
-  const [mobileActionOpenId, setMobileActionOpenId] = useState<string | null>(null);
 
   // Transfer modal
   const [transferOpen, setTransferOpen] = useState(false);
@@ -333,7 +334,10 @@ export function AdminReferral() {
   // Close bulk actions dropdown on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (actionRef.current && !actionRef.current.contains(e.target as Node)) setActionOpen(false);
+      const target = e.target as Node;
+      const insideMobile = actionRef.current?.contains(target);
+      const insideDesktop = desktopActionRef.current?.contains(target);
+      if (!insideMobile && !insideDesktop) setActionOpen(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
@@ -554,6 +558,12 @@ export function AdminReferral() {
               {actionOpen && (
                 <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-gray-100 rounded-lg shadow-xl z-50 py-1">
                   <button
+                    onClick={() => { setSelectedRows(selectedRows.length === filteredReferrals.length && filteredReferrals.length > 0 ? [] : [...filteredReferrals]); setActionOpen(false); }}
+                    className="w-full text-left px-4 py-2.5 text-[12px] font-semibold text-[#00A86B] hover:bg-[#F0FDF4] flex items-center gap-2 border-b"
+                  >
+                    {selectedRows.length === filteredReferrals.length && filteredReferrals.length > 0 ? 'Deselect All' : 'Select All'}
+                  </button>
+                  <button
                     onClick={() => { setTransferOpen(true); setActionOpen(false); }}
                     className="w-full text-left px-4 py-2.5 text-[12px] text-gray-700 hover:bg-gray-50 flex items-center gap-2"
                   >
@@ -685,7 +695,7 @@ export function AdminReferral() {
             )}
 
             {/* Bulk Actions Dropdown */}
-            <div className="relative shrink-0 ml-auto" ref={actionRef}>
+            <div className="relative shrink-0 ml-auto" ref={desktopActionRef}>
               <button
                 onClick={() => setActionOpen(v => !v)}
                 className={`py-2 px-4 rounded-[32px] border text-xs leading-[18px] flex items-center gap-1.5 font-medium transition-colors ${
@@ -859,24 +869,21 @@ export function AdminReferral() {
                   const isSelected = !!selectedRows.find(r => r._id === row._id);
                   return (
                     <div key={row._id} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
-                      {/* Ribbon Tag */}
-                      <div
-                        className="absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide"
-                        style={{ background: '#00A86B', clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}
-                      >
-                        {getMonthFull(row.month)} {row.year}
-                      </div>
+                      <div className="px-2.5 pt-2.5 pb-2.5">
+                        {/* Header Row — period badge on the left, checkbox on the right (no more corner ribbon) */}
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <span className="px-2.5 py-0.5 rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700 text-[10px] font-semibold uppercase tracking-wider">
+                            {getMonthFull(row.month)} {row.year}
+                          </span>
+                          <input type="checkbox" checked={isSelected} onChange={() => toggleSelect(row)}
+                            className="rounded border-gray-300 accent-[#00A86B] w-4 h-4 shrink-0" />
+                        </div>
 
-                      {/* Checkbox — top-right, parallel to the status ribbon */}
-                      <input type="checkbox" checked={isSelected} onChange={() => toggleSelect(row)}
-                        className="absolute top-2 right-2.5 rounded border-gray-300 accent-[#00A86B] w-4 h-4 shrink-0 z-10" />
-
-                      <div className="pt-6 px-2.5 pb-2.5">
-                        {/* User Details Row */}
-                        <div className="flex items-center justify-between mb-1.5 gap-2 pr-6">
+                        {/* Refer By Row */}
+                        <div className="flex items-center justify-between mb-1.5 gap-2">
                           <span className="text-[#64748B] font-medium text-[12px] shrink-0">Refer By</span>
                           <span className="text-[12px] inline-flex items-baseline gap-1 max-w-[190px] justify-end text-right">
-                            <TruncatedText text={row.userName || '—'} maxLength={16} className="font-semibold text-[#0F172A] text-[12px]" />
+                            <TruncatedText text={row.userName || '—'} maxLength={16} className="font-semibold text-[#1E293B] text-[12px] leading-[18px]" />
                             <span className="text-[#00A86B] font-semibold shrink-0">({row.userId || '—'})</span>
                           </span>
                         </div>
@@ -910,32 +917,12 @@ export function AdminReferral() {
                         </div>
 
                         {/* Actions Row */}
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => setDetailsRow(row)}
-                            className="flex-1 py-2 rounded-xl bg-[#1e40af] text-white text-[12px] font-bold flex items-center justify-center gap-1.5 hover:bg-[#1e3a8a] transition-colors"
-                          >
-                            View Details
-                          </button>
-                          <div className="relative shrink-0 row-action-dropdown-container">
-                            <button
-                              onClick={() => setMobileActionOpenId(prev => prev === row._id ? null : row._id)}
-                              className={`w-9 h-9 rounded-full border flex items-center justify-center transition-colors ${mobileActionOpenId === row._id ? 'bg-green-100 border-[#00A86B] text-[#00A86B]' : 'border-[#E2E8F0] text-[#64748B] bg-white'}`}
-                            >
-                              <MoreHorizontal className="w-3.5 h-3.5" />
-                            </button>
-                            {mobileActionOpenId === row._id && (
-                              <div className="absolute right-0 bottom-full mb-1 w-40 bg-white rounded-xl shadow-[0_4px_24px_-4px_rgba(0,0,0,0.15)] border border-[#E2E8F0] py-1.5 z-50">
-                                <button
-                                  onClick={() => { setDetailsRow(row); setMobileActionOpenId(null); }}
-                                  className="w-full text-left px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#00A86B] transition-colors"
-                                >
-                                  Details
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        </div>
+                        <button
+                          onClick={() => setDetailsRow(row)}
+                          className="w-full h-9 rounded-full border-2 border-[#2563EB] text-[#2563EB] bg-white text-[12.5px] font-bold hover:bg-blue-50 transition-colors"
+                        >
+                          View Details
+                        </button>
                       </div>
                     </div>
                   );

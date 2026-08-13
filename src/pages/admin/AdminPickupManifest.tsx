@@ -56,9 +56,15 @@ interface Props {
   /** Reports current bulk-selection count to the caller, so an Action button rendered
    *  outside this component can show the same badge/disabled state. */
   onSelectedCountChange?: (count: number) => void;
+  /** Reports whether every currently-filtered manifest is selected, so a "Select All" /
+   *  "Deselect All" menu item rendered outside this component can label itself correctly. */
+  onAllSelectedChange?: (allSelected: boolean) => void;
   /** Lets the caller trigger the bulk "Download Manifests" action from an Action button
    *  rendered outside this component. */
   onBulkActionRequest?: (trigger: (() => void)) => void;
+  /** Lets the caller trigger the "Select All" / "Deselect All" toggle from an Action
+   *  menu rendered outside this component. */
+  onSelectAllRequest?: (trigger: (() => void)) => void;
 }
 
 export function AdminPickupManifest({
@@ -69,7 +75,9 @@ export function AdminPickupManifest({
   mobileFiltersOpen,
   onMobileFiltersOpenChange,
   onSelectedCountChange,
+  onAllSelectedChange,
   onBulkActionRequest,
+  onSelectAllRequest,
 }: Props) {
   const navigate = useNavigate();
   const { currentUserId, loadingAdminTab } = useAdminTab();
@@ -277,6 +285,15 @@ export function AdminPickupManifest({
   const toggleOne = (id: string) =>
     setSelectedManifests(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
+  useEffect(() => {
+    onSelectAllRequest?.(toggleAll);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onSelectAllRequest, filteredManifests, selectedManifests]);
+
+  useEffect(() => {
+    onAllSelectedChange?.(selectedManifests.length === filteredManifests.length && filteredManifests.length > 0);
+  }, [selectedManifests, filteredManifests, onAllSelectedChange]);
+
   const colSpan = isAdminView ? 10 : 9;
 
   return (
@@ -339,6 +356,12 @@ export function AdminPickupManifest({
                   className="fixed w-[200px] bg-white rounded-xl shadow-[0_8px_28px_-6px_rgba(0,0,0,0.15)] border border-[#E2E8F0] py-1.5 z-[999] origin-top-right"
                   onMouseDown={(e) => e.stopPropagation()}
                 >
+                  <button
+                    onClick={() => { toggleAll(); setShowActionMenu(false); }}
+                    className="w-full text-left px-4 py-2.5 text-[13px] font-semibold text-[#00A86B] hover:bg-[#F0FDF4] transition-colors border-b border-[#F1F5F9]"
+                  >
+                    {selectedManifests.length === filteredManifests.length && filteredManifests.length > 0 ? 'Deselect All' : 'Select All'}
+                  </button>
                   <button onClick={handleBulkManifest} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors">Download Manifests</button>
                 </motion.div>
               </AnimatePresence>
@@ -606,49 +629,33 @@ export function AdminPickupManifest({
           <div className="p-2 space-y-2">
             {paginatedManifests.map((m) => (
               <div key={m._id} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
-                {/* Ribbon Tag */}
-                <div
-                  className="absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide bg-[#F59E0B]"
-                  style={{ clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}
-                >
-                  {(m.status || 'Pickup Scheduled').replace(/_/g, ' ')}
-                </div>
-
-                {/* Checkbox — top-right, parallel to the status ribbon */}
-                <input type="checkbox" checked={selectedManifests.includes(m._id)} onChange={() => toggleOne(m._id)}
-                  className="absolute top-2 right-2.5 rounded border-gray-300 accent-[#00A86B] w-4 h-4 shrink-0 z-10" />
-
-                <div className="pt-6 px-2 pb-2">
-                  {/* User Details Row — name/user-id hidden on the user side; admin still sees who the manifest belongs to.
-                       On the user side, Pickup ID moves up here instead of a separate row below. */}
-                  <div className="flex items-center justify-between mb-1 gap-2 pr-6">
-                    {isAdminView ? (
-                      <>
-                        <span className="text-[#64748B] font-medium text-[12px] shrink-0">User Details</span>
-                        <span className="text-[12px] inline-flex items-baseline gap-1 max-w-[190px] justify-end text-right">
-                          <TruncatedText text={m.userId?.fullname || m.pickupAddress?.contactName || '—'} maxLength={16} className="font-semibold text-[#0F172A] text-[12px]" />
-                          <span className="text-[#00A86B] font-semibold shrink-0">({m.userId?.userId || m.pickupId})</span>
-                        </span>
-                      </>
-                    ) : (
-                      <span className="flex items-baseline gap-2 shrink-0">
-                        <span
-                          className="text-[13px] font-bold text-[#00A86B] underline decoration-dotted cursor-pointer hover:text-[#009B63]"
-                          onClick={() => navigate(`/user/pickup-manifest/${m.pickupId}`)}
-                        >{m.pickupId}</span>
-                        <span className="text-[12px] font-medium text-[#94A3B8]">{(m.orderIds || []).length} shipments</span>
+                <div className="px-2.5 pt-2.5 pb-2">
+                  {/* Header Row — status badge + Pickup ID on the left, checkbox on the right (no more corner ribbon) */}
+                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="px-2.5 py-0.5 rounded-full border border-violet-200 bg-violet-50 text-violet-700 text-[10px] font-semibold uppercase tracking-wider shrink-0">
+                        {(m.status || 'Pickup Scheduled').replace(/_/g, ' ')}
                       </span>
-                    )}
+                      <span
+                        className="text-[12.5px] font-bold text-[#1D4ED8] truncate underline decoration-dotted cursor-pointer hover:text-[#1e40af]"
+                        onClick={() => navigate(`${isAdminView ? '/admin' : '/user'}/pickup-manifest/${m.pickupId}`)}
+                      >
+                        {m.pickupId}
+                      </span>
+                      <span className="text-[11px] font-medium text-[#94A3B8] shrink-0">· {(m.orderIds || []).length} shipments</span>
+                    </div>
+                    <input type="checkbox" checked={selectedManifests.includes(m._id)} onChange={() => toggleOne(m._id)}
+                      className="rounded border-gray-300 accent-[#00A86B] w-4 h-4 shrink-0" />
                   </div>
 
-                  {/* Pickup ID & Shipment Count Row — admin view only; user view already shows both above */}
+                  {/* User Details Row — admin-only */}
                   {isAdminView && (
-                    <div className="flex items-center justify-between mb-1 px-1">
-                      <span
-                        className="text-[13px] font-bold text-[#00A86B] underline decoration-dotted cursor-pointer hover:text-[#009B63]"
-                        onClick={() => navigate(`/admin/pickup-manifest/${m.pickupId}`)}
-                      >{m.pickupId}</span>
-                      <span className="text-[12px] font-medium text-[#94A3B8]">{(m.orderIds || []).length} shipments</span>
+                    <div className="flex items-center justify-between mb-1.5 gap-2">
+                      <span className="text-[#64748B] font-medium text-[12px] shrink-0">User Details</span>
+                      <span className="text-[12px] inline-flex items-baseline gap-1 max-w-[190px] justify-end text-right">
+                        <TruncatedText text={m.userId?.fullname || m.pickupAddress?.contactName || '—'} maxLength={16} className="font-semibold text-[#1E293B] text-[12px] leading-[18px]" />
+                        <span className="text-[#00A86B] font-semibold shrink-0">({m.userId?.userId || m.pickupId})</span>
+                      </span>
                     </div>
                   )}
 
@@ -679,7 +686,7 @@ export function AdminPickupManifest({
                   {/* Actions Row */}
                   <button
                     onClick={() => handleDownloadManifest(m)}
-                    className="w-full h-8 rounded-full bg-[#1e40af] text-white text-[13px] font-bold flex items-center justify-center gap-1.5 hover:bg-[#1e3a8a] transition-colors"
+                    className="w-full h-9 rounded-full border-2 border-[#2563EB] text-[#2563EB] bg-white text-[12.5px] font-bold flex items-center justify-center gap-1.5 hover:bg-blue-50 transition-colors"
                   >
                     Download Manifest
                   </button>

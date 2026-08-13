@@ -383,6 +383,12 @@ export function AdminUsers() {
               {mobileActionOpen && (
                 <div className="absolute right-0 top-full mt-2 w-40 bg-white border border-[#E2E8F0] rounded-lg shadow-lg py-1 z-50">
                   <button
+                    onClick={() => { toggleAll(); setMobileActionOpen(false); }}
+                    className="w-full text-left px-4 py-2 text-xs font-semibold hover:bg-[#F0FDF4] text-[#00A86B] border-b border-[#F1F5F9]"
+                  >
+                    {selectedIds.length === filteredUsers.length && filteredUsers.length > 0 ? 'Deselect All' : 'Select All'}
+                  </button>
+                  <button
                     onClick={() => { fetchUsers(currentPage); setMobileActionOpen(false); }}
                     className="w-full text-left px-4 py-2 text-xs hover:bg-[#F8FAFC] text-[#475569]"
                   >
@@ -770,35 +776,31 @@ export function AdminUsers() {
                   const aadhaar = user.aadhaarNumber || user.aadhaar || user.kycDetails?.aadhaarNumber || '';
                   return (
                     <div key={uid} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
-                      {/* Ribbon Tag */}
-                      <div
-                        className={`absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide ${kycLabel === 'Verified' ? 'bg-[#00A86B]' : 'bg-[#F59E0B]'}`}
-                        style={{ clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}
-                      >
-                        {kycLabel}
-                      </div>
-
-                      <div className="pt-8 px-4 pb-4">
-                        {/* User Details Row */}
-                        <div className="flex items-center justify-between mb-2 gap-2">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <input type="checkbox" checked={selectedIds.includes(uid)} onChange={() => toggleSelect(uid)} className="rounded border-gray-300 accent-[#00A86B] w-4 h-4 shrink-0" />
-                            <span className="text-[#64748B] font-medium text-[12px]">User Details</span>
-                          </div>
-                          <span className="text-[12px] inline-flex items-baseline gap-1 max-w-[190px] justify-end text-right">
-                            <TruncatedText text={user.fullname || '—'} maxLength={16} className="font-semibold text-[#0F172A] text-[12px]" />
-                            <span className="text-[#00A86B] font-semibold shrink-0">({user.userId})</span>
+                      <div className="px-2.5 pt-2.5 pb-2.5">
+                        {/* Header Row — KYC status badge on the left, checkbox on the right (no more corner ribbon) */}
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <span className={`px-2.5 py-0.5 rounded-full border text-[10px] font-semibold uppercase tracking-wider ${kycLabel === 'Verified' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
+                            {kycLabel}
                           </span>
+                          <input type="checkbox" checked={selectedIds.includes(uid)} onChange={() => toggleSelect(uid)} className="rounded border-gray-300 accent-[#00A86B] w-4 h-4 shrink-0" />
                         </div>
 
-                        {/* Company + Aadhaar */}
-                        <div className="text-[12px] font-medium text-[#475569] mb-0.5">{user.company || '—'}</div>
+                        {/* User Details + Company Row — each take half the row, with a centered vertical divider */}
+                        <div className="flex items-center gap-2 mb-1.5 min-w-0">
+                          <span className="flex-1 min-w-0 text-[12px] inline-flex items-baseline gap-1">
+                            <TruncatedText text={user.fullname || '—'} maxLength={16} className="font-semibold text-[#1E293B] text-[12px] leading-[18px]" />
+                            <span className="text-[#00A86B] font-semibold shrink-0">({user.userId})</span>
+                          </span>
+                          <span className="w-px h-3.5 bg-[#E2E8F0] shrink-0" />
+                          <div className="flex-1 min-w-0 text-[12px] font-medium text-[#475569] truncate text-right">{user.company || '—'}</div>
+                        </div>
+
                         {aadhaar && (
-                          <div className="text-[11px] font-normal text-[#94A3B8] mb-3">Aadhaar: {aadhaar}</div>
+                          <div className="text-[11px] font-normal text-[#94A3B8] mb-1.5">Aadhaar: {aadhaar}</div>
                         )}
 
                         {/* Rate Card + Amount Row */}
-                        <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center justify-between mb-1.5">
                           <div className="flex items-center gap-1.5">
                             <span className={getStatusBadgeClass(user.rateCard || 'N/A')}>{user.rateCard || 'N/A'}</span>
                             <button onClick={() => openRateCardModal(user)}>
