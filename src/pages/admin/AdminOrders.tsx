@@ -467,7 +467,12 @@ export function AdminOrders() {
   // ── Mobile view state ──
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
   const [mobileSearchQuery,   setMobileSearchQuery]   = useState('');
-  const [pmMobileSearch,      setPmMobileSearch]      = useState('');
+  // Pickup & Manifest tab — mobile search/filter/action row is hoisted above the shared
+  // tab bar (matching every other tab), but the underlying state/logic lives inside
+  // AdminPickupManifest; these bridge that component up to this hoisted row.
+  const [pmMobileSearch,   setPmMobileSearch]   = useState('');
+  const [pmSelectedCount,  setPmSelectedCount]  = useState(0);
+  const pmBulkActionRef = useRef<(() => void) | null>(null);
   const [mobileToast, setMobileToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const showMobileToast = (type: 'success' | 'error', text: string) => {
     setMobileToast({ type, text });
@@ -740,6 +745,8 @@ export function AdminOrders() {
     setSelectedOrders([]);
     setShowMore(false);
     setMobileSearchQuery('');
+    setPmMobileSearch('');
+    setIsMobileFiltersOpen(false);
     setOrderId(''); setAwbNumber(''); setSelectedPaymentTypes([]); setSelectedPickupAddresses([]);
     setSelectedCouriers([]); setDateStart(defStart); setDateEnd(defEnd);
     setUserQuery(''); setUserSuggestions([]); setUserMongoId('');
@@ -865,95 +872,82 @@ export function AdminOrders() {
     <AdminLayout>
       <div className={`flex flex-col ${isImpersonating ? 'h-[calc(100vh-104px)]' : 'h-[calc(100vh-72px)]'} -m-4 md:-m-6 bg-white ${!isAdminView ? 'overflow-hidden' : ''}`}>
 
-        {/* ── Pickup & Manifest — mobile search row, hoisted above the tab bar like every other tab ── */}
-        {isPMTab && (
-          <div className="md:hidden relative z-[60] px-3 py-2.5 border-b border-[#E2E8F0] flex items-center gap-2 bg-white shrink-0">
-            <div className="relative flex-1">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
-              <input
-                type="text"
-                placeholder="Pickup ID tracking"
-                value={pmMobileSearch}
-                onChange={(e) => setPmMobileSearch(e.target.value)}
-                className="w-full h-9 pl-9 pr-3 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] text-sm text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all"
-              />
-            </div>
+        {/* ── Mobile Search + Filter + Action + Add Order Row (matches Wallet page) ──
+            Same hoisted row for every tab, including Pickup & Manifest — only the search
+            placeholder/value and the action-menu content differ for that tab. ── */}
+        <div className="md:hidden relative z-[60] px-3 py-2.5 border-b border-[#E2E8F0] flex items-center gap-2 bg-white shrink-0">
+          <div className="relative flex-1">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
+            <input
+              type="text"
+              placeholder={isPMTab ? 'Pickup ID tracking' : 'AWB/Order ID tracking'}
+              value={isPMTab ? pmMobileSearch : mobileSearchQuery}
+              onChange={(e) => (isPMTab ? setPmMobileSearch(e.target.value) : setMobileSearchQuery(e.target.value))}
+              className="w-full h-9 pl-9 pr-3 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] text-sm text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all"
+            />
           </div>
-        )}
-
-        {/* ── Mobile Search + Filter + Action + Add Order Row (matches Wallet page) ── */}
-        {!isPMTab && (
-          <div className="md:hidden relative z-[60] px-3 py-2.5 border-b border-[#E2E8F0] flex items-center gap-2 bg-white shrink-0">
-            <div className="relative flex-1">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
-              <input
-                type="text"
-                placeholder="AWB/Order ID tracking"
-                value={mobileSearchQuery}
-                onChange={(e) => setMobileSearchQuery(e.target.value)}
-                className="w-full h-9 pl-9 pr-3 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] text-sm text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all"
-              />
-            </div>
-            {/* Filter icon */}
+          {/* Filter icon */}
+          <button
+            onClick={() => setIsMobileFiltersOpen(true)}
+            className="w-9 h-9 rounded-xl border border-[#E2E8F0] flex items-center justify-center text-[#475569] bg-white shrink-0"
+          >
+            <Filter className="w-4 h-4" />
+          </button>
+          {/* Action icon */}
+          <div className="relative shrink-0" ref={mobileActionMenuRef}>
             <button
-              onClick={() => setIsMobileFiltersOpen(true)}
-              className="w-9 h-9 rounded-xl border border-[#E2E8F0] flex items-center justify-center text-[#475569] bg-white shrink-0"
+              onClick={(e) => {
+                const count = isPMTab ? pmSelectedCount : selectedOrders.length;
+                if (count === 0) return;
+                if (isPMTab) { pmBulkActionRef.current?.(); return; }
+                if (!showActionMenu) {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  setMobileActionMenuPos({ top: rect.bottom + 8, right: window.innerWidth - rect.right });
+                }
+                setShowActionMenu(v => !v);
+              }}
+              disabled={(isPMTab ? pmSelectedCount : selectedOrders.length) === 0}
+              className="w-9 h-9 rounded-xl border border-[#E2E8F0] flex items-center justify-center text-[#475569] bg-white relative disabled:opacity-50"
+              title={isPMTab ? 'Download Manifests' : undefined}
             >
-              <Filter className="w-4 h-4" />
-            </button>
-            {/* Action icon */}
-            <div className="relative shrink-0" ref={mobileActionMenuRef}>
-              <button
-                onClick={(e) => {
-                  if (selectedOrders.length === 0) return;
-                  if (!showActionMenu) {
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    setMobileActionMenuPos({ top: rect.bottom + 8, right: window.innerWidth - rect.right });
-                  }
-                  setShowActionMenu(v => !v);
-                }}
-                disabled={selectedOrders.length === 0}
-                className="w-9 h-9 rounded-xl border border-[#E2E8F0] flex items-center justify-center text-[#475569] bg-white relative disabled:opacity-50"
-              >
-                <MoreVertical className="w-4 h-4" />
-                {selectedOrders.length > 0 && (
-                  <span className="absolute -top-1 -right-1 min-w-[16px] h-4 rounded-full bg-[#00A86B] text-white text-[9px] font-bold flex items-center justify-center px-0.5">
-                    {selectedOrders.length}
-                  </span>
-                )}
-              </button>
-              {showActionMenu && mobileActionMenuPos && createPortal(
-                <>
-                  <div className="fixed inset-0 z-[998]" onClick={() => setShowActionMenu(false)} />
-                  <AnimatePresence>
-                    <motion.div
-                      initial={{ opacity: 0, y: -6, scale: 0.97 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: -6, scale: 0.97 }}
-                      transition={{ duration: 0.16, ease: 'easeOut' }}
-                      style={{ top: mobileActionMenuPos.top, right: mobileActionMenuPos.right }}
-                      className="fixed w-[200px] bg-white rounded-xl shadow-[0_8px_28px_-6px_rgba(0,0,0,0.15)] border border-[#E2E8F0] py-1.5 z-[999] origin-top-right"
-                      onMouseDown={(e) => e.stopPropagation()}
-                    >
-                      {renderActionMenuItems()}
-                    </motion.div>
-                  </AnimatePresence>
-                </>,
-                document.body
+              <MoreVertical className="w-4 h-4" />
+              {(isPMTab ? pmSelectedCount : selectedOrders.length) > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[16px] h-4 rounded-full bg-[#00A86B] text-white text-[9px] font-bold flex items-center justify-center px-0.5">
+                  {isPMTab ? pmSelectedCount : selectedOrders.length}
+                </span>
               )}
-            </div>
-            {/* Add Order icon */}
-            {!isAdminView && (
-              <button
-                onClick={() => navigate('/user/add-order')}
-                className="w-9 h-9 rounded-xl bg-[#00A86B] flex items-center justify-center text-white shadow-sm active:bg-[#009B63] transition-colors shrink-0"
-                title="Add Order"
-              >
-                <PackagePlus className="w-4 h-4" />
-              </button>
+            </button>
+            {!isPMTab && showActionMenu && mobileActionMenuPos && createPortal(
+              <>
+                <div className="fixed inset-0 z-[998]" onClick={() => setShowActionMenu(false)} />
+                <AnimatePresence>
+                  <motion.div
+                    initial={{ opacity: 0, y: -6, scale: 0.97 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -6, scale: 0.97 }}
+                    transition={{ duration: 0.16, ease: 'easeOut' }}
+                    style={{ top: mobileActionMenuPos.top, right: mobileActionMenuPos.right }}
+                    className="fixed w-[200px] bg-white rounded-xl shadow-[0_8px_28px_-6px_rgba(0,0,0,0.15)] border border-[#E2E8F0] py-1.5 z-[999] origin-top-right"
+                    onMouseDown={(e) => e.stopPropagation()}
+                  >
+                    {renderActionMenuItems()}
+                  </motion.div>
+                </AnimatePresence>
+              </>,
+              document.body
             )}
           </div>
-        )}
+          {/* Add Order icon */}
+          {!isAdminView && (
+            <button
+              onClick={() => navigate('/user/add-order')}
+              className="w-9 h-9 rounded-xl bg-[#00A86B] flex items-center justify-center text-white shadow-sm active:bg-[#009B63] transition-colors shrink-0"
+              title="Add Order"
+            >
+              <PackagePlus className="w-4 h-4" />
+            </button>
+          )}
+        </div>
 
         {/* ── Top Tab Bar ── */}
         <div className="bg-white relative z-50 shrink-0">
@@ -1168,6 +1162,10 @@ export function AdminOrders() {
               hideMobileSearchBar
               mobileSearchOverride={pmMobileSearch}
               onMobileSearchOverrideChange={setPmMobileSearch}
+              mobileFiltersOpen={isMobileFiltersOpen}
+              onMobileFiltersOpenChange={setIsMobileFiltersOpen}
+              onSelectedCountChange={setPmSelectedCount}
+              onBulkActionRequest={(trigger) => { pmBulkActionRef.current = trigger; }}
             />
           </div>
         )}
@@ -1643,9 +1641,9 @@ export function AdminOrders() {
           </div>
         )}
 
-        {/* ── Mobile Filters Bottom Sheet ── */}
+        {/* ── Mobile Filters Bottom Sheet (Orders tabs only — Pickup & Manifest renders its own) ── */}
         <AnimatePresence>
-          {isMobileFiltersOpen && (
+          {!isPMTab && isMobileFiltersOpen && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}

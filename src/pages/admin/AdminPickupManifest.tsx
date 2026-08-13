@@ -50,6 +50,15 @@ interface Props {
   /** Controlled search value from a search bar rendered outside this component. */
   mobileSearchOverride?: string;
   onMobileSearchOverrideChange?: (value: string) => void;
+  /** Controlled mobile filter sheet, driven by a Filter button rendered outside this component. */
+  mobileFiltersOpen?: boolean;
+  onMobileFiltersOpenChange?: (open: boolean) => void;
+  /** Reports current bulk-selection count to the caller, so an Action button rendered
+   *  outside this component can show the same badge/disabled state. */
+  onSelectedCountChange?: (count: number) => void;
+  /** Lets the caller trigger the bulk "Download Manifests" action from an Action button
+   *  rendered outside this component. */
+  onBulkActionRequest?: (trigger: (() => void)) => void;
 }
 
 export function AdminPickupManifest({
@@ -57,6 +66,10 @@ export function AdminPickupManifest({
   hideMobileSearchBar = false,
   mobileSearchOverride,
   onMobileSearchOverrideChange,
+  mobileFiltersOpen,
+  onMobileFiltersOpenChange,
+  onSelectedCountChange,
+  onBulkActionRequest,
 }: Props) {
   const navigate = useNavigate();
   const { currentUserId, loadingAdminTab } = useAdminTab();
@@ -102,8 +115,11 @@ export function AdminPickupManifest({
   // regardless of where the narrow middle column of the card strip sits.
   const [mobileHoveredAddress, setMobileHoveredAddress] = useState<{ id: string; rect: DOMRect } | null>(null);
 
-  // Mobile view state
-  const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
+  // Mobile view state — controlled externally when mobileFiltersOpen is provided
+  // (AdminOrders drives this from a Filter button rendered above the shared tab bar).
+  const [internalMobileFiltersOpen, setInternalMobileFiltersOpen] = useState(false);
+  const isMobileFiltersOpen = mobileFiltersOpen ?? internalMobileFiltersOpen;
+  const setIsMobileFiltersOpen = onMobileFiltersOpenChange ?? setInternalMobileFiltersOpen;
 
   // Refresh trigger (clear uses this)
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -244,6 +260,17 @@ export function AdminPickupManifest({
     setShowActionMenu(false);
   };
 
+  // Report selection count + hand the bulk-download trigger up, so an Action button
+  // rendered outside this component (AdminOrders' shared mobile row) can drive it.
+  useEffect(() => {
+    onSelectedCountChange?.(selectedManifests.length);
+  }, [selectedManifests, onSelectedCountChange]);
+
+  useEffect(() => {
+    onBulkActionRequest?.(handleBulkManifest);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onBulkActionRequest, manifests, selectedManifests]);
+
   // Selection
   const toggleAll = () =>
     setSelectedManifests(selectedManifests.length === filteredManifests.length && filteredManifests.length > 0 ? [] : filteredManifests.map(m => m._id));
@@ -255,21 +282,22 @@ export function AdminPickupManifest({
   return (
     <div className="flex flex-col h-full">
 
-      {/* ── Mobile Search + Filter + Action + Add Order Row (matches Wallet page) ── */}
+      {/* ── Mobile Search + Filter + Action + Add Order Row (matches Wallet page) ──
+          Hidden entirely when hideMobileSearchBar is set — AdminOrders renders the
+          equivalent row above its shared tab bar instead, controlling this component
+          via mobileSearchOverride / mobileFiltersOpen / onSelectedCountChange / onBulkActionRequest. */}
+      {!hideMobileSearchBar && (
       <div className="md:hidden px-3 py-2.5 border-b border-[#E2E8F0] flex items-center gap-2 bg-white shrink-0">
-        {hideMobileSearchBar && <div className="flex-1" />}
-        {!hideMobileSearchBar && (
-          <div className="relative flex-1">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
-            <input
-              type="text"
-              placeholder="Pickup ID tracking"
-              value={searchId}
-              onChange={(e) => { setSearchId(e.target.value); onMobileSearchOverrideChange?.(e.target.value); }}
-              className="w-full h-9 pl-9 pr-3 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] text-sm text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all"
-            />
-          </div>
-        )}
+        <div className="relative flex-1">
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
+          <input
+            type="text"
+            placeholder="Pickup ID tracking"
+            value={searchId}
+            onChange={(e) => { setSearchId(e.target.value); onMobileSearchOverrideChange?.(e.target.value); }}
+            className="w-full h-9 pl-9 pr-3 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] text-sm text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all"
+          />
+        </div>
         {/* Filter icon */}
         <button
           onClick={() => setIsMobileFiltersOpen(true)}
@@ -329,6 +357,7 @@ export function AdminPickupManifest({
           </button>
         )}
       </div>
+      )}
 
       {/* ── Filter Row — desktop only ── */}
       <div className="hidden md:flex py-3 px-6 border-b border-[#CBD5F5] flex-wrap items-center gap-3 bg-[#F8FAFC]/50 shrink-0">

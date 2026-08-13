@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search,
@@ -230,11 +230,142 @@ function HeroIllustration() {
   );
 }
 
-/* ── Minimal India-shape route illustration (not Google Maps) ── */
+/* ── Approx lat/lng for major Indian cities, used to place map markers from city names ── */
+const CITY_COORDS: Record<string, [number, number]> = {
+  'delhi': [28.7041, 77.1025], 'new delhi': [28.6139, 77.2090],
+  'mumbai': [19.0760, 72.8777], 'bangalore': [12.9716, 77.5946], 'bengaluru': [12.9716, 77.5946],
+  'hyderabad': [17.3850, 78.4867], 'chennai': [13.0827, 80.2707], 'kolkata': [22.5726, 88.3639],
+  'pune': [18.5204, 73.8567], 'ahmedabad': [23.0225, 72.5714], 'surat': [21.1702, 72.8311],
+  'jaipur': [26.9124, 75.7873], 'lucknow': [26.8467, 80.9462], 'kanpur': [26.4499, 80.3319],
+  'nagpur': [21.1458, 79.0882], 'indore': [22.7196, 75.8577], 'thane': [19.2183, 72.9781],
+  'bhopal': [23.2599, 77.4126], 'visakhapatnam': [17.6868, 83.2185], 'patna': [25.5941, 85.1376],
+  'vadodara': [22.3072, 73.1812], 'ghaziabad': [28.6692, 77.4538], 'ludhiana': [30.9010, 75.8573],
+  'agra': [27.1767, 78.0081], 'nashik': [19.9975, 73.7898], 'faridabad': [28.4089, 77.3178],
+  'meerut': [28.9845, 77.7064], 'rajkot': [22.3039, 70.8022], 'varanasi': [25.3176, 82.9739],
+  'srinagar': [34.0837, 74.7973], 'amritsar': [31.6340, 74.8723], 'chandigarh': [30.7333, 76.7794],
+  'gurgaon': [28.4595, 77.0266], 'gurugram': [28.4595, 77.0266], 'noida': [28.5355, 77.3910],
+  'coimbatore': [11.0168, 76.9558], 'kochi': [9.9312, 76.2673], 'guwahati': [26.1445, 91.7362],
+  'bhubaneswar': [20.2961, 85.8245], 'dehradun': [30.3165, 78.0322], 'raipur': [21.2514, 81.6296],
+  'ranchi': [23.3441, 85.3096], 'jodhpur': [26.2389, 73.0243], 'madurai': [9.9252, 78.1198],
+  'dhanbad': [23.7957, 86.4304], 'jamshedpur': [22.8046, 86.2029], 'bokaro': [23.6693, 86.1511],
+  'siliguri': [26.7271, 88.3953], 'jamnagar': [22.4707, 70.0577], 'aligarh': [27.8974, 78.0880],
+  'gwalior': [26.2183, 78.1828], 'bareilly': [28.3670, 79.4304], 'moradabad': [28.8386, 78.7733],
+  'mysore': [12.2958, 76.6394], 'mysuru': [12.2958, 76.6394], 'thiruvananthapuram': [8.5241, 76.9366],
+  'vijayawada': [16.5062, 80.6480], 'jabalpur': [23.1815, 79.9864], 'salem': [11.6643, 78.1460],
+  'warangal': [17.9689, 79.5941], 'guntur': [16.3067, 80.4365], 'bhilai': [21.1938, 81.3509],
+  'cuttack': [20.4625, 85.8828], 'firozabad': [27.1592, 78.3957], 'kota': [25.2138, 75.8648],
+  'nellore': [14.4426, 79.9865], 'gorakhpur': [26.7606, 83.3732], 'bhavnagar': [21.7645, 72.1519],
+  'durgapur': [23.5204, 87.3119], 'asansol': [23.6739, 86.9524], 'ajmer': [26.4499, 74.6399],
+  'udaipur': [24.5854, 73.7125], 'jamalpur': [25.3095, 86.4881],
+};
+
+const resolveCityCoords = (place: string): [number, number] | null => {
+  if (!place) return null;
+  const key = place.split(',')[0].trim().toLowerCase();
+  return CITY_COORDS[key] || null;
+};
+
+/* ── Live route map, rendered with Leaflet (loaded via CDN script tags in index.html) ── */
 function RoutePreview({ pickup, destination }: { pickup: string; destination: string }) {
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapInstanceRef = useRef<any>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    let map: any = null;
+    let resizeObserver: ResizeObserver | null = null;
+
+    const init = () => {
+      const L = (window as any).L;
+      if (cancelled || !L || !mapContainerRef.current) return;
+
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+      }
+
+      const originCoords = resolveCityCoords(pickup) || [22.9734, 78.6569];
+      const destCoords = resolveCityCoords(destination) || [22.9734, 78.6569];
+
+      map = L.map(mapContainerRef.current, {
+        zoomControl: false,
+        attributionControl: false,
+        scrollWheelZoom: false,
+      });
+      mapInstanceRef.current = map;
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+      }).addTo(map);
+
+      const originIcon = L.divIcon({
+        className: '',
+        html: `<div style="width:14px;height:14px;border-radius:9999px;background:#00A86B;border:3px solid white;box-shadow:0 0 0 2px rgba(0,168,107,0.35)"></div>`,
+        iconSize: [14, 14],
+        iconAnchor: [7, 7],
+      });
+      const destIcon = L.divIcon({
+        className: '',
+        html: `<div style="width:14px;height:14px;border-radius:9999px;background:#2563EB;border:3px solid white;box-shadow:0 0 0 2px rgba(37,99,235,0.35)"></div>`,
+        iconSize: [14, 14],
+        iconAnchor: [7, 7],
+      });
+
+      L.marker(originCoords, { icon: originIcon }).addTo(map).bindTooltip(pickup, { direction: 'top' });
+      L.marker(destCoords, { icon: destIcon }).addTo(map).bindTooltip(destination, { direction: 'top' });
+
+      const routeLine = L.polyline([originCoords, destCoords], {
+        color: '#00A86B',
+        weight: 3,
+        opacity: 0.8,
+        dashArray: '6 8',
+      }).addTo(map);
+
+      map.fitBounds(routeLine.getBounds(), { padding: [36, 36] });
+      if (originCoords[0] === destCoords[0] && originCoords[1] === destCoords[1]) {
+        map.setView(originCoords, 5);
+      }
+
+      // Container can be zero-size at init time (e.g. still animating in),
+      // so re-measure once layout settles.
+      requestAnimationFrame(() => map && map.invalidateSize());
+      if (mapContainerRef.current && typeof ResizeObserver !== 'undefined') {
+        resizeObserver = new ResizeObserver(() => map && map.invalidateSize());
+        resizeObserver.observe(mapContainerRef.current);
+      }
+    };
+
+    const L = (window as any).L;
+    if (L) {
+      init();
+    } else {
+      // Leaflet CDN script may not have finished loading yet — poll briefly.
+      let attempts = 0;
+      const timer = setInterval(() => {
+        attempts += 1;
+        if ((window as any).L) {
+          clearInterval(timer);
+          init();
+        } else if (attempts > 50) {
+          clearInterval(timer);
+        }
+      }, 100);
+      return () => {
+        cancelled = true;
+        clearInterval(timer);
+      };
+    }
+
+    return () => {
+      cancelled = true;
+      if (resizeObserver) resizeObserver.disconnect();
+      if (map) map.remove();
+      mapInstanceRef.current = null;
+    };
+  }, [pickup, destination]);
+
   return (
     <div className="relative rounded-2xl border border-[#E0EDE8] bg-gradient-to-b from-[#F8FAFC] to-white p-5 overflow-hidden">
-      <DotGrid opacity={0.05} />
       <div className="relative flex items-center justify-between mb-4">
         <h3 className="text-[13px] font-bold text-[#0F172A]">Live Route</h3>
         <span className="inline-flex items-center gap-1.5 text-[10px] font-bold text-[#00A86B] bg-[#00A86B]/10 border border-[#00A86B]/20 px-2.5 py-1 rounded-full">
@@ -242,52 +373,19 @@ function RoutePreview({ pickup, destination }: { pickup: string; destination: st
         </span>
       </div>
 
-      <div className="relative h-[220px] rounded-xl bg-white border border-[#E0EDE8] overflow-hidden">
-        <svg viewBox="0 0 300 220" className="absolute inset-0 w-full h-full">
-          <path
-            d="M 40 170 C 90 60, 190 190, 260 50"
-            fill="none"
-            stroke="#E2E8F0"
-            strokeWidth="3"
-            strokeLinecap="round"
-          />
-          <motion.path
-            d="M 40 170 C 90 60, 190 190, 260 50"
-            fill="none"
-            stroke="#00A86B"
-            strokeWidth="3"
-            strokeLinecap="round"
-            strokeDasharray="1 1"
-            initial={{ pathLength: 0 }}
-            whileInView={{ pathLength: 1 }}
-            viewport={{ once: true }}
-            transition={{ duration: 1.8, ease: EASE }}
-          />
-          {/* origin */}
-          <circle cx="40" cy="170" r="6" fill="#00A86B" />
-          <circle cx="40" cy="170" r="10" fill="none" stroke="#00A86B" strokeOpacity="0.3" strokeWidth="2" />
-          {/* destination */}
-          <circle cx="260" cy="50" r="6" fill="#2563EB" />
-          <circle cx="260" cy="50" r="10" fill="none" stroke="#2563EB" strokeOpacity="0.3" strokeWidth="2" />
-          {/* moving package marker */}
-          <motion.circle
-            r="5"
-            fill="#0F172A"
-            initial={{ cx: 40, cy: 170 }}
-            whileInView={{ cx: [40, 90, 190, 220, 260], cy: [170, 60, 190, 110, 50] }}
-            viewport={{ once: true }}
-            transition={{ duration: 2.2, delay: 0.4, ease: EASE }}
-          />
-        </svg>
+      <div className="relative isolate z-0 h-[220px] rounded-xl bg-white border border-[#E0EDE8] overflow-hidden">
+        <div ref={mapContainerRef} className="absolute inset-0 w-full h-full" />
+      </div>
 
-        <div className="absolute left-[9%] bottom-[16%] flex items-center gap-1.5 bg-white border border-[#E0EDE8] rounded-lg px-2 py-1 shadow-sm">
-          <MapPin className="w-3 h-3 text-[#00A86B]" />
-          <span className="text-[10px] font-bold text-[#0F172A] whitespace-nowrap">{pickup}</span>
-        </div>
-        <div className="absolute right-[6%] top-[14%] flex items-center gap-1.5 bg-white border border-[#E0EDE8] rounded-lg px-2 py-1 shadow-sm">
-          <Target className="w-3 h-3 text-[#2563EB]" />
-          <span className="text-[10px] font-bold text-[#0F172A] whitespace-nowrap">{destination}</span>
-        </div>
+      <div className="mt-3 flex items-center justify-between gap-3 text-[11px] font-bold text-[#0F172A]">
+        <span className="flex items-center gap-1.5 min-w-0">
+          <MapPin className="w-3 h-3 text-[#00A86B] shrink-0" />
+          <span className="truncate">{pickup}</span>
+        </span>
+        <span className="flex items-center gap-1.5 min-w-0">
+          <Target className="w-3 h-3 text-[#2563EB] shrink-0" />
+          <span className="truncate">{destination}</span>
+        </span>
       </div>
     </div>
   );

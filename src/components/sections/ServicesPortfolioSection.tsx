@@ -276,7 +276,7 @@ export function ServicesPortfolioSection() {
               ))}
             </ul>
             
-            <a href="#" className="inline-block text-[#1D9E75] font-medium text-[15px] mt-6 hover:underline">Explore courier partners →</a>
+            <span className="inline-block cursor-default text-[#1D9E75] font-medium text-[15px] mt-6">Explore courier partners →</span>
           </div>
         </div>
 
@@ -300,7 +300,7 @@ export function ServicesPortfolioSection() {
               ))}
             </ul>
             
-            <a href="#" className="inline-block text-[#1D9E75] font-medium text-[15px] mt-6 hover:underline">See how NDR recovery works →</a>
+            <span className="inline-block cursor-default text-[#1D9E75] font-medium text-[15px] mt-6">See how NDR recovery works →</span>
           </div>
 
           {/* Image */}
@@ -334,7 +334,7 @@ export function ServicesPortfolioSection() {
               ))}
             </ul>
             
-            <a href="#" className="inline-block text-[#1D9E75] font-medium text-[15px] mt-6 hover:underline">Learn about COD payouts →</a>
+            <span className="inline-block cursor-default text-[#1D9E75] font-medium text-[15px] mt-6">Learn about COD payouts →</span>
           </div>
         </div>
 
@@ -358,7 +358,7 @@ export function ServicesPortfolioSection() {
               ))}
             </ul>
             
-            <a href="#" className="inline-block text-[#1D9E75] font-medium text-[15px] mt-6 hover:underline">Explore analytics features →</a>
+            <span className="inline-block cursor-default text-[#1D9E75] font-medium text-[15px] mt-6">Explore analytics features →</span>
           </div>
 
           {/* Image */}
