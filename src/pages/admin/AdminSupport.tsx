@@ -7,7 +7,7 @@ import { useTableLoader } from '../../hooks/useTableLoader';
 import {
   Search, RefreshCcw, User, Package, FileText, Calendar, X,
   MessageSquare, CheckCircle2, Tag, ArrowUpDown, Send, Plus,
-  Filter, MoreHorizontal,
+  Filter,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
@@ -40,6 +40,15 @@ const STATUS_LABEL: Record<string, string> = {
   closed:            'Closed',
   active:            'Active',
   resolved:          'Resolved',
+};
+
+const STATUS_BADGE_TINT: Record<string, string> = {
+  new:               'bg-slate-50 text-slate-700 border-slate-200',
+  open:              'bg-emerald-50 text-emerald-700 border-emerald-200',
+  active:            'bg-emerald-50 text-emerald-700 border-emerald-200',
+  awaiting_response: 'bg-amber-50 text-amber-700 border-amber-200',
+  resolved:          'bg-slate-100 text-slate-500 border-slate-200',
+  closed:            'bg-slate-100 text-slate-500 border-slate-200',
 };
 
 function statusTab(s: string): string {
@@ -290,7 +299,6 @@ export function AdminSupport() {
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
-  const [mobileActionMenuId, setMobileActionMenuId] = useState<string | null>(null);
 
   // Drawer state
   const [replyText, setReplyText]       = useState('');
@@ -736,78 +744,53 @@ export function AdminSupport() {
             )}
             {!loading && paginatedTickets.map((ticket) => {
               const statusKey = ticket.status;
-              const ribbonBg =
-                statusKey === 'resolved' || statusKey === 'closed' ? 'bg-slate-400' :
-                statusKey === 'awaiting_response' ? 'bg-amber-500' :
-                statusKey === 'new' ? 'bg-slate-500' : 'bg-[#00A86B]';
               return (
                 <div key={ticket._id} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-visible">
-                  <div className={`absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide rounded-tl-2xl ${ribbonBg}`} style={{ clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}>
-                    {STATUS_LABEL[statusKey] || statusKey}
-                  </div>
-
-                  <div className="pt-6 px-3 pb-3">
+                  <div className="px-2.5 pt-2.5 pb-2.5">
+                    {/* Header Row — status badge on the left, created date on the right (no more corner ribbon) */}
                     <div className="flex items-center justify-between gap-2 mb-1">
-                      <span className="text-[12px] font-semibold text-[#64748B]">Ticket ID</span>
-                      <span className="flex items-center gap-1.5 shrink-0">
-                        <span className="text-[12px] font-semibold text-[#00A86B]">{ticket.ticketNumber}</span>
-                        <span className="text-[12px] font-normal text-[#94A3B8]">{formatDate(ticket.createdAt)}</span>
+                      <span className={`px-2.5 py-0.5 rounded-full border text-[10px] font-semibold uppercase tracking-wider ${STATUS_BADGE_TINT[statusKey] || 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
+                        {STATUS_LABEL[statusKey] || statusKey}
                       </span>
+                      <span className="text-[12px] font-normal text-[#94A3B8] shrink-0">{formatDate(ticket.createdAt)}</span>
                     </div>
 
-                    <div className="flex items-center justify-between gap-2 mb-1">
-                      <span className="text-[12px] font-normal text-[#64748B] truncate flex-1">
-                        AWB(s): {ticket.awbNumbers.length > 0 ? ticket.awbNumbers.slice(0, 2).join(', ') + (ticket.awbNumbers.length > 2 ? ` +${ticket.awbNumbers.length - 2}` : '') : 'N/A'}
-                      </span>
+                    {/* Ticket ID + Subcategory Row — each take half the row, with a centered vertical divider */}
+                    <div className="flex items-center gap-2 mb-1.5 min-w-0">
+                      <span className="flex-1 min-w-0 text-[12px] font-semibold text-[#00A86B] truncate">{ticket.ticketNumber}</span>
+                      <span className="w-px h-3.5 bg-[#E2E8F0] shrink-0" />
                       <TruncatedText
                         text={ticket.subcategory}
                         maxLength={18}
                         tooltipAlign="right"
-                        className="text-[12px] font-normal text-[#64748B] shrink-0"
+                        className="flex-1 min-w-0 text-[12px] font-normal text-[#64748B] text-right"
                       />
+                    </div>
+
+                    <div className="text-[12px] font-normal text-[#64748B] truncate mb-1">
+                      AWB(s): {ticket.awbNumbers.length > 0 ? ticket.awbNumbers.slice(0, 2).join(', ') + (ticket.awbNumbers.length > 2 ? ` +${ticket.awbNumbers.length - 2}` : '') : 'N/A'}
                     </div>
 
                     <div className="text-[12px] font-normal text-[#94A3B8] mb-0.5">
                       Resolution Due By: {formatDate(new Date(new Date(ticket.createdAt).getTime() + 24 * 60 * 60 * 1000).toISOString())}
                     </div>
-                    <div className="text-[12px] font-normal text-[#94A3B8] mb-2">
+                    <div className="text-[12px] font-normal text-[#94A3B8] mb-1.5">
                       Last Updated: {formatDate(ticket.lastRepliedAt || ticket.createdAt)}
                     </div>
 
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => handleViewTicket(ticket)}
-                        className="flex-1 h-8 rounded-full bg-[#1e3a8a] hover:bg-[#1e40af] text-white text-[11px] font-bold transition-colors"
-                      >
-                        {ticket.status === 'new' ? 'Open' : 'Update'}
-                      </button>
-                      <button
-                        onClick={() => handleViewTicket(ticket)}
-                        className="flex-1 h-8 rounded-full border border-[#E2E8F0] text-[#475569] text-[11px] font-bold hover:bg-[#F8FAFC] transition-colors"
+                        className="flex-1 h-9 rounded-full border-2 border-[#2563EB] text-[#2563EB] bg-white text-[12.5px] font-bold hover:bg-blue-50 transition-colors"
                       >
                         View
                       </button>
-                      <div className="relative shrink-0">
-                        <button
-                          onClick={() => setMobileActionMenuId(mobileActionMenuId === ticket._id ? null : ticket._id)}
-                          className="w-8 h-8 rounded-full border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC] transition-colors"
-                        >
-                          <MoreHorizontal className="w-4 h-4" />
-                        </button>
-                        {mobileActionMenuId === ticket._id && (
-                          <>
-                            <div className="fixed inset-0 z-40" onClick={() => setMobileActionMenuId(null)} />
-                            <div className="absolute right-0 bottom-full mb-2 w-40 bg-white rounded-xl shadow-xl border border-[#E2E8F0] py-1.5 z-50">
-                              <button
-                                onClick={() => { setMobileActionMenuId(null); handleViewTicket(ticket); }}
-                                className="w-full text-left px-4 py-2 text-[12px] font-medium text-[#475569] hover:bg-[#F8FAFC]"
-                              >
-                                View Details
-                              </button>
-                            </div>
-                          </>
-                        )}
-                      </div>
+                      <button
+                        onClick={() => handleViewTicket(ticket)}
+                        className="flex-1 h-9 rounded-full bg-[#2563EB] text-white text-[12.5px] font-bold hover:bg-[#1d4ed8] transition-colors"
+                      >
+                        {ticket.status === 'new' ? 'Open' : 'Update'}
+                      </button>
                     </div>
                   </div>
                 </div>
