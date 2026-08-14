@@ -65,6 +65,15 @@ const STATUS_BADGE_STYLES: Record<string, string> = {
 const getStatusBadgeClass = (s: string) =>
   `${STATUS_BADGE_STYLES[s] || 'bg-blue-50 text-blue-700 border-blue-200'} px-2.5 py-0.5 rounded-full border text-[10px] font-semibold uppercase tracking-wider whitespace-nowrap shadow-sm`;
 
+const STATUS_RIBBON_COLOR: Record<string, string> = {
+  'Undelivered':      '#7C3AED',
+  'Action Required':  '#E11D48',
+  'Action Requested': '#6366F1',
+  'Delivered':        '#00A86B',
+  'RTO Initiated':    '#F97316',
+};
+const getRibbonColor = (s: string) => STATUS_RIBBON_COLOR[s] || '#00A86B';
+
 
 
 // ─── Payment options ───────────────────────────────────────────────────────────
@@ -485,9 +494,6 @@ export function AdminNDR() {
     const close = () => { setShowActionMenu(false); setMobileActionOpen(false); };
     return (
       <>
-        <button className="w-full text-left px-4 py-2.5 text-[13px] font-semibold text-[#00A86B] hover:bg-[#F0FDF4] border-b border-[#F1F5F9]" onClick={() => { toggleAll(); close(); }}>
-          {selectedOrders.length === orders.length && orders.length > 0 ? 'Deselect All' : 'Select All'}
-        </button>
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC]" onClick={() => { handleBulkLabel(selectedOrders); close(); }}>Download Labels</button>
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC]" onClick={() => { handleBulkInvoice(selectedOrders); close(); }}>Download Invoices</button>
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC]" onClick={() => { handleBulkManifest(selectedOrders); close(); }}>Download Manifests</button>
@@ -915,47 +921,46 @@ export function AdminNDR() {
               <div className="p-2 space-y-2">
                 {orders.map((order) => {
                   const logo = getCourierLogo(order.courier);
+                  const accent = getRibbonColor(activeTab);
                   return (
                     <div key={order._id} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
-                      <div className="px-2.5 pt-2.5 pb-2">
-                        {/* Header Row — status badge + Order ID on the left, checkbox on the right (no more corner ribbon) */}
-                        <div className="flex items-center justify-between gap-2 mb-1">
-                          <div className="flex items-center gap-1.5 min-w-0">
-                            <span className={getStatusBadgeClass(order.status || activeTab)}>{order.status || activeTab}</span>
-                            <span className="text-[12.5px] font-bold text-[#1D4ED8] truncate">{order.orderId}</span>
-                          </div>
-                          <input type="checkbox" checked={selectedOrders.includes(order._id)} onChange={() => toggleSelect(order._id)}
-                            className="rounded border-gray-300 accent-[#00A86B] w-4 h-4 shrink-0" />
-                        </div>
+                      {/* Ribbon Tag */}
+                      <div
+                        className="absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide"
+                        style={{ background: accent, clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}
+                      >
+                        {activeTab}
+                      </div>
 
-                        {/* User Details + Product Row — user details and product name each take half the row, with a centered vertical divider; user details admin-only.
-                            On the user side (no User Details to show), the product name takes the full row instead of staying squeezed to the right. */}
-                        <div className="flex items-center gap-2 mb-1.5 min-w-0">
-                          {isAdminView && (
+                      {/* Checkbox — top-right, parallel to the status ribbon */}
+                      <input type="checkbox" checked={selectedOrders.includes(order._id)} onChange={() => toggleSelect(order._id)}
+                        className="absolute top-2 right-2.5 rounded border-gray-300 accent-[#00A86B] w-4 h-4 shrink-0 z-10" />
+
+                      <div className="pt-6 px-2 pb-2">
+                        {/* User Details Row — admin-only; user side sees only the Order ID */}
+                        <div className="flex items-center justify-between mb-1 gap-2 pr-6">
+                          {isAdminView ? (
                             <>
-                              <span className="flex-1 min-w-0 text-[12px] inline-flex items-baseline gap-1">
-                                <TruncatedText text={order.userName} maxLength={16} className="font-semibold text-[#1E293B] text-[12px] leading-[18px]" />
+                              <span className="text-[#64748B] font-medium text-[12px] shrink-0">User Details</span>
+                              <span className="text-[12px] inline-flex items-baseline gap-1 max-w-[190px] justify-end text-right">
+                                <TruncatedText text={order.userName} maxLength={16} className="font-semibold text-[#0F172A] text-[12px]" />
                                 <span className="text-[#009D64] font-semibold text-[12px] shrink-0">({order.userUserId})</span>
                               </span>
-                              <span className="w-px h-3.5 bg-[#E2E8F0] shrink-0" />
                             </>
+                          ) : (
+                            <span className="text-[12px] font-semibold text-[#0F172A] bg-[#F1F5F9] px-2 py-0.5 rounded-full shrink-0">{order.orderId}</span>
                           )}
-                          <div className={`min-w-0 flex-1 flex ${isAdminView ? 'justify-end' : 'justify-start'}`}>
-                            <div
-                              className="max-w-full cursor-help"
-                              onClickCapture={(e) => {
-                                if (!order.products || order.products.length === 0) return;
-                                openProductTooltip(order._id, e);
-                              }}
-                            >
-                              <TruncatedText
-                                text={order.productName || '—'}
-                                maxLength={20}
-                                className={`text-[12px] font-normal text-[#0F172A] underline decoration-dotted underline-offset-2 ${isAdminView ? 'text-right' : 'text-left'}`}
-                                tooltipAlign={isAdminView ? 'right' : 'left'}
-                              />
-                            </div>
-                          </div>
+                        </div>
+
+                        {/* Product Row */}
+                        <div
+                          className="flex items-start justify-between mb-1 px-1 gap-2 cursor-help"
+                          onClick={(e) => {
+                            if (!order.products || order.products.length === 0) return;
+                            openProductTooltip(order._id, e);
+                          }}
+                        >
+                          <TruncatedText text={order.productName || '—'} maxLength={30} className="text-[12px] font-normal text-[#0F172A] underline decoration-dotted underline-offset-2 flex-1" />
                         </div>
 
                         {/* Customer / Pickup Row */}
@@ -1023,29 +1028,24 @@ export function AdminNDR() {
                           </div>
                         </div>
 
-                        {/* Booked On / Attempted Row */}
+                        {/* Booked On / Attempted+History Row */}
                         <div className="flex items-center justify-between mb-1.5 px-1 gap-2">
                           <span className="text-[11px] font-medium text-[#64748B] truncate">Booked On | {order.bookedDate}</span>
-                          <span className="text-[11px] font-semibold text-[#00A86B] shrink-0">{order.ndrAttempts} Attempted</span>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span className="text-[11px] font-semibold text-[#00A86B]">{order.ndrAttempts} Attempted</span>
+                            {renderHistoryButton(order)}
+                          </div>
                         </div>
 
                         {/* Actions Row */}
-                        <div className="flex items-center gap-2">
+                        {showActionsColumn && (
                           <button
-                            onClick={() => setHistoryModalOrder(order)}
-                            className={`h-9 rounded-full border-2 border-[#2563EB] text-[#2563EB] bg-white text-[12.5px] font-bold flex items-center justify-center gap-1.5 hover:bg-blue-50 transition-colors ${showActionsColumn ? 'flex-1' : 'w-full'}`}
+                            onClick={() => setActionModalOrder(order)}
+                            className="w-full py-2 rounded-xl bg-[#1e40af] text-white text-[12px] font-bold flex items-center justify-center gap-1.5 hover:bg-[#1e3a8a] transition-colors"
                           >
-                            History
+                            Take Action
                           </button>
-                          {showActionsColumn && (
-                            <button
-                              onClick={() => setActionModalOrder(order)}
-                              className="flex-1 h-9 rounded-full bg-[#2563EB] text-white text-[12.5px] font-bold flex items-center justify-center gap-1.5 hover:bg-[#1d4ed8] transition-colors"
-                            >
-                              Take Action
-                            </button>
-                          )}
-                        </div>
+                        )}
                       </div>
                     </div>
                   );

@@ -689,12 +689,6 @@ export function AdminWeightDiscrepancy() {
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setShowMobileActionMenu(false)} />
                 <div className="absolute right-0 top-full mt-2 w-[200px] bg-white rounded-xl shadow-[0_8px_28px_-6px_rgba(0,0,0,0.15)] border border-[#E2E8F0] py-1.5 z-50">
-                  <button
-                    onClick={() => { toggleAll(); setShowMobileActionMenu(false); }}
-                    className="w-full text-left px-4 py-2.5 text-[13px] font-semibold text-[#00A86B] hover:bg-[#F0FDF4] border-b border-[#F1F5F9]"
-                  >
-                    {selectedItems.length === filteredOrders.length && filteredOrders.length > 0 ? 'Deselect All' : 'Select All'}
-                  </button>
                   <button onClick={() => { handleExport(); setShowMobileActionMenu(false); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors">Export</button>
                   {activeTab === 'Pending' && !isAdminView && (
                     <button onClick={() => { handleUserBulkAccept(); setShowMobileActionMenu(false); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#00A86B] hover:bg-green-50 transition-colors">Accept All</button>

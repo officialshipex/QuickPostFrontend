@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import {
   MapPin, Package, Calendar as CalendarIcon, CheckCircle2, Loader2, AlertCircle,
@@ -392,28 +391,10 @@ export function AdminTracking() {
                   </div>
                 ) : (
                   <div className="pl-1">
-                    {trackingData.events.map((event, index, arr) => {
-                      // Events render newest-first (top) to oldest-last (bottom), but the
-                      // journey itself progresses bottom-to-top — so the reveal/connector
-                      // animation is staggered from the bottom row upward to match.
-                      const stepsFromBottom = arr.length - 1 - index;
-                      return (
-                      <motion.div
-                        key={event.id}
-                        initial={{ opacity: 0, y: 14 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.35, delay: stepsFromBottom * 0.09, ease: 'easeOut' }}
-                        className="relative flex gap-4 pb-7 last:pb-0"
-                      >
+                    {trackingData.events.map((event, index, arr) => (
+                      <div key={event.id} className="relative flex gap-4 pb-7 last:pb-0">
                         {index !== arr.length - 1 && (
-                          <div className="absolute left-[13px] top-7 bottom-0 w-[2px] bg-[#E2E8F0] overflow-hidden">
-                            <motion.div
-                              className="w-full h-full bg-[#00A86B] origin-bottom"
-                              initial={{ scaleY: 0 }}
-                              animate={{ scaleY: 1 }}
-                              transition={{ duration: 0.4, delay: stepsFromBottom * 0.09 + 0.15, ease: 'easeOut' }}
-                            />
-                          </div>
+                          <div className={`absolute left-[13px] top-7 bottom-0 w-[2px] ${event.active ? 'bg-[#00A86B]' : 'bg-[#E2E8F0]'}`} />
                         )}
 
                         <div className="relative z-10 mt-0.5 shrink-0">
@@ -449,9 +430,8 @@ export function AdminTracking() {
                             </p>
                           )}
                         </div>
-                      </motion.div>
-                      );
-                    })}
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>

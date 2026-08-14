@@ -927,25 +927,26 @@ export function CRMShipmentListing() {
                 const accent = getRibbonColor(row.status);
                 return (
                   <div key={row.awb || idx} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
-                    <div className="px-2.5 pt-2.5 pb-2.5">
-                      {/* Header Row — status badge + Order ID on the left, checkbox on the right (no more corner ribbon) */}
-                      <div className="flex items-center justify-between gap-2 mb-1">
-                        <div className="flex items-center gap-1.5 min-w-0">
-                          <span className={`px-2.5 py-0.5 rounded-full border ${STATUS_STYLES[row.status] || 'bg-blue-50 text-blue-700 border-blue-200'} text-[10px] leading-4 font-semibold uppercase tracking-wider whitespace-nowrap shadow-sm`}>
-                            {row.status}
-                          </span>
-                          <span className="text-[12.5px] font-bold text-[#1D4ED8] truncate">{row.orderId}</span>
+                    <div
+                      className="absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide"
+                      style={{ background: accent, clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}
+                    >
+                      {row.status}
+                    </div>
+
+                    <div className="pt-6 px-2.5 pb-2.5">
+                      <div className="flex items-center justify-between mb-1.5 gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <input type="checkbox" checked={selectedOrders.includes(row.awb)} onChange={() => toggleSelect(row.awb)} className="rounded border-gray-300 accent-[#00A86B] w-4 h-4 shrink-0" />
+                          <span className="text-[#64748B] font-medium text-[12px]">{row.companyId}</span>
                         </div>
-                        <input type="checkbox" checked={selectedOrders.includes(row.awb)} onChange={() => toggleSelect(row.awb)} className="rounded border-gray-300 accent-[#00A86B] w-4 h-4 shrink-0" />
+                        <span className="text-[12px] font-semibold text-[#009D64]">{row.orderId}</span>
                       </div>
 
                       <div className="rounded-xl p-2 mb-1.5 bg-white" style={{ border: `1px solid ${accent}` }}>
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0 flex-1">
-                            <span className="text-[12px] leading-[18px] inline-flex items-baseline gap-1 max-w-full">
-                              <TruncatedText text={row.seller} maxLength={18} className="font-semibold text-[#1E293B] text-[12px] leading-[18px]" />
-                              {row.companyId && <span className="text-[#64748B] font-semibold shrink-0">({row.companyId})</span>}
-                            </span>
+                            <TruncatedText text={row.seller} maxLength={18} className="text-[13px] leading-[18px] font-semibold text-[#1E293B]" />
                             <TruncatedText text={row.email} maxLength={20} className="text-[12px] leading-[18px] font-normal text-[#64748B]" />
                           </div>
                           <div className="text-right shrink-0">
@@ -957,7 +958,7 @@ export function CRMShipmentListing() {
 
                       <div className="flex items-start justify-between mb-1.5 px-1 gap-2">
                         <span
-                          className="min-w-0 max-w-full text-[12px] font-normal text-[#1E293B] underline decoration-dotted underline-offset-2 truncate cursor-help"
+                          className="text-[12px] font-normal text-[#1E293B] underline decoration-dotted underline-offset-2 truncate flex-1 cursor-help"
                           onClick={(e) => {
                             if (row.products.length === 0) return;
                             openProductTooltip(row.awb, e);
@@ -995,10 +996,10 @@ export function CRMShipmentListing() {
                       </div>
 
                       <div className="flex items-center gap-2">
-                        <button onClick={() => navigate(`/admin/order-tracking?id=${row.orderId}`)} className="flex-1 h-9 rounded-full border-2 border-[#2563EB] text-[#2563EB] bg-white text-[12.5px] font-bold flex items-center justify-center gap-1.5 hover:bg-blue-50 transition-colors">
+                        <button onClick={() => navigate(`/admin/order-tracking?id=${row.orderId}`)} className="flex-1 h-8 rounded-xl bg-[#1e40af] text-white text-[12px] font-bold flex items-center justify-center gap-1.5 hover:bg-[#1e3a8a] transition-colors">
                           View Details
                         </button>
-                        <div className="relative flex-1">
+                        <div className="relative shrink-0">
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -1008,9 +1009,9 @@ export function CRMShipmentListing() {
                               }
                               setOpenActionId(openActionId === row.awb ? null : row.awb);
                             }}
-                            className="w-full h-9 rounded-full bg-[#2563EB] text-white text-[12.5px] font-bold flex items-center justify-center gap-1.5 hover:bg-[#1d4ed8] transition-colors"
+                            className="w-8 h-8 rounded-full border border-[#E2E8F0] text-[#64748B] bg-white flex items-center justify-center"
                           >
-                            Actions <ChevronDown className={`w-3.5 h-3.5 transition-transform ${openActionId === row.awb ? 'rotate-180' : ''}`} />
+                            <MoreHorizontal className="w-3.5 h-3.5" />
                           </button>
                           {openActionId === row.awb && mobileActionMenuPos && createPortal(
                             <>
