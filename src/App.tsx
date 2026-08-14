@@ -138,6 +138,19 @@ function GlobalOrderClickInterceptor() {
   return null;
 }
 
+function AppRootHandler() {
+  if (window.location.hostname === 'app.quickpost.in') {
+    const token = getToken();
+    const isValid = token && !isTokenExpired(token);
+    if (isValid) {
+      const role = getRoleFromToken(token!);
+      return <Navigate to={role === 'admin' ? '/admin/dashboard' : '/user/dashboard'} replace />;
+    }
+    return <Navigate to="/login" replace />;
+  }
+  return <Home />;
+}
+
 function AuthRedirect({ children }: { children: React.ReactNode }) {
   const token = getToken();
   const isValid = token && !isTokenExpired(token);
@@ -155,7 +168,7 @@ function App() {
       <Router>
         <GlobalOrderClickInterceptor />
         <Routes>
-          <Route path="/" element={<Home />} />
+          <Route path="/" element={<AppRootHandler />} />
           <Route path="/track" element={<Track />} />
           <Route path="/rate-calculator" element={<RateCalculator />} />
           <Route path="/login" element={<AuthRedirect><Login /></AuthRedirect>} />
