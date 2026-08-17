@@ -793,8 +793,14 @@ export function AdminOrders() {
   // ── Action menu items per tab ──
   const renderActionMenuItems = () => {
     const closeMenu = () => setShowActionMenu(false);
+    const selectAllItem = (
+      <button className="w-full text-left px-4 py-2.5 text-[13px] font-semibold text-[#00A86B] hover:bg-[#F0FDF4] cursor-pointer border-b border-[#F1F5F9]" onClick={() => { toggleAll(); closeMenu(); }}>
+        {selectedOrders.length === orders.length && orders.length > 0 ? 'Deselect All' : 'Select All'}
+      </button>
+    );
     if (isPMTab) return (
       <>
+        {selectAllItem}
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { handleBulkManifest(selectedOrders); closeMenu(); }}>Download Manifests</button>
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { handleBulkLabel(selectedOrders); closeMenu(); }}>Download Labels</button>
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { handleBulkInvoice(selectedOrders); closeMenu(); }}>Download Invoices</button>
@@ -802,6 +808,7 @@ export function AdminOrders() {
     );
     if (isNewTab) return (
       <>
+        {selectAllItem}
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { setShipOrder(orders.find(o => selectedOrders.includes(o._id)) || null); closeMenu(); }}>Bulk Ship</button>
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { setShowPackageModal(true); closeMenu(); }}>Update Package Details</button>
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { openPickupModal(); closeMenu(); }}>Update Pickup Address</button>
@@ -813,6 +820,7 @@ export function AdminOrders() {
     );
     return (
       <>
+        {selectAllItem}
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { setShowExportModal(true); closeMenu(); }}>Export Excel</button>
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { handleBulkLabel(selectedOrders); closeMenu(); }}>Download Labels</button>
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { handleBulkInvoice(selectedOrders); closeMenu(); }}>Download Invoices</button>
@@ -1545,14 +1553,16 @@ export function AdminOrders() {
                       </div>
 
                       {/* Product & Weight Row */}
-                      <div
-                        className="flex items-start justify-between mb-1.5 px-1 gap-2 cursor-help"
-                        onClick={(e) => {
-                          if (!order.products || order.products.length === 0) return;
-                          openProductTooltip(order._id, e);
-                        }}
-                      >
-                        <TruncatedText text={order.productName || '—'} maxLength={30} className="text-[12px] font-normal text-[#0F172A] underline decoration-dotted underline-offset-2 flex-1" />
+                      <div className="flex items-start justify-between mb-1.5 px-1 gap-2">
+                        <div
+                          className="min-w-0 cursor-help"
+                          onClickCapture={(e) => {
+                            if (!order.products || order.products.length === 0) return;
+                            openProductTooltip(order._id, e);
+                          }}
+                        >
+                          <TruncatedText text={order.productName || '—'} maxLength={30} className="text-[12px] font-normal text-[#0F172A] underline decoration-dotted underline-offset-2" />
+                        </div>
                         <span className="text-[11px] font-medium text-[#64748B] shrink-0">Weight: {order.weight}</span>
                       </div>
 
@@ -1590,7 +1600,7 @@ export function AdminOrders() {
                           <button
                             onClick={() => !cancellingIds.has(order._id) && setShipOrder(order)}
                             disabled={cancellingIds.has(order._id)}
-                            className="flex-1 py-2 rounded-xl bg-[#1e40af] text-white text-[12px] font-bold flex items-center justify-center gap-1.5 hover:bg-[#1e3a8a] transition-colors disabled:opacity-50 disabled:pointer-events-none"
+                            className="flex-1 h-9 rounded-full bg-[#00A86B] text-white text-[12.5px] font-bold flex items-center justify-center gap-1.5 shadow-sm hover:bg-[#009960] transition-colors disabled:opacity-50 disabled:pointer-events-none"
                           >
                             Ship <Send className="w-3.5 h-3.5" />
                           </button>
@@ -1598,7 +1608,7 @@ export function AdminOrders() {
                           <button
                             onClick={() => !cancellingIds.has(order._id) && navigate(`${isAdminView ? '/admin' : '/user'}/order-tracking?id=${order.orderId}`)}
                             disabled={cancellingIds.has(order._id)}
-                            className="flex-1 py-2 rounded-xl bg-[#1e40af] text-white text-[12px] font-bold flex items-center justify-center gap-1.5 hover:bg-[#1e3a8a] transition-colors disabled:opacity-50 disabled:pointer-events-none"
+                            className="flex-1 h-9 rounded-full bg-[#00A86B] text-white text-[12.5px] font-bold flex items-center justify-center gap-1.5 shadow-sm hover:bg-[#009960] transition-colors disabled:opacity-50 disabled:pointer-events-none"
                           >
                             View Details
                           </button>
@@ -1611,11 +1621,12 @@ export function AdminOrders() {
                             const rect = e.currentTarget.getBoundingClientRect();
                             setDropdownPos({ id: order._id, top: rect.bottom + 4, left: rect.right - 176 });
                           }}
-                          className={`w-9 h-9 rounded-full border flex items-center justify-center shrink-0 transition-colors ${cancellingIds.has(order._id) ? 'border-rose-200 bg-rose-50 cursor-not-allowed' : dropdownPos?.id === order._id ? 'bg-green-100 border-[#00A86B] text-[#00A86B]' : 'border-[#E2E8F0] text-[#64748B] bg-white'}`}
+                          disabled={cancellingIds.has(order._id)}
+                          className={`flex-1 h-9 rounded-full border text-[12.5px] font-bold flex items-center justify-center gap-1.5 transition-colors ${cancellingIds.has(order._id) ? 'border-rose-200 bg-rose-50 text-rose-400 cursor-not-allowed' : dropdownPos?.id === order._id ? 'border-[#00A86B] bg-[#F0FDF4] text-[#00A86B]' : 'border-[#E2E8F0] bg-white text-[#475569] hover:bg-[#F8FAFC]'}`}
                         >
                           {cancellingIds.has(order._id)
-                            ? <Loader2 className="w-3.5 h-3.5 animate-spin text-rose-500" />
-                            : <MoreHorizontal className="w-3.5 h-3.5" />
+                            ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            : <>Actions <ChevronDown className={`w-3.5 h-3.5 transition-transform ${dropdownPos?.id === order._id ? 'rotate-180' : ''}`} /></>
                           }
                         </button>
                       </div>
