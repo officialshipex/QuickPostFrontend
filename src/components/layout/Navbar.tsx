@@ -83,7 +83,7 @@ export function Navbar() {
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
       >
-        <div className="max-w-7xl mx-auto px-6 md:px-10 h-[78px] flex items-center justify-between gap-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-10 h-[78px] flex items-center justify-between gap-3 sm:gap-6">
 
           {/* ── Logo ── */}
           <Link to="/" className="flex-shrink-0 flex items-center">
@@ -148,7 +148,7 @@ export function Navbar() {
           {/* ── Mobile Hamburger ── */}
           <button
             onClick={() => setMobileOpen((v) => !v)}
-            className={`lg:hidden flex items-center justify-center w-10 h-10 rounded-xl transition-colors ${
+            className={`lg:hidden flex-shrink-0 flex items-center justify-center w-10 h-10 rounded-xl transition-colors ${
               isScrolled
                 ? 'text-slate-700 hover:bg-slate-100'
                 : 'text-white hover:bg-white/10'
@@ -177,13 +177,14 @@ export function Navbar() {
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
               transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-              className={`lg:hidden overflow-hidden border-t ${
+              className={`lg:hidden overflow-y-auto border-t ${
                 isScrolled
                   ? 'bg-white border-slate-100'
                   : 'bg-[#006B44]/95 backdrop-blur-2xl border-white/10'
               }`}
+              style={{ maxHeight: 'calc(100dvh - 78px)' }}
             >
-              <div className="max-w-7xl mx-auto px-5 py-4 flex flex-col gap-1">
+              <div className="max-w-7xl mx-auto px-4 sm:px-5 py-3 sm:py-4 flex flex-col gap-1">
                 {navLinks.map((link, i) => (
                   <motion.a
                     key={link.label}
@@ -192,7 +193,7 @@ export function Navbar() {
                     initial={{ opacity: 0, x: -12 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.22, delay: i * 0.05 }}
-                    className={`flex items-center gap-2.5 px-4 py-3 rounded-xl text-[14px] font-medium transition-colors ${
+                    className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-[14px] font-medium transition-colors ${
                       isScrolled
                         ? 'text-[#4A5568] hover:text-[#0F172A] hover:bg-slate-50'
                         : 'text-white/85 hover:text-white hover:bg-white/10'

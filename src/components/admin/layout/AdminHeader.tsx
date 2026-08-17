@@ -29,6 +29,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
   const [orderSearchLoading, setOrderSearchLoading] = useState(false);
   const [showOrderSearchResults, setShowOrderSearchResults] = useState(false);
   const orderSearchRef = useRef<HTMLDivElement>(null);
+  const mobileSearchRef = useRef<HTMLDivElement>(null);
   const [showDateDropdown, setShowDateDropdown] = useState(false);
   const { toast, showToast: _showToast, closeToast } = useToast();
   const [isCustomMode, setIsCustomMode] = useState(false);
@@ -53,6 +54,19 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
 
   // Pending agreement for notification bell
   const [pendingAgreement, setPendingAgreement] = useState<any>(null);
+
+  // Mobile — Notifications/Quick Actions share one icon slot (space is tight on small
+  // screens); the icon rolls between Bell and Zap every 5s so both stay discoverable.
+  // Tapping always opens whichever panel is currently showing, so it's never ambiguous.
+  // Paused while either panel is open so the icon never rolls out from under an open menu.
+  const [mobileIconRoll, setMobileIconRoll] = useState<'bell' | 'zap'>('bell');
+  useEffect(() => {
+    if (showNotifications || showQuickActions) return;
+    const interval = setInterval(() => {
+      setMobileIconRoll((v) => (v === 'bell' ? 'zap' : 'bell'));
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [showNotifications, showQuickActions]);
 
   // Sync real wallet balance from context on load (and whenever context updates)
   React.useEffect(() => { setWalletBalance(ctxWalletBalance); }, [ctxWalletBalance]);
@@ -256,10 +270,16 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Close the results dropdown on outside click.
+  // Close the results dropdown on outside click. Checks both the desktop search box
+  // and the mobile search bar/results container — without the mobile ref, any tap on
+  // mobile (including on a result row) reads as "outside" the desktop-only ref and
+  // closes the dropdown on mousedown, before the row's own onClick ever fires.
   useEffect(() => {
     const handleOutside = (e: MouseEvent) => {
-      if (orderSearchRef.current && !orderSearchRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      const insideDesktop = orderSearchRef.current?.contains(target);
+      const insideMobile = mobileSearchRef.current?.contains(target);
+      if (!insideDesktop && !insideMobile) {
         setShowOrderSearchResults(false);
       }
     };
@@ -270,7 +290,8 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
   const goToOrder = (order: any) => {
     setShowOrderSearchResults(false);
     setSearchQuery('');
-    navigate(`/admin/order-tracking?id=${encodeURIComponent(String(order._id))}`);
+    const panel = location.pathname.startsWith('/user/') ? '/user' : '/admin';
+    navigate(`${panel}/order-tracking?id=${encodeURIComponent(String(order._id))}`);
   };
 
   const dropdownVariants: any = {
@@ -297,12 +318,19 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
       )}
 
       {/* Mobile Top Bar — visible only on mobile */}
-      <div className={`md:hidden bg-white border-b border-[#E2E8F0] sticky ${isImpersonating ? 'top-8' : 'top-0'} z-[100] shadow-sm`}>
+      <div ref={mobileSearchRef} className={`md:hidden bg-white border-b border-[#E2E8F0] sticky ${isImpersonating ? 'top-8' : 'top-0'} z-[100] shadow-sm overflow-hidden`}>
 
+        <AnimatePresence mode="wait" initial={false}>
         {/* Normal mode — hamburger + logo + icon strip */}
         {!showMobileSearch && (
-          <div className="flex items-center justify-between px-4 h-[60px]">
-            {/* Left: hamburger + logo */}
+          <motion.div
+            key="normal-bar"
+            initial={{ opacity: 0, x: -12 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -12 }}
+            transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+            className="flex items-center justify-between px-3 h-[60px]">
+            {/* Left: hamburger */}
             <div className="flex items-center gap-2.5 shrink-0">
               <button
                 onClick={onMobileMenuToggle}
@@ -310,139 +338,164 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
               >
                 <Menu className="w-5 h-5" />
               </button>
-              <img src="/logo-color.png" alt="QuickPost" className="h-10 w-auto object-contain" />
             </div>
 
             <div className="flex items-center gap-1 shrink-0">
-              {/* Search trigger — dashboard only */}
-              {isDashboardPage && (
-                <button
-                  onClick={() => {
-                    setShowMobileSearch(true);
-                    setSearchQuery('');
-                    setShowOrderSearchResults(false);
-                    setShowNotifications(false);
+              {/* Search chip — compact pill with the same rolling placeholder as desktop; tap to expand into full search mode */}
+              <button
+                onClick={() => {
+                  setShowMobileSearch(true);
+                  setSearchQuery('');
+                  setShowOrderSearchResults(false);
+                  setShowNotifications(false);
+                  setShowQuickActions(false);
+                  setShowProfileMenu(false);
+                  setShowMobileWalletSummary(false);
+                  setShowDateDropdown(false);
+                }}
+                className="flex items-center gap-1.5 h-8 w-[108px] shrink-0 pl-2.5 pr-2.5 rounded-full border border-[#E2E8F0] bg-[#F8FAFC] text-[#94A3B8] hover:border-[#CBD5E1] transition-colors"
+              >
+                <Search className="w-3.5 h-3.5 shrink-0" />
+                <span className="relative flex-1 min-w-0 h-4 overflow-hidden text-[11px] font-medium leading-4 whitespace-nowrap text-left">
+                  <AnimatePresence mode="wait">
+                    <motion.span
+                      key={placeholderIndex}
+                      initial={{ y: 16, opacity: 0 }}
+                      animate={{ y: 0, opacity: 1 }}
+                      exit={{ y: -16, opacity: 0 }}
+                      transition={{ duration: 0.35, ease: 'easeInOut' }}
+                      className="block truncate"
+                    >
+                      {ORDER_SEARCH_FIELDS[placeholderIndex]}
+                    </motion.span>
+                  </AnimatePresence>
+                </span>
+              </button>
+
+              {/* Notifications + Quick Actions — merged into one rolling icon slot on the user
+                  side (both non-admin and non-employee) to save space for the profile icon;
+                  admin-only and employee-only cases keep a single dedicated icon, no roll. */}
+              {(() => {
+                const showsNotifications = !(isAdmin && adminTab);
+                const showsQuickActions = !isEmployee;
+                const isMerged = showsNotifications && showsQuickActions;
+                const activeIcon: 'bell' | 'zap' = isMerged ? mobileIconRoll : (showsNotifications ? 'bell' : 'zap');
+                if (!showsNotifications && !showsQuickActions) return null;
+
+                const isOpen = activeIcon === 'bell' ? showNotifications : showQuickActions;
+                const handleToggle = () => {
+                  if (activeIcon === 'bell') {
+                    setShowNotifications(!showNotifications);
                     setShowQuickActions(false);
-                    setShowProfileMenu(false);
-                    setShowMobileWalletSummary(false);
-                    setShowDateDropdown(false);
-                  }}
-                  className="w-8 h-8 flex items-center justify-center rounded-full text-[#64748B] hover:bg-[#F8FAFC] transition-colors"
-                >
-                  <Search className="w-[18px] h-[18px]" />
-                </button>
-              )}
+                  } else {
+                    setShowQuickActions(!showQuickActions);
+                    setShowNotifications(false);
+                  }
+                  setShowProfileMenu(false);
+                  setShowMobileWalletSummary(false);
+                  setShowDateDropdown(false);
+                };
 
-              {/* Notifications — only for non-admin users */}
-              {!(isAdmin && adminTab) && (
-                <div className="relative shrink-0">
-                  <button
-                    onClick={() => {
-                      setShowNotifications(!showNotifications);
-                      setShowQuickActions(false);
-                      setShowProfileMenu(false);
-                      setShowMobileWalletSummary(false);
-                      setShowDateDropdown(false);
-                    }}
-                    className={`w-8 h-8 flex items-center justify-center rounded-full text-[#64748B] hover:bg-[#F8FAFC] transition-colors relative cursor-pointer ${showNotifications ? 'bg-[#F8FAFC] text-[#0F172A]' : ''}`}
-                  >
-                    <Bell className="w-[18px] h-[18px]" />
-                    {!!pendingAgreement && (
-                      <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-[#EF4444] rounded-full" />
-                    )}
-                  </button>
+                return (
+                  <div className="relative shrink-0">
+                    <button
+                      onClick={handleToggle}
+                      className={`w-8 h-8 flex items-center justify-center rounded-full text-[#64748B] hover:bg-[#F8FAFC] transition-colors relative cursor-pointer overflow-hidden ${isOpen ? 'bg-[#F8FAFC] text-[#0F172A]' : ''}`}
+                    >
+                      <AnimatePresence mode="wait" initial={false}>
+                        <motion.span
+                          key={activeIcon}
+                          initial={{ y: 14, opacity: 0, rotate: -8 }}
+                          animate={{ y: 0, opacity: 1, rotate: 0 }}
+                          exit={{ y: -14, opacity: 0, rotate: 8 }}
+                          transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                          className="flex items-center justify-center"
+                        >
+                          {activeIcon === 'bell'
+                            ? <Bell className="w-[18px] h-[18px]" />
+                            : <Zap className="w-[18px] h-[18px]" />
+                          }
+                        </motion.span>
+                      </AnimatePresence>
+                      {activeIcon === 'bell' && !!pendingAgreement && (
+                        <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-[#EF4444] rounded-full" />
+                      )}
+                    </button>
 
-                  {showNotifications && (
-                    <>
-                      <div className="fixed inset-0 z-40" onClick={() => setShowNotifications(false)} />
-                      <div className={`fixed right-3 ${isImpersonating ? 'top-[96px]' : 'top-[64px]'} w-56 max-w-[calc(100vw-24px)] bg-white rounded-xl shadow-xl border border-[#E2E8F0] overflow-hidden z-50 origin-top-right`}>
-                        <div className="px-2.5 py-1.5 border-b border-[#E2E8F0] flex justify-between items-center bg-slate-50/50">
-                          <h3 className="font-bold text-[#0F172A] text-[10px] uppercase tracking-wider">Notifications</h3>
-                          {!!pendingAgreement && (
-                            <span className="text-[8.5px] font-bold text-white bg-[#EF4444] rounded-full px-1.5 py-0.5">1</span>
-                          )}
-                        </div>
-                        <div className="max-h-[160px] overflow-y-auto">
-                          {pendingAgreement ? (
-                            <div className="px-2.5 py-2 border-b border-[#E2E8F0]/60">
-                              <div className="flex items-start gap-1.5">
-                                <div className="w-1.5 h-1.5 rounded-full bg-[#EF4444] shrink-0 mt-1" />
-                                <div className="flex-1">
-                                  <p className="text-[10.5px] font-semibold text-[#0F172A] leading-snug">Agreement Pending</p>
-                                  <p className="text-[9.5px] text-[#64748B] mt-0.5 leading-snug">{pendingAgreement.versionName || 'New Terms & Conditions'} — please review and accept.</p>
-                                  <button
-                                    onClick={() => { navigate('/user/settings/agreement'); setShowNotifications(false); }}
-                                    className="mt-1 text-[9.5px] font-bold text-[#00A86B] hover:underline"
-                                  >
-                                    View &amp; Accept →
-                                  </button>
+                    {showNotifications && (
+                      <>
+                        <div className="fixed inset-0 z-40" onClick={() => setShowNotifications(false)} />
+                        <div className={`fixed right-3 ${isImpersonating ? 'top-[96px]' : 'top-[64px]'} w-56 max-w-[calc(100vw-24px)] bg-white rounded-xl shadow-xl border border-[#E2E8F0] overflow-hidden z-50 origin-top-right`}>
+                          <div className="px-2.5 py-1.5 border-b border-[#E2E8F0] flex justify-between items-center bg-slate-50/50">
+                            <h3 className="font-bold text-[#0F172A] text-[10px] uppercase tracking-wider">Notifications</h3>
+                            {!!pendingAgreement && (
+                              <span className="text-[8.5px] font-bold text-white bg-[#EF4444] rounded-full px-1.5 py-0.5">1</span>
+                            )}
+                          </div>
+                          <div className="max-h-[160px] overflow-y-auto">
+                            {pendingAgreement ? (
+                              <div className="px-2.5 py-2 border-b border-[#E2E8F0]/60">
+                                <div className="flex items-start gap-1.5">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-[#EF4444] shrink-0 mt-1" />
+                                  <div className="flex-1">
+                                    <p className="text-[10.5px] font-semibold text-[#0F172A] leading-snug">Agreement Pending</p>
+                                    <p className="text-[9.5px] text-[#64748B] mt-0.5 leading-snug">{pendingAgreement.versionName || 'New Terms & Conditions'} — please review and accept.</p>
+                                    <button
+                                      onClick={() => { navigate('/user/settings/agreement'); setShowNotifications(false); }}
+                                      className="mt-1 text-[9.5px] font-bold text-[#00A86B] hover:underline"
+                                    >
+                                      View &amp; Accept →
+                                    </button>
+                                  </div>
                                 </div>
                               </div>
-                            </div>
+                            ) : (
+                              <div className="px-2.5 py-3.5 text-center">
+                                <Bell className="w-4.5 h-4.5 text-[#CBD5E1] mx-auto mb-1.5" />
+                                <p className="text-[10px] font-semibold text-[#94A3B8]">No new notifications</p>
+                              </div>
+                            )}
+                          </div>
+                          <div
+                            className="px-2.5 py-1.5 border-t border-[#E2E8F0] bg-[#F8FAFC] text-center cursor-pointer hover:bg-[#F1F5F9] transition-colors"
+                            onClick={() => { navigate('/user/notification'); setShowNotifications(false); }}
+                          >
+                            <span className="text-[9.5px] font-bold text-[#0F172A]">View All Notifications</span>
+                          </div>
+                        </div>
+                      </>
+                    )}
+
+                    {showQuickActions && (
+                      <>
+                        <div className="fixed inset-0 z-40" onClick={() => setShowQuickActions(false)} />
+                        <div className={`fixed right-3 ${isImpersonating ? 'top-[96px]' : 'top-[64px]'} w-48 max-w-[calc(100vw-24px)] bg-white rounded-xl shadow-xl border border-[#E2E8F0] py-2 z-50 origin-top-right`}>
+                          <div className="px-4 py-1.5 border-b border-slate-100 mb-1">
+                            <span className="text-[10px] font-bold text-[#94A3B8] uppercase">Quick Menu</span>
+                          </div>
+                          {isAdmin && adminTab ? (
+                            <button className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] text-left w-full" onClick={() => { setShowUserLoginModal(true); setUserLoginQuery(''); setUserSuggestions([]); setShowQuickActions(false); }}>
+                              <Users className="w-3.5 h-3.5" /> User Login
+                            </button>
                           ) : (
-                            <div className="px-2.5 py-3.5 text-center">
-                              <Bell className="w-4.5 h-4.5 text-[#CBD5E1] mx-auto mb-1.5" />
-                              <p className="text-[10px] font-semibold text-[#94A3B8]">No new notifications</p>
-                            </div>
+                            <>
+                              <Link to="/user/add-order" className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A]" onClick={() => setShowQuickActions(false)}>
+                                <PackagePlus className="w-3.5 h-3.5" /> Add an Order
+                              </Link>
+                              <button className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] text-left w-full" onClick={() => { setShowBulkModal(true); setShowQuickActions(false); }}>
+                                <Upload className="w-3.5 h-3.5" /> Bulk Import
+                              </button>
+                              <Link to="/user/rate-calculator" className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A]" onClick={() => setShowQuickActions(false)}>
+                                <Calculator className="w-3.5 h-3.5" /> Calculate Rate
+                              </Link>
+                            </>
                           )}
                         </div>
-                        <div
-                          className="px-2.5 py-1.5 border-t border-[#E2E8F0] bg-[#F8FAFC] text-center cursor-pointer hover:bg-[#F1F5F9] transition-colors"
-                          onClick={() => { navigate('/user/notification'); setShowNotifications(false); }}
-                        >
-                          <span className="text-[9.5px] font-bold text-[#0F172A]">View All Notifications</span>
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
-
-              {/* Quick Actions — hidden for employees */}
-              {!isEmployee && (
-                <div className="relative shrink-0">
-                  <button
-                    onClick={() => {
-                      setShowQuickActions(!showQuickActions);
-                      setShowNotifications(false);
-                      setShowProfileMenu(false);
-                      setShowMobileWalletSummary(false);
-                      setShowDateDropdown(false);
-                    }}
-                    className={`w-8 h-8 flex items-center justify-center rounded-full text-[#64748B] hover:bg-[#F8FAFC] transition-colors cursor-pointer ${showQuickActions ? 'bg-[#F8FAFC] text-[#0F172A]' : ''}`}
-                  >
-                    <Zap className="w-[18px] h-[18px]" />
-                  </button>
-
-                  {showQuickActions && (
-                    <>
-                      <div className="fixed inset-0 z-40" onClick={() => setShowQuickActions(false)} />
-                      <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-[#E2E8F0] py-2 z-50 origin-top-right">
-                        <div className="px-4 py-1.5 border-b border-slate-100 mb-1">
-                          <span className="text-[10px] font-bold text-[#94A3B8] uppercase">Quick Menu</span>
-                        </div>
-                        {isAdmin && adminTab ? (
-                          <button className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] text-left w-full" onClick={() => { setShowUserLoginModal(true); setUserLoginQuery(''); setUserSuggestions([]); setShowQuickActions(false); }}>
-                            <Users className="w-3.5 h-3.5" /> User Login
-                          </button>
-                        ) : (
-                          <>
-                            <Link to="/user/add-order" className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A]" onClick={() => setShowQuickActions(false)}>
-                              <PackagePlus className="w-3.5 h-3.5" /> Add an Order
-                            </Link>
-                            <button className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] text-left w-full" onClick={() => { setShowBulkModal(true); setShowQuickActions(false); }}>
-                              <Upload className="w-3.5 h-3.5" /> Bulk Import
-                            </button>
-                            <Link to="/user/rate-calculator" className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A]" onClick={() => setShowQuickActions(false)}>
-                              <Calculator className="w-3.5 h-3.5" /> Calculate Rate
-                            </Link>
-                          </>
-                        )}
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
+                      </>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* Wallet Balance */}
               <div className="relative shrink-0">
@@ -474,7 +527,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                 {showMobileWalletSummary && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setShowMobileWalletSummary(false)} />
-                    <div className="absolute right-0 mt-2.5 w-64 bg-white rounded-2xl shadow-xl border border-[#E2E8F0] p-4 z-50 origin-top-right">
+                    <div className={`fixed right-3 ${isImpersonating ? 'top-[96px]' : 'top-[64px]'} w-64 max-w-[calc(100vw-24px)] bg-white rounded-2xl shadow-xl border border-[#E2E8F0] p-4 z-50 origin-top-right`}>
                       <div className="flex justify-between items-center mb-3">
                         <span className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider">Wallet Summary</span>
                         <span className="w-1.5 h-1.5 rounded-full bg-[#00A86B] animate-pulse shrink-0"></span>
@@ -523,7 +576,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                 {showProfileMenu && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setShowProfileMenu(false)} />
-                    <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-[#E2E8F0] py-2 z-50 origin-top-right">
+                    <div className={`fixed right-3 ${isImpersonating ? 'top-[96px]' : 'top-[64px]'} w-56 max-w-[calc(100vw-24px)] bg-white rounded-xl shadow-xl border border-[#E2E8F0] py-2 z-50 origin-top-right`}>
                       <div className="px-4 py-2.5 border-b border-slate-100 bg-slate-50/50">
                         {isEmployee ? (
                           <>
@@ -575,14 +628,27 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                 )}
               </div>
             </div>
-          </div>
+          </motion.div>
         )}
 
-        {/* Search mode — full-width input with Cancel */}
+        {/* Search mode — full-width input with Cancel, expands over and covers the normal top bar */}
         {showMobileSearch && (
-          <div className="flex items-center gap-3 px-4 h-[60px]">
-            <div className="flex-1 flex items-center gap-2 bg-[#F8FAFC] rounded-xl px-3 py-2.5 border border-[#E2E8F0] focus-within:border-[#00A86B] focus-within:bg-white transition-all min-w-0">
-              <Search className="w-4 h-4 text-[#94A3B8] shrink-0" />
+          <motion.div
+            key="search-bar"
+            initial={{ opacity: 0, x: 16 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 16 }}
+            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            className="flex items-center gap-2.5 px-4 h-[60px]"
+          >
+            <motion.div
+              initial={{ scaleX: 0.85 }}
+              animate={{ scaleX: 1 }}
+              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+              style={{ originX: 0 }}
+              className="flex-1 flex items-center gap-2 h-10 bg-[#F8FAFC] rounded-full px-3.5 border border-[#E2E8F0] focus-within:border-[#00A86B] focus-within:ring-4 focus-within:ring-[#00A86B]/10 focus-within:bg-white transition-all min-w-0"
+            >
+              <Search className="w-[17px] h-[17px] text-[#94A3B8] shrink-0" />
               <input
                 autoFocus
                 type="text"
@@ -590,22 +656,23 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                 onChange={(e) => { setSearchQuery(e.target.value); setShowOrderSearchResults(true); }}
                 onFocus={() => { if (searchQuery.trim()) setShowOrderSearchResults(true); }}
                 placeholder="Search by AWB, order ID, customer…"
-                className="flex-1 min-w-0 bg-transparent text-sm font-medium text-[#0F172A] outline-none placeholder:text-[#94A3B8]"
+                className="flex-1 min-w-0 bg-transparent text-[13.5px] font-medium text-[#0F172A] outline-none placeholder:text-[#94A3B8]"
               />
               {searchQuery && (
                 <button onClick={() => { setSearchQuery(''); setShowOrderSearchResults(false); }} className="shrink-0 focus:outline-none">
                   <X className="w-4 h-4 text-[#94A3B8] hover:text-[#64748B]" />
                 </button>
               )}
-            </div>
+            </motion.div>
             <button
               onClick={() => { setShowMobileSearch(false); setSearchQuery(''); setShowOrderSearchResults(false); }}
-              className="w-8 h-8 flex items-center justify-center rounded-full text-[#64748B] hover:bg-[#F1F5F9] transition-colors shrink-0 focus:outline-none"
+              className="shrink-0 text-[13px] font-semibold text-[#00A86B] px-1 focus:outline-none"
             >
-              <X className="w-5 h-5" />
+              Cancel
             </button>
-          </div>
+          </motion.div>
         )}
+        </AnimatePresence>
 
         {/* Mobile search results panel */}
         {showMobileSearch && showOrderSearchResults && searchQuery.trim() && (
