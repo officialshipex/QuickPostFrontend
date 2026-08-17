@@ -118,8 +118,12 @@ function GenerateReportModal({ open, onClose, prefillUserId, prefillUserName, is
     if (!fromDate || !toDate) { setResult({ ok: false, text: 'From date and to date are required' }); return; }
     setSubmitting(true); setResult(null);
     try {
-      const body: any = { reportType, fromDate: new Date(fromDate).toISOString(), toDate: new Date(toDate + 'T23:59:59').toISOString() };
-      if (reportType !== 'Passbook') body.dateFilterType = dateFilterType;
+      const body: any = {
+        reportType,
+        dateFilterType: reportType === 'Passbook' ? 'Transaction Date' : dateFilterType,
+        fromDate: new Date(fromDate).toISOString(),
+        toDate: new Date(toDate + 'T23:59:59').toISOString(),
+      };
       if (reportType === 'Passbook' && descs.length > 0) body.selectedDescriptions = descs;
       if (email) body.email = email;
       if (isAdminView && prefillUserId) body.userSearch = prefillUserId;
