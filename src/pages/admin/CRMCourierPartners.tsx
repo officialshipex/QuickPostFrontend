@@ -6,6 +6,7 @@ import { apiClient } from '../../services/apiClient';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { TableLoader } from '../../components/ui/TableLoader';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { StatusRibbon } from '../../components/ui/StatusRibbon';
 import { usePagination, DesktopPagination } from '../../hooks/usePagination';
 import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
 
@@ -231,12 +232,13 @@ export function CRMCourierPartners() {
                 {paginatedData.map((c, i) => {
                   const accent = STATUS_RIBBON[c.status] || '#00A86B';
                   return (
-                    <div key={i} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
-                      <div className="absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide"
-                        style={{ background: accent, clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}>
-                        {c.status}
+                    <div key={i} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm">
+                      <StatusRibbon label={c.status} color={accent} />
+                      {/* Courier ID — parallel to the ribbon, matching Orders page layout */}
+                      <div className="flex justify-end pl-[84px] pr-4 pt-1.5">
+                        <span className="text-[12.5px] font-bold text-[#1D4ED8] truncate max-w-[140px]">{c.id}</span>
                       </div>
-                      <div className="pt-8 px-4 pb-4">
+                      <div className="pt-1.5 px-4 pb-4">
                         <div className="rounded-xl p-3 mb-3 bg-white" style={{ border: `1px solid ${accent}` }}>
                           <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0 flex-1">

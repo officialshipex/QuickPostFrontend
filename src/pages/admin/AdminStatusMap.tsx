@@ -6,6 +6,7 @@ import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { usePagination, DesktopPagination } from '../../hooks/usePagination';
 import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
 import { TableLoader } from '../../components/ui/TableLoader';
+import { StatusRibbon } from '../../components/ui/StatusRibbon';
 import {
   Upload, Download, Briefcase,
   Plus, Edit3, Trash2, X,
@@ -518,15 +519,9 @@ export function AdminStatusMap() {
               {paginatedData.map((item, idx) => {
                 const syStatusVal = String(item.syStatus || item.Sy_status || item.sy_status || item.systemStatus || item['Sy Status'] || '');
                 return (
-                  <div key={idx} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
-                    {/* Ribbon Tag */}
+                  <div key={idx} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm">
                     {syStatusVal && (
-                      <div
-                        className="absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide bg-[#F59E0B]"
-                        style={{ clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}
-                      >
-                        {syStatusVal}
-                      </div>
+                      <StatusRibbon label={syStatusVal} color="#F59E0B" />
                     )}
 
                     <div className={`px-4 pb-4 ${syStatusVal ? 'pt-8' : 'pt-4'}`}>

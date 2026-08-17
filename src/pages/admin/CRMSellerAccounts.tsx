@@ -8,6 +8,7 @@ import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
 import { getLast7DaysStr } from '../../hooks/filters/useDateRangeFilter';
 import { TableLoader } from '../../components/ui/TableLoader';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { StatusRibbon } from '../../components/ui/StatusRibbon';
 import { usePagination, DesktopPagination } from '../../hooks/usePagination';
 import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
 
@@ -304,18 +305,18 @@ export function CRMSellerAccounts() {
                 {paginatedData.map((seller, i) => {
                   const accent = ACCOUNT_RIBBON[seller.accountStatus] || '#00A86B';
                   return (
-                    <div key={i} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
-                      <div className="absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide"
-                        style={{ background: accent, clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}>
-                        {seller.accountStatus || '—'}
+                    <div key={i} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm">
+                      <StatusRibbon label={seller.accountStatus || '—'} color={accent} />
+                      {/* Seller ID — parallel to the ribbon, matching Orders page layout */}
+                      <div className="flex justify-end pl-[84px] pr-4 pt-1.5">
+                        <span className="text-[12.5px] font-bold text-[#1D4ED8] truncate max-w-[140px]">{seller.userId}</span>
                       </div>
-                      <div className="pt-8 px-4 pb-4">
+                      <div className="pt-1.5 px-4 pb-4">
                         <div className="rounded-xl p-3 mb-3 bg-white" style={{ border: `1px solid ${accent}` }}>
                           <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0 flex-1">
                               <div className="text-[14px] leading-[20px] font-semibold text-[#1E293B] truncate">{seller.company || seller.fullname}</div>
                               <div className="text-[12px] leading-[18px] font-normal text-[#64748B] truncate">{seller.email}</div>
-                              <div className="text-[11px] text-[#94A3B8] font-mono mt-0.5">{seller.userId}</div>
                             </div>
                             <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold shrink-0 ${KYC_STATUS[seller.kycStatus] || 'bg-gray-100 text-gray-500'}`}>{seller.kycStatus}</span>
                           </div>

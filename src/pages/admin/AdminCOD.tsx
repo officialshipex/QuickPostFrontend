@@ -16,6 +16,7 @@ import { useDateRangeFilter } from '../../hooks/filters/useDateRangeFilter';
 import { TruncatedText } from '../../components/ui/TruncatedText';
 import { TableLoader } from '../../components/ui/TableLoader';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { StatusRibbon } from '../../components/ui/StatusRibbon';
 import { TransferCODModal } from '../../components/ui/TransferCODModal';
 import { SharedUploadModal } from '../../components/ui/SharedUploadModal';
 import { Toast } from '../../components/ui/Toast';
@@ -23,6 +24,7 @@ import { useToast } from '../../hooks/useToast';
 import { useTableLoader } from '../../hooks/useTableLoader';
 import { usePagination, DesktopPagination } from '../../hooks/usePagination';
 import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
+import { copyToClipboard } from '../../utils/clipboard';
 
 const ADMIN_TABS = [
   { name: 'All COD Orders' },
@@ -286,10 +288,10 @@ export function AdminCOD() {
     <div className="flex items-center gap-1.5 group/copy w-max">
       <div className={className} onClick={(e) => { if (onTextClick) { e.stopPropagation(); onTextClick(); } }}>{text}</div>
       <button
-        onClick={(e) => {
+        onClick={async (e) => {
           e.stopPropagation();
-          navigator.clipboard.writeText(text);
-          showToast('success', `${label} copied!`);
+          const ok = await copyToClipboard(text);
+          showToast(ok ? 'success' : 'error', ok ? `${label} copied!` : `Couldn't copy ${label}`);
         }}
         className="opacity-100 md:opacity-0 md:group-hover/copy:opacity-100 transition-opacity focus:outline-none"
         title={`Copy ${label}`}
@@ -857,29 +859,66 @@ export function AdminCOD() {
 
         {/* Mobile Search Bar — search + filter + action consolidated */}
         <div className="md:hidden px-3 py-2.5 border-b border-[#E2E8F0] flex items-center gap-2">
-          <div className="relative flex-1">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
-            <input
-              type="text"
-              placeholder={
-                activeTab === 'All COD Orders' ? 'Search by AWB...' :
-                (activeTab === 'Seller COD Remittance' || activeTab === 'COD Remittance') ? 'Search by remittance ID...' :
-                'Search by AWB, Order ID...'
-              }
-              value={
-                activeTab === 'All COD Orders' ? codAwb :
-                (activeTab === 'Seller COD Remittance' || activeTab === 'COD Remittance') ? sellerRemittanceId :
-                courierAwb
-              }
-              onChange={(e) => {
-                const val = e.target.value;
-                if (activeTab === 'All COD Orders') setCodAwb(val);
-                else if (activeTab === 'Seller COD Remittance' || activeTab === 'COD Remittance') setSellerRemittanceId(val);
-                else setCourierAwb(val);
-              }}
-              className="w-full h-9 pl-9 pr-3 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] text-sm text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all"
-            />
-          </div>
+          {isAdminView && (activeTab === 'All COD Orders' || activeTab === 'COD Remittance') ? (
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
+              <input
+                type="text"
+                placeholder="Search by name, email, or contact"
+                value={activeTab === 'All COD Orders' ? codUserQuery : courierUserQuery}
+                onChange={(e) => (activeTab === 'All COD Orders' ? onCodUserQueryChange(e.target.value) : onCourierUserQueryChange(e.target.value))}
+                className="w-full h-9 pl-9 pr-8 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] text-sm text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all"
+              />
+              {(activeTab === 'All COD Orders' ? codUserMongoId : courierUserMongoId) && (
+                <button
+                  onClick={() => (activeTab === 'All COD Orders' ? clearCodUserFilter() : clearCourierUserFilter())}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#94A3B8] hover:text-red-500"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+              {(activeTab === 'All COD Orders' ? codUserSuggestions : courierUserSuggestions).length > 0 &&
+                !(activeTab === 'All COD Orders' ? codUserMongoId : courierUserMongoId) && (
+                <div className="absolute left-0 top-full mt-1 bg-white border border-[#E2E8F0] rounded-xl shadow-xl z-50 w-full max-h-52 overflow-y-auto py-1">
+                  {(activeTab === 'All COD Orders' ? codUserSuggestions : courierUserSuggestions).map((u: any) => (
+                    <button key={u._id} type="button"
+                      onClick={() => (activeTab === 'All COD Orders' ? selectCodUserSuggestion(u) : selectCourierUserSuggestion(u))}
+                      className="w-full text-left px-3 py-2.5 hover:bg-[#F0FDF4] flex items-start gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[12px] font-bold text-slate-800 truncate">{u.fullname}</div>
+                        <div className="text-[11px] text-slate-400 truncate">{u.email} · {u.phoneNumber}</div>
+                      </div>
+                      <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded shrink-0">{u.userId}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
+              <input
+                type="text"
+                placeholder={
+                  activeTab === 'All COD Orders' ? 'Search by AWB...' :
+                  (activeTab === 'Seller COD Remittance' || activeTab === 'COD Remittance') ? 'Search by remittance ID...' :
+                  'Search by AWB, Order ID...'
+                }
+                value={
+                  activeTab === 'All COD Orders' ? codAwb :
+                  (activeTab === 'Seller COD Remittance' || activeTab === 'COD Remittance') ? sellerRemittanceId :
+                  courierAwb
+                }
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (activeTab === 'All COD Orders') setCodAwb(val);
+                  else if (activeTab === 'Seller COD Remittance' || activeTab === 'COD Remittance') setSellerRemittanceId(val);
+                  else setCourierAwb(val);
+                }}
+                className="w-full h-9 pl-9 pr-3 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] text-sm text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all"
+              />
+            </div>
+          )}
           {/* Filter icon */}
           <button
             onClick={() => {
@@ -1324,14 +1363,9 @@ export function AdminCOD() {
                     {paginatedOrders.map((order) => {
                       const accent = order.status === 'Paid' ? '#00A86B' : '#F59E0B';
                       return (
-                        <div key={order.id} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
+                        <div key={order.id} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm">
                           {/* Ribbon Tag */}
-                          <div
-                            className="absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide"
-                            style={{ background: accent, clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}
-                          >
-                            {order.status}
-                          </div>
+                          <StatusRibbon label={order.status} color={accent} />
                           <div className="absolute top-1.5 right-2">
                             <input type="checkbox" checked={selectedOrders.includes(order.id)} onChange={() => toggleSelect(order.id)} className="rounded border-gray-300 accent-[#00A86B] w-4 h-4" />
                           </div>
@@ -1353,7 +1387,7 @@ export function AdminCOD() {
                               <div className="flex items-center gap-1 group/copy mb-2">
                                 <span className="text-[12px] font-medium text-[#64748B] shrink-0">Order ID: </span>
                                 <div className="text-[12px] font-semibold text-[#00A86B] cursor-pointer hover:underline truncate flex-1 min-w-0" onClick={() => navigate(`${isAdminView ? '/admin' : '/user'}/order-tracking?id=${order.orderID}`)}>{order.orderID}</div>
-                                <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(order.orderID).catch(()=>{}); showToast('success', 'Order ID copied!'); }} className="opacity-100 md:opacity-0 md:group-hover/copy:opacity-100 transition-opacity shrink-0 focus:outline-none" title="Copy Order ID"><Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" /></button>
+                                <button onClick={async (e) => { e.stopPropagation(); const ok = await copyToClipboard(order.orderID); showToast(ok ? 'success' : 'error', ok ? 'Order ID copied!' : "Couldn't copy Order ID"); }} className="opacity-100 md:opacity-0 md:group-hover/copy:opacity-100 transition-opacity shrink-0 focus:outline-none" title="Copy Order ID"><Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" /></button>
                               </div>
                             )}
 
@@ -1381,7 +1415,7 @@ export function AdminCOD() {
                                     {order.awb ? (
                                       <div className="flex items-center gap-1 group/copy mt-0.5">
                                         <div className="text-[12px] font-semibold text-[#00A86B] underline truncate active:opacity-60 cursor-pointer" onClick={(e) => { e.stopPropagation(); navigate(`${isAdminView ? '/admin' : '/user'}/tracking?awb=${order.awb}`); }}>{order.awb}</div>
-                                        <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(order.awb).catch(()=>{}); showToast('success', 'AWB copied!'); }} className="opacity-100 md:opacity-0 md:group-hover/copy:opacity-100 transition-opacity shrink-0 focus:outline-none" title="Copy AWB"><Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" /></button>
+                                        <button onClick={async (e) => { e.stopPropagation(); const ok = await copyToClipboard(order.awb); showToast(ok ? 'success' : 'error', ok ? 'AWB copied!' : "Couldn't copy AWB"); }} className="opacity-100 md:opacity-0 md:group-hover/copy:opacity-100 transition-opacity shrink-0 focus:outline-none" title="Copy AWB"><Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" /></button>
                                       </div>
                                     ) : (
                                       <div className="text-[12px] font-semibold text-[#94A3B8] truncate mt-0.5">—</div>
@@ -1539,7 +1573,7 @@ export function AdminCOD() {
                           <div className="flex items-center gap-1.5 group/copy w-max">
                             <TruncatedText text={order.utr} maxLength={10} className="text-xs font-semibold text-[#00A86B] cursor-default" />
                             <button
-                              onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(order.utr); showToast('success', 'UTR copied!'); }}
+                              onClick={async (e) => { e.stopPropagation(); const ok = await copyToClipboard(order.utr); showToast(ok ? 'success' : 'error', ok ? 'UTR copied!' : "Couldn't copy UTR"); }}
                               className="opacity-100 md:opacity-0 md:group-hover/copy:opacity-100 transition-opacity focus:outline-none"
                               title="Copy UTR"
                             >
@@ -1582,14 +1616,9 @@ export function AdminCOD() {
                     {filteredSellerRemittanceList.map((order) => {
                       const accent = order.status === 'Paid' ? '#00A86B' : '#F59E0B';
                       return (
-                        <div key={order.id || order.awb} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
+                        <div key={order.id || order.awb} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm">
                           {/* Ribbon Tag */}
-                          <div
-                            className="absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide"
-                            style={{ background: accent, clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}
-                          >
-                            {order.status}
-                          </div>
+                          <StatusRibbon label={order.status} color={accent} />
                           <div className="absolute top-1.5 right-2">
                             <input type="checkbox" checked={selectedCodOrders.includes(order.awb)} onChange={() => toggleSelectCod(order.awb)} className="rounded border-gray-300 accent-[#00A86B] w-4 h-4" />
                           </div>
@@ -1613,7 +1642,7 @@ export function AdminCOD() {
                                 {order.awb || '—'}
                               </button>
                               {order.awb && (
-                                <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(order.awb).catch(() => {}); showToast('success', 'Remittance ID copied!'); }} className="opacity-100 md:opacity-0 md:group-hover/copyRemit:opacity-100 transition-opacity shrink-0 focus:outline-none" title="Copy Remittance ID">
+                                <button onClick={async (e) => { e.stopPropagation(); const ok = await copyToClipboard(order.awb); showToast(ok ? 'success' : 'error', ok ? 'Remittance ID copied!' : "Couldn't copy Remittance ID"); }} className="opacity-100 md:opacity-0 md:group-hover/copyRemit:opacity-100 transition-opacity shrink-0 focus:outline-none" title="Copy Remittance ID">
                                   <Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" />
                                 </button>
                               )}
@@ -1807,14 +1836,9 @@ export function AdminCOD() {
                     {filteredCourierRemittanceList.map((order) => {
                       const accent = order.status === 'Paid' ? '#00A86B' : '#F59E0B';
                       return (
-                        <div key={order.id} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
+                        <div key={order.id} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm">
                           {/* Ribbon Tag */}
-                          <div
-                            className="absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide"
-                            style={{ background: accent, clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}
-                          >
-                            {order.status}
-                          </div>
+                          <StatusRibbon label={order.status} color={accent} />
                           <div className="absolute top-1.5 right-2">
                             <input type="checkbox" checked={selectedCourierCodOrders.includes(order.id)} onChange={() => toggleSelectCourierCod(order.id)} className="rounded border-gray-300 accent-[#00A86B] w-4 h-4" />
                           </div>
@@ -1836,7 +1860,7 @@ export function AdminCOD() {
                               <div className="flex items-center gap-1 group/copy mb-2">
                                 <span className="text-[12px] font-medium text-[#64748B] shrink-0">Order ID: </span>
                                 <div className="text-[12px] font-semibold text-[#00A86B] cursor-pointer hover:underline truncate flex-1 min-w-0" onClick={() => navigate(`${isAdminView ? '/admin' : '/user'}/order-tracking?id=${order.orderID}`)}>{order.orderID}</div>
-                                <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(order.orderID).catch(()=>{}); showToast('success', 'Order ID copied!'); }} className="opacity-100 md:opacity-0 md:group-hover/copy:opacity-100 transition-opacity shrink-0 focus:outline-none" title="Copy Order ID"><Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" /></button>
+                                <button onClick={async (e) => { e.stopPropagation(); const ok = await copyToClipboard(order.orderID); showToast(ok ? 'success' : 'error', ok ? 'Order ID copied!' : "Couldn't copy Order ID"); }} className="opacity-100 md:opacity-0 md:group-hover/copy:opacity-100 transition-opacity shrink-0 focus:outline-none" title="Copy Order ID"><Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" /></button>
                               </div>
                             )}
 
@@ -1864,7 +1888,7 @@ export function AdminCOD() {
                                     {order.awb ? (
                                       <div className="flex items-center gap-1 group/copy mt-0.5">
                                         <div className="text-[12px] font-semibold text-[#00A86B] underline truncate active:opacity-60 cursor-pointer" onClick={(e) => { e.stopPropagation(); navigate(`${isAdminView ? '/admin' : '/user'}/tracking?awb=${order.awb}`); }}>{order.awb}</div>
-                                        <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(order.awb).catch(()=>{}); showToast('success', 'AWB copied!'); }} className="opacity-100 md:opacity-0 md:group-hover/copy:opacity-100 transition-opacity shrink-0 focus:outline-none" title="Copy AWB"><Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" /></button>
+                                        <button onClick={async (e) => { e.stopPropagation(); const ok = await copyToClipboard(order.awb); showToast(ok ? 'success' : 'error', ok ? 'AWB copied!' : "Couldn't copy AWB"); }} className="opacity-100 md:opacity-0 md:group-hover/copy:opacity-100 transition-opacity shrink-0 focus:outline-none" title="Copy AWB"><Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" /></button>
                                       </div>
                                     ) : (
                                       <div className="text-[12px] font-semibold text-[#94A3B8] truncate mt-0.5">—</div>
@@ -2100,27 +2124,31 @@ export function AdminCOD() {
                   </div>
                 )}
 
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Order Id</label>
-                  <input
-                    type="text"
-                    placeholder="Order Id"
-                    value={codOrderId}
-                    onChange={(e) => setCodOrderId(e.target.value)}
-                    className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
-                  />
-                </div>
+                {!isAdminView && (
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Order Id</label>
+                    <input
+                      type="text"
+                      placeholder="Order Id"
+                      value={codOrderId}
+                      onChange={(e) => setCodOrderId(e.target.value)}
+                      className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
+                    />
+                  </div>
+                )}
 
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">AWB Number</label>
-                  <input
-                    type="text"
-                    placeholder="AWB Number"
-                    value={codAwb}
-                    onChange={(e) => setCodAwb(e.target.value)}
-                    className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
-                  />
-                </div>
+                {!isAdminView && (
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">AWB Number</label>
+                    <input
+                      type="text"
+                      placeholder="AWB Number"
+                      value={codAwb}
+                      onChange={(e) => setCodAwb(e.target.value)}
+                      className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
+                    />
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Status</label>
@@ -2343,27 +2371,31 @@ export function AdminCOD() {
                   </div>
                 )}
 
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Order Id</label>
-                  <input
-                    type="text"
-                    placeholder="Order Id"
-                    value={courierOrderId}
-                    onChange={(e) => setCourierOrderId(e.target.value)}
-                    className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
-                  />
-                </div>
+                {!isAdminView && (
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Order Id</label>
+                    <input
+                      type="text"
+                      placeholder="Order Id"
+                      value={courierOrderId}
+                      onChange={(e) => setCourierOrderId(e.target.value)}
+                      className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
+                    />
+                  </div>
+                )}
 
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">AWB Number</label>
-                  <input
-                    type="text"
-                    placeholder="AWB Number"
-                    value={courierAwb}
-                    onChange={(e) => setCourierAwb(e.target.value)}
-                    className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
-                  />
-                </div>
+                {!isAdminView && (
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">AWB Number</label>
+                    <input
+                      type="text"
+                      placeholder="AWB Number"
+                      value={courierAwb}
+                      onChange={(e) => setCourierAwb(e.target.value)}
+                      className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
+                    />
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Status</label>

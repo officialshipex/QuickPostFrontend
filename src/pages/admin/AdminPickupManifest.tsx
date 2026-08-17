@@ -17,6 +17,7 @@ import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
 import { TableLoader } from '../../components/ui/TableLoader';
 import { TruncatedText } from '../../components/ui/TruncatedText';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { StatusRibbon } from '../../components/ui/StatusRibbon';
 
 const BACKEND_BASE = (import.meta.env.VITE_API_URL as string) || 'http://localhost:5000/v1';
 
@@ -605,20 +606,15 @@ export function AdminPickupManifest({
         ) : (
           <div className="p-2 space-y-2">
             {paginatedManifests.map((m) => (
-              <div key={m._id} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
+              <div key={m._id} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm">
                 {/* Ribbon Tag */}
-                <div
-                  className="absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide bg-[#F59E0B]"
-                  style={{ clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}
-                >
-                  {(m.status || 'Pickup Scheduled').replace(/_/g, ' ')}
-                </div>
+                <StatusRibbon label={(m.status || 'Pickup Scheduled').replace(/_/g, ' ')} color="#F59E0B" />
 
                 {/* Checkbox — top-right, parallel to the status ribbon */}
                 <input type="checkbox" checked={selectedManifests.includes(m._id)} onChange={() => toggleOne(m._id)}
                   className="absolute top-2 right-2.5 rounded border-gray-300 accent-[#00A86B] w-4 h-4 shrink-0 z-10" />
 
-                <div className="pt-6 px-2 pb-2">
+                <div className="pt-7 px-2 pb-2">
                   {/* User Details Row — name/user-id hidden on the user side; admin still sees who the manifest belongs to.
                        On the user side, Pickup ID moves up here instead of a separate row below. */}
                   <div className="flex items-center justify-between mb-1 gap-2">
@@ -631,13 +627,13 @@ export function AdminPickupManifest({
                         </span>
                       </>
                     ) : (
-                      <span className="flex items-baseline gap-2 shrink-0">
+                      <>
                         <span
-                          className="text-[13px] font-bold text-[#00A86B] underline decoration-dotted cursor-pointer hover:text-[#009B63]"
+                          className="text-[13px] font-bold text-[#00A86B] underline decoration-dotted cursor-pointer hover:text-[#009B63] shrink-0"
                           onClick={() => navigate(`/user/pickup-manifest/${m.pickupId}`)}
                         >{m.pickupId}</span>
-                        <span className="text-[12px] font-medium text-[#94A3B8]">{(m.orderIds || []).length} shipments</span>
-                      </span>
+                        <span className="text-[12px] font-medium text-[#94A3B8] shrink-0">{(m.orderIds || []).length} shipments</span>
+                      </>
                     )}
                   </div>
 

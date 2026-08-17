@@ -449,9 +449,9 @@ export function AdminAddOrder() {
 
   const backPath = isAdminView ? '/admin/orders' : '/user/orders';
 
-  // ── Field class helper ── (rounded-full on mobile, rounded-lg preserved on desktop)
+  // ── Field class helper ── (rounded-full on both mobile and desktop)
   const fieldCls = (err?: string) =>
-    `w-full h-11 px-4 border rounded-full md:rounded-lg text-[12px] md:text-[13px] font-normal placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B] ${err ? 'border-red-400' : 'border-[#E2E8F0]'}`;
+    `w-full h-11 px-4 border rounded-full text-[12px] md:text-[13px] font-normal placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B] ${err ? 'border-red-400' : 'border-[#E2E8F0]'}`;
 
   if (loadingPrefill) {
     return (
@@ -507,7 +507,7 @@ export function AdminAddOrder() {
                   <select
                     value={selectedPickupId}
                     onChange={e => setSelectedPickupId(e.target.value)}
-                    className={`w-full h-11 pl-4 pr-10 border rounded-full md:rounded-lg text-[12px] md:text-[13px] text-[#475569] font-medium appearance-none focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B] ${errors.pickup ? 'border-red-400' : 'border-[#E2E8F0]'}`}
+                    className={`w-full h-11 pl-4 pr-10 border rounded-full text-[12px] md:text-[13px] text-[#475569] font-medium appearance-none focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B] ${errors.pickup ? 'border-red-400' : 'border-[#E2E8F0]'}`}
                   >
                     {pickupAddresses.length === 0 ? (
                       <option value="">No pickup addresses found</option>
@@ -626,12 +626,12 @@ export function AdminAddOrder() {
                         <div className="relative">
                           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[12px] md:text-[13px] font-medium text-[#94A3B8]">₹</span>
                           <input type="number" value={product.unitPrice || ''} onChange={e => updateProduct(product.id, 'unitPrice', Number(e.target.value))}
-                            placeholder="0.00" min={0} className="w-full h-11 pl-8 pr-4 border border-[#E2E8F0] rounded-full md:rounded-lg text-[12px] md:text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]" />
+                            placeholder="0.00" min={0} className="w-full h-11 pl-8 pr-4 border border-[#E2E8F0] rounded-full text-[12px] md:text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]" />
                         </div>
                       </div>
                       <div className="w-full md:w-[120px]">
                         {index === 0 && <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Qty</label>}
-                        <div className="flex h-11 border border-[#E2E8F0] rounded-full md:rounded-lg">
+                        <div className="flex h-11 border border-[#E2E8F0] rounded-full">
                           <button
                             type="button"
                             onClick={() => updateProduct(product.id, 'qty', Math.max(1, product.qty - 1))}
@@ -655,7 +655,7 @@ export function AdminAddOrder() {
                           <div className="relative">
                             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[12px] md:text-[13px] font-medium text-[#94A3B8]">₹</span>
                             <input type="text" value={(product.unitPrice * product.qty).toFixed(2)} readOnly
-                              className="w-full h-11 pl-8 pr-4 border border-[#E2E8F0] bg-[#F8FAFC] rounded-full md:rounded-lg text-[12px] md:text-[13px] text-[#475569] font-medium focus:outline-none cursor-not-allowed" />
+                              className="w-full h-11 pl-8 pr-4 border border-[#E2E8F0] bg-[#F8FAFC] rounded-full text-[12px] md:text-[13px] text-[#475569] font-medium focus:outline-none cursor-not-allowed" />
                           </div>
                         </div>
                         <button type="button" onClick={() => handleRemoveProduct(product.id)} disabled={products.length === 1}
@@ -675,16 +675,16 @@ export function AdminAddOrder() {
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pl-0">
                       <input type="text" value={product.category} onChange={e => updateProduct(product.id, 'category', e.target.value)}
                         placeholder="Product Category"
-                        className="h-10 px-4 border border-[#E2E8F0] rounded-full md:rounded-lg text-[12px] md:text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]" />
+                        className="h-10 px-4 border border-[#E2E8F0] rounded-full text-[12px] md:text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]" />
                       <input type="text" value={product.sku} onChange={e => updateProduct(product.id, 'sku', e.target.value)}
                         placeholder="SKU"
-                        className="h-10 px-4 border border-[#E2E8F0] rounded-full md:rounded-lg text-[12px] md:text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]" />
+                        className="h-10 px-4 border border-[#E2E8F0] rounded-full text-[12px] md:text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]" />
                       <input type="number" value={product.discount} onChange={e => updateProduct(product.id, 'discount', e.target.value)}
                         placeholder="Discount" min={0}
-                        className="h-10 px-4 border border-[#E2E8F0] rounded-full md:rounded-lg text-[12px] md:text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]" />
+                        className="h-10 px-4 border border-[#E2E8F0] rounded-full text-[12px] md:text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]" />
                       <input type="number" value={product.tax} onChange={e => updateProduct(product.id, 'tax', e.target.value)}
                         placeholder="Tax %" min={0}
-                        className="h-10 px-4 border border-[#E2E8F0] rounded-full md:rounded-lg text-[12px] md:text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]" />
+                        className="h-10 px-4 border border-[#E2E8F0] rounded-full text-[12px] md:text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]" />
                     </div>
                   )}
                 </div>
@@ -726,7 +726,7 @@ export function AdminAddOrder() {
                         <div className="relative">
                           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[12px] md:text-[13px] font-medium text-[#94A3B8]">₹</span>
                           <input type="number" value={value} onChange={e => setter(e.target.value)} placeholder="0.00" min={0}
-                            className="w-full h-11 pl-8 pr-4 border border-[#E2E8F0] rounded-full md:rounded-lg text-[12px] md:text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]" />
+                            className="w-full h-11 pl-8 pr-4 border border-[#E2E8F0] rounded-full text-[12px] md:text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]" />
                         </div>
                       </div>
                     ))}
@@ -767,7 +767,7 @@ export function AdminAddOrder() {
                   <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Package Type:</label>
                   <div className="relative">
                     <select value={orderType} onChange={e => setOrderType(e.target.value)}
-                      className="w-full h-11 pl-4 pr-10 border border-[#E2E8F0] rounded-full md:rounded-lg text-[12px] md:text-[13px] text-[#475569] font-medium appearance-none focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]">
+                      className="w-full h-11 pl-4 pr-10 border border-[#E2E8F0] rounded-full text-[12px] md:text-[13px] text-[#475569] font-medium appearance-none focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]">
                       <option value="B2C">B2C</option>
                       {/* <option value="B2B">B2B</option> */}
                     </select>
@@ -779,7 +779,7 @@ export function AdminAddOrder() {
                     <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">ROV Type:</label>
                     <div className="relative">
                       <select value={rovType} onChange={e => setRovType(e.target.value)}
-                        className="w-full h-11 pl-4 pr-10 border border-[#E2E8F0] rounded-full md:rounded-lg text-[12px] md:text-[13px] text-[#475569] font-medium appearance-none focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]">
+                        className="w-full h-11 pl-4 pr-10 border border-[#E2E8F0] rounded-full text-[12px] md:text-[13px] text-[#475569] font-medium appearance-none focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]">
                         <option value="ROV Owner">ROV Owner</option>
                         <option value="ROV Carrier">ROV Carrier</option>
                       </select>
@@ -804,7 +804,7 @@ export function AdminAddOrder() {
                         {err && <p className="text-[12px] md:text-[11px] text-red-500 mb-1">{err}</p>}
                         <div className="relative">
                           <input type="number" value={value} onChange={e => setter(e.target.value)} placeholder="0" min={0}
-                            className={`w-full h-11 pl-4 pr-10 border rounded-full md:rounded-lg text-[12px] md:text-[13px] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B] ${err ? 'border-red-400' : 'border-[#E2E8F0]'}`} />
+                            className={`w-full h-11 pl-4 pr-10 border rounded-full text-[12px] md:text-[13px] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B] ${err ? 'border-red-400' : 'border-[#E2E8F0]'}`} />
                           <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[12px] font-medium text-[#94A3B8]">{unit}</span>
                         </div>
                       </div>
@@ -857,7 +857,7 @@ export function AdminAddOrder() {
                               onChange={e => updateB2bPackage(pkg.id, key as keyof B2BPackage, e.target.value.replace(/[^0-9.]/g, ''))}
                               placeholder={placeholder}
                               min={0}
-                              className="w-full h-11 px-4 border border-[#E2E8F0] rounded-full md:rounded-lg text-[12px] md:text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]"
+                              className="w-full h-11 px-4 border border-[#E2E8F0] rounded-full text-[12px] md:text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]"
                             />
                           </div>
                         ))}
@@ -915,7 +915,7 @@ export function AdminAddOrder() {
                   <label
                     key={mode}
                     onClick={() => setPaymentMode(mode)}
-                    className={`flex items-center gap-3 cursor-pointer group border rounded-full md:rounded-lg px-4 py-3 md:p-0 md:border-0 transition-colors ${paymentMode === mode ? 'border-[#00A86B] bg-[#F0FDF4] md:bg-transparent' : 'border-[#E2E8F0] md:border-0'}`}
+                    className={`flex items-center gap-3 cursor-pointer group border rounded-full px-4 py-3 md:p-0 md:border-0 transition-colors ${paymentMode === mode ? 'border-[#00A86B] bg-[#F0FDF4] md:bg-transparent' : 'border-[#E2E8F0] md:border-0'}`}
                   >
                     <div
                       className={`w-4 h-4 shrink-0 rounded-full border-2 flex items-center justify-center transition-colors ${paymentMode === mode ? 'border-[#00A86B]' : 'border-[#CBD5E1] group-hover:border-[#94A3B8]'}`}
@@ -1008,14 +1008,14 @@ export function AdminAddOrder() {
                   <input type="text" value={pickupForm.contactName}
                     onChange={e => setPickupForm(p => ({ ...p, contactName: e.target.value }))}
                     placeholder="Contact Name"
-                    className={`w-full h-11 px-4 border rounded-lg text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B] ${pickupFormErrors.contactName ? 'border-red-400' : 'border-[#E2E8F0]'}`} />
+                    className={`w-full h-11 px-4 border rounded-full text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B] ${pickupFormErrors.contactName ? 'border-red-400' : 'border-[#E2E8F0]'}`} />
                 </div>
                 <div>
                   <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Email</label>
                   <input type="email" value={pickupForm.email}
                     onChange={e => setPickupForm(p => ({ ...p, email: e.target.value }))}
                     placeholder="Email"
-                    className="w-full h-11 px-4 border border-[#E2E8F0] rounded-lg text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]" />
+                    className="w-full h-11 px-4 border border-[#E2E8F0] rounded-full text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]" />
                 </div>
               </div>
               <div>
@@ -1027,7 +1027,7 @@ export function AdminAddOrder() {
                     if (!v || /^[6-9]/.test(v)) setPickupForm(p => ({ ...p, phoneNumber: v }));
                   }}
                   placeholder="Phone Number (10 digits, starts with 6-9)"
-                  className={`w-full h-11 px-4 border rounded-lg text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B] ${pickupFormErrors.phoneNumber ? 'border-red-400' : 'border-[#E2E8F0]'}`} />
+                  className={`w-full h-11 px-4 border rounded-full text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B] ${pickupFormErrors.phoneNumber ? 'border-red-400' : 'border-[#E2E8F0]'}`} />
               </div>
               <div>
                 <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Address <span className="text-red-500">*</span></label>
@@ -1035,7 +1035,7 @@ export function AdminAddOrder() {
                 <input type="text" value={pickupForm.address}
                   onChange={e => setPickupForm(p => ({ ...p, address: e.target.value }))}
                   placeholder="Street Address"
-                  className={`w-full h-11 px-4 border rounded-lg text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B] ${pickupFormErrors.address ? 'border-red-400' : 'border-[#E2E8F0]'}`} />
+                  className={`w-full h-11 px-4 border rounded-full text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B] ${pickupFormErrors.address ? 'border-red-400' : 'border-[#E2E8F0]'}`} />
               </div>
               <div className="grid grid-cols-3 gap-4">
                 <div>
@@ -1045,7 +1045,7 @@ export function AdminAddOrder() {
                     <input type="text" value={pickupForm.pinCode}
                       onChange={e => setPickupForm(p => ({ ...p, pinCode: e.target.value.replace(/\D/g, '').slice(0, 6) }))}
                       placeholder="Pincode"
-                      className={`w-full h-11 px-4 border rounded-lg text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B] ${pickupFormErrors.pinCode ? 'border-red-400' : 'border-[#E2E8F0]'}`} />
+                      className={`w-full h-11 px-4 border rounded-full text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B] ${pickupFormErrors.pinCode ? 'border-red-400' : 'border-[#E2E8F0]'}`} />
                     {pickupPincodeLoading && <Loader2 className="w-4 h-4 text-[#00A86B] animate-spin absolute right-3 top-1/2 -translate-y-1/2" />}
                   </div>
                 </div>
@@ -1053,13 +1053,13 @@ export function AdminAddOrder() {
                   <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">City <span className="text-red-500">*</span></label>
                   {pickupFormErrors.city && <p className="text-[12px] md:text-[11px] text-red-500 mb-1">{pickupFormErrors.city}</p>}
                   <input type="text" value={pickupForm.city} readOnly placeholder="Auto-filled"
-                    className={`w-full h-11 px-4 border rounded-lg text-[13px] bg-[#F8FAFC] placeholder:text-[#94A3B8] focus:outline-none ${pickupFormErrors.city ? 'border-red-400' : 'border-[#E2E8F0]'}`} />
+                    className={`w-full h-11 px-4 border rounded-full text-[13px] bg-[#F8FAFC] placeholder:text-[#94A3B8] focus:outline-none ${pickupFormErrors.city ? 'border-red-400' : 'border-[#E2E8F0]'}`} />
                 </div>
                 <div>
                   <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">State <span className="text-red-500">*</span></label>
                   {pickupFormErrors.state && <p className="text-[12px] md:text-[11px] text-red-500 mb-1">{pickupFormErrors.state}</p>}
                   <input type="text" value={pickupForm.state} readOnly placeholder="Auto-filled"
-                    className={`w-full h-11 px-4 border rounded-lg text-[13px] bg-[#F8FAFC] placeholder:text-[#94A3B8] focus:outline-none ${pickupFormErrors.state ? 'border-red-400' : 'border-[#E2E8F0]'}`} />
+                    className={`w-full h-11 px-4 border rounded-full text-[13px] bg-[#F8FAFC] placeholder:text-[#94A3B8] focus:outline-none ${pickupFormErrors.state ? 'border-red-400' : 'border-[#E2E8F0]'}`} />
                 </div>
               </div>
             </div>

@@ -457,6 +457,7 @@ export function AdminTracking() {
                   </div>
                 </div>
 
+                {/* Buyer verification banner — disabled per request
                 <div className="bg-[#FFFBEB] border border-[#FEF3C7] rounded-xl p-5">
                   <div className="flex items-center gap-2 mb-2">
                     <ShieldAlert className="w-4 h-4 text-[#D97706]" />
@@ -469,6 +470,7 @@ export function AdminTracking() {
                     Verify via OTP <ChevronRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
+                */}
               </div>
             </div>
           </div>

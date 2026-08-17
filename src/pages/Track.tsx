@@ -584,57 +584,57 @@ export function Track() {
               initial={{ opacity: 0, y: 24 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, ease: EASE }}
-              className="relative px-6 md:px-10 pt-14 md:pt-20 pb-4 max-w-7xl mx-auto"
+              className="relative px-4 sm:px-6 md:px-10 pt-10 sm:pt-14 md:pt-20 pb-4 max-w-7xl mx-auto"
             >
               {/* Header status card */}
-              <div className="bg-white rounded-2xl border border-[#E0EDE8] shadow-sm p-5 md:p-7 mb-6">
+              <div className="bg-white rounded-2xl border border-[#E0EDE8] shadow-sm p-4 sm:p-5 md:p-7 mb-5 md:mb-6">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 rounded-2xl bg-[#F8FAFC] border border-[#E0EDE8] flex items-center justify-center shrink-0 overflow-hidden">
-                      <img src={result.courierLogo} alt={result.courierName} className="max-w-[38px] max-h-[38px] object-contain" />
+                  <div className="flex items-center gap-3 sm:gap-4">
+                    <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-[#F8FAFC] border border-[#E0EDE8] flex items-center justify-center shrink-0 overflow-hidden">
+                      <img src={result.courierLogo} alt={result.courierName} className="max-w-[32px] max-h-[32px] sm:max-w-[38px] sm:max-h-[38px] object-contain" />
                     </div>
-                    <div>
-                      <div className={`inline-flex items-center gap-1.5 text-[11.5px] font-bold px-3 py-1 rounded-full border ${statusStyle.bg} ${statusStyle.text} ${statusStyle.border} mb-1.5`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${statusStyle.dot}`} />
+                    <div className="min-w-0">
+                      <div className={`inline-flex items-center gap-1.5 text-[11px] sm:text-[11.5px] font-bold px-2.5 sm:px-3 py-1 rounded-full border ${statusStyle.bg} ${statusStyle.text} ${statusStyle.border} mb-1.5`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${statusStyle.dot} shrink-0`} />
                         {result.status}
                       </div>
-                      <h2 className="text-[17px] md:text-[19px] font-bold text-[#0F172A]">{result.courierName}</h2>
-                      <p className="text-[12.5px] text-[#64748B]">{result.serviceType}</p>
+                      <h2 className="text-[15.5px] sm:text-[17px] md:text-[19px] font-bold text-[#0F172A] truncate">{result.courierName}</h2>
+                      <p className="text-[12px] sm:text-[12.5px] text-[#64748B] truncate">{result.serviceType}</p>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 md:flex md:items-center gap-4 md:gap-8">
-                    <div>
-                      <div className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider mb-0.5">AWB Number</div>
-                      <button onClick={() => copyValue(result.awb, 'awb')} className="flex items-center gap-1.5 text-[13px] font-bold text-[#0F172A] hover:text-[#00A86B] transition-colors">
-                        {result.awb} <Copy className="w-3 h-3" />
+                  <div className="grid grid-cols-2 md:flex md:items-center gap-3 sm:gap-4 md:gap-8 pt-3 md:pt-0 border-t md:border-t-0 border-dashed border-[#E2E8F0]">
+                    <div className="min-w-0">
+                      <div className="text-[9.5px] sm:text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider mb-0.5">AWB Number</div>
+                      <button onClick={() => copyValue(result.awb, 'awb')} className="flex items-center gap-1.5 text-[12.5px] sm:text-[13px] font-bold text-[#0F172A] hover:text-[#00A86B] transition-colors max-w-full">
+                        <span className="truncate">{result.awb}</span> <Copy className="w-3 h-3 shrink-0" />
                       </button>
                       {copied === 'awb' && <span className="text-[10px] font-semibold text-[#00A86B]">Copied!</span>}
                     </div>
-                    <div>
-                      <div className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider mb-0.5">Order ID</div>
-                      <button onClick={() => copyValue(result.orderId, 'order')} className="flex items-center gap-1.5 text-[13px] font-bold text-[#0F172A] hover:text-[#00A86B] transition-colors">
-                        {result.orderId} <Copy className="w-3 h-3" />
+                    <div className="min-w-0">
+                      <div className="text-[9.5px] sm:text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider mb-0.5">Order ID</div>
+                      <button onClick={() => copyValue(result.orderId, 'order')} className="flex items-center gap-1.5 text-[12.5px] sm:text-[13px] font-bold text-[#0F172A] hover:text-[#00A86B] transition-colors max-w-full">
+                        <span className="truncate">{result.orderId}</span> <Copy className="w-3 h-3 shrink-0" />
                       </button>
                       {copied === 'order' && <span className="text-[10px] font-semibold text-[#00A86B]">Copied!</span>}
                     </div>
                   </div>
                 </div>
 
-                <div className="mt-5 pt-5 border-t border-dashed border-[#E2E8F0] grid grid-cols-2 md:grid-cols-4 gap-5">
+                <div className="mt-4 sm:mt-5 pt-4 sm:pt-5 border-t border-dashed border-[#E2E8F0] grid grid-cols-2 md:grid-cols-4 gap-x-3 gap-y-4 sm:gap-5">
                   {[
                     { icon: MapPin, label: 'Pickup', value: result.pickup },
                     { icon: Target, label: 'Destination', value: result.destination },
                     { icon: Clock, label: result.deliveredOn ? 'Delivered On' : 'Expected Delivery', value: result.deliveredOn || result.expectedDelivery },
                     { icon: result.paymentMode === 'COD' ? Wallet : CreditCard, label: 'Payment Mode', value: result.paymentMode === 'COD' ? `COD · ₹${result.codAmount?.toLocaleString('en-IN')}` : 'Prepaid' },
                   ].map((item) => (
-                    <div key={item.label} className="flex items-start gap-2.5">
-                      <div className="w-8 h-8 rounded-lg bg-[#F0FDF4] flex items-center justify-center shrink-0 mt-0.5">
-                        <item.icon className="w-4 h-4 text-[#00A86B]" />
+                    <div key={item.label} className="flex items-start gap-2 sm:gap-2.5 min-w-0">
+                      <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-[#F0FDF4] flex items-center justify-center shrink-0 mt-0.5">
+                        <item.icon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#00A86B]" />
                       </div>
                       <div className="min-w-0">
-                        <div className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider">{item.label}</div>
-                        <div className="text-[13px] font-bold text-[#0F172A] truncate">{item.value}</div>
+                        <div className="text-[9.5px] sm:text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider">{item.label}</div>
+                        <div className="text-[12.5px] sm:text-[13px] font-bold text-[#0F172A] truncate">{item.value}</div>
                       </div>
                     </div>
                   ))}
@@ -642,13 +642,13 @@ export function Track() {
               </div>
 
               {/* Timeline + Map + Courier details grid */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
 
                 {/* Timeline */}
-                <div className="lg:col-span-2 bg-white rounded-2xl border border-[#E0EDE8] shadow-sm p-5 md:p-7">
-                  <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-[15px] font-bold text-[#0F172A]">Tracking History</h3>
-                    <span className="text-[11px] font-bold text-[#64748B] bg-[#F1F5F9] px-2.5 py-1 rounded-full">
+                <div className="lg:col-span-2 bg-white rounded-2xl border border-[#E0EDE8] shadow-sm p-4 sm:p-5 md:p-7">
+                  <div className="flex items-center justify-between mb-5 sm:mb-6">
+                    <h3 className="text-[14px] sm:text-[15px] font-bold text-[#0F172A]">Tracking History</h3>
+                    <span className="text-[10.5px] sm:text-[11px] font-bold text-[#64748B] bg-[#F1F5F9] px-2 sm:px-2.5 py-1 rounded-full whitespace-nowrap">
                       {doneCount}/{result.timeline.length} completed
                     </span>
                   </div>
@@ -664,35 +664,35 @@ export function Track() {
                           whileInView={{ opacity: 1, x: 0 }}
                           viewport={{ once: true, margin: '-20px' }}
                           transition={{ duration: 0.4, delay: idx * 0.08, ease: EASE }}
-                          className="relative flex gap-4 pb-8 last:pb-0"
+                          className="relative flex gap-3 sm:gap-4 pb-6 sm:pb-8 last:pb-0"
                         >
                           {!isLast && (
                             <div
-                              className={`absolute left-[19px] top-10 bottom-0 w-[2px] ${event.done ? 'bg-[#00A86B]' : 'bg-[#E2E8F0]'}`}
+                              className={`absolute left-4 sm:left-[19px] top-9 sm:top-10 bottom-0 w-[2px] ${event.done ? 'bg-[#00A86B]' : 'bg-[#E2E8F0]'}`}
                             />
                           )}
                           <div
-                            className={`relative z-10 w-10 h-10 rounded-full flex items-center justify-center shrink-0 border-2 ${
+                            className={`relative z-10 w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shrink-0 border-2 ${
                               event.done
                                 ? 'bg-[#00A86B] border-[#00A86B] text-white'
                                 : 'bg-white border-[#E2E8F0] text-[#CBD5E1]'
                             }`}
                           >
-                            <Icon className="w-4.5 h-4.5" />
+                            <Icon className="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5" />
                           </div>
-                          <div className="flex-1 min-w-0 pt-1.5">
-                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                              <h4 className={`text-[13.5px] font-bold ${event.done ? 'text-[#0F172A]' : 'text-[#94A3B8]'}`}>{event.status}</h4>
+                          <div className="flex-1 min-w-0 pt-1 sm:pt-1.5">
+                            <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-x-2 gap-y-0.5 sm:gap-y-1">
+                              <h4 className={`text-[13px] sm:text-[13.5px] font-bold ${event.done ? 'text-[#0F172A]' : 'text-[#94A3B8]'}`}>{event.status}</h4>
                               {event.done && (
-                                <span className="text-[10.5px] font-semibold text-[#64748B]">
+                                <span className="text-[10px] sm:text-[10.5px] font-semibold text-[#64748B]">
                                   {event.date} · {event.time}
                                 </span>
                               )}
                             </div>
-                            <p className={`text-[12.5px] mt-0.5 ${event.done ? 'text-[#475569]' : 'text-[#94A3B8]'}`}>{event.description}</p>
-                            {event.done && (
-                              <p className="text-[11.5px] text-[#94A3B8] mt-0.5 flex items-center gap-1">
-                                <MapPin className="w-3 h-3" /> {event.location}
+                            <p className={`text-[12px] sm:text-[12.5px] mt-0.5 ${event.done ? 'text-[#475569]' : 'text-[#94A3B8]'}`}>{event.description}</p>
+                            {event.done && event.location && (
+                              <p className="text-[11px] sm:text-[11.5px] text-[#94A3B8] mt-0.5 flex items-center gap-1">
+                                <MapPin className="w-3 h-3 shrink-0" /> <span className="truncate">{event.location}</span>
                               </p>
                             )}
                           </div>
@@ -703,12 +703,12 @@ export function Track() {
                 </div>
 
                 {/* Right column — Map + Courier details */}
-                <div className="space-y-6">
+                <div className="space-y-4 sm:space-y-6">
                   <RoutePreview pickup={result.pickup} destination={result.destination} />
 
-                  <div className="bg-white rounded-2xl border border-[#E0EDE8] shadow-sm p-5 md:p-6">
-                    <h3 className="text-[13px] font-bold text-[#0F172A] mb-4">Courier Details</h3>
-                    <div className="space-y-3.5">
+                  <div className="bg-white rounded-2xl border border-[#E0EDE8] shadow-sm p-4 sm:p-5 md:p-6">
+                    <h3 className="text-[13px] font-bold text-[#0F172A] mb-3.5 sm:mb-4">Courier Details</h3>
+                    <div className="space-y-3 sm:space-y-3.5">
                       {[
                         { icon: Truck, label: 'Courier Partner', value: result.courierName },
                         { icon: Hash, label: 'Tracking Number', value: result.awb },
@@ -718,12 +718,12 @@ export function Track() {
                         { icon: Ruler, label: 'Dimensions', value: result.dimensions },
                         { icon: Hash, label: 'Customer Reference', value: result.customerRef },
                       ].map((row) => (
-                        <div key={row.label} className="flex items-center justify-between gap-3">
-                          <div className="flex items-center gap-2 text-[#64748B] shrink-0">
-                            <row.icon className="w-3.5 h-3.5" />
-                            <span className="text-[12px] font-semibold">{row.label}</span>
+                        <div key={row.label} className="flex items-center justify-between gap-2.5 sm:gap-3">
+                          <div className="flex items-center gap-1.5 sm:gap-2 text-[#64748B] shrink-0">
+                            <row.icon className="w-3.5 h-3.5 shrink-0" />
+                            <span className="text-[11.5px] sm:text-[12px] font-semibold whitespace-nowrap">{row.label}</span>
                           </div>
-                          <span className="text-[12.5px] font-bold text-[#0F172A] text-right truncate">{row.value}</span>
+                          <span className="text-[12px] sm:text-[12.5px] font-bold text-[#0F172A] text-right truncate">{row.value}</span>
                         </div>
                       ))}
                     </div>

@@ -19,6 +19,7 @@ import { TableLoader } from '../../components/ui/TableLoader';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { TruncatedText } from '../../components/ui/TruncatedText';
 import { RechargeWalletModal } from '../../components/ui/RechargeWalletModal';
+import { StatusRibbon } from '../../components/ui/StatusRibbon';
 
 const UPB_CATEGORY_OPTIONS = [
   { label: 'Wallet Recharge', value: 'recharge' },
@@ -825,6 +826,7 @@ export function AdminWallet() {
       const matchSearchTerm = searchTerm ?
         order.userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         order.userEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (order.mobile || '').includes(searchTerm) ||
         order.awb.toLowerCase().includes(searchTerm.toLowerCase()) : true;
       return matchHeader && matchGlobal && matchSearchTerm;
     });
@@ -1089,7 +1091,7 @@ export function AdminWallet() {
               <input
                 type="text"
                 placeholder={
-                  activeTab === 'Shipping' ? 'AWB/Order ID tracking' :
+                  activeTab === 'Shipping' ? 'Search by name, email, or contact' :
                     activeTab === 'Passbook' ? 'Search by name, email, or AWB' :
                       activeTab === 'Wallet Recharge' ? 'Search by name, email, or txn ID' :
                         'Search by name, email, or invoice no.'
@@ -1819,19 +1821,13 @@ export function AdminWallet() {
                       const isPaid = order.status === 'Paid';
                       const accent = isPaid ? '#00A86B' : '#F59E0B';
                       return (
-                        <div key={order.awb} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
-                          {/* Ribbon Tag */}
-                          <div
-                            className="absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide"
-                            style={{ background: accent, clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}
-                          >
-                            {isPaid ? 'Paid' : 'Ready To Ship'}
-                          </div>
+                        <div key={order.awb} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm">
+                          <StatusRibbon label={isPaid ? 'Paid' : 'Ready To Ship'} color={accent} />
                           <div className="absolute top-1.5 right-2">
                             <input type="checkbox" checked={selectedOrders.includes(order.awb)} onChange={() => toggleSelect(order.awb)} className="rounded border-gray-300 accent-[#00A86B] w-4 h-4" />
                           </div>
 
-                          <div className="pt-6 px-2.5 pb-2.5">
+                          <div className="pt-7 px-2.5 pb-2.5">
                             {/* User Details Row */}
                             {isAdminView && (
                               <div className="flex items-center justify-between mb-1.5">
@@ -2147,14 +2143,8 @@ export function AdminWallet() {
                       const isDebit = order.category === 'Debit';
                       const accent = isDebit ? '#EF4444' : '#00A86B';
                       return (
-                        <div key={order.awb} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
-                          {/* Ribbon Tag */}
-                          <div
-                            className="absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide"
-                            style={{ background: accent, clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}
-                          >
-                            {order.category}
-                          </div>
+                        <div key={order.awb} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm">
+                          <StatusRibbon label={order.category} color={accent} />
                           <div className="absolute top-1.5 right-2">
                             <input
                               type="checkbox"
@@ -2411,14 +2401,8 @@ export function AdminWallet() {
                       const isSuccess = recharge.status === 'Success';
                       const accent = isSuccess ? '#00A86B' : recharge.status === 'Failed' ? '#EF4444' : '#F59E0B';
                       return (
-                        <div key={recharge.transactionId} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
-                          {/* Ribbon Tag */}
-                          <div
-                            className="absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide"
-                            style={{ background: accent, clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}
-                          >
-                            {recharge.status}
-                          </div>
+                        <div key={recharge.transactionId} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm">
+                          <StatusRibbon label={recharge.status} color={accent} />
                           <div className="absolute top-1.5 right-2">
                             <input
                               type="checkbox"
@@ -2669,14 +2653,8 @@ export function AdminWallet() {
                     {paginatedInvoicesData.map((invoice) => {
                       const accent = invoice.status === 'PAID' ? '#00A86B' : '#EF4444';
                       return (
-                        <div key={invoice.invoiceNumber} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
-                          {/* Ribbon Tag */}
-                          <div
-                            className="absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide"
-                            style={{ background: accent, clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}
-                          >
-                            {invoice.status === 'PAID' ? 'Paid' : 'Unpaid'}
-                          </div>
+                        <div key={invoice.invoiceNumber} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm">
+                          <StatusRibbon label={invoice.status === 'PAID' ? 'Paid' : 'Unpaid'} color={accent} />
                           <div className="absolute top-1.5 right-2">
                             <input
                               type="checkbox"
@@ -3381,38 +3359,41 @@ export function AdminWallet() {
                       <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Search Query</label>
                       <input
                         type="text"
-                        placeholder="Search name, email..."
+                        placeholder={isAdminView ? 'Search by name, email, or contact' : 'Search name, email...'}
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
                       />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Search Type</label>
-                        <select
-                          value={selectedSearchTypes[0] || ''}
-                          onChange={(e) => setSelectedSearchTypes(e.target.value ? [e.target.value] : [])}
-                          className="w-full h-11 px-3 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
-                        >
-                          {SEARCH_TYPE_OPTIONS.map(opt => (
-                            <option key={opt.value} value={opt.value}>{opt.label}</option>
-                          ))}
-                        </select>
-                      </div>
+                    {/* AWB/Order ID search type — user side only; admin uses the name/email/contact search above */}
+                    {!isAdminView && (
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Search Type</label>
+                          <select
+                            value={selectedSearchTypes[0] || ''}
+                            onChange={(e) => setSelectedSearchTypes(e.target.value ? [e.target.value] : [])}
+                            className="w-full h-11 px-3 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
+                          >
+                            {SEARCH_TYPE_OPTIONS.map(opt => (
+                              <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            ))}
+                          </select>
+                        </div>
 
-                      <div>
-                        <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Search Type ID</label>
-                        <input
-                          type="text"
-                          placeholder="Type ID..."
-                          value={searchTypeId}
-                          onChange={(e) => setSearchTypeId(e.target.value)}
-                          className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
-                        />
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Search Type ID</label>
+                          <input
+                            type="text"
+                            placeholder="Type ID..."
+                            value={searchTypeId}
+                            onChange={(e) => setSearchTypeId(e.target.value)}
+                            className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
+                          />
+                        </div>
                       </div>
-                    </div>
+                    )}
 
                     <div>
                       <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Courier Partner</label>
@@ -3487,27 +3468,31 @@ export function AdminWallet() {
                       />
                     </div>
 
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Order ID</label>
-                      <input
-                        type="text"
-                        placeholder="Order ID..."
-                        value={passbookOrderId}
-                        onChange={(e) => setPassbookOrderId(e.target.value)}
-                        className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
-                      />
-                    </div>
+                    {!isAdminView && (
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Order ID</label>
+                        <input
+                          type="text"
+                          placeholder="Order ID..."
+                          value={passbookOrderId}
+                          onChange={(e) => setPassbookOrderId(e.target.value)}
+                          className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
+                        />
+                      </div>
+                    )}
 
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">AWB Number</label>
-                      <input
-                        type="text"
-                        placeholder="AWB Number..."
-                        value={passbookAwb}
-                        onChange={(e) => setPassbookAwb(e.target.value)}
-                        className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
-                      />
-                    </div>
+                    {!isAdminView && (
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">AWB Number</label>
+                        <input
+                          type="text"
+                          placeholder="AWB Number..."
+                          value={passbookAwb}
+                          onChange={(e) => setPassbookAwb(e.target.value)}
+                          className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
+                        />
+                      </div>
+                    )}
 
                     <div>
                       <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Category</label>

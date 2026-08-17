@@ -16,6 +16,7 @@ import { useDateRangeFilter } from '../../hooks/filters/useDateRangeFilter';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { TableLoader } from '../../components/ui/TableLoader';
 import { TruncatedText } from '../../components/ui/TruncatedText';
+import { StatusRibbon } from '../../components/ui/StatusRibbon';
 import { apiClient } from '../../services/apiClient';
 import {
   getAllTickets, getUserTickets, viewTicket, replyToTicket, closeTicket, createTicket,
@@ -736,17 +737,15 @@ export function AdminSupport() {
             )}
             {!loading && paginatedTickets.map((ticket) => {
               const statusKey = ticket.status;
-              const ribbonBg =
-                statusKey === 'resolved' || statusKey === 'closed' ? 'bg-slate-400' :
-                statusKey === 'awaiting_response' ? 'bg-amber-500' :
-                statusKey === 'new' ? 'bg-slate-500' : 'bg-[#00A86B]';
+              const ribbonColor =
+                statusKey === 'resolved' || statusKey === 'closed' ? '#94A3B8' :
+                statusKey === 'awaiting_response' ? '#F59E0B' :
+                statusKey === 'new' ? '#64748B' : '#00A86B';
               return (
-                <div key={ticket._id} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-visible">
-                  <div className={`absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide rounded-tl-2xl ${ribbonBg}`} style={{ clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}>
-                    {STATUS_LABEL[statusKey] || statusKey}
-                  </div>
+                <div key={ticket._id} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm">
+                  <StatusRibbon label={STATUS_LABEL[statusKey] || statusKey} color={ribbonColor} />
 
-                  <div className="pt-6 px-3 pb-3">
+                  <div className="pt-7 px-3 pb-3">
                     <div className="flex items-center justify-between gap-2 mb-1">
                       <span className="text-[12px] font-semibold text-[#64748B]">Ticket ID</span>
                       <span className="flex items-center gap-1.5 shrink-0">

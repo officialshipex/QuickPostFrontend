@@ -148,7 +148,7 @@ export function LoginCard() {
                </svg>
                Signing in...
              </div>
-          ) : 'Get Started'}
+          ) : 'Login'}
         </Button>
       </form>
 

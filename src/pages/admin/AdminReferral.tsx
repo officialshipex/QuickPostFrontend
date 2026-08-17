@@ -11,6 +11,7 @@ import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { TableLoader } from '../../components/ui/TableLoader';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { TruncatedText } from '../../components/ui/TruncatedText';
+import { StatusRibbon } from '../../components/ui/StatusRibbon';
 import { DesktopPagination } from '../../hooks/usePagination';
 import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -858,20 +859,14 @@ export function AdminReferral() {
                 {filteredReferrals.map((row) => {
                   const isSelected = !!selectedRows.find(r => r._id === row._id);
                   return (
-                    <div key={row._id} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
-                      {/* Ribbon Tag */}
-                      <div
-                        className="absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide"
-                        style={{ background: '#00A86B', clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}
-                      >
-                        {getMonthFull(row.month)} {row.year}
-                      </div>
+                    <div key={row._id} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm">
+                      <StatusRibbon label={`${getMonthFull(row.month)} ${row.year}`} color="#00A86B" />
 
                       {/* Checkbox — top-right, parallel to the status ribbon */}
                       <input type="checkbox" checked={isSelected} onChange={() => toggleSelect(row)}
                         className="absolute top-2 right-2.5 rounded border-gray-300 accent-[#00A86B] w-4 h-4 shrink-0 z-10" />
 
-                      <div className="pt-6 px-2.5 pb-2.5">
+                      <div className="pt-7 px-2.5 pb-2.5">
                         {/* User Details Row */}
                         <div className="flex items-center justify-between mb-1.5 gap-2 pr-6">
                           <span className="text-[#64748B] font-medium text-[12px] shrink-0">Refer By</span>

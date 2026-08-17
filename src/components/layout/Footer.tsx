@@ -166,11 +166,21 @@ export function Footer() {
           </div>
 
           <div className="flex flex-wrap items-center justify-center gap-x-[10px] gap-y-2">
-            {['Terms & Conditions', 'Privacy Policy', 'Compliance', 'Refund & Cancellation Policy'].map((link, idx, arr) => (
-              <React.Fragment key={link}>
-                <span className="text-[13px] font-normal text-white/35 cursor-default">
-                  {link}
-                </span>
+            {[
+              { label: 'Terms & Conditions', to: '/terms-and-conditions' },
+              { label: 'Privacy Policy', to: '/privacy-policy' },
+              { label: 'Refund & Cancellation Policy', to: '/refund-and-cancellation-policy' },
+            ].map((link, idx, arr) => (
+              <React.Fragment key={link.label}>
+                {link.to ? (
+                  <Link to={link.to} className="text-[13px] font-normal text-white/35 hover:text-white/70 transition-colors">
+                    {link.label}
+                  </Link>
+                ) : (
+                  <span className="text-[13px] font-normal text-white/35 cursor-default">
+                    {link.label}
+                  </span>
+                )}
                 {idx < arr.length - 1 && (
                   <span className="text-white/20">·</span>
                 )}

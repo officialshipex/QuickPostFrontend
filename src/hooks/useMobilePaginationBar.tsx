@@ -11,6 +11,10 @@ export interface MobilePaginationBarProps {
   endIndex: number;
   totalItems: number;
   rowsPerPageOptions?: number[];
+  /** Set true when the list isn't inside its own bounded flex/overflow-y-auto scroll container
+   * (e.g. embedded mid-page alongside other sections) — sticky has no scroll context to anchor
+   * to there and behaves like a fixed, misplaced bar. Renders in normal document flow instead. */
+  inline?: boolean;
 }
 
 export function MobilePaginationBar({
@@ -23,6 +27,7 @@ export function MobilePaginationBar({
   endIndex,
   totalItems,
   rowsPerPageOptions = [20, 50, 100, 200],
+  inline = false,
 }: MobilePaginationBarProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [panelPos, setPanelPos] = useState({ left: 0, bottom: 0, width: 0 });
@@ -57,7 +62,7 @@ export function MobilePaginationBar({
   };
 
   return (
-    <div className="md:hidden sticky bottom-0 z-30 px-4 py-2 border-t border-[#E2E8F0] bg-white shadow-[0_-2px_8px_rgba(0,0,0,0.04)] flex items-center justify-between gap-2 shrink-0">
+    <div className={`md:hidden ${inline ? 'relative' : 'sticky bottom-0 shadow-[0_-2px_8px_rgba(0,0,0,0.04)]'} z-30 px-4 py-2 border-t border-[#E2E8F0] bg-white flex items-center justify-between gap-2 shrink-0`}>
       <div className="flex items-center gap-2 shrink-0">
 
         {/* Trigger button */}

@@ -13,6 +13,7 @@ import {
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { TruncatedText } from '../../components/ui/TruncatedText';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { StatusRibbon } from '../../components/ui/StatusRibbon';
 import { TableLoader } from '../../components/ui/TableLoader';
 import { DesktopPagination, usePagination } from '../../hooks/usePagination';
 import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
@@ -363,14 +364,11 @@ function MisReportTable({ userId, isAdminView, fillHeight }: {
           {!loading && reports.length === 0 ? (
             <EmptyState title="No reports yet" subtitle="Click &quot;Generate Report&quot; to create one" />
           ) : !loading && (
-            <div className="p-2 space-y-2">
+            <div className="p-1.5 space-y-2">
               {reports.map((r, i) => (
-                <div key={r._id} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
-                  <div className="absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide"
-                    style={{ background: '#00A86B', clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}>
-                    #{(page - 1) * rowsPerPage + i + 1}
-                  </div>
-                  <div className="pt-6 px-2.5 pb-2.5">
+                <div key={r._id} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm">
+                  <StatusRibbon label={`#${(page - 1) * rowsPerPage + i + 1}`} color="#00A86B" />
+                  <div className="pt-7 px-2.5 pb-2.5">
                     <div className="rounded-xl p-2 mb-1.5 bg-white border border-[#E2E8F0]">
                       <div className="flex items-start justify-between gap-2 mb-1">
                         <span className={`px-2 py-0.5 rounded-md text-[12px] font-semibold ${typeColor(r.reportType)}`}>{r.reportType}</span>
@@ -410,11 +408,11 @@ function MisReportTable({ userId, isAdminView, fillHeight }: {
 
                     {r.status === 'completed' && r.downloadUrl ? (
                       <a href={r.downloadUrl} target="_blank" rel="noopener noreferrer"
-                        className="w-full py-2 rounded-xl bg-[#1e40af] text-white text-[12px] font-bold flex items-center justify-center gap-1.5 hover:bg-[#1e3a8a] transition-colors">
+                        className="w-full py-2 rounded-full border border-[#1E3A8A]/25 text-[#1E3A8A] text-[12.5px] font-bold flex items-center justify-center gap-1.5 transition-colors hover:bg-[#1E3A8A]/5 active:bg-[#1E3A8A]/10">
                         <Download className="w-3.5 h-3.5" /> Download
                       </a>
                     ) : (
-                      <div className="w-full py-2 rounded-xl bg-[#F1F5F9] text-[#94A3B8] text-[12px] font-bold flex items-center justify-center gap-1.5">
+                      <div className="w-full py-2 rounded-full border border-[#E2E8F0] text-[#94A3B8] text-[12.5px] font-bold flex items-center justify-center gap-1.5">
                         {r.status === 'pending' ? 'Processing…' : 'Not Available'}
                       </div>
                     )}
@@ -446,6 +444,7 @@ function MisReportTable({ userId, isAdminView, fillHeight }: {
           startIndex: totalReports === 0 ? 0 : (page - 1) * rowsPerPage + 1,
           endIndex: Math.min(page * rowsPerPage, totalReports),
           totalItems: totalReports,
+          inline: !fillHeight,
         })} />}
       </div>
     </div>
@@ -763,7 +762,7 @@ export function AdminReports() {
 
   return (
     <AdminLayout>
-      <div className="max-w-[1600px] mx-auto h-[calc(100vh-72px)] -m-4 md:-m-6 p-2.5 md:p-6 flex flex-col">
+      <div className="max-w-[1600px] mx-auto h-[calc(100vh-72px)] -m-4 md:-m-6 p-1.5 md:p-6 flex flex-col">
 
         {/* Header: title + tabs */}
         <div className="mb-5 shrink-0">
@@ -931,18 +930,15 @@ export function AdminReports() {
                 ) : !loadingSellers && sellers.length === 0 ? (
                   <EmptyState title="No sellers found" subtitle="Try changing filters" />
                 ) : !loadingSellers && (
-                  <div className="p-2 space-y-2">
+                  <div className="p-1.5 space-y-2">
                     {sellers.map((s, i) => {
                       const tier = getTier(s.totalOrders ?? 0);
                       const accent = '#00A86B';
                       return (
                         <div key={s._id}
-                          className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden"
+                          className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm"
                         >
-                          <div className="absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide"
-                            style={{ background: accent, clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}>
-                            #{(sellerPage - 1) * sellerRowsPerPage + i + 1}
-                          </div>
+                          <StatusRibbon label={`#${(sellerPage - 1) * sellerRowsPerPage + i + 1}`} color={accent} />
                           <div className="pt-8 px-4 pb-4">
                             <div className="rounded-xl p-3 mb-3 bg-white" style={{ border: `1px solid ${accent}` }}>
                               <div className="flex items-start justify-between gap-2">
@@ -979,7 +975,7 @@ export function AdminReports() {
                             </div>
 
                             <button onClick={() => { setSelectedSellerId(s._id); setSellerDetail(null); setLoadingDetail(true); }}
-                              className="w-full py-2.5 rounded-xl bg-[#1e40af] text-white text-[12px] font-bold flex items-center justify-center gap-1.5 hover:bg-[#1e3a8a] transition-colors">
+                              className="w-full py-2.5 rounded-full border border-[#1E3A8A]/25 text-[#1E3A8A] text-[12.5px] font-bold flex items-center justify-center gap-1.5 transition-colors hover:bg-[#1E3A8A]/5 active:bg-[#1E3A8A]/10">
                               View Report
                             </button>
                           </div>
@@ -1009,6 +1005,7 @@ export function AdminReports() {
                 startIndex: sellerTotal === 0 ? 0 : (sellerPage - 1) * sellerRowsPerPage + 1,
                 endIndex: Math.min(sellerPage * sellerRowsPerPage, sellerTotal),
                 totalItems: sellerTotal,
+                inline: true,
               })} />}
             </div>
 
@@ -1192,13 +1189,10 @@ export function AdminReports() {
                       </div>
 
                       {/* Mobile card list */}
-                      <div className="md:hidden relative bg-[#F8FAFC] p-4 space-y-4">
+                      <div className="md:hidden relative bg-[#F8FAFC] p-1.5 space-y-2">
                         {sdCouriersPagination.paginatedData.map((c, i) => (
-                          <div key={c.name} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
-                            <div className="absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide"
-                              style={{ background: '#00A86B', clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}>
-                              #{sdCouriersPagination.startIndex + i}
-                            </div>
+                          <div key={c.name} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm">
+                            <StatusRibbon label={`#${sdCouriersPagination.startIndex + i}`} color="#00A86B" />
                             <div className="pt-8 px-4 pb-4">
                               <div className="rounded-xl p-3 mb-3 bg-white border border-[#E2E8F0] flex items-center gap-3">
                                 <img src={getCourierLogo(c.name)} alt={c.name} className="w-16 h-7 rounded object-contain object-left shrink-0"
@@ -1257,6 +1251,7 @@ export function AdminReports() {
                         startIndex: sdCouriersPagination.startIndex,
                         endIndex: sdCouriersPagination.endIndex,
                         totalItems: sdCouriersPagination.totalItems,
+                        inline: true,
                       })} />}
                     </div>
                   </>
@@ -1311,13 +1306,10 @@ export function AdminReports() {
                       </div>
 
                       {/* Mobile card list */}
-                      <div className="md:hidden relative bg-[#F8FAFC] p-4 space-y-4">
+                      <div className="md:hidden relative bg-[#F8FAFC] p-1.5 space-y-2">
                         {sdTxnsPagination.paginatedData.map((t, i) => (
-                          <div key={i} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
-                            <div className="absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide"
-                              style={{ background: '#00A86B', clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}>
-                              #{sdTxnsPagination.startIndex + i}
-                            </div>
+                          <div key={i} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm">
+                            <StatusRibbon label={`#${sdTxnsPagination.startIndex + i}`} color="#00A86B" />
                             <div className="pt-8 px-4 pb-4">
                               <div className="rounded-xl p-3 mb-3 bg-white border border-[#E2E8F0]">
                                 <div className="flex items-start justify-between gap-2 mb-1.5">
@@ -1367,6 +1359,7 @@ export function AdminReports() {
                         startIndex: sdTxnsPagination.startIndex,
                         endIndex: sdTxnsPagination.endIndex,
                         totalItems: sdTxnsPagination.totalItems,
+                        inline: true,
                       })} />}
                     </div>
                   </>
@@ -1451,14 +1444,11 @@ export function AdminReports() {
                   </div>
 
                   {/* Mobile card list */}
-                  <div className="md:hidden relative bg-[#F8FAFC] p-4 space-y-4">
+                  <div className="md:hidden relative bg-[#F8FAFC] p-1.5 space-y-2">
                     {loadingCouriers && <div className="relative h-32"><TableLoader /></div>}
                     {!loadingCouriers && couriers.map((c, i) => (
-                      <div key={c.name} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
-                        <div className="absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide"
-                          style={{ background: '#00A86B', clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}>
-                          #{i + 1}
-                        </div>
+                      <div key={c.name} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm">
+                        <StatusRibbon label={`#${i + 1}`} color="#00A86B" />
                         <div className="pt-8 px-4 pb-4">
                           <div className="rounded-xl p-3 mb-3 bg-white border border-[#E2E8F0] flex items-center gap-3">
                             <img src={getCourierLogo(c.name)} alt={c.name} className="w-16 h-7 rounded object-contain object-left shrink-0"

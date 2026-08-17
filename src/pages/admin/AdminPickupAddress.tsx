@@ -10,6 +10,7 @@ import { useUserSearchFilter } from '../../hooks/filters/useUserSearchFilter';
 import { useTableLoader } from '../../hooks/useTableLoader';
 import { TableLoader } from '../../components/ui/TableLoader';
 import { TruncatedText } from '../../components/ui/TruncatedText';
+import { StatusRibbon } from '../../components/ui/StatusRibbon';
 import { usePagination, DesktopPagination } from '../../hooks/usePagination';
 import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -412,10 +413,10 @@ export function AdminPickupAddress() {
         ) : (
           <>
             {/* ── Desktop table ─────────────────────────────────────────── */}
-            <div className="hidden md:block flex-1 min-h-0 overflow-hidden px-4 md:px-6 py-4">
-              <div className="h-full overflow-auto no-scrollbar border border-[#E2E8F0] rounded-2xl">
-              <table className="w-full text-left border-collapse">
-                <thead className="sticky top-0 z-10 bg-[#E6F9F2] shadow-sm">
+            <div className="hidden md:flex bg-white flex-col flex-1 min-h-0 overflow-hidden border-t border-[#E2E8F0]">
+              <div className="flex-1 overflow-auto w-full relative">
+              <table className="w-full text-left border-collapse min-w-full">
+                <thead className="sticky top-0 z-40 bg-[#E6F9F2] shadow-sm">
                   <tr className="text-xs leading-[18px] font-medium text-[#64748B] uppercase tracking-wider border border-[#B9EFDB]">
                     {isAdminView && <th className="py-2 px-4 whitespace-nowrap"><div className="flex items-center gap-1"><User className="w-3.5 h-3.5 shrink-0" /><span>User</span></div></th>}
                     <th className="py-2 px-4 whitespace-nowrap"><div className="flex items-center gap-1"><User className="w-3.5 h-3.5 shrink-0" /><span>Contact</span></div></th>
@@ -507,16 +508,11 @@ export function AdminPickupAddress() {
                     const a = doc.pickupAddress;
                     const accent = doc.isPrimary ? '#00A86B' : '#94A3B8';
                     return (
-                      <div key={doc._id} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
+                      <div key={doc._id} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm">
                         {/* Ribbon Tag */}
-                        <div
-                          className="absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide"
-                          style={{ background: accent, clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}
-                        >
-                          {doc.isPrimary ? 'Primary' : 'Address'}
-                        </div>
+                        <StatusRibbon label={doc.isPrimary ? 'Primary' : 'Address'} color={accent} />
 
-                        <div className="pt-6 px-2.5 pb-2.5">
+                        <div className="pt-7 px-2.5 pb-2.5">
                           {/* Admin: user info row */}
                           {isAdminView && doc.userId && (
                             <div className="flex items-center gap-1.5 mb-1.5 pb-1.5 border-b border-[#F1F5F9]">
@@ -676,9 +672,9 @@ export function AdminPickupAddress() {
         )}
       </AnimatePresence>
 
-      {/* ── Add / Edit Modal (user only) ──────────────────────────────────── */}
+      {/* ── Add / Edit Modal (user only, desktop) ─────────────────────────── */}
       {showModal && !isAdminView && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+        <div className="hidden md:flex fixed inset-0 z-50 items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between px-6 py-4 border-b border-[#E2E8F0] shrink-0">
               <h3 className="text-[15px] font-bold text-[#0F172A]">
@@ -760,6 +756,129 @@ export function AdminPickupAddress() {
           </div>
         </div>
       )}
+
+      {/* ── Add / Edit Sheet (user only, mobile) ──────────────────────────── */}
+      <AnimatePresence>
+        {showModal && !isAdminView && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="md:hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-end justify-center"
+            onClick={closeModal}
+          >
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="bg-white rounded-t-3xl border-t border-[#E2E8F0] shadow-2xl w-full max-h-[75vh] flex flex-col"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Drag handle */}
+              <div className="flex justify-center pt-2.5 pb-1 shrink-0">
+                <div className="w-10 h-1 rounded-full bg-[#E2E8F0]" />
+              </div>
+
+              <div className="px-5 py-3 border-b border-[#E2E8F0] flex items-center justify-between shrink-0">
+                <h3 className="text-[15px] font-bold text-[#0F172A]">
+                  {editId ? 'Edit Pickup Address' : 'Add New Pickup Address'}
+                </h3>
+                <button onClick={closeModal} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-[#F1F5F9] text-[#64748B] transition-colors">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="px-5 py-4 space-y-4 overflow-y-auto thin-scrollbar min-h-0">
+                {errors.submit && (
+                  <div className="flex items-center gap-2 p-3 bg-red-50 text-red-600 rounded-xl text-[12px]">
+                    <AlertCircle className="w-4 h-4 shrink-0" /> {errors.submit}
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Contact Name <span className="text-red-500">*</span></label>
+                  {errors.contactName && <p className="text-[11px] text-red-500 mb-1">{errors.contactName}</p>}
+                  <div className="relative">
+                    <User className="w-4 h-4 text-[#94A3B8] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input type="text" value={form.contactName} onChange={setField('contactName')} placeholder="Full contact name"
+                      className={`${inputCls(errors.contactName)} !rounded-full !pl-10`} />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Phone Number <span className="text-red-500">*</span></label>
+                  {errors.phoneNumber && <p className="text-[11px] text-red-500 mb-1">{errors.phoneNumber}</p>}
+                  <div className="relative">
+                    <Phone className="w-4 h-4 text-[#94A3B8] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input type="text" inputMode="numeric" value={form.phoneNumber} onChange={setPhone} placeholder="10-digit number starting with 6-9"
+                      className={`${inputCls(errors.phoneNumber)} !rounded-full !pl-10`} />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Email <span className="text-[#94A3B8] font-normal">(optional)</span></label>
+                  <div className="relative">
+                    <Mail className="w-4 h-4 text-[#94A3B8] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input type="email" value={form.email} onChange={setField('email')} placeholder="email@example.com"
+                      className={`${inputCls()} !rounded-full !pl-10`} />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Address <span className="text-red-500">*</span></label>
+                  {errors.address && <p className="text-[11px] text-red-500 mb-1">{errors.address}</p>}
+                  <div className="relative">
+                    <MapPin className="w-4 h-4 text-[#94A3B8] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input type="text" value={form.address} onChange={setField('address')} placeholder="Street / Area / Landmark"
+                      className={`${inputCls(errors.address)} !rounded-full !pl-10`} />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Pincode <span className="text-red-500">*</span></label>
+                  {errors.pinCode && <p className="text-[11px] text-red-500 mb-1">{errors.pinCode}</p>}
+                  <div className="relative">
+                    <Hash className="w-4 h-4 text-[#94A3B8] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input type="text" inputMode="numeric" value={form.pinCode} onChange={setPin} placeholder="6-digit pin"
+                      className={`${inputCls(errors.pinCode)} !rounded-full !pl-10`} />
+                    {pincodeLoading && <Loader2 className="w-4 h-4 text-[#00A86B] animate-spin absolute right-4 top-1/2 -translate-y-1/2" />}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">City <span className="text-red-500">*</span></label>
+                    {errors.city && <p className="text-[11px] text-red-500 mb-1">{errors.city}</p>}
+                    <input type="text" value={form.city} onChange={setField('city')} placeholder="Auto-filled"
+                      className={`${inputCls(errors.city)} !rounded-full ${!errors.city && form.pinCode.length === 6 ? 'bg-[#F8FAFC]' : ''}`}
+                      readOnly={!errors.city && form.pinCode.length === 6 && !pincodeLoading} />
+                  </div>
+                  <div>
+                    <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">State <span className="text-red-500">*</span></label>
+                    {errors.state && <p className="text-[11px] text-red-500 mb-1">{errors.state}</p>}
+                    <input type="text" value={form.state} onChange={setField('state')} placeholder="Auto-filled"
+                      className={`${inputCls(errors.state)} !rounded-full ${!errors.state && form.pinCode.length === 6 ? 'bg-[#F8FAFC]' : ''}`}
+                      readOnly={!errors.state && form.pinCode.length === 6 && !pincodeLoading} />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-3 px-5 py-4 border-t border-[#E2E8F0] shrink-0 sticky bottom-0 bg-white" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
+                <button onClick={closeModal}
+                  className="flex-1 h-11 rounded-full border border-[#E2E8F0] text-[13px] font-bold text-[#475569] hover:bg-[#F8FAFC] transition-colors">
+                  Cancel
+                </button>
+                <button onClick={handleSave} disabled={saving}
+                  className="flex-1 flex items-center justify-center gap-2 h-11 bg-[#00A86B] hover:bg-[#009B63] disabled:opacity-60 text-white text-[13px] font-bold rounded-full transition-colors shadow-sm">
+                  {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {editId ? 'Save Changes' : 'Add Address'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── Delete Confirm Modal (user only) ─────────────────────────────── */}
       {deleteId && !isAdminView && (

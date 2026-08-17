@@ -14,6 +14,7 @@ import { getToken } from '../../utils/session';
 import { TableLoader } from '../../components/ui/TableLoader';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { TruncatedText } from '../../components/ui/TruncatedText';
+import { StatusRibbon } from '../../components/ui/StatusRibbon';
 import { useAdminTab } from '../../context/AdminUserContext';
 import { useProductTooltip, ProductTooltipCard } from '../../hooks/useProductTooltip';
 
@@ -642,12 +643,9 @@ export function AdminPickupManifestDetails() {
                   const accent = getRibbonColor(o.status);
                   const logo   = getCourierLogo(o.courier);
                   return (
-                    <div key={o._id} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
+                    <div key={o._id} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm">
                       {/* Status ribbon — absolute top-left, same as AdminOrders */}
-                      <div
-                        className="absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide"
-                        style={{ background: accent, clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}
-                      >{o.status}</div>
+                      <StatusRibbon label={o.status} color={accent} />
 
                       {/* Checkbox — absolute top-right */}
                       <input
@@ -657,7 +655,7 @@ export function AdminPickupManifestDetails() {
                         className="absolute top-2 right-2.5 rounded border-gray-300 accent-[#00A86B] w-4 h-4 shrink-0 z-10"
                       />
 
-                      <div className="pt-6 px-2 pb-2">
+                      <div className="pt-7 px-2 pb-2">
                         {/* Order ID row */}
                         <div className="flex items-center justify-between mb-1 gap-2 pr-6">
                           <span

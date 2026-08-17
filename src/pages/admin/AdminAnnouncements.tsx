@@ -6,6 +6,7 @@ import { usePagination, DesktopPagination } from '../../hooks/usePagination';
 import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
 import { TableLoader } from '../../components/ui/TableLoader';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { StatusRibbon } from '../../components/ui/StatusRibbon';
 import { Toast } from '../../components/ui/Toast';
 import { useToast } from '../../hooks/useToast';
 
@@ -421,16 +422,11 @@ export function AdminAnnouncements() {
                 {paginatedData.map(ann => {
                   const accent = ann.enabled ? '#00A86B' : '#94A3B8';
                   return (
-                    <div key={ann._id} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
+                    <div key={ann._id} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm">
                       {/* Ribbon */}
-                      <div
-                        className="absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide"
-                        style={{ background: accent, clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}
-                      >
-                        {ann.enabled ? 'Active' : 'Disabled'}
-                      </div>
+                      <StatusRibbon label={ann.enabled ? 'Active' : 'Disabled'} color={accent} />
 
-                      <div className="pt-6 px-2.5 pb-2.5">
+                      <div className="pt-7 px-2.5 pb-2.5">
                         {/* Date + Toggle */}
                         <div className="flex items-center justify-between mb-1.5 gap-2">
                           <div className="min-w-0">

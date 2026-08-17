@@ -196,10 +196,11 @@ export function SignupCard({ onBack }: SignupCardProps) {
               </svg>
               Creating account...
             </div>
-          ) : 'Get Started'}
+          ) : 'Sign up'}
         </Button>
       </form>
 
+      {/* Google/Apple sign-up disabled per request
       <div className="grid grid-cols-2 gap-4 mt-5">
         <Button variant="outline" className="w-full h-10 border-[#E2E8F0] text-xs font-semibold text-[#475569]">
           <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24">
@@ -215,6 +216,7 @@ export function SignupCard({ onBack }: SignupCardProps) {
           Sign up with Apple
         </Button>
       </div>
+      */}
 
       <div className="text-center mt-4">
         <p className="text-xs text-[#64748B]">

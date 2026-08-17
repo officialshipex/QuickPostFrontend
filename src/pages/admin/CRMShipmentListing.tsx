@@ -12,6 +12,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
 import { TruncatedText } from '../../components/ui/TruncatedText';
+import { StatusRibbon } from '../../components/ui/StatusRibbon';
 import { useUserSearchFilter } from '../../hooks/filters/useUserSearchFilter';
 import { getLast7DaysStr } from '../../hooks/filters/useDateRangeFilter';
 import { TableLoader } from '../../components/ui/TableLoader';
@@ -685,7 +686,7 @@ export function CRMShipmentListing() {
 
             <GlassDateFilter
               className="w-full [&_.glass-dropdown-trigger]:w-full"
-              align="left"
+              align="right"
               startDate={dateFrom}
               endDate={dateTo}
               onDateChange={(s, e) => { setDateFrom(s); setDateTo(e); }}
@@ -984,25 +985,17 @@ export function CRMShipmentListing() {
               {paginated.map((row, idx) => {
                 const accent = getRibbonColor(row.status);
                 return (
-                  <div key={row.awb || idx} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
-                    {/* Status Ribbon — refined corner label, crisp type + soft depth instead of a flat banner */}
-                    <div
-                      className="absolute top-0 left-0 px-3.5 py-[5px] text-[10px] font-bold text-white uppercase tracking-wider z-10"
-                      style={{
-                        background: `linear-gradient(135deg, ${accent} 0%, ${accent}D9 100%)`,
-                        clipPath: 'polygon(0 0, 100% 0, 82% 100%, 0% 100%)',
-                        boxShadow: '0 2px 6px -1px rgba(0,0,0,0.18)',
-                      }}
-                    >
-                      {row.status}
+                  <div key={row.awb || idx} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm">
+                    <StatusRibbon label={row.status} color={accent} />
+
+                    {/* Checkbox — top-right, sits on its own white chip above the ribbon so long labels never overlap it */}
+                    <div className="absolute top-2 right-2 z-20 bg-white rounded-md p-0.5 shadow-sm">
+                      <input type="checkbox" checked={selectedOrders.includes(row.awb)} onChange={() => toggleSelect(row.awb)}
+                        className="rounded border-gray-300 accent-[#00A86B] w-4 h-4 shrink-0 block" />
                     </div>
 
-                    {/* Checkbox — top-right corner, parallel to the status ribbon */}
-                    <input type="checkbox" checked={selectedOrders.includes(row.awb)} onChange={() => toggleSelect(row.awb)}
-                      className="absolute top-2 right-2.5 rounded border-gray-300 accent-[#00A86B] w-4 h-4 shrink-0 z-10" />
-
-                    <div className="px-2.5 pt-7 pb-2.5">
-                      {/* Header Row — Order ID */}
+                    <div className="px-2.5 pt-4 pb-2.5">
+                      {/* Header Row — Order ID, kept clear of the checkbox chip */}
                       <div className="flex items-center justify-between mb-1.5 pr-6">
                         <button
                           onClick={() => navigate(`/admin/order-tracking?id=${row.orderId}`)}
@@ -1026,15 +1019,17 @@ export function CRMShipmentListing() {
                       </div>
 
                       <div className="flex items-start justify-between mb-1.5 px-1 gap-2">
-                        <span
-                          className="text-[12px] font-normal text-[#1E293B] underline decoration-dotted underline-offset-2 truncate flex-1 cursor-help"
-                          onClick={(e) => {
-                            if (row.products.length === 0) return;
-                            openProductTooltip(row.awb, e);
-                          }}
-                        >
-                          {row.productName || '—'}
-                        </span>
+                        <div className="min-w-0 flex-1">
+                          <span
+                            className={`text-[12px] font-normal text-[#1E293B] underline decoration-dotted underline-offset-2 truncate inline-block max-w-full ${row.products.length > 0 ? 'cursor-help' : ''}`}
+                            onClick={(e) => {
+                              if (row.products.length === 0) return;
+                              openProductTooltip(row.awb, e);
+                            }}
+                          >
+                            {row.productName || '—'}
+                          </span>
+                        </div>
                         <span className="text-[11px] font-medium text-[#64748B] shrink-0">QTY: {row.qty}</span>
                       </div>
 

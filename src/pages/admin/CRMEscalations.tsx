@@ -8,6 +8,7 @@ import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
 import { getLast7DaysStr } from '../../hooks/filters/useDateRangeFilter';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { StatusRibbon } from '../../components/ui/StatusRibbon';
 
 const PRIORITY_RIBBON: Record<string, string> = {
   'Critical': '#DC2626', 'High': '#EA580C', 'Medium': '#D97706', 'Low': '#2563EB',
@@ -263,14 +264,14 @@ export function CRMEscalations() {
                   const accent = PRIORITY_RIBBON[ticket.priority] || '#00A86B';
                   const isBreached = ticket.breached && ticket.status !== 'Resolved' && ticket.status !== 'Closed';
                   return (
-                    <div key={i} className={`relative bg-white rounded-2xl border shadow-sm overflow-hidden ${isBreached ? 'border-red-200' : 'border-[#E2E8F0]'}`}>
-                      <div className="absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide"
-                        style={{ background: accent, clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}>
-                        {ticket.priority}
+                    <div key={i} className={`relative bg-white rounded-2xl border shadow-sm ${isBreached ? 'border-red-200' : 'border-[#E2E8F0]'}`}>
+                      <StatusRibbon label={ticket.priority} color={accent} />
+                      {/* Ticket ID — parallel to the ribbon, matching Orders page layout */}
+                      <div className="flex justify-end pl-[84px] pr-4 pt-1.5">
+                        <span className="text-[12.5px] font-bold text-[#1D4ED8] truncate max-w-[140px] font-mono">{ticket.id}</span>
                       </div>
-                      <div className="pt-8 px-4 pb-4">
-                        <div className="flex items-center justify-between mb-3 gap-2">
-                          <span className="text-[12px] font-bold text-[#0F172A] font-mono">{ticket.id}</span>
+                      <div className="pt-1.5 px-4 pb-4">
+                        <div className="flex items-center justify-end mb-3 gap-2">
                           <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${STATUS_STYLES[ticket.status]}`}>{ticket.status}</span>
                         </div>
 

@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { apiClient } from '../../services/apiClient';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { TableLoader } from '../../components/ui/TableLoader';
+import { StatusRibbon } from '../../components/ui/StatusRibbon';
 
 const STATUS_OPTIONS = [
   { label: 'Active', value: 'Active' },
@@ -861,11 +862,8 @@ export function AdminRateCard() {
               const items: any[] = servicesGrouped[provider.courierName] || servicesGrouped[provider.courierProvider] || [];
               const logo = getProviderLogo(provider.courierName);
               return (
-                <div key={provider._id} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
-                  <div className={`absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide ${provider.status === 'Enable' ? 'bg-[#00A86B]' : 'bg-[#94A3B8]'}`}
-                    style={{ clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}>
-                    {provider.status}
-                  </div>
+                <div key={provider._id} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm">
+                  <StatusRibbon label={provider.status} color={provider.status === 'Enable' ? '#00A86B' : '#94A3B8'} />
                   <button onClick={() => { setExpandedProviderId(isExpanded ? null : provider._id); setEditingProviderId(null); }} className="w-full pt-8 px-4 pb-4 text-left">
                     <div className="flex items-center gap-3">
                       <div className="w-12 h-12 bg-white border border-[#E2E8F0] rounded-xl p-2 flex items-center justify-center shrink-0 overflow-hidden shadow-sm">

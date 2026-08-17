@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { Toast } from '../../components/ui/Toast';
 import { useToast } from '../../hooks/useToast';
+import { copyToClipboard } from '../../utils/clipboard';
 
 // Milestone timeline icons are looked up dynamically by name (see getMilestonesFromStatus).
 const MILESTONE_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -228,23 +229,19 @@ const getMilestonesFromStatus = (rawStatus: string, order?: OrderData) => {
     ];
   }
 
-  // Standard 6-step delivery flow
-  // 0 = Order Placed      → new
-  // 1 = Label Created     → Booked / Not Picked / Ready To Ship
-  // 2 = Pickup Confirmed  → Pickup Scheduled
-  // 3 = In Transit        → Pickup & Manifest / In-transit / In Transit
-  // 4 = Out for Delivery  → Out for Delivery
-  // 5 = Delivered         → Delivered
+  // Standard 4-step delivery flow
+  // 0 = Booked / Ready to Ship → new / Booked / Not Picked / Ready To Ship / Pickup Scheduled
+  // 1 = In Transit             → Pickup & Manifest / In-transit / In Transit
+  // 2 = Out for Delivery       → Out for Delivery
+  // 3 = Delivered              → Delivered
   let activeIdx = 0;
-  if (s === 'booked' || s === 'not picked' || s === 'ready to ship') activeIdx = 1;
-  else if (s === 'pickup scheduled')                                   activeIdx = 2;
-  else if (s === 'pickup & manifest' || s === 'in-transit' || s === 'in transit') activeIdx = 3;
-  else if (s === 'out for delivery')                                   activeIdx = 4;
-  else if (s === 'delivered')                                          activeIdx = 5;
+  if (s === 'pickup & manifest' || s === 'in-transit' || s === 'in transit') activeIdx = 1;
+  else if (s === 'out for delivery')                                        activeIdx = 2;
+  else if (s === 'delivered')                                               activeIdx = 3;
 
-  const milestoneNames = ['Order Placed', 'Label Created', 'Pickup Confirmed', 'In Transit', 'Out for Delivery', 'Delivered'];
-  const milestoneIcons = ['check', 'file-text', 'truck', 'truck', 'map-pin', 'package'];
-  const milestoneDates = [created, shipmentCreated || created, pickedUp, '', '', estimated];
+  const milestoneNames = ['Ready to Ship', 'In Transit', 'Out for Delivery', 'Delivered'];
+  const milestoneIcons = ['file-text', 'truck', 'map-pin', 'package'];
+  const milestoneDates = [shipmentCreated || created, '', '', estimated];
 
   return milestoneNames.map((name, i) => ({
     name,
@@ -387,16 +384,24 @@ export function AdminOrderTracking() {
   }, [loading]);
 
   // Handlers
-  const handleCopyOrderId = () => {
-    navigator.clipboard.writeText(String(order?.orderId || orderId));
-    setCopiedId(true);
-    setTimeout(() => setCopiedId(false), 1500);
+  const handleCopyOrderId = async () => {
+    const ok = await copyToClipboard(String(order?.orderId || orderId));
+    if (ok) {
+      setCopiedId(true);
+      setTimeout(() => setCopiedId(false), 1500);
+    } else {
+      showToastMsg('error', "Couldn't copy Order ID");
+    }
   };
 
-  const handleCopyAwb = () => {
-    navigator.clipboard.writeText(order?.awb_number || '');
-    setCopiedAwb(true);
-    setTimeout(() => setCopiedAwb(false), 1500);
+  const handleCopyAwb = async () => {
+    const ok = await copyToClipboard(order?.awb_number || '');
+    if (ok) {
+      setCopiedAwb(true);
+      setTimeout(() => setCopiedAwb(false), 1500);
+    } else {
+      showToastMsg('error', "Couldn't copy AWB Number");
+    }
   };
 
   const handleRaiseDispute = async () => {
@@ -493,6 +498,9 @@ export function AdminOrderTracking() {
 
   // ── Header actions — match AdminOrders renderRowActions per status ────────────
   const rawStatus = order?.status || 'New';
+  // Display-only relabel — "Booked" reads as "Ready to Ship" to the user; all status logic
+  // below still keys off the underlying rawStatus value.
+  const displayStatus = rawStatus === 'Booked' ? 'Ready to Ship' : rawStatus;
   const statusBadgeClass = STATUS_BADGE_STYLES[rawStatus] || 'bg-slate-50 text-slate-700 border-slate-200';
   const isNewOrder = rawStatus.toLowerCase() === 'new';
   const isBookedOrder = ['Booked', 'Not Picked', 'Ready To Ship'].includes(rawStatus);
@@ -628,26 +636,61 @@ export function AdminOrderTracking() {
 
         {/* ── PAGE HEADER ─────────────────────────────────────────────────────── */}
         <div className="w-full bg-white border-b border-[#E2E8F0] px-3 md:px-6 py-3 md:py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 md:gap-4">
-          <div className="flex flex-wrap items-center gap-2 md:gap-3">
-            <button onClick={() => window.history.back()} className="flex items-center justify-center p-1 rounded-md text-[#64748B] hover:text-[#00A86B] hover:bg-slate-50 transition-colors" title="Back">
-              <ArrowLeft className="w-[18px] h-[18px]" />
-            </button>
-            <div className="flex items-baseline">
-              <span className="text-[12px] leading-[18px] font-medium text-[#64748B]">Order ID</span>
-              <span className="text-[14px] leading-[20px] font-semibold text-[#0F172A] ml-1.5">{displayOrderId}</span>
+          <div className="flex flex-wrap items-center gap-2 md:gap-3 w-full sm:w-auto justify-between sm:justify-start">
+            <div className="flex flex-wrap items-center gap-2 md:gap-3">
+              <button onClick={() => window.history.back()} className="flex items-center justify-center p-1 rounded-md text-[#64748B] hover:text-[#00A86B] hover:bg-slate-50 transition-colors" title="Back">
+                <ArrowLeft className="w-[18px] h-[18px]" />
+              </button>
+              <div className="flex items-baseline">
+                <span className="text-[12px] leading-[18px] font-medium text-[#64748B]">Order ID</span>
+                <span className="text-[14px] leading-[20px] font-semibold text-[#0F172A] ml-1.5">{displayOrderId}</span>
+              </div>
+              <div className={`text-[12px] leading-[18px] font-medium px-3 py-1 rounded-full border ${statusBadgeClass}`}>
+                {displayStatus}
+              </div>
+              <button onClick={handleCopyOrderId} className={`p-1.5 rounded-md transition-colors ${copiedId ? 'text-[#00A86B] bg-emerald-50' : 'text-[#94A3B8] hover:text-[#00A86B] hover:bg-slate-50'}`} title="Copy Order ID">
+                <Copy className="w-3.5 h-3.5" />
+              </button>
             </div>
-            <div className={`text-[12px] leading-[18px] font-medium px-3 py-1 rounded-full border ${statusBadgeClass}`}>
-              {rawStatus}
+
+            {/* Actions dropdown — mobile only here, right after the copy icon; desktop keeps it in the right-side action group below */}
+            <div className="relative sm:hidden">
+              <button
+                onClick={(e) => { e.stopPropagation(); if (!cancelling) setIsHeaderDropdownOpen(!isHeaderDropdownOpen); }}
+                className="border border-[#E2E8F0] hover:bg-[#F8FAFC] rounded-lg w-9 h-9 flex items-center justify-center text-slate-600 transition-all focus:outline-none"
+                title={cancelling ? 'Cancelling…' : 'More Actions'}
+              >
+                {cancelling
+                  ? <Loader2 className="w-4 h-4 animate-spin text-rose-500" />
+                  : <span className="font-bold text-[14px] leading-[8px] -mt-1.5">...</span>
+                }
+              </button>
+              {isHeaderDropdownOpen && !cancelling && (
+                <div className="absolute right-0 mt-2 w-48 bg-white border border-[#E2E8F0] rounded-xl shadow-lg overflow-hidden z-[105] py-1">
+                  {dropdownOptions.map((opt, i) => (
+                    <React.Fragment key={i}>
+                      {i > 0 && opt.isDanger && (
+                        <div className="border-t border-[#E2E8F0] my-1" />
+                      )}
+                      <button
+                        onClick={() => { opt.action(); setIsHeaderDropdownOpen(false); }}
+                        className={`w-full text-left px-4 py-2.5 text-[13px] hover:bg-[#F8FAFC] transition-colors ${opt.isDanger ? 'font-medium text-red-500 hover:bg-red-50/50' : 'font-normal text-[#0F172A]'}`}
+                      >
+                        {opt.label}
+                      </button>
+                    </React.Fragment>
+                  ))}
+                </div>
+              )}
             </div>
-            <button onClick={handleCopyOrderId} className={`p-1.5 rounded-md transition-colors ${copiedId ? 'text-[#00A86B] bg-emerald-50' : 'text-[#94A3B8] hover:text-[#00A86B] hover:bg-slate-50'}`} title="Copy Order ID">
-              <Copy className="w-3.5 h-3.5" />
-            </button>
           </div>
           <div className="flex items-center gap-2 md:gap-3 w-full sm:w-auto relative">
-            <button onClick={() => primaryAction()} className="flex-1 sm:flex-none bg-[#00A86B] hover:bg-[#009B63] text-white text-[12px] md:text-[14px] font-bold py-1.5 md:py-2.5 px-3 md:px-6 rounded-lg shadow-sm transition-all">
-              {primaryText}
-            </button>
-            <div className="relative">
+            {primaryText !== 'Download Label' && (
+              <button onClick={() => primaryAction()} className="flex-1 sm:flex-none bg-[#00A86B] hover:bg-[#009B63] text-white text-[12px] md:text-[14px] font-bold py-1.5 md:py-2.5 px-3 md:px-6 rounded-lg shadow-sm transition-all">
+                {primaryText}
+              </button>
+            )}
+            <div className="relative hidden sm:block">
               <button
                 onClick={(e) => { e.stopPropagation(); if (!cancelling) setIsHeaderDropdownOpen(!isHeaderDropdownOpen); }}
                 className="border border-[#E2E8F0] hover:bg-[#F8FAFC] rounded-lg w-9 h-9 flex items-center justify-center text-slate-600 transition-all focus:outline-none"
@@ -971,7 +1014,7 @@ export function AdminOrderTracking() {
                 <div className="overflow-x-auto no-scrollbar flex-1">
                   <table className="w-full text-left border-collapse min-w-[300px]">
                     <thead>
-                      <tr className="bg-[#E6F9F2] border-b border-[#E2E8F0] text-[10px] leading-4 uppercase tracking-wider font-semibold text-[#94A3B8]">
+                      <tr className="border-b border-[#E2E8F0] text-[10px] leading-4 uppercase tracking-wider font-semibold text-[#94A3B8]">
                         <th className="pb-3">Product Name</th>
                         <th className="pb-3 text-center">Qty</th>
                         <th className="pb-3 text-right">Price</th>

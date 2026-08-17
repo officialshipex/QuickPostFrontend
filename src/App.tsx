@@ -4,6 +4,9 @@ import { getToken, isTokenExpired, getRoleFromToken } from './utils/session';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Home } from './pages/Home';
 import { Track } from './pages/Track';
+import { Terms } from './pages/Terms';
+import { RefundPolicy } from './pages/RefundPolicy';
+import { PrivacyPolicy } from './pages/PrivacyPolicy';
 import { RateCalculator } from './pages/RateCalculator';
 import { ForgotPassword } from './pages/ForgotPassword';
 import { Login } from './pages/Login';
@@ -170,6 +173,9 @@ function App() {
         <Routes>
           <Route path="/" element={<AppRootHandler />} />
           <Route path="/track" element={<Track />} />
+          <Route path="/terms-and-conditions" element={<Terms />} />
+          <Route path="/refund-and-cancellation-policy" element={<RefundPolicy />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           <Route path="/rate-calculator" element={<RateCalculator />} />
           <Route path="/login" element={<AuthRedirect><Login /></AuthRedirect>} />
           <Route path="/employee-login" element={<AuthRedirect><EmployeeLogin /></AuthRedirect>} />

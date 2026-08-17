@@ -296,7 +296,7 @@ thead.sticky tr.border-\[\#B9EFDB\] > th:last-child {
     0 8px 32px rgba(0, 0, 0, 0.08),
     0 2px 8px rgba(0, 0, 0, 0.04),
     inset 0 1px 0 rgba(255, 255, 255, 0.6);
-  z-index: 100;
+  z-index: 200;
   overflow: hidden;
   animation: glassSlideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -553,7 +553,7 @@ thead.sticky tr.border-\[\#B9EFDB\] > th:last-child {
     0 8px 32px rgba(0, 0, 0, 0.08),
     0 2px 8px rgba(0, 0, 0, 0.04),
     inset 0 1px 0 rgba(255, 255, 255, 0.6);
-  z-index: 100;
+  z-index: 200;
   overflow: hidden;
   animation: glassSlideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }

@@ -22,6 +22,7 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { TruncatedText } from '../../components/ui/TruncatedText';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
+import { StatusRibbon } from '../../components/ui/StatusRibbon';
 import { AdminPickupManifest } from './AdminPickupManifest';
 import { useAdminTab } from '../../context/AdminUserContext';
 import { ShipOrderModal } from '../../components/admin/orders/ShipOrderModal';
@@ -884,16 +885,49 @@ export function AdminOrders() {
             Same hoisted row for every tab, including Pickup & Manifest — only the search
             placeholder/value and the action-menu content differ for that tab. ── */}
         <div className="md:hidden relative z-[60] px-3 py-2.5 border-b border-[#E2E8F0] flex items-center gap-2 bg-white shrink-0">
-          <div className="relative flex-1">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
-            <input
-              type="text"
-              placeholder={isPMTab ? 'Pickup ID tracking' : 'AWB/Order ID tracking'}
-              value={isPMTab ? pmMobileSearch : mobileSearchQuery}
-              onChange={(e) => (isPMTab ? setPmMobileSearch(e.target.value) : setMobileSearchQuery(e.target.value))}
-              className="w-full h-9 pl-9 pr-3 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] text-sm text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all"
-            />
-          </div>
+          {isAdminView && !isPMTab ? (
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
+              <input
+                type="text"
+                placeholder="Search by name, email, or contact"
+                value={userQuery}
+                onChange={(e) => onUserQueryChange(e.target.value)}
+                className="w-full h-9 pl-9 pr-8 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] text-sm text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all"
+              />
+              {userMongoId && (
+                <button onClick={clearUserFilter} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#94A3B8] hover:text-red-500">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+              {userSuggestions.length > 0 && !userMongoId && (
+                <div className="absolute left-0 top-full mt-1 bg-white border border-[#E2E8F0] rounded-xl shadow-xl z-50 w-full max-h-52 overflow-y-auto py-1">
+                  {userSuggestions.map((u: any) => (
+                    <button key={u._id} type="button"
+                      onClick={() => selectUserSuggestion(u)}
+                      className="w-full text-left px-3 py-2.5 hover:bg-[#F0FDF4] flex items-start gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[12px] font-bold text-slate-800 truncate">{u.fullname}</div>
+                        <div className="text-[11px] text-slate-400 truncate">{u.email} · {u.phoneNumber}</div>
+                      </div>
+                      <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded shrink-0">{u.userId}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
+              <input
+                type="text"
+                placeholder={isPMTab ? 'Pickup ID tracking' : 'AWB/Order ID tracking'}
+                value={isPMTab ? pmMobileSearch : mobileSearchQuery}
+                onChange={(e) => (isPMTab ? setPmMobileSearch(e.target.value) : setMobileSearchQuery(e.target.value))}
+                className="w-full h-9 pl-9 pr-3 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] text-sm text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all"
+              />
+            </div>
+          )}
           {/* Filter icon */}
           <button
             onClick={() => setIsMobileFiltersOpen(true)}
@@ -1478,7 +1512,7 @@ export function AdminOrders() {
                 {paginatedOrders.map((order) => {
                   const accent = getRibbonColor(order.status || activeTab);
                   return (
-                  <div key={order._id} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
+                  <div key={order._id} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm">
                     {cancellingIds.has(order._id) && (
                       <div className="absolute inset-0 z-20 bg-white/80 rounded-2xl flex items-center justify-center">
                         <span className="flex items-center gap-2 text-[11px] font-bold text-rose-500 bg-rose-50 border border-rose-100 rounded-full px-3 py-1.5">
@@ -1486,28 +1520,21 @@ export function AdminOrders() {
                         </span>
                       </div>
                     )}
-                    {/* Ribbon Tag + Order ID — sit in the same top row; Order ID flows right after the ribbon with a small gap */}
-                    <div className="flex items-center gap-1.5">
-                      <div
-                        className="px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide shrink-0"
-                        style={{ background: accent, clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}
-                      >
-                        {order.status || activeTab}
-                      </div>
-                      {isAdminView && (
-                        <span className="text-[12.5px] font-bold text-[#1D4ED8] truncate max-w-[110px]">
-                          {order.orderId}
-                        </span>
-                      )}
+                    <StatusRibbon
+                      label={isNewTab ? 'New' : (order.status || activeTab)}
+                      color={accent}
+                      textClassName={isNewTab ? 'text-[11px] font-bold tracking-wide leading-[13px]' : undefined}
+                    />
+
+                    {/* Checkbox — top-right, sits on its own white chip above the ribbon so long labels never overlap it */}
+                    <div className="absolute top-2 right-2 z-20 bg-white rounded-md p-0.5 shadow-sm">
+                      <input type="checkbox" checked={selectedOrders.includes(order._id)} onChange={() => toggleSelect(order._id)}
+                        className="rounded border-gray-300 accent-[#00A86B] w-4 h-4 shrink-0 block" />
                     </div>
 
-                    {/* Checkbox — top-right, parallel to the status ribbon */}
-                    <input type="checkbox" checked={selectedOrders.includes(order._id)} onChange={() => toggleSelect(order._id)}
-                      className="absolute top-2 right-2.5 rounded border-gray-300 accent-[#00A86B] w-4 h-4 shrink-0 z-10" />
-
-                    <div className="pt-1.5 px-2 pb-2">
-                      {/* User Details Row — name shown admin-only */}
-                      <div className="flex items-center justify-between mb-1 gap-2">
+                    <div className="pt-4 px-2 pb-2">
+                      {/* User Details Row — name shown admin-only; pr-6 keeps text clear of the checkbox chip */}
+                      <div className="flex items-center justify-between mb-1 gap-2 pr-6">
                         {isAdminView ? (
                           <>
                             <span className="text-[#64748B] font-medium text-[12px] shrink-0">User Details</span>
@@ -1517,7 +1544,10 @@ export function AdminOrders() {
                             </span>
                           </>
                         ) : (
-                          <span className="text-[12px] font-semibold text-[#0F172A] bg-[#F1F5F9] px-2 py-0.5 rounded-full shrink-0">{order.orderId}</span>
+                          <>
+                            <span className="text-[#64748B] font-medium text-[12px] shrink-0">Order ID</span>
+                            <span className="text-[12px] font-semibold text-[#0F172A] truncate">{order.orderId}</span>
+                          </>
                         )}
                       </div>
 
@@ -1536,7 +1566,7 @@ export function AdminOrders() {
                             )}
                             <div className="min-w-0 flex-1">
                               <div className="text-[12px] font-normal text-[#0F172A] truncate">
-                                {order.courier && order.courier !== '—' ? order.courier : 'Courier not assigned'} {order.weight ? `· ${order.weight}` : ''}
+                                {order.courier && order.courier !== '—' ? order.courier : (isNewTab ? 'Not shipped yet' : 'Courier not assigned')} {order.weight ? `· ${order.weight}` : ''}
                               </div>
                               <div className="flex items-center gap-1.5 min-w-0 mt-0.5">
                                 {order.awb ? (
@@ -1741,18 +1771,20 @@ export function AdminOrders() {
                     </div>
                   )}
 
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Order Id</label>
-                    <input
-                      type="text"
-                      placeholder="Order Id"
-                      value={orderId}
-                      onChange={(e) => setOrderId(e.target.value)}
-                      className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
-                    />
-                  </div>
+                  {!isAdminView && (
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Order Id</label>
+                      <input
+                        type="text"
+                        placeholder="Order Id"
+                        value={orderId}
+                        onChange={(e) => setOrderId(e.target.value)}
+                        className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
+                      />
+                    </div>
+                  )}
 
-                  {!isNewTab && !isPMTab && (
+                  {!isAdminView && !isNewTab && !isPMTab && (
                     <div>
                       <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">AWB Number</label>
                       <input

@@ -13,6 +13,7 @@ import { useDateRangeFilter } from '../../hooks/filters/useDateRangeFilter';
 import { useUserSearchFilter } from '../../hooks/filters/useUserSearchFilter';
 import { TableLoader } from '../../components/ui/TableLoader';
 import { TruncatedText } from '../../components/ui/TruncatedText';
+import { StatusRibbon } from '../../components/ui/StatusRibbon';
 import { DesktopPagination } from '../../hooks/usePagination';
 import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
 import { getTier } from '../../hooks/useTier';
@@ -769,14 +770,8 @@ export function AdminUsers() {
                   const kycLabel = user.kycStatus ? 'Verified' : 'Pending';
                   const aadhaar = user.aadhaarNumber || user.aadhaar || user.kycDetails?.aadhaarNumber || '';
                   return (
-                    <div key={uid} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
-                      {/* Ribbon Tag */}
-                      <div
-                        className={`absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide ${kycLabel === 'Verified' ? 'bg-[#00A86B]' : 'bg-[#F59E0B]'}`}
-                        style={{ clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}
-                      >
-                        {kycLabel}
-                      </div>
+                    <div key={uid} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm">
+                      <StatusRibbon label={kycLabel} color={kycLabel === 'Verified' ? '#00A86B' : '#F59E0B'} />
 
                       <div className="pt-8 px-4 pb-4">
                         {/* User Details Row */}

@@ -19,6 +19,7 @@ import { useDateRangeFilter } from '../../hooks/filters/useDateRangeFilter';
 import { TableLoader } from '../../components/ui/TableLoader';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { TruncatedText } from '../../components/ui/TruncatedText';
+import { StatusRibbon } from '../../components/ui/StatusRibbon';
 import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
 import { getCourierLogo } from '../../utils/courierLogo';
 import { SharedUploadModal } from '../../components/ui/SharedUploadModal';
@@ -654,16 +655,49 @@ export function AdminWeightDiscrepancy() {
 
         {/* ── Mobile Search + Filter + Action + Upload Row (matches Wallet page) ── */}
         <div className="md:hidden px-3 py-2.5 border-b border-[#E2E8F0] flex items-center gap-2 bg-white">
-          <div className="relative flex-1">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
-            <input
-              type="text"
-              placeholder="AWB/Order ID tracking"
-              value={searchInput}
-              onChange={e => { setSearchInput(e.target.value); setPage(1); }}
-              className="w-full h-9 pl-9 pr-3 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] text-sm text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all"
-            />
-          </div>
+          {isAdminView ? (
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
+              <input
+                type="text"
+                placeholder="Search by name, email, or contact"
+                value={userSearchText}
+                onChange={(e) => handleUserInput(e.target.value)}
+                className="w-full h-9 pl-9 pr-8 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] text-sm text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all"
+              />
+              {userMongoId && (
+                <button onClick={clearUserFilter} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#94A3B8] hover:text-red-500">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+              {userResults.length > 0 && !userMongoId && (
+                <div className="absolute left-0 top-full mt-1 bg-white border border-[#E2E8F0] rounded-xl shadow-xl z-50 w-full max-h-52 overflow-y-auto py-1">
+                  {userResults.map((u: any) => (
+                    <button key={u._id} type="button"
+                      onClick={() => selectUser(u)}
+                      className="w-full text-left px-3 py-2.5 hover:bg-[#F0FDF4] flex items-start gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[12px] font-bold text-slate-800 truncate">{u.fullname}</div>
+                        <div className="text-[11px] text-slate-400 truncate">{u.email} · {u.phoneNumber}</div>
+                      </div>
+                      <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded shrink-0">{u.userId}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
+              <input
+                type="text"
+                placeholder="AWB/Order ID tracking"
+                value={searchInput}
+                onChange={e => { setSearchInput(e.target.value); setPage(1); }}
+                className="w-full h-9 pl-9 pr-3 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] text-sm text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all"
+              />
+            </div>
+          )}
           {/* Filter icon */}
           <button
             onClick={() => setIsMobileFiltersOpen(true)}
@@ -1231,16 +1265,11 @@ export function AdminWeightDiscrepancy() {
                   const key = order._id || order.awbNumber || idx;
 
                   return (
-                    <div key={key} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-visible">
-                      {/* Ribbon */}
-                      <div
-                        className={`absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide rounded-tl-2xl ${
-                          isDisputeRaised ? 'bg-rose-500' : orderStatus === 'accepted' ? 'bg-[#00A86B]' : orderStatus === 'escalated' ? 'bg-rose-600' : 'bg-blue-500'
-                        }`}
-                        style={{ clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}
-                      >
-                        {statusText || 'Pending'}
-                      </div>
+                    <div key={key} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm">
+                      <StatusRibbon
+                        label={statusText || 'Pending'}
+                        color={isDisputeRaised ? '#f43f5e' : orderStatus === 'accepted' ? '#00A86B' : orderStatus === 'escalated' ? '#e11d48' : '#3b82f6'}
+                      />
 
                       {/* Checkbox — top-right, parallel to the status ribbon */}
                       <input type="checkbox" className="absolute top-2 right-2.5 rounded accent-[#00A86B] w-4 h-4 shrink-0 z-10"
@@ -1497,27 +1526,31 @@ export function AdminWeightDiscrepancy() {
                   </div>
                 )}
 
-                {/* Search AWB Number */}
-                <input
-                  type="text"
-                  placeholder="Search AWB Number"
-                  value={searchInput}
-                  onChange={e => { setSearchInput(e.target.value); setPage(1); }}
-                  className="w-full h-12 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] placeholder:text-slate-400"
-                />
+                {!isAdminView && (
+                  <>
+                    {/* Search AWB Number */}
+                    <input
+                      type="text"
+                      placeholder="Search AWB Number"
+                      value={searchInput}
+                      onChange={e => { setSearchInput(e.target.value); setPage(1); }}
+                      className="w-full h-12 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] placeholder:text-slate-400"
+                    />
 
-                {/* Search Type */}
-                <div className="relative">
-                  <select
-                    value={searchBy}
-                    onChange={e => { setSearchBy(e.target.value); setPage(1); }}
-                    className="w-full h-12 px-4 pr-10 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white appearance-none"
-                  >
-                    <option value="awbNumber">Search by AWB Number</option>
-                    <option value="orderId">Search by Order ID</option>
-                  </select>
-                  <ChevronDown className="w-4 h-4 text-slate-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
-                </div>
+                    {/* Search Type */}
+                    <div className="relative">
+                      <select
+                        value={searchBy}
+                        onChange={e => { setSearchBy(e.target.value); setPage(1); }}
+                        className="w-full h-12 px-4 pr-10 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white appearance-none"
+                      >
+                        <option value="awbNumber">Search by AWB Number</option>
+                        <option value="orderId">Search by Order ID</option>
+                      </select>
+                      <ChevronDown className="w-4 h-4 text-slate-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    </div>
+                  </>
+                )}
 
                 {/* Courier Service */}
                 <GlassDropdown

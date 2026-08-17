@@ -9,6 +9,7 @@ import { AddCourierModal } from '../../components/admin/couriers/AddCourierModal
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { TableLoader } from '../../components/ui/TableLoader';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { StatusRibbon } from '../../components/ui/StatusRibbon';
 import { apiClient } from '../../services/apiClient';
 
 const STATUS_OPTIONS = [
@@ -624,14 +625,9 @@ export function AdminCouriers() {
               const isExpanded = expandedProviderId === provider._id;
 
               return (
-                <div key={provider._id} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
+                <div key={provider._id} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm">
                   {/* Ribbon Tag */}
-                  <div
-                    className={`absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide ${isEnabled ? 'bg-[#00A86B]' : 'bg-[#94A3B8]'}`}
-                    style={{ clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}
-                  >
-                    {isEnabled ? 'Active' : 'Inactive'}
-                  </div>
+                  <StatusRibbon label={isEnabled ? 'Active' : 'Inactive'} color={isEnabled ? '#00A86B' : '#94A3B8'} />
 
                   <button
                     onClick={() => setExpandedProviderId(isExpanded ? null : provider._id)}
