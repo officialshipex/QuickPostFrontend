@@ -1173,7 +1173,7 @@ export function AdminProfile() {
         />
       </div>
 
-      <div className={`w-full -mx-4 px-2 md:mx-0 md:-m-6 md:px-2 md:py-2 pt-4 pb-4 ${isImpersonating ? 'md:h-[calc(100vh-120px)]' : 'md:h-[calc(100vh-88px)]'} flex flex-col min-h-0 md:overflow-hidden`}>
+      <div className={`-mx-4 px-2 md:mx-0 md:-m-6 md:px-2 md:py-2 pt-4 pb-4 ${isImpersonating ? 'md:h-[calc(100vh-120px)]' : 'md:h-[calc(100vh-88px)]'} flex flex-col min-h-0 md:overflow-hidden`}>
 
         <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-4 items-start flex-1 min-h-0">
 
@@ -1277,7 +1277,7 @@ export function AdminProfile() {
           {/* ── Right Content — tabs ── */}
           <div className="flex flex-col gap-3 md:gap-4 min-w-0 h-full min-h-0">
             {/* Tab bar — sticky segmented pills on mobile, inline row on desktop */}
-            <div className="sticky top-0 z-10 md:static bg-[#F8FAFC] md:bg-white -mx-4 px-2 pt-2 pb-1 md:mx-0 md:px-1.5 md:py-1.5 md:border md:border-[#E2E8F0] md:rounded-[12px] shrink-0">
+            <div className="sticky top-0 z-10 md:static bg-[#F8FAFC] md:bg-white w-[calc(100%+1rem)] -mx-2 md:w-full md:mx-0 px-2 pt-2 pb-1 md:px-1.5 md:py-1.5 md:border md:border-[#E2E8F0] md:rounded-[12px] shrink-0">
               <div className="flex items-center gap-1.5 md:gap-1 overflow-x-auto no-scrollbar bg-white md:bg-transparent border border-[#E2E8F0] md:border-0 rounded-full md:rounded-none p-1 md:p-0 shadow-sm md:shadow-none">
                 {TABS.map(tab => {
                   const Icon = tab.icon;

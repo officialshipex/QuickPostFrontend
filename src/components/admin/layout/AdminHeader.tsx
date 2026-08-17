@@ -19,7 +19,7 @@ interface AdminHeaderProps {
 
 export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
   const { logout } = useAuth();
-  const { isAdmin, adminTab, toggleAdminTab, userName, userEmail, businessName, profileImage, walletBalance: ctxWalletBalance, walletHold, isEmployee, parentEmail } = useAdminTab();
+  const { isAdmin, adminTab, toggleAdminTab, userName, userEmail, businessName, profileImage, walletBalance: ctxWalletBalance, walletHold, isEmployee, parentEmail, currentUserId } = useAdminTab();
   const { filters, updateFilter } = useDashboardFilters();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -257,9 +257,10 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
     setOrderSearchLoading(true);
     const timer = setTimeout(async () => {
       try {
-        const res = await apiClient.get('/admin/filterEmployeeOrders', {
-          params: { page: 1, limit: 8, searchQuery: searchQuery.trim() },
-        });
+        const isAdminView = isAdmin && adminTab && !isEmployee;
+        const params: Record<string, any> = { page: 1, limit: 8, searchQuery: searchQuery.trim() };
+        if (!isAdminView && currentUserId) params.userId = currentUserId;
+        const res = await apiClient.get('/admin/filterEmployeeOrders', { params });
         setOrderSearchResults(res.data?.orders || []);
       } catch {
         setOrderSearchResults([]);
@@ -268,7 +269,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
       }
     }, 350);
     return () => clearTimeout(timer);
-  }, [searchQuery]);
+  }, [searchQuery, isAdmin, adminTab, isEmployee, currentUserId]);
 
   // Close the results dropdown on outside click. Checks both the desktop search box
   // and the mobile search bar/results container — without the mobile ref, any tap on
