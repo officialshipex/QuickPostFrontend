@@ -1831,20 +1831,25 @@ export function AdminWallet() {
                             <input type="checkbox" checked={selectedOrders.includes(order.awb)} onChange={() => toggleSelect(order.awb)} className="rounded border-gray-300 accent-[#00A86B] w-4 h-4" />
                           </div>
 
-                          <div className="pt-7 px-3 pb-3">
+                          <div className="pt-6 px-2.5 pb-2.5">
                             {/* User Details Row */}
                             {isAdminView && (
-                              <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center justify-between mb-1.5">
                                 <span className="text-[#64748B] font-medium text-[12px] font-sans">User Details</span>
                                 <span className="text-[12px] font-sans inline-flex items-baseline gap-1 max-w-[180px]">
                                   <span className="font-semibold text-[#0F172A] text-[12px] truncate">{(order.userName || '—').split(' ')[0]}</span>
-                                  <span className="text-[#64748B] font-semibold shrink-0">({order.userId || '—'})</span>
+                                  <span
+                                    className="font-semibold shrink-0"
+                                    style={{ color: 'var(--Primary-Palette-Brand-Colors-Hover, #009D64)', fontFamily: 'var(--Typography-Font-Family-Font, Inter)', fontSize: 'var(--Typography-Font-Size-Extra-Small-2, 12px)', fontWeight: 600, lineHeight: 'var(--Typography-Font-Line-Height-Extra-Small-2, 18px)' }}
+                                  >
+                                    ({order.userId || '—'})
+                                  </span>
                                 </span>
                               </div>
                             )}
 
                             {/* Courier & Order Card */}
-                            <div className="rounded-xl p-2.5 mb-2 bg-white" style={{ border: `1px solid ${accent}` }}>
+                            <div className="rounded-xl p-2 mb-1.5 bg-white" style={{ border: `1px solid ${accent}` }}>
                               <div className="flex items-start justify-between">
                                 <div className="flex items-center gap-2.5 min-w-0 flex-1">
                                   <div className="w-10 h-10 bg-white border border-[#E2E8F0] rounded-xl flex items-center justify-center shrink-0 overflow-hidden p-1 shadow-sm">
@@ -1878,13 +1883,13 @@ export function AdminWallet() {
                             </div>
 
                             {/* Weight & Dimensions */}
-                            <div className="flex items-center justify-between mb-2 px-1">
+                            <div className="flex items-center justify-between mb-1.5 px-1">
                               <span className="text-[11px] font-medium text-[#64748B] font-sans">Ent. Wt & Dim:</span>
                               <span className="text-[12px] font-medium text-[#0F172A] font-sans">1.2 Kg | 20×15×20 cm</span>
                             </div>
 
                             {/* Weight / Freight Row */}
-                            <div className="flex items-center justify-between bg-[#F8FAFC] rounded-xl px-3 py-2 mb-2">
+                            <div className="flex items-center justify-between bg-[#F8FAFC] rounded-xl px-2.5 py-1.5 mb-1.5">
                               <div className="text-center">
                                 <div className="text-[12px] font-normal text-[#94A3B8] uppercase tracking-wider font-sans">AWB Wt.</div>
                                 <div className="text-[12px] font-medium text-[#0F172A] mt-0.5 font-sans">1.200 Kg</div>
@@ -1903,15 +1908,19 @@ export function AdminWallet() {
                             </div>
 
                             {/* History Button */}
-                            <button
+                            <motion.button
+                              whileTap={{ scale: 0.97 }}
+                              transition={{ type: 'spring', stiffness: 500, damping: 25 }}
                               onClick={() => {
                                 setPassbookAwb(order.awb);
                                 setActiveTab('Passbook');
                               }}
-                              className="w-full py-2.5 rounded-xl bg-[#1E3A8A] text-white text-[12px] font-medium text-center hover:bg-[#1E3A8A]/90 transition-colors font-sans"
+                              className="group w-full py-2 rounded-full border border-[#1E3A8A]/25 text-[#1E3A8A] text-[12px] font-semibold text-center flex items-center justify-center gap-1.5 transition-colors hover:bg-[#1E3A8A]/5 active:bg-[#1E3A8A]/10 font-sans"
                             >
+                              <Clock className="w-3.5 h-3.5" />
                               History
-                            </button>
+                              <ChevronRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
+                            </motion.button>
                           </div>
                         </div>
                       );

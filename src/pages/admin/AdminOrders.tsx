@@ -1486,27 +1486,34 @@ export function AdminOrders() {
                         </span>
                       </div>
                     )}
-                    {/* Ribbon Tag */}
-                    <div
-                      className="absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide"
-                      style={{ background: accent, clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}
-                    >
-                      {order.status || activeTab}
+                    {/* Ribbon Tag + Order ID — sit in the same top row; Order ID flows right after the ribbon with a small gap */}
+                    <div className="flex items-center gap-1.5">
+                      <div
+                        className="px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide shrink-0"
+                        style={{ background: accent, clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}
+                      >
+                        {order.status || activeTab}
+                      </div>
+                      {isAdminView && (
+                        <span className="text-[12.5px] font-bold text-[#1D4ED8] truncate max-w-[110px]">
+                          {order.orderId}
+                        </span>
+                      )}
                     </div>
 
                     {/* Checkbox — top-right, parallel to the status ribbon */}
                     <input type="checkbox" checked={selectedOrders.includes(order._id)} onChange={() => toggleSelect(order._id)}
                       className="absolute top-2 right-2.5 rounded border-gray-300 accent-[#00A86B] w-4 h-4 shrink-0 z-10" />
 
-                    <div className="pt-6 px-2 pb-2">
-                      {/* User Details Row — name shown admin-only; the QuickPost Order ID (not the channel's own order id) always shows here */}
-                      <div className="flex items-center justify-between mb-1 gap-2 pr-6">
+                    <div className="pt-1.5 px-2 pb-2">
+                      {/* User Details Row — name shown admin-only */}
+                      <div className="flex items-center justify-between mb-1 gap-2">
                         {isAdminView ? (
                           <>
                             <span className="text-[#64748B] font-medium text-[12px] shrink-0">User Details</span>
-                            <span className="text-[12px] inline-flex items-baseline gap-1 max-w-[190px] justify-end text-right">
+                            <span className="text-[12px] inline-flex items-baseline gap-1 min-w-0 justify-end text-right">
                               <TruncatedText text={order.userName || order.customerName} maxLength={16} className="font-semibold text-[#0F172A] text-[12px]" />
-                              <span className="text-[#64748B] font-semibold shrink-0">({order.userUserId || order.orderId})</span>
+                              <span className="text-[12px] font-semibold leading-[18px] shrink-0" style={{ color: '#009D64' }}>({order.userUserId || order.orderId})</span>
                             </span>
                           </>
                         ) : (
@@ -1594,26 +1601,33 @@ export function AdminOrders() {
                         </div>
                       </div>
 
-                      {/* Actions Row */}
-                      <div className="flex items-center gap-2">
+                      {/* Actions Row — a single segmented pill: transparent left segment (primary) + neutral right segment (secondary), divided by a hairline */}
+                      <div className={`flex items-stretch rounded-full border overflow-hidden ${cancellingIds.has(order._id) ? 'border-rose-200' : 'border-[#E2E8F0]'}`}>
                         {isNewTab ? (
-                          <button
+                          <motion.button
+                            whileTap={{ scale: 0.94 }}
+                            transition={{ type: 'spring', stiffness: 500, damping: 25 }}
                             onClick={() => !cancellingIds.has(order._id) && setShipOrder(order)}
                             disabled={cancellingIds.has(order._id)}
-                            className="flex-1 h-9 rounded-full bg-[#00A86B] text-white text-[12.5px] font-bold flex items-center justify-center gap-1.5 shadow-sm hover:bg-[#009960] transition-colors disabled:opacity-50 disabled:pointer-events-none"
+                            className="flex-1 h-9 bg-transparent text-[#00A86B] text-[12.5px] font-bold flex items-center justify-center gap-1.5 transition-colors active:bg-[#F0FDF4] disabled:opacity-50 disabled:pointer-events-none"
                           >
                             Ship <Send className="w-3.5 h-3.5" />
-                          </button>
+                          </motion.button>
                         ) : (
-                          <button
+                          <motion.button
+                            whileTap={{ scale: 0.94 }}
+                            transition={{ type: 'spring', stiffness: 500, damping: 25 }}
                             onClick={() => !cancellingIds.has(order._id) && navigate(`${isAdminView ? '/admin' : '/user'}/order-tracking?id=${order.orderId}`)}
                             disabled={cancellingIds.has(order._id)}
-                            className="flex-1 h-9 rounded-full bg-[#00A86B] text-white text-[12.5px] font-bold flex items-center justify-center gap-1.5 shadow-sm hover:bg-[#009960] transition-colors disabled:opacity-50 disabled:pointer-events-none"
+                            className="flex-1 h-9 bg-transparent text-[#00A86B] text-[12.5px] font-bold flex items-center justify-center gap-1.5 transition-colors active:bg-[#F0FDF4] disabled:opacity-50 disabled:pointer-events-none"
                           >
                             View Details
-                          </button>
+                          </motion.button>
                         )}
-                        <button
+                        <div className={`w-px my-1.5 ${cancellingIds.has(order._id) ? 'bg-rose-200' : 'bg-[#E2E8F0]'}`} />
+                        <motion.button
+                          whileTap={{ scale: 0.94 }}
+                          transition={{ type: 'spring', stiffness: 500, damping: 25 }}
                           onClick={(e) => {
                             if (cancellingIds.has(order._id)) return;
                             e.stopPropagation();
@@ -1622,13 +1636,13 @@ export function AdminOrders() {
                             setDropdownPos({ id: order._id, top: rect.bottom + 4, left: rect.right - 176 });
                           }}
                           disabled={cancellingIds.has(order._id)}
-                          className={`flex-1 h-9 rounded-full border text-[12.5px] font-bold flex items-center justify-center gap-1.5 transition-colors ${cancellingIds.has(order._id) ? 'border-rose-200 bg-rose-50 text-rose-400 cursor-not-allowed' : dropdownPos?.id === order._id ? 'border-[#00A86B] bg-[#F0FDF4] text-[#00A86B]' : 'border-[#E2E8F0] bg-white text-[#475569] hover:bg-[#F8FAFC]'}`}
+                          className={`flex-1 h-9 bg-transparent text-[12.5px] font-bold flex items-center justify-center gap-1.5 transition-colors ${cancellingIds.has(order._id) ? 'text-rose-400 cursor-not-allowed' : dropdownPos?.id === order._id ? 'text-[#0F172A] bg-[#F8FAFC]' : 'text-[#475569] active:bg-[#F8FAFC]'}`}
                         >
                           {cancellingIds.has(order._id)
                             ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            : <>Actions <ChevronDown className={`w-3.5 h-3.5 transition-transform ${dropdownPos?.id === order._id ? 'rotate-180' : ''}`} /></>
+                            : <>Actions <motion.span animate={{ rotate: dropdownPos?.id === order._id ? 180 : 0 }} transition={{ type: 'spring', stiffness: 400, damping: 22 }}><ChevronDown className={`w-3.5 h-3.5 ${dropdownPos?.id === order._id ? 'text-[#00A86B]' : 'text-[#94A3B8]'}`} /></motion.span></>
                           }
-                        </button>
+                        </motion.button>
                       </div>
                     </div>
                   </div>

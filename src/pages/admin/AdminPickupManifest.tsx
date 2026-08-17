@@ -621,11 +621,11 @@ export function AdminPickupManifest({
                 <div className="pt-6 px-2 pb-2">
                   {/* User Details Row — name/user-id hidden on the user side; admin still sees who the manifest belongs to.
                        On the user side, Pickup ID moves up here instead of a separate row below. */}
-                  <div className="flex items-center justify-between mb-1 gap-2 pr-6">
+                  <div className="flex items-center justify-between mb-1 gap-2">
                     {isAdminView ? (
                       <>
                         <span className="text-[#64748B] font-medium text-[12px] shrink-0">User Details</span>
-                        <span className="text-[12px] inline-flex items-baseline gap-1 max-w-[190px] justify-end text-right">
+                        <span className="text-[12px] inline-flex items-baseline gap-1 min-w-0 justify-end text-right">
                           <TruncatedText text={m.userId?.fullname || m.pickupAddress?.contactName || '—'} maxLength={16} className="font-semibold text-[#0F172A] text-[12px]" />
                           <span className="text-[#00A86B] font-semibold shrink-0">({m.userId?.userId || m.pickupId})</span>
                         </span>
@@ -679,9 +679,9 @@ export function AdminPickupManifest({
                   {/* Actions Row */}
                   <button
                     onClick={() => handleDownloadManifest(m)}
-                    className="w-full h-8 rounded-full bg-[#1e40af] text-white text-[13px] font-bold flex items-center justify-center gap-1.5 hover:bg-[#1e3a8a] transition-colors"
+                    className="w-full h-9 rounded-full border border-[#E2E8F0] text-[#475569] bg-white text-[12.5px] font-bold flex items-center justify-center gap-1.5 hover:border-[#00A86B]/40 hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors"
                   >
-                    Download Manifest
+                    <Download className="w-3.5 h-3.5 text-[#00A86B]" /> Download Manifest
                   </button>
                 </div>
               </div>
