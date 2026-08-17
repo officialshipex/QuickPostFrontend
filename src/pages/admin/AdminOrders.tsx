@@ -472,10 +472,7 @@ export function AdminOrders() {
   // AdminPickupManifest; these bridge that component up to this hoisted row.
   const [pmMobileSearch,   setPmMobileSearch]   = useState('');
   const [pmSelectedCount,  setPmSelectedCount]  = useState(0);
-  const [pmAllSelected,    setPmAllSelected]    = useState(false);
-  const [showPMActionMenu, setShowPMActionMenu] = useState(false);
   const pmBulkActionRef = useRef<(() => void) | null>(null);
-  const pmSelectAllRef = useRef<(() => void) | null>(null);
   const [mobileToast, setMobileToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const showMobileToast = (type: 'success' | 'error', text: string) => {
     setMobileToast({ type, text });
@@ -910,15 +907,16 @@ export function AdminOrders() {
               onClick={(e) => {
                 const count = isPMTab ? pmSelectedCount : selectedOrders.length;
                 if (count === 0) return;
-                if (!showActionMenu && !showPMActionMenu) {
+                if (isPMTab) { pmBulkActionRef.current?.(); return; }
+                if (!showActionMenu) {
                   const rect = e.currentTarget.getBoundingClientRect();
                   setMobileActionMenuPos({ top: rect.bottom + 8, right: window.innerWidth - rect.right });
                 }
-                if (isPMTab) setShowPMActionMenu(v => !v);
-                else setShowActionMenu(v => !v);
+                setShowActionMenu(v => !v);
               }}
               disabled={(isPMTab ? pmSelectedCount : selectedOrders.length) === 0}
               className="w-9 h-9 rounded-xl border border-[#E2E8F0] flex items-center justify-center text-[#475569] bg-white relative disabled:opacity-50"
+              title={isPMTab ? 'Download Manifests' : undefined}
             >
               <MoreVertical className="w-4 h-4" />
               {(isPMTab ? pmSelectedCount : selectedOrders.length) > 0 && (
@@ -941,36 +939,6 @@ export function AdminOrders() {
                     onMouseDown={(e) => e.stopPropagation()}
                   >
                     {renderActionMenuItems()}
-                  </motion.div>
-                </AnimatePresence>
-              </>,
-              document.body
-            )}
-            {isPMTab && showPMActionMenu && mobileActionMenuPos && createPortal(
-              <>
-                <div className="fixed inset-0 z-[998]" onClick={() => setShowPMActionMenu(false)} />
-                <AnimatePresence>
-                  <motion.div
-                    initial={{ opacity: 0, y: -6, scale: 0.97 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -6, scale: 0.97 }}
-                    transition={{ duration: 0.16, ease: 'easeOut' }}
-                    style={{ top: mobileActionMenuPos.top, right: mobileActionMenuPos.right }}
-                    className="fixed w-[200px] bg-white rounded-xl shadow-[0_8px_28px_-6px_rgba(0,0,0,0.15)] border border-[#E2E8F0] py-1.5 z-[999] origin-top-right"
-                    onMouseDown={(e) => e.stopPropagation()}
-                  >
-                    <button
-                      onClick={() => { pmSelectAllRef.current?.(); setShowPMActionMenu(false); }}
-                      className="w-full text-left px-4 py-2.5 text-[13px] font-semibold text-[#00A86B] hover:bg-[#F0FDF4] transition-colors border-b border-[#F1F5F9]"
-                    >
-                      {pmAllSelected ? 'Deselect All' : 'Select All'}
-                    </button>
-                    <button
-                      onClick={() => { pmBulkActionRef.current?.(); setShowPMActionMenu(false); }}
-                      className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors"
-                    >
-                      Download Manifests
-                    </button>
                   </motion.div>
                 </AnimatePresence>
               </>,
@@ -1205,9 +1173,7 @@ export function AdminOrders() {
               mobileFiltersOpen={isMobileFiltersOpen}
               onMobileFiltersOpenChange={setIsMobileFiltersOpen}
               onSelectedCountChange={setPmSelectedCount}
-              onAllSelectedChange={setPmAllSelected}
               onBulkActionRequest={(trigger) => { pmBulkActionRef.current = trigger; }}
-              onSelectAllRequest={(trigger) => { pmSelectAllRef.current = trigger; }}
             />
           </div>
         )}
@@ -1520,46 +1486,32 @@ export function AdminOrders() {
                         </span>
                       </div>
                     )}
+                    {/* Ribbon Tag */}
+                    <div
+                      className="absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide"
+                      style={{ background: accent, clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}
+                    >
+                      {order.status || activeTab}
+                    </div>
 
-                    <div className="px-2.5 pt-2.5 pb-2">
-                      {/* Header Row — status badge + Order ID on the left, checkbox on the right (no more corner ribbon) */}
-                      <div className="flex items-center justify-between gap-2 mb-1.5">
-                        <div className="flex items-center gap-1.5 min-w-0">
-                          <span className={getStatusBadgeClass(order.status || activeTab)}>{order.status || activeTab}</span>
-                          <span className="text-[12.5px] font-bold text-[#1D4ED8] truncate">{order.orderId}</span>
-                        </div>
-                        <input type="checkbox" checked={selectedOrders.includes(order._id)} onChange={() => toggleSelect(order._id)}
-                          className="rounded border-gray-300 accent-[#00A86B] w-4 h-4 shrink-0" />
-                      </div>
+                    {/* Checkbox — top-right, parallel to the status ribbon */}
+                    <input type="checkbox" checked={selectedOrders.includes(order._id)} onChange={() => toggleSelect(order._id)}
+                      className="absolute top-2 right-2.5 rounded border-gray-300 accent-[#00A86B] w-4 h-4 shrink-0 z-10" />
 
-                      {/* User Details + Product Row — user details and product name at opposite ends, separated by a vertical divider; user details admin-only.
-                          On the user side (no User Details to show), the product name takes the full row instead of staying squeezed to the right. */}
-                      <div className="flex items-center justify-between gap-2 mb-1.5 min-w-0">
-                        {isAdminView && (
+                    <div className="pt-6 px-2 pb-2">
+                      {/* User Details Row — name shown admin-only; the QuickPost Order ID (not the channel's own order id) always shows here */}
+                      <div className="flex items-center justify-between mb-1 gap-2 pr-6">
+                        {isAdminView ? (
                           <>
-                            <span className="text-[12px] inline-flex items-baseline gap-1 shrink-0 max-w-[42%]">
-                              <TruncatedText text={order.userName || order.customerName} maxLength={16} className="font-semibold text-[#1E293B] text-[12px] leading-[18px]" />
+                            <span className="text-[#64748B] font-medium text-[12px] shrink-0">User Details</span>
+                            <span className="text-[12px] inline-flex items-baseline gap-1 max-w-[190px] justify-end text-right">
+                              <TruncatedText text={order.userName || order.customerName} maxLength={16} className="font-semibold text-[#0F172A] text-[12px]" />
                               <span className="text-[#64748B] font-semibold shrink-0">({order.userUserId || order.orderId})</span>
                             </span>
-                            <span className="w-px h-3.5 bg-[#E2E8F0] shrink-0" />
                           </>
+                        ) : (
+                          <span className="text-[12px] font-semibold text-[#0F172A] bg-[#F1F5F9] px-2 py-0.5 rounded-full shrink-0">{order.orderId}</span>
                         )}
-                        <div className={`min-w-0 flex-1 flex ${isAdminView ? 'justify-end' : 'justify-start'}`}>
-                          <div
-                            className="max-w-full cursor-help"
-                            onClickCapture={(e) => {
-                              if (!order.products || order.products.length === 0) return;
-                              openProductTooltip(order._id, e);
-                            }}
-                          >
-                            <TruncatedText
-                              text={order.productName || '—'}
-                              maxLength={40}
-                              className={`text-[12px] font-normal text-[#0F172A] underline decoration-dotted underline-offset-2 ${isAdminView ? 'text-right' : 'text-left'}`}
-                              tooltipAlign={isAdminView ? 'right' : 'left'}
-                            />
-                          </div>
-                        </div>
                       </div>
 
                       {/* Courier & Order Card */}
@@ -1600,6 +1552,20 @@ export function AdminOrders() {
                         </div>
                       </div>
 
+                      {/* Product & Weight Row */}
+                      <div className="flex items-start justify-between mb-1.5 px-1 gap-2">
+                        <div
+                          className="min-w-0 cursor-help"
+                          onClickCapture={(e) => {
+                            if (!order.products || order.products.length === 0) return;
+                            openProductTooltip(order._id, e);
+                          }}
+                        >
+                          <TruncatedText text={order.productName || '—'} maxLength={30} className="text-[12px] font-normal text-[#0F172A] underline decoration-dotted underline-offset-2" />
+                        </div>
+                        <span className="text-[11px] font-medium text-[#64748B] shrink-0">Weight: {order.weight}</span>
+                      </div>
+
                       {/* Pickup / Receiver Row */}
                       <div className="flex items-start justify-between bg-[#F8FAFC] rounded-xl px-2.5 py-1.5 mb-1.5 gap-2">
                         <div
@@ -1612,7 +1578,7 @@ export function AdminOrders() {
                           }}
                         >
                           <div className="truncate max-w-[130px] text-[10px] font-normal text-[#94A3B8] uppercase tracking-wider underline decoration-dotted underline-offset-2">{order.pickupName}</div>
-                          <div className="text-[12px] font-semibold leading-[18px] text-[#1E293B] mt-0.5">{order.pickupPhone}</div>
+                          <div className="text-[12px] font-medium text-[#0F172A] mt-0.5">{order.pickupPhone}</div>
                         </div>
                         <div
                           className="text-right min-w-0 cursor-help"
@@ -1624,7 +1590,7 @@ export function AdminOrders() {
                           }}
                         >
                           <div className="truncate max-w-[130px] ml-auto text-[10px] font-normal text-[#94A3B8] uppercase tracking-wider underline decoration-dotted underline-offset-2">{order.customerName}</div>
-                          <div className="text-[12px] font-semibold leading-[18px] text-[#1E293B] mt-0.5">{order.customerPhone}</div>
+                          <div className="text-[12px] font-medium text-[#0F172A] mt-0.5">{order.customerPhone}</div>
                         </div>
                       </div>
 
@@ -1634,7 +1600,7 @@ export function AdminOrders() {
                           <button
                             onClick={() => !cancellingIds.has(order._id) && setShipOrder(order)}
                             disabled={cancellingIds.has(order._id)}
-                            className="flex-1 h-9 rounded-full border-2 border-[#2563EB] text-[#2563EB] bg-white text-[12.5px] font-bold flex items-center justify-center gap-1.5 hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:pointer-events-none"
+                            className="flex-1 h-9 rounded-full bg-[#00A86B] text-white text-[12.5px] font-bold flex items-center justify-center gap-1.5 shadow-sm hover:bg-[#009960] transition-colors disabled:opacity-50 disabled:pointer-events-none"
                           >
                             Ship <Send className="w-3.5 h-3.5" />
                           </button>
@@ -1642,7 +1608,7 @@ export function AdminOrders() {
                           <button
                             onClick={() => !cancellingIds.has(order._id) && navigate(`${isAdminView ? '/admin' : '/user'}/order-tracking?id=${order.orderId}`)}
                             disabled={cancellingIds.has(order._id)}
-                            className="flex-1 h-9 rounded-full border-2 border-[#2563EB] text-[#2563EB] bg-white text-[12.5px] font-bold flex items-center justify-center gap-1.5 hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:pointer-events-none"
+                            className="flex-1 h-9 rounded-full bg-[#00A86B] text-white text-[12.5px] font-bold flex items-center justify-center gap-1.5 shadow-sm hover:bg-[#009960] transition-colors disabled:opacity-50 disabled:pointer-events-none"
                           >
                             View Details
                           </button>
@@ -1656,7 +1622,7 @@ export function AdminOrders() {
                             setDropdownPos({ id: order._id, top: rect.bottom + 4, left: rect.right - 176 });
                           }}
                           disabled={cancellingIds.has(order._id)}
-                          className={`flex-1 h-9 rounded-full text-[12.5px] font-bold flex items-center justify-center gap-1.5 transition-colors ${cancellingIds.has(order._id) ? 'bg-rose-50 text-rose-400 cursor-not-allowed' : 'bg-[#2563EB] text-white hover:bg-[#1d4ed8]'}`}
+                          className={`flex-1 h-9 rounded-full border text-[12.5px] font-bold flex items-center justify-center gap-1.5 transition-colors ${cancellingIds.has(order._id) ? 'border-rose-200 bg-rose-50 text-rose-400 cursor-not-allowed' : dropdownPos?.id === order._id ? 'border-[#00A86B] bg-[#F0FDF4] text-[#00A86B]' : 'border-[#E2E8F0] bg-white text-[#475569] hover:bg-[#F8FAFC]'}`}
                         >
                           {cancellingIds.has(order._id)
                             ? <Loader2 className="w-3.5 h-3.5 animate-spin" />

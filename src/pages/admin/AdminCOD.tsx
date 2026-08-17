@@ -925,12 +925,6 @@ export function AdminCOD() {
             {/* All COD Orders action menu */}
             {activeTab === 'All COD Orders' && showAllCodActionMenu && (
               <div className="absolute right-0 top-full mt-2 w-[200px] bg-white rounded-xl shadow-[0_8px_28px_-6px_rgba(0,0,0,0.15)] border border-[#E2E8F0] py-1.5 z-[200]">
-                <button
-                  onClick={() => { toggleAll(); setShowAllCodActionMenu(false); }}
-                  className="w-full text-left px-4 py-2.5 text-[13px] font-semibold text-[#00A86B] hover:bg-[#F0FDF4] border-b border-[#F1F5F9]"
-                >
-                  {selectedOrders.length === paginatedOrders.length && paginatedOrders.length > 0 ? 'Deselect All' : 'Select All'}
-                </button>
                 <button onClick={() => { handleExportBankTemplate(); setShowAllCodActionMenu(false); }} disabled={bankExportLoading} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] flex items-center gap-2 disabled:opacity-60">
                   <Banknote className="w-4 h-4 text-[#00A86B]" />{bankExportLoading ? 'Generating…' : 'Early COD'}
                 </button>
@@ -950,12 +944,6 @@ export function AdminCOD() {
             {/* Seller action menu */}
             {(activeTab === 'Seller COD Remittance' || activeTab === 'COD Remittance') && showMobileSellerActionMenu && (
               <div className="absolute right-0 top-full mt-2 w-[200px] bg-white rounded-xl shadow-[0_8px_28px_-6px_rgba(0,0,0,0.15)] border border-[#E2E8F0] py-1.5 z-[200]">
-                <button
-                  onClick={() => { toggleAllCod(); setShowMobileSellerActionMenu(false); }}
-                  className="w-full text-left px-4 py-2.5 text-[13px] font-semibold text-[#00A86B] hover:bg-[#F0FDF4] border-b border-[#F1F5F9]"
-                >
-                  {selectedCodOrders.length === filteredSellerRemittanceList.length && filteredSellerRemittanceList.length > 0 ? 'Deselect All' : 'Select All'}
-                </button>
                 <button onClick={() => { const rows = sellerRemittanceList.filter(r => selectedCodOrders.includes(r.awb)); handleExportCsv(rows, 'seller_remittances.csv'); setShowMobileSellerActionMenu(false); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] flex items-center gap-2"><Download className="w-4 h-4 text-[#00A86B]" />Export Data</button>
                 {isAdminView && <button onClick={() => { handleExportBankTemplate(); setShowMobileSellerActionMenu(false); }} disabled={bankExportLoading} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] flex items-center gap-2 disabled:opacity-60"><FileText className="w-4 h-4 text-blue-500" />{bankExportLoading ? 'Generating…' : 'Export Bank Template'}</button>}
                 {isAdminView && <button onClick={() => { handleOpenBankResponseUpload(); setShowMobileSellerActionMenu(false); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] flex items-center gap-2"><Upload className="w-4 h-4 text-orange-500" />Upload Bank Response</button>}
@@ -966,12 +954,6 @@ export function AdminCOD() {
             {/* Courier action menu */}
             {activeTab === 'Courier COD Remittance' && showMobileCourierActionMenu && (
               <div className="absolute right-0 top-full mt-2 w-[190px] bg-white rounded-xl shadow-[0_8px_28px_-6px_rgba(0,0,0,0.15)] border border-[#E2E8F0] py-1.5 z-[200]">
-                <button
-                  onClick={() => { toggleAllCourierCod(); setShowMobileCourierActionMenu(false); }}
-                  className="w-full text-left px-4 py-2.5 text-[13px] font-semibold text-[#00A86B] hover:bg-[#F0FDF4] border-b border-[#F1F5F9]"
-                >
-                  {selectedCourierCodOrders.length === filteredCourierRemittanceList.length && filteredCourierRemittanceList.length > 0 ? 'Deselect All' : 'Select All'}
-                </button>
                 <button onClick={() => { const rows = courierRemittanceList.filter(r => selectedCourierCodOrders.includes(r.id)); handleExportCsv(rows, 'courier_cod.csv'); setShowMobileCourierActionMenu(false); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] flex items-center gap-2"><Download className="w-4 h-4 text-[#00A86B]" />Export Data</button>
                 <button onClick={() => { setShowCourierUpload(true); setShowMobileCourierActionMenu(false); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] flex items-center gap-2"><Upload className="w-4 h-4 text-orange-500" />Upload Courier COD</button>
               </div>
@@ -1343,36 +1325,40 @@ export function AdminCOD() {
                       const accent = order.status === 'Paid' ? '#00A86B' : '#F59E0B';
                       return (
                         <div key={order.id} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
-                          <div className="px-2.5 pt-2.5 pb-2.5">
-                            {/* Header Row — status badge on the left, checkbox on the right (no more corner ribbon) */}
-                            <div className="flex items-center justify-between gap-2 mb-1">
-                              <span className={`px-2.5 py-0.5 rounded-full border text-[10px] font-semibold uppercase tracking-wider ${order.status === 'Paid' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
-                                {order.status}
-                              </span>
-                              <input type="checkbox" checked={selectedOrders.includes(order.id)} onChange={() => toggleSelect(order.id)} className="rounded border-gray-300 accent-[#00A86B] w-4 h-4 shrink-0" />
-                            </div>
+                          {/* Ribbon Tag */}
+                          <div
+                            className="absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide"
+                            style={{ background: accent, clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}
+                          >
+                            {order.status}
+                          </div>
+                          <div className="absolute top-1.5 right-2">
+                            <input type="checkbox" checked={selectedOrders.includes(order.id)} onChange={() => toggleSelect(order.id)} className="rounded border-gray-300 accent-[#00A86B] w-4 h-4" />
+                          </div>
 
-                            {/* User Details + Order ID Row — each take half the row, with a centered vertical divider; user details admin-only */}
-                            <div className="flex items-center gap-2 mb-1.5 min-w-0">
-                              {isAdminView && (
-                                <>
-                                  <span className="flex-1 min-w-0 text-[12px] inline-flex items-baseline gap-1">
-                                    <span className="font-semibold text-[#1E293B] text-[12px] leading-[18px] truncate">{(order.userName || '—').split(' ')[0]}</span>
-                                    <span className="text-[#00A86B] font-semibold shrink-0">({order.userId || '—'})</span>
-                                  </span>
-                                  <span className="w-px h-3.5 bg-[#E2E8F0] shrink-0" />
-                                </>
-                              )}
-                              {order.orderID && (
-                                <div className="flex-1 min-w-0 flex items-center justify-end gap-1 group/copy">
-                                  <div className="text-[12px] font-semibold text-[#00A86B] cursor-pointer hover:underline truncate text-right" onClick={() => navigate(`${isAdminView ? '/admin' : '/user'}/order-tracking?id=${order.orderID}`)}>{order.orderID}</div>
-                                  <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(order.orderID).catch(()=>{}); showToast('success', 'Order ID copied!'); }} className="opacity-100 md:opacity-0 md:group-hover/copy:opacity-100 transition-opacity shrink-0 focus:outline-none" title="Copy Order ID"><Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" /></button>
-                                </div>
-                              )}
-                            </div>
+                          <div className="pt-7 px-3 pb-3">
+                            {/* User Details Row */}
+                            {isAdminView && (
+                              <div className="flex items-center justify-between mb-2 gap-2">
+                                <span className="text-[#64748B] font-medium text-[12px]">User Details</span>
+                                <span className="text-[12px] inline-flex items-baseline gap-1 max-w-[190px] justify-end text-right">
+                                  <span className="font-semibold text-[#0F172A] text-[12px] truncate">{(order.userName || '—').split(' ')[0]}</span>
+                                  <span className="text-[#00A86B] font-semibold shrink-0">({order.userId || '—'})</span>
+                                </span>
+                              </div>
+                            )}
+
+                            {/* Order ID */}
+                            {order.orderID && (
+                              <div className="flex items-center gap-1 group/copy mb-2">
+                                <span className="text-[12px] font-medium text-[#64748B] shrink-0">Order ID: </span>
+                                <div className="text-[12px] font-semibold text-[#00A86B] cursor-pointer hover:underline truncate flex-1 min-w-0" onClick={() => navigate(`${isAdminView ? '/admin' : '/user'}/order-tracking?id=${order.orderID}`)}>{order.orderID}</div>
+                                <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(order.orderID).catch(()=>{}); showToast('success', 'Order ID copied!'); }} className="opacity-100 md:opacity-0 md:group-hover/copy:opacity-100 transition-opacity shrink-0 focus:outline-none" title="Copy Order ID"><Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" /></button>
+                              </div>
+                            )}
 
                             {/* Courier / AWB / Amount Card */}
-                            <div className="rounded-xl p-2 bg-white" style={{ border: `1px solid ${accent}` }}>
+                            <div className="rounded-xl p-3 bg-white" style={{ border: `1px solid ${accent}` }}>
                               <div className="flex items-start justify-between gap-2">
                                 <div className="flex items-center gap-2.5 min-w-0 flex-1">
                                   <div className="w-9 h-9 bg-white border border-[#E2E8F0] rounded-xl flex items-center justify-center shrink-0 overflow-hidden p-1 shadow-sm">
@@ -1597,36 +1583,40 @@ export function AdminCOD() {
                       const accent = order.status === 'Paid' ? '#00A86B' : '#F59E0B';
                       return (
                         <div key={order.id || order.awb} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
-                          <div className="px-2.5 pt-2.5 pb-2.5">
-                            {/* Header Row — status badge on the left, checkbox on the right (no more corner ribbon) */}
-                            <div className="flex items-center justify-between gap-2 mb-1">
-                              <span className={`px-2.5 py-0.5 rounded-full border text-[10px] font-semibold uppercase tracking-wider ${order.status === 'Paid' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
-                                {order.status}
-                              </span>
-                              <input type="checkbox" checked={selectedCodOrders.includes(order.awb)} onChange={() => toggleSelectCod(order.awb)} className="rounded border-gray-300 accent-[#00A86B] w-4 h-4 shrink-0" />
-                            </div>
+                          {/* Ribbon Tag */}
+                          <div
+                            className="absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide"
+                            style={{ background: accent, clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}
+                          >
+                            {order.status}
+                          </div>
+                          <div className="absolute top-1.5 right-2">
+                            <input type="checkbox" checked={selectedCodOrders.includes(order.awb)} onChange={() => toggleSelectCod(order.awb)} className="rounded border-gray-300 accent-[#00A86B] w-4 h-4" />
+                          </div>
 
-                            {/* User Details + Remittance ID Row — each take half the row, with a centered vertical divider; user details admin-only */}
-                            <div className="flex items-center gap-2 mb-1.5 min-w-0">
-                              {isAdminView && (
-                                <>
-                                  <span className="flex-1 min-w-0 text-[12px] inline-flex items-baseline gap-1">
-                                    <span className="font-semibold text-[#1E293B] text-[12px] leading-[18px] truncate">{(order.userName || '—').split(' ')[0]}</span>
-                                    <span className="text-[#94A3B8] font-semibold shrink-0">({order.userId || '—'})</span>
-                                  </span>
-                                  <span className="w-px h-3.5 bg-[#E2E8F0] shrink-0" />
-                                </>
-                              )}
-                              <div className="flex-1 min-w-0 flex items-center justify-end gap-1 group/copyRemit">
-                                <button onClick={() => openRemittanceDetail(order.awb)} className="text-[12px] font-semibold text-[#00A86B] hover:underline truncate text-right">
-                                  {order.awb || '—'}
-                                </button>
-                                {order.awb && (
-                                  <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(order.awb).catch(() => {}); showToast('success', 'Remittance ID copied!'); }} className="opacity-100 md:opacity-0 md:group-hover/copyRemit:opacity-100 transition-opacity shrink-0 focus:outline-none" title="Copy Remittance ID">
-                                    <Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" />
-                                  </button>
-                                )}
+                          <div className="pt-7 px-3 pb-3">
+                            {/* User Details Row */}
+                            {isAdminView && (
+                              <div className="flex justify-between items-center text-[12px] mb-2">
+                                <span className="text-[#64748B] font-medium text-[12px]">User Details</span>
+                                <span className="text-[12px] inline-flex items-baseline gap-1 max-w-[180px]">
+                                  <span className="font-semibold text-[#0F172A] text-[12px] truncate">{(order.userName || '—').split(' ')[0]}</span>
+                                  <span className="text-[#94A3B8] font-semibold shrink-0">({order.userId || '—'})</span>
+                                </span>
                               </div>
+                            )}
+
+                            {/* Remittance ID */}
+                            <div className="flex items-center gap-1 group/copyRemit mb-2">
+                              <span className="text-[12px] font-medium text-[#64748B] shrink-0">Remittance ID: </span>
+                              <button onClick={() => openRemittanceDetail(order.awb)} className="text-[12px] font-semibold text-[#00A86B] hover:underline truncate text-left flex-1 min-w-0">
+                                {order.awb || '—'}
+                              </button>
+                              {order.awb && (
+                                <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(order.awb).catch(() => {}); showToast('success', 'Remittance ID copied!'); }} className="opacity-100 md:opacity-0 md:group-hover/copyRemit:opacity-100 transition-opacity shrink-0 focus:outline-none" title="Copy Remittance ID">
+                                  <Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" />
+                                </button>
+                              )}
                             </div>
 
                             {/* UTR / Total COD / Wallet Credit / Adj. Amt / Early COD / Net Remittance */}
@@ -1818,36 +1808,40 @@ export function AdminCOD() {
                       const accent = order.status === 'Paid' ? '#00A86B' : '#F59E0B';
                       return (
                         <div key={order.id} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
-                          <div className="px-2.5 pt-2.5 pb-2.5">
-                            {/* Header Row — status badge on the left, checkbox on the right (no more corner ribbon) */}
-                            <div className="flex items-center justify-between gap-2 mb-1">
-                              <span className={`px-2.5 py-0.5 rounded-full border text-[10px] font-semibold uppercase tracking-wider ${order.status === 'Paid' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
-                                {order.status}
-                              </span>
-                              <input type="checkbox" checked={selectedCourierCodOrders.includes(order.id)} onChange={() => toggleSelectCourierCod(order.id)} className="rounded border-gray-300 accent-[#00A86B] w-4 h-4 shrink-0" />
-                            </div>
+                          {/* Ribbon Tag */}
+                          <div
+                            className="absolute top-0 left-0 px-3.5 py-1 text-[10px] font-bold text-white uppercase tracking-wide"
+                            style={{ background: accent, clipPath: 'polygon(0 0, 100% 0, 84% 100%, 0% 100%)' }}
+                          >
+                            {order.status}
+                          </div>
+                          <div className="absolute top-1.5 right-2">
+                            <input type="checkbox" checked={selectedCourierCodOrders.includes(order.id)} onChange={() => toggleSelectCourierCod(order.id)} className="rounded border-gray-300 accent-[#00A86B] w-4 h-4" />
+                          </div>
 
-                            {/* User Details + Order ID Row — each take half the row, with a centered vertical divider; user details admin-only */}
-                            <div className="flex items-center gap-2 mb-1.5 min-w-0">
-                              {isAdminView && (
-                                <>
-                                  <span className="flex-1 min-w-0 text-[12px] inline-flex items-baseline gap-1">
-                                    <span className="font-semibold text-[#1E293B] text-[12px] leading-[18px] truncate">{(order.userName || '—').split(' ')[0]}</span>
-                                    <span className="text-[#00A86B] font-semibold shrink-0">({order.userId || '—'})</span>
-                                  </span>
-                                  <span className="w-px h-3.5 bg-[#E2E8F0] shrink-0" />
-                                </>
-                              )}
-                              {order.orderID && (
-                                <div className="flex-1 min-w-0 flex items-center justify-end gap-1 group/copy">
-                                  <div className="text-[12px] font-semibold text-[#00A86B] cursor-pointer hover:underline truncate text-right" onClick={() => navigate(`${isAdminView ? '/admin' : '/user'}/order-tracking?id=${order.orderID}`)}>{order.orderID}</div>
-                                  <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(order.orderID).catch(()=>{}); showToast('success', 'Order ID copied!'); }} className="opacity-100 md:opacity-0 md:group-hover/copy:opacity-100 transition-opacity shrink-0 focus:outline-none" title="Copy Order ID"><Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" /></button>
-                                </div>
-                              )}
-                            </div>
+                          <div className="pt-7 px-3 pb-3">
+                            {/* User Details Row */}
+                            {isAdminView && (
+                              <div className="flex items-center justify-between mb-2 gap-2">
+                                <span className="text-[#64748B] font-medium text-[12px]">User Details</span>
+                                <span className="text-[12px] inline-flex items-baseline gap-1 max-w-[190px] justify-end text-right">
+                                  <span className="font-semibold text-[#0F172A] text-[12px] truncate">{(order.userName || '—').split(' ')[0]}</span>
+                                  <span className="text-[#00A86B] font-semibold shrink-0">({order.userId || '—'})</span>
+                                </span>
+                              </div>
+                            )}
+
+                            {/* Order ID */}
+                            {order.orderID && (
+                              <div className="flex items-center gap-1 group/copy mb-2">
+                                <span className="text-[12px] font-medium text-[#64748B] shrink-0">Order ID: </span>
+                                <div className="text-[12px] font-semibold text-[#00A86B] cursor-pointer hover:underline truncate flex-1 min-w-0" onClick={() => navigate(`${isAdminView ? '/admin' : '/user'}/order-tracking?id=${order.orderID}`)}>{order.orderID}</div>
+                                <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(order.orderID).catch(()=>{}); showToast('success', 'Order ID copied!'); }} className="opacity-100 md:opacity-0 md:group-hover/copy:opacity-100 transition-opacity shrink-0 focus:outline-none" title="Copy Order ID"><Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" /></button>
+                              </div>
+                            )}
 
                             {/* Courier / AWB / Amount Card */}
-                            <div className="rounded-xl p-2 bg-white" style={{ border: `1px solid ${accent}` }}>
+                            <div className="rounded-xl p-3 bg-white" style={{ border: `1px solid ${accent}` }}>
                               <div className="flex items-start justify-between gap-2">
                                 <div className="flex items-center gap-2.5 min-w-0 flex-1">
                                   <div className="w-9 h-9 bg-white border border-[#E2E8F0] rounded-xl flex items-center justify-center shrink-0 overflow-hidden p-1 shadow-sm">

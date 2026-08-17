@@ -6,7 +6,7 @@ import { DesktopPagination } from '../../hooks/usePagination';
 import { apiClient } from '../../services/apiClient';
 import {
   Search, Download, RefreshCw, ChevronLeft, ChevronRight, ChevronDown,
-  Filter, Truck, RotateCcw, CheckCircle2, AlertTriangle, Clock, Package, MoreHorizontal, MapPin, Check, History, User, Settings, Flame, X, Loader2, Zap, IndianRupee, Calendar, Mail, FileText, Copy
+  Filter, Truck, RotateCcw, CheckCircle2, AlertTriangle, Clock, Package, MoreHorizontal, MoreVertical, MapPin, Check, History, User, Settings, Flame, X, Loader2, Zap, IndianRupee, Calendar, Mail, FileText, Copy
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
@@ -235,6 +235,8 @@ export function CRMShipmentListing() {
   };
   const [openActionId, setOpenActionId] = useState<string | null>(null);
   const [mobileActionMenuPos, setMobileActionMenuPos] = useState<{ top: number; right: number } | null>(null);
+  const [showGlobalActionMenu, setShowGlobalActionMenu] = useState(false);
+  const globalActionMenuRef = useRef<HTMLDivElement>(null);
   const [showLastUpdate, setShowLastUpdate] = useState(false);
   const [showAgeingLegend, setShowAgeingLegend] = useState(false);
   const ageingLegendRef = useRef<HTMLTableHeaderCellElement>(null);
@@ -490,16 +492,72 @@ export function CRMShipmentListing() {
                   <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-[#00A86B] border-2 border-white" />
                 )}
               </button>
+              {/* Actions icon — mobile only, enabled once any card is checked */}
+              <div className="md:hidden relative shrink-0" ref={globalActionMenuRef}>
+                <button
+                  onClick={(e) => {
+                    if (selectedOrders.length === 0) return;
+                    if (!showGlobalActionMenu) {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      setMobileActionMenuPos({ top: rect.bottom + 8, right: window.innerWidth - rect.right });
+                    }
+                    setShowGlobalActionMenu(v => !v);
+                  }}
+                  disabled={selectedOrders.length === 0}
+                  className="w-9 h-9 rounded-full border border-[#E2E8F0] flex items-center justify-center text-[#475569] bg-white relative disabled:opacity-50"
+                >
+                  <MoreVertical className="w-3.5 h-3.5" />
+                  {selectedOrders.length > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-[16px] h-4 rounded-full bg-[#00A86B] text-white text-[9px] font-bold flex items-center justify-center px-0.5">
+                      {selectedOrders.length}
+                    </span>
+                  )}
+                </button>
+                {showGlobalActionMenu && mobileActionMenuPos && createPortal(
+                  <>
+                    <div className="fixed inset-0 z-[998]" onClick={() => setShowGlobalActionMenu(false)} />
+                    <div
+                      style={{ top: mobileActionMenuPos.top, right: mobileActionMenuPos.right }}
+                      className="fixed w-[200px] bg-white rounded-xl shadow-[0_8px_28px_-6px_rgba(0,0,0,0.15)] border border-[#E2E8F0] py-1.5 z-[999] origin-top-right"
+                      onMouseDown={(e) => e.stopPropagation()}
+                    >
+                      <button
+                        onClick={() => { toggleAll(); setShowGlobalActionMenu(false); }}
+                        className="w-full text-left px-4 py-2.5 text-[13px] font-semibold text-[#00A86B] hover:bg-[#F0FDF4] transition-colors border-b border-[#F1F5F9]"
+                      >
+                        {selectedOrders.length === paginated.length && paginated.length > 0 ? 'Deselect All' : 'Select All'}
+                      </button>
+                      <button
+                        onClick={() => { navigate(`/admin/order-tracking?id=${paginated.find(o => selectedOrders.includes(o.awb))?.orderId}`); setShowGlobalActionMenu(false); }}
+                        className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors"
+                      >
+                        Track Shipment
+                      </button>
+                      <button
+                        onClick={() => { alert(`Downloading Proof of Delivery (POD) for ${selectedOrders.length} shipment(s)...`); setShowGlobalActionMenu(false); }}
+                        className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors"
+                      >
+                        Download POD
+                      </button>
+                      <button
+                        onClick={() => { alert(`Opening Support Ticket Escalation dialog for ${selectedOrders.length} shipment(s)...`); setShowGlobalActionMenu(false); }}
+                        className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors"
+                      >
+                        Raise Ticket
+                      </button>
+                      <button
+                        onClick={() => { handleExport(); setShowGlobalActionMenu(false); }}
+                        className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors"
+                      >
+                        Export{selectedOrders.length > 0 ? ` (${selectedOrders.length})` : ''}
+                      </button>
+                    </div>
+                  </>,
+                  document.body
+                )}
+              </div>
             </div>
           </div>
-
-          {/* Mobile selection bar */}
-          {selectedOrders.length > 0 && (
-            <div className="md:hidden flex items-center gap-2 mt-1 w-full">
-              <span className="text-[11px] font-bold text-blue-700 whitespace-nowrap">{selectedOrders.length} selected</span>
-              <button className="h-7 px-2.5 rounded-md bg-white border border-blue-200 text-[11px] font-bold text-blue-700 shadow-sm hover:bg-blue-50 transition-colors whitespace-nowrap">Export</button>
-            </div>
-          )}
 
           {/* Filter Row — evenly distributed 2-row grid, uniform pill sizes */}
           <div className="filter-grid hidden md:grid grid-cols-6 gap-3 mt-3">
@@ -927,25 +985,37 @@ export function CRMShipmentListing() {
                 const accent = getRibbonColor(row.status);
                 return (
                   <div key={row.awb || idx} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
-                    <div className="px-2.5 pt-2.5 pb-2.5">
-                      {/* Header Row — status badge + Order ID on the left, checkbox on the right (no more corner ribbon) */}
-                      <div className="flex items-center justify-between gap-2 mb-1">
-                        <div className="flex items-center gap-1.5 min-w-0">
-                          <span className={`px-2.5 py-0.5 rounded-full border ${STATUS_STYLES[row.status] || 'bg-blue-50 text-blue-700 border-blue-200'} text-[10px] leading-4 font-semibold uppercase tracking-wider whitespace-nowrap shadow-sm`}>
-                            {row.status}
-                          </span>
-                          <span className="text-[12.5px] font-bold text-[#1D4ED8] truncate">{row.orderId}</span>
-                        </div>
-                        <input type="checkbox" checked={selectedOrders.includes(row.awb)} onChange={() => toggleSelect(row.awb)} className="rounded border-gray-300 accent-[#00A86B] w-4 h-4 shrink-0" />
+                    {/* Status Ribbon — refined corner label, crisp type + soft depth instead of a flat banner */}
+                    <div
+                      className="absolute top-0 left-0 px-3.5 py-[5px] text-[10px] font-bold text-white uppercase tracking-wider z-10"
+                      style={{
+                        background: `linear-gradient(135deg, ${accent} 0%, ${accent}D9 100%)`,
+                        clipPath: 'polygon(0 0, 100% 0, 82% 100%, 0% 100%)',
+                        boxShadow: '0 2px 6px -1px rgba(0,0,0,0.18)',
+                      }}
+                    >
+                      {row.status}
+                    </div>
+
+                    {/* Checkbox — top-right corner, parallel to the status ribbon */}
+                    <input type="checkbox" checked={selectedOrders.includes(row.awb)} onChange={() => toggleSelect(row.awb)}
+                      className="absolute top-2 right-2.5 rounded border-gray-300 accent-[#00A86B] w-4 h-4 shrink-0 z-10" />
+
+                    <div className="px-2.5 pt-7 pb-2.5">
+                      {/* Header Row — Order ID */}
+                      <div className="flex items-center justify-between mb-1.5 pr-6">
+                        <button
+                          onClick={() => navigate(`/admin/order-tracking?id=${row.orderId}`)}
+                          className="text-[12.5px] font-bold text-[#1D4ED8] truncate"
+                        >
+                          {row.orderId}
+                        </button>
                       </div>
 
                       <div className="rounded-xl p-2 mb-1.5 bg-white" style={{ border: `1px solid ${accent}` }}>
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0 flex-1">
-                            <span className="text-[12px] leading-[18px] inline-flex items-baseline gap-1 max-w-full">
-                              <TruncatedText text={row.seller} maxLength={18} className="font-semibold text-[#1E293B] text-[12px] leading-[18px]" />
-                              {row.companyId && <span className="text-[#64748B] font-semibold shrink-0">({row.companyId})</span>}
-                            </span>
+                            <TruncatedText text={row.seller} maxLength={18} className="text-[13px] leading-[18px] font-semibold text-[#1E293B]" />
                             <TruncatedText text={row.email} maxLength={20} className="text-[12px] leading-[18px] font-normal text-[#64748B]" />
                           </div>
                           <div className="text-right shrink-0">
@@ -957,7 +1027,7 @@ export function CRMShipmentListing() {
 
                       <div className="flex items-start justify-between mb-1.5 px-1 gap-2">
                         <span
-                          className="min-w-0 max-w-full text-[12px] font-normal text-[#1E293B] underline decoration-dotted underline-offset-2 truncate cursor-help"
+                          className="text-[12px] font-normal text-[#1E293B] underline decoration-dotted underline-offset-2 truncate flex-1 cursor-help"
                           onClick={(e) => {
                             if (row.products.length === 0) return;
                             openProductTooltip(row.awb, e);
@@ -994,41 +1064,6 @@ export function CRMShipmentListing() {
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2">
-                        <button onClick={() => navigate(`/admin/order-tracking?id=${row.orderId}`)} className="flex-1 h-9 rounded-full border-2 border-[#2563EB] text-[#2563EB] bg-white text-[12.5px] font-bold flex items-center justify-center gap-1.5 hover:bg-blue-50 transition-colors">
-                          View Details
-                        </button>
-                        <div className="relative flex-1">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (openActionId !== row.awb) {
-                                const rect = e.currentTarget.getBoundingClientRect();
-                                setMobileActionMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
-                              }
-                              setOpenActionId(openActionId === row.awb ? null : row.awb);
-                            }}
-                            className="w-full h-9 rounded-full bg-[#2563EB] text-white text-[12.5px] font-bold flex items-center justify-center gap-1.5 hover:bg-[#1d4ed8] transition-colors"
-                          >
-                            Actions <ChevronDown className={`w-3.5 h-3.5 transition-transform ${openActionId === row.awb ? 'rotate-180' : ''}`} />
-                          </button>
-                          {openActionId === row.awb && mobileActionMenuPos && createPortal(
-                            <>
-                              <div className="fixed inset-0 z-[997]" onClick={() => setOpenActionId(null)} />
-                              <div
-                                style={{ top: mobileActionMenuPos.top, right: mobileActionMenuPos.right }}
-                                className="fixed w-44 bg-white rounded-xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.15)] border border-[#E2E8F0] py-2 z-[998] text-left"
-                                onMouseDown={(e) => e.stopPropagation()}
-                              >
-                                <button className="w-full text-left px-4 py-2 text-[12px] font-medium text-[#475569] hover:bg-[#F8FAFC]" onClick={() => navigate(`/admin/order-tracking?id=${row.orderId}`)}>Track Shipment</button>
-                                <button className="w-full text-left px-4 py-2 text-[12px] font-medium text-[#475569] hover:bg-[#F8FAFC]" onClick={() => { alert('Downloading Proof of Delivery (POD)...'); setOpenActionId(null); }}>Download POD</button>
-                                <button className="w-full text-left px-4 py-2 text-[12px] font-medium text-[#475569] hover:bg-[#F8FAFC]" onClick={() => { alert('Opening Support Ticket Escalation dialog...'); setOpenActionId(null); }}>Raise Ticket</button>
-                              </div>
-                            </>,
-                            document.body
-                          )}
-                        </div>
-                      </div>
                     </div>
                   </div>
                 );
