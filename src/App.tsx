@@ -73,19 +73,30 @@ function GlobalOrderClickInterceptor() {
 
   useEffect(() => {
     const getColumnHeader = (element: HTMLElement): string => {
+      // Table: find the header cell for the clicked column
       const cell = element.closest('td, th') as HTMLTableCellElement | null;
-      if (!cell) return "";
-      const row = cell.closest('tr');
-      if (!row) return "";
-      const table = row.closest('table');
-      if (!table) return "";
-      const cellIndex = cell.cellIndex;
-      
-      const headerRow = table.querySelector('thead tr') || table.querySelector('tr');
-      if (!headerRow) return "";
-      
-      const headerCell = headerRow.children[cellIndex];
-      return headerCell?.textContent?.trim().toLowerCase() || "";
+      if (cell) {
+        const row = cell.closest('tr');
+        if (!row) return "";
+        const table = row.closest('table');
+        if (!table) return "";
+        const cellIndex = cell.cellIndex;
+        const headerRow = table.querySelector('thead tr') || table.querySelector('tr');
+        if (!headerRow) return "";
+        const headerCell = headerRow.children[cellIndex];
+        return headerCell?.textContent?.trim().toLowerCase() || "";
+      }
+      // Card/div layout (mobile cards): check the previous sibling element for a label
+      // e.g. <span>Mobile</span><span>9876543210</span> — prev sibling is the label
+      const prev = element.previousElementSibling;
+      if (prev) {
+        const t = prev.textContent?.trim().toLowerCase() || "";
+        if (t) return t;
+      }
+      // Also try parent's previous sibling for wrapper-per-field patterns
+      const parentPrev = element.parentElement?.previousElementSibling;
+      if (parentPrev) return parentPrev.textContent?.trim().toLowerCase() || "";
+      return "";
     };
 
     const handleGlobalClick = (event: MouseEvent) => {
@@ -116,11 +127,14 @@ function GlobalOrderClickInterceptor() {
       // Bare numbers are order IDs ONLY when the column is explicitly "order"
       if (isNumericCandidate && headerText !== 'order') return;
 
-      // For AWBs, skip phone/mobile/pin/contact columns to avoid false positives
+      // For AWBs, skip phone/mobile/pin/contact/tel columns to avoid false positives
       if (isAwb && (
         headerText.includes('phone') || headerText.includes('mobile') ||
-        headerText.includes('pin') || headerText.includes('contact')
+        headerText.includes('pin') || headerText.includes('contact') ||
+        headerText.includes('tel')
       )) return;
+      // Indian mobile numbers (10 digits, starts with 6–9) are never AWBs on this platform
+      if (isAwb && /^[6-9]\d{9}$/.test(cleanText)) return;
 
       event.preventDefault();
       event.stopPropagation();
