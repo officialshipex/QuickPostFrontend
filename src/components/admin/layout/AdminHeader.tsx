@@ -330,7 +330,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -12 }}
             transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-            className="w-full flex items-center gap-1.5 px-2 h-[60px]">
+            className="w-full flex items-center gap-1 pl-0.5 pr-2 h-[60px]">
             {/* Left: hamburger */}
             <div className="flex items-center shrink-0">
               <button
@@ -734,7 +734,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
       {/* Middle Section - Search — global Orders search, available from every page */}
       <div className="flex-1 flex items-center justify-center min-w-0">
         {!isKycPage && (
-        <div ref={orderSearchRef} className="hidden md:flex items-center relative w-full max-w-2xl group">
+        <div ref={orderSearchRef} className="hidden md:flex items-center relative w-full max-w-lg group">
           <Search className="w-4 h-4 absolute left-3.5 text-[#94A3B8] group-focus-within:text-[#00A86B] transition-colors duration-300 z-10" />
           <input
             type="text"
