@@ -51,6 +51,11 @@ interface Props {
   /** Controlled search value from a search bar rendered outside this component. */
   mobileSearchOverride?: string;
   onMobileSearchOverrideChange?: (value: string) => void;
+  /** Resolved user _id from a "search by name, email, or contact" bar rendered outside
+   *  this component (e.g. AdminOrders' shared mobile search row, backed by its own
+   *  useUserSearchFilter instance). When provided, this takes over as the admin user
+   *  filter instead of this component's own internal search UI. */
+  userMongoIdOverride?: string;
   /** Controlled mobile filter sheet, driven by a Filter button rendered outside this component. */
   mobileFiltersOpen?: boolean;
   onMobileFiltersOpenChange?: (open: boolean) => void;
@@ -67,6 +72,7 @@ export function AdminPickupManifest({
   hideMobileSearchBar = false,
   mobileSearchOverride,
   onMobileSearchOverrideChange,
+  userMongoIdOverride,
   mobileFiltersOpen,
   onMobileFiltersOpenChange,
   onSelectedCountChange,
@@ -102,7 +108,11 @@ export function AdminPickupManifest({
   // Admin user search (only active when isAdminView)
   const [userQuery,       setUserQuery]       = useState('');
   const [userSuggestions, setUserSuggestions] = useState<any[]>([]);
-  const [userMongoId,     setUserMongoId]     = useState('');
+  const [userMongoIdInternal, setUserMongoIdInternal] = useState('');
+  // When a search bar rendered outside this component (AdminOrders' shared mobile
+  // search row) resolves a user, it wins over this component's own search UI.
+  const userMongoId = userMongoIdOverride !== undefined ? userMongoIdOverride : userMongoIdInternal;
+  const setUserMongoId = setUserMongoIdInternal;
 
   // Selection
   const [selectedManifests, setSelectedManifests] = useState<string[]>([]);
