@@ -373,12 +373,6 @@ export function AdminOrders() {
 
   // ── User search (admin-only) ──
   const { userQuery, userSuggestions, userMongoId, setUserQuery, setUserMongoId, setUserSuggestions, onQueryChange: onUserQueryChange, selectUser: selectUserSuggestion, clearUser: clearUserFilter } = useUserSearchFilter(isAdminView);
-  // Separate instance for the Pickup & Manifest tab — it filters manifests, not orders,
-  // so it needs its own query/suggestions/selection independent of the Orders search above.
-  const {
-    userQuery: pmUserQuery, userSuggestions: pmUserSuggestions, userMongoId: pmUserMongoId,
-    onQueryChange: onPmUserQueryChange, selectUser: selectPmUserSuggestion, clearUser: clearPmUserFilter,
-  } = useUserSearchFilter(isAdminView);
 
   // ── Filter refresh trigger (incremented on apply/clear so useEffect re-fetches with latest state) ──
   const [refreshTrigger,   setRefreshTrigger]   = useState(0);
@@ -891,26 +885,26 @@ export function AdminOrders() {
             Same hoisted row for every tab, including Pickup & Manifest — only the search
             placeholder/value and the action-menu content differ for that tab. ── */}
         <div className="md:hidden relative z-[60] px-3 py-2.5 border-b border-[#E2E8F0] flex items-center gap-2 bg-white shrink-0">
-          {isAdminView ? (
+          {isAdminView && !isPMTab ? (
             <div className="relative flex-1">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
               <input
                 type="text"
                 placeholder="Search by name, email, or contact"
-                value={isPMTab ? pmUserQuery : userQuery}
-                onChange={(e) => (isPMTab ? onPmUserQueryChange(e.target.value) : onUserQueryChange(e.target.value))}
+                value={userQuery}
+                onChange={(e) => onUserQueryChange(e.target.value)}
                 className="w-full h-9 pl-9 pr-8 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] text-sm text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all"
               />
-              {(isPMTab ? pmUserMongoId : userMongoId) && (
-                <button onClick={() => (isPMTab ? clearPmUserFilter() : clearUserFilter())} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#94A3B8] hover:text-red-500">
+              {userMongoId && (
+                <button onClick={clearUserFilter} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#94A3B8] hover:text-red-500">
                   <X className="w-3.5 h-3.5" />
                 </button>
               )}
-              {(isPMTab ? pmUserSuggestions : userSuggestions).length > 0 && !(isPMTab ? pmUserMongoId : userMongoId) && (
+              {userSuggestions.length > 0 && !userMongoId && (
                 <div className="absolute left-0 top-full mt-1 bg-white border border-[#E2E8F0] rounded-xl shadow-xl z-50 w-full max-h-52 overflow-y-auto py-1">
-                  {(isPMTab ? pmUserSuggestions : userSuggestions).map((u: any) => (
+                  {userSuggestions.map((u: any) => (
                     <button key={u._id} type="button"
-                      onClick={() => (isPMTab ? selectPmUserSuggestion(u) : selectUserSuggestion(u))}
+                      onClick={() => selectUserSuggestion(u)}
                       className="w-full text-left px-3 py-2.5 hover:bg-[#F0FDF4] flex items-start gap-2">
                       <div className="flex-1 min-w-0">
                         <div className="text-[12px] font-bold text-slate-800 truncate">{u.fullname}</div>
@@ -1210,7 +1204,6 @@ export function AdminOrders() {
               hideMobileSearchBar
               mobileSearchOverride={pmMobileSearch}
               onMobileSearchOverrideChange={setPmMobileSearch}
-              userMongoIdOverride={isAdminView ? pmUserMongoId : undefined}
               mobileFiltersOpen={isMobileFiltersOpen}
               onMobileFiltersOpenChange={setIsMobileFiltersOpen}
               onSelectedCountChange={setPmSelectedCount}
