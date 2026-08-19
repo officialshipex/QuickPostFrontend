@@ -1,14 +1,14 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { useAdminTab } from '../../context/AdminUserContext';
 import { apiClient } from '../../services/apiClient';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
-  Download, Calendar, ChevronDown, ChevronLeft, Users, Truck, IndianRupee,
+  Calendar, ChevronDown, ChevronLeft, Users, Truck, IndianRupee,
   Package, RotateCcw, AlertTriangle, CheckCircle2, Clock, Search, Wallet,
-  FileText, ShieldAlert, UserCheck, CreditCard, X, RefreshCw, Send,
-  TrendingUp, TrendingDown, Scale, Settings, Mail, Hash, MapPin, Phone, Crown, Copy,
+  FileText, ShieldAlert, UserCheck, CreditCard, X, RefreshCw,
+  TrendingUp, TrendingDown, Settings, Hash, MapPin, Phone, Crown, Copy, Mail,
 } from 'lucide-react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { TruncatedText } from '../../components/ui/TruncatedText';
@@ -18,7 +18,8 @@ import { TableLoader } from '../../components/ui/TableLoader';
 import { DesktopPagination, usePagination } from '../../hooks/usePagination';
 import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
 import { getTier, getTierBadgeClass } from '../../hooks/useTier';
-import { getCourierLogo } from '../../utils/courierLogo';
+import { CourierLogo } from '../../components/ui/CourierLogo';
+import { GenerateReportModal, fc, fn, fmtDate } from '../../components/admin/reports/MisReportShared';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface SellerSummary {
@@ -48,6 +49,15 @@ interface TxnItem {
   _id?: string; channelOrderId?: string; category: 'credit' | 'debit';
   amount: number; balanceAfterTransaction?: number; description?: string; date: string; awb_number?: string;
 }
+interface ProfitCourierItem {
+  courierServiceName: string; orders: number; amount: number; deliveredPct: number; ndrPct: number;
+}
+interface ProfitLossSeller {
+  _id: string; userId?: number; fullname: string; email: string; phoneNumber?: string;
+  totalOrders: number; deliveredPct: number; rtoPct: number;
+  courierRevenue: number; sellerRevenue: number; profit: number;
+  couriers: ProfitCourierItem[];
+}
 interface PlatformSummary {
   totalSellers: number; kycVerified: number; totalOrders: number;
   delivered: number; rto: number; ndr: number; cancelled: number; inTransit: number;
@@ -56,400 +66,62 @@ interface PlatformSummary {
   topRevenueSellers: { name: string; value: number }[];
   topRtoSellers: { name: string; value: number }[];
 }
-interface MisReport {
-  _id: string; reportType: string; dateFilterType?: string; fromDate: string; toDate: string;
-  email?: string; status: 'pending' | 'completed' | 'failed'; downloadUrl?: string;
-  createdAt: string; selectedDescriptions?: string[];
-  user?: { _id: string; userId?: number; fullname?: string; email?: string };
+
+// ─── Dummy Profit & Loss data ─────────────────────────────────────────────────
+// Placeholder used until the /admin-reports/profit-loss backend endpoint exists.
+const DUMMY_COURIERS_POOL = [
+  'Delhivery Surface', 'Delhivery Air', 'Bluedart Air', 'Bluedart Surface',
+  'Ekart Logistics', 'XpressBees Surface', 'Shadowfax Express', 'DTDC Surface',
+];
+const DUMMY_SELLER_NAMES = [
+  'Aarav Textiles', 'Priya Handicrafts', 'Kumar Electronics', 'Sharma Fashion Hub', 'Nova Gadgets',
+  'Meera Cosmetics', 'Rohan Sports', 'Everest Books', 'Sunrise Kitchenware', 'Blue Ocean Toys',
+  'Golden Leaf Tea Co.', 'Silver Line Jewellery', 'Urban Threads', 'Prime Furniture', 'Green Valley Organics',
+  'Metro Mobile Zone', 'Coastal Footwear', 'Heritage Handloom', 'Zenith Auto Parts', 'Crimson Bakers',
+];
+// Built once with fixed values — sorting only ever reorders this same data,
+// it never regenerates the numbers (so switching Top Profit/Top Loss doesn't
+// look like nothing happened just because the same 20 names come back).
+let _dummyProfitLossCache: ProfitLossSeller[] | null = null;
+function getDummyProfitLossBase(): ProfitLossSeller[] {
+  if (_dummyProfitLossCache) return _dummyProfitLossCache;
+  _dummyProfitLossCache = DUMMY_SELLER_NAMES.map((name, i) => {
+    const totalOrders = 200 + ((i * 37) % 800);
+    const deliveredPct = 78 + ((i * 7) % 20);
+    const rtoPct = Math.max(1, 15 - ((i * 5) % 14));
+    const sellerRevenue = 40000 + ((i * 9137) % 260000);
+    // Fixed split: roughly the top half of the list are profit-making, the rest run at a loss —
+    // independent of how the table is currently sorted.
+    const isLossRow = i % 2 === 1;
+    const marginPct = isLossRow ? -(0.03 + (i % 5) * 0.02) : (0.06 + (i % 6) * 0.03);
+    const profit = Math.round(sellerRevenue * marginPct);
+    const courierRevenue = sellerRevenue - profit;
+    const shuffled = [...DUMMY_COURIERS_POOL].sort((a, b) => ((a.length + i) % 3) - ((b.length + i) % 3));
+    const courierCount = 2 + (i % 3);
+    const couriers: ProfitCourierItem[] = shuffled.slice(0, courierCount).map((name2, ci) => ({
+      courierServiceName: name2,
+      orders: Math.round(totalOrders / courierCount) - ci * 5,
+      amount: Math.round(courierRevenue / courierCount),
+      deliveredPct: Math.max(60, deliveredPct - ci * 4),
+      ndrPct: Math.min(20, 2 + ci * 2 + (i % 4)),
+    }));
+    return {
+      _id: `dummy-${i}`, userId: 1000 + i, fullname: name, email: `${name.toLowerCase().replace(/[^a-z0-9]+/g, '.')}@example.com`,
+      phoneNumber: `9${(800000000 + i * 12345).toString().slice(0, 9)}`,
+      totalOrders, deliveredPct, rtoPct, courierRevenue, sellerRevenue, profit, couriers,
+    };
+  });
+  return _dummyProfitLossCache;
+}
+function buildDummyProfitLoss(sort: 'profit_desc' | 'profit_asc'): ProfitLossSeller[] {
+  const rows = [...getDummyProfitLossBase()];
+  rows.sort((a, b) => sort === 'profit_desc' ? b.profit - a.profit : a.profit - b.profit);
+  return rows;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const PIE_COLORS = ['#00A86B', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4', '#F97316'];
-const STATUS_COLORS: Record<string, string> = { Delivered: '#00A86B', 'In Transit': '#3B82F6', RTO: '#EF4444', NDR: '#F59E0B' };
 const DATE_RANGES = ['Last 7 Days', 'Last 30 Days', 'Last 3 Months', 'Last 6 Months', 'This Year'];
-const REPORT_TYPES = ['All', 'Delivered', 'RTO', 'Canceled', 'Pending Order', 'Passbook'];
-const DATE_FILTER_TYPES = ['Pickup Date', 'AWB Assigned Date'];
-const PASSBOOK_DESCS = [
-  'Freight Charges Applied', 'Freight Charges Received', 'Auto-accepted Weight Dispute charge',
-  'Weight Dispute Charges Applied', 'COD Charges Received', 'RTO Freight Charges Applied',
-  'Cancellation Refund', 'Recharge From Gateway(Razorpay)', 'Referral Commission Received',
-];
-
-const fc = (v: number) => `₹${(v || 0).toLocaleString('en-IN')}`;
-const fn = (v: number) => (v || 0).toLocaleString('en-IN');
-const fmtDate = (d?: string) => {
-  if (!d) return '—';
-  const dt = new Date(d);
-  return dt.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
-};
-const fmtDateTime = (d?: string) => {
-  if (!d) return '—';
-  const dt = new Date(d);
-  return dt.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) +
-    ' ' + dt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
-};
-
-// ─── GenerateReportModal ──────────────────────────────────────────────────────
-function GenerateReportModal({ open, onClose, prefillUserId, prefillUserName, isAdminView }: {
-  open: boolean; onClose: () => void;
-  prefillUserId?: string | null; prefillUserName?: string;
-  isAdminView: boolean;
-}) {
-  const [reportType, setReportType]         = useState('All');
-  const [dateFilterType, setDateFilterType] = useState('Pickup Date');
-  const [fromDate, setFromDate]             = useState('');
-  const [toDate, setToDate]                 = useState('');
-  const [email, setEmail]                   = useState('');
-  const [descs, setDescs]                   = useState<string[]>([]);
-  const [descOpen, setDescOpen]             = useState(false);
-  const [submitting, setSubmitting]         = useState(false);
-  const [result, setResult]                 = useState<{ ok: boolean; text: string } | null>(null);
-
-  useEffect(() => {
-    if (open) {
-      setReportType('All'); setDateFilterType('Pickup Date'); setFromDate(''); setToDate('');
-      setEmail(''); setDescs([]); setResult(null);
-    }
-  }, [open]);
-
-  const toggleDesc = (d: string) =>
-    setDescs(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d]);
-
-  const handleGenerate = async () => {
-    if (!fromDate || !toDate) { setResult({ ok: false, text: 'From date and to date are required' }); return; }
-    setSubmitting(true); setResult(null);
-    try {
-      const body: any = {
-        reportType,
-        dateFilterType: reportType === 'Passbook' ? 'Transaction Date' : dateFilterType,
-        fromDate: new Date(fromDate).toISOString(),
-        toDate: new Date(toDate + 'T23:59:59').toISOString(),
-      };
-      if (reportType === 'Passbook' && descs.length > 0) body.selectedDescriptions = descs;
-      if (email) body.email = email;
-      if (isAdminView && prefillUserId) body.userSearch = prefillUserId;
-      await apiClient.post('/mis-report/generate', body);
-      setResult({ ok: true, text: 'Report generation started! It will appear in the table below shortly.' });
-      setTimeout(() => onClose(), 2500);
-    } catch (e: any) { setResult({ ok: false, text: e?.response?.data?.error || 'Failed to start report' }); }
-    finally { setSubmitting(false); }
-  };
-
-  if (!open) return null;
-  return (
-    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-        className="absolute inset-0 bg-[#0F172A]/40 backdrop-blur-sm" onClick={onClose} />
-      <motion.div initial={{ opacity: 0, scale: 0.95, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }}
-        className="relative z-10 w-full max-w-lg bg-white rounded-2xl shadow-2xl overflow-hidden">
-        <div className="flex items-center justify-between p-5 border-b border-[#E2E8F0] bg-[#F8FAFC]">
-          <div>
-            <h3 className="text-base font-bold text-[#0F172A]">Generate Report</h3>
-            {prefillUserName && <p className="text-xs text-[#64748B] mt-0.5">Seller: {prefillUserName}</p>}
-          </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center text-[#64748B] hover:bg-[#E2E8F0]"><X className="w-4 h-4" /></button>
-        </div>
-        <div className="p-5 space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-bold text-[#475569] mb-1.5 uppercase tracking-wide">Report Type</label>
-              <select value={reportType} onChange={e => setReportType(e.target.value)}
-                className="w-full h-10 px-3 rounded-lg border border-[#E2E8F0] text-xs focus:outline-none focus:border-[#00A86B] bg-white">
-                {REPORT_TYPES.map(t => <option key={t}>{t}</option>)}
-              </select>
-            </div>
-            {reportType !== 'Passbook' && (
-              <div>
-                <label className="block text-xs font-bold text-[#475569] mb-1.5 uppercase tracking-wide">Date Filter By</label>
-                <select value={dateFilterType} onChange={e => setDateFilterType(e.target.value)}
-                  className="w-full h-10 px-3 rounded-lg border border-[#E2E8F0] text-xs focus:outline-none focus:border-[#00A86B] bg-white">
-                  {DATE_FILTER_TYPES.map(t => <option key={t}>{t}</option>)}
-                </select>
-              </div>
-            )}
-          </div>
-
-          {reportType === 'Passbook' && (
-            <div className="relative" onClick={() => setDescOpen(o => !o)}>
-              <label className="block text-xs font-bold text-[#475569] mb-1.5 uppercase tracking-wide">Transaction Descriptions</label>
-              <div className="w-full min-h-[40px] px-3 py-2 rounded-lg border border-[#E2E8F0] text-xs cursor-pointer flex flex-wrap gap-1.5 bg-white">
-                {descs.length === 0
-                  ? <span className="text-[#94A3B8] leading-6">All descriptions (leave empty)</span>
-                  : descs.map(d => (
-                    <span key={d} onClick={e => { e.stopPropagation(); toggleDesc(d); }}
-                      className="flex items-center gap-1 bg-[#F0FDF4] text-[#00A86B] border border-[#DCFCE7] px-2 py-0.5 rounded-md font-semibold">
-                      {d} <X className="w-3 h-3" />
-                    </span>
-                  ))}
-              </div>
-              {descOpen && (
-                <div className="absolute top-full left-0 w-full bg-white border border-[#E2E8F0] rounded-xl shadow-xl z-50 mt-1 max-h-44 overflow-y-auto">
-                  {PASSBOOK_DESCS.map(d => (
-                    <button key={d} type="button" onClick={e => { e.stopPropagation(); toggleDesc(d); }}
-                      className={`w-full text-left px-4 py-2.5 text-xs font-semibold transition-colors flex items-center gap-2 ${descs.includes(d) ? 'bg-[#F0FDF4] text-[#00A86B]' : 'text-[#475569] hover:bg-[#F8FAFC]'}`}>
-                      <span className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 ${descs.includes(d) ? 'bg-[#00A86B] border-[#00A86B]' : 'border-[#CBD5E1]'}`}>
-                        {descs.includes(d) && <CheckCircle2 className="w-3 h-3 text-white" />}
-                      </span>
-                      {d}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-bold text-[#475569] mb-1.5 uppercase tracking-wide">From Date</label>
-              <input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)}
-                className="w-full h-10 px-3 rounded-lg border border-[#E2E8F0] text-xs focus:outline-none focus:border-[#00A86B]" />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-[#475569] mb-1.5 uppercase tracking-wide">To Date</label>
-              <input type="date" value={toDate} onChange={e => setToDate(e.target.value)}
-                className="w-full h-10 px-3 rounded-lg border border-[#E2E8F0] text-xs focus:outline-none focus:border-[#00A86B]" />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-[#475569] mb-1.5 uppercase tracking-wide">Email Report To (optional)</label>
-            <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Leave blank to skip email"
-              className="w-full h-10 px-3 rounded-lg border border-[#E2E8F0] text-xs focus:outline-none focus:border-[#00A86B]" />
-          </div>
-
-          <div className="bg-[#F8FAFC] rounded-xl border border-[#E2E8F0] p-3 text-[10px] text-[#64748B] font-medium">
-            Report generation may take 1–5 minutes depending on data size. Download link appears in the table once ready.
-          </div>
-
-          {result && (
-            <div className={`flex items-center gap-2 text-xs font-semibold p-3 rounded-xl ${result.ok ? 'bg-green-50 text-[#00A86B]' : 'bg-red-50 text-red-600'}`}>
-              {result.ok ? <CheckCircle2 className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />} {result.text}
-            </div>
-          )}
-        </div>
-        <div className="flex justify-end gap-3 p-5 border-t border-[#E2E8F0] bg-[#F8FAFC]">
-          <button onClick={onClose} className="px-4 py-2 rounded-xl text-xs font-bold text-[#64748B] hover:bg-[#E2E8F0] transition-colors">Cancel</button>
-          <button onClick={handleGenerate} disabled={submitting}
-            className="px-4 py-2 rounded-xl bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors disabled:opacity-60 flex items-center gap-1.5">
-            <FileText className="w-3.5 h-3.5" />{submitting ? 'Starting…' : 'Generate Report'}
-          </button>
-        </div>
-      </motion.div>
-    </div>
-  );
-}
-
-// ─── MisReportTable ───────────────────────────────────────────────────────────
-function MisReportTable({ userId, isAdminView, fillHeight }: {
-  userId: string | null; isAdminView: boolean; fillHeight?: boolean;
-}) {
-  const [reports, setReports] = useState<MisReport[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [page, setPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(20);
-  const [totalReports, setTotalReports] = useState(0);
-  const totalPages = Math.ceil(totalReports / rowsPerPage);
-
-  const fetchReports = useCallback(async () => {
-    if (!isAdminView && !userId) return;
-    setLoading(true);
-    try {
-      const params: any = { page, limit: rowsPerPage };
-      if (isAdminView && userId) params.userSearch = userId;
-      const res = await apiClient.get('/mis-report/list', { params });
-      setReports(res.data?.results || []);
-      setTotalReports(res.data?.total || 0);
-    } catch { setReports([]); }
-    finally { setLoading(false); }
-  }, [page, rowsPerPage, userId, isAdminView]);
-
-  useEffect(() => { setPage(1); }, [rowsPerPage]);
-
-  useEffect(() => { fetchReports(); }, [fetchReports]);
-
-  const statusStyle = (s: string) =>
-    s === 'completed' ? 'bg-green-50 text-[#00A86B] border-green-200' :
-    s === 'pending'   ? 'bg-amber-50 text-amber-600 border-amber-200' :
-                        'bg-red-50 text-red-500 border-red-200';
-
-  const typeColor = (t: string) =>
-    t === 'Delivered' ? 'bg-green-50 text-[#00A86B]' :
-    t === 'RTO'       ? 'bg-red-50 text-red-500' :
-    t === 'Passbook'  ? 'bg-purple-50 text-purple-600' :
-    t === 'Canceled'  ? 'bg-orange-50 text-orange-500' :
-                        'bg-blue-50 text-blue-500';
-
-  return (
-    <div className={fillHeight ? 'flex flex-col flex-1 min-h-0' : ''}>
-      <div className={fillHeight ? 'bg-white flex flex-col flex-1 min-h-0 overflow-hidden border-t border-[#E2E8F0]' : 'bg-white border border-[#E2E8F0] rounded-2xl overflow-visible shadow-sm'}>
-        {isAdminView && (
-          <div className="sticky top-0 z-20 rounded-t-2xl flex items-center justify-between p-4 border-b border-[#E2E8F0] bg-[#F8FAFC]">
-            <div>
-              <h3 className="text-sm font-bold text-[#0F172A] flex items-center gap-2">
-                <FileText className="w-4 h-4 text-[#00A86B]" />
-                {!userId ? 'All MIS Reports' : 'MIS Reports'}
-              </h3>
-              <p className="text-[10px] text-[#94A3B8] mt-0.5">Excel reports generated across all report types</p>
-            </div>
-            <button onClick={fetchReports} title="Refresh"
-              className={`w-8 h-8 flex items-center justify-center rounded-lg border border-[#E2E8F0] text-[#64748B] hover:text-[#00A86B] hover:border-[#00A86B] transition-colors ${loading ? 'animate-spin' : ''}`}>
-              <RefreshCw className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        )}
-        <div className={`hidden md:block relative overflow-auto no-scrollbar ${fillHeight ? 'flex-1 min-h-0' : 'max-h-[560px]'}`}>
-          {loading && <TableLoader />}
-          <table className="w-full text-left border-collapse table-fixed">
-            <thead className="sticky top-0 z-10 bg-[#E6F9F2] shadow-sm">
-              <tr className="text-xs leading-[18px] font-medium text-[#64748B] uppercase tracking-wider border border-[#B9EFDB]">
-                <th className="py-2 px-4 w-[5%]"><div className="flex items-center gap-1"><Hash className="w-3.5 h-3.5 shrink-0" /><span>#</span></div></th>
-                {isAdminView && !userId && <th className="py-2 px-4 w-[14%]"><div className="flex items-center gap-1"><Users className="w-3.5 h-3.5 shrink-0" /><span>User</span></div></th>}
-                <th className="py-2 px-4 w-[12%]"><div className="flex items-center gap-1"><FileText className="w-3.5 h-3.5 shrink-0" /><span>Report Type</span></div></th>
-                <th className="py-2 px-4 w-[12%]"><div className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5 shrink-0" /><span>Date Filter</span></div></th>
-                <th className="py-2 px-4 w-[9%]"><div className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5 shrink-0" /><span>From</span></div></th>
-                <th className="py-2 px-4 w-[9%]"><div className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5 shrink-0" /><span>To</span></div></th>
-                <th className="py-2 px-4 w-[15%]"><div className="flex items-center gap-1"><Mail className="w-3.5 h-3.5 shrink-0" /><span>Email</span></div></th>
-                <th className="py-2 px-4 w-[13%]"><div className="flex items-center gap-1"><Clock className="w-3.5 h-3.5 shrink-0" /><span>Generated At</span></div></th>
-                <th className="py-2 px-4 text-center w-[9%]"><div className="flex items-center justify-center gap-1"><CheckCircle2 className="w-3.5 h-3.5 shrink-0" /><span>Status</span></div></th>
-                <th className="py-2 px-4 text-right w-[12%]"><div className="flex items-center justify-end gap-1"><Download className="w-3.5 h-3.5 shrink-0" /><span>Download</span></div></th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr><td colSpan={10} className="text-center py-12 text-xs text-[#94A3B8]">Loading reports…</td></tr>
-              ) : reports.length === 0 ? (
-                <tr><td colSpan={10} className="text-center py-12 text-sm font-medium text-[#94A3B8]">No reports generated yet. Click "Generate Report" to create one.</td></tr>
-              ) : reports.map((r, i) => (
-                <tr key={r._id} className={`border-b border-[#E2E8F0] transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]/20'}`}>
-                  <td className="p-3 text-[12px] font-normal text-[#94A3B8]">{(page - 1) * rowsPerPage + i + 1}</td>
-                  {isAdminView && !userId && (
-                    <td className="p-3">
-                      <TruncatedText text={r.user?.fullname || '—'} maxLength={22} className="text-[12px] leading-[18px] font-semibold text-[#0F172A]" />
-                      <TruncatedText text={r.user?.email || '—'} maxLength={26} className="text-[12px] leading-[18px] font-normal text-[#64748B]" />
-                    </td>
-                  )}
-                  <td className="p-3">
-                    <span className={`px-2 py-0.5 rounded-md text-[12px] font-semibold ${typeColor(r.reportType)}`}>{r.reportType}</span>
-                  </td>
-                  <td className="p-3 text-[12px] font-normal text-[#64748B] truncate">{r.dateFilterType || '—'}</td>
-                  <td className="p-3 text-[12px] font-normal text-[#0F172A] whitespace-nowrap">{fmtDate(r.fromDate)}</td>
-                  <td className="p-3 text-[12px] font-normal text-[#0F172A] whitespace-nowrap">{fmtDate(r.toDate)}</td>
-                  <td className="p-3">
-                    <TruncatedText text={r.email || '—'} maxLength={16} className="text-[12px] leading-[18px] font-normal text-[#64748B]" tooltipAlign="right" />
-                  </td>
-                  <td className="p-3 text-[12px] font-normal text-[#64748B] whitespace-nowrap">{fmtDateTime(r.createdAt)}</td>
-                  <td className="p-3 text-center">
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border capitalize ${statusStyle(r.status)}`}>
-                      {r.status === 'pending' && <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse mr-1 align-middle" />}
-                      {r.status}
-                    </span>
-                  </td>
-                  <td className="p-3 text-right" style={{ paddingRight: 'calc(0.75rem + 10px)' }}>
-                    {r.status === 'completed' && r.downloadUrl
-                      ? <a href={r.downloadUrl} target="_blank" rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-[12px] font-bold text-[#00A86B] hover:underline">
-                          <Download className="w-3.5 h-3.5" /> Download
-                        </a>
-                      : <span className="text-[12px] text-[#CBD5E1] font-semibold">{r.status === 'pending' ? 'Processing…' : '—'}</span>}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Mobile */}
-        <div className={`md:hidden relative bg-[#F8FAFC] ${fillHeight ? 'flex-1 min-h-0 overflow-y-auto' : ''}`}>
-          {loading && <div className="relative h-32"><TableLoader /></div>}
-          {!loading && reports.length === 0 ? (
-            <EmptyState title="No reports yet" subtitle="Click &quot;Generate Report&quot; to create one" />
-          ) : !loading && (
-            <div className="p-1.5 space-y-2">
-              {reports.map((r, i) => (
-                <div key={r._id} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm">
-                  <StatusRibbon label={`#${(page - 1) * rowsPerPage + i + 1}`} color="#00A86B" />
-                  <div className="pt-7 px-2.5 pb-2.5">
-                    <div className="rounded-xl p-2 mb-1.5 bg-white border border-[#E2E8F0]">
-                      <div className="flex items-start justify-between gap-2 mb-1">
-                        <span className={`px-2 py-0.5 rounded-md text-[12px] font-semibold ${typeColor(r.reportType)}`}>{r.reportType}</span>
-                        <span className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold border capitalize flex items-center ${statusStyle(r.status)}`}>
-                          {r.status === 'pending' && <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse mr-1" />}
-                          {r.status}
-                        </span>
-                      </div>
-                      {isAdminView && !userId && (
-                        <>
-                          <TruncatedText text={r.user?.fullname || '—'} maxLength={22} className="text-[12px] leading-[18px] font-semibold text-[#0F172A]" />
-                          <TruncatedText text={r.user?.email || '—'} maxLength={26} className="text-[12px] leading-[18px] font-normal text-[#64748B]" />
-                        </>
-                      )}
-                    </div>
-
-                    <div className="bg-[#F8FAFC] rounded-xl px-2.5 py-2 mb-1.5 space-y-1.5">
-                      <div className="flex items-start justify-between gap-2">
-                        <span className="text-[10px] font-normal text-[#94A3B8] uppercase tracking-wider shrink-0">Date Range</span>
-                        <span className="text-[12px] font-normal text-[#0F172A] text-right whitespace-nowrap">{fmtDate(r.fromDate)} → {fmtDate(r.toDate)}</span>
-                      </div>
-                      <div className="flex items-start justify-between gap-2">
-                        <span className="text-[10px] font-normal text-[#94A3B8] uppercase tracking-wider shrink-0">Filter</span>
-                        <span className="text-[12px] font-normal text-[#0F172A] text-right truncate">{r.dateFilterType || '—'}</span>
-                      </div>
-                      <div className="flex items-start justify-between gap-2">
-                        <span className="text-[10px] font-normal text-[#94A3B8] uppercase tracking-wider shrink-0">Generated</span>
-                        <span className="text-[12px] font-normal text-[#0F172A] text-right whitespace-nowrap">{fmtDateTime(r.createdAt)}</span>
-                      </div>
-                      {r.email && (
-                        <div className="flex items-start justify-between gap-2">
-                          <span className="text-[10px] font-normal text-[#94A3B8] uppercase tracking-wider shrink-0">Email</span>
-                          <TruncatedText text={r.email} maxLength={18} className="text-[12px] font-normal text-[#0F172A] ml-auto" tooltipAlign="right" />
-                        </div>
-                      )}
-                    </div>
-
-                    {r.status === 'completed' && r.downloadUrl ? (
-                      <a href={r.downloadUrl} target="_blank" rel="noopener noreferrer"
-                        className="w-full py-2 rounded-full border border-[#1E3A8A]/25 text-[#1E3A8A] text-[12.5px] font-bold flex items-center justify-center gap-1.5 transition-colors hover:bg-[#1E3A8A]/5 active:bg-[#1E3A8A]/10">
-                        <Download className="w-3.5 h-3.5" /> Download
-                      </a>
-                    ) : (
-                      <div className="w-full py-2 rounded-full border border-[#E2E8F0] text-[#94A3B8] text-[12.5px] font-bold flex items-center justify-center gap-1.5">
-                        {r.status === 'pending' ? 'Processing…' : 'Not Available'}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="hidden md:block shrink-0">
-        <DesktopPagination
-          page={page}
-          setPage={setPage}
-          totalPages={totalPages}
-          rowsPerPage={rowsPerPage}
-          setRowsPerPage={setRowsPerPage}
-          startIndex={totalReports === 0 ? 0 : (page - 1) * rowsPerPage + 1}
-          endIndex={Math.min(page * rowsPerPage, totalReports)}
-          totalItems={totalReports}
-        />
-        </div>
-        {<MobilePaginationBar {...({
-          page,
-          setPage,
-          totalPages,
-          rowsPerPage,
-          setRowsPerPage,
-          startIndex: totalReports === 0 ? 0 : (page - 1) * rowsPerPage + 1,
-          endIndex: Math.min(page * rowsPerPage, totalReports),
-          totalItems: totalReports,
-          inline: !fillHeight,
-        })} />}
-      </div>
-    </div>
-  );
-}
 
 // ─── Shared UI components ─────────────────────────────────────────────────────
 function PieChartCard({ title, data, colors }: { title: string; data: { name: string; value: number }[]; colors?: string[] }) {
@@ -515,16 +187,16 @@ function SectionTitle({ icon: Icon, title }: { icon: any; title: string }) {
   );
 }
 
-// ─── AdminReports (main) ──────────────────────────────────────────────────────
-export function AdminReports() {
-  const { isAdmin, adminTab, currentUserId } = useAdminTab();
+// ─── AdminPerformance (main) ──────────────────────────────────────────────────
+export function AdminPerformance() {
+  const { isAdmin, adminTab } = useAdminTab();
   const isAdminView = isAdmin && adminTab;
 
   // Date range for admin header
   const [dateRange, setDateRange]     = useState('Last 6 Months');
   const [isDateOpen, setIsDateOpen]   = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = (searchParams.get('tab') as 'seller' | 'courier') || 'seller';
+  const activeTab = (searchParams.get('tab') as 'seller' | 'courier' | 'profit') || 'seller';
   const [sellerPage, setSellerPage]   = useState(1);
   const [sellerRowsPerPage, setSellerRowsPerPage] = useState(10);
 
@@ -564,6 +236,17 @@ export function AdminReports() {
   const [couriers, setCouriers]     = useState<CourierItem[]>([]);
   const [courierTotals, setCourierTotals] = useState<any>(null);
 
+  // Profit & Loss tab
+  const [profitSellers, setProfitSellers]         = useState<ProfitLossSeller[]>([]);
+  const [profitTotal, setProfitTotal]             = useState(0);
+  const [profitTotalPages, setProfitTotalPages]   = useState(0);
+  const [profitPage, setProfitPage]               = useState(1);
+  const [profitRowsPerPage, setProfitRowsPerPage] = useState(20);
+  const [profitSort, setProfitSort]               = useState<'profit_desc' | 'profit_asc'>('profit_desc');
+  const [expandedProfitId, setExpandedProfitId]   = useState<string | null>(null);
+  const [loadingProfit, setLoadingProfit]         = useState(false);
+  const [profitError, setProfitError]             = useState<string | null>(null);
+
   const [loadingSummary, setLoadingSummary]   = useState(false);
   const [loadingSellers, setLoadingSellers]   = useState(false);
   const [loadingDetail, setLoadingDetail]     = useState(false);
@@ -573,11 +256,8 @@ export function AdminReports() {
   const [summaryError, setSummaryError]       = useState<string | null>(null);
   const [courierError, setCourierError]       = useState<string | null>(null);
 
-  // Refresh trigger for MIS table
+  // Refresh trigger for the generate-report modal (kept for the seller-detail "Generate Report" button)
   const [misRefreshKey, setMisRefreshKey] = useState(0);
-
-  // Weight Discrepancy Claims modal
-  const [showClaimsModal, setShowClaimsModal] = useState(false);
 
   const getDateParams = useCallback(() => {
     const now = new Date();
@@ -654,10 +334,45 @@ export function AdminReports() {
     finally { setLoadingCouriers(false); }
   }, [isAdminView, dateRange, getDateParams]);
 
+  const fetchProfitLoss = useCallback(async () => {
+    if (!isAdminView) return;
+    setLoadingProfit(true); setProfitError(null);
+    try {
+      const params: any = { page: profitPage, limit: profitRowsPerPage, sort: profitSort, ...getDateParams() };
+      if (sellerMongoId) params.userId = sellerMongoId;
+      else if (debouncedSellerQuery) params.search = debouncedSellerQuery;
+      const res = await apiClient.get('/admin-reports/profit-loss', { params });
+      const data = res.data?.data;
+      if (Array.isArray(data) && data.length > 0) {
+        setProfitSellers(data);
+        setProfitTotal(res.data?.total || 0);
+        setProfitTotalPages(res.data?.totalPages || 0);
+      } else {
+        throw new Error('empty');
+      }
+    } catch {
+      // Backend endpoint not wired up yet (or returned no data) — fall back to dummy data so the tab is browsable.
+      const dummy = buildDummyProfitLoss(profitSort);
+      const start = (profitPage - 1) * profitRowsPerPage;
+      setProfitSellers(dummy.slice(start, start + profitRowsPerPage));
+      setProfitTotal(dummy.length);
+      setProfitTotalPages(Math.ceil(dummy.length / profitRowsPerPage));
+      setProfitError(null);
+    }
+    finally { setLoadingProfit(false); }
+  }, [isAdminView, profitPage, profitRowsPerPage, profitSort, sellerMongoId, debouncedSellerQuery, dateRange, getDateParams]);
+
+  useEffect(() => { setProfitPage(1); }, [profitRowsPerPage, profitSort]);
+
+  // Sort choice is a transient view preference, not persisted — reset to default
+  // (Top Profit) every time the tab is opened rather than remembering the last pick.
+  useEffect(() => { if (activeTab === 'profit') setProfitSort('profit_desc'); }, [activeTab]);
+
   useEffect(() => { fetchSummary(); }, [fetchSummary]);
   useEffect(() => { fetchSellers(); }, [fetchSellers]);
   useEffect(() => { fetchSellerDetail(); }, [fetchSellerDetail]);
   useEffect(() => { if (activeTab === 'courier') fetchCouriers(); }, [activeTab, fetchCouriers]);
+  useEffect(() => { if (activeTab === 'profit') fetchProfitLoss(); }, [activeTab, fetchProfitLoss]);
 
   // Seller search autocomplete (same pattern as AdminOrders)
   useEffect(() => {
@@ -705,57 +420,9 @@ export function AdminReports() {
     { name: 'NDR', value: courierTotals.ndr || 0 },
   ].filter(d => d.value > 0) : [], [courierTotals]);
 
-  // ── User view (non-admin) ──────────────────────────────────────────────────
-  if (!isAdminView) {
-    return (
-      <AdminLayout>
-        <div className="flex flex-col h-[calc(100vh-72px)] -m-4 md:-m-6 bg-white overflow-hidden">
-          <div className="flex flex-row justify-between items-center md:items-start gap-4 px-4 md:px-6 py-4 border-b border-[#E2E8F0] shrink-0">
-            <div className="hidden md:block">
-              <h2 className="text-xl font-bold text-[#0F172A] flex items-center gap-2">
-                <FileText className="w-5 h-5 text-[#00A86B]" /> MIS Reports
-              </h2>
-              <p className="text-xs text-[#64748B] mt-1">Generate and download Excel reports for your shipments and transactions.</p>
-            </div>
-            <h2 className="md:hidden text-base font-bold text-[#0F172A] flex items-center gap-2">
-              <FileText className="w-4 h-4 text-[#00A86B]" /> MIS Reports
-            </h2>
-            <div className="flex items-center gap-2 shrink-0">
-              <button onClick={() => openGenerate(null, '')} title="Generate Report"
-                className="h-9 px-4 rounded-xl bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors hidden md:flex items-center gap-1.5 shadow-sm shrink-0">
-                <FileText className="w-3.5 h-3.5" /> Generate Report
-              </button>
-              <button onClick={() => openGenerate(null, '')} title="Generate Report"
-                className="md:hidden w-9 h-9 flex items-center justify-center rounded-xl bg-[#00A86B] text-white hover:bg-[#009B63] transition-colors shadow-sm shrink-0">
-                <FileText className="w-3.5 h-3.5" />
-              </button>
-              <button onClick={() => setMisRefreshKey(k => k + 1)} title="Refresh"
-                className="w-9 h-9 flex items-center justify-center rounded-xl border border-[#E2E8F0] text-[#64748B] hover:text-[#00A86B] hover:border-[#00A86B] transition-colors shrink-0">
-                <RefreshCw className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </div>
-          <div className="flex-1 min-h-0 flex flex-col">
-            <MisReportTable
-              key={misRefreshKey}
-              userId={currentUserId}
-              isAdminView={false}
-              fillHeight
-            />
-          </div>
-        </div>
-        <AnimatePresence>
-          {genOpen && (
-            <GenerateReportModal open
-              onClose={() => { setGenOpen(false); setMisRefreshKey(k => k + 1); }}
-              prefillUserId={null} prefillUserName={undefined} isAdminView={false} />
-          )}
-        </AnimatePresence>
-      </AdminLayout>
-    );
-  }
+  // Performance is admin-only — non-admin users have no route to this page.
+  if (!isAdminView) return null;
 
-  // ── Admin view ────────────────────────────────────────────────────────────
   const sd = sellerDetail;
   const sdCouriersPagination = usePagination({ data: sd?.couriers || [], perPage: 10 });
   const sdTxnsPagination = usePagination({ data: sd?.recentTransactions || [], perPage: 10 });
@@ -770,25 +437,26 @@ export function AdminReports() {
           <div className="flex justify-between items-center gap-3">
             <div className="flex gap-1 items-center min-w-0 bg-[#F7FEFC] rounded-full p-1.5">
               <div className="flex gap-1 items-center overflow-x-auto no-scrollbar min-w-0">
-                {(['seller', 'courier'] as const).map(tab => (
+                {(['seller', 'courier', 'profit'] as const).map(tab => (
                   <button key={tab} onClick={() => { setSearchParams(prev => { const n = new URLSearchParams(prev); n.set('tab', tab); n.delete('id'); return n; }); }}
                     ref={(el) => { if (el && activeTab === tab) el.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }}
                     className={`relative px-4 py-2 text-[14px] md:text-[13px] font-semibold md:font-bold rounded-full flex items-center gap-1.5 whitespace-nowrap transition-colors cursor-pointer ${activeTab === tab ? 'text-[#00A86B] underline underline-offset-4 decoration-2' : 'text-[#64748B] hover:text-[#0F172A]'}`}>
-                    {tab === 'seller' ? <Users className="w-3.5 h-3.5 shrink-0" /> : <Truck className="w-3.5 h-3.5 shrink-0" />}
-                    {tab === 'seller' ? 'Seller Performance' : 'Courier Performance'}
+                    {tab === 'seller' ? <Users className="w-3.5 h-3.5 shrink-0" /> : tab === 'courier' ? <Truck className="w-3.5 h-3.5 shrink-0" /> : <IndianRupee className="w-3.5 h-3.5 shrink-0" />}
+                    {tab === 'seller' ? 'Seller Performance' : tab === 'courier' ? 'Courier Performance' : 'Profit & Loss'}
                   </button>
                 ))}
               </div>
             </div>
-            <button onClick={() => { fetchSummary(); fetchSellers(); if (activeTab === 'courier') fetchCouriers(); }}
+            <button onClick={() => { fetchSummary(); fetchSellers(); if (activeTab === 'courier') fetchCouriers(); if (activeTab === 'profit') fetchProfitLoss(); }}
               title="Refresh" className="hidden md:flex w-8 h-8 rounded-full border border-[#E2E8F0] items-center justify-center text-[#64748B] hover:bg-[#F8FAFC] shrink-0">
-              <RefreshCw className={`w-4 h-4 ${loadingSummary || loadingSellers || loadingCouriers ? 'animate-spin text-[#00A86B]' : ''}`} />
+              <RefreshCw className={`w-4 h-4 ${loadingSummary || loadingSellers || loadingCouriers || loadingProfit ? 'animate-spin text-[#00A86B]' : ''}`} />
             </button>
           </div>
         </div>
 
-        {/* Scrollable content */}
-        <div className="flex-1 min-h-0 overflow-y-auto pb-10">
+        {/* Scrollable content — Profit & Loss renders as its own full-height table area
+            below (matching AdminOrders' layout) instead of sharing this page-scroll wrapper. */}
+        <div className={activeTab === 'profit' ? 'flex-1 min-h-0 flex flex-col' : 'flex-1 min-h-0 overflow-y-auto pb-10'}>
 
         {/* ══ SELLER TAB — OVERVIEW ══════════════════════════════════════════ */}
         {activeTab === 'seller' && !selectedSellerId && (
@@ -1008,13 +676,6 @@ export function AdminReports() {
                 inline: true,
               })} />}
             </div>
-
-            {/* MIS Reports table at bottom of seller overview */}
-            <MisReportTable
-              key={`admin-mis-${misRefreshKey}`}
-              userId={null}
-              isAdminView={true}
-            />
           </motion.div>
         )}
 
@@ -1083,12 +744,12 @@ export function AdminReports() {
                           <input type="checkbox" className="sr-only peer" checked={sd.enabled !== false}
                             onChange={async () => {
                               const newBlocked = sd.enabled !== false; // flip: if currently enabled, we're blocking
-                              setSellerDetail(prev => prev ? { ...prev, enabled: !newBlocked, isBlocked: newBlocked } : prev);
+                              setSellerDetail(prev => prev ? { ...prev, enabled: !newBlocked, isBlocked: newBlocked } as any : prev);
                               try {
                                 await apiClient.post('/user/updateBlockStatus', { userId: sd._id, isBlocked: newBlocked });
                               } catch {
                                 // revert on failure
-                                setSellerDetail(prev => prev ? { ...prev, enabled: !newBlocked ? false : true, isBlocked: !newBlocked } : prev);
+                                setSellerDetail(prev => prev ? { ...prev, enabled: !newBlocked ? false : true, isBlocked: !newBlocked } as any : prev);
                               }
                             }} />
                           <span className="w-9 h-5 bg-[#E2E8F0] rounded-full peer peer-checked:bg-[#00A86B] transition-all block" />
@@ -1170,8 +831,7 @@ export function AdminReports() {
                               <tr key={c.name} className={`border-b border-[#E2E8F0] transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]/20'}`}>
                                 <td className="p-3 text-xs font-semibold text-[#94A3B8]">{sdCouriersPagination.startIndex + i}</td>
                                 <td className="p-3">
-                                  <img src={getCourierLogo(c.name)} alt={c.name} className="w-20 h-8 rounded object-contain object-left shrink-0"
-                                    onError={(e) => { (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(c.name)}&background=f8fafc&color=0f172a&bold=true&font-size=0.4`; }} />
+                                  <CourierLogo name={c.name} size="md" />
                                 </td>
                                 <td className="p-3 text-[13px] font-normal text-[#0F172A]">{fn(c.shipments)}</td>
                                 <td className="p-3 text-[13px] font-normal text-[#00A86B]">{fn(c.delivered)}</td>
@@ -1195,8 +855,7 @@ export function AdminReports() {
                             <StatusRibbon label={`#${sdCouriersPagination.startIndex + i}`} color="#00A86B" />
                             <div className="pt-8 px-4 pb-4">
                               <div className="rounded-xl p-3 mb-3 bg-white border border-[#E2E8F0] flex items-center gap-3">
-                                <img src={getCourierLogo(c.name)} alt={c.name} className="w-16 h-7 rounded object-contain object-left shrink-0"
-                                  onError={(e) => { (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(c.name)}&background=f8fafc&color=0f172a&bold=true&font-size=0.4`; }} />
+                                <CourierLogo name={c.name} size="sm" />
                                 <span className="text-[12px] font-semibold text-[#0F172A] truncate">{c.name}</span>
                               </div>
 
@@ -1364,13 +1023,6 @@ export function AdminReports() {
                     </div>
                   </>
                 )}
-
-                {/* MIS report table scoped to this seller */}
-                <MisReportTable
-                  key={`seller-mis-${selectedSellerId}-${misRefreshKey}`}
-                  userId={selectedSellerId}
-                  isAdminView={true}
-                />
               </>
             )}
           </motion.div>
@@ -1427,8 +1079,7 @@ export function AdminReports() {
                           <tr key={c.name} className={`border-b border-[#E2E8F0] transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]/20'}`}>
                             <td className="p-3 text-xs font-semibold text-[#94A3B8]">{i + 1}</td>
                             <td className="p-3">
-                              <img src={getCourierLogo(c.name)} alt={c.name} className="w-20 h-8 rounded object-contain object-left shrink-0"
-                                onError={(e) => { (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(c.name)}&background=f8fafc&color=0f172a&bold=true&font-size=0.4`; }} />
+                              <CourierLogo name={c.name} size="md" />
                             </td>
                             <td className="p-3 text-[13px] font-normal text-[#0F172A]">{fn(c.totalShipments || c.shipments)}</td>
                             <td className="p-3 text-[13px] font-normal text-[#00A86B]">{fn(c.delivered)}</td>
@@ -1451,8 +1102,7 @@ export function AdminReports() {
                         <StatusRibbon label={`#${i + 1}`} color="#00A86B" />
                         <div className="pt-8 px-4 pb-4">
                           <div className="rounded-xl p-3 mb-3 bg-white border border-[#E2E8F0] flex items-center gap-3">
-                            <img src={getCourierLogo(c.name)} alt={c.name} className="w-16 h-7 rounded object-contain object-left shrink-0"
-                              onError={(e) => { (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(c.name)}&background=f8fafc&color=0f172a&bold=true&font-size=0.4`; }} />
+                            <CourierLogo name={c.name} size="sm" />
                             <span className="text-[12px] font-semibold text-[#0F172A] truncate">{c.name}</span>
                           </div>
 
@@ -1490,6 +1140,327 @@ export function AdminReports() {
                 </div>
               </>
             )}
+          </motion.div>
+        )}
+
+        {/* ══ PROFIT & LOSS TAB — full-page table, matching AdminOrders/AdminNDR's layout:
+             flush edge-to-edge (negates the page's own padding), no card/shadow, p-4 cells. ══ */}
+        {activeTab === 'profit' && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col flex-1 min-h-0 bg-white -mx-1.5 md:-mx-6 -mb-1.5 md:-mb-6">
+            {/* Filter Row (desktop) — matches AdminOrders/AdminNDR's filter-row pattern */}
+            <div className="hidden md:flex shrink-0 py-3 px-6 border-t border-b border-[#CBD5F5] flex-wrap items-center gap-3 bg-[#F8FAFC]/50">
+              <div className="relative shrink-0">
+                <div className="relative">
+                  <input type="text" placeholder="Search seller..."
+                    value={sellerQuery}
+                    onChange={e => {
+                      setSellerQuery(e.target.value);
+                      if (!e.target.value.trim()) { setSellerMongoId(''); setSellerSuggestions([]); }
+                    }}
+                    className="glass-search-input w-[180px]" style={{ paddingLeft: '2rem', paddingRight: '2rem' }} />
+                  <Search className="w-3.5 h-3.5 text-[#94A3B8] absolute left-2.5 top-1/2 -translate-y-1/2" />
+                  {sellerQuery && (
+                    <button onClick={() => { setSellerQuery(''); setSellerMongoId(''); setSellerSuggestions([]); }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-[#94A3B8] hover:text-red-500">
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+                {sellerSuggestions.length > 0 && !sellerMongoId && (
+                  <div className="absolute left-0 top-full mt-1 bg-white border border-[#E2E8F0] rounded-xl shadow-xl z-50 w-64 max-h-52 overflow-y-auto py-1">
+                    {sellerSuggestions.map((u: any) => (
+                      <button key={u._id} type="button"
+                        onClick={() => { setSellerMongoId(u._id); setSellerQuery(`${u.fullname || ''} (${u.email})`); setSellerSuggestions([]); }}
+                        className="w-full text-left px-3 py-2 hover:bg-[#F0FDF4] flex items-start gap-2">
+                        <div className="w-6 h-6 rounded-full bg-[#F0FDF4] text-[#00A86B] flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">
+                          {(u.fullname || u.email || '?').charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <div className="text-xs font-semibold text-[#0F172A]">{u.fullname || '—'}</div>
+                          <div className="text-[10px] text-[#94A3B8]">{u.email}</div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="flex gap-1 bg-white border border-[#E2E8F0] rounded-lg p-0.5 shrink-0">
+                <button onClick={() => setProfitSort('profit_desc')}
+                  className={`px-2.5 py-1.5 rounded-md text-[11px] font-bold flex items-center gap-1 transition-colors ${profitSort === 'profit_desc' ? 'bg-[#00A86B]/10 text-[#00A86B]' : 'text-[#64748B] hover:text-[#0F172A]'}`}>
+                  <TrendingUp className="w-3.5 h-3.5" /> Top Profit
+                </button>
+                <button onClick={() => setProfitSort('profit_asc')}
+                  className={`px-2.5 py-1.5 rounded-md text-[11px] font-bold flex items-center gap-1 transition-colors ${profitSort === 'profit_asc' ? 'bg-red-50 text-red-600' : 'text-[#64748B] hover:text-[#0F172A]'}`}>
+                  <TrendingDown className="w-3.5 h-3.5" /> Top Loss
+                </button>
+              </div>
+            </div>
+
+            {/* Mobile search + sort */}
+            <div className="md:hidden shrink-0 px-3 py-2.5 border-t border-b border-[#E2E8F0] flex items-center gap-2 bg-white">
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
+                <input
+                  type="text"
+                  placeholder="Search seller..."
+                  value={sellerQuery}
+                  onChange={e => {
+                    setSellerQuery(e.target.value);
+                    if (!e.target.value.trim()) { setSellerMongoId(''); setSellerSuggestions([]); }
+                  }}
+                  className="w-full h-9 pl-9 pr-8 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] text-sm text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all"
+                />
+                {sellerQuery && (
+                  <button onClick={() => { setSellerQuery(''); setSellerMongoId(''); setSellerSuggestions([]); }}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#94A3B8] hover:text-red-500">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+                {sellerSuggestions.length > 0 && !sellerMongoId && (
+                  <div className="absolute left-0 top-full mt-1 bg-white border border-[#E2E8F0] rounded-xl shadow-xl z-50 w-full max-h-52 overflow-y-auto py-1">
+                    {sellerSuggestions.map((u: any) => (
+                      <button key={u._id} type="button"
+                        onClick={() => { setSellerMongoId(u._id); setSellerQuery(`${u.fullname || ''} (${u.email})`); setSellerSuggestions([]); }}
+                        className="w-full text-left px-3 py-2.5 hover:bg-[#F0FDF4] flex items-start gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="text-[12px] font-bold text-slate-800 truncate">{u.fullname}</div>
+                          <div className="text-[11px] text-slate-400 truncate">{u.email}</div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="flex gap-1 bg-white border border-[#E2E8F0] rounded-lg p-0.5 shrink-0">
+                <button onClick={() => setProfitSort('profit_desc')}
+                  className={`w-9 h-9 rounded-md flex items-center justify-center transition-colors ${profitSort === 'profit_desc' ? 'bg-[#00A86B]/10 text-[#00A86B]' : 'text-[#64748B]'}`}
+                  title="Top Profit">
+                  <TrendingUp className="w-4 h-4" />
+                </button>
+                <button onClick={() => setProfitSort('profit_asc')}
+                  className={`w-9 h-9 rounded-md flex items-center justify-center transition-colors ${profitSort === 'profit_asc' ? 'bg-red-50 text-red-600' : 'text-[#64748B]'}`}
+                  title="Top Loss">
+                  <TrendingDown className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Desktop table — fills remaining page height, scrolls internally like AdminOrders */}
+            <div className="hidden md:block flex-1 min-h-0 overflow-auto relative">
+              {loadingProfit && <TableLoader />}
+              <table className="w-full text-left border-collapse">
+                <thead className="sticky top-0 z-10 bg-[#E6F9F2] shadow-sm">
+                  <tr className="text-xs leading-[18px] font-medium text-[#64748B] uppercase tracking-wider border border-[#B9EFDB]">
+                    <th className="py-2 px-4"><div className="flex items-center gap-1"><Hash className="w-3.5 h-3.5 shrink-0" /><span>#</span></div></th>
+                    <th className="py-2 px-4"><div className="flex items-center gap-1"><Users className="w-3.5 h-3.5 shrink-0" /><span>Seller</span></div></th>
+                    <th className="py-2 px-4"><div className="flex items-center gap-1"><Package className="w-3.5 h-3.5 shrink-0" /><span>Orders</span></div></th>
+                    <th className="py-2 px-4"><div className="flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5 shrink-0" /><span>Delivered %</span></div></th>
+                    <th className="py-2 px-4"><div className="flex items-center gap-1"><RotateCcw className="w-3.5 h-3.5 shrink-0" /><span>RTO %</span></div></th>
+                    <th className="py-2 px-4"><div className="flex items-center gap-1"><Truck className="w-3.5 h-3.5 shrink-0" /><span>Courier Revenue</span></div></th>
+                    <th className="py-2 px-4"><div className="flex items-center gap-1"><IndianRupee className="w-3.5 h-3.5 shrink-0" /><span>Seller Revenue</span></div></th>
+                    <th className="py-2 px-4"><div className="flex items-center gap-1"><Wallet className="w-3.5 h-3.5 shrink-0" /><span>Profit / Loss</span></div></th>
+                    <th className="py-2 px-4 text-center w-12"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                    {loadingProfit ? (
+                      <tr><td colSpan={9} className="text-center py-12 text-xs text-[#94A3B8]">Loading profit & loss data…</td></tr>
+                    ) : profitError ? (
+                      <tr><td colSpan={9} className="text-center py-12 text-xs font-semibold text-red-500">{profitError}</td></tr>
+                    ) : profitSellers.length === 0 ? (
+                      <tr><td colSpan={9} className="text-center py-12 text-xs text-[#94A3B8]">No data found</td></tr>
+                    ) : profitSellers.map((s, i) => {
+                      const isOpen = expandedProfitId === s._id;
+                      const isProfit = s.profit >= 0;
+                      return (
+                        <React.Fragment key={s._id}>
+                          <tr className={`border-b border-[#E2E8F0] transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]/20'}`}>
+                            <td className="p-4 text-xs font-semibold text-[#94A3B8]">{(profitPage - 1) * profitRowsPerPage + i + 1}</td>
+                            <td className="p-4 max-w-[220px]">
+                              <div className="min-w-0">
+                                <TruncatedText text={s.fullname || '—'} maxLength={22} className="text-[14px] leading-[20px] font-semibold text-[#0F172A]" />
+                                <TruncatedText text={s.email || '—'} maxLength={28} className="text-[12px] leading-[18px] font-normal text-[#64748B]" />
+                              </div>
+                            </td>
+                            <td className="p-4 text-[12px] font-normal text-[#0F172A]">{fn(s.totalOrders)}</td>
+                            <td className="p-4">
+                              <span className={`px-2 py-0.5 rounded-full text-[12px] font-normal ${s.deliveredPct >= 90 ? 'bg-green-50 text-green-600' : s.deliveredPct >= 80 ? 'bg-yellow-50 text-yellow-600' : 'bg-red-50 text-red-600'}`}>{s.deliveredPct}%</span>
+                            </td>
+                            <td className="p-4 text-[12px] font-normal"><span className={s.rtoPct > 6 ? 'text-red-500' : 'text-[#0F172A]'}>{s.rtoPct}%</span></td>
+                            <td className="p-4 text-[12px] font-normal text-[#0F172A]">{fc(s.courierRevenue)}</td>
+                            <td className="p-4 text-[12px] font-normal text-[#0F172A]">{fc(s.sellerRevenue)}</td>
+                            <td className="p-4">
+                              <span className={`inline-flex items-center gap-1 text-[12px] font-bold ${isProfit ? 'text-[#00A86B]' : 'text-red-500'}`}>
+                                {isProfit ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
+                                {isProfit ? fc(s.profit) : `−${fc(Math.abs(s.profit))}`}
+                              </span>
+                            </td>
+                            <td className="p-4 text-center">
+                              <button onClick={() => setExpandedProfitId(isOpen ? null : s._id)}
+                                className={`w-7 h-7 rounded-full border flex items-center justify-center transition-all mx-auto ${isOpen ? 'bg-[#00A86B] border-[#00A86B] text-white' : 'border-[#E2E8F0] text-[#64748B] hover:border-[#00A86B] hover:text-[#00A86B]'}`}
+                                title={isOpen ? 'Hide courier breakdown' : 'Show courier breakdown'}>
+                                <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+                              </button>
+                            </td>
+                          </tr>
+                          {isOpen && (
+                            <tr className="bg-[#F8FAFC]">
+                              <td colSpan={9} className="p-0">
+                                <div className="p-4">
+                                  {s.couriers.length === 0 ? (
+                                    <div className="text-center py-6 text-xs text-[#94A3B8]">No courier data for this seller</div>
+                                  ) : (
+                                    <div className="bg-white border border-[#E2E8F0] rounded-xl overflow-hidden">
+                                      <table className="w-full text-left border-collapse">
+                                        <thead className="bg-[#E6F9F2]">
+                                          <tr className="text-[10px] leading-[16px] font-bold text-[#64748B] uppercase tracking-wider">
+                                            <th className="py-2 px-3">Courier Service</th>
+                                            <th className="py-2 px-3">Orders</th>
+                                            <th className="py-2 px-3">Amount</th>
+                                            <th className="py-2 px-3">Delivery %</th>
+                                            <th className="py-2 px-3">NDR %</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          {s.couriers.map((c, ci) => (
+                                            <tr key={c.courierServiceName} className={`border-t border-[#E2E8F0] ${ci % 2 === 0 ? 'bg-white' : 'bg-[#F8FAFC]'}`}>
+                                              <td className="p-3">
+                                                <div className="flex items-center gap-2">
+                                                  <CourierLogo name={c.courierServiceName} size="xs" />
+                                                  <span className="text-[12px] font-semibold text-[#0F172A] whitespace-nowrap">{c.courierServiceName}</span>
+                                                </div>
+                                              </td>
+                                              <td className="p-3 text-[12px] font-normal text-[#0F172A]">{fn(c.orders)}</td>
+                                              <td className="p-3 text-[12px] font-normal text-[#0F172A]">{fc(c.amount)}</td>
+                                              <td className="p-3 text-[12px] font-normal"><span className={c.deliveredPct >= 90 ? 'text-[#00A86B]' : c.deliveredPct >= 80 ? 'text-amber-500' : 'text-red-500'}>{c.deliveredPct}%</span></td>
+                                              <td className="p-3 text-[12px] font-normal"><span className={c.ndrPct > 5 ? 'text-orange-500' : 'text-[#0F172A]'}>{c.ndrPct}%</span></td>
+                                            </tr>
+                                          ))}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile card list */}
+              <div className="md:hidden relative bg-[#F8FAFC] flex-1 min-h-0 overflow-y-auto">
+                {loadingProfit && <div className="relative h-32"><TableLoader /></div>}
+                {!loadingProfit && profitError ? (
+                  <div className="text-center py-10 text-xs font-semibold text-red-500">{profitError}</div>
+                ) : !loadingProfit && profitSellers.length === 0 ? (
+                  <EmptyState title="No data found" subtitle="Try changing filters" />
+                ) : !loadingProfit && (
+                  <div className="p-1.5 space-y-2">
+                    {profitSellers.map((s, i) => {
+                      const isOpen = expandedProfitId === s._id;
+                      const isProfit = s.profit >= 0;
+                      const accent = isProfit ? '#00A86B' : '#EF4444';
+                      return (
+                        <div key={s._id} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm">
+                          <StatusRibbon label={`#${(profitPage - 1) * profitRowsPerPage + i + 1}`} color={accent} />
+                          <div className="pt-8 px-4 pb-4">
+                            <div className="rounded-xl p-3 mb-3 bg-white" style={{ border: `1px solid ${accent}` }}>
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0 flex-1">
+                                  <TruncatedText text={s.fullname || '—'} maxLength={22} className="text-[12px] leading-[18px] font-semibold text-[#0F172A]" />
+                                  <TruncatedText text={s.email || '—'} maxLength={26} className="text-[12px] leading-[18px] font-normal text-[#64748B]" />
+                                </div>
+                                <span className={`shrink-0 inline-flex items-center gap-1 text-[11px] font-bold ${isProfit ? 'text-[#00A86B]' : 'text-red-500'}`}>
+                                  {isProfit ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
+                                  {isProfit ? fc(s.profit) : `−${fc(Math.abs(s.profit))}`}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="flex items-start justify-between mb-3 px-1 gap-2">
+                              <span className="text-[12px] font-normal text-[#0F172A] flex-1">{fn(s.totalOrders)} orders</span>
+                            </div>
+
+                            <div className="flex items-start justify-between bg-[#F8FAFC] rounded-xl px-3 py-2.5 mb-3 gap-2">
+                              <div className="min-w-0">
+                                <div className="text-[10px] font-normal text-[#94A3B8] uppercase tracking-wider">Courier Revenue</div>
+                                <div className="text-[12px] font-normal text-[#0F172A] mt-0.5">{fc(s.courierRevenue)}</div>
+                                <div className="text-[10px] font-normal text-[#94A3B8] uppercase tracking-wider mt-2">Seller Revenue</div>
+                                <div className="text-[12px] font-normal text-[#0F172A] mt-0.5">{fc(s.sellerRevenue)}</div>
+                              </div>
+                              <div className="text-right min-w-0">
+                                <div className="text-[10px] font-normal text-[#94A3B8] uppercase tracking-wider">Delivered</div>
+                                <span className={`text-[12px] font-normal px-2 py-0.5 rounded-full mt-0.5 inline-block ${s.deliveredPct >= 90 ? 'bg-green-50 text-green-600' : s.deliveredPct >= 80 ? 'bg-yellow-50 text-yellow-600' : 'bg-red-50 text-red-600'}`}>{s.deliveredPct}%</span>
+                                <div className="text-[10px] font-normal text-[#94A3B8] uppercase tracking-wider mt-2">RTO</div>
+                                <div className="text-[12px] font-normal mt-0.5">
+                                  <span className={s.rtoPct > 6 ? 'text-red-500' : 'text-[#0F172A]'}>{s.rtoPct}%</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <button onClick={() => setExpandedProfitId(isOpen ? null : s._id)}
+                              className="w-full py-2.5 rounded-full border border-[#1E3A8A]/25 text-[#1E3A8A] text-[12.5px] font-bold flex items-center justify-center gap-1.5 transition-colors hover:bg-[#1E3A8A]/5 active:bg-[#1E3A8A]/10">
+                              {isOpen ? 'Hide' : 'View'} Courier Breakdown
+                              <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+                            </button>
+
+                            {isOpen && (
+                              <div className="mt-3 bg-[#F8FAFC] rounded-xl p-2.5 space-y-2">
+                                {s.couriers.length === 0 ? (
+                                  <div className="text-center py-4 text-xs text-[#94A3B8]">No courier data for this seller</div>
+                                ) : s.couriers.map(c => (
+                                  <div key={c.courierServiceName} className="bg-white rounded-lg border border-[#E2E8F0] p-2.5">
+                                    <div className="flex items-center justify-between mb-2 gap-2">
+                                      <div className="flex items-center gap-2 min-w-0">
+                                        <CourierLogo name={c.courierServiceName} size="xs" />
+                                        <span className="text-[11px] font-semibold text-[#0F172A] truncate">{c.courierServiceName}</span>
+                                      </div>
+                                      <span className="text-[11px] font-semibold text-[#0F172A] shrink-0">{fc(c.amount)}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between text-[11px]">
+                                      <span className="text-[#64748B]">{fn(c.orders)} orders</span>
+                                      <span className={c.deliveredPct >= 90 ? 'text-[#00A86B]' : c.deliveredPct >= 80 ? 'text-amber-500' : 'text-red-500'}>Del {c.deliveredPct}%</span>
+                                      <span className={c.ndrPct > 5 ? 'text-orange-500' : 'text-[#64748B]'}>NDR {c.ndrPct}%</span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+            <div className="shrink-0">
+              <DesktopPagination
+                page={profitPage}
+                setPage={setProfitPage}
+                totalPages={profitTotalPages}
+                rowsPerPage={profitRowsPerPage}
+                setRowsPerPage={setProfitRowsPerPage}
+                startIndex={profitTotal === 0 ? 0 : (profitPage - 1) * profitRowsPerPage + 1}
+                endIndex={Math.min(profitPage * profitRowsPerPage, profitTotal)}
+                totalItems={profitTotal}
+              />
+              {<MobilePaginationBar {...({
+                page: profitPage,
+                setPage: setProfitPage,
+                totalPages: profitTotalPages,
+                rowsPerPage: profitRowsPerPage,
+                setRowsPerPage: setProfitRowsPerPage,
+                startIndex: profitTotal === 0 ? 0 : (profitPage - 1) * profitRowsPerPage + 1,
+                endIndex: Math.min(profitPage * profitRowsPerPage, profitTotal),
+                totalItems: profitTotal,
+                inline: true,
+              })} />}
+            </div>
           </motion.div>
         )}
 

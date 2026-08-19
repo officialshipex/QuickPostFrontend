@@ -16,6 +16,7 @@ import { useDateRangeFilter } from '../../hooks/filters/useDateRangeFilter';
 import { GlassSingleSelect } from '../../components/ui/GlassSingleSelect';
 import { useTableLoader } from '../../hooks/useTableLoader';
 import { TableLoader } from '../../components/ui/TableLoader';
+import { CourierLogo } from '../../components/ui/CourierLogo';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { TruncatedText } from '../../components/ui/TruncatedText';
 import { RechargeWalletModal } from '../../components/ui/RechargeWalletModal';
@@ -189,16 +190,6 @@ export function AdminWallet() {
   const [pricePopupPos, setPricePopupPos] = useState<{ x: number; y: number; dir: string; order: any } | null>(null);
   const pricePopupTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [mobilePricePopupOrder, setMobilePricePopupOrder] = useState<any | null>(null);
-
-  const getCourierLogo = (courierName: string) => {
-    const name = (courierName || '').toLowerCase();
-    if (name.includes('delhivery')) return '/brands/delhivery.png';
-    if (name.includes('ekart')) return '/brands/ekart.png';
-    if (name.includes('xpressbees')) return '/brands/xpressbees.png';
-    if (name.includes('bluedart')) return '/brands/bluedart.png';
-    if (name.includes('shadowfax')) return '/brands/shadowfax.png';
-    return '/brands/delhivery.png';
-  };
 
   const copyToClipboard = async (text: string, label: string) => {
     try {
@@ -1848,9 +1839,7 @@ export function AdminWallet() {
                             <div className="rounded-xl p-2 mb-1.5 bg-white" style={{ border: `1px solid ${accent}` }}>
                               <div className="flex items-start justify-between">
                                 <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                                  <div className="w-10 h-10 bg-white border border-[#E2E8F0] rounded-xl flex items-center justify-center shrink-0 overflow-hidden p-1 shadow-sm">
-                                    <img src={getCourierLogo(order.courier)} alt={order.courier} className="w-full h-full object-contain" />
-                                  </div>
+                                  <CourierLogo name={order.courier} size="sm" className="shadow-sm" />
                                   <div className="min-w-0 flex-1">
                                     <div className="text-[12px] font-normal text-[#0F172A] font-sans truncate">{order.courier} 2KG</div>
                                     <div className="flex items-center gap-1.5 min-w-0 mt-0.5">
@@ -2171,9 +2160,7 @@ export function AdminWallet() {
                             <div className="rounded-xl p-2.5 mb-2 bg-white" style={{ border: `1px solid ${accent}` }}>
                               <div className="flex items-start justify-between">
                                 <div className="flex items-center gap-2.5 min-w-0">
-                                  <div className="w-9 h-9 bg-white border border-[#E2E8F0] rounded-xl flex items-center justify-center shrink-0 overflow-hidden p-1 shadow-sm">
-                                    <img src={getCourierLogo(order.courier)} alt={order.courier} className="w-full h-full object-contain" />
-                                  </div>
+                                  <CourierLogo name={order.courier} size="sm" className="shadow-sm" />
                                   <div className="min-w-0 flex-1">
                                     <div className="text-[12px] font-normal text-[#0F172A] truncate font-sans">{order.courier} 2KG</div>
                                     {order.awb !== 'N/A' && (

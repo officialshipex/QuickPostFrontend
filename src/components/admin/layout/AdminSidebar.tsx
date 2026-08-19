@@ -25,6 +25,7 @@ import {
   ChevronRight,
   MapPin,
   HelpCircle,
+  TrendingUp,
 } from 'lucide-react';
 
 const LOGO_URL = '/logo-white.png';
@@ -90,8 +91,11 @@ const MENU_GROUPS: MenuGroup[] = [
   {
     label: 'Reports',
     icon: FileText,
-    path: '/admin/reports',
     permission: 'reports',
+    items: [
+      { name: 'Reports', path: '/admin/reports', icon: FileText },
+      { name: 'Performance', path: '/admin/performance', icon: TrendingUp, adminOnly: true },
+    ]
   },
   {
     label: 'Tools',

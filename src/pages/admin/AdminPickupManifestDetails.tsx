@@ -17,6 +17,7 @@ import { TruncatedText } from '../../components/ui/TruncatedText';
 import { StatusRibbon } from '../../components/ui/StatusRibbon';
 import { useAdminTab } from '../../context/AdminUserContext';
 import { useProductTooltip, ProductTooltipCard } from '../../hooks/useProductTooltip';
+import { CourierLogo } from '../../components/ui/CourierLogo';
 
 const BACKEND_BASE = (import.meta.env.VITE_API_URL as string) || 'http://localhost:5000/v1';
 
@@ -36,15 +37,6 @@ const STATUS_RIBBON_COLORS: Record<string, string> = {
 };
 const getRibbonColor = (s: string) => STATUS_RIBBON_COLORS[s] || '#00A86B';
 
-const getCourierLogo = (courierName: string) => {
-  const k = (courierName || '').toLowerCase();
-  if (k.includes('delhivery'))  return 'https://cdn.brandfetch.io/delhivery.com/logo';
-  if (k.includes('bluedart') || k.includes('blue dart')) return 'https://cdn.brandfetch.io/bluedart.com/logo';
-  if (k.includes('xpressbees')) return 'https://cdn.brandfetch.io/xpressbees.com/logo';
-  if (k.includes('ecom'))       return 'https://cdn.brandfetch.io/ecomexpress.in/logo';
-  if (k.includes('dtdc'))       return 'https://cdn.brandfetch.io/dtdc.in/logo';
-  return null;
-};
 
 const fmt = (d: string) =>
   d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
@@ -641,7 +633,6 @@ export function AdminPickupManifestDetails() {
 
                 {orders.map(o => {
                   const accent = getRibbonColor(o.status);
-                  const logo   = getCourierLogo(o.courier);
                   return (
                     <div key={o._id} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm">
                       {/* Status ribbon — absolute top-left, same as AdminOrders */}
@@ -669,10 +660,8 @@ export function AdminPickupManifestDetails() {
                         <div className="rounded-xl p-1.5 mb-1.5 bg-white" style={{ border: `1px solid ${accent}` }}>
                           <div className="flex items-start justify-between gap-2">
                             <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                              {logo ? (
-                                <div className="w-9 h-9 bg-white border border-[#E2E8F0] rounded-xl flex items-center justify-center shrink-0 overflow-hidden p-1 shadow-sm">
-                                  <img src={logo} alt={o.courier} className="w-full h-full object-contain" />
-                                </div>
+                              {o.courier ? (
+                                <CourierLogo name={o.courier} size="sm" className="shadow-sm" />
                               ) : (
                                 <div className="w-9 h-9 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl flex items-center justify-center shrink-0">
                                   <Truck className="w-4 h-4 text-[#94A3B8]" />

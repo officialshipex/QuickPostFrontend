@@ -36,7 +36,8 @@ import { AdminUsers } from './pages/admin/AdminUsers';
 import { AdminVendors } from './pages/admin/AdminVendors';
 import { AdminCouriers } from './pages/admin/AdminCouriers';
 import { AdminSupport } from './pages/admin/AdminSupport';
-import { AdminReports } from './pages/admin/AdminReports';
+import { AdminReportsHub } from './pages/admin/AdminReportsHub';
+import { AdminPerformance } from './pages/admin/AdminPerformance';
 import { AdminCOD } from './pages/admin/AdminCOD';
 import { AdminSettings } from './pages/admin/AdminSettings';
 import { AdminAccounts } from './pages/admin/AdminAccounts';
@@ -208,7 +209,8 @@ function App() {
               <Route path="/admin/cod" element={<AdminCOD />} />
               <Route path="/admin/cod/:tabSlug" element={<AdminCOD />} />
               <Route path="/admin/wallet" element={<AdminWallet />} />
-              <Route path="/admin/reports" element={<AdminReports />} />
+              <Route path="/admin/reports" element={<AdminReportsHub />} />
+              <Route path="/admin/performance" element={<AdminPerformance />} />
               <Route path="/admin/support" element={<AdminSupport />} />
               <Route path="/admin/support/:tabSlug" element={<AdminSupport />} />
               {/* <Route path="/admin/settings" element={<AdminSettings />} /> */}
@@ -248,7 +250,7 @@ function App() {
               <Route path="/user/ndr/:tabSlug" element={<AdminNDR />} />
               <Route path="/user/wallet" element={<AdminWallet />} />
               <Route path="/user/cod" element={<AdminCOD />} />
-              <Route path="/user/reports" element={<AdminReports />} />
+              <Route path="/user/reports" element={<AdminReportsHub />} />
               <Route path="/user/weight-discrepancy" element={<AdminWeightDiscrepancy />} />
               <Route path="/user/weight-discrepancy/:tabSlug" element={<AdminWeightDiscrepancy />} />
               <Route path="/user/notification" element={<AdminNotification />} />

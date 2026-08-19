@@ -3,7 +3,7 @@ import { apiClient } from '../../services/apiClient';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
-import { getCourierLogo } from '../../utils/courierLogo';
+import { CourierLogo } from '../../components/ui/CourierLogo';
 import { useAdminTab } from '../../context/AdminUserContext';
 import { useUserSearchFilter } from '../../hooks/filters/useUserSearchFilter';
 import {
@@ -1395,20 +1395,13 @@ export function AdminCOD() {
                             <div className="rounded-xl p-3 bg-white" style={{ border: `1px solid ${accent}` }}>
                               <div className="flex items-start justify-between gap-2">
                                 <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                                  <div className="w-9 h-9 bg-white border border-[#E2E8F0] rounded-xl flex items-center justify-center shrink-0 overflow-hidden p-1 shadow-sm">
-                                    {order.courier ? (
-                                      <img
-                                        src={getCourierLogo(order.courier)}
-                                        alt={order.courier}
-                                        className="w-full h-full object-contain"
-                                        onError={(e) => {
-                                          (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(order.courier)}&background=f8fafc&color=0f172a&bold=true&font-size=0.4`;
-                                        }}
-                                      />
-                                    ) : (
+                                  {order.courier ? (
+                                    <CourierLogo name={order.courier} size="sm" className="shadow-sm" />
+                                  ) : (
+                                    <div className="w-16 h-11 bg-white border border-[#E2E8F0] rounded-lg flex items-center justify-center shrink-0 shadow-sm">
                                       <Truck className="w-4 h-4 text-[#94A3B8]" />
-                                    )}
-                                  </div>
+                                    </div>
+                                  )}
                                   <div className="min-w-0 flex-1">
                                     <div className="text-[12px] font-normal text-[#0F172A] truncate">{order.courier || '—'}</div>
                                     <div className="text-[11px] font-normal text-[#94A3B8] truncate mt-0.5">Delivered On: {withOrdinalSuffix(order.date)}</div>
@@ -1868,20 +1861,13 @@ export function AdminCOD() {
                             <div className="rounded-xl p-3 bg-white" style={{ border: `1px solid ${accent}` }}>
                               <div className="flex items-start justify-between gap-2">
                                 <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                                  <div className="w-9 h-9 bg-white border border-[#E2E8F0] rounded-xl flex items-center justify-center shrink-0 overflow-hidden p-1 shadow-sm">
-                                    {order.courierName ? (
-                                      <img
-                                        src={getCourierLogo(order.courierName)}
-                                        alt={order.courierName}
-                                        className="w-full h-full object-contain"
-                                        onError={(e) => {
-                                          (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(order.courierName)}&background=f8fafc&color=0f172a&bold=true&font-size=0.4`;
-                                        }}
-                                      />
-                                    ) : (
+                                  {order.courierName ? (
+                                    <CourierLogo name={order.courierName} size="sm" className="shadow-sm" />
+                                  ) : (
+                                    <div className="w-16 h-11 bg-white border border-[#E2E8F0] rounded-lg flex items-center justify-center shrink-0 shadow-sm">
                                       <Truck className="w-4 h-4 text-[#94A3B8]" />
-                                    )}
-                                  </div>
+                                    </div>
+                                  )}
                                   <div className="min-w-0 flex-1">
                                     <div className="text-[12px] font-normal text-[#0F172A] truncate">{order.courierName || '—'}</div>
                                     <div className="text-[11px] font-normal text-[#94A3B8] truncate mt-0.5">Delivered On: {withOrdinalSuffix(order.date)}</div>

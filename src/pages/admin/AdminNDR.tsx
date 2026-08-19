@@ -28,7 +28,7 @@ import { NdrStatusModal } from './NdrStatusModal';
 import { BulkNdrActionModal } from './BulkNdrActionModal';
 import { DesktopPagination } from '../../hooks/usePagination';
 import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
-import { getCourierLogo } from '../../utils/courierLogo';
+import { CourierLogo } from '../../components/ui/CourierLogo';
 import { useProductTooltip, ProductTooltipCard } from '../../hooks/useProductTooltip';
 
 const BACKEND_BASE = (import.meta.env.VITE_API_URL as string) || 'http://localhost:5000/v1';
@@ -836,15 +836,15 @@ export function AdminNDR() {
                       </td>
 
                       {/* Product */}
-                      <td
-                        className="p-4"
-                        onMouseEnter={(e) => {
-                          if (order.products.length === 0) return;
-                          hoverOpenProductTooltip(order._id, e);
-                        }}
-                        onMouseLeave={() => closeProductTooltip(order._id)}
-                      >
-                        <div className="text-[#0F172A] text-[12px] font-normal underline decoration-dotted underline-offset-2 hover:text-[#00A86B] truncate max-w-[140px] cursor-help">{order.productName || '—'}</div>
+                      <td className="p-4">
+                        <div
+                          className="inline-block text-[#0F172A] text-[12px] font-normal underline decoration-dotted underline-offset-2 hover:text-[#00A86B] truncate max-w-[140px] w-fit cursor-help"
+                          onMouseEnter={(e) => {
+                            if (order.products.length === 0) return;
+                            hoverOpenProductTooltip(order._id, e);
+                          }}
+                          onMouseLeave={() => closeProductTooltip(order._id)}
+                        >{order.productName || '—'}</div>
                         <div className="text-[#64748B] text-[12px] font-normal mt-0.5 truncate max-w-[140px]">SKU: {order.sku || '—'}</div>
                         <div className="text-[#64748B] text-[12px] font-normal mt-0.5">QTY: {order.qty}</div>
                       </td>
@@ -954,7 +954,6 @@ export function AdminNDR() {
             ) : (
               <div className="p-2 space-y-2">
                 {orders.map((order) => {
-                  const logo = getCourierLogo(order.courier);
                   const accent = getRibbonColor(activeTab);
                   return (
                     <div key={order._id} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm">
@@ -990,9 +989,7 @@ export function AdminNDR() {
                           <div className="flex items-start justify-between gap-2">
                             <div className="flex items-center gap-2 min-w-0 flex-1">
                               {order.courier && order.courier !== '—' ? (
-                                <div className="w-8 h-8 bg-white border border-[#E2E8F0] rounded-lg flex items-center justify-center shrink-0 overflow-hidden p-1 shadow-sm">
-                                  {logo ? <img src={logo} alt={order.courier} className="w-full h-full object-contain" /> : <Truck className="w-3.5 h-3.5 text-[#94A3B8]" />}
-                                </div>
+                                <CourierLogo name={order.courier} size="xs" className="shadow-sm" />
                               ) : (
                                 <div className="w-8 h-8 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg flex items-center justify-center shrink-0">
                                   <Truck className="w-3.5 h-3.5 text-[#94A3B8]" />

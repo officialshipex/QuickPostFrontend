@@ -29,17 +29,7 @@ import { ShipOrderModal } from '../../components/admin/orders/ShipOrderModal';
 import { Toast } from '../../components/ui/Toast';
 import { useToast } from '../../hooks/useToast';
 import { useProductTooltip, ProductTooltipCard } from '../../hooks/useProductTooltip';
-
-// ─── Courier logo lookup — mobile card layout (mirrors AdminWallet.tsx convention) ──
-const getCourierLogo = (courierName: string) => {
-  const key = (courierName || '').toLowerCase();
-  if (key.includes('delhivery')) return 'https://cdn.brandfetch.io/delhivery.com/logo';
-  if (key.includes('bluedart') || key.includes('blue dart')) return 'https://cdn.brandfetch.io/bluedart.com/logo';
-  if (key.includes('xpressbees')) return 'https://cdn.brandfetch.io/xpressbees.com/logo';
-  if (key.includes('ecom')) return 'https://cdn.brandfetch.io/ecomexpress.in/logo';
-  if (key.includes('dtdc')) return 'https://cdn.brandfetch.io/dtdc.in/logo';
-  return 'https://cdn-icons-png.flaticon.com/512/2830/2830284.png';
-};
+import { CourierLogo } from '../../components/ui/CourierLogo';
 
 // ─── Tabs ─────────────────────────────────────────────────────────────────────
 const MAIN_TABS = ['New', 'Ready to Ship', 'Pickup & Manifest', 'In Transit', 'Delivered'];
@@ -1351,7 +1341,7 @@ export function AdminOrders() {
                           <td className="p-3">
                             <div className="flex flex-col gap-1">
                               <div
-                                className="text-[12px] leading-[18px] font-normal text-[#1E293B] underline decoration-dotted underline-offset-2 hover:text-[#00A86B] truncate max-w-[120px] cursor-help"
+                                className="inline-block text-[12px] leading-[18px] font-normal text-[#1E293B] underline decoration-dotted underline-offset-2 hover:text-[#00A86B] truncate max-w-[120px] w-fit cursor-help"
                                 onMouseEnter={(e) => {
                                   if (order.products.length === 0) return;
                                   hoverOpenProductTooltip(order._id, e);
@@ -1556,9 +1546,7 @@ export function AdminOrders() {
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex items-center gap-2.5 min-w-0 flex-1">
                             {order.courier && order.courier !== '—' ? (
-                              <div className="w-9 h-9 bg-white border border-[#E2E8F0] rounded-xl flex items-center justify-center shrink-0 overflow-hidden p-1 shadow-sm">
-                                <img src={getCourierLogo(order.courier)} alt={order.courier} className="w-full h-full object-contain" />
-                              </div>
+                              <CourierLogo name={order.courier} size="sm" className="shadow-sm" />
                             ) : (
                               <div className="w-9 h-9 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl flex items-center justify-center shrink-0">
                                 <Truck className="w-4 h-4 text-[#94A3B8]" />
