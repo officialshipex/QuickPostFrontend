@@ -21,7 +21,7 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { TruncatedText } from '../../components/ui/TruncatedText';
 import { StatusRibbon } from '../../components/ui/StatusRibbon';
 import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
-import { getCourierLogo } from '../../utils/courierLogo';
+import { CourierLogo } from '../../components/ui/CourierLogo';
 import { SharedUploadModal } from '../../components/ui/SharedUploadModal';
 
 // ── Date helpers ──────────────────────────────────────────────────────────────
@@ -1083,16 +1083,16 @@ export function AdminWeightDiscrepancy() {
                         )}
 
                         {/* Product */}
-                        <td
-                          className="p-3"
-                          onMouseEnter={(e) => {
-                            if (products.length === 0) return;
-                            const rect = e.currentTarget.getBoundingClientRect();
-                            setProductHoverPos({ id: order._id, top: rect.bottom + 4, left: rect.left });
-                          }}
-                          onMouseLeave={() => setProductHoverPos(prev => (prev?.id === order._id ? null : prev))}
-                        >
-                          <div className="text-xs font-normal text-[#0F172A] underline decoration-dotted underline-offset-2 hover:text-[#00A86B] truncate max-w-[140px] cursor-help">
+                        <td className="p-3">
+                          <div
+                            className="inline-block text-xs font-normal text-[#0F172A] underline decoration-dotted underline-offset-2 hover:text-[#00A86B] truncate max-w-[140px] w-fit cursor-help"
+                            onMouseEnter={(e) => {
+                              if (products.length === 0) return;
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              setProductHoverPos({ id: order._id, top: rect.bottom + 4, left: rect.left });
+                            }}
+                            onMouseLeave={() => setProductHoverPos(prev => (prev?.id === order._id ? null : prev))}
+                          >
                             {products.map(p => p.name).filter(Boolean).join(', ') || '—'}
                           </div>
                           <div className="text-xs font-normal text-[#64748B] mt-0.5 truncate max-w-[140px]">
@@ -1261,7 +1261,6 @@ export function AdminWeightDiscrepancy() {
                   const orderStatus = statusText.toLowerCase();
                   const isPending = orderStatus === 'pending' || orderStatus === 'new';
                   const isDisputeRaised = orderStatus === 'discrepancy raised';
-                  const logo = getCourierLogo(safeText(order.courierServiceName));
                   const key = order._id || order.awbNumber || idx;
 
                   return (
@@ -1322,9 +1321,7 @@ export function AdminWeightDiscrepancy() {
                         {/* Courier + AWB + price row */}
                         <div className="flex items-center justify-between gap-2 bg-[#F8FAFC] rounded-xl px-2.5 py-1.5">
                           <div className="flex items-center gap-2 min-w-0">
-                            <div className="w-8 h-8 rounded-full bg-white border border-[#E2E8F0] flex items-center justify-center shrink-0 overflow-hidden">
-                              {logo ? <img src={logo} alt="" className="w-5 h-5 object-contain" /> : <Truck className="w-3.5 h-3.5 text-[#94A3B8]" />}
-                            </div>
+                            <CourierLogo name={safeText(order.courierServiceName)} size="xs" />
                             <div className="min-w-0">
                               <div className="text-[11px] font-semibold text-[#64748B] truncate">{safeText(order.courierServiceName) || 'Courier'} {order.chargedWeight?.applicableWeight ?? ''}KG</div>
                               <div className="relative flex items-center gap-1">

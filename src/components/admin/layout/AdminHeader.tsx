@@ -738,7 +738,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
       {/* Middle Section - Search — global Orders search, available from every page */}
       <div className="flex-1 flex items-center justify-center min-w-0">
         {!isKycPage && (
-        <div ref={orderSearchRef} className="hidden md:flex items-center relative w-full max-w-lg group">
+        <div ref={orderSearchRef} className="hidden md:flex items-center relative w-full max-w-2xl group">
           <Search className="w-4 h-4 absolute left-3.5 text-[#94A3B8] group-focus-within:text-[#00A86B] transition-colors duration-300 z-10" />
           <input
             type="text"

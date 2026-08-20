@@ -6,7 +6,7 @@ import { DesktopPagination } from '../../hooks/usePagination';
 import { apiClient } from '../../services/apiClient';
 import {
   Search, Download, RefreshCw, ChevronLeft, ChevronRight, ChevronDown,
-  Filter, Truck, RotateCcw, CheckCircle2, AlertTriangle, Clock, Package, MoreHorizontal, MoreVertical, MapPin, Check, History, User, Settings, Flame, X, Loader2, Zap, IndianRupee, Calendar, Mail, FileText, Copy
+  Filter, Truck, RotateCcw, CheckCircle2, AlertTriangle, Clock, Package, MoreHorizontal, MoreVertical, MapPin, Check, History, User, Settings, X, Loader2, Zap, IndianRupee, Calendar, Mail, FileText, Copy
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
@@ -92,21 +92,44 @@ const calculateAgeingDays = (manifestDateStr: string) => {
   return count;
 };
 
-const renderAgeing = (manifestDateStr: string) => {
-  const days = calculateAgeingDays(manifestDateStr);
-  const formattedDate = new Date(manifestDateStr).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-  const tooltipText = `Manifested on ${formattedDate} — ${days} working days pending.`;
-  if (days <= 1) return (
-    <div className="flex items-center gap-1.5 text-[#64748B]" title={tooltipText}><CheckCircle2 className="w-3.5 h-3.5" /><span>On schedule</span></div>
+// Delivered-family statuses are excluded from the "Delayed" check once the
+// shipment has actually reached a terminal delivered state.
+const DELIVERED_STATUSES = new Set(['Delivered', 'RTO Delivered']);
+
+/** Below the Status badge: ageing (days since manifest) plus On Time / Delayed vs EDD. */
+const renderDeliveryStatus = (row: { status: string; manifestDate: string; expectedDeliveryDate?: string }) => {
+  const days = calculateAgeingDays(row.manifestDate);
+  const formattedManifest = new Date(row.manifestDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  const ageingLine = (
+    <div className="flex items-center gap-1.5 text-[#64748B]" title={`Manifested on ${formattedManifest} — ${days} working day${days === 1 ? '' : 's'} pending.`}>
+      <Clock className="w-3.5 h-3.5" /><span>{days} day{days === 1 ? '' : 's'}</span>
+    </div>
   );
-  if (days <= 3) return (
-    <div className="flex items-center gap-1.5 text-[#64748B]" title={tooltipText}><Clock className="w-3.5 h-3.5" /><span>{days} days</span></div>
-  );
-  if (days <= 6) return (
-    <div className="flex items-center gap-1.5 text-[#0F172A] font-bold" title={tooltipText}><AlertTriangle className="w-3.5 h-3.5" /><span>{days} days</span></div>
-  );
+
+  if (!row.expectedDeliveryDate) return ageingLine;
+  const edd = new Date(row.expectedDeliveryDate);
+  if (isNaN(edd.getTime())) return ageingLine;
+  edd.setHours(0, 0, 0, 0);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const formattedEdd = edd.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+
+  const isDelivered = DELIVERED_STATUSES.has(row.status);
+  const daysLate = Math.round((today.getTime() - edd.getTime()) / 86400000);
+
   return (
-    <div className="flex items-center gap-1.5 text-[#0F172A] font-bold" title={tooltipText}><Flame className="w-3.5 h-3.5" /><span>{days} days</span></div>
+    <div className="flex flex-col gap-0.5">
+      {ageingLine}
+      {isDelivered || daysLate <= 0 ? (
+        <div className="flex items-center gap-1.5 text-emerald-600 font-semibold" title={`EDD: ${formattedEdd}`}>
+          <CheckCircle2 className="w-3.5 h-3.5" /><span>On Time</span>
+        </div>
+      ) : (
+        <div className="flex items-center gap-1.5 text-red-600 font-bold" title={`EDD: ${formattedEdd}`}>
+          <AlertTriangle className="w-3.5 h-3.5" /><span>Delayed — {daysLate} day{daysLate === 1 ? '' : 's'} late</span>
+        </div>
+      )}
+    </div>
   );
 };
 
@@ -132,6 +155,7 @@ const mapOrder = (o: any) => ({
   shipmentValue: `₹${(o.paymentDetails?.amount || 0).toLocaleString('en-IN')}`,
   status: o.status || 'Booked',
   manifestDate: o.shipmentCreatedAt || o.createdAt || new Date().toISOString(),
+  expectedDeliveryDate: o.expectedDeliveryDate || null,
   customerName: o.receiverAddress?.contactName || '—',
   customerPhone: o.receiverAddress?.phoneNumber || '—',
   customerAddress: o.receiverAddress?.address || '',
@@ -199,9 +223,9 @@ export function CRMShipmentListing() {
   const [pickupOptions, setPickupOptions] = useState<string[]>([]);
   const [selectedWeightRanges, setSelectedWeightRanges] = useState<string[]>([]);
   const [orderId, setOrderId] = useState('');
-  const [productSpecs, setProductSpecs] = useState('');
   const [forwardAwb, setForwardAwb] = useState('');
   const [pendingPickupOnly, setPendingPickupOnly] = useState(false);
+  const [pendingNdrOnly, setPendingNdrOnly] = useState(false);
   const [dateFrom, setDateFrom] = useState(() => getLast7DaysStr()[0]);
   const [dateTo, setDateTo] = useState(() => getLast7DaysStr()[1]);
   const [defStart, defEnd] = getLast7DaysStr();
@@ -239,8 +263,9 @@ export function CRMShipmentListing() {
   const [showGlobalActionMenu, setShowGlobalActionMenu] = useState(false);
   const globalActionMenuRef = useRef<HTMLDivElement>(null);
   const [showLastUpdate, setShowLastUpdate] = useState(false);
-  const [showAgeingLegend, setShowAgeingLegend] = useState(false);
-  const ageingLegendRef = useRef<HTMLTableHeaderCellElement>(null);
+  const [showDownloadMenu, setShowDownloadMenu] = useState(false);
+  const [downloadScope, setDownloadScope] = useState<'displayed' | 'all'>('displayed');
+  const downloadMenuRef = useRef<HTMLDivElement>(null);
   const [hoveredTracking, setHoveredTracking] = useState<{id: string, rect: DOMRect, activity: string, location: string, date: string, time: string} | null>(null);
   const [hoveredPickup, setHoveredPickup] = useState<{ id: string; rect: DOMRect; name: string; address: string; city: string; state: string; pinCode: string; phone: string } | null>(null);
   const [hoveredCustomer, setHoveredCustomer] = useState<{ rect: DOMRect; name: string; address: string; city: string; state: string; pinCode: string; email: string } | null>(null);
@@ -277,7 +302,7 @@ export function CRMShipmentListing() {
     try {
       const params: Record<string, string> = { page: String(pg), limit: String(lim) };
       if (selectedCouriers.length) params.courier = selectedCouriers.join(',');
-      // pendingPickupOnly takes precedence over the status dropdown
+      // pendingPickupOnly / pendingNdrOnly take precedence over the status dropdown
       if (pendingPickupOnly) {
         params.status = 'Not Picked,Ready To Ship,Booked,Pickup Scheduled';
         // Exclude today — shipments created today are still within the courier's pickup window
@@ -285,6 +310,10 @@ export function CRMShipmentListing() {
         const yesterday = yd.toISOString().split('T')[0];
         if (dateFrom) params.dateFrom = dateFrom;
         params.dateTo = yesterday;
+      } else if (pendingNdrOnly) {
+        params.status = 'NDR';
+        if (dateFrom) params.dateFrom = dateFrom;
+        if (dateTo) params.dateTo = dateTo;
       } else {
         if (selectedStatuses.length) params.status = selectedStatuses.join(',');
         if (dateFrom) params.dateFrom = dateFrom;
@@ -295,7 +324,6 @@ export function CRMShipmentListing() {
       if (selectedPickupAddrs.length) params.pickupCity = selectedPickupAddrs.join(',');
       if (userMongoId) params.userId = userMongoId;
       if (orderId) params.orderId = orderId;
-      if (productSpecs) params.product = productSpecs;
       if (selectedWeightRanges.length === 1) {
         const wopt = WEIGHT_RANGE_OPTS.find(o => o.value === selectedWeightRanges[0]);
         if (wopt) { if (wopt.min) params.minWeight = String(wopt.min); if (wopt.max !== undefined) params.maxWeight = String(wopt.max); }
@@ -316,7 +344,7 @@ export function CRMShipmentListing() {
     } finally {
       setLoading(false);
     }
-  }, [selectedCouriers, selectedStatuses, selectedChannels, selectedOrderTypes, selectedPickupAddrs, userMongoId, orderId, productSpecs, selectedWeightRanges, forwardAwb, pendingPickupOnly, dateFrom, dateTo]);
+  }, [selectedCouriers, selectedStatuses, selectedChannels, selectedOrderTypes, selectedPickupAddrs, userMongoId, orderId, selectedWeightRanges, forwardAwb, pendingPickupOnly, pendingNdrOnly, dateFrom, dateTo]);
 
   // Always-latest ref — prevents stale closure in setPage / setRowsPerPage wrappers
   const fetchRef = useRef(fetchOrders);
@@ -359,8 +387,8 @@ export function CRMShipmentListing() {
   // Close popovers on outside click
   useEffect(() => {
     function handler(e: MouseEvent) {
-      if (ageingLegendRef.current && !ageingLegendRef.current.contains(e.target as Node)) setShowAgeingLegend(false);
       if (trackingPopoverRef.current && !trackingPopoverRef.current.contains(e.target as Node)) { /* popover handled by hover */ }
+      if (downloadMenuRef.current && !downloadMenuRef.current.contains(e.target as Node)) setShowDownloadMenu(false);
       setOpenActionId(null);
     }
     document.addEventListener('mousedown', handler);
@@ -376,13 +404,13 @@ export function CRMShipmentListing() {
     return () => document.removeEventListener('pointerdown', handler);
   }, [hoveredPickup]);
 
-  const hasActiveFilters = selectedCouriers.length > 0 || selectedStatuses.length > 0 || selectedChannels.length > 0 || selectedOrderTypes.length > 0 || selectedPickupAddrs.length > 0 || !!userMongoId || orderId || productSpecs || selectedWeightRanges.length > 0 || forwardAwb || pendingPickupOnly || (dateFrom && dateTo && !(dateFrom === defStart && dateTo === defEnd));
+  const hasActiveFilters = selectedCouriers.length > 0 || selectedStatuses.length > 0 || selectedChannels.length > 0 || selectedOrderTypes.length > 0 || selectedPickupAddrs.length > 0 || !!userMongoId || orderId || selectedWeightRanges.length > 0 || forwardAwb || pendingPickupOnly || pendingNdrOnly || (dateFrom && dateTo && !(dateFrom === defStart && dateTo === defEnd));
 
   const handleClearAllFilters = () => {
     setSelectedCouriers([]); setSelectedStatuses([]); setSelectedChannels([]);
     setSelectedOrderTypes([]); setSelectedPickupAddrs([]);
-    clearUser(); setOrderId(''); setProductSpecs(''); setSelectedWeightRanges([]);
-    setForwardAwb(''); setPendingPickupOnly(false); setDateFrom(defStart); setDateTo(defEnd);
+    clearUser(); setOrderId(''); setSelectedWeightRanges([]);
+    setForwardAwb(''); setPendingPickupOnly(false); setPendingNdrOnly(false); setDateFrom(defStart); setDateTo(defEnd);
     pageRef.current = 1; setPageState(1);
     // Fetch with empty params — don't use stale closure
     setLoading(true);
@@ -403,10 +431,15 @@ export function CRMShipmentListing() {
     fetchRef.current(1, rowsPerPageRef.current);
   };
 
-  const handleExport = async () => {
+  const handleExport = async (scope: 'displayed' | 'all' = 'all') => {
     try {
       const params: Record<string, string> = { export: 'true' };
-      if (selectedOrders.length) params.awbs = selectedOrders.join(',');
+      if (scope === 'displayed') {
+        // Only the rows currently rendered on this page
+        params.awbs = paginated.map(o => o.awb).join(',');
+      } else if (selectedOrders.length) {
+        params.awbs = selectedOrders.join(',');
+      }
       if (selectedCouriers.length) params.courier = selectedCouriers.join(',');
       if (pendingPickupOnly) {
         params.status = 'Not Picked,Ready To Ship,Booked,Pickup Scheduled';
@@ -414,6 +447,10 @@ export function CRMShipmentListing() {
         const yesterday = yd.toISOString().split('T')[0];
         if (dateFrom) params.dateFrom = dateFrom;
         params.dateTo = yesterday;
+      } else if (pendingNdrOnly) {
+        params.status = 'NDR';
+        if (dateFrom) params.dateFrom = dateFrom;
+        if (dateTo) params.dateTo = dateTo;
       } else {
         if (selectedStatuses.length) params.status = selectedStatuses.join(',');
         if (dateFrom) params.dateFrom = dateFrom;
@@ -424,7 +461,6 @@ export function CRMShipmentListing() {
       if (selectedPickupAddrs.length) params.pickupCity = selectedPickupAddrs.join(',');
       if (userMongoId) params.userId = userMongoId;
       if (orderId) params.orderId = orderId;
-      if (productSpecs) params.product = productSpecs;
       if (forwardAwb) params.awb = forwardAwb;
       const res = await apiClient.get('/crm/shipments', { params, responseType: 'blob' });
       const url = URL.createObjectURL(res.data);
@@ -476,14 +512,48 @@ export function CRMShipmentListing() {
               <button onClick={() => fetchRef.current(pageRef.current, rowsPerPageRef.current)} className="flex items-center justify-center gap-1.5 w-9 h-9 md:w-auto md:h-auto md:px-3 md:py-2 rounded-full md:rounded-lg border border-[#E2E8F0] text-xs font-semibold text-[#64748B] hover:bg-[#F8FAFC] transition-colors shrink-0">
                 <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> <span className="hidden md:inline">Refresh</span>
               </button>
-              <button
-                onClick={handleExport}
-                disabled={selectedOrders.length === 0}
-                className={`flex items-center justify-center gap-1.5 w-9 h-9 md:w-auto md:h-auto md:px-3 md:py-2 rounded-full md:rounded-lg text-xs font-semibold transition-colors shadow-sm shrink-0 ${selectedOrders.length > 0 ? 'bg-[#00A86B] text-white hover:bg-[#009960] cursor-pointer' : 'bg-[#E2E8F0] text-[#94A3B8] cursor-not-allowed opacity-60'}`}
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span className="hidden md:inline">Export{selectedOrders.length > 0 ? ` (${selectedOrders.length})` : ''}</span>
-              </button>
+              <div className="relative shrink-0" ref={downloadMenuRef}>
+                <button
+                  onClick={() => setShowDownloadMenu(o => !o)}
+                  title="Download"
+                  className="flex items-center justify-center w-9 h-9 rounded-full md:rounded-lg bg-[#00A86B] text-white hover:bg-[#009960] transition-colors shadow-sm"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                </button>
+                {showDownloadMenu && (
+                  <div className="absolute top-full right-0 mt-1.5 w-64 bg-white border border-[#E2E8F0] rounded-2xl shadow-xl z-50 p-4">
+                    <div className="text-[11px] font-bold text-[#0F172A] mb-3 uppercase tracking-wide">Download Shipments</div>
+                    <div className="space-y-2.5 mb-4">
+                      <label className="flex items-center gap-2.5 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="downloadScope"
+                          checked={downloadScope === 'displayed'}
+                          onChange={() => setDownloadScope('displayed')}
+                          className="accent-[#00A86B] w-3.5 h-3.5"
+                        />
+                        <span className="text-[12.5px] text-[#334155]">Displayed data</span>
+                      </label>
+                      <label className="flex items-center gap-2.5 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="downloadScope"
+                          checked={downloadScope === 'all'}
+                          onChange={() => setDownloadScope('all')}
+                          className="accent-[#00A86B] w-3.5 h-3.5"
+                        />
+                        <span className="text-[12.5px] text-[#334155]">Whole data</span>
+                      </label>
+                    </div>
+                    <button
+                      onClick={() => { handleExport(downloadScope); setShowDownloadMenu(false); }}
+                      className="w-full h-9 rounded-full bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009960] transition-colors flex items-center justify-center gap-1.5"
+                    >
+                      <Download className="w-3.5 h-3.5" /> Download
+                    </button>
+                  </div>
+                )}
+              </div>
               <button
                 onClick={() => setIsMobileFiltersOpen(true)}
                 className="md:hidden flex items-center justify-center gap-1.5 w-9 h-9 rounded-full bg-[#00A86B] text-white shadow-sm shrink-0 relative"
@@ -585,14 +655,6 @@ export function CRMShipmentListing() {
               className="glass-search-input w-full"
             />
 
-            <input
-              type="text"
-              placeholder="Search SKU / item..."
-              value={productSpecs}
-              onChange={e => setProductSpecs(e.target.value)}
-              className="glass-search-input w-full"
-            />
-
             <GlassDropdown
               label="Weight"
               options={WEIGHT_RANGE_OPTS.map(o => ({ label: o.label, value: o.value }))}
@@ -613,8 +675,34 @@ export function CRMShipmentListing() {
             <button
               type="button"
               onClick={() => {
+                const next = !pendingNdrOnly;
+                setPendingNdrOnly(next);
+                if (next) setPendingPickupOnly(false);
+                pageRef.current = 1;
+                setPageState(1);
+                setTimeout(() => fetchRef.current(1, rowsPerPageRef.current), 0);
+              }}
+              className={`glass-search-input w-full flex items-center gap-2 !cursor-pointer transition-all text-left ${
+                pendingNdrOnly
+                  ? 'border-amber-400 bg-amber-50 text-amber-700'
+                  : 'text-[#94A3B8] hover:border-amber-300'
+              }`}
+            >
+              <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+              <span className={`text-[12px] flex-1 ${pendingNdrOnly ? 'font-bold text-amber-700' : 'font-normal'}`}>
+                Pending NDR
+              </span>
+              {pendingNdrOnly && (
+                <span className="text-[9px] font-bold bg-amber-400 text-white px-1.5 py-0.5 rounded-full shrink-0">ON</span>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
                 const next = !pendingPickupOnly;
                 setPendingPickupOnly(next);
+                if (next) setPendingNdrOnly(false);
                 pageRef.current = 1;
                 setPageState(1);
                 setTimeout(() => fetchRef.current(1, rowsPerPageRef.current), 0);
@@ -751,24 +839,6 @@ export function CRMShipmentListing() {
                   <th className="py-2 px-4 text-left align-middle">
                     <div className="flex items-center gap-1"><Truck className="w-3.5 h-3.5 shrink-0"/><span>Shipment</span></div>
                   </th>
-                  <th
-                    ref={ageingLegendRef}
-                    className="py-2 px-4 text-left align-middle relative cursor-pointer hover:bg-[#D1F0E8] transition-colors"
-                    onClick={() => setShowAgeingLegend(!showAgeingLegend)}
-                  >
-                    <div className="flex items-center gap-1"><Clock className="w-3.5 h-3.5 shrink-0"/><span>Ageing</span></div>
-                    {showAgeingLegend && (
-                      <div className="absolute top-full left-0 mt-1 w-56 bg-white rounded-xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.15)] border border-[#E2E8F0] p-3 z-[100] normal-case tracking-normal">
-                        <div className="text-[11px] font-bold text-[#0F172A] mb-2 pb-2 border-b border-[#E2E8F0]">Ageing Indicators</div>
-                        <div className="space-y-2.5">
-                          <div className="flex items-center gap-2 text-[11px] font-medium text-[#64748B]"><CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> On schedule (0-1 days)</div>
-                          <div className="flex items-center gap-2 text-[11px] font-medium text-[#64748B]"><Clock className="w-3.5 h-3.5 shrink-0" /> Normal (2-3 days)</div>
-                          <div className="flex items-center gap-2 text-[11px] font-bold text-[#0F172A]"><AlertTriangle className="w-3.5 h-3.5 shrink-0" /> Delay (4-6 days)</div>
-                          <div className="flex items-center gap-2 text-[11px] font-bold text-[#0F172A]"><Flame className="w-3.5 h-3.5 shrink-0" /> Critical (7+ days)</div>
-                        </div>
-                      </div>
-                    )}
-                  </th>
                   <th className="py-2 px-4 text-left align-middle">
                     <div className="flex items-center gap-1">
                       <Check className="w-3.5 h-3.5 shrink-0"/>
@@ -879,13 +949,13 @@ export function CRMShipmentListing() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-2 py-3 text-left align-middle">
-                      {renderAgeing(row.manifestDate)}
-                    </td>
                     <td className="p-3">
-                      <span className={`px-2.5 py-0.5 rounded-full border ${STATUS_STYLES[row.status] || 'bg-blue-50 text-blue-700 border-blue-200'} text-[10px] leading-4 font-semibold uppercase tracking-wider whitespace-nowrap shadow-sm`}>
-                        {row.status}
-                      </span>
+                      <div className="flex flex-col gap-1 items-start">
+                        <span className={`px-2.5 py-0.5 rounded-full border ${STATUS_STYLES[row.status] || 'bg-blue-50 text-blue-700 border-blue-200'} text-[10px] leading-4 font-semibold uppercase tracking-wider whitespace-nowrap shadow-sm`}>
+                          {row.status}
+                        </span>
+                        <div className="text-[11px]">{renderDeliveryStatus(row)}</div>
+                      </div>
                     </td>
                     {showLastUpdate && (
                       <td className="px-3 py-3 text-left align-middle min-w-[180px]">
@@ -1004,6 +1074,7 @@ export function CRMShipmentListing() {
                           {row.orderId}
                         </button>
                       </div>
+                      <div className="text-[11px] mb-1.5">{renderDeliveryStatus(row)}</div>
 
                       <div className="rounded-xl p-2 mb-1.5 bg-white" style={{ border: `1px solid ${accent}` }}>
                         <div className="flex items-start justify-between gap-2">
@@ -1055,7 +1126,6 @@ export function CRMShipmentListing() {
                           >
                             {row.pickupAddr || '—'}
                           </div>
-                          <div className="text-[11px] text-[#64748B] mt-0.5">{renderAgeing(row.manifestDate)}</div>
                         </div>
                       </div>
 
@@ -1122,11 +1192,6 @@ export function CRMShipmentListing() {
                     className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]" />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">SKU / Item</label>
-                  <input type="text" value={productSpecs} onChange={e => setProductSpecs(e.target.value)} placeholder="Search SKU / item..."
-                    className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]" />
-                </div>
-                <div>
                   <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Weight Range</label>
                   <GlassDropdown
                     label="Weight"
@@ -1144,10 +1209,30 @@ export function CRMShipmentListing() {
                     className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]" />
                 </div>
                 <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Pending NDR</label>
+                  <button
+                    type="button"
+                    onClick={() => setPendingNdrOnly(p => { const next = !p; if (next) setPendingPickupOnly(false); return next; })}
+                    className={`w-full h-11 px-4 rounded-full border flex items-center gap-2 cursor-pointer transition-all ${
+                      pendingNdrOnly
+                        ? 'border-amber-400 bg-amber-50 text-amber-700'
+                        : 'border-slate-200 text-slate-400 hover:border-amber-300'
+                    }`}
+                  >
+                    <AlertTriangle className="w-4 h-4 shrink-0" />
+                    <span className={`text-sm flex-1 text-left ${pendingNdrOnly ? 'font-bold text-amber-700' : 'font-normal'}`}>
+                      {pendingNdrOnly ? 'Pending NDR — Active' : 'Show Pending NDR'}
+                    </span>
+                    {pendingNdrOnly && (
+                      <span className="text-[10px] font-bold bg-amber-400 text-white px-2 py-0.5 rounded-full shrink-0">ON</span>
+                    )}
+                  </button>
+                </div>
+                <div>
                   <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Pending Pickup</label>
                   <button
                     type="button"
-                    onClick={() => setPendingPickupOnly(p => !p)}
+                    onClick={() => setPendingPickupOnly(p => { const next = !p; if (next) setPendingNdrOnly(false); return next; })}
                     className={`w-full h-11 px-4 rounded-full border flex items-center gap-2 cursor-pointer transition-all ${
                       pendingPickupOnly
                         ? 'border-amber-400 bg-amber-50 text-amber-700'
