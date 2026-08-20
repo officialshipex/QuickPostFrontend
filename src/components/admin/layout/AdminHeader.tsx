@@ -330,7 +330,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -12 }}
             transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-            className="w-full flex items-center gap-1 pl-1 pr-2 h-[60px]">
+            className="w-full flex items-center gap-1.5 px-2 h-[60px]">
             {/* Left: hamburger */}
             <div className="flex items-center shrink-0">
               <button
@@ -355,7 +355,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                 setShowMobileWalletSummary(false);
                 setShowDateDropdown(false);
               }}
-              className="flex items-center gap-1.5 h-8 flex-1 min-w-0 pl-2 pr-2.5 rounded-full border border-[#E2E8F0] bg-[#F8FAFC] text-[#94A3B8] hover:border-[#CBD5E1] transition-colors"
+              className="flex items-center gap-1.5 h-8 flex-1 min-w-0 pl-2.5 pr-2.5 rounded-full border border-[#E2E8F0] bg-[#F8FAFC] text-[#94A3B8] hover:border-[#CBD5E1] transition-colors"
             >
               <Search className="w-3.5 h-3.5 shrink-0" />
               <span className="relative flex-1 min-w-0 h-4 overflow-hidden text-[11px] font-medium leading-4 whitespace-nowrap text-left">
@@ -374,7 +374,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
               </span>
             </button>
 
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-1 shrink-0">
               {/* Notifications + Quick Actions — merged into one rolling icon slot on the user
                   side (both non-admin and non-employee) to save space for the profile icon;
                   admin-only and employee-only cases keep a single dedicated icon, no roll. */}
@@ -728,7 +728,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
           <img 
             src="/logo-color.png" 
             alt="QuickPost" 
-            className="h-16 w-auto object-contain transition-opacity group-hover:opacity-80 scale-[1.5] origin-left"
+            className="h-16 w-auto object-contain transition-opacity group-hover:opacity-80 scale-[1.5] origin-left ml-2"
           />
         </Link>
       </div>
@@ -736,7 +736,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
       {/* Middle Section - Search — global Orders search, available from every page */}
       <div className="flex-1 flex items-center justify-center min-w-0">
         {!isKycPage && (
-        <div ref={orderSearchRef} className="hidden md:flex items-center relative w-full max-w-2xl group">
+        <div ref={orderSearchRef} className="hidden md:flex items-center relative w-full max-w-lg group">
           <Search className="w-4 h-4 absolute left-3.5 text-[#94A3B8] group-focus-within:text-[#00A86B] transition-colors duration-300 z-10" />
           <input
             type="text"
