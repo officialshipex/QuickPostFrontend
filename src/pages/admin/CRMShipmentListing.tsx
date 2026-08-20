@@ -20,7 +20,7 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
 import { useProductTooltip, ProductTooltipCard } from '../../hooks/useProductTooltip';
 
-const STATUS_OPTS = ['Ready To Ship', 'Not Picked', 'Booked', 'Pickup Scheduled', 'Picked Up', 'In Transit', 'Out for Delivery', 'Delivered', 'RTO Initiated', 'RTO In Transit', 'RTO Delivered', 'RTO Lost', 'RTO Damaged', 'Lost', 'Damaged', 'Cancelled'];
+const STATUS_OPTS = ['Ready To Ship', 'Not Picked', 'Booked', 'Pickup Scheduled', 'Picked Up', 'In Transit', 'Out for Delivery', 'Delivered', 'Undelivered', 'Action Requested', 'RTO Initiated', 'RTO In Transit', 'RTO Delivered', 'RTO Lost', 'RTO Damaged', 'Lost', 'Damaged', 'Cancelled'];
 const CHANNEL_OPTS = ['custom', 'api', 'shopify', 'woocommerce'];
 const ORDER_TYPE_OPTS = ['Prepaid', 'COD'];
 const WEIGHT_RANGE_OPTS = [
@@ -40,6 +40,8 @@ const STATUS_STYLES: Record<string, string> = {
   'In Transit': 'bg-sky-50 text-sky-700 border-sky-200',
   'Out for Delivery': 'bg-amber-50 text-amber-700 border-amber-200',
   'Delivered': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  'Undelivered': 'bg-red-50 text-red-700 border-red-200',
+  'Action Requested': 'bg-orange-50 text-orange-700 border-orange-200',
   'RTO Initiated': 'bg-orange-50 text-orange-700 border-orange-200',
   'RTO In Transit': 'bg-orange-50 text-orange-600 border-orange-200',
   'RTO Delivered': 'bg-emerald-50 text-emerald-700 border-emerald-200',
@@ -59,6 +61,8 @@ const STATUS_RIBBON_COLORS: Record<string, string> = {
   'In Transit': '#0284C7',
   'Out for Delivery': '#D97706',
   'Delivered': '#059669',
+  'Undelivered': '#DC2626',
+  'Action Requested': '#EA580C',
   'RTO Initiated': '#EA580C',
   'RTO In Transit': '#EA580C',
   'RTO Delivered': '#059669',
@@ -311,7 +315,7 @@ export function CRMShipmentListing() {
         if (dateFrom) params.dateFrom = dateFrom;
         params.dateTo = yesterday;
       } else if (pendingNdrOnly) {
-        params.status = 'NDR';
+        params.pendingNdr = 'true';
         if (dateFrom) params.dateFrom = dateFrom;
         if (dateTo) params.dateTo = dateTo;
       } else {
@@ -448,7 +452,7 @@ export function CRMShipmentListing() {
         if (dateFrom) params.dateFrom = dateFrom;
         params.dateTo = yesterday;
       } else if (pendingNdrOnly) {
-        params.status = 'NDR';
+        params.pendingNdr = 'true';
         if (dateFrom) params.dateFrom = dateFrom;
         if (dateTo) params.dateTo = dateTo;
       } else {

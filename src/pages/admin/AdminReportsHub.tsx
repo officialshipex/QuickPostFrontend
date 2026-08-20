@@ -3,7 +3,7 @@ import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { useAdminTab } from '../../context/AdminUserContext';
 import { AnimatePresence } from 'framer-motion';
 import {
-  FileText, Package, Truck, AlertTriangle, Banknote, Scale, Wallet, ShieldAlert,
+  FileText, Package, AlertTriangle, Banknote, Scale, Wallet,
   ArrowRight, RefreshCw, MoreHorizontal,
 } from 'lucide-react';
 import { GenerateReportModal, MisReportTable } from '../../components/admin/reports/MisReportShared';
@@ -23,12 +23,10 @@ interface ReportCardDef {
 
 const REPORT_CARDS: ReportCardDef[] = [
   { reportType: 'Orders',          title: 'Orders Report',          description: 'Every order placed, with status, courier, and payment breakdown.', icon: Package,      accent: 'bg-blue-50',    accentText: 'text-blue-600' },
-  { reportType: 'Shipments',       title: 'Shipments Report',       description: 'Shipment-level tracking history across all courier partners.',      icon: Truck,        accent: 'bg-indigo-50',  accentText: 'text-indigo-600' },
   { reportType: 'NDR',             title: 'NDR Report',             description: 'Non-delivery reports with reason codes and resolution status.',     icon: AlertTriangle,accent: 'bg-amber-50',   accentText: 'text-amber-600' },
   { reportType: 'COD',             title: 'COD Report',             description: 'Cash-on-delivery collections, remittance, and pending payouts.',    icon: Banknote,     accent: 'bg-emerald-50', accentText: 'text-emerald-600' },
   { reportType: 'Weight Disputes', title: 'Weight Disputes Report', description: 'Raised, accepted, and rejected weight discrepancy claims.',         icon: Scale,        accent: 'bg-purple-50',  accentText: 'text-purple-600' },
   { reportType: 'Passbook',        title: 'Passbook Report',        description: 'Wallet transaction history — credits, debits, and charges.',        icon: Wallet,       accent: 'bg-cyan-50',    accentText: 'text-cyan-600' },
-  { reportType: 'Undelivered',     title: 'Undelivered Report',     description: 'Shipments still undelivered, RTO-bound, or stuck in transit.',      icon: ShieldAlert,  accent: 'bg-rose-50',    accentText: 'text-rose-600' },
 ];
 
 function ReportCard({ def, onGenerate }: { def: ReportCardDef; onGenerate: (reportType: string) => void }) {
