@@ -655,6 +655,8 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
               <input
                 autoFocus
                 type="text"
+                name="order-search"
+                autoComplete="off"
                 value={searchQuery}
                 onChange={(e) => { setSearchQuery(e.target.value); setShowOrderSearchResults(true); }}
                 onFocus={() => { if (searchQuery.trim()) setShowOrderSearchResults(true); }}

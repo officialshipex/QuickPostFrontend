@@ -11,6 +11,7 @@ import {
 import { Toast } from '../../components/ui/Toast';
 import { useToast } from '../../hooks/useToast';
 import { copyToClipboard } from '../../utils/clipboard';
+import { AddressAccuracyGauge } from '../../components/ui/AddressAccuracy';
 
 // Milestone timeline icons are looked up dynamically by name (see getMilestonesFromStatus).
 const MILESTONE_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -839,11 +840,14 @@ export function AdminOrderTracking() {
 
               {/* SECTION 2: PICKUP DETAILS */}
               <div className="bg-white rounded-xl border border-[#E2E8F0] p-3 md:p-5 shadow-sm left-col-card">
-                <div className="flex items-center gap-2.5 border-b border-[#E2E8F0] pb-2.5 md:pb-3 mb-3 md:mb-4">
-                  <div className="w-8 h-8 rounded-full bg-[#F0FDF4] flex items-center justify-center shrink-0">
-                    <Navigation className="w-4 h-4 text-[#00A86B]" />
+                <div className="flex items-center justify-between gap-2.5 border-b border-[#E2E8F0] pb-2.5 md:pb-3 mb-3 md:mb-4">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-8 h-8 rounded-full bg-[#F0FDF4] flex items-center justify-center shrink-0">
+                      <Navigation className="w-4 h-4 text-[#00A86B]" />
+                    </div>
+                    <h3 className="text-[14px] leading-[20px] font-semibold text-[#0F172A]">Pickup Details</h3>
                   </div>
-                  <h3 className="text-[14px] leading-[20px] font-semibold text-[#0F172A]">Pickup Details</h3>
+                  <AddressAccuracyGauge address={order?.pickupAddress?.address} size="sm" />
                 </div>
                 <div className="space-y-3 md:space-y-4">
                   <div className="grid grid-cols-2 gap-3 md:gap-4">
@@ -885,11 +889,14 @@ export function AdminOrderTracking() {
 
               {/* SECTION 3: RECEIVER DETAILS */}
               <div className="bg-white rounded-xl border border-[#E2E8F0] p-3 md:p-5 shadow-sm left-col-card">
-                <div className="flex items-center gap-2.5 border-b border-[#E2E8F0] pb-2.5 md:pb-3 mb-3 md:mb-4">
-                  <div className="w-8 h-8 rounded-full bg-[#F0FDF4] flex items-center justify-center shrink-0">
-                    <MapPin className="w-4 h-4 text-[#00A86B]" />
+                <div className="flex items-center justify-between gap-2.5 border-b border-[#E2E8F0] pb-2.5 md:pb-3 mb-3 md:mb-4">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-8 h-8 rounded-full bg-[#F0FDF4] flex items-center justify-center shrink-0">
+                      <MapPin className="w-4 h-4 text-[#00A86B]" />
+                    </div>
+                    <h3 className="text-[14px] leading-[20px] font-semibold text-[#0F172A]">Receiver Details</h3>
                   </div>
-                  <h3 className="text-[14px] leading-[20px] font-semibold text-[#0F172A]">Receiver Details</h3>
+                  <AddressAccuracyGauge address={order?.receiverAddress?.address} size="sm" />
                 </div>
                 <div className="space-y-3 md:space-y-4">
                   <div className="grid grid-cols-2 gap-3 md:gap-4">

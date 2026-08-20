@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { apiClient } from '../../services/apiClient';
 import { Toast } from '../../components/ui/Toast';
@@ -460,6 +461,8 @@ function AssignRateCardModal({ userId, userName, rateCardType, onClose, onSucces
   const [saving, setSaving] = useState(false);
   const { toast: _t, showToast } = useToast();
   const dropRef = useRef<HTMLDivElement>(null);
+  const dropBtnRef = useRef<HTMLButtonElement>(null);
+  const [dropPos, setDropPos] = useState<{ top: number; left: number; width: number } | null>(null);
 
   useEffect(() => {
     const planEndpoint = rateCardType === 'B2C' ? '/saveRate/getPlanNames' : '/b2b/saveRate/getPlanNames';
@@ -474,10 +477,30 @@ function AssignRateCardModal({ userId, userName, rateCardType, onClose, onSucces
   }, [rateCardType]);
 
   useEffect(() => {
-    const handler = (e: MouseEvent) => { if (dropRef.current && !dropRef.current.contains(e.target as Node)) setOpen(false); };
+    const handler = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (dropRef.current && !dropRef.current.contains(target) && !(target as HTMLElement)?.closest('.assign-rate-card-portal')) {
+        setOpen(false);
+      }
+    };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
+
+  useEffect(() => {
+    if (!open || !dropBtnRef.current) return;
+    const updatePos = () => {
+      const rect = dropBtnRef.current!.getBoundingClientRect();
+      setDropPos({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+    };
+    updatePos();
+    window.addEventListener('resize', updatePos);
+    window.addEventListener('scroll', updatePos, true);
+    return () => {
+      window.removeEventListener('resize', updatePos);
+      window.removeEventListener('scroll', updatePos, true);
+    };
+  }, [open]);
 
   const handleAssign = async () => {
     if (!selected) { showToast('error', 'Please select a plan'); return; }
@@ -513,20 +536,25 @@ function AssignRateCardModal({ userId, userName, rateCardType, onClose, onSucces
         {loading ? <p className={`${TXT.value} text-[#94A3B8]`}>Loading plans…</p> : (
           <div ref={dropRef} className="relative">
             <button
+              ref={dropBtnRef}
               onClick={() => setOpen(o => !o)}
               className={`w-full flex items-center justify-between border border-[#E2E8F0] rounded-[8px] px-3 py-2 ${TXT.value} text-[#1E293B] bg-white hover:border-[#00A86B] focus:outline-none focus:ring-2 focus:ring-[#00A86B]/40 transition-colors`}
             >
               <span>{selected || 'Select a plan…'}</span>
               <ChevronDown className={`w-3.5 h-3.5 text-[#94A3B8] transition-transform ${open ? 'rotate-180' : ''}`} />
             </button>
-            {open && (
-              <div className="absolute z-10 top-full mt-1 w-full bg-white border border-[#E2E8F0] rounded-[8px] shadow-lg max-h-48 overflow-y-auto">
+            {open && dropPos && createPortal(
+              <div
+                className="assign-rate-card-portal fixed z-[10000] bg-white border border-[#E2E8F0] rounded-[8px] shadow-lg max-h-48 overflow-y-auto"
+                style={{ top: dropPos.top, left: dropPos.left, width: dropPos.width }}
+              >
                 {planNames.map(p => (
                   <button key={p} type="button" onClick={() => { setSelected(p); setOpen(false); }}
                     className={`w-full text-left px-3 py-2 ${TXT.value} transition-colors ${selected === p ? 'bg-[#ECFDF5] text-[#00A86B] font-semibold' : 'text-[#374151] hover:bg-[#F8FAFC]'}`}
                   >{p}</button>
                 ))}
-              </div>
+              </div>,
+              document.body
             )}
           </div>
         )}
@@ -761,10 +789,16 @@ function ChangePasswordModal({ email, onClose, onSuccess }: { email: string; onC
       <ModalHeader title="Change Password" onClose={onClose} />
       <div className="px-5 py-4 flex flex-col gap-3 overflow-y-auto min-h-0">
         <p className={`${TXT.value} text-[#64748B]`}>Account: <span className="font-semibold text-[#0F172A]">{email}</span></p>
+        {/* Hidden username field pairs with the password input below so browser
+            password managers target their own autofill here instead of guessing
+            and filling the unrelated navbar search box elsewhere on the page. */}
+        <input type="text" name="username" autoComplete="username" value={email} readOnly hidden />
         <div className="flex flex-col gap-1">
           <label className={`${TXT.label} text-[#64748B]`}>New Password</label>
           <input
             type="password"
+            name="new-password"
+            autoComplete="new-password"
             value={password}
             onChange={e => { setPassword(e.target.value); if (e.target.value.length >= 8) setError(''); }}
             placeholder="Minimum 8 characters"
