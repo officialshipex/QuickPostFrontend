@@ -70,8 +70,12 @@ export function ShipOrderModal({ order, onClose, onShipped }: ShipOrderModalProp
   const [rates, setRates] = useState<RateItem[]>([]);
   const [orderDetails, setOrderDetails] = useState<any>(null);
   const [shippingId, setShippingId] = useState<string | null>(null);
-  const [hoveredInfo, setHoveredInfo] = useState<string | null>(null);
-  const [hoveredWeight, setHoveredWeight] = useState<string | null>(null);
+  // Both carry the trigger's bounding rect so the tooltip can be portaled to
+  // document.body with position:fixed — it previously rendered position:absolute
+  // inside the scrollable rate list, which clipped/forced a scrollbar whenever a
+  // tooltip near the middle of a long list didn't fit within the visible viewport.
+  const [hoveredInfo, setHoveredInfo] = useState<{ id: string; rect: DOMRect } | null>(null);
+  const [hoveredWeight, setHoveredWeight] = useState<{ id: string; rect: DOMRect } | null>(null);
   const [error, setError] = useState('');
   const [courierNetworkError, setCourierNetworkError] = useState(false);
   const [selectedCourier, setSelectedCourier] = useState<RateItem | null>(null);
@@ -414,42 +418,12 @@ export function ShipOrderModal({ order, onClose, onShipped }: ShipOrderModalProp
                         <div className="flex justify-center">
                           <div
                             className="relative inline-block"
-                            onMouseEnter={() => setHoveredWeight(String(i))}
+                            onMouseEnter={(e) => setHoveredWeight({ id: String(i), rect: e.currentTarget.getBoundingClientRect() })}
                             onMouseLeave={() => setHoveredWeight(null)}
                           >
                             <span className={`${TXT.value} text-[#475569] border-b border-dashed border-[#94A3B8] cursor-help`}>
                               {chargeableWeight}
                             </span>
-                            <AnimatePresence>
-                              {hoveredWeight === String(i) && pkg && (
-                                <motion.div
-                                  initial={{ opacity: 0, y: 4, scale: 0.96 }}
-                                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                                  exit={{ opacity: 0, y: 4, scale: 0.96 }}
-                                  transition={{ duration: 0.12 }}
-                                  className={`absolute z-20 ${i === 0 ? 'top-full mt-2' : 'bottom-full mb-2'} right-0 w-52 bg-[#0F172A] text-white rounded-[10px] p-3 shadow-xl`}
-                                >
-                                  <p className={`${TXT.label} text-slate-300 mb-1.5 border-b border-slate-700 pb-1.5`}>Weight Detail</p>
-                                  {[
-                                    { label: 'Dead Weight', val: `${pkg.weight || pkg.applicableWeight} kg` },
-                                    ...(volW ? [
-                                      { label: 'Volumetric', val: `${volWeightKg} kg` },
-                                      { label: 'L × W × H', val: `${volW.length}×${volW.width}×${volW.height}` },
-                                    ] : []),
-                                  ].map((b) => (
-                                    <div key={b.label} className="flex justify-between items-center py-0.5">
-                                      <span className={`${TXT.value} text-slate-400`}>{b.label}</span>
-                                      <span className={`${TXT.value} text-white`}>{b.val}</span>
-                                    </div>
-                                  ))}
-                                  <div className="flex justify-between items-center border-t border-slate-700 mt-1 pt-1">
-                                    <span className={`${TXT.label} text-slate-300`}>Applicable</span>
-                                    <span className={`${TXT.label} text-[#00A86B]`}>{pkg.applicableWeight} kg</span>
-                                  </div>
-                                  <div className={`absolute ${i === 0 ? '-top-1.5' : '-bottom-1.5'} right-3 w-2.5 h-2.5 bg-[#0F172A] rotate-45`} />
-                                </motion.div>
-                              )}
-                            </AnimatePresence>
                           </div>
                         </div>
 
@@ -458,38 +432,10 @@ export function ShipOrderModal({ order, onClose, onShipped }: ShipOrderModalProp
                           <span className={`${TXT.label} text-[#0F172A]`}>₹{Number(item.forward?.finalCharges || 0).toFixed(2)}</span>
                           <div
                             className="relative"
-                            onMouseEnter={() => setHoveredInfo(String(i))}
+                            onMouseEnter={(e) => setHoveredInfo({ id: String(i), rect: e.currentTarget.getBoundingClientRect() })}
                             onMouseLeave={() => setHoveredInfo(null)}
                           >
                             <Info className="w-3.5 h-3.5 text-[#00A86B] cursor-help" />
-                            <AnimatePresence>
-                              {hoveredInfo === String(i) && (
-                                <motion.div
-                                  initial={{ opacity: 0, y: 4, scale: 0.96 }}
-                                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                                  exit={{ opacity: 0, y: 4, scale: 0.96 }}
-                                  transition={{ duration: 0.12 }}
-                                  className={`absolute z-20 ${i === 0 ? 'top-full mt-2' : 'bottom-full mb-2'} right-0 w-52 bg-[#0F172A] text-white rounded-[10px] p-3 shadow-xl`}
-                                >
-                                  <p className={`${TXT.label} text-slate-300 mb-1.5 border-b border-slate-700 pb-1.5`}>Price Breakup</p>
-                                  {[
-                                    { label: 'Freight', val: item.forward?.charges },
-                                    { label: 'COD',     val: item.cod },
-                                    { label: 'GST',     val: item.forward?.gst },
-                                  ].map((b) => (
-                                    <div key={b.label} className="flex justify-between items-center py-0.5">
-                                      <span className={`${TXT.value} text-slate-400`}>{b.label}</span>
-                                      <span className={`${TXT.value} text-white`}>₹{Number(b.val || 0).toFixed(2)}</span>
-                                    </div>
-                                  ))}
-                                  <div className="flex justify-between items-center border-t border-slate-700 mt-1 pt-1">
-                                    <span className={`${TXT.label} text-slate-300`}>Total</span>
-                                    <span className={`${TXT.label} text-[#00A86B]`}>₹{Number(item.forward?.finalCharges || 0).toFixed(2)}</span>
-                                  </div>
-                                  <div className={`absolute ${i === 0 ? '-top-1.5' : '-bottom-1.5'} right-3 w-2.5 h-2.5 bg-[#0F172A] rotate-45`} />
-                                </motion.div>
-                              )}
-                            </AnimatePresence>
                           </div>
                         </div>
 
@@ -513,6 +459,88 @@ export function ShipOrderModal({ order, onClose, onShipped }: ShipOrderModalProp
               )}
             </div>
           </div>
+
+          {/* ── Weight/Price hover tooltips — portaled to document.body with fixed
+               positioning (computed from the trigger's rect) so they escape the
+               rate list's overflow-y-auto clipping instead of getting cut off or
+               forcing a scrollbar when they don't fit within the visible area. ── */}
+          {hoveredWeight && pkg && (() => {
+            const rect = hoveredWeight.rect;
+            const TIP_H = 140;
+            const showBelow = rect.top < TIP_H + 16;
+            return createPortal(
+              <motion.div
+                initial={{ opacity: 0, y: 4, scale: 0.96 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 4, scale: 0.96 }}
+                transition={{ duration: 0.12 }}
+                className="fixed z-[300] w-52 bg-[#0F172A] text-white rounded-[10px] p-3 shadow-xl pointer-events-none"
+                style={{
+                  top: showBelow ? rect.bottom + 8 : undefined,
+                  bottom: showBelow ? undefined : window.innerHeight - rect.top + 8,
+                  left: Math.min(Math.max(rect.right - 208, 8), window.innerWidth - 216),
+                }}
+              >
+                <p className={`${TXT.label} text-slate-300 mb-1.5 border-b border-slate-700 pb-1.5`}>Weight Detail</p>
+                {[
+                  { label: 'Dead Weight', val: `${pkg.weight || pkg.applicableWeight} kg` },
+                  ...(volW ? [
+                    { label: 'Volumetric', val: `${volWeightKg} kg` },
+                    { label: 'L × W × H', val: `${volW.length}×${volW.width}×${volW.height}` },
+                  ] : []),
+                ].map((b) => (
+                  <div key={b.label} className="flex justify-between items-center py-0.5">
+                    <span className={`${TXT.value} text-slate-400`}>{b.label}</span>
+                    <span className={`${TXT.value} text-white`}>{b.val}</span>
+                  </div>
+                ))}
+                <div className="flex justify-between items-center border-t border-slate-700 mt-1 pt-1">
+                  <span className={`${TXT.label} text-slate-300`}>Applicable</span>
+                  <span className={`${TXT.label} text-[#00A86B]`}>{pkg.applicableWeight} kg</span>
+                </div>
+              </motion.div>,
+              document.body
+            );
+          })()}
+
+          {hoveredInfo && (() => {
+            const item = rates[Number(hoveredInfo.id)];
+            if (!item) return null;
+            const rect = hoveredInfo.rect;
+            const TIP_H = 140;
+            const showBelow = rect.top < TIP_H + 16;
+            return createPortal(
+              <motion.div
+                initial={{ opacity: 0, y: 4, scale: 0.96 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 4, scale: 0.96 }}
+                transition={{ duration: 0.12 }}
+                className="fixed z-[300] w-52 bg-[#0F172A] text-white rounded-[10px] p-3 shadow-xl pointer-events-none"
+                style={{
+                  top: showBelow ? rect.bottom + 8 : undefined,
+                  bottom: showBelow ? undefined : window.innerHeight - rect.top + 8,
+                  left: Math.min(Math.max(rect.right - 208, 8), window.innerWidth - 216),
+                }}
+              >
+                <p className={`${TXT.label} text-slate-300 mb-1.5 border-b border-slate-700 pb-1.5`}>Price Breakup</p>
+                {[
+                  { label: 'Freight', val: item.forward?.charges },
+                  { label: 'COD',     val: item.cod },
+                  { label: 'GST',     val: item.forward?.gst },
+                ].map((b) => (
+                  <div key={b.label} className="flex justify-between items-center py-0.5">
+                    <span className={`${TXT.value} text-slate-400`}>{b.label}</span>
+                    <span className={`${TXT.value} text-white`}>₹{Number(b.val || 0).toFixed(2)}</span>
+                  </div>
+                ))}
+                <div className="flex justify-between items-center border-t border-slate-700 mt-1 pt-1">
+                  <span className={`${TXT.label} text-slate-300`}>Total</span>
+                  <span className={`${TXT.label} text-[#00A86B]`}>₹{Number(item.forward?.finalCharges || 0).toFixed(2)}</span>
+                </div>
+              </motion.div>,
+              document.body
+            );
+          })()}
 
           {/* ── Courier list (mobile cards) ── */}
           <div className="md:hidden relative flex-1 min-h-0 mx-3 mt-3 mb-0 overflow-y-auto space-y-2 pb-2" onClick={() => setOpenPopup(null)}>
