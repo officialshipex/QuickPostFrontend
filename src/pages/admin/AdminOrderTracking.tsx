@@ -11,6 +11,7 @@ import {
 import { Toast } from '../../components/ui/Toast';
 import { useToast } from '../../hooks/useToast';
 import { copyToClipboard } from '../../utils/clipboard';
+import { AddressAccuracyGauge } from '../../components/ui/AddressAccuracy';
 
 // Milestone timeline icons are looked up dynamically by name (see getMilestonesFromStatus).
 const MILESTONE_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -788,7 +789,7 @@ export function AdminOrderTracking() {
         </div>
 
         {/* ── MAIN CONTENT ─────────────────────────────────────────────────────── */}
-        <div className="w-full max-w-[1400px] mx-auto px-3 md:px-6 grid grid-cols-1 lg:grid-cols-[65%_35%] gap-3 md:gap-5 items-start">
+        <div className="w-full max-w-[1400px] mx-auto px-3 md:px-6 grid grid-cols-1 lg:grid-cols-[65%_35%] gap-3 md:gap-5 items-stretch">
 
           {/* LEFT COLUMN */}
           <div className="flex flex-col gap-3 md:gap-5 min-w-0">
@@ -839,11 +840,14 @@ export function AdminOrderTracking() {
 
               {/* SECTION 2: PICKUP DETAILS */}
               <div className="bg-white rounded-xl border border-[#E2E8F0] p-3 md:p-5 shadow-sm left-col-card">
-                <div className="flex items-center gap-2.5 border-b border-[#E2E8F0] pb-2.5 md:pb-3 mb-3 md:mb-4">
-                  <div className="w-8 h-8 rounded-full bg-[#F0FDF4] flex items-center justify-center shrink-0">
-                    <Navigation className="w-4 h-4 text-[#00A86B]" />
+                <div className="flex items-center justify-between gap-2.5 border-b border-[#E2E8F0] pb-2.5 md:pb-3 mb-3 md:mb-4">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-8 h-8 rounded-full bg-[#F0FDF4] flex items-center justify-center shrink-0">
+                      <Navigation className="w-4 h-4 text-[#00A86B]" />
+                    </div>
+                    <h3 className="text-[14px] leading-[20px] font-semibold text-[#0F172A]">Pickup Details</h3>
                   </div>
-                  <h3 className="text-[14px] leading-[20px] font-semibold text-[#0F172A]">Pickup Details</h3>
+                  <AddressAccuracyGauge address={order?.pickupAddress?.address} size="sm" />
                 </div>
                 <div className="space-y-3 md:space-y-4">
                   <div className="grid grid-cols-2 gap-3 md:gap-4">
@@ -885,11 +889,14 @@ export function AdminOrderTracking() {
 
               {/* SECTION 3: RECEIVER DETAILS */}
               <div className="bg-white rounded-xl border border-[#E2E8F0] p-3 md:p-5 shadow-sm left-col-card">
-                <div className="flex items-center gap-2.5 border-b border-[#E2E8F0] pb-2.5 md:pb-3 mb-3 md:mb-4">
-                  <div className="w-8 h-8 rounded-full bg-[#F0FDF4] flex items-center justify-center shrink-0">
-                    <MapPin className="w-4 h-4 text-[#00A86B]" />
+                <div className="flex items-center justify-between gap-2.5 border-b border-[#E2E8F0] pb-2.5 md:pb-3 mb-3 md:mb-4">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-8 h-8 rounded-full bg-[#F0FDF4] flex items-center justify-center shrink-0">
+                      <MapPin className="w-4 h-4 text-[#00A86B]" />
+                    </div>
+                    <h3 className="text-[14px] leading-[20px] font-semibold text-[#0F172A]">Receiver Details</h3>
                   </div>
-                  <h3 className="text-[14px] leading-[20px] font-semibold text-[#0F172A]">Receiver Details</h3>
+                  <AddressAccuracyGauge address={order?.receiverAddress?.address} size="sm" />
                 </div>
                 <div className="space-y-3 md:space-y-4">
                   <div className="grid grid-cols-2 gap-3 md:gap-4">
@@ -1209,8 +1216,11 @@ export function AdminOrderTracking() {
 
           </div>
 
-          {/* RIGHT COLUMN */}
-          <div className="flex flex-col lg:sticky lg:top-5 gap-3 md:gap-4 min-w-0">
+          {/* RIGHT COLUMN — h-full stretches it to the left column's height (grid
+              items-stretch); the last card (NDR Actions) flex-grows to absorb any
+              leftover space so the bottom edges line up, without inflating
+              Tracking Details' own height. */}
+          <div className="flex flex-col lg:sticky lg:top-5 gap-3 md:gap-4 min-w-0 lg:h-full">
 
             {/* WIDGET 1: SHIPPING DETAILS */}
             <div className="bg-white rounded-xl border border-[#E2E8F0] p-3 md:p-5 shadow-sm right-col-widget">
@@ -1330,17 +1340,22 @@ export function AdminOrderTracking() {
               </div>
             </div>
 
-            {/* WIDGET 3: NDR ACTIONS — visible for any undelivered/NDR state */}
-            {(order?.status === 'Undelivered' || order?.ndrStatus === 'Undelivered' || order?.ndrStatus === 'Action_Requested') && (() => {
+            {/* WIDGET 3: NDR ACTIONS — always shown; individual fields inside show/hide
+                based on whether that specific piece of NDR data exists on the order. */}
+            {(() => {
+              const hasNdrStatus = !!order?.ndrStatus;
               const ndrButtonsEnabled = order?.ndrStatus === 'Undelivered' && order?.reattempt === true;
               return (
-              <div className="bg-white rounded-xl border border-[#E2E8F0] p-3 md:p-5 shadow-sm right-col-widget">
+              <div className="bg-white rounded-xl border border-[#E2E8F0] p-3 md:p-5 shadow-sm right-col-widget lg:flex-1 flex flex-col">
                 <div className="flex items-center gap-2.5 border-b border-[#E2E8F0] pb-2.5 md:pb-3 mb-3 md:mb-4">
                   <div className="w-8 h-8 rounded-full bg-amber-50 flex items-center justify-center shrink-0">
                     <AlertTriangle className="w-4 h-4 text-amber-500" />
                   </div>
                   <h3 className="text-[14px] leading-[20px] font-semibold text-[#0F172A]">NDR Actions & History</h3>
                 </div>
+                {!hasNdrStatus ? (
+                  <div className="flex-1 flex items-center justify-center text-center text-[12px] leading-[18px] font-normal text-[#94A3B8]">No NDR raised for this order</div>
+                ) : (
                 <div className="space-y-3.5">
                   <div className="flex justify-between items-center text-[12px] leading-[18px]">
                     <span className="font-medium text-[#64748B]">NDR Status</span>
@@ -1397,6 +1412,7 @@ export function AdminOrderTracking() {
                     </div>
                   </div>
                 </div>
+                )}
               </div>
               );
             })()}

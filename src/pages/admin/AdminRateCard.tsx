@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
-import { Search, ChevronRight, Save, Filter, X, Upload, Download, Plus, Edit2, CheckCircle2, Truck, Hash, Layers } from 'lucide-react';
+import { Search, ChevronRight, Save, Filter, X, Upload, Download, Plus, Edit2, CheckCircle2, Truck, Hash, Layers, IndianRupee, RotateCcw, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiClient } from '../../services/apiClient';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
@@ -31,6 +31,70 @@ const getProviderLogo = (name: string) => {
   if (n.includes('nimbus')) return '/brands/nimbuspost.png';
   return '';
 };
+
+// ─── Pill single-select dropdown — same animated-panel pattern as the "Plan"
+//     dropdown above, reused for the Costing form's Courier Service/Status/
+//     Shipment Type fields so every dropdown on this page behaves & looks alike. ──
+interface PillOption { label: string; value: string; }
+function PillSelect({ value, onChange, options, placeholder = 'Select...' }: {
+  value: string; onChange: (v: string) => void; options: PillOption[]; placeholder?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handler(e: MouseEvent) { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); }
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const selectedLabel = options.find(o => o.value === value)?.label;
+
+  return (
+    <div ref={ref} className="relative w-full">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className={`w-full h-11 px-4 border rounded-full text-[13px] font-medium transition-all flex items-center justify-between gap-2 ${open ? 'border-[#00A86B] ring-2 ring-[#00A86B]/10 bg-white text-[#0F172A]' : 'border-[#E2E8F0] bg-white text-[#0F172A] hover:border-[#00A86B]/50'}`}
+      >
+        <span className={`truncate ${!selectedLabel ? 'text-[#94A3B8]' : ''}`}>{selectedLabel || placeholder}</span>
+        <motion.span animate={{ rotate: open ? 180 : 0 }} transition={{ duration: 0.2 }} className="shrink-0 text-[#94A3B8]">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </motion.span>
+      </button>
+      <AnimatePresence>
+        {open && (
+          <>
+            <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+            <motion.div
+              initial={{ opacity: 0, y: -8, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -8, scale: 0.97 }}
+              transition={{ duration: 0.15, ease: 'easeOut' }}
+              className="absolute top-[calc(100%+6px)] left-0 w-full bg-white border border-[#E2E8F0] rounded-2xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.15)] z-20 overflow-hidden py-1.5"
+            >
+              <div className="max-h-[240px] overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
+                {options.length === 0 ? (
+                  <div className="px-4 py-3 text-[13px] text-[#94A3B8] font-medium">No options</div>
+                ) : options.map(opt => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => { onChange(opt.value); setOpen(false); }}
+                    className={`w-full text-left px-4 py-2.5 text-[13px] transition-colors flex items-center justify-between gap-2 ${value === opt.value ? 'bg-[#F0FDF4] text-[#00A86B] font-bold' : 'text-[#475569] font-semibold hover:bg-[#F8FAFC] hover:text-[#0F172A]'}`}
+                  >
+                    <span className="truncate">{opt.label}</span>
+                    {value === opt.value && <CheckCircle2 className="w-4 h-4 text-[#00A86B] shrink-0" />}
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
 
 function ciGet(obj: Record<string, any> | undefined, key: string): any {
   if (!obj || !key) return undefined;
@@ -79,6 +143,8 @@ function buildRatesMap(
 }
 
 export function AdminRateCard() {
+  const [activeTab, setActiveTab] = useState<'management' | 'costing'>('management');
+
   const [plans, setPlans] = useState<string[]>([]);
   const [providers, setProviders] = useState<any[]>([]);
   const [services, setServices] = useState<any[]>([]);
@@ -127,6 +193,131 @@ export function AdminRateCard() {
   const [addingRate, setAddingRate] = useState(false);
 
   const [ratesMap, setRatesMap] = useState<Record<string, Record<string, Record<string, any>>>>({});
+
+  // ─── Costing Rate Card tab ─────────────────────────────────────────────────────
+  const emptyCostingForm = {
+    courierServiceId: '', status: 'Active', shipmentType: 'Forward',
+    basicWeight: '', basicZoneA: '', basicZoneB: '', basicZoneC: '', basicZoneD: '', basicZoneE: '',
+    addWeight: '', addZoneA: '', addZoneB: '', addZoneC: '', addZoneD: '', addZoneE: '',
+    codCharge: '', codPercentage: '',
+  };
+  const [costingCards, setCostingCards] = useState<any[]>([]);
+  const [costingLoading, setCostingLoading] = useState(false);
+  const [costingForm, setCostingForm] = useState(emptyCostingForm);
+  const [costingSaving, setCostingSaving] = useState(false);
+  const [costingError, setCostingError] = useState('');
+  const [costingSearch, setCostingSearch] = useState('');
+  const [editingCostingId, setEditingCostingId] = useState<string | null>(null);
+  const [deleteCostingId, setDeleteCostingId] = useState<string | null>(null);
+
+  const fetchCostingCards = async () => {
+    setCostingLoading(true);
+    try {
+      const res = await apiClient.get('/costingRate/getCostingRateCard');
+      setCostingCards(res.data?.costingRateCards || res.data?.data || []);
+    } catch {
+      setCostingCards([]);
+    } finally {
+      setCostingLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'costing' && services.length === 0 && !loading) {
+      // services are already fetched on mount for the Management tab; nothing extra needed here.
+    }
+    if (activeTab === 'costing') fetchCostingCards();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
+
+  const resetCostingForm = () => {
+    setCostingForm(emptyCostingForm);
+    setEditingCostingId(null);
+    setCostingError('');
+  };
+
+  const handleSaveCosting = async () => {
+    const svc = services.find((s: any) => s._id === costingForm.courierServiceId);
+    if (!svc) { setCostingError('Please select a courier service'); return; }
+    if (!costingForm.basicWeight) { setCostingError('Basic weight is required'); return; }
+    if (!costingForm.addWeight) { setCostingError('Additional weight is required'); return; }
+
+    setCostingSaving(true);
+    setCostingError('');
+    try {
+      const payload = {
+        courierServiceId: svc._id,
+        courierProviderName: svc.provider,
+        courierServiceName: svc.name,
+        mode: svc.courierType || 'Domestic (Surface)',
+        status: costingForm.status,
+        shipmentType: costingForm.shipmentType,
+        weightPriceBasic: [{ weight: parseFloat(costingForm.basicWeight) || 0, zoneA: parseFloat(costingForm.basicZoneA) || 0, zoneB: parseFloat(costingForm.basicZoneB) || 0, zoneC: parseFloat(costingForm.basicZoneC) || 0, zoneD: parseFloat(costingForm.basicZoneD) || 0, zoneE: parseFloat(costingForm.basicZoneE) || 0 }],
+        weightPriceAdditional: [{ weight: parseFloat(costingForm.addWeight) || 0, zoneA: parseFloat(costingForm.addZoneA) || 0, zoneB: parseFloat(costingForm.addZoneB) || 0, zoneC: parseFloat(costingForm.addZoneC) || 0, zoneD: parseFloat(costingForm.addZoneD) || 0, zoneE: parseFloat(costingForm.addZoneE) || 0 }],
+        codCharge: parseFloat(costingForm.codCharge) || 0,
+        codPercent: parseFloat(costingForm.codPercentage) || 0,
+      };
+      if (editingCostingId) {
+        await apiClient.put(`/costingRate/updateCostingRateCard/${editingCostingId}`, payload);
+      } else {
+        await apiClient.post('/costingRate/saveCostingRateCard', payload);
+      }
+      await fetchCostingCards();
+      resetCostingForm();
+    } catch (err: any) {
+      setCostingError(err?.response?.data?.message || 'Failed to save costing rate');
+    } finally {
+      setCostingSaving(false);
+    }
+  };
+
+  const handleEditCosting = (card: any) => {
+    const basic = card.weightPriceBasic?.[0] || {};
+    const add = card.weightPriceAdditional?.[0] || {};
+    const svc = services.find((s: any) =>
+      (s.name || '').trim().toLowerCase() === (card.courierServiceName || '').trim().toLowerCase() &&
+      (s.provider || '').trim().toLowerCase() === (card.courierProviderName || '').trim().toLowerCase()
+    );
+    setCostingForm({
+      courierServiceId: svc?._id || card.courierServiceId || '',
+      status: card.status || 'Active',
+      shipmentType: card.shipmentType || 'Forward',
+      basicWeight: basic.weight != null ? String(basic.weight) : '',
+      basicZoneA: basic.zoneA != null ? String(basic.zoneA) : '',
+      basicZoneB: basic.zoneB != null ? String(basic.zoneB) : '',
+      basicZoneC: basic.zoneC != null ? String(basic.zoneC) : '',
+      basicZoneD: basic.zoneD != null ? String(basic.zoneD) : '',
+      basicZoneE: basic.zoneE != null ? String(basic.zoneE) : '',
+      addWeight: add.weight != null ? String(add.weight) : '',
+      addZoneA: add.zoneA != null ? String(add.zoneA) : '',
+      addZoneB: add.zoneB != null ? String(add.zoneB) : '',
+      addZoneC: add.zoneC != null ? String(add.zoneC) : '',
+      addZoneD: add.zoneD != null ? String(add.zoneD) : '',
+      addZoneE: add.zoneE != null ? String(add.zoneE) : '',
+      codCharge: card.codCharge != null ? String(card.codCharge) : '',
+      codPercentage: card.codPercent != null ? String(card.codPercent) : '',
+    });
+    setEditingCostingId(card._id);
+    setCostingError('');
+  };
+
+  const handleDeleteCosting = async () => {
+    if (!deleteCostingId) return;
+    try {
+      await apiClient.delete(`/costingRate/deleteCostingRateCard/${deleteCostingId}`);
+      await fetchCostingCards();
+    } catch {
+      setCostingError('Failed to delete costing rate card');
+    } finally {
+      setDeleteCostingId(null);
+    }
+  };
+
+  const filteredCostingCards = costingCards.filter((c: any) => {
+    const q = costingSearch.trim().toLowerCase();
+    if (!q) return true;
+    return (c.courierServiceName || '').toLowerCase().includes(q) || (c.courierProviderName || '').toLowerCase().includes(q);
+  });
 
   // ─── Global search listener (navbar search bar) ──────────────────────────────
   useEffect(() => {
@@ -386,15 +577,43 @@ export function AdminRateCard() {
       <div className="flex flex-col h-[calc(100vh-72px)] -m-4 md:-m-6 bg-white">
         <div className="bg-white relative z-50 shrink-0">
 
-        {/* Header Tab */}
+        {/* Header Tabs */}
         <div className="hidden md:block px-4 md:px-6 py-2 border-b border-[#E2E8F0]">
           <div className="flex gap-1 items-center bg-[#F7FEFC] rounded-full p-1.5 w-fit overflow-x-auto no-scrollbar">
-            <button className="px-4 py-2 text-[13px] font-bold text-[#00A86B] underline underline-offset-4 decoration-2 rounded-full whitespace-nowrap">
+            <button
+              onClick={() => setActiveTab('management')}
+              className={`px-4 py-2 text-[13px] font-bold rounded-full whitespace-nowrap transition-colors ${activeTab === 'management' ? 'text-[#00A86B] underline underline-offset-4 decoration-2' : 'text-[#64748B] hover:text-[#0F172A]'}`}
+            >
               Rate Card Management
+            </button>
+            <button
+              onClick={() => setActiveTab('costing')}
+              className={`px-4 py-2 text-[13px] font-bold rounded-full whitespace-nowrap transition-colors ${activeTab === 'costing' ? 'text-[#00A86B] underline underline-offset-4 decoration-2' : 'text-[#64748B] hover:text-[#0F172A]'}`}
+            >
+              Costing Rate Card
             </button>
           </div>
         </div>
 
+        {/* Mobile Tabs */}
+        <div className="md:hidden px-3 py-2 border-b border-[#E2E8F0] bg-white">
+          <div className="flex gap-1 items-center bg-[#F7FEFC] rounded-full p-1.5">
+            <button
+              onClick={() => setActiveTab('management')}
+              className={`flex-1 px-3 py-2 text-[12.5px] font-bold rounded-full whitespace-nowrap transition-colors ${activeTab === 'management' ? 'text-[#00A86B] bg-white shadow-sm' : 'text-[#64748B]'}`}
+            >
+              Rate Card
+            </button>
+            <button
+              onClick={() => setActiveTab('costing')}
+              className={`flex-1 px-3 py-2 text-[12.5px] font-bold rounded-full whitespace-nowrap transition-colors ${activeTab === 'costing' ? 'text-[#00A86B] bg-white shadow-sm' : 'text-[#64748B]'}`}
+            >
+              Costing Rate Card
+            </button>
+          </div>
+        </div>
+
+        {activeTab === 'management' && <>
         {uploadSuccess && (
           <div className="mx-4 md:mx-6 mt-3 px-4 py-3 bg-green-50 border border-green-200 rounded-xl text-sm text-green-600 font-medium">
             {uploadSuccess}
@@ -602,10 +821,11 @@ export function AdminRateCard() {
             )}
           </div>
         </div>
+        </>}
         </div>
 
         {/* Desktop Table */}
-        <div className="hidden md:flex bg-white flex-col flex-1 min-h-0 overflow-hidden border-t border-[#E2E8F0]">
+        {activeTab === 'management' && <div className="hidden md:flex bg-white flex-col flex-1 min-h-0 overflow-hidden border-t border-[#E2E8F0]">
           <div className="flex-1 overflow-y-auto overflow-x-hidden w-full relative">
           {loading && <TableLoader />}
           <table className="w-full text-left border-collapse">
@@ -850,10 +1070,10 @@ export function AdminRateCard() {
               </tbody>
             </table>
           </div>
-        </div>
+        </div>}
 
         {/* Mobile Cards */}
-        <div className="md:hidden flex-1 overflow-y-auto p-2 space-y-2 relative">
+        {activeTab === 'management' && <div className="md:hidden flex-1 overflow-y-auto p-2 space-y-2 relative">
           {loading && <TableLoader />}
           {loading ? null : filteredProviders.length > 0 ? (
             filteredProviders.map((provider) => {
@@ -1036,8 +1256,296 @@ export function AdminRateCard() {
               <div className="text-sm font-semibold text-[#64748B]">No couriers found</div>
             </div>
           )}
-        </div>
+        </div>}
+
+        {/* ══════════════════════ COSTING RATE CARD TAB ══════════════════════ */}
+        {activeTab === 'costing' && (
+          <div className="flex-1 min-h-0 overflow-y-auto">
+            {costingError && (
+              <div className="mx-4 md:mx-6 mt-3 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600 font-medium flex items-center justify-between gap-2">
+                <span>{costingError}</span>
+                <button onClick={() => setCostingError('')}><X className="w-4 h-4" /></button>
+              </div>
+            )}
+
+            {/* Form Card */}
+            <div className="p-4 md:p-6 border-b border-[#E2E8F0] bg-white">
+              <div className="flex items-center gap-2 mb-4">
+                <h3 className="text-[14px] font-bold text-[#0F172A]">Costing Rate Card</h3>
+                <span className="text-[#CBD5E1]">|</span>
+                <button
+                  onClick={resetCostingForm}
+                  className="text-[13px] font-bold text-[#00A86B] hover:text-[#009B63] transition-colors flex items-center gap-1"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Add
+                </button>
+              </div>
+
+              {/* Row 1: Select Courier Service / Status / Shipment Type */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-5">
+                <PillSelect
+                  value={costingForm.courierServiceId}
+                  onChange={(v) => setCostingForm(f => ({ ...f, courierServiceId: v }))}
+                  placeholder="Select Courier Service"
+                  options={services.map((s: any) => ({ value: s._id, label: `${s.provider} — ${s.name}` }))}
+                />
+                <PillSelect
+                  value={costingForm.status}
+                  onChange={(v) => setCostingForm(f => ({ ...f, status: v }))}
+                  options={[{ value: 'Active', label: 'Active' }, { value: 'Inactive', label: 'Inactive' }]}
+                />
+                <PillSelect
+                  value={costingForm.shipmentType}
+                  onChange={(v) => setCostingForm(f => ({ ...f, shipmentType: v }))}
+                  options={[{ value: 'Forward', label: 'Forward' }, { value: 'RTO', label: 'RTO' }]}
+                />
+              </div>
+
+              {/* Weight Type Basic */}
+              <div className="mb-5">
+                <p className="text-[13px] font-bold text-[#0F172A] mb-2.5">
+                  Weight Type <span className="text-red-500 font-bold">Basic *</span> <span className="text-[#94A3B8] font-medium">(in gram)</span>
+                </p>
+                <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+                  <input type="number" placeholder="Weight (gm) *" value={costingForm.basicWeight}
+                    onChange={(e) => setCostingForm(f => ({ ...f, basicWeight: e.target.value }))}
+                    className="w-full h-11 px-4 bg-white border border-[#E2E8F0] rounded-full text-[13px] font-medium text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10" />
+                  {(['basicZoneA', 'basicZoneB', 'basicZoneC', 'basicZoneD', 'basicZoneE'] as const).map((field, i) => (
+                    <div key={field} className="relative">
+                      <input type="number" placeholder={`Zone ${String.fromCharCode(65 + i)} * ₹`} value={(costingForm as any)[field]}
+                        onChange={(e) => setCostingForm(f => ({ ...f, [field]: e.target.value }))}
+                        className="w-full h-11 px-4 bg-white border border-[#E2E8F0] rounded-full text-[13px] font-medium text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Weight Type Additional */}
+              <div className="mb-5">
+                <p className="text-[13px] font-bold text-[#0F172A] mb-2.5">
+                  Weight Type <span className="text-red-500 font-bold">Additional *</span> <span className="text-[#94A3B8] font-medium">(in gram)</span>
+                </p>
+                <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+                  <input type="number" placeholder="Weight (gm) *" value={costingForm.addWeight}
+                    onChange={(e) => setCostingForm(f => ({ ...f, addWeight: e.target.value }))}
+                    className="w-full h-11 px-4 bg-white border border-[#E2E8F0] rounded-full text-[13px] font-medium text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10" />
+                  {(['addZoneA', 'addZoneB', 'addZoneC', 'addZoneD', 'addZoneE'] as const).map((field, i) => (
+                    <input key={field} type="number" placeholder={`Zone ${String.fromCharCode(65 + i)} * ₹`} value={(costingForm as any)[field]}
+                      onChange={(e) => setCostingForm(f => ({ ...f, [field]: e.target.value }))}
+                      className="w-full h-11 px-4 bg-white border border-[#E2E8F0] rounded-full text-[13px] font-medium text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10" />
+                  ))}
+                </div>
+              </div>
+
+              {/* Overhead Charges */}
+              <div className="mb-1">
+                <p className="text-[13px] font-bold text-[#0F172A] mb-2.5">Overhead Charges:</p>
+                <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+                  <input type="number" placeholder="COD Charge ₹" value={costingForm.codCharge}
+                    onChange={(e) => setCostingForm(f => ({ ...f, codCharge: e.target.value }))}
+                    className="w-full h-11 px-4 bg-white border border-[#E2E8F0] rounded-full text-[13px] font-medium text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10" />
+                  <input type="number" placeholder="COD Percentage %" value={costingForm.codPercentage}
+                    onChange={(e) => setCostingForm(f => ({ ...f, codPercentage: e.target.value }))}
+                    className="w-full h-11 px-4 bg-white border border-[#E2E8F0] rounded-full text-[13px] font-medium text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10" />
+                </div>
+              </div>
+
+              {/* Reset / Save */}
+              <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-[#F1F5F9]">
+                <button
+                  onClick={resetCostingForm}
+                  className="flex items-center gap-1.5 px-5 h-10 rounded-full border border-[#E2E8F0] text-[#475569] text-[13px] font-bold bg-white hover:bg-[#F8FAFC] transition-colors"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" /> Reset
+                </button>
+                <button
+                  onClick={handleSaveCosting}
+                  disabled={costingSaving}
+                  className="flex items-center gap-1.5 px-5 h-10 rounded-full bg-[#00A86B] text-white text-[13px] font-bold hover:bg-[#009B63] transition-colors shadow-sm disabled:opacity-60"
+                >
+                  {costingSaving ? <><Spinner /> Saving...</> : <><Save className="w-3.5 h-3.5" /> {editingCostingId ? 'Update' : 'Save'} Costing Rate</>}
+                </button>
+              </div>
+            </div>
+
+            {/* Costing Rate Cards Table */}
+            <div className="p-4 md:p-6">
+              <div className="bg-white border border-[#E2E8F0] rounded-2xl overflow-hidden shadow-sm">
+                <div className="flex items-center justify-between px-4 md:px-5 py-3.5 border-b border-[#E2E8F0]">
+                  <h3 className="text-[14px] font-bold text-[#0F172A]">
+                    Costing Rate Cards <span className="text-[#94A3B8] font-medium">({filteredCostingCards.length})</span>
+                  </h3>
+                  <div className="relative w-[200px] max-w-[45%]">
+                    <Search className="w-3.5 h-3.5 text-[#94A3B8] absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      placeholder="Search service..."
+                      value={costingSearch}
+                      onChange={(e) => setCostingSearch(e.target.value)}
+                      className="w-full h-9 pl-9 pr-3 bg-white border border-[#E2E8F0] rounded-full text-[12.5px] font-medium text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10"
+                    />
+                  </div>
+                </div>
+
+                {/* Desktop table */}
+                <div className="hidden md:block overflow-x-auto">
+                  {costingLoading && <div className="relative h-32"><TableLoader /></div>}
+                  {!costingLoading && (
+                    <table className="w-full text-left border-collapse min-w-[1000px]">
+                      <thead>
+                        <tr className="bg-[#00A86B]">
+                          <th className="py-2.5 px-4 text-[11px] font-bold text-white uppercase tracking-wider">Courier Service</th>
+                          <th className="py-2.5 px-4 text-[11px] font-bold text-white uppercase tracking-wider">Mode</th>
+                          <th className="py-2.5 px-4 text-[11px] font-bold text-white uppercase tracking-wider">Weight</th>
+                          <th className="py-2.5 px-4 text-[11px] font-bold text-white uppercase tracking-wider">Zone A</th>
+                          <th className="py-2.5 px-4 text-[11px] font-bold text-white uppercase tracking-wider">Zone B</th>
+                          <th className="py-2.5 px-4 text-[11px] font-bold text-white uppercase tracking-wider">Zone C</th>
+                          <th className="py-2.5 px-4 text-[11px] font-bold text-white uppercase tracking-wider">Zone D</th>
+                          <th className="py-2.5 px-4 text-[11px] font-bold text-white uppercase tracking-wider">Zone E</th>
+                          <th className="py-2.5 px-4 text-[11px] font-bold text-white uppercase tracking-wider">COD Charge</th>
+                          <th className="py-2.5 px-4 text-[11px] font-bold text-white uppercase tracking-wider">COD %</th>
+                          <th className="py-2.5 px-4 text-[11px] font-bold text-white uppercase tracking-wider">Status</th>
+                          <th className="py-2.5 px-4 text-[11px] font-bold text-white uppercase tracking-wider text-right">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#E2E8F0]">
+                        {filteredCostingCards.length === 0 ? (
+                          <tr><td colSpan={12} className="py-10 text-center text-sm font-semibold text-[#94A3B8]">No costing rate cards found</td></tr>
+                        ) : filteredCostingCards.map((c: any, i: number) => {
+                          const basic = c.weightPriceBasic?.[0] || {};
+                          const add = c.weightPriceAdditional?.[0] || {};
+                          return (
+                            <React.Fragment key={c._id}>
+                              <tr className={i % 2 === 0 ? 'bg-white' : 'bg-[#F8FAFC]'}>
+                                <td className="py-3 px-4 font-bold text-[13px] text-[#0F172A]" rowSpan={2} style={{ verticalAlign: 'top', paddingTop: '1rem' }}>
+                                  {c.courierServiceName}
+                                </td>
+                                <td className="py-3 px-4" rowSpan={2} style={{ verticalAlign: 'top', paddingTop: '1rem' }}>
+                                  <span className="px-2.5 py-1 rounded-md bg-[#F1F5F9] text-[#475569] text-[11px] font-bold whitespace-nowrap">{c.mode || 'Domestic (Surface)'}</span>
+                                </td>
+                                <td className="py-3 px-4 text-[13px] text-[#64748B]">Basic: {basic.weight ?? '—'}gm</td>
+                                {(['zoneA', 'zoneB', 'zoneC', 'zoneD', 'zoneE'] as const).map(z => (
+                                  <td key={z} className="py-3 px-4 text-[13px] font-semibold text-[#0F172A]">₹{basic[z] ?? 0}</td>
+                                ))}
+                                <td className="py-3 px-4 text-[13px] font-semibold text-[#0F172A]" rowSpan={2} style={{ verticalAlign: 'top', paddingTop: '1rem' }}>₹{c.codCharge ?? 0}</td>
+                                <td className="py-3 px-4 text-[13px] font-semibold text-[#0F172A]" rowSpan={2} style={{ verticalAlign: 'top', paddingTop: '1rem' }}>{c.codPercent ?? 0}%</td>
+                                <td className="py-3 px-4" rowSpan={2} style={{ verticalAlign: 'top', paddingTop: '1rem' }}>
+                                  <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold ${c.status === 'Active' ? 'bg-[#F0FDF4] text-[#00A86B]' : 'bg-[#FEF2F2] text-[#EF4444]'}`}>
+                                    {c.status || 'Active'}
+                                  </span>
+                                </td>
+                                <td className="py-3 px-4 text-right" rowSpan={2} style={{ verticalAlign: 'top', paddingTop: '1rem' }}>
+                                  <div className="flex items-center justify-end gap-1.5">
+                                    <button onClick={() => handleEditCosting(c)} title="Edit"
+                                      className="w-8 h-8 rounded-lg border border-[#E2E8F0] bg-white text-[#00A86B] flex items-center justify-center hover:bg-[#F0FDF4] transition-colors">
+                                      <Edit2 className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button onClick={() => setDeleteCostingId(c._id)} title="Delete"
+                                      className="w-8 h-8 rounded-lg border border-[#E2E8F0] bg-white text-red-500 flex items-center justify-center hover:bg-red-50 transition-colors">
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                              <tr className={i % 2 === 0 ? 'bg-white' : 'bg-[#F8FAFC]'}>
+                                <td className="py-3 px-4 pb-4 text-[13px] text-[#64748B]">Addl: {add.weight ?? '—'}gm</td>
+                                {(['zoneA', 'zoneB', 'zoneC', 'zoneD', 'zoneE'] as const).map(z => (
+                                  <td key={z} className="py-3 px-4 pb-4 text-[13px] font-semibold text-[#0F172A]">₹{add[z] ?? 0}</td>
+                                ))}
+                              </tr>
+                            </React.Fragment>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+
+                {/* Mobile cards */}
+                <div className="md:hidden p-2.5 space-y-2.5">
+                  {costingLoading && <div className="relative h-32"><TableLoader /></div>}
+                  {!costingLoading && filteredCostingCards.length === 0 && (
+                    <div className="p-8 text-center text-sm font-semibold text-[#94A3B8]">No costing rate cards found</div>
+                  )}
+                  {!costingLoading && filteredCostingCards.map((c: any) => {
+                    const basic = c.weightPriceBasic?.[0] || {};
+                    const add = c.weightPriceAdditional?.[0] || {};
+                    return (
+                      <div key={c._id} className="bg-white rounded-xl border border-[#E2E8F0] p-3.5">
+                        <div className="flex items-start justify-between gap-2 mb-2.5">
+                          <div className="min-w-0">
+                            <div className="font-bold text-[13px] text-[#0F172A] truncate">{c.courierServiceName}</div>
+                            <span className="inline-block mt-1 px-2 py-0.5 rounded-md bg-[#F1F5F9] text-[#475569] text-[10px] font-bold">{c.mode || 'Domestic (Surface)'}</span>
+                          </div>
+                          <span className={`shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${c.status === 'Active' ? 'bg-[#F0FDF4] text-[#00A86B]' : 'bg-[#FEF2F2] text-[#EF4444]'}`}>
+                            {c.status || 'Active'}
+                          </span>
+                        </div>
+                        <div className="bg-[#F8FAFC] rounded-lg p-2.5 mb-2.5 space-y-1.5">
+                          <div className="flex items-center justify-between text-[12px]">
+                            <span className="text-[#64748B] font-medium">Basic: {basic.weight ?? '—'}gm</span>
+                            <span className="font-semibold text-[#0F172A]">A ₹{basic.zoneA ?? 0} · B ₹{basic.zoneB ?? 0} · C ₹{basic.zoneC ?? 0}</span>
+                          </div>
+                          <div className="flex items-center justify-between text-[12px]">
+                            <span className="text-[#64748B] font-medium">Addl: {add.weight ?? '—'}gm</span>
+                            <span className="font-semibold text-[#0F172A]">D ₹{basic.zoneD ?? 0} · E ₹{basic.zoneE ?? 0}</span>
+                          </div>
+                          <div className="flex items-center justify-between text-[12px] pt-1.5 border-t border-[#E2E8F0]">
+                            <span className="text-[#64748B] font-medium">COD Charge / %</span>
+                            <span className="font-semibold text-[#0F172A]">₹{c.codCharge ?? 0} / {c.codPercent ?? 0}%</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => handleEditCosting(c)}
+                            className="flex-1 h-9 rounded-lg border border-[#E2E8F0] bg-white text-[#00A86B] text-[12.5px] font-bold flex items-center justify-center gap-1.5 hover:bg-[#F0FDF4] transition-colors">
+                            <Edit2 className="w-3.5 h-3.5" /> Edit
+                          </button>
+                          <button onClick={() => setDeleteCostingId(c._id)}
+                            className="flex-1 h-9 rounded-lg border border-[#E2E8F0] bg-white text-red-500 text-[12.5px] font-bold flex items-center justify-center gap-1.5 hover:bg-red-50 transition-colors">
+                            <Trash2 className="w-3.5 h-3.5" /> Delete
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Delete Costing Rate Card Confirm */}
+      <AnimatePresence>
+        {deleteCostingId && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[150] flex items-center justify-center p-4"
+            onClick={() => setDeleteCostingId(null)}>
+            <motion.div initial={{ opacity: 0, scale: 0.96, y: 16 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96, y: 12 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 32 }}
+              className="w-full max-w-[380px] bg-white rounded-[24px] shadow-[0_40px_80px_-16px_rgba(0,0,0,0.2)] border border-[#E2E8F0] overflow-hidden"
+              onClick={(e) => e.stopPropagation()}>
+              <div className="p-6 text-center">
+                <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4">
+                  <Trash2 className="w-5 h-5 text-red-500" />
+                </div>
+                <h3 className="text-base font-bold text-[#0F172A] mb-1.5">Delete Costing Rate Card?</h3>
+                <p className="text-[13px] text-[#94A3B8]">This action cannot be undone.</p>
+              </div>
+              <div className="px-6 py-5 border-t border-[#E2E8F0] flex gap-3">
+                <button onClick={() => setDeleteCostingId(null)}
+                  className="flex-1 h-11 rounded-[14px] font-semibold text-sm text-[#475569] bg-white border border-[#E2E8F0] hover:bg-[#F8FAFC] transition-all">
+                  Cancel
+                </button>
+                <button onClick={handleDeleteCosting}
+                  className="flex-1 h-11 rounded-[14px] font-semibold text-sm text-white bg-red-500 hover:bg-red-600 transition-all shadow-sm">
+                  Delete
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Mobile Filters Bottom Sheet */}
       <AnimatePresence>

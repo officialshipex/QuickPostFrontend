@@ -7,8 +7,9 @@ import { useDashboardFilters } from '../../context/DashboardFilterContext';
 import { useTableLoader } from '../../hooks/useTableLoader';
 import { TableLoader } from '../../components/ui/TableLoader';
 import { TruncatedText } from '../../components/ui/TruncatedText';
+import { useUserSearchFilter } from '../../hooks/filters/useUserSearchFilter';
 import {
-  RefreshCcw, Package, IndianRupee, Users, CreditCard,
+  RefreshCcw, Package, IndianRupee, Users, CreditCard, Search, X,
   ShoppingCart, Clock, AlertTriangle, CheckCircle2, RotateCcw,
   ShieldAlert, Truck, FileText, ArrowRight, Percent,
 } from 'lucide-react';
@@ -140,24 +141,32 @@ export function AdminDashboard() {
   const [topSellersErr,  setTopSellersErr]  = useState<string>('');
   const [kycComplete, setKycComplete] = useState(false);
 
+  // Seller search (admin-only) — selecting a seller loads their dashboard instead of the platform-wide one.
+  const {
+    userQuery, userSuggestions, userMongoId, setUserSuggestions,
+    onQueryChange: onUserQueryChange, selectUser: selectUserSuggestion, clearUser: clearUserFilter,
+  } = useUserSearchFilter(isAdminView);
+
   // Stable ISO strings as primitive deps so useCallback only recreates when dates actually change
   const startISO = filters.dateRange.start.toISOString();
   const endISO   = filters.dateRange.end.toISOString();
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
-    const dateParams = `?startDate=${startISO}&endDate=${endISO}`;
+    const userIdParam = isAdminView && userMongoId ? `&userId=${userMongoId}` : '';
+    const dateParams = `?startDate=${startISO}&endDate=${endISO}${userIdParam}`;
+    const plainParams = userIdParam ? `?${userIdParam.slice(1)}` : '';
     const [ovRes, insRes, grRes, cdRes, wdRes, crRes, acRes, tsRes, kycRes] =
       await Promise.allSettled([
         apiClient.get(`/dashboard/getDashboardOverview${dateParams}`),
-        apiClient.get('/dashboard/getBusinessInsights'),
+        apiClient.get(`/dashboard/getBusinessInsights${plainParams}`),
         apiClient.get(`/dashboard/getOverviewGraphsData${dateParams}`),
         apiClient.get(`/dashboard/getOverviewCardData${dateParams}`),
-        apiClient.get('/dashboard/getWeightDisputeData'),
+        apiClient.get(`/dashboard/getWeightDisputeData${plainParams}`),
         apiClient.get(`/dashboard/getCourierComparison${dateParams}`),
-        apiClient.get('/dashboard/getAdminActionCards'),
+        apiClient.get(`/dashboard/getAdminActionCards${plainParams}`),
         apiClient.get('/dashboard/topSellersData'),
-        apiClient.get('/user/getUserDetails'),
+        apiClient.get(`/user/getUserDetails${plainParams}`),
       ]);
 
     if (ovRes.status  === 'fulfilled') setOverview(ovRes.value.data?.data);
@@ -182,9 +191,9 @@ export function AdminDashboard() {
     if (kycRes.status === 'fulfilled') setKycComplete(kycRes.value.data?.user?.kycDone === true);
 
     setLoading(false);
-  }, [startISO, endISO]);
+  }, [startISO, endISO, isAdminView, userMongoId]);
 
-  // Re-fetch when admin tab changes or date range changes
+  // Re-fetch when admin tab changes, date range changes, or the selected seller changes
   useEffect(() => {
     if (!loadingAdminTab) fetchAll();
   }, [fetchAll, adminTab, loadingAdminTab]);
@@ -261,13 +270,65 @@ export function AdminDashboard() {
       <div className="max-w-[1400px] mx-auto text-[#0F172A] pb-10 min-w-0 overflow-x-hidden">
 
         {/* Header */}
-        <div className="flex items-center gap-2 mb-4 text-[11px] font-medium text-[#64748B]">
-          {isUserRoute ? 'My Dashboard' : 'Platform Dashboard'}
-          {' — '}{filters.dateRange.label} ({fd(filters.dateRange.start)} – {fd(filters.dateRange.end)})
-          <RefreshCcw
-            className="w-3 h-3 cursor-pointer hover:text-[#0F172A] transition-colors"
-            onClick={fetchAll}
-          />
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div className="flex items-center gap-2 text-[11px] font-medium text-[#64748B]">
+            {isUserRoute ? 'My Dashboard' : userMongoId ? `${userQuery.split(' (')[0]}'s Dashboard` : 'Platform Dashboard'}
+            {' — '}{filters.dateRange.label} ({fd(filters.dateRange.start)} – {fd(filters.dateRange.end)})
+          </div>
+
+          {isAdminView && (
+            <div className="flex items-center gap-2 shrink-0">
+              <div className="relative w-[260px] max-w-full">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8] pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Search by Name, Email, or Contact"
+                  value={userQuery}
+                  onChange={(e) => onUserQueryChange(e.target.value)}
+                  className="w-full h-10 pl-10 pr-8 rounded-full border border-[#E2E8F0] bg-white text-[13px] text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all"
+                />
+                {userMongoId && (
+                  <button onClick={clearUserFilter} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#94A3B8] hover:text-red-500">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+                {userSuggestions.length > 0 && !userMongoId && (
+                  <>
+                    <div className="fixed inset-0 z-40 bg-slate-900/10" onClick={() => setUserSuggestions([])} />
+                    <div className="absolute left-0 top-full mt-1.5 bg-white border border-[#E2E8F0] rounded-2xl shadow-xl z-50 w-full max-h-60 overflow-y-auto py-1.5">
+                      {userSuggestions.map((u) => (
+                        <button key={u._id} type="button"
+                          onClick={() => selectUserSuggestion(u)}
+                          className="w-full text-left px-3.5 py-2.5 hover:bg-[#F0FDF4] flex items-start gap-2 transition-colors">
+                          <div className="w-6 h-6 rounded-full bg-[#F0FDF4] text-[#00A86B] flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">
+                            {(u.fullname || u.email || '?').charAt(0).toUpperCase()}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-xs font-bold text-[#0F172A] truncate">{u.fullname || '—'}</div>
+                            <div className="text-[10px] text-[#94A3B8] truncate">{u.email}</div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+              <button
+                onClick={fetchAll}
+                title="Refresh"
+                className="w-10 h-10 rounded-full bg-[#00A86B] hover:bg-[#009960] text-white flex items-center justify-center shrink-0 shadow-sm transition-colors"
+              >
+                <RefreshCcw className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          {!isAdminView && (
+            <RefreshCcw
+              className="w-3 h-3 cursor-pointer hover:text-[#0F172A] transition-colors text-[#64748B]"
+              onClick={fetchAll}
+            />
+          )}
         </div>
 
         {/* KYC Banner — never shown to employees (they're linked to parent user, not themselves) */}

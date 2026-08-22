@@ -50,7 +50,8 @@ interface TxnItem {
   amount: number; balanceAfterTransaction?: number; description?: string; date: string; awb_number?: string;
 }
 interface ProfitCourierItem {
-  courierServiceName: string; orders: number; amount: number; deliveredPct: number; ndrPct: number;
+  courierServiceName: string; orders: number; deliveredPct: number; ndrPct: number;
+  courierRevenue: number; sellerRevenue: number; profit: number;
 }
 interface ProfitLossSeller {
   _id: string; userId?: number; fullname: string; email: string; phoneNumber?: string;
@@ -98,13 +99,19 @@ function getDummyProfitLossBase(): ProfitLossSeller[] {
     const courierRevenue = sellerRevenue - profit;
     const shuffled = [...DUMMY_COURIERS_POOL].sort((a, b) => ((a.length + i) % 3) - ((b.length + i) % 3));
     const courierCount = 2 + (i % 3);
-    const couriers: ProfitCourierItem[] = shuffled.slice(0, courierCount).map((name2, ci) => ({
-      courierServiceName: name2,
-      orders: Math.round(totalOrders / courierCount) - ci * 5,
-      amount: Math.round(courierRevenue / courierCount),
-      deliveredPct: Math.max(60, deliveredPct - ci * 4),
-      ndrPct: Math.min(20, 2 + ci * 2 + (i % 4)),
-    }));
+    const couriers: ProfitCourierItem[] = shuffled.slice(0, courierCount).map((name2, ci) => {
+      const cCourierRevenue = Math.round(courierRevenue / courierCount);
+      const cSellerRevenue = Math.round(sellerRevenue / courierCount);
+      return {
+        courierServiceName: name2,
+        orders: Math.round(totalOrders / courierCount) - ci * 5,
+        deliveredPct: Math.max(60, deliveredPct - ci * 4),
+        ndrPct: Math.min(20, 2 + ci * 2 + (i % 4)),
+        courierRevenue: cCourierRevenue,
+        sellerRevenue: cSellerRevenue,
+        profit: cSellerRevenue - cCourierRevenue,
+      };
+    });
     return {
       _id: `dummy-${i}`, userId: 1000 + i, fullname: name, email: `${name.toLowerCase().replace(/[^a-z0-9]+/g, '.')}@example.com`,
       phoneNumber: `9${(800000000 + i * 12345).toString().slice(0, 9)}`,
@@ -1167,21 +1174,24 @@ export function AdminPerformance() {
                   )}
                 </div>
                 {sellerSuggestions.length > 0 && !sellerMongoId && (
-                  <div className="absolute left-0 top-full mt-1 bg-white border border-[#E2E8F0] rounded-xl shadow-xl z-50 w-64 max-h-52 overflow-y-auto py-1">
-                    {sellerSuggestions.map((u: any) => (
-                      <button key={u._id} type="button"
-                        onClick={() => { setSellerMongoId(u._id); setSellerQuery(`${u.fullname || ''} (${u.email})`); setSellerSuggestions([]); }}
-                        className="w-full text-left px-3 py-2 hover:bg-[#F0FDF4] flex items-start gap-2">
-                        <div className="w-6 h-6 rounded-full bg-[#F0FDF4] text-[#00A86B] flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">
-                          {(u.fullname || u.email || '?').charAt(0).toUpperCase()}
-                        </div>
-                        <div>
-                          <div className="text-xs font-semibold text-[#0F172A]">{u.fullname || '—'}</div>
-                          <div className="text-[10px] text-[#94A3B8]">{u.email}</div>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
+                  <>
+                    <div className="fixed inset-0 z-40 bg-slate-900/20 backdrop-blur-[1px]" onClick={() => setSellerSuggestions([])} />
+                    <div className="absolute left-0 top-full mt-1 bg-white border border-[#E2E8F0] rounded-xl shadow-xl z-50 w-64 max-h-52 overflow-y-auto py-1">
+                      {sellerSuggestions.map((u: any) => (
+                        <button key={u._id} type="button"
+                          onClick={() => { setSellerMongoId(u._id); setSellerQuery(`${u.fullname || ''} (${u.email})`); setSellerSuggestions([]); }}
+                          className="w-full text-left px-3 py-2 hover:bg-[#F0FDF4] flex items-start gap-2">
+                          <div className="w-6 h-6 rounded-full bg-[#F0FDF4] text-[#00A86B] flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">
+                            {(u.fullname || u.email || '?').charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <div className="text-xs font-semibold text-[#0F172A]">{u.fullname || '—'}</div>
+                            <div className="text-[10px] text-[#94A3B8]">{u.email}</div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </>
                 )}
               </div>
               <div className="flex gap-1 bg-white border border-[#E2E8F0] rounded-lg p-0.5 shrink-0">
@@ -1217,18 +1227,21 @@ export function AdminPerformance() {
                   </button>
                 )}
                 {sellerSuggestions.length > 0 && !sellerMongoId && (
-                  <div className="absolute left-0 top-full mt-1 bg-white border border-[#E2E8F0] rounded-xl shadow-xl z-50 w-full max-h-52 overflow-y-auto py-1">
-                    {sellerSuggestions.map((u: any) => (
-                      <button key={u._id} type="button"
-                        onClick={() => { setSellerMongoId(u._id); setSellerQuery(`${u.fullname || ''} (${u.email})`); setSellerSuggestions([]); }}
-                        className="w-full text-left px-3 py-2.5 hover:bg-[#F0FDF4] flex items-start gap-2">
-                        <div className="flex-1 min-w-0">
-                          <div className="text-[12px] font-bold text-slate-800 truncate">{u.fullname}</div>
-                          <div className="text-[11px] text-slate-400 truncate">{u.email}</div>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
+                  <>
+                    <div className="fixed inset-0 z-40 bg-slate-900/20 backdrop-blur-[1px]" onClick={() => setSellerSuggestions([])} />
+                    <div className="absolute left-0 top-full mt-1 bg-white border border-[#E2E8F0] rounded-xl shadow-xl z-50 w-full max-h-52 overflow-y-auto py-1">
+                      {sellerSuggestions.map((u: any) => (
+                        <button key={u._id} type="button"
+                          onClick={() => { setSellerMongoId(u._id); setSellerQuery(`${u.fullname || ''} (${u.email})`); setSellerSuggestions([]); }}
+                          className="w-full text-left px-3 py-2.5 hover:bg-[#F0FDF4] flex items-start gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="text-[12px] font-bold text-slate-800 truncate">{u.fullname}</div>
+                            <div className="text-[11px] text-slate-400 truncate">{u.email}</div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </>
                 )}
               </div>
               <div className="flex gap-1 bg-white border border-[#E2E8F0] rounded-lg p-0.5 shrink-0">
@@ -1316,26 +1329,38 @@ export function AdminPerformance() {
                                           <tr className="text-[10px] leading-[16px] font-bold text-[#64748B] uppercase tracking-wider">
                                             <th className="py-2 px-3">Courier Service</th>
                                             <th className="py-2 px-3">Orders</th>
-                                            <th className="py-2 px-3">Amount</th>
-                                            <th className="py-2 px-3">Delivery %</th>
-                                            <th className="py-2 px-3">NDR %</th>
+                                            <th className="py-2 px-3">Delivered %</th>
+                                            <th className="py-2 px-3">RTO %</th>
+                                            <th className="py-2 px-3">Courier Revenue</th>
+                                            <th className="py-2 px-3">Seller Revenue</th>
+                                            <th className="py-2 px-3">Profit / Loss</th>
                                           </tr>
                                         </thead>
                                         <tbody>
-                                          {s.couriers.map((c, ci) => (
-                                            <tr key={c.courierServiceName} className={`border-t border-[#E2E8F0] ${ci % 2 === 0 ? 'bg-white' : 'bg-[#F8FAFC]'}`}>
-                                              <td className="p-3">
-                                                <div className="flex items-center gap-2">
-                                                  <CourierLogo name={c.courierServiceName} size="xs" />
-                                                  <span className="text-[12px] font-semibold text-[#0F172A] whitespace-nowrap">{c.courierServiceName}</span>
-                                                </div>
-                                              </td>
-                                              <td className="p-3 text-[12px] font-normal text-[#0F172A]">{fn(c.orders)}</td>
-                                              <td className="p-3 text-[12px] font-normal text-[#0F172A]">{fc(c.amount)}</td>
-                                              <td className="p-3 text-[12px] font-normal"><span className={c.deliveredPct >= 90 ? 'text-[#00A86B]' : c.deliveredPct >= 80 ? 'text-amber-500' : 'text-red-500'}>{c.deliveredPct}%</span></td>
-                                              <td className="p-3 text-[12px] font-normal"><span className={c.ndrPct > 5 ? 'text-orange-500' : 'text-[#0F172A]'}>{c.ndrPct}%</span></td>
-                                            </tr>
-                                          ))}
+                                          {s.couriers.map((c, ci) => {
+                                            const cIsProfit = c.profit >= 0;
+                                            return (
+                                              <tr key={c.courierServiceName} className={`border-t border-[#E2E8F0] ${ci % 2 === 0 ? 'bg-white' : 'bg-[#F8FAFC]'}`}>
+                                                <td className="p-3">
+                                                  <div className="flex items-center gap-2">
+                                                    <CourierLogo name={c.courierServiceName} size="xs" />
+                                                    <span className="text-[12px] font-semibold text-[#0F172A] whitespace-nowrap">{c.courierServiceName}</span>
+                                                  </div>
+                                                </td>
+                                                <td className="p-3 text-[12px] font-normal text-[#0F172A]">{fn(c.orders)}</td>
+                                                <td className="p-3 text-[12px] font-normal"><span className={c.deliveredPct >= 90 ? 'text-[#00A86B]' : c.deliveredPct >= 80 ? 'text-amber-500' : 'text-red-500'}>{c.deliveredPct}%</span></td>
+                                                <td className="p-3 text-[12px] font-normal"><span className={c.ndrPct > 5 ? 'text-orange-500' : 'text-[#0F172A]'}>{c.ndrPct}%</span></td>
+                                                <td className="p-3 text-[12px] font-normal text-[#0F172A]">{fc(c.courierRevenue)}</td>
+                                                <td className="p-3 text-[12px] font-normal text-[#0F172A]">{fc(c.sellerRevenue)}</td>
+                                                <td className="p-3">
+                                                  <span className={`inline-flex items-center gap-1 text-[12px] font-bold ${cIsProfit ? 'text-[#00A86B]' : 'text-red-500'}`}>
+                                                    {cIsProfit ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
+                                                    {cIsProfit ? fc(c.profit) : `−${fc(Math.abs(c.profit))}`}
+                                                  </span>
+                                                </td>
+                                              </tr>
+                                            );
+                                          })}
                                         </tbody>
                                       </table>
                                     </div>
@@ -1412,22 +1437,32 @@ export function AdminPerformance() {
                               <div className="mt-3 bg-[#F8FAFC] rounded-xl p-2.5 space-y-2">
                                 {s.couriers.length === 0 ? (
                                   <div className="text-center py-4 text-xs text-[#94A3B8]">No courier data for this seller</div>
-                                ) : s.couriers.map(c => (
-                                  <div key={c.courierServiceName} className="bg-white rounded-lg border border-[#E2E8F0] p-2.5">
-                                    <div className="flex items-center justify-between mb-2 gap-2">
-                                      <div className="flex items-center gap-2 min-w-0">
-                                        <CourierLogo name={c.courierServiceName} size="xs" />
-                                        <span className="text-[11px] font-semibold text-[#0F172A] truncate">{c.courierServiceName}</span>
+                                ) : s.couriers.map(c => {
+                                  const cIsProfit = c.profit >= 0;
+                                  return (
+                                    <div key={c.courierServiceName} className="bg-white rounded-lg border border-[#E2E8F0] p-2.5">
+                                      <div className="flex items-center justify-between mb-2 gap-2">
+                                        <div className="flex items-center gap-2 min-w-0">
+                                          <CourierLogo name={c.courierServiceName} size="xs" />
+                                          <span className="text-[11px] font-semibold text-[#0F172A] truncate">{c.courierServiceName}</span>
+                                        </div>
+                                        <span className={`inline-flex items-center gap-1 text-[11px] font-bold shrink-0 ${cIsProfit ? 'text-[#00A86B]' : 'text-red-500'}`}>
+                                          {cIsProfit ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                                          {cIsProfit ? fc(c.profit) : `−${fc(Math.abs(c.profit))}`}
+                                        </span>
                                       </div>
-                                      <span className="text-[11px] font-semibold text-[#0F172A] shrink-0">{fc(c.amount)}</span>
+                                      <div className="flex items-center justify-between text-[11px] mb-1.5">
+                                        <span className="text-[#64748B]">{fn(c.orders)} orders</span>
+                                        <span className={c.deliveredPct >= 90 ? 'text-[#00A86B]' : c.deliveredPct >= 80 ? 'text-amber-500' : 'text-red-500'}>Delivered {c.deliveredPct}%</span>
+                                        <span className={c.ndrPct > 5 ? 'text-orange-500' : 'text-[#64748B]'}>RTO {c.ndrPct}%</span>
+                                      </div>
+                                      <div className="flex items-center justify-between text-[11px] text-[#64748B]">
+                                        <span>Courier: {fc(c.courierRevenue)}</span>
+                                        <span>Seller: {fc(c.sellerRevenue)}</span>
+                                      </div>
                                     </div>
-                                    <div className="flex items-center justify-between text-[11px]">
-                                      <span className="text-[#64748B]">{fn(c.orders)} orders</span>
-                                      <span className={c.deliveredPct >= 90 ? 'text-[#00A86B]' : c.deliveredPct >= 80 ? 'text-amber-500' : 'text-red-500'}>Del {c.deliveredPct}%</span>
-                                      <span className={c.ndrPct > 5 ? 'text-orange-500' : 'text-[#64748B]'}>NDR {c.ndrPct}%</span>
-                                    </div>
-                                  </div>
-                                ))}
+                                  );
+                                })}
                               </div>
                             )}
                           </div>

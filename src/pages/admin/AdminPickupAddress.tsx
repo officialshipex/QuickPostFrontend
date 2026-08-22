@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { apiClient } from '../../services/apiClient';
 import { useAdminTab } from '../../context/AdminUserContext';
@@ -14,6 +15,8 @@ import { StatusRibbon } from '../../components/ui/StatusRibbon';
 import { usePagination, DesktopPagination } from '../../hooks/usePagination';
 import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
 import { AnimatePresence, motion } from 'framer-motion';
+import { AddressAccuracyGauge } from '../../components/ui/AddressAccuracy';
+import { AddressTooltip, type AddressHoverPos } from '../../components/ui/AddressTooltip';
 
 const BACKEND_BASE = (import.meta.env.VITE_API_URL as string) || 'http://localhost:5000/v1';
 
@@ -56,6 +59,7 @@ export function AdminPickupAddress() {
 
   const [addresses, setAddresses] = useState<PickupDoc[]>([]);
   const { isLoading: loading, setIsLoading: setLoading } = useTableLoader(0);
+  const [hoveredAddress, setHoveredAddress] = useState<AddressHoverPos | null>(null);
   const [fetchError, setFetchError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -423,6 +427,7 @@ export function AdminPickupAddress() {
                     <th className="py-2 px-4 whitespace-nowrap"><div className="flex items-center gap-1"><User className="w-3.5 h-3.5 shrink-0" /><span>Contact</span></div></th>
                     <th className="py-2 px-4 whitespace-nowrap"><div className="flex items-center gap-1"><Phone className="w-3.5 h-3.5 shrink-0" /><span>Phone</span></div></th>
                     <th className="py-2 px-4 whitespace-nowrap"><div className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5 shrink-0" /><span>Address</span></div></th>
+                    <th className="py-2 px-4 whitespace-nowrap"><div className="flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5 shrink-0" /><span>Accuracy</span></div></th>
                     <th className="py-2 px-4 whitespace-nowrap"><div className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5 shrink-0" /><span>City / State</span></div></th>
                     <th className="py-2 px-4 whitespace-nowrap"><div className="flex items-center gap-1"><Hash className="w-3.5 h-3.5 shrink-0" /><span>Pincode</span></div></th>
                     <th className="py-2 px-4 text-center whitespace-nowrap"><div className="flex items-center justify-center gap-1"><CheckCircle2 className="w-3.5 h-3.5 shrink-0" /><span>Status</span></div></th>
@@ -445,8 +450,17 @@ export function AdminPickupAddress() {
                           {a.email && <TruncatedText text={a.email} maxLength={26} className="text-[12px] leading-[18px] font-normal text-[#94A3B8]" />}
                         </td>
                         <td className="p-3 text-[12px] font-normal text-[#475569]">{a.phoneNumber}</td>
-                        <td className="p-3 text-[12px] font-normal text-[#475569] max-w-[200px]">
-                          <p className="truncate">{a.address}</p>
+                        <td className="p-3 max-w-[200px]">
+                          <div
+                            className="inline-block max-w-full w-fit text-[12px] font-normal text-[#475569] underline decoration-dotted underline-offset-2 hover:text-[#0F172A] cursor-help truncate"
+                            onMouseEnter={(e) => setHoveredAddress({ rect: e.currentTarget.getBoundingClientRect(), name: a.contactName, address: a.address, city: a.city, state: a.state, pinCode: a.pinCode, phone: a.phoneNumber })}
+                            onMouseLeave={() => setHoveredAddress(null)}
+                          >
+                            {a.address}
+                          </div>
+                        </td>
+                        <td className="p-3">
+                          <AddressAccuracyGauge address={a.address} size="sm" showLabel={false} />
                         </td>
                         <td className="p-3 text-[12px] font-normal text-[#475569]">{a.city}, {a.state}</td>
                         <td className="p-3 text-[12px] font-normal text-[#475569]">{a.pinCode}</td>
@@ -564,9 +578,22 @@ export function AdminPickupAddress() {
                               <Phone className="w-3.5 h-3.5 text-[#94A3B8] mt-0.5 shrink-0" />
                               <p className="text-[12px] font-normal text-[#0F172A]">{a.phoneNumber}</p>
                             </div>
-                            <div className="flex items-start gap-1.5">
+                            <div className="flex items-start gap-1.5 min-w-0">
                               <MapPin className="w-3.5 h-3.5 text-[#94A3B8] mt-0.5 shrink-0" />
-                              <p className="text-[12px] font-normal text-[#0F172A]">{a.address}, {a.city}, {a.state} - {a.pinCode}</p>
+                              <p
+                                className="inline-block max-w-full text-[12px] font-normal text-[#0F172A] truncate underline decoration-dotted underline-offset-2 cursor-help w-fit"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const rect = e.currentTarget.getBoundingClientRect();
+                                  const next: AddressHoverPos = { id: doc._id, rect, name: a.contactName, address: a.address, city: a.city, state: a.state, pinCode: a.pinCode, phone: a.phoneNumber };
+                                  setHoveredAddress(prev => (prev?.id === doc._id ? null : next));
+                                }}
+                              >
+                                {a.address}, {a.city}, {a.state} - {a.pinCode}
+                              </p>
+                            </div>
+                            <div className="flex items-center justify-end pt-1">
+                              <AddressAccuracyGauge address={a.address} size="sm" showLabel={false} />
                             </div>
                           </div>
 
@@ -597,6 +624,13 @@ export function AdminPickupAddress() {
           </>
         )}
       </div>
+
+      {/* ── Backdrop — closes the address tooltip on outside tap (mobile only, where it's click-triggered) ── */}
+      {hoveredAddress && createPortal(
+        <div className="fixed inset-0 z-[997] md:hidden" onClick={() => setHoveredAddress(null)} />,
+        document.body
+      )}
+      <AddressTooltip hover={hoveredAddress} />
 
       {/* ── Mobile Filters Bottom Sheet (admin only — user search) ── */}
       <AnimatePresence>
