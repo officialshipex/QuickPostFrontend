@@ -80,6 +80,7 @@ interface OrderData {
     freight?: number;
     cod?: number;
     gst?: number;
+    liability?: number;
     total?: number;
   };
   status?: string;
@@ -1108,6 +1109,14 @@ export function AdminOrderTracking() {
                       {order?.priceBreakup?.gst != null ? `₹${order.priceBreakup.gst.toFixed(2)}` : '—'}
                     </span>
                   </div>
+                  {!!order?.priceBreakup?.liability && (
+                    <div className="flex justify-between items-center py-2.5 border-b border-[#F8FAFC]">
+                      <span className="text-[12px] leading-[18px] font-medium text-[#64748B]">Lost Shipment Liability Credit</span>
+                      <span className="text-[12px] leading-[18px] font-semibold text-[#00A86B]">
+                        +₹{order.priceBreakup.liability.toFixed(2)}
+                      </span>
+                    </div>
+                  )}
                   <div className="border-t border-dashed border-[#E2E8F0] pt-3 mt-3 flex justify-between items-center">
                     <span className="text-[14px] leading-[20px] font-bold text-[#0F172A]">Total Billed</span>
                     <span className="text-[14px] leading-[20px] font-bold text-[#00A86B]">

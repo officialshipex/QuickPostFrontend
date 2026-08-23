@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Key, Mail, User, Clock, ShieldCheck, ArrowRight, Hash } from 'lucide-react';
+import { X, Key, Mail, User, Clock, ShieldCheck, ArrowRight, Hash, IndianRupee, Percent } from 'lucide-react';
 
 interface Courier {
   _id: string;
@@ -13,6 +13,8 @@ interface Courier {
   tenantId?: string;
   carrierId?: string;
   carrierName?: string;
+  liabilityCharge?: number;
+  liabilityPercent?: number;
 }
 
 interface ConfigureCourierModalProps {
@@ -27,6 +29,8 @@ const getFieldsForCourier = (name: string) => {
 
   const defaultFields = [
     { id: 'CODDays', label: 'Expected Delivery (Days)', type: 'number', placeholder: 'e.g. 3', icon: Clock },
+    { id: 'liabilityCharge', label: 'Liability ₹', type: 'number', placeholder: 'e.g. 2000', icon: IndianRupee },
+    { id: 'liabilityPercent', label: 'Liability %', type: 'number', placeholder: 'e.g. 70', icon: Percent },
   ];
 
   if (['delhivery', 'shadowfax', 'amazon shipping'].includes(n)) {
@@ -81,6 +85,8 @@ export function ConfigureCourierModal({ isOpen, onClose, courier, onSave }: Conf
     if (courier) {
       setFieldValues({
         CODDays: courier.CODDays != null ? String(courier.CODDays) : '',
+        liabilityCharge: courier.liabilityCharge != null ? String(courier.liabilityCharge) : '',
+        liabilityPercent: courier.liabilityPercent != null ? String(courier.liabilityPercent) : '',
         apiKey: courier.apiKey || '',
         email: courier.email || '',
         password: '',
