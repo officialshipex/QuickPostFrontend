@@ -282,7 +282,7 @@ export function AdminDashboard() {
                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8] pointer-events-none" />
                 <input
                   type="text"
-                  placeholder="Search by Name, Email, or Contact"
+                  placeholder="Search user..."
                   value={userQuery}
                   onChange={(e) => onUserQueryChange(e.target.value)}
                   className="w-full h-10 pl-10 pr-8 rounded-full border border-[#E2E8F0] bg-white text-[13px] text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all"

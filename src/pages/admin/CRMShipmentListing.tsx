@@ -633,8 +633,8 @@ export function CRMShipmentListing() {
           {/* Filter Row — evenly distributed 2-row grid, uniform pill sizes */}
           <div className="filter-grid hidden md:grid grid-cols-6 gap-3 mt-3">
             <div className="relative">
-              <input type="text" placeholder="Search user..." value={userQuery} onChange={e => onQueryChange(e.target.value)} className="glass-search-input w-full" />
-              <Search className="w-3.5 h-3.5 text-[#94A3B8] absolute right-2.5 top-1/2 -translate-y-1/2" />
+              <input type="text" placeholder="Search user..." value={userQuery} onChange={e => onQueryChange(e.target.value)} className="glass-search-input w-full" style={{ paddingLeft: '2rem' }} />
+              <Search className="w-3.5 h-3.5 text-[#94A3B8] absolute left-2.5 top-1/2 -translate-y-1/2" />
               {userSuggestions.length > 0 && (
                 <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white border border-[#E2E8F0] rounded-xl shadow-lg overflow-hidden">
                   {userSuggestions.map(u => (

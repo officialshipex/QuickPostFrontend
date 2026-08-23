@@ -278,7 +278,7 @@ export function AdminPickupAddress() {
                 <div className="relative">
                   <input
                     type="text"
-                    placeholder="Filter by user..."
+                    placeholder="Search user..."
                     value={userQuery}
                     onChange={e => onUserQueryChange(e.target.value)}
                     className="glass-search-input w-[180px]"
@@ -660,7 +660,7 @@ export function AdminPickupAddress() {
                 <div className="relative">
                   <input
                     type="text"
-                    placeholder="Search by name, email, or contact..."
+                    placeholder="Search user..."
                     value={userQuery}
                     onChange={e => onUserQueryChange(e.target.value)}
                     className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
