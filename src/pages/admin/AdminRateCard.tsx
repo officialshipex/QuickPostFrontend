@@ -1392,20 +1392,20 @@ export function AdminRateCard() {
                   {costingLoading && <div className="relative h-32"><TableLoader /></div>}
                   {!costingLoading && (
                     <table className="w-full text-left border-collapse min-w-[1000px]">
-                      <thead>
-                        <tr className="bg-[#00A86B]">
-                          <th className="py-2.5 px-4 text-[11px] font-bold text-white uppercase tracking-wider">Courier Service</th>
-                          <th className="py-2.5 px-4 text-[11px] font-bold text-white uppercase tracking-wider">Mode</th>
-                          <th className="py-2.5 px-4 text-[11px] font-bold text-white uppercase tracking-wider">Weight</th>
-                          <th className="py-2.5 px-4 text-[11px] font-bold text-white uppercase tracking-wider">Zone A</th>
-                          <th className="py-2.5 px-4 text-[11px] font-bold text-white uppercase tracking-wider">Zone B</th>
-                          <th className="py-2.5 px-4 text-[11px] font-bold text-white uppercase tracking-wider">Zone C</th>
-                          <th className="py-2.5 px-4 text-[11px] font-bold text-white uppercase tracking-wider">Zone D</th>
-                          <th className="py-2.5 px-4 text-[11px] font-bold text-white uppercase tracking-wider">Zone E</th>
-                          <th className="py-2.5 px-4 text-[11px] font-bold text-white uppercase tracking-wider">COD Charge</th>
-                          <th className="py-2.5 px-4 text-[11px] font-bold text-white uppercase tracking-wider">COD %</th>
-                          <th className="py-2.5 px-4 text-[11px] font-bold text-white uppercase tracking-wider">Status</th>
-                          <th className="py-2.5 px-4 text-[11px] font-bold text-white uppercase tracking-wider text-right">Action</th>
+                      <thead className="sticky top-0 z-20 bg-[#E6F9F2] shadow-sm">
+                        <tr className="border-b border-[#E2E8F0]">
+                          <th className="py-2.5 px-4 text-[11px] font-bold text-[#64748B] uppercase tracking-wider rounded-l-lg"><div className="flex items-center gap-1.5"><Truck className="w-3.5 h-3.5 shrink-0" /><span>Courier Service</span></div></th>
+                          <th className="py-2.5 px-4 text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Mode</th>
+                          <th className="py-2.5 px-4 text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Weight</th>
+                          <th className="py-2.5 px-4 text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Zone A</th>
+                          <th className="py-2.5 px-4 text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Zone B</th>
+                          <th className="py-2.5 px-4 text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Zone C</th>
+                          <th className="py-2.5 px-4 text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Zone D</th>
+                          <th className="py-2.5 px-4 text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Zone E</th>
+                          <th className="py-2.5 px-4 text-[11px] font-bold text-[#64748B] uppercase tracking-wider">COD Charge</th>
+                          <th className="py-2.5 px-4 text-[11px] font-bold text-[#64748B] uppercase tracking-wider">COD %</th>
+                          <th className="py-2.5 px-4 text-[11px] font-bold text-[#64748B] uppercase tracking-wider"><div className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 shrink-0" /><span>Status</span></div></th>
+                          <th className="py-2.5 px-4 text-[11px] font-bold text-[#64748B] uppercase tracking-wider text-right rounded-r-lg">Action</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[#E2E8F0]">
