@@ -219,6 +219,19 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
     '/admin/kyc', '/user/kyc',
     '/admin/settings', '/user/settings',
     '/admin/referral', '/user/referral',
+    '/internal-crm',
+    '/admin/performance',
+    '/admin/announcement',
+    '/admin/agreement',
+    '/admin/epd-mapping',
+    '/admin/edd-mapping',
+    '/admin/users',
+    '/admin/status-map',
+    '/admin/couriers',
+    '/admin/rate-card',
+    '/admin/support', '/user/support',
+    '/admin/add-order', '/user/add-order',
+    '/admin/profile', '/user/profile',
   ].some((path) => location.pathname === path || location.pathname.startsWith(path + '/'));
 
   // ─── Global navbar search — always searches Orders, regardless of the current page ──

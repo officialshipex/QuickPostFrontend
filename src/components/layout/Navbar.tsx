@@ -7,7 +7,7 @@ import { appUrl } from '../../utils/domainUrl';
 const navLinks = [
   { label: 'Platform', href: '#features', badge: null },
   { label: 'Rate Calculator', href: '/rate-calculator', badge: null },
-  { label: 'Pricing', href: '#pricing', badge: null },
+  { label: 'Pricing', href: '#features', badge: null },
   { label: 'Track Order', href: '/track', badge: 'Live' },
 ];
 

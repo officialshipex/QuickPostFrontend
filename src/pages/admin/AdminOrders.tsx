@@ -211,6 +211,8 @@ const mapOrder = (o: any) => {
     pickedPackages: o.pickedPackages || 0,
     pickupId:       o.pickupId || `PID${o.orderId}`,
     channel:        o.channel || 'CUSTOM',
+    ndrStatus:      o.ndrStatus || '',
+    ndrAttempts:    Array.isArray(o.ndrHistory) ? o.ndrHistory.length : 0,
   };
 };
 
@@ -222,26 +224,48 @@ const RTO_RISK_COLOR: Record<string, string> = {
   Low: 'text-[#00A86B]',
 };
 
-/** Row-level RTO risk — currently backed only by fields already present on the
- *  mapped order (payment type/value, address completeness). Customer/pincode/
- *  courier history inputs default to empty, so those rules simply stay inert
- *  until a backend aggregation endpoint is wired in — no UI change needed then. */
-const getOrderRtoRisk = (order: ReturnType<typeof mapOrder>) =>
-  calculateRtoRisk({
-    paymentType: order.paymentType,
-    payment: order.payment,
-    customerAddress: order.customerAddress,
-    customerCity: order.customerCity,
-    customerState: order.customerState,
-    customerPinCode: order.customerPinCode,
-    courier: order.courier,
-  });
+type RtoHistoryMaps = {
+  byCustomer: Record<string, { totalOrders: number; totalRtoOrders: number; hasPreviousNdr: boolean }>;
+  byPincode: Record<string, { total: number; rto: number }>;
+  byCourierPincode: Record<string, { total: number; rto: number }>;
+};
+
+/** Row-level RTO risk backed by real per-customer/pincode/courier RTO history,
+ *  aggregated client-side from a bulk order sample (see rtoHistoryMaps in
+ *  AdminOrders), plus fields already present on the mapped order (payment
+ *  type/value, address completeness). */
+const getOrderRtoRisk = (order: ReturnType<typeof mapOrder>, historyMaps: RtoHistoryMaps) => {
+  const customer = historyMaps.byCustomer[order.customerPhone] || null;
+  const pincode = historyMaps.byPincode[order.customerPinCode] || null;
+  const courierPincode = historyMaps.byCourierPincode[`${order.courier}|${order.customerPinCode}`] || null;
+
+  return calculateRtoRisk(
+    {
+      paymentType: order.paymentType,
+      payment: order.payment,
+      customerAddress: order.customerAddress,
+      customerCity: order.customerCity,
+      customerState: order.customerState,
+      customerPinCode: order.customerPinCode,
+      courier: order.courier,
+    },
+    customer ? {
+      isNewCustomer: customer.totalOrders <= 1,
+      totalOrders: customer.totalOrders,
+      totalRtoOrders: customer.totalRtoOrders,
+      rtoRate: customer.totalOrders > 0 ? (customer.totalRtoOrders / customer.totalOrders) * 100 : 0,
+      hasPreviousNdr: customer.hasPreviousNdr,
+    } : { isNewCustomer: true },
+    pincode ? { rtoRate: pincode.total > 0 ? (pincode.rto / pincode.total) * 100 : 0 } : {},
+    courierPincode ? { rtoRate: courierPincode.total > 0 ? (courierPincode.rto / courierPincode.total) * 100 : 0 } : {}
+  );
+};
 
 /** "RTO Risk: {level}" — label in the page's default text color, value colored
  *  by risk level with a dotted underline; High gets an up arrow (risk rising),
  *  Low a down arrow (risk falling), Medium shows no arrow (neutral). */
-const RtoRiskLine = ({ order, className = '' }: { order: ReturnType<typeof mapOrder>; className?: string }) => {
-  const risk = getOrderRtoRisk(order);
+const RtoRiskLine = ({ order, historyMaps, className = '' }: { order: ReturnType<typeof mapOrder>; historyMaps: RtoHistoryMaps; className?: string }) => {
+  const risk = getOrderRtoRisk(order, historyMaps);
   return (
     <div className={`text-[11px] leading-[16px] font-semibold text-[#0F172A] ${className}`}>
       RTO Risk:{' '}
@@ -387,6 +411,16 @@ export function AdminOrders() {
   // Client-side re-slice of the already server-fetched page — same usePagination + TableLoader
   // wiring as AdminWallet.tsx (paginatedData drives the table body; loading state drives TableLoader).
   const { paginatedData: paginatedOrders } = usePagination({ data: orders, perPage: rowsPerPage });
+
+  // ── RTO risk history aggregation ──
+  // A best-effort real-data signal computed client-side from a bulk, unfiltered sample of
+  // this account's orders (all statuses), since there's no backend aggregation endpoint yet.
+  // Keyed by customer phone, delivery pincode, and courier+pincode.
+  const [rtoHistoryMaps, setRtoHistoryMaps] = useState<{
+    byCustomer: Record<string, { totalOrders: number; totalRtoOrders: number; hasPreviousNdr: boolean }>;
+    byPincode: Record<string, { total: number; rto: number }>;
+    byCourierPincode: Record<string, { total: number; rto: number }>;
+  }>({ byCustomer: {}, byPincode: {}, byCourierPincode: {} });
 
   // ── Filter state (applied on Apply click) ──
   const [orderId,                setOrderId]               = useState('');
@@ -600,6 +634,68 @@ export function AdminOrders() {
       setLoading(false);
     }
   }, [buildOrderParams, page, rowsPerPage]);
+
+  // ── RTO risk history — fetch a bulk, unfiltered sample of this account's orders (all
+  // statuses) once and aggregate real per-customer/pincode/courier RTO rates from it.
+  // Re-runs whenever the account being viewed changes (admin switching users, or the
+  // logged-in user resolving after refresh).
+  useEffect(() => {
+    const scopeUserId = isAdminView ? userMongoId : currentUserId;
+    if (isAdminView && !scopeUserId) return; // admin hasn't picked a user yet — nothing to aggregate
+    if (!isAdminView && !scopeUserId) return; // currentUserId not resolved yet
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const params: Record<string, any> = { page: 1, limit: 1000 };
+        if (isAdminView) { params.userId = scopeUserId; params.selectedUserId = scopeUserId; params.userSearch = scopeUserId; }
+        else { params.userId = scopeUserId; }
+        const res = await apiClient.get('/admin/filterEmployeeOrders', { params });
+        if (cancelled) return;
+        const raw: any[] = res.data?.orders || [];
+
+        const byCustomer: Record<string, { totalOrders: number; totalRtoOrders: number; hasPreviousNdr: boolean }> = {};
+        const byPincode: Record<string, { total: number; rto: number }> = {};
+        const byCourierPincode: Record<string, { total: number; rto: number }> = {};
+
+        for (const o of raw) {
+          const status: string = o.status || '';
+          const isRto = status.startsWith('RTO');
+          const phone = o.receiverAddress?.phoneNumber || '';
+          const pin = o.receiverAddress?.pinCode || o.receiverAddress?.pincode || '';
+          const courier = o.courierServiceName || '';
+          const hasNdr = Array.isArray(o.ndrHistory) && o.ndrHistory.length > 0;
+
+          if (phone) {
+            const c = byCustomer[phone] || { totalOrders: 0, totalRtoOrders: 0, hasPreviousNdr: false };
+            c.totalOrders += 1;
+            if (isRto) c.totalRtoOrders += 1;
+            if (hasNdr) c.hasPreviousNdr = true;
+            byCustomer[phone] = c;
+          }
+          if (pin) {
+            const p = byPincode[pin] || { total: 0, rto: 0 };
+            p.total += 1;
+            if (isRto) p.rto += 1;
+            byPincode[pin] = p;
+          }
+          if (courier && pin) {
+            const key = `${courier}|${pin}`;
+            const cp = byCourierPincode[key] || { total: 0, rto: 0 };
+            cp.total += 1;
+            if (isRto) cp.rto += 1;
+            byCourierPincode[key] = cp;
+          }
+        }
+
+        setRtoHistoryMaps({ byCustomer, byPincode, byCourierPincode });
+      } catch (err) {
+        console.error('Failed to load RTO risk history:', err);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [isAdminView, userMongoId, currentUserId]);
 
   // ── Excel export handlers ──
   const [exportingExcel, setExportingExcel] = useState(false);
@@ -1414,7 +1510,7 @@ export function AdminOrders() {
                                 {order.customerName}
                               </div>
                               <div className="text-[12px] leading-[18px] font-normal text-[#64748B]">{order.customerPhone}</div>
-                              <RtoRiskLine order={order} />
+                              <RtoRiskLine order={order} historyMaps={rtoHistoryMaps} />
                             </div>
                           </td>
                           <td className="p-3">
@@ -1656,7 +1752,7 @@ export function AdminOrders() {
                         >
                           <div className="truncate max-w-[130px] ml-auto text-[10px] font-normal text-[#94A3B8] uppercase tracking-wider underline decoration-dotted underline-offset-2">{order.customerName}</div>
                           <div className="text-[12px] font-medium text-[#0F172A] mt-0.5">{order.customerPhone}</div>
-                          <RtoRiskLine order={order} className="mt-0.5" />
+                          <RtoRiskLine order={order} historyMaps={rtoHistoryMaps} className="mt-0.5" />
                         </div>
                       </div>
 

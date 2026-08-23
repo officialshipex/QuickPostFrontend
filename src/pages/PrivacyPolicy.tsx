@@ -49,13 +49,15 @@ const SECTIONS: PolicySection[] = [
   },
 ];
 
-const GRIEVANCE_OFFICER = {
-  name: 'Sandeep Singh',
-  designation: 'Founder',
-  address: '212, Aerocity, Aerovista, Greater Mohali 140306',
-  email: 'sandeep@quickpost.in',
-  hours: 'Monday - Friday (9:00 - 18:00)',
-};
+// Grievance Officer section is temporarily disabled (see commented-out
+// section in the JSX below) — kept here so it can be restored later.
+// const GRIEVANCE_OFFICER = {
+//   name: 'Sandeep Singh',
+//   designation: 'Founder',
+//   address: '212, Aerocity, Aerovista, Greater Mohali 140306',
+//   email: 'sandeep@quickpost.in',
+//   hours: 'Monday - Friday (9:00 - 18:00)',
+// };
 
 /* ── Dot-grid background, same recipe used across the site ── */
 function DotGrid({ opacity = 0.035 }: { opacity?: number }) {
@@ -160,7 +162,7 @@ export function PrivacyPolicy() {
           </div>
         </section>
 
-        {/* ═══════════════════════ GRIEVANCE OFFICER ═══════════════════════ */}
+        {/* ═══════════════════════ GRIEVANCE OFFICER (temporarily disabled) ═══════════════════════
         <section className="relative px-6 md:px-10 pb-16 md:pb-24">
           <motion.div
             initial={{ opacity: 0, y: 24 }}
@@ -205,6 +207,7 @@ export function PrivacyPolicy() {
             </div>
           </motion.div>
         </section>
+        ═══════════════════════ END GRIEVANCE OFFICER ═══════════════════════ */}
       </main>
 
       <Footer />

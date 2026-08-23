@@ -303,10 +303,11 @@ export function AdminDashboard() {
                           <div className="w-6 h-6 rounded-full bg-[#F0FDF4] text-[#00A86B] flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">
                             {(u.fullname || u.email || '?').charAt(0).toUpperCase()}
                           </div>
-                          <div className="min-w-0">
+                          <div className="flex-1 min-w-0">
                             <div className="text-xs font-bold text-[#0F172A] truncate">{u.fullname || '—'}</div>
                             <div className="text-[10px] text-[#94A3B8] truncate">{u.email}</div>
                           </div>
+                          <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded shrink-0">{u.userId}</span>
                         </button>
                       ))}
                     </div>

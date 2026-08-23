@@ -23,13 +23,16 @@ const BANDS: { max: number; label: string; percentRange: [number, number]; color
  *  each band's range using the exact length, so 61 vs 79 chars still differ. */
 export function scoreAddressAccuracy(address?: string | null): AddressAccuracyResult {
   const len = (address || '').trim().length;
+  if (len === 0) {
+    return { label: 'Poor', percent: 0, color: BANDS[0].color, textColor: BANDS[0].textColor, bg: BANDS[0].bg };
+  }
   const band = BANDS.find(b => len <= b.max) || BANDS[BANDS.length - 1];
   const bandIndex = BANDS.indexOf(band);
   const bandMin = bandIndex === 0 ? 0 : BANDS[bandIndex - 1].max;
   const bandSpan = band.max === Infinity ? 40 : band.max - bandMin; // treat 101+ as a 40-char-wide tail for interpolation
   const withinBand = Math.min(1, Math.max(0, (len - bandMin) / bandSpan));
   const [pMin, pMax] = band.percentRange;
-  const percent = len === 0 ? pMin : Math.round(pMin + withinBand * (pMax - pMin));
+  const percent = Math.round(pMin + withinBand * (pMax - pMin));
   return { label: band.label, percent, color: band.color, textColor: band.textColor, bg: band.bg };
 }
 

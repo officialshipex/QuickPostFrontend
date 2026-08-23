@@ -25,6 +25,7 @@ import {
   Ruler,
   Hash,
   Building2,
+  ChevronDown,
 } from 'lucide-react';
 import { Navbar } from '../components/layout/Navbar';
 import { Footer } from '../components/layout/Footer';
@@ -398,6 +399,7 @@ export function Track() {
   const [result, setResult] = useState<TrackingResult | null>(null);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState<'awb' | 'order' | null>(null);
+  const [showAllEvents, setShowAllEvents] = useState(false);
   const resultRef = useRef<HTMLDivElement>(null);
 
   const runSearch = async (value: string) => {
@@ -408,6 +410,7 @@ export function Track() {
     setError('');
     setLoading(true);
     setResult(null);
+    setShowAllEvents(false);
     try {
       const endpoint = searchMode === 'order'
         ? `/orders/GetTrackingByOrderId/${encodeURIComponent(value.trim())}`
@@ -645,7 +648,7 @@ export function Track() {
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
 
                 {/* Timeline */}
-                <div className="lg:col-span-2 bg-white rounded-2xl border border-[#E0EDE8] shadow-sm p-4 sm:p-5 md:p-7">
+                <div className="lg:col-span-2 bg-white rounded-2xl border border-[#E0EDE8] shadow-sm p-4 sm:p-5 md:p-7 flex flex-col">
                   <div className="flex items-center justify-between mb-5 sm:mb-6">
                     <h3 className="text-[14px] sm:text-[15px] font-bold text-[#0F172A]">Tracking History</h3>
                     <span className="text-[10.5px] sm:text-[11px] font-bold text-[#64748B] bg-[#F1F5F9] px-2 sm:px-2.5 py-1 rounded-full whitespace-nowrap">
@@ -654,9 +657,10 @@ export function Track() {
                   </div>
 
                   <div className="relative">
-                    {result.timeline.map((event, idx) => {
+                    {(showAllEvents ? result.timeline : result.timeline.slice(0, 5)).map((event, idx) => {
                       const Icon = STATUS_STEP_ICONS[idx] || CheckCircle2;
-                      const isLast = idx === result.timeline.length - 1;
+                      const visibleCount = showAllEvents ? result.timeline.length : Math.min(5, result.timeline.length);
+                      const isLast = idx === visibleCount - 1;
                       return (
                         <motion.div
                           key={event.status}
@@ -700,6 +704,16 @@ export function Track() {
                       );
                     })}
                   </div>
+
+                  {result.timeline.length > 4 && (
+                    <button
+                      onClick={() => setShowAllEvents(v => !v)}
+                      className="w-full mt-auto pt-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[12px] sm:text-[12.5px] font-bold text-[#00A86B] hover:bg-[#F0FDF4] transition-colors"
+                    >
+                      {showAllEvents ? 'Show less' : `View ${result.timeline.length - 5} more`}
+                      <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${showAllEvents ? 'rotate-180' : ''}`} />
+                    </button>
+                  )}
                 </div>
 
                 {/* Right column — Map + Courier details */}
