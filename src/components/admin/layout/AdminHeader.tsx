@@ -230,6 +230,8 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
     '/admin/couriers',
     '/admin/rate-card',
     '/admin/support', '/user/support',
+    '/admin/add-order', '/user/add-order',
+    '/admin/profile', '/user/profile',
   ].some((path) => location.pathname === path || location.pathname.startsWith(path + '/'));
 
   // ─── Global navbar search — always searches Orders, regardless of the current page ──

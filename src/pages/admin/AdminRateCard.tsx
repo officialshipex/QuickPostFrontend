@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
-import { Search, ChevronRight, Save, Filter, X, Upload, Download, Plus, Edit2, CheckCircle2, Truck, Hash, Layers, IndianRupee, RotateCcw, Trash2 } from 'lucide-react';
+import { Search, ChevronRight, Save, Filter, X, Upload, Download, Plus, Edit2, CheckCircle2, Truck, Hash, Layers, IndianRupee, RotateCcw, Trash2, Plane, XCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiClient } from '../../services/apiClient';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { TableLoader } from '../../components/ui/TableLoader';
 import { StatusRibbon } from '../../components/ui/StatusRibbon';
+import { DesktopPagination, usePagination } from '../../hooks/usePagination';
+import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
 
 const STATUS_OPTIONS = [
   { label: 'Active', value: 'Active' },
@@ -209,6 +211,20 @@ export function AdminRateCard() {
   const [costingSearch, setCostingSearch] = useState('');
   const [editingCostingId, setEditingCostingId] = useState<string | null>(null);
   const [deleteCostingId, setDeleteCostingId] = useState<string | null>(null);
+  // Row-level expand/collapse — clicking a courier service name opens its costing
+  // form inline below it, matching the Rate Card Management tab's interaction.
+  const [expandedCostingServiceId, setExpandedCostingServiceId] = useState<string | null>(null);
+
+  // Hooks must run unconditionally on every render — usePagination (which calls
+  // useState internally) previously lived inside a conditional `activeTab === 'costing'
+  // && (() => { ... })()` IIFE, which changed the hook count between renders and
+  // crashed the whole page. Computed here at the top level instead.
+  const filteredCostingServices = services.filter((s: any) => {
+    const q = costingSearch.trim().toLowerCase();
+    if (!q) return true;
+    return (s.name || '').toLowerCase().includes(q) || (s.provider || '').toLowerCase().includes(q);
+  });
+  const costingPagination = usePagination({ data: filteredCostingServices, perPage: 10 });
 
   const fetchCostingCards = async () => {
     setCostingLoading(true);
@@ -264,6 +280,7 @@ export function AdminRateCard() {
       }
       await fetchCostingCards();
       resetCostingForm();
+      setExpandedCostingServiceId(null);
     } catch (err: any) {
       setCostingError(err?.response?.data?.message || 'Failed to save costing rate');
     } finally {
@@ -318,6 +335,32 @@ export function AdminRateCard() {
     if (!q) return true;
     return (c.courierServiceName || '').toLowerCase().includes(q) || (c.courierProviderName || '').toLowerCase().includes(q);
   });
+
+  /** Finds an existing costing card for a given courier service, if any. */
+  const findCostingCardForService = (svc: any) =>
+    costingCards.find((c: any) =>
+      (c.courierServiceName || '').trim().toLowerCase() === (svc.name || '').trim().toLowerCase() &&
+      (c.courierProviderName || '').trim().toLowerCase() === (svc.provider || '').trim().toLowerCase()
+    );
+
+  /** Click a courier service row — toggles its inline costing form open/closed,
+   *  pre-filling from an existing costing card when one is already saved. */
+  const toggleCostingRow = (svc: any) => {
+    if (expandedCostingServiceId === svc._id) {
+      setExpandedCostingServiceId(null);
+      resetCostingForm();
+      return;
+    }
+    const existing = findCostingCardForService(svc);
+    if (existing) {
+      handleEditCosting(existing);
+    } else {
+      setCostingForm({ ...emptyCostingForm, courierServiceId: svc._id });
+      setEditingCostingId(null);
+      setCostingError('');
+    }
+    setExpandedCostingServiceId(svc._id);
+  };
 
   // ─── Global search listener (navbar search bar) ──────────────────────────────
   useEffect(() => {
@@ -659,7 +702,7 @@ export function AdminRateCard() {
           <div className="relative min-w-[220px] shrink-0">
             <button
               onClick={() => setIsPlanDropdownOpen(!isPlanDropdownOpen)}
-              className={`w-full h-9 px-4 border rounded-lg text-xs font-bold transition-all flex items-center justify-between ${isPlanDropdownOpen ? 'border-[#00A86B] ring-1 ring-[#00A86B]/20 bg-white text-[#00A86B]' : 'border-[#E2E8F0] bg-white text-[#0F172A] hover:border-[#00A86B] hover:text-[#00A86B]'}`}
+              className={`w-full h-9 px-4 border rounded-full text-xs font-bold transition-all flex items-center justify-between ${isPlanDropdownOpen ? 'border-[#00A86B] ring-1 ring-[#00A86B]/20 bg-white text-[#00A86B]' : 'border-[#E2E8F0] bg-white text-[#0F172A] hover:border-[#00A86B] hover:text-[#00A86B]'}`}
             >
               <span className="truncate pr-2">{selectedPlan || 'Select Plan'}</span>
               <motion.div animate={{ rotate: isPlanDropdownOpen ? 180 : 0 }} transition={{ duration: 0.2 }}>
@@ -709,11 +752,11 @@ export function AdminRateCard() {
           <div className="ml-auto flex items-center gap-2 flex-wrap">
             <button
               onClick={handleDownloadTemplate}
-              className="flex items-center gap-1.5 h-9 px-4 shrink-0 rounded-lg border border-[#E2E8F0] bg-white text-[#475569] text-xs font-bold hover:bg-[#F8FAFC] transition-colors shadow-sm"
+              className="flex items-center gap-1.5 h-9 px-4 shrink-0 rounded-full border border-[#E2E8F0] bg-white text-[#475569] text-xs font-bold hover:bg-[#F8FAFC] transition-colors shadow-sm"
             >
               <Download className="w-3.5 h-3.5" /> Template
             </button>
-            <label className={`flex items-center gap-1.5 h-9 px-4 shrink-0 rounded-lg border border-[#E2E8F0] bg-white text-[#475569] text-xs font-bold hover:bg-[#F8FAFC] transition-colors shadow-sm cursor-pointer ${uploading ? 'opacity-60 pointer-events-none' : ''}`}>
+            <label className={`flex items-center gap-1.5 h-9 px-4 shrink-0 rounded-full border border-[#E2E8F0] bg-white text-[#475569] text-xs font-bold hover:bg-[#F8FAFC] transition-colors shadow-sm cursor-pointer ${uploading ? 'opacity-60 pointer-events-none' : ''}`}>
               {uploading ? <><Spinner /> Uploading...</> : <><Upload className="w-3.5 h-3.5" /> Upload</>}
               <input
                 ref={uploadInputRef}
@@ -726,13 +769,13 @@ export function AdminRateCard() {
             </label>
             <button
               onClick={() => { setNewPlanName(''); setPlanError(''); setAddPlanModal(true); }}
-              className="flex items-center gap-1.5 h-9 px-4 shrink-0 rounded-lg border border-[#00A86B] text-[#00A86B] text-xs font-bold hover:bg-[#F0FDF4] transition-colors shadow-sm bg-white"
+              className="flex items-center gap-1.5 h-9 px-4 shrink-0 rounded-full border border-[#00A86B] text-[#00A86B] text-xs font-bold hover:bg-[#F0FDF4] transition-colors shadow-sm bg-white"
             >
               <Plus className="w-3.5 h-3.5" /> Add Plan
             </button>
             <button
               onClick={() => { setAddRateForm({ ...emptyAddRateForm, plan: selectedPlan || plans[0] || '' }); setAddRateError(''); setAddRateModal(true); }}
-              className="flex items-center gap-1.5 h-9 px-4 shrink-0 rounded-lg bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm"
+              className="flex items-center gap-1.5 h-9 px-4 shrink-0 rounded-full bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors shadow-sm"
             >
               <Plus className="w-3.5 h-3.5" /> Add Rate Card
             </button>
@@ -1258,37 +1301,21 @@ export function AdminRateCard() {
           )}
         </div>}
 
-        {/* ══════════════════════ COSTING RATE CARD TAB ══════════════════════ */}
-        {activeTab === 'costing' && (
-          <div className="flex-1 min-h-0 overflow-y-auto">
-            {costingError && (
-              <div className="mx-4 md:mx-6 mt-3 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600 font-medium flex items-center justify-between gap-2">
-                <span>{costingError}</span>
-                <button onClick={() => setCostingError('')}><X className="w-4 h-4" /></button>
-              </div>
-            )}
+        {/* ══════════════════════ COSTING RATE CARD TAB — redesigned to match Rate
+             Card Management: courier services listed in a table, click a row to
+             expand its costing form inline (add or edit), same as provider rows
+             expand into their rate-card editor above. ══════════════════════ */}
+        {activeTab === 'costing' && (() => {
+          const filteredServices = filteredCostingServices;
+          // Table is driven by both the shared courier-services list (loading, fetched
+          // once on mount) and the costing cards themselves (costingLoading) — the page
+          // looked blank because only costingLoading was checked, so if `services` was
+          // still in flight the table rendered with zero rows instead of the loader.
+          const costingTabLoading = loading || costingLoading;
 
-            {/* Form Card */}
-            <div className="p-4 md:p-6 border-b border-[#E2E8F0] bg-white">
-              <div className="flex items-center gap-2 mb-4">
-                <h3 className="text-[14px] font-bold text-[#0F172A]">Costing Rate Card</h3>
-                <span className="text-[#CBD5E1]">|</span>
-                <button
-                  onClick={resetCostingForm}
-                  className="text-[13px] font-bold text-[#00A86B] hover:text-[#009B63] transition-colors flex items-center gap-1"
-                >
-                  <Plus className="w-3.5 h-3.5" /> Add
-                </button>
-              </div>
-
-              {/* Row 1: Select Courier Service / Status / Shipment Type */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-5">
-                <PillSelect
-                  value={costingForm.courierServiceId}
-                  onChange={(v) => setCostingForm(f => ({ ...f, courierServiceId: v }))}
-                  placeholder="Select Courier Service"
-                  options={services.map((s: any) => ({ value: s._id, label: `${s.provider} — ${s.name}` }))}
-                />
+          const CostingForm = () => (
+            <div className="bg-white rounded-[20px] border border-[#E2E8F0] p-5 md:p-7 shadow-[0_2px_16px_rgba(0,0,0,0.02)]">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-5">
                 <PillSelect
                   value={costingForm.status}
                   onChange={(v) => setCostingForm(f => ({ ...f, status: v }))}
@@ -1301,7 +1328,6 @@ export function AdminRateCard() {
                 />
               </div>
 
-              {/* Weight Type Basic */}
               <div className="mb-5">
                 <p className="text-[13px] font-bold text-[#0F172A] mb-2.5">
                   Weight Type <span className="text-red-500 font-bold">Basic *</span> <span className="text-[#94A3B8] font-medium">(in gram)</span>
@@ -1311,16 +1337,13 @@ export function AdminRateCard() {
                     onChange={(e) => setCostingForm(f => ({ ...f, basicWeight: e.target.value }))}
                     className="w-full h-11 px-4 bg-white border border-[#E2E8F0] rounded-full text-[13px] font-medium text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10" />
                   {(['basicZoneA', 'basicZoneB', 'basicZoneC', 'basicZoneD', 'basicZoneE'] as const).map((field, i) => (
-                    <div key={field} className="relative">
-                      <input type="number" placeholder={`Zone ${String.fromCharCode(65 + i)} * ₹`} value={(costingForm as any)[field]}
-                        onChange={(e) => setCostingForm(f => ({ ...f, [field]: e.target.value }))}
-                        className="w-full h-11 px-4 bg-white border border-[#E2E8F0] rounded-full text-[13px] font-medium text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10" />
-                    </div>
+                    <input key={field} type="number" placeholder={`Zone ${String.fromCharCode(65 + i)} * ₹`} value={(costingForm as any)[field]}
+                      onChange={(e) => setCostingForm(f => ({ ...f, [field]: e.target.value }))}
+                      className="w-full h-11 px-4 bg-white border border-[#E2E8F0] rounded-full text-[13px] font-medium text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10" />
                   ))}
                 </div>
               </div>
 
-              {/* Weight Type Additional */}
               <div className="mb-5">
                 <p className="text-[13px] font-bold text-[#0F172A] mb-2.5">
                   Weight Type <span className="text-red-500 font-bold">Additional *</span> <span className="text-[#94A3B8] font-medium">(in gram)</span>
@@ -1337,7 +1360,6 @@ export function AdminRateCard() {
                 </div>
               </div>
 
-              {/* Overhead Charges */}
               <div className="mb-1">
                 <p className="text-[13px] font-bold text-[#0F172A] mb-2.5">Overhead Charges:</p>
                 <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
@@ -1350,10 +1372,11 @@ export function AdminRateCard() {
                 </div>
               </div>
 
-              {/* Reset / Save */}
+              {costingError && <p className="text-[12px] font-semibold text-red-500 mt-3">{costingError}</p>}
+
               <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-[#F1F5F9]">
                 <button
-                  onClick={resetCostingForm}
+                  onClick={() => { resetCostingForm(); setExpandedCostingServiceId(null); }}
                   className="flex items-center gap-1.5 px-5 h-10 rounded-full border border-[#E2E8F0] text-[#475569] text-[13px] font-bold bg-white hover:bg-[#F8FAFC] transition-colors"
                 >
                   <RotateCcw className="w-3.5 h-3.5" /> Reset
@@ -1367,152 +1390,208 @@ export function AdminRateCard() {
                 </button>
               </div>
             </div>
+          );
 
-            {/* Costing Rate Cards Table */}
-            <div className="p-4 md:p-6">
-              <div className="bg-white border border-[#E2E8F0] rounded-2xl overflow-hidden shadow-sm">
-                <div className="flex items-center justify-between px-4 md:px-5 py-3.5 border-b border-[#E2E8F0]">
-                  <h3 className="text-[14px] font-bold text-[#0F172A]">
-                    Costing Rate Cards <span className="text-[#94A3B8] font-medium">({filteredCostingCards.length})</span>
-                  </h3>
-                  <div className="relative w-[200px] max-w-[45%]">
-                    <Search className="w-3.5 h-3.5 text-[#94A3B8] absolute left-3 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="text"
-                      placeholder="Search service..."
-                      value={costingSearch}
-                      onChange={(e) => setCostingSearch(e.target.value)}
-                      className="w-full h-9 pl-9 pr-3 bg-white border border-[#E2E8F0] rounded-full text-[12.5px] font-medium text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10"
-                    />
-                  </div>
-                </div>
-
-                {/* Desktop table */}
-                <div className="hidden md:block overflow-x-auto">
-                  {costingLoading && <div className="relative h-32"><TableLoader /></div>}
-                  {!costingLoading && (
-                    <table className="w-full text-left border-collapse min-w-[1000px]">
-                      <thead className="sticky top-0 z-20 bg-[#E6F9F2] shadow-sm">
-                        <tr className="border-b border-[#E2E8F0]">
-                          <th className="py-2.5 px-4 text-[11px] font-bold text-[#64748B] uppercase tracking-wider rounded-l-lg"><div className="flex items-center gap-1.5"><Truck className="w-3.5 h-3.5 shrink-0" /><span>Courier Service</span></div></th>
-                          <th className="py-2.5 px-4 text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Mode</th>
-                          <th className="py-2.5 px-4 text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Weight</th>
-                          <th className="py-2.5 px-4 text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Zone A</th>
-                          <th className="py-2.5 px-4 text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Zone B</th>
-                          <th className="py-2.5 px-4 text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Zone C</th>
-                          <th className="py-2.5 px-4 text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Zone D</th>
-                          <th className="py-2.5 px-4 text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Zone E</th>
-                          <th className="py-2.5 px-4 text-[11px] font-bold text-[#64748B] uppercase tracking-wider">COD Charge</th>
-                          <th className="py-2.5 px-4 text-[11px] font-bold text-[#64748B] uppercase tracking-wider">COD %</th>
-                          <th className="py-2.5 px-4 text-[11px] font-bold text-[#64748B] uppercase tracking-wider"><div className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 shrink-0" /><span>Status</span></div></th>
-                          <th className="py-2.5 px-4 text-[11px] font-bold text-[#64748B] uppercase tracking-wider text-right rounded-r-lg">Action</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-[#E2E8F0]">
-                        {filteredCostingCards.length === 0 ? (
-                          <tr><td colSpan={12} className="py-10 text-center text-sm font-semibold text-[#94A3B8]">No costing rate cards found</td></tr>
-                        ) : filteredCostingCards.map((c: any, i: number) => {
-                          const basic = c.weightPriceBasic?.[0] || {};
-                          const add = c.weightPriceAdditional?.[0] || {};
-                          return (
-                            <React.Fragment key={c._id}>
-                              <tr className={i % 2 === 0 ? 'bg-white' : 'bg-[#F8FAFC]'}>
-                                <td className="py-3 px-4 font-bold text-[13px] text-[#0F172A]" rowSpan={2} style={{ verticalAlign: 'top', paddingTop: '1rem' }}>
-                                  {c.courierServiceName}
-                                </td>
-                                <td className="py-3 px-4" rowSpan={2} style={{ verticalAlign: 'top', paddingTop: '1rem' }}>
-                                  <span className="px-2.5 py-1 rounded-md bg-[#F1F5F9] text-[#475569] text-[11px] font-bold whitespace-nowrap">{c.mode || 'Domestic (Surface)'}</span>
-                                </td>
-                                <td className="py-3 px-4 text-[13px] text-[#64748B]">Basic: {basic.weight ?? '—'}gm</td>
-                                {(['zoneA', 'zoneB', 'zoneC', 'zoneD', 'zoneE'] as const).map(z => (
-                                  <td key={z} className="py-3 px-4 text-[13px] font-semibold text-[#0F172A]">₹{basic[z] ?? 0}</td>
-                                ))}
-                                <td className="py-3 px-4 text-[13px] font-semibold text-[#0F172A]" rowSpan={2} style={{ verticalAlign: 'top', paddingTop: '1rem' }}>₹{c.codCharge ?? 0}</td>
-                                <td className="py-3 px-4 text-[13px] font-semibold text-[#0F172A]" rowSpan={2} style={{ verticalAlign: 'top', paddingTop: '1rem' }}>{c.codPercent ?? 0}%</td>
-                                <td className="py-3 px-4" rowSpan={2} style={{ verticalAlign: 'top', paddingTop: '1rem' }}>
-                                  <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold ${c.status === 'Active' ? 'bg-[#F0FDF4] text-[#00A86B]' : 'bg-[#FEF2F2] text-[#EF4444]'}`}>
-                                    {c.status || 'Active'}
-                                  </span>
-                                </td>
-                                <td className="py-3 px-4 text-right" rowSpan={2} style={{ verticalAlign: 'top', paddingTop: '1rem' }}>
-                                  <div className="flex items-center justify-end gap-1.5">
-                                    <button onClick={() => handleEditCosting(c)} title="Edit"
-                                      className="w-8 h-8 rounded-lg border border-[#E2E8F0] bg-white text-[#00A86B] flex items-center justify-center hover:bg-[#F0FDF4] transition-colors">
-                                      <Edit2 className="w-3.5 h-3.5" />
-                                    </button>
-                                    <button onClick={() => setDeleteCostingId(c._id)} title="Delete"
-                                      className="w-8 h-8 rounded-lg border border-[#E2E8F0] bg-white text-red-500 flex items-center justify-center hover:bg-red-50 transition-colors">
-                                      <Trash2 className="w-3.5 h-3.5" />
-                                    </button>
-                                  </div>
-                                </td>
-                              </tr>
-                              <tr className={i % 2 === 0 ? 'bg-white' : 'bg-[#F8FAFC]'}>
-                                <td className="py-3 px-4 pb-4 text-[13px] text-[#64748B]">Addl: {add.weight ?? '—'}gm</td>
-                                {(['zoneA', 'zoneB', 'zoneC', 'zoneD', 'zoneE'] as const).map(z => (
-                                  <td key={z} className="py-3 px-4 pb-4 text-[13px] font-semibold text-[#0F172A]">₹{add[z] ?? 0}</td>
-                                ))}
-                              </tr>
-                            </React.Fragment>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  )}
-                </div>
-
-                {/* Mobile cards */}
-                <div className="md:hidden p-2.5 space-y-2.5">
-                  {costingLoading && <div className="relative h-32"><TableLoader /></div>}
-                  {!costingLoading && filteredCostingCards.length === 0 && (
-                    <div className="p-8 text-center text-sm font-semibold text-[#94A3B8]">No costing rate cards found</div>
-                  )}
-                  {!costingLoading && filteredCostingCards.map((c: any) => {
-                    const basic = c.weightPriceBasic?.[0] || {};
-                    const add = c.weightPriceAdditional?.[0] || {};
-                    return (
-                      <div key={c._id} className="bg-white rounded-xl border border-[#E2E8F0] p-3.5">
-                        <div className="flex items-start justify-between gap-2 mb-2.5">
-                          <div className="min-w-0">
-                            <div className="font-bold text-[13px] text-[#0F172A] truncate">{c.courierServiceName}</div>
-                            <span className="inline-block mt-1 px-2 py-0.5 rounded-md bg-[#F1F5F9] text-[#475569] text-[10px] font-bold">{c.mode || 'Domestic (Surface)'}</span>
-                          </div>
-                          <span className={`shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${c.status === 'Active' ? 'bg-[#F0FDF4] text-[#00A86B]' : 'bg-[#FEF2F2] text-[#EF4444]'}`}>
-                            {c.status || 'Active'}
-                          </span>
-                        </div>
-                        <div className="bg-[#F8FAFC] rounded-lg p-2.5 mb-2.5 space-y-1.5">
-                          <div className="flex items-center justify-between text-[12px]">
-                            <span className="text-[#64748B] font-medium">Basic: {basic.weight ?? '—'}gm</span>
-                            <span className="font-semibold text-[#0F172A]">A ₹{basic.zoneA ?? 0} · B ₹{basic.zoneB ?? 0} · C ₹{basic.zoneC ?? 0}</span>
-                          </div>
-                          <div className="flex items-center justify-between text-[12px]">
-                            <span className="text-[#64748B] font-medium">Addl: {add.weight ?? '—'}gm</span>
-                            <span className="font-semibold text-[#0F172A]">D ₹{basic.zoneD ?? 0} · E ₹{basic.zoneE ?? 0}</span>
-                          </div>
-                          <div className="flex items-center justify-between text-[12px] pt-1.5 border-t border-[#E2E8F0]">
-                            <span className="text-[#64748B] font-medium">COD Charge / %</span>
-                            <span className="font-semibold text-[#0F172A]">₹{c.codCharge ?? 0} / {c.codPercent ?? 0}%</span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button onClick={() => handleEditCosting(c)}
-                            className="flex-1 h-9 rounded-lg border border-[#E2E8F0] bg-white text-[#00A86B] text-[12.5px] font-bold flex items-center justify-center gap-1.5 hover:bg-[#F0FDF4] transition-colors">
-                            <Edit2 className="w-3.5 h-3.5" /> Edit
-                          </button>
-                          <button onClick={() => setDeleteCostingId(c._id)}
-                            className="flex-1 h-9 rounded-lg border border-[#E2E8F0] bg-white text-red-500 text-[12.5px] font-bold flex items-center justify-center gap-1.5 hover:bg-red-50 transition-colors">
-                            <Trash2 className="w-3.5 h-3.5" /> Delete
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+          return (
+          <div className="flex-1 min-h-0 overflow-y-auto">
+            {/* Search — same placement/style as Management's courier search */}
+            <div className="hidden md:flex py-3 px-6 border-b border-[#CBD5F5] items-center gap-3 bg-[#F8FAFC]/50">
+              <input
+                type="text"
+                placeholder="Search courier service"
+                className="glass-search-input w-[260px] shrink-0"
+                value={costingSearch}
+                onChange={(e) => setCostingSearch(e.target.value)}
+              />
+              <span className="text-[12px] font-semibold text-[#94A3B8]">
+                {filteredServices.length} {filteredServices.length === 1 ? 'service' : 'services'}
+              </span>
+            </div>
+            <div className="md:hidden px-3 py-2.5 border-b border-[#E2E8F0] bg-white">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8]" />
+                <input
+                  type="text"
+                  placeholder="Search courier service"
+                  className="w-full h-9 pl-9 pr-3 rounded-full border border-[#E2E8F0] bg-[#F8FAFC] text-sm outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 text-[#0F172A] placeholder:text-[#94A3B8] transition-all"
+                  value={costingSearch}
+                  onChange={(e) => setCostingSearch(e.target.value)}
+                />
               </div>
             </div>
+
+            {/* Desktop table */}
+            <div className="hidden md:block bg-white">
+              {costingTabLoading && <div className="relative h-32"><TableLoader /></div>}
+              {!costingTabLoading && (
+                <table className="w-full text-left border-collapse">
+                  <thead className="sticky top-0 z-20 bg-[#E6F9F2] shadow-sm">
+                    <tr className="border-b border-[#E2E8F0]">
+                      <th className="py-2 px-3 text-xs font-medium text-[#64748B] uppercase tracking-wider w-20 rounded-l-lg">
+                        <div className="flex items-center gap-1.5"><Hash className="w-3.5 h-3.5 shrink-0" /><span>S.NO.</span></div>
+                      </th>
+                      <th className="py-2 px-3 text-xs font-medium text-[#64748B] uppercase tracking-wider">
+                        <div className="flex items-center gap-1.5"><Truck className="w-3.5 h-3.5 shrink-0" /><span>COURIER SERVICE</span></div>
+                      </th>
+                      <th className="py-2 px-3 text-xs font-medium text-[#64748B] uppercase tracking-wider text-center">
+                        <div className="flex items-center justify-center gap-1.5"><Layers className="w-3.5 h-3.5 shrink-0" /><span>MODE</span></div>
+                      </th>
+                      <th className="py-2 px-3 text-xs font-medium text-[#64748B] uppercase tracking-wider text-center">
+                        <div className="flex items-center justify-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 shrink-0" /><span>COSTING STATUS</span></div>
+                      </th>
+                      <th className="py-2 px-3 text-xs font-medium text-[#64748B] uppercase tracking-wider text-right rounded-r-lg">
+                        <div className="flex items-center justify-end gap-1.5"><Edit2 className="w-3.5 h-3.5 shrink-0" /><span>DETAILS</span></div>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredServices.length === 0 ? (
+                      <tr><td colSpan={5} className="py-12 text-center text-sm font-semibold text-[#94A3B8]">No courier services found</td></tr>
+                    ) : costingPagination.paginatedData.map((svc: any, index: number) => {
+                      const isExpanded = expandedCostingServiceId === svc._id;
+                      const existing = findCostingCardForService(svc);
+                      const logo = getProviderLogo(svc.provider);
+                      return (
+                        <React.Fragment key={svc._id}>
+                          <tr
+                            className={`border-b border-[#E2E8F0] transition-colors cursor-pointer ${isExpanded ? 'bg-[#F8FAFC]' : index % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]/20'}`}
+                            onClick={() => toggleCostingRow(svc)}
+                          >
+                            <td className="py-4 px-6">
+                              <div className="flex items-center gap-3">
+                                <span className="text-sm font-semibold text-[#64748B]">{costingPagination.startIndex + index}</span>
+                                <ChevronRight className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-90 text-[#00A86B]' : 'text-[#CBD5E1]'}`} />
+                              </div>
+                            </td>
+                            <td className="py-4 px-6">
+                              <div className="flex items-center gap-4">
+                                <div className="w-11 h-11 bg-white border border-[#E2E8F0] rounded-xl p-2 flex items-center justify-center shrink-0 overflow-hidden shadow-sm">
+                                  {logo ? (
+                                    <img src={logo} alt={svc.provider} className="max-w-full max-h-full object-contain"
+                                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).parentElement!.innerHTML = `<span class="text-[13px] font-bold text-[#94A3B8]">${(svc.provider || '?').charAt(0)}</span>`; }} />
+                                  ) : (
+                                    <span className="text-[13px] font-bold text-[#94A3B8]">{(svc.provider || '?').charAt(0)}</span>
+                                  )}
+                                </div>
+                                <div>
+                                  <div className="text-[14px] font-extrabold text-[#0F172A]">{svc.name}</div>
+                                  <div className="text-[11px] font-semibold text-[#94A3B8]">{svc.provider}</div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="py-4 px-6 text-center">
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#F1F5F9] text-[#475569] rounded-full text-xs font-bold whitespace-nowrap">
+                                {(svc.courierType || '').toLowerCase().includes('air') ? <Plane className="w-3.5 h-3.5" /> : <Truck className="w-3.5 h-3.5" />}
+                                {svc.courierType || 'Domestic (Surface)'}
+                              </span>
+                            </td>
+                            <td className="py-4 px-6 text-center">
+                              <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold ${existing ? 'bg-[#F0FDF4] text-[#00A86B]' : 'bg-[#F1F5F9] text-[#94A3B8]'}`}>
+                                {existing ? <CheckCircle2 className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
+                                {existing ? 'Configured' : 'Not Set'}
+                              </span>
+                            </td>
+                            <td className="py-4 px-6 text-right pr-8">
+                              <span className="inline-flex items-center gap-1 text-sm font-semibold text-[#64748B]">
+                                {isExpanded ? 'Close' : existing ? <Edit2 className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
+                                {isExpanded ? '' : existing ? 'Edit' : 'Add costing'}
+                              </span>
+                            </td>
+                          </tr>
+
+                          <AnimatePresence initial={false}>
+                            {isExpanded && (
+                              <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0]">
+                                <td colSpan={5} className="p-0">
+                                  <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+                                    transition={{ type: 'spring', stiffness: 350, damping: 30, mass: 0.8 }} className="overflow-hidden">
+                                    <div className="py-6 px-8" onClick={(e) => e.stopPropagation()}>
+                                      <CostingForm />
+                                    </div>
+                                  </motion.div>
+                                </td>
+                              </tr>
+                            )}
+                          </AnimatePresence>
+                        </React.Fragment>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+              <DesktopPagination
+                page={costingPagination.page}
+                setPage={costingPagination.setPage}
+                totalPages={costingPagination.totalPages}
+                rowsPerPage={costingPagination.rowsPerPage}
+                setRowsPerPage={costingPagination.setRowsPerPage}
+                startIndex={costingPagination.startIndex}
+                endIndex={costingPagination.endIndex}
+                totalItems={costingPagination.totalItems}
+              />
+            </div>
+
+            {/* Mobile cards */}
+            <div className="md:hidden p-2.5 space-y-2.5">
+              {costingTabLoading && <div className="relative h-32"><TableLoader /></div>}
+              {!costingTabLoading && filteredServices.length === 0 && (
+                <div className="p-8 text-center text-sm font-semibold text-[#94A3B8]">No courier services found</div>
+              )}
+              {!costingTabLoading && costingPagination.paginatedData.map((svc: any) => {
+                const isExpanded = expandedCostingServiceId === svc._id;
+                const existing = findCostingCardForService(svc);
+                const logo = getProviderLogo(svc.provider);
+                return (
+                  <div key={svc._id} className="bg-white rounded-xl border border-[#E2E8F0] overflow-hidden">
+                    <button onClick={() => toggleCostingRow(svc)} className="w-full text-left p-3.5">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 bg-white border border-[#E2E8F0] rounded-lg p-1.5 flex items-center justify-center shrink-0 overflow-hidden">
+                          {logo ? (
+                            <img src={logo} alt={svc.provider} className="max-w-full max-h-full object-contain"
+                              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                          ) : (
+                            <span className="text-[11px] font-bold text-[#94A3B8]">{(svc.provider || '?').charAt(0)}</span>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-bold text-[13px] text-[#0F172A] truncate">{svc.name}</div>
+                          <div className="text-[10px] font-semibold text-[#94A3B8] truncate">{svc.provider}</div>
+                        </div>
+                        <span className={`shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${existing ? 'bg-[#F0FDF4] text-[#00A86B]' : 'bg-[#F1F5F9] text-[#94A3B8]'}`}>
+                          {existing ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+                          {existing ? 'Configured' : 'Not Set'}
+                        </span>
+                        <ChevronRight className={`w-4 h-4 shrink-0 transition-transform ${isExpanded ? 'rotate-90 text-[#00A86B]' : 'text-[#CBD5E1]'}`} />
+                      </div>
+                    </button>
+                    <AnimatePresence initial={false}>
+                      {isExpanded && (
+                        <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+                          transition={{ type: 'spring', stiffness: 350, damping: 30, mass: 0.8 }} className="overflow-hidden border-t border-[#E2E8F0] bg-[#F8FAFC]">
+                          <div className="p-3">
+                            <CostingForm />
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                );
+              })}
+              {<MobilePaginationBar {...({
+                page: costingPagination.page,
+                setPage: costingPagination.setPage,
+                totalPages: costingPagination.totalPages,
+                rowsPerPage: costingPagination.rowsPerPage,
+                setRowsPerPage: costingPagination.setRowsPerPage,
+                startIndex: costingPagination.startIndex,
+                endIndex: costingPagination.endIndex,
+                totalItems: costingPagination.totalItems,
+                inline: true,
+              })} />}
+            </div>
           </div>
-        )}
+          );
+        })()}
       </div>
 
       {/* Delete Costing Rate Card Confirm */}

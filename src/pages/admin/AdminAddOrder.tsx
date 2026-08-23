@@ -1,14 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import {
   ArrowLeft, Upload, Trash2, Plus, Minus, ChevronDown, Loader2,
-  PackagePlus, X
+  PackagePlus, X, CheckCircle2
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { apiClient } from '../../services/apiClient';
 import { useAdminTab } from '../../context/AdminUserContext';
 import { BulkUploadModal } from '../../components/ui/BulkUploadModal';
 import { TableLoader } from '../../components/ui/TableLoader';
+import { AddressAccuracyGauge } from '../../components/ui/AddressAccuracy';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Product {
@@ -58,6 +60,8 @@ export function AdminAddOrder() {
   // ── Pickup ──
   const [pickupAddresses, setPickupAddresses] = useState<PickupAddress[]>([]);
   const [selectedPickupId, setSelectedPickupId] = useState('');
+  const [isPickupDropdownOpen, setIsPickupDropdownOpen] = useState(false);
+  const pickupDropdownRef = useRef<HTMLDivElement>(null);
   const [pickupRefresh, setPickupRefresh] = useState(false);
   const [prefillPickup, setPrefillPickup] = useState<any>(null);
   const [orderOwnerId, setOrderOwnerId] = useState<string | null>(null);
@@ -289,6 +293,16 @@ export function AdminAddOrder() {
     if (match) setSelectedPickupId(match._id);
   }, [prefillPickup, pickupAddresses]);
 
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (pickupDropdownRef.current && !pickupDropdownRef.current.contains(e.target as Node)) {
+        setIsPickupDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   // ── Product helpers ──
   const handleAddProduct = () =>
     setProducts(prev => [
@@ -493,8 +507,8 @@ export function AdminAddOrder() {
         <div className="space-y-3 md:space-y-6 px-2 md:px-0">
 
           {/* ── Pickup Details ── */}
-          <div className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm overflow-hidden">
-            <div className="px-3 md:px-6 py-2.5 md:py-4 border-b border-[#E2E8F0]">
+          <div className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm">
+            <div className="px-3 md:px-6 py-2.5 md:py-4 border-b border-[#E2E8F0] rounded-t-xl">
               <h2 className="text-[14px] font-semibold text-[#0F172A]">Pickup Details</h2>
             </div>
             <div className="p-3 md:p-6">
@@ -503,23 +517,66 @@ export function AdminAddOrder() {
               </label>
               {errors.pickup && <p className="text-[12px] md:text-[11px] text-red-500 mb-1">{errors.pickup}</p>}
               <div className="flex flex-col md:flex-row md:items-center gap-4">
-                <div className="flex-1 relative">
-                  <select
-                    value={selectedPickupId}
-                    onChange={e => setSelectedPickupId(e.target.value)}
-                    className={`w-full h-11 pl-4 pr-10 border rounded-full text-[12px] md:text-[13px] text-[#475569] font-medium appearance-none focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B] ${errors.pickup ? 'border-red-400' : 'border-[#E2E8F0]'}`}
+                <div ref={pickupDropdownRef} className="flex-1 relative">
+                  <button
+                    type="button"
+                    onClick={() => setIsPickupDropdownOpen(o => !o)}
+                    className={`w-full h-11 pl-4 pr-10 border rounded-full text-[12px] md:text-[13px] text-left font-medium transition-all flex items-center overflow-hidden ${isPickupDropdownOpen ? 'border-[#00A86B] ring-1 ring-[#00A86B]/30' : errors.pickup ? 'border-red-400' : 'border-[#E2E8F0] hover:border-[#00A86B]/50'}`}
                   >
                     {pickupAddresses.length === 0 ? (
-                      <option value="">No pickup addresses found</option>
-                    ) : (
-                      pickupAddresses.map(pa => (
-                        <option key={pa._id} value={pa._id}>
-                          {pa.pickupAddress?.contactName} | {pa.pickupAddress?.address}, {pa.pickupAddress?.city}, {pa.pickupAddress?.pinCode}
-                        </option>
-                      ))
+                      <span className="text-[#94A3B8]">No pickup addresses found</span>
+                    ) : (() => {
+                      const sel = pickupAddresses.find(pa => pa._id === selectedPickupId);
+                      return sel ? (
+                        <span className="text-[#0F172A] truncate block min-w-0">
+                          {sel.pickupAddress?.contactName} <span className="text-[#94A3B8]">| {sel.pickupAddress?.address}, {sel.pickupAddress?.city}, {sel.pickupAddress?.pinCode}</span>
+                        </span>
+                      ) : <span className="text-[#94A3B8]">Select a pickup address</span>;
+                    })()}
+                  </button>
+                  <motion.div
+                    className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-[#94A3B8]"
+                    animate={{ rotate: isPickupDropdownOpen ? 180 : 0 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <ChevronDown className="w-4 h-4" />
+                  </motion.div>
+
+                  <AnimatePresence>
+                    {isPickupDropdownOpen && pickupAddresses.length > 0 && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -8, scale: 0.97 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -8, scale: 0.97 }}
+                        transition={{ duration: 0.15, ease: 'easeOut' }}
+                        className="absolute top-[calc(100%+6px)] left-0 w-full bg-white border border-[#E2E8F0] rounded-2xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.15)] z-20 overflow-hidden py-1.5"
+                      >
+                        <div className="max-h-[280px] overflow-y-auto">
+                          {pickupAddresses.map(pa => {
+                            const isSelected = pa._id === selectedPickupId;
+                            const fullAddress = pa.pickupAddress?.address || '';
+                            return (
+                              <button
+                                key={pa._id}
+                                type="button"
+                                onClick={() => { setSelectedPickupId(pa._id); setIsPickupDropdownOpen(false); }}
+                                className={`w-full text-left px-4 py-2.5 text-[13px] transition-colors flex items-center justify-between gap-3 ${isSelected ? 'bg-[#F0FDF4]' : 'hover:bg-[#F8FAFC]'}`}
+                              >
+                                <div className="min-w-0 flex-1">
+                                  <div className={`font-bold truncate ${isSelected ? 'text-[#00A86B]' : 'text-[#0F172A]'}`}>{pa.pickupAddress?.contactName}</div>
+                                  <div className="text-[11px] text-[#94A3B8] truncate">{fullAddress}, {pa.pickupAddress?.city}, {pa.pickupAddress?.pinCode}</div>
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                  <AddressAccuracyGauge address={fullAddress} size="sm" showLabel={false} />
+                                  {isSelected && <CheckCircle2 className="w-4 h-4 text-[#00A86B]" />}
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </motion.div>
                     )}
-                  </select>
-                  <ChevronDown className="w-4 h-4 text-[#94A3B8] absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </AnimatePresence>
                 </div>
                 <button
                   type="button"
@@ -529,6 +586,18 @@ export function AdminAddOrder() {
                   + Add new pickup address
                 </button>
               </div>
+
+              {/* Address accuracy for the currently selected pickup address */}
+              {(() => {
+                const sel = pickupAddresses.find(pa => pa._id === selectedPickupId);
+                if (!sel) return null;
+                return (
+                  <div className="mt-3 flex items-center gap-2">
+                    <span className="text-[11px] font-semibold text-[#94A3B8] uppercase tracking-wider">Address Accuracy</span>
+                    <AddressAccuracyGauge address={sel.pickupAddress?.address} size="sm" showLabel={false} />
+                  </div>
+                );
+              })()}
             </div>
           </div>
 
@@ -564,7 +633,13 @@ export function AdminAddOrder() {
 
               <div className="grid grid-cols-1 md:grid-cols-4 gap-3 md:gap-5">
                 <div className="md:col-span-2">
-                  <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Address <span className="text-red-500">*</span></label>
+                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                    <label className="block text-[12px] font-bold text-[#64748B]">Address <span className="text-red-500">*</span></label>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <span className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Accuracy</span>
+                      <AddressAccuracyGauge address={address} size="sm" showLabel={false} />
+                    </div>
+                  </div>
                   {errors.address && <p className="text-[12px] md:text-[11px] text-red-500 mb-1">{errors.address}</p>}
                   <input type="text" value={address} onChange={e => setAddress(e.target.value)} placeholder="Enter Address" className={fieldCls(errors.address)} />
                 </div>
