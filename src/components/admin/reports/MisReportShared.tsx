@@ -31,6 +31,8 @@ export const REPORT_TYPES = [
   'Delivered', 'RTO', 'Canceled', 'Pending Order',
 ];
 export const DATE_FILTER_TYPES = ['Pickup Date', 'AWB Assigned Date'];
+export const ORDER_DATE_FILTER_TYPES = ['Creation Date', 'AWB Assign Date', 'Pickup Date'];
+export const NDR_STATUSES = ['Undelivered', 'Action Required', 'Action Requested'];
 export const PASSBOOK_DESCS = [
   'Freight Charges Applied', 'Freight Charges Received', 'Auto-accepted Weight Dispute charge',
   'Weight Dispute Charges Applied', 'COD Charges Received', 'RTO Freight Charges Applied',
@@ -250,9 +252,11 @@ export function GenerateReportModal({ open, onClose, prefillUserId, prefillUserN
    *  so it only offers the legacy types that don't have their own dedicated card. */
   reportTypeOptions?: string[];
 }) {
-  const [reportType, setReportType]         = useState(initialReportType || 'All');
-  const [dateFilterType, setDateFilterType] = useState('Pickup Date');
-  const [fromDate, setFromDate]             = useState('');
+  const [reportType, setReportType]           = useState(initialReportType || 'All');
+  const [dateFilterType, setDateFilterType]   = useState('Pickup Date');
+  const [dateFilterTypes, setDateFilterTypes] = useState<string[]>(['Pickup Date']);
+  const [ndrStatuses, setNdrStatuses]         = useState<string[]>([]);
+  const [fromDate, setFromDate]               = useState('');
   const [toDate, setToDate]                 = useState('');
   const [email, setEmail]                   = useState('');
   const [descs, setDescs]                   = useState<string[]>([]);
@@ -270,7 +274,11 @@ export function GenerateReportModal({ open, onClose, prefillUserId, prefillUserN
 
   useEffect(() => {
     if (open) {
-      setReportType(initialReportType || 'All'); setDateFilterType('Pickup Date'); setFromDate(''); setToDate('');
+      setReportType(initialReportType || 'All');
+      setDateFilterType('Pickup Date');
+      setDateFilterTypes(['Pickup Date']);
+      setNdrStatuses([]);
+      setFromDate(''); setToDate('');
       setEmail(''); setDescs([]); setResult(null);
       clearUserFilter();
     }
@@ -286,11 +294,19 @@ export function GenerateReportModal({ open, onClose, prefillUserId, prefillUserN
     try {
       const body: any = {
         reportType,
-        dateFilterType: reportType === 'Passbook' ? 'Transaction Date' : dateFilterType,
         fromDate: new Date(fromDate).toISOString(),
         toDate: new Date(toDate + 'T23:59:59').toISOString(),
       };
-      if (reportType === 'Passbook' && descs.length > 0) body.selectedDescriptions = descs;
+      if (reportType === 'Passbook') {
+        body.dateFilterType = 'Transaction Date';
+        if (descs.length > 0) body.selectedDescriptions = descs;
+      } else if (lockReportType && reportType === 'Orders') {
+        body.dateFilterTypes = dateFilterTypes.length > 0 ? dateFilterTypes : ['Pickup Date'];
+      } else if (lockReportType && reportType === 'NDR') {
+        if (ndrStatuses.length > 0) body.ndrStatuses = ndrStatuses;
+      } else {
+        body.dateFilterType = dateFilterType;
+      }
       if (email) body.email = email;
       if (isAdminView && prefillUserId) body.userSearch = prefillUserId;
       else if (showSellerSearch && userMongoId) body.userSearch = userMongoId;
@@ -378,7 +394,8 @@ export function GenerateReportModal({ open, onClose, prefillUserId, prefillUserN
                 />
               </div>
             )}
-            {reportType !== 'Passbook' && (
+            {/* Other Reports: single date filter dropdown (unchanged) */}
+            {!lockReportType && reportType !== 'Passbook' && (
               <div>
                 <label className={labelCls}>Date Filter By</label>
                 <GlassSingleSelect
@@ -390,6 +407,58 @@ export function GenerateReportModal({ open, onClose, prefillUserId, prefillUserN
               </div>
             )}
           </div>
+
+          {/* Orders: multi-select date filter (Creation Date / AWB Assign Date / Pickup Date) */}
+          {lockReportType && reportType === 'Orders' && (
+            <div>
+              <label className={labelCls}>Date Filter By</label>
+              <div className="flex flex-wrap gap-2 mt-0.5">
+                {ORDER_DATE_FILTER_TYPES.map(t => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setDateFilterTypes(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t])}
+                    className={[
+                      'h-9 px-4 rounded-full text-[12px] font-semibold border transition-colors',
+                      dateFilterTypes.includes(t)
+                        ? 'bg-[#00A86B] text-white border-[#00A86B] shadow-sm'
+                        : 'bg-white text-[#475569] border-[#E2E8F0] hover:border-[#CBD5E1]',
+                    ].join(' ')}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+              {dateFilterTypes.length === 0 && (
+                <p className="text-[11px] text-amber-500 mt-1.5 font-medium">Select at least one filter — defaulting to Pickup Date</p>
+              )}
+            </div>
+          )}
+
+          {/* NDR: status multi-select (Undelivered / Action Required / Action Requested) */}
+          {lockReportType && reportType === 'NDR' && (
+            <div>
+              <label className={labelCls}>NDR Status</label>
+              <div className="flex flex-wrap gap-2 mt-0.5">
+                {NDR_STATUSES.map(s => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setNdrStatuses(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s])}
+                    className={[
+                      'h-9 px-4 rounded-full text-[12px] font-semibold border transition-colors',
+                      ndrStatuses.includes(s)
+                        ? 'bg-amber-500 text-white border-amber-500 shadow-sm'
+                        : 'bg-white text-[#475569] border-[#E2E8F0] hover:border-[#CBD5E1]',
+                    ].join(' ')}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[11px] text-[#94A3B8] mt-1.5 font-medium">Leave all unselected to include all NDR statuses</p>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>

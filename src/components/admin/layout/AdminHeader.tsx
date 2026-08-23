@@ -19,7 +19,7 @@ interface AdminHeaderProps {
 
 export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
   const { logout } = useAuth();
-  const { isAdmin, adminTab, toggleAdminTab, userName, userEmail, businessName, profileImage, walletBalance: ctxWalletBalance, walletHold, isEmployee, parentEmail, currentUserId } = useAdminTab();
+  const { isAdmin, adminTab, toggleAdminTab, userName, userEmail, businessName, profileImage, walletBalance: ctxWalletBalance, walletHold, creditLimit, isEmployee, parentEmail, currentUserId } = useAdminTab();
   const { filters, updateFilter } = useDashboardFilters();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -343,7 +343,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -12 }}
             transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-            className="w-full flex items-center gap-1.5 px-2 h-[60px]">
+            className="w-full flex items-center gap-1 pl-1 pr-2 h-[60px]">
             {/* Left: hamburger */}
             <div className="flex items-center shrink-0">
               <button
@@ -556,6 +556,10 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                         <div className="flex justify-between items-center gap-2">
                           <span className="text-[13px] font-semibold text-[#64748B]">Hold</span>
                           <span className="text-[13px] font-bold text-amber-600">₹{walletHold.toLocaleString('en-IN')}</span>
+                        </div>
+                        <div className="flex justify-between items-center gap-2">
+                          <span className="text-[13px] font-semibold text-[#64748B]">Credit Limit</span>
+                          <span className="text-[13px] font-bold text-violet-600">₹{creditLimit.toLocaleString('en-IN')}</span>
                         </div>
                         <div className="h-[1px] bg-slate-100"></div>
                         <div className="flex justify-between items-center gap-2">
@@ -1015,6 +1019,11 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                   <div className="flex justify-between items-center">
                     <span className="text-xs font-semibold text-[#64748B]">Hold Amount</span>
                     <span className="text-sm font-bold text-amber-600">₹{walletHold.toLocaleString('en-IN')}</span>
+                  </div>
+
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-semibold text-[#64748B]">Credit Limit</span>
+                    <span className="text-sm font-bold text-violet-600">₹{creditLimit.toLocaleString('en-IN')}</span>
                   </div>
 
                   <div className="h-[1px] bg-slate-100 my-1"></div>

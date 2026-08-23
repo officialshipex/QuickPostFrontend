@@ -19,6 +19,7 @@ interface AdminTabContextType {
   profileImage: string;
   walletBalance: number;
   walletHold: number;
+  creditLimit: number;
   isEmployee: boolean;
   employeeId: string;
   employeeAccessRights: Record<string, EmployeeAccessRights>;
@@ -38,6 +39,7 @@ const AdminTabContext = createContext<AdminTabContextType>({
   profileImage: '',
   walletBalance: 0,
   walletHold: 0,
+  creditLimit: 0,
   isEmployee: false,
   employeeId: '',
   employeeAccessRights: {},
@@ -60,6 +62,7 @@ export function AdminUserProvider({ children }: { children: ReactNode }) {
   const [profileImage, setProfileImage] = useState('');
   const [walletBalance, setWalletBalance] = useState(0);
   const [walletHold, setWalletHold] = useState(0);
+  const [creditLimit, setCreditLimit] = useState(0);
   const [isEmployee, setIsEmployee] = useState(false);
   const [employeeId, setEmployeeId] = useState('');
   const [employeeAccessRights, setEmployeeAccessRights] = useState<Record<string, EmployeeAccessRights>>({});
@@ -90,6 +93,7 @@ export function AdminUserProvider({ children }: { children: ReactNode }) {
           setBusinessName(parentUser?.company || '');
           setWalletBalance(parentUser?.Wallet?.balance || 0);
           setWalletHold(parentUser?.Wallet?.holdAmount || 0);
+          setCreditLimit(parentUser?.Wallet?.creditLimit || 0);
         }
       } catch (e) {
         console.error('[AdminUserContext] Employee verify failed:', e);
@@ -112,6 +116,7 @@ export function AdminUserProvider({ children }: { children: ReactNode }) {
       setProfileImage(user?.profileImage || '');
       setWalletBalance(user?.Wallet?.balance || 0);
       setWalletHold(user?.Wallet?.holdAmount || 0);
+      setCreditLimit(user?.Wallet?.creditLimit || 0);
       setIsEmployee(false);
       setEmployeeAccessRights({});
       setParentEmail('');
@@ -136,7 +141,7 @@ export function AdminUserProvider({ children }: { children: ReactNode }) {
   return (
     <AdminTabContext.Provider value={{
       isAdmin, adminTab, loadingAdminTab, currentUserId,
-      userName, userEmail, businessName, profileImage, walletBalance, walletHold,
+      userName, userEmail, businessName, profileImage, walletBalance, walletHold, creditLimit,
       isEmployee, employeeId, employeeAccessRights, parentEmail,
       toggleAdminTab,
       refetchUser: fetchAdminTab,

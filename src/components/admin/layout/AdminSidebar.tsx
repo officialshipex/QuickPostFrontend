@@ -244,7 +244,12 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
               return <div key={index} className="w-8 border-b border-[#1E293B] my-1 opacity-50" />;
             }
 
-            const resolvedGroupPath = group.path ? resolvePath(group.path) : undefined;
+            const filteredGroupItems = group.items ? filterItems(group.items, group.permission) : [];
+            // If only one item is visible after filtering (e.g. user sees "Reports" but not "Performance"),
+            // navigate directly instead of opening a flyout popup.
+            const resolvedGroupPath = group.path
+              ? resolvePath(group.path)
+              : (filteredGroupItems.length === 1 ? resolvePath(filteredGroupItems[0].path) : undefined);
 
             const isActive = resolvedGroupPath
               ? (location.pathname.startsWith(resolvedGroupPath) ||
@@ -278,8 +283,8 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
                   </div>
                 )}
 
-                {/* Flyout Menu Container */}
-                {group.items && filterItems(group.items, group.permission).length > 0 && (
+                {/* Flyout Menu Container — only shown when 2+ items are visible */}
+                {filteredGroupItems.length > 1 && (
                   <div className={`absolute left-full ml-2 invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-all duration-200 z-[100] ${index > visibleGroups.length / 2 ? 'bottom-0' : 'top-0'}`}>
                     <div className="bg-white rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.15)] border border-[#E2E8F0] min-w-[200px] overflow-hidden py-2">
                       <div className="px-4 py-2 border-b border-[#E2E8F0] mb-2 flex justify-between items-center">
@@ -288,7 +293,7 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
                       </div>
 
                       <div className="flex flex-col">
-                        {filterItems(group.items, group.permission).map((item, i) => {
+                        {filteredGroupItems.map((item, i) => {
                           const resolvedItemPath = resolvePath(item.path);
                           const isSubActive = location.pathname === resolvedItemPath;
                           return (
@@ -352,7 +357,10 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
                   return <div key={index} className="border-b border-[#1E293B] my-2 mx-2 opacity-50" />;
                 }
 
-                const resolvedGroupPath = group.path ? resolvePath(group.path) : undefined;
+                const filteredGroupItems = group.items ? filterItems(group.items, group.permission) : [];
+                const resolvedGroupPath = group.path
+                  ? resolvePath(group.path)
+                  : (filteredGroupItems.length === 1 ? resolvePath(filteredGroupItems[0].path) : undefined);
 
                 const isActive = resolvedGroupPath
                   ? (location.pathname.startsWith(resolvedGroupPath) ||
@@ -361,7 +369,7 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
 
                 const Icon = group.icon as React.ComponentType<{ className?: string; strokeWidth?: number }>;
 
-                // Direct link
+                // Direct link (also handles single-item groups collapsed to one path)
                 if (resolvedGroupPath) {
                   return (
                     <NavLink
@@ -395,9 +403,9 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
                       <span className="text-[13px] font-semibold">{group.label}</span>
                       <ChevronRight className={`w-4 h-4 ml-auto transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`} />
                     </button>
-                    {isExpanded && group.items && (
+                    {isExpanded && filteredGroupItems.length > 0 && (
                       <div className="ml-4 mt-1 flex flex-col gap-0.5 border-l-2 border-[#1E293B] pl-3">
-                        {filterItems(group.items, group.permission).map((item, i) => {
+                        {filteredGroupItems.map((item, i) => {
                           const resolvedItemPath = resolvePath(item.path);
                           const isSubActive = location.pathname === resolvedItemPath;
                           return (

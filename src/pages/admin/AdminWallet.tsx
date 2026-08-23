@@ -348,8 +348,6 @@ export function AdminWallet() {
       setSearchTypeId('');
       setSelectedCouriers([]);
       setSelectedStatuses([]);
-      setShippingDateStart('');
-      setShippingDateEnd('');
       setSelectedOrders([]);
     }
 
@@ -359,8 +357,6 @@ export function AdminWallet() {
       setPassbookAwb('');
       setSelectedCategories([]);
       setSelectedDescriptions([]);
-      setPassbookDateStart('');
-      setPassbookDateEnd('');
       setSelectedPassbookOrders([]);
     }
 
@@ -369,8 +365,6 @@ export function AdminWallet() {
       setRechargeTxnId('');
       setSelectedPaymentMethods([]);
       setSelectedRechargeStatuses([]);
-      setRechargeDateStart('');
-      setRechargeDateEnd('');
       setSelectedRechargeOrders([]);
     }
 
@@ -378,8 +372,6 @@ export function AdminWallet() {
       setInvoiceSearchTerm('');
       setSelectedMonths([]);
       setSelectedYears([]);
-      setInvoiceDateStart('');
-      setInvoiceDateEnd('');
       setSelectedInvoiceOrders([]);
     }
   }, [activeTab]);

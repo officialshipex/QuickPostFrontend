@@ -57,6 +57,8 @@ export function AddCourierModal({ isOpen, onClose, onSuccess }: AddCourierModalP
   const [courierName, setCourierName] = useState('');
   const [codDays, setCodDays] = useState('');
   const [status, setStatus] = useState('Enable');
+  const [liabilityCharge, setLiabilityCharge] = useState('');
+  const [liabilityPercent, setLiabilityPercent] = useState('');
   const [creds, setCreds] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -64,6 +66,7 @@ export function AddCourierModal({ isOpen, onClose, onSuccess }: AddCourierModalP
   useEffect(() => {
     if (!isOpen) {
       setProvider(''); setCourierName(''); setCodDays(''); setStatus('Enable');
+      setLiabilityCharge(''); setLiabilityPercent('');
       setCreds({}); setError('');
     }
   }, [isOpen]);
@@ -87,6 +90,8 @@ export function AddCourierModal({ isOpen, onClose, onSuccess }: AddCourierModalP
         courierProvider: provider,
         CODDays: codDays ? Number(codDays) : undefined,
         status,
+        liabilityCharge: liabilityCharge ? Number(liabilityCharge) : 0,
+        liabilityPercent: liabilityPercent ? Number(liabilityPercent) : 0,
         email: creds.email || '',
         apiKey: creds.apiKey || '',
         password: creds.password || '',
@@ -190,6 +195,34 @@ export function AddCourierModal({ isOpen, onClose, onSuccess }: AddCourierModalP
                       <option value="Enable">Enable</option>
                       <option value="Disable">Disable</option>
                     </select>
+                  </div>
+                </div>
+
+                {/* Liability Amount + Percent row */}
+                <div className="grid grid-cols-2 gap-3 md:gap-4">
+                  <div>
+                    <label className="block text-[12px] font-semibold text-[#64748B] mb-1.5 md:mb-2 md:uppercase md:tracking-wide">
+                      Liability ₹
+                    </label>
+                    <input
+                      type="number"
+                      placeholder="e.g. 2000"
+                      value={liabilityCharge}
+                      onChange={(e) => setLiabilityCharge(e.target.value)}
+                      className="w-full h-11 md:h-12 px-4 bg-white border border-[#E2E8F0] rounded-full md:rounded-[14px] text-[12px] md:text-sm font-medium text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#00A86B]/20 focus:border-[#00A86B]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[12px] font-semibold text-[#64748B] mb-1.5 md:mb-2 md:uppercase md:tracking-wide">
+                      Liability %
+                    </label>
+                    <input
+                      type="number"
+                      placeholder="e.g. 70"
+                      value={liabilityPercent}
+                      onChange={(e) => setLiabilityPercent(e.target.value)}
+                      className="w-full h-11 md:h-12 px-4 bg-white border border-[#E2E8F0] rounded-full md:rounded-[14px] text-[12px] md:text-sm font-medium text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#00A86B]/20 focus:border-[#00A86B]"
+                    />
                   </div>
                 </div>
 

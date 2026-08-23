@@ -84,8 +84,9 @@ export function AdminPickupAddress() {
     setFetchError('');
     try {
       const limit = isAdminView ? 500 : 100;
-      const userParam = isAdminView && userMongoId ? `&userId=${userMongoId}` : '';
-      const res = await apiClient.get(`/order/pickupAddress?limit=${limit}${userParam}`);
+      const adminParam = isAdminView ? '&adminMode=true' : '';
+      const userParam = isAdminView ? `&userId=${userMongoId || 'all'}` : '';
+      const res = await apiClient.get(`/order/pickupAddress?limit=${limit}${adminParam}${userParam}`);
       setAddresses(res.data?.data ?? []);
     } catch {
       setFetchError('Failed to load pickup addresses.');
