@@ -578,7 +578,7 @@ export function AdminNDR() {
                 <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
                 <input
                   type="text"
-                  placeholder="Search by name, email, or contact"
+                  placeholder="Search user..."
                   value={userQuery}
                   onChange={(e) => onUserQueryChange(e.target.value)}
                   className="w-full h-9 pl-9 pr-8 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] text-sm text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all"
@@ -1235,7 +1235,7 @@ export function AdminNDR() {
                   <div className="relative">
                     <input
                       type="text"
-                      placeholder="Search by name, email, or contact..."
+                      placeholder="Search user..."
                       value={userQuery}
                       onChange={e => onUserQueryChange(e.target.value)}
                       className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"

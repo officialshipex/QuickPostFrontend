@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+﻿import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
@@ -278,23 +278,27 @@ export function AdminWallet() {
 
   // Per-tab user search state
   const {
-    userQuery: shipUserQuery, userMongoId: shipUserMongoId,
+    userQuery: shipUserQuery, userMongoId: shipUserMongoId, userSuggestions: shipUserSuggestions,
     setUserQuery: setShipUserQuery, setUserMongoId: setShipUserMongoId, setUserSuggestions: setShipUserSuggestions,
+    onQueryChange: onShipUserQueryChange, selectUser: selectShipUserSuggestion,
     clearUser: clearShipUserFilter,
   } = useUserSearchFilter(isAdminView);
   const {
-    userQuery: pbUserQuery, userMongoId: pbUserMongoId,
+    userQuery: pbUserQuery, userMongoId: pbUserMongoId, userSuggestions: pbUserSuggestions,
     setUserQuery: setPbUserQuery, setUserMongoId: setPbUserMongoId, setUserSuggestions: setPbUserSuggestions,
+    onQueryChange: onPbUserQueryChange, selectUser: selectPbUserSuggestion,
     clearUser: clearPbUserFilter,
   } = useUserSearchFilter(isAdminView);
   const {
-    userQuery: rcUserQuery, userMongoId: rcUserMongoId,
+    userQuery: rcUserQuery, userMongoId: rcUserMongoId, userSuggestions: rcUserSuggestions,
     setUserQuery: setRcUserQuery, setUserMongoId: setRcUserMongoId, setUserSuggestions: setRcUserSuggestions,
+    onQueryChange: onRcUserQueryChange, selectUser: selectRcUserSuggestion,
     clearUser: clearRcUserFilter,
   } = useUserSearchFilter(isAdminView);
   const {
-    userQuery: invUserQuery, userMongoId: invUserMongoId,
+    userQuery: invUserQuery, userMongoId: invUserMongoId, userSuggestions: invUserSuggestions,
     setUserQuery: setInvUserQuery, setUserMongoId: setInvUserMongoId, setUserSuggestions: setInvUserSuggestions,
+    onQueryChange: onInvUserQueryChange, selectUser: selectInvUserSuggestion,
     clearUser: clearInvUserFilter,
   } = useUserSearchFilter(isAdminView);
 
@@ -1208,13 +1212,31 @@ export function AdminWallet() {
             <>
               {/* Desktop Filters Row */}
               <div className="hidden md:flex py-3 px-6 border-b border-[#CBD5F5] flex-wrap items-center gap-3 bg-[#F8FAFC]/50">
-                <input
-                  type="text"
-                  placeholder="Search by name, email, o..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="glass-search-input w-[180px] shrink-0"
-                />
+                {isAdminView && (
+                  <div className="relative shrink-0">
+                    <div className="relative">
+                      <input type="text" placeholder="Search user..." value={shipUserQuery}
+                        onChange={e => onShipUserQueryChange(e.target.value)}
+                        className="glass-search-input w-[160px]" style={{ paddingLeft: '2rem', paddingRight: '2rem' }} />
+                      <Search className="w-3.5 h-3.5 text-[#94A3B8] absolute left-2.5 top-1/2 -translate-y-1/2" />
+                      {shipUserMongoId && <CheckCircle2 className="w-3.5 h-3.5 text-[#00A86B] absolute right-2.5 top-1/2 -translate-y-1/2" />}
+                    </div>
+                    {shipUserSuggestions.length > 0 && !shipUserMongoId && (
+                      <div className="absolute left-0 top-full mt-1 bg-white border border-[#E2E8F0] rounded-xl shadow-xl z-50 w-64 max-h-52 overflow-y-auto py-1">
+                        {shipUserSuggestions.map((u: any) => (
+                          <button key={u._id} type="button" onClick={() => selectShipUserSuggestion(u)}
+                            className="w-full text-left px-3 py-2 hover:bg-[#F0FDF4] flex items-start gap-2">
+                            <div className="flex-1 min-w-0">
+                              <div className="text-[11px] font-bold text-slate-800 truncate">{u.fullname}</div>
+                              <div className="text-[10px] text-slate-400 truncate">{u.email} · {u.phoneNumber}</div>
+                            </div>
+                            <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded shrink-0">{u.userId}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <GlassDropdown
                   label="Search Type"
@@ -1325,13 +1347,31 @@ export function AdminWallet() {
             <>
               {/* Desktop Filters Row */}
               <div className="hidden md:flex py-3 px-6 border-b border-[#CBD5F5] flex-wrap items-center gap-3 bg-[#F8FAFC]/50">
-                <input
-                  type="text"
-                  placeholder="Search by name, email, o..."
-                  value={passbookSearchTerm}
-                  onChange={(e) => setPassbookSearchTerm(e.target.value)}
-                  className="glass-search-input w-[180px] shrink-0"
-                />
+                {isAdminView && (
+                  <div className="relative shrink-0">
+                    <div className="relative">
+                      <input type="text" placeholder="Search user..." value={pbUserQuery}
+                        onChange={e => onPbUserQueryChange(e.target.value)}
+                        className="glass-search-input w-[160px]" style={{ paddingLeft: '2rem', paddingRight: '2rem' }} />
+                      <Search className="w-3.5 h-3.5 text-[#94A3B8] absolute left-2.5 top-1/2 -translate-y-1/2" />
+                      {pbUserMongoId && <CheckCircle2 className="w-3.5 h-3.5 text-[#00A86B] absolute right-2.5 top-1/2 -translate-y-1/2" />}
+                    </div>
+                    {pbUserSuggestions.length > 0 && !pbUserMongoId && (
+                      <div className="absolute left-0 top-full mt-1 bg-white border border-[#E2E8F0] rounded-xl shadow-xl z-50 w-64 max-h-52 overflow-y-auto py-1">
+                        {pbUserSuggestions.map((u: any) => (
+                          <button key={u._id} type="button" onClick={() => selectPbUserSuggestion(u)}
+                            className="w-full text-left px-3 py-2 hover:bg-[#F0FDF4] flex items-start gap-2">
+                            <div className="flex-1 min-w-0">
+                              <div className="text-[11px] font-bold text-slate-800 truncate">{u.fullname}</div>
+                              <div className="text-[10px] text-slate-400 truncate">{u.email} · {u.phoneNumber}</div>
+                            </div>
+                            <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded shrink-0">{u.userId}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <input
                   type="text"
@@ -1436,13 +1476,31 @@ export function AdminWallet() {
             <>
               {/* Desktop Filters Row */}
               <div className="hidden md:flex py-3 px-6 border-b border-[#CBD5F5] flex-wrap items-center gap-3 bg-[#F8FAFC]/50">
-                <input
-                  type="text"
-                  placeholder="Search by name, email, o..."
-                  value={rechargeSearchTerm}
-                  onChange={(e) => setRechargeSearchTerm(e.target.value)}
-                  className="glass-search-input w-[180px] shrink-0"
-                />
+                {isAdminView && (
+                  <div className="relative shrink-0">
+                    <div className="relative">
+                      <input type="text" placeholder="Search user..." value={rcUserQuery}
+                        onChange={e => onRcUserQueryChange(e.target.value)}
+                        className="glass-search-input w-[160px]" style={{ paddingLeft: '2rem', paddingRight: '2rem' }} />
+                      <Search className="w-3.5 h-3.5 text-[#94A3B8] absolute left-2.5 top-1/2 -translate-y-1/2" />
+                      {rcUserMongoId && <CheckCircle2 className="w-3.5 h-3.5 text-[#00A86B] absolute right-2.5 top-1/2 -translate-y-1/2" />}
+                    </div>
+                    {rcUserSuggestions.length > 0 && !rcUserMongoId && (
+                      <div className="absolute left-0 top-full mt-1 bg-white border border-[#E2E8F0] rounded-xl shadow-xl z-50 w-64 max-h-52 overflow-y-auto py-1">
+                        {rcUserSuggestions.map((u: any) => (
+                          <button key={u._id} type="button" onClick={() => selectRcUserSuggestion(u)}
+                            className="w-full text-left px-3 py-2 hover:bg-[#F0FDF4] flex items-start gap-2">
+                            <div className="flex-1 min-w-0">
+                              <div className="text-[11px] font-bold text-slate-800 truncate">{u.fullname}</div>
+                              <div className="text-[10px] text-slate-400 truncate">{u.email} · {u.phoneNumber}</div>
+                            </div>
+                            <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded shrink-0">{u.userId}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <input
                   type="text"
@@ -1540,13 +1598,31 @@ export function AdminWallet() {
             <>
               {/* Desktop Filters Row */}
               <div className="hidden md:flex py-3 px-6 border-b border-[#CBD5F5] flex-wrap items-center gap-3 bg-[#F8FAFC]/50">
-                <input
-                  type="text"
-                  placeholder="Search by name, email, o..."
-                  value={invoiceSearchTerm}
-                  onChange={(e) => setInvoiceSearchTerm(e.target.value)}
-                  className="glass-search-input w-[180px] shrink-0"
-                />
+                {isAdminView && (
+                  <div className="relative shrink-0">
+                    <div className="relative">
+                      <input type="text" placeholder="Search user..." value={invUserQuery}
+                        onChange={e => onInvUserQueryChange(e.target.value)}
+                        className="glass-search-input w-[160px]" style={{ paddingLeft: '2rem', paddingRight: '2rem' }} />
+                      <Search className="w-3.5 h-3.5 text-[#94A3B8] absolute left-2.5 top-1/2 -translate-y-1/2" />
+                      {invUserMongoId && <CheckCircle2 className="w-3.5 h-3.5 text-[#00A86B] absolute right-2.5 top-1/2 -translate-y-1/2" />}
+                    </div>
+                    {invUserSuggestions.length > 0 && !invUserMongoId && (
+                      <div className="absolute left-0 top-full mt-1 bg-white border border-[#E2E8F0] rounded-xl shadow-xl z-50 w-64 max-h-52 overflow-y-auto py-1">
+                        {invUserSuggestions.map((u: any) => (
+                          <button key={u._id} type="button" onClick={() => selectInvUserSuggestion(u)}
+                            className="w-full text-left px-3 py-2 hover:bg-[#F0FDF4] flex items-start gap-2">
+                            <div className="flex-1 min-w-0">
+                              <div className="text-[11px] font-bold text-slate-800 truncate">{u.fullname}</div>
+                              <div className="text-[10px] text-slate-400 truncate">{u.email} · {u.phoneNumber}</div>
+                            </div>
+                            <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded shrink-0">{u.userId}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <GlassDropdown
                   label="Month"
@@ -2892,7 +2968,7 @@ export function AdminWallet() {
                   <div className="relative">
                     <input
                       type="text"
-                      placeholder="Search by Name, Email, or Contact"
+                      placeholder="Search user..."
                       value={upbUserQuery}
                       onChange={(e) => {
                         setUpbUserQuery(e.target.value);
@@ -3334,16 +3410,36 @@ export function AdminWallet() {
               <div className="p-6 space-y-4">
                 {activeTab === 'Shipping' && (
                   <>
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Search Query</label>
-                      <input
-                        type="text"
-                        placeholder={isAdminView ? 'Search by name, email, or contact' : 'Search name, email...'}
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
-                      />
-                    </div>
+                    {isAdminView ? (
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Search User</label>
+                        <div className="relative">
+                          <input type="text" value={shipUserQuery} onChange={e => onShipUserQueryChange(e.target.value)} placeholder="Search user..."
+                            className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]" />
+                          {shipUserSuggestions.length > 0 && !shipUserMongoId && (
+                            <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white border border-[#E2E8F0] rounded-xl shadow-lg overflow-hidden">
+                              {shipUserSuggestions.map((u: any) => (
+                                <button key={u._id} onClick={() => selectShipUserSuggestion(u)} className="w-full text-left px-3 py-2.5 text-[12px] hover:bg-[#F0FDF4] transition-colors border-b border-[#F1F5F9] last:border-0">
+                                  <div className="font-semibold text-[#1E293B]">{u.fullname}</div>
+                                  <div className="text-[#64748B] text-[11px]">{u.email}</div>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Search Query</label>
+                        <input
+                          type="text"
+                          placeholder="Search name, email..."
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
+                        />
+                      </div>
+                    )}
 
                     {/* AWB/Order ID search type — user side only; admin uses the name/email/contact search above */}
                     {!isAdminView && (
@@ -3436,16 +3532,36 @@ export function AdminWallet() {
                       />
                     </div>
 
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Search Query</label>
-                      <input
-                        type="text"
-                        placeholder="Search by name, email, or contact..."
-                        value={passbookSearchTerm}
-                        onChange={(e) => setPassbookSearchTerm(e.target.value)}
-                        className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
-                      />
-                    </div>
+                    {isAdminView ? (
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Search User</label>
+                        <div className="relative">
+                          <input type="text" value={pbUserQuery} onChange={e => onPbUserQueryChange(e.target.value)} placeholder="Search user..."
+                            className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]" />
+                          {pbUserSuggestions.length > 0 && !pbUserMongoId && (
+                            <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white border border-[#E2E8F0] rounded-xl shadow-lg overflow-hidden">
+                              {pbUserSuggestions.map((u: any) => (
+                                <button key={u._id} onClick={() => selectPbUserSuggestion(u)} className="w-full text-left px-3 py-2.5 text-[12px] hover:bg-[#F0FDF4] transition-colors border-b border-[#F1F5F9] last:border-0">
+                                  <div className="font-semibold text-[#1E293B]">{u.fullname}</div>
+                                  <div className="text-[#64748B] text-[11px]">{u.email}</div>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Search Query</label>
+                        <input
+                          type="text"
+                          placeholder="Search name, email..."
+                          value={passbookSearchTerm}
+                          onChange={(e) => setPassbookSearchTerm(e.target.value)}
+                          className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
+                        />
+                      </div>
+                    )}
 
                     {!isAdminView && (
                       <div>
@@ -3517,15 +3633,36 @@ export function AdminWallet() {
                       />
                     </div>
 
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Search Query</label>
-                      <input
-                        type="text"
-                        placeholder="Search by name, email, or contact..."
-                        value={rechargeSearchTerm}
-                        onChange={(e) => setRechargeSearchTerm(e.target.value)}
-                        className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
-                      />
+                    {isAdminView ? (
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Search User</label>
+                        <div className="relative">
+                          <input type="text" value={rcUserQuery} onChange={e => onRcUserQueryChange(e.target.value)} placeholder="Search user..."
+                            className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]" />
+                          {rcUserSuggestions.length > 0 && !rcUserMongoId && (
+                            <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white border border-[#E2E8F0] rounded-xl shadow-lg overflow-hidden">
+                              {rcUserSuggestions.map((u: any) => (
+                                <button key={u._id} onClick={() => selectRcUserSuggestion(u)} className="w-full text-left px-3 py-2.5 text-[12px] hover:bg-[#F0FDF4] transition-colors border-b border-[#F1F5F9] last:border-0">
+                                  <div className="font-semibold text-[#1E293B]">{u.fullname}</div>
+                                  <div className="text-[#64748B] text-[11px]">{u.email}</div>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Search Query</label>
+                        <input
+                          type="text"
+                          placeholder="Search name, email..."
+                          value={rechargeSearchTerm}
+                          onChange={(e) => setRechargeSearchTerm(e.target.value)}
+                          className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
+                        />
+                      </div>
+                    )}
                     </div>
 
                     <div>
@@ -3583,15 +3720,36 @@ export function AdminWallet() {
                       />
                     </div>
 
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Search Query</label>
-                      <input
-                        type="text"
-                        placeholder="Search by name, email, or contact..."
-                        value={invoiceSearchTerm}
-                        onChange={(e) => setInvoiceSearchTerm(e.target.value)}
-                        className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
-                      />
+                    {isAdminView ? (
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Search User</label>
+                        <div className="relative">
+                          <input type="text" value={invUserQuery} onChange={e => onInvUserQueryChange(e.target.value)} placeholder="Search user..."
+                            className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]" />
+                          {invUserSuggestions.length > 0 && !invUserMongoId && (
+                            <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white border border-[#E2E8F0] rounded-xl shadow-lg overflow-hidden">
+                              {invUserSuggestions.map((u: any) => (
+                                <button key={u._id} onClick={() => selectInvUserSuggestion(u)} className="w-full text-left px-3 py-2.5 text-[12px] hover:bg-[#F0FDF4] transition-colors border-b border-[#F1F5F9] last:border-0">
+                                  <div className="font-semibold text-[#1E293B]">{u.fullname}</div>
+                                  <div className="text-[#64748B] text-[11px]">{u.email}</div>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Search Query</label>
+                        <input
+                          type="text"
+                          placeholder="Search name, email..."
+                          value={invoiceSearchTerm}
+                          onChange={(e) => setInvoiceSearchTerm(e.target.value)}
+                          className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
+                        />
+                      </div>
+                    )}
                     </div>
 
                     <div>
