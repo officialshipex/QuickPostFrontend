@@ -12,7 +12,7 @@ import {
   IndianRupee, Package, User, Settings, MapPin, X, Truck, CreditCard,
   CheckCircle2, Clock, AlertTriangle, Flame, History, Layers, RefreshCw, Mail,
   Filter, Copy, PackagePlus, FileText, Download, MoreVertical, Loader2, ArrowUp, ArrowDown,
-  UserCheck
+  UserCheck, Eye, EyeOff
 } from 'lucide-react';
 import { usePagination, DesktopPagination } from '../../hooks/usePagination';
 import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
@@ -153,6 +153,13 @@ const renderAgeing = (dateStr: string) => {
 
 // Guards against non-email placeholder values (e.g. a stray phone/id like "123") leaking through the fallback chain.
 const asEmail = (v: any): string => (typeof v === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim())) ? v.trim() : '';
+
+/** Masks all but the last 2 digits of a phone number, e.g. "9876543210" -> "xxxxxxxx10". */
+const maskPhone = (phone: string): string => {
+  const digits = phone.replace(/\D/g, '');
+  if (digits.length <= 2) return phone;
+  return 'x'.repeat(digits.length - 2) + digits.slice(-2);
+};
 
 // ─── Map raw API order → display shape ────────────────────────────────────────
 const mapOrder = (o: any) => {
@@ -512,6 +519,7 @@ export function AdminOrders() {
   // be open at a time since it's a single piece of state; clicking the same
   // indicator again, or clicking outside, closes it.
   const [repeatCustomerPopover, setRepeatCustomerPopover] = useState<{ rect: DOMRect; key: string } | null>(null);
+  const [revealedPhones, setRevealedPhones] = useState<Set<string>>(new Set());
 
   // ── Update Package Details modal ──
   const [showPackageModal,  setShowPackageModal]  = useState(false);
@@ -1649,7 +1657,31 @@ export function AdminOrders() {
                                   );
                                 })()}
                               </div>
-                              <div className="text-[12px] leading-[18px] font-normal text-[#64748B]">{order.customerPhone}</div>
+                              <div className="flex items-center gap-1.5">
+                                <div className="text-[12px] leading-[18px] font-normal text-[#64748B]">
+                                  {!isAdminView && order.customerPhone && order.customerPhone !== '—' && !revealedPhones.has(order._id)
+                                    ? maskPhone(order.customerPhone)
+                                    : order.customerPhone}
+                                </div>
+                                {!isAdminView && order.customerPhone && order.customerPhone !== '—' && (
+                                  <button
+                                    type="button"
+                                    title={revealedPhones.has(order._id) ? 'Hide mobile number' : 'Show mobile number'}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setRevealedPhones(prev => {
+                                        const next = new Set(prev);
+                                        if (next.has(order._id)) next.delete(order._id);
+                                        else next.add(order._id);
+                                        return next;
+                                      });
+                                    }}
+                                    className="shrink-0 text-[#94A3B8] hover:text-[#0F172A] cursor-pointer transition-colors"
+                                  >
+                                    {revealedPhones.has(order._id) ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                                  </button>
+                                )}
+                              </div>
                               <RtoRiskLine order={order} historyMaps={rtoHistoryMaps} />
                             </div>
                           </td>
