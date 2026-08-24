@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import {
-  ArrowLeft, Upload, Trash2, Plus, Minus, ChevronDown, Loader2,
-  PackagePlus, X, CheckCircle2
+  ArrowLeft, Upload, Trash2, Plus, Minus, ChevronDown, ChevronUp, Loader2,
+  PackagePlus, X, CheckCircle2, MapPin, Search, Pencil
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
@@ -11,6 +11,8 @@ import { useAdminTab } from '../../context/AdminUserContext';
 import { BulkUploadModal } from '../../components/ui/BulkUploadModal';
 import { TableLoader } from '../../components/ui/TableLoader';
 import { AddressAccuracyGauge } from '../../components/ui/AddressAccuracy';
+import packingGuidelinesImg from '../../assets/packing-guidelines.png';
+import pickupAddressBannerImg from '../../assets/pickup-address-banner.png';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Product {
@@ -68,6 +70,8 @@ export function AdminAddOrder() {
 
   // ── Add Pickup Modal ──
   const [showPickupModal, setShowPickupModal] = useState(false);
+  const [pickupModalMode, setPickupModalMode] = useState<'add' | 'edit'>('add');
+  const [editingPickupId, setEditingPickupId] = useState<string | null>(null);
   const [pickupForm, setPickupForm] = useState({
     contactName: '', email: '', phoneNumber: '',
     address: '', pinCode: '', city: '', state: '',
@@ -75,6 +79,15 @@ export function AdminAddOrder() {
   const [pickupFormErrors, setPickupFormErrors] = useState<Record<string, string>>({});
   const [pickupPincodeLoading, setPickupPincodeLoading] = useState(false);
   const [pickupSubmitting, setPickupSubmitting] = useState(false);
+  const [pickupAddressTag, setPickupAddressTag] = useState<'Home' | 'Work' | 'Warehouse' | 'Other'>('Home');
+  const [pickupAtLocationNow, setPickupAtLocationNow] = useState<'current' | 'manual'>('manual');
+  const [pickupLocationSearch, setPickupLocationSearch] = useState('');
+  const [showPickupContactDetails, setShowPickupContactDetails] = useState(true);
+  const [showPickupOperationalTimings, setShowPickupOperationalTimings] = useState(false);
+  const [pickupOpeningTime, setPickupOpeningTime] = useState('');
+  const [pickupClosingTime, setPickupClosingTime] = useState('');
+  const [detectingLocation, setDetectingLocation] = useState(false);
+  const [locationDetectError, setLocationDetectError] = useState('');
 
   // ── Receiver ──
   const [contactName, setContactName] = useState('');
@@ -105,6 +118,7 @@ export function AdminAddOrder() {
   const [b2bPackages, setB2bPackages] = useState<B2BPackage[]>([
     { id: '1', noOfBox: '', weightPerBox: '', length: '', width: '', height: '' },
   ]);
+  const [showPackingGuidelines, setShowPackingGuidelines] = useState(false);
 
   // ── Payment ──
   const [paymentMode, setPaymentMode] = useState('');
@@ -332,6 +346,93 @@ export function AdminAddOrder() {
     setB2bPackages(prev => prev.map(p => (p.id === id ? { ...p, [field]: value } : p)));
 
   // ── Add Pickup Address submit ──
+  // ── Detect device location and auto-fill pickup address ──
+  const handleUseCurrentLocation = () => {
+    setLocationDetectError('');
+    if (!navigator.geolocation) {
+      setLocationDetectError('Location access is not supported on this device.');
+      return;
+    }
+    setDetectingLocation(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const { latitude, longitude } = pos.coords;
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}&addressdetails=1`,
+            { headers: { Accept: 'application/json' } }
+          );
+          const data = await res.json();
+          const a = data?.address || {};
+          const pin = (a.postcode || '').replace(/\D/g, '').slice(0, 6);
+          const city = a.city || a.town || a.village || a.suburb || a.county || '';
+          const state = a.state || '';
+          const streetParts = [a.house_number, a.road || a.neighbourhood, a.suburb].filter(Boolean);
+          const streetAddress = streetParts.length ? streetParts.join(', ') : (data?.display_name || '');
+
+          setPickupForm(prev => ({
+            ...prev,
+            address: streetAddress || prev.address,
+            pinCode: pin || prev.pinCode,
+            city: city || prev.city,
+            state: state || prev.state,
+          }));
+          setPickupLocationSearch(streetAddress || data?.display_name || '');
+        } catch {
+          setLocationDetectError('Could not determine your address from the detected location. Please enter it manually.');
+        } finally {
+          setDetectingLocation(false);
+        }
+      },
+      (err) => {
+        setDetectingLocation(false);
+        setLocationDetectError(
+          err.code === err.PERMISSION_DENIED
+            ? 'Location permission denied. Please allow location access or enter the address manually.'
+            : 'Could not detect your location. Please enter the address manually.'
+        );
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
+  const resetPickupForm = () => {
+    setPickupForm({ contactName: '', email: '', phoneNumber: '', address: '', pinCode: '', city: '', state: '' });
+    setPickupFormErrors({});
+    setPickupAddressTag('Home');
+    setPickupAtLocationNow('manual');
+    setPickupLocationSearch('');
+    setLocationDetectError('');
+  };
+
+  const handleOpenAddPickup = () => {
+    resetPickupForm();
+    setPickupModalMode('add');
+    setEditingPickupId(null);
+    setShowPickupModal(true);
+  };
+
+  const handleOpenEditPickup = () => {
+    const sel = pickupAddresses.find(pa => pa._id === selectedPickupId);
+    if (!sel) return;
+    setPickupForm({
+      contactName: sel.pickupAddress?.contactName || '',
+      email: sel.pickupAddress?.email || '',
+      phoneNumber: sel.pickupAddress?.phoneNumber || '',
+      address: sel.pickupAddress?.address || '',
+      pinCode: sel.pickupAddress?.pinCode || '',
+      city: sel.pickupAddress?.city || '',
+      state: sel.pickupAddress?.state || '',
+    });
+    setPickupFormErrors({});
+    setPickupAtLocationNow('manual');
+    setPickupLocationSearch('');
+    setLocationDetectError('');
+    setPickupModalMode('edit');
+    setEditingPickupId(sel._id);
+    setShowPickupModal(true);
+  };
+
   const handlePickupSubmit = async () => {
     const e: Record<string, string> = {};
     if (!pickupForm.contactName.trim()) e.contactName = 'Required';
@@ -343,11 +444,22 @@ export function AdminAddOrder() {
     setPickupFormErrors(e);
     if (Object.keys(e).length > 0) return;
     setPickupSubmitting(true);
+
+    if (pickupModalMode === 'edit' && editingPickupId) {
+      // No backend update endpoint yet — apply the edit locally so the UI reflects the change.
+      setPickupAddresses(prev =>
+        prev.map(pa => (pa._id === editingPickupId ? { ...pa, pickupAddress: { ...pickupForm } } : pa))
+      );
+      setShowPickupModal(false);
+      resetPickupForm();
+      setPickupSubmitting(false);
+      return;
+    }
+
     try {
       await apiClient.post('/order/pickupAddress', pickupForm);
       setShowPickupModal(false);
-      setPickupForm({ contactName: '', email: '', phoneNumber: '', address: '', pinCode: '', city: '', state: '' });
-      setPickupFormErrors({});
+      resetPickupForm();
       setPickupRefresh(v => !v);
     } catch {
       setPickupFormErrors({ submit: 'Failed to add pickup address. Please try again.' });
@@ -479,7 +591,7 @@ export function AdminAddOrder() {
 
   return (
     <AdminLayout>
-      <div className="max-w-6xl mx-auto -m-4 md:m-0 pb-6 relative">
+      <div className="-m-4 md:m-0 pb-6 relative">
 
         {/* Header */}
         <div className="flex items-center justify-between gap-3 mb-3 md:mb-6 px-2 pt-2.5 md:px-0 md:pt-0">
@@ -578,13 +690,26 @@ export function AdminAddOrder() {
                     )}
                   </AnimatePresence>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setShowPickupModal(true)}
-                  className="text-[13px] font-bold text-[#2563EB] hover:underline whitespace-nowrap"
-                >
-                  + Add new pickup address
-                </button>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={handleOpenEditPickup}
+                    disabled={!selectedPickupId}
+                    title="Edit selected pickup address"
+                    className="w-10 h-10 flex items-center justify-center rounded-full bg-[#EEF2FF] text-[#6366F1] hover:bg-[#E0E7FF] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                  <span className="w-px h-6 bg-[#E2E8F0]" />
+                  <button
+                    type="button"
+                    onClick={handleOpenAddPickup}
+                    title="Add new pickup address"
+                    className="w-10 h-10 flex items-center justify-center rounded-full bg-[#EEF2FF] text-[#6366F1] hover:bg-[#E0E7FF] transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
 
               {/* Address accuracy for the currently selected pickup address */}
@@ -831,9 +956,42 @@ export function AdminAddOrder() {
 
           {/* ── Package Details ── */}
           <div className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm overflow-hidden">
-            <div className="px-3 md:px-6 py-2.5 md:py-4 border-b border-[#E2E8F0]">
+            <div className="px-3 md:px-6 py-2.5 md:py-4 border-b border-[#E2E8F0] flex items-center justify-between gap-3 flex-wrap">
               <h2 className="text-[14px] font-semibold text-[#0F172A]">Package Details</h2>
+              <button
+                type="button"
+                onClick={() => setShowPackingGuidelines(v => !v)}
+                className="flex items-center gap-1 text-[12px] font-bold text-[#00A86B] hover:text-[#009B63] transition-colors"
+              >
+                See Guidelines
+                {showPackingGuidelines ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+              </button>
             </div>
+
+            <AnimatePresence initial={false}>
+              {showPackingGuidelines && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="overflow-hidden bg-[#F8FAFC] border-b border-[#E2E8F0]"
+                >
+                  <div className="px-3 md:px-6 py-4">
+                    <div className="flex items-baseline gap-2 mb-4">
+                      <span className="text-[13px] font-bold text-[#0F172A]">Pack like a Pro</span>
+                      <span className="text-[12px] text-[#64748B]">- Guidelines for Packaging and Measuring</span>
+                    </div>
+                    <img
+                      src={packingGuidelinesImg}
+                      alt="Pack like a Pro - Guidelines for Packaging and Measuring"
+                      className="w-full h-auto rounded-lg"
+                    />
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             <div className="p-3 md:p-6 space-y-3 md:space-y-6">
 
               {/* Type + ROV row */}
@@ -1062,96 +1220,292 @@ export function AdminAddOrder() {
       {/* ═══════════════════════════════════════════════════════════
           Add Pickup Address Modal
       ═══════════════════════════════════════════════════════════ */}
-      {showPickupModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-[#E2E8F0]">
-              <h3 className="text-[15px] font-bold text-[#0F172A]">Add New Pickup Address</h3>
-              <button onClick={() => { setShowPickupModal(false); setPickupFormErrors({}); }}
+      <AnimatePresence>
+        {showPickupModal && (
+          <div className="fixed inset-0 z-[250] flex justify-end">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.25 }}
+              onClick={() => setShowPickupModal(false)}
+              className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'tween', ease: [0.22, 1, 0.36, 1], duration: 0.32 }}
+              className="relative bg-white w-full max-w-3xl h-full shadow-[-24px_0_60px_-20px_rgba(0,0,0,0.25)] flex flex-col"
+            >
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[#E2E8F0] shrink-0">
+              <h3 className="text-[17px] font-bold text-[#0F172A]">
+                {pickupModalMode === 'edit' ? 'Edit Pickup Address' : 'Add New Pickup Address'}
+              </h3>
+              <button onClick={() => setShowPickupModal(false)}
                 className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-[#F1F5F9] text-[#64748B]">
                 <X className="w-4 h-4" />
               </button>
             </div>
-            <div className="p-3 md:p-6 space-y-3">
+
+            <div className="p-4 md:p-6 space-y-6 overflow-y-auto flex-1">
               {pickupFormErrors.submit && (
                 <p className="text-[12px] text-red-500">{pickupFormErrors.submit}</p>
               )}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+              {/* ── Info banner: 3-step guidance ── */}
+              <img
+                src={pickupAddressBannerImg}
+                alt="Provide your full address and exact location for accurate pickups. Share the contact details of the person handling shipment handover for smooth coordination. Specify your operational hours to ensure pickups are scheduled on time."
+                className="w-full h-auto rounded-xl"
+              />
+
+              {/* ── Address Details ── */}
+              <div className="space-y-4">
+                <h4 className="text-[14px] font-bold text-[#0F172A]">Address Details</h4>
+
                 <div>
-                  <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Contact Name <span className="text-red-500">*</span></label>
-                  {pickupFormErrors.contactName && <p className="text-[12px] md:text-[11px] text-red-500 mb-1">{pickupFormErrors.contactName}</p>}
-                  <input type="text" value={pickupForm.contactName}
-                    onChange={e => setPickupForm(p => ({ ...p, contactName: e.target.value }))}
-                    placeholder="Contact Name"
-                    className={`w-full h-11 px-4 border rounded-full text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B] ${pickupFormErrors.contactName ? 'border-red-400' : 'border-[#E2E8F0]'}`} />
-                </div>
-                <div>
-                  <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Email</label>
-                  <input type="email" value={pickupForm.email}
-                    onChange={e => setPickupForm(p => ({ ...p, email: e.target.value }))}
-                    placeholder="Email"
-                    className="w-full h-11 px-4 border border-[#E2E8F0] rounded-full text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]" />
-                </div>
-              </div>
-              <div>
-                <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Phone Number <span className="text-red-500">*</span></label>
-                {pickupFormErrors.phoneNumber && <p className="text-[12px] md:text-[11px] text-red-500 mb-1">{pickupFormErrors.phoneNumber}</p>}
-                <input type="text" value={pickupForm.phoneNumber}
-                  onChange={e => {
-                    const v = e.target.value.replace(/\D/g, '').slice(0, 10);
-                    if (!v || /^[6-9]/.test(v)) setPickupForm(p => ({ ...p, phoneNumber: v }));
-                  }}
-                  placeholder="Phone Number (10 digits, starts with 6-9)"
-                  className={`w-full h-11 px-4 border rounded-full text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B] ${pickupFormErrors.phoneNumber ? 'border-red-400' : 'border-[#E2E8F0]'}`} />
-              </div>
-              <div>
-                <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Address <span className="text-red-500">*</span></label>
-                {pickupFormErrors.address && <p className="text-[12px] md:text-[11px] text-red-500 mb-1">{pickupFormErrors.address}</p>}
-                <input type="text" value={pickupForm.address}
-                  onChange={e => setPickupForm(p => ({ ...p, address: e.target.value }))}
-                  placeholder="Street Address"
-                  className={`w-full h-11 px-4 border rounded-full text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B] ${pickupFormErrors.address ? 'border-red-400' : 'border-[#E2E8F0]'}`} />
-              </div>
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Pincode <span className="text-red-500">*</span></label>
-                  {pickupFormErrors.pinCode && <p className="text-[12px] md:text-[11px] text-red-500 mb-1">{pickupFormErrors.pinCode}</p>}
-                  <div className="relative">
-                    <input type="text" value={pickupForm.pinCode}
-                      onChange={e => setPickupForm(p => ({ ...p, pinCode: e.target.value.replace(/\D/g, '').slice(0, 6) }))}
-                      placeholder="Pincode"
-                      className={`w-full h-11 px-4 border rounded-full text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B] ${pickupFormErrors.pinCode ? 'border-red-400' : 'border-[#E2E8F0]'}`} />
-                    {pickupPincodeLoading && <Loader2 className="w-4 h-4 text-[#00A86B] animate-spin absolute right-3 top-1/2 -translate-y-1/2" />}
+                  <label className="block text-[12px] font-bold text-[#64748B] mb-2">Tag this address as</label>
+                  <div className="flex flex-wrap gap-2">
+                    {(['Home', 'Work', 'Warehouse', 'Other'] as const).map(tag => (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => setPickupAddressTag(tag)}
+                        className={`h-9 px-4 rounded-full text-[12px] font-semibold border transition-colors ${
+                          pickupAddressTag === tag
+                            ? 'border-[#00A86B] text-[#00A86B] bg-[#F0FDF4]'
+                            : 'border-[#E2E8F0] text-[#475569] hover:border-[#94A3B8]'
+                        }`}
+                      >
+                        {tag}
+                      </button>
+                    ))}
                   </div>
                 </div>
+
                 <div>
-                  <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">City <span className="text-red-500">*</span></label>
-                  {pickupFormErrors.city && <p className="text-[12px] md:text-[11px] text-red-500 mb-1">{pickupFormErrors.city}</p>}
-                  <input type="text" value={pickupForm.city} readOnly placeholder="Auto-filled"
-                    className={`w-full h-11 px-4 border rounded-full text-[13px] bg-[#F8FAFC] placeholder:text-[#94A3B8] focus:outline-none ${pickupFormErrors.city ? 'border-red-400' : 'border-[#E2E8F0]'}`} />
+                  <label className="block text-[12px] font-bold text-[#64748B] mb-2">Are you at this address right now?</label>
+                  <div className="flex flex-wrap gap-6">
+                    {[
+                      { value: 'current' as const, label: 'Yes, use my present location for address' },
+                      { value: 'manual' as const, label: 'No, I will add the location manually' },
+                    ].map(opt => (
+                      <label key={opt.value} className="flex items-center gap-2 cursor-pointer">
+                        <span
+                          className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                            pickupAtLocationNow === opt.value ? 'border-[#00A86B]' : 'border-[#CBD5E1]'
+                          }`}
+                        >
+                          {pickupAtLocationNow === opt.value && <span className="w-2 h-2 rounded-full bg-[#00A86B]" />}
+                        </span>
+                        <input
+                          type="radio"
+                          className="hidden"
+                          checked={pickupAtLocationNow === opt.value}
+                          onChange={() => {
+                            setPickupAtLocationNow(opt.value);
+                            setLocationDetectError('');
+                            if (opt.value === 'current') handleUseCurrentLocation();
+                          }}
+                        />
+                        <span className="text-[13px] text-[#0F172A]">{opt.label}</span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
+
+                {pickupAtLocationNow === 'current' && (
+                  <div className="bg-[#F8FAFC] rounded-xl border border-[#E2E8F0] p-4 flex items-start gap-3">
+                    {detectingLocation ? (
+                      <>
+                        <Loader2 className="w-4 h-4 text-[#00A86B] animate-spin mt-0.5 shrink-0" />
+                        <p className="text-[13px] text-[#475569]">Detecting your current location&hellip;</p>
+                      </>
+                    ) : locationDetectError ? (
+                      <>
+                        <MapPin className="w-4 h-4 text-red-500 mt-0.5 shrink-0" />
+                        <div>
+                          <p className="text-[13px] text-red-600 font-medium">{locationDetectError}</p>
+                          <button
+                            type="button"
+                            onClick={handleUseCurrentLocation}
+                            className="mt-1.5 text-[12px] font-bold text-[#00A86B] hover:text-[#009B63]"
+                          >
+                            Try again
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="w-4 h-4 text-[#00A86B] mt-0.5 shrink-0" />
+                        <p className="text-[13px] text-[#475569]">
+                          Location detected. Address fields below have been auto-filled &mdash; please review before saving.
+                        </p>
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {pickupAtLocationNow === 'manual' && (
+                  <div className="bg-[#F8FAFC] rounded-xl border border-[#E2E8F0] p-4">
+                    <p className="text-[13px] font-bold text-[#0F172A]">Search for your pickup address location/building name/area/landmark</p>
+                    <p className="text-[11px] text-[#94A3B8] mb-3">Please add minimum 5 characters</p>
+                    <div className="relative">
+                      <Search className="w-4 h-4 text-[#94A3B8] absolute left-4 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        value={pickupLocationSearch}
+                        onChange={e => setPickupLocationSearch(e.target.value)}
+                        placeholder="Search Location"
+                        className="w-full h-11 pl-11 pr-4 border border-[#E2E8F0] rounded-full text-[13px] bg-white placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]"
+                      />
+                    </div>
+                  </div>
+                )}
+
                 <div>
-                  <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">State <span className="text-red-500">*</span></label>
-                  {pickupFormErrors.state && <p className="text-[12px] md:text-[11px] text-red-500 mb-1">{pickupFormErrors.state}</p>}
-                  <input type="text" value={pickupForm.state} readOnly placeholder="Auto-filled"
-                    className={`w-full h-11 px-4 border rounded-full text-[13px] bg-[#F8FAFC] placeholder:text-[#94A3B8] focus:outline-none ${pickupFormErrors.state ? 'border-red-400' : 'border-[#E2E8F0]'}`} />
+                  <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Address <span className="text-red-500">*</span></label>
+                  {pickupFormErrors.address && <p className="text-[12px] md:text-[11px] text-red-500 mb-1">{pickupFormErrors.address}</p>}
+                  <input type="text" value={pickupForm.address}
+                    onChange={e => setPickupForm(p => ({ ...p, address: e.target.value }))}
+                    placeholder="Street Address"
+                    className={`w-full h-11 px-4 border rounded-full text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B] ${pickupFormErrors.address ? 'border-red-400' : 'border-[#E2E8F0]'}`} />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Pincode <span className="text-red-500">*</span></label>
+                    {pickupFormErrors.pinCode && <p className="text-[12px] md:text-[11px] text-red-500 mb-1">{pickupFormErrors.pinCode}</p>}
+                    <div className="relative">
+                      <input type="text" value={pickupForm.pinCode}
+                        onChange={e => setPickupForm(p => ({ ...p, pinCode: e.target.value.replace(/\D/g, '').slice(0, 6) }))}
+                        placeholder="Pincode"
+                        className={`w-full h-11 px-4 border rounded-full text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B] ${pickupFormErrors.pinCode ? 'border-red-400' : 'border-[#E2E8F0]'}`} />
+                      {pickupPincodeLoading && <Loader2 className="w-4 h-4 text-[#00A86B] animate-spin absolute right-3 top-1/2 -translate-y-1/2" />}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">City <span className="text-red-500">*</span></label>
+                    {pickupFormErrors.city && <p className="text-[12px] md:text-[11px] text-red-500 mb-1">{pickupFormErrors.city}</p>}
+                    <input type="text" value={pickupForm.city} readOnly placeholder="Auto-filled"
+                      className={`w-full h-11 px-4 border rounded-full text-[13px] bg-[#F8FAFC] placeholder:text-[#94A3B8] focus:outline-none ${pickupFormErrors.city ? 'border-red-400' : 'border-[#E2E8F0]'}`} />
+                  </div>
+                  <div>
+                    <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">State <span className="text-red-500">*</span></label>
+                    {pickupFormErrors.state && <p className="text-[12px] md:text-[11px] text-red-500 mb-1">{pickupFormErrors.state}</p>}
+                    <input type="text" value={pickupForm.state} readOnly placeholder="Auto-filled"
+                      className={`w-full h-11 px-4 border rounded-full text-[13px] bg-[#F8FAFC] placeholder:text-[#94A3B8] focus:outline-none ${pickupFormErrors.state ? 'border-red-400' : 'border-[#E2E8F0]'}`} />
+                  </div>
                 </div>
               </div>
+
+              {/* ── Contact Details (collapsible) ── */}
+              <div className="border-t border-[#E2E8F0] pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowPickupContactDetails(v => !v)}
+                  className="w-full flex items-center justify-between"
+                >
+                  <span className="text-[14px] font-bold text-[#0F172A]">Contact Details</span>
+                  {showPickupContactDetails ? <ChevronUp className="w-4 h-4 text-[#64748B]" /> : <ChevronDown className="w-4 h-4 text-[#64748B]" />}
+                </button>
+                <AnimatePresence initial={false}>
+                  {showPickupContactDetails && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
+                        <div>
+                          <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Contact Name <span className="text-red-500">*</span></label>
+                          {pickupFormErrors.contactName && <p className="text-[12px] md:text-[11px] text-red-500 mb-1">{pickupFormErrors.contactName}</p>}
+                          <input type="text" value={pickupForm.contactName}
+                            onChange={e => setPickupForm(p => ({ ...p, contactName: e.target.value }))}
+                            placeholder="Contact Name"
+                            className={`w-full h-11 px-4 border rounded-full text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B] ${pickupFormErrors.contactName ? 'border-red-400' : 'border-[#E2E8F0]'}`} />
+                        </div>
+                        <div>
+                          <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Email</label>
+                          <input type="email" value={pickupForm.email}
+                            onChange={e => setPickupForm(p => ({ ...p, email: e.target.value }))}
+                            placeholder="Email"
+                            className="w-full h-11 px-4 border border-[#E2E8F0] rounded-full text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]" />
+                        </div>
+                        <div className="md:col-span-2">
+                          <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Phone Number <span className="text-red-500">*</span></label>
+                          {pickupFormErrors.phoneNumber && <p className="text-[12px] md:text-[11px] text-red-500 mb-1">{pickupFormErrors.phoneNumber}</p>}
+                          <input type="text" value={pickupForm.phoneNumber}
+                            onChange={e => {
+                              const v = e.target.value.replace(/\D/g, '').slice(0, 10);
+                              if (!v || /^[6-9]/.test(v)) setPickupForm(p => ({ ...p, phoneNumber: v }));
+                            }}
+                            placeholder="Phone Number (10 digits, starts with 6-9)"
+                            className={`w-full h-11 px-4 border rounded-full text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B] ${pickupFormErrors.phoneNumber ? 'border-red-400' : 'border-[#E2E8F0]'}`} />
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* ── Operational timings (collapsible, local-only) ── */}
+              <div className="border-t border-[#E2E8F0] pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowPickupOperationalTimings(v => !v)}
+                  className="w-full flex items-center justify-between"
+                >
+                  <span className="text-[14px] font-bold text-[#0F172A]">Operational timings</span>
+                  {showPickupOperationalTimings ? <ChevronUp className="w-4 h-4 text-[#64748B]" /> : <ChevronDown className="w-4 h-4 text-[#64748B]" />}
+                </button>
+                <AnimatePresence initial={false}>
+                  {showPickupOperationalTimings && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
+                        <div>
+                          <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Opens at</label>
+                          <input type="time" value={pickupOpeningTime}
+                            onChange={e => setPickupOpeningTime(e.target.value)}
+                            className="w-full h-11 px-4 border border-[#E2E8F0] rounded-full text-[13px] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]" />
+                        </div>
+                        <div>
+                          <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Closes at</label>
+                          <input type="time" value={pickupClosingTime}
+                            onChange={e => setPickupClosingTime(e.target.value)}
+                            className="w-full h-11 px-4 border border-[#E2E8F0] rounded-full text-[13px] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]" />
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             </div>
-            <div className="flex gap-3 px-6 py-4 border-t border-[#E2E8F0]">
+
+            <div className="flex gap-3 px-6 py-4 border-t border-[#E2E8F0] shrink-0">
               <button onClick={handlePickupSubmit} disabled={pickupSubmitting}
                 className="flex items-center gap-2 px-6 h-10 bg-[#00A86B] hover:bg-[#009B63] disabled:opacity-60 text-white text-[13px] font-bold rounded-full transition-colors">
                 {pickupSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                Save Address
+                {pickupModalMode === 'edit' ? 'Update Address' : 'Save Address'}
               </button>
-              <button onClick={() => { setShowPickupModal(false); setPickupFormErrors({}); }}
+              <button onClick={() => setShowPickupModal(false)}
                 className="px-6 h-10 border border-[#E2E8F0] text-[#64748B] hover:bg-[#F8FAFC] text-[13px] font-bold rounded-full transition-colors">
                 Cancel
               </button>
             </div>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
 
       <BulkUploadModal open={showBulkModal} onClose={() => setShowBulkModal(false)} />
 
