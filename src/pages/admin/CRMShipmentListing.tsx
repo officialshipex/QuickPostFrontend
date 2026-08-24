@@ -6,8 +6,10 @@ import { DesktopPagination } from '../../hooks/usePagination';
 import { apiClient } from '../../services/apiClient';
 import {
   Search, Download, RefreshCw, ChevronLeft, ChevronRight, ChevronDown,
-  Filter, Truck, RotateCcw, CheckCircle2, AlertTriangle, Clock, Package, MoreHorizontal, MoreVertical, MapPin, Check, History, User, Settings, X, Loader2, Zap, IndianRupee, Calendar, Mail, FileText, Copy
+  Filter, Truck, RotateCcw, CheckCircle2, AlertTriangle, Clock, Package, MoreHorizontal, MoreVertical, MapPin, Check, History, User, Settings, X, Loader2, Zap, IndianRupee, Calendar, Mail, FileText, Copy, ArrowUp, ArrowDown
 } from 'lucide-react';
+import { fetchBatchRtoRisk } from '../../services/rtoRisk';
+import type { RtoRiskResult } from '../../services/rtoRisk';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
@@ -137,8 +139,15 @@ const renderDeliveryStatus = (row: { status: string; manifestDate: string; expec
   );
 };
 
+const RTO_RISK_COLOR: Record<string, string> = {
+  High:   'text-red-500',
+  Medium: 'text-purple-600',
+  Low:    'text-[#00A86B]',
+};
+
 // Map raw API order document to the shape the UI expects
 const mapOrder = (o: any) => ({
+  _id: String(o._id || ''),
   awb: o.awb_number || '',
   orderId: String(o.orderId || ''),
   orderType: o.paymentDetails?.method || 'Prepaid',
@@ -282,6 +291,7 @@ export function CRMShipmentListing() {
 
   // ── API state ──
   const [orders, setOrders] = useState<any[]>([]);
+  const [riskMap, setRiskMap] = useState<Record<string, RtoRiskResult>>({});
   const [totalCount, setTotalCount] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -335,11 +345,16 @@ export function CRMShipmentListing() {
       if (forwardAwb) params.awb = forwardAwb;
 
       const res = await apiClient.get('/crm/shipments', { params });
-      setOrders((res.data.orders || []).map(mapOrder));
+      const mapped = (res.data.orders || []).map(mapOrder);
+      setOrders(mapped);
       setTotalCount(res.data.totalCount || 0);
       setTotalPages(res.data.totalPages || 1);
       setTrackingData(populateTrackingFromOrders(res.data.orders || []));
       setApiError(null);
+      if (mapped.length > 0) {
+        const ids = mapped.map((o: any) => o._id).filter(Boolean);
+        fetchBatchRtoRisk(ids).then(risks => setRiskMap(risks)).catch(() => {});
+      }
     } catch (err: any) {
       const msg = err?.response?.data?.message || err?.message || 'API error';
       const status = err?.response?.status;
@@ -420,10 +435,15 @@ export function CRMShipmentListing() {
     setLoading(true);
     apiClient.get('/crm/shipments', { params: { page: '1', limit: String(rowsPerPageRef.current) } })
       .then(res => {
-        setOrders((res.data.orders || []).map(mapOrder));
+        const mapped = (res.data.orders || []).map(mapOrder);
+        setOrders(mapped);
         setTotalCount(res.data.totalCount || 0);
         setTotalPages(res.data.totalPages || 1);
         setTrackingData(populateTrackingFromOrders(res.data.orders || []));
+        if (mapped.length > 0) {
+          const ids = mapped.map((o: any) => o._id).filter(Boolean);
+          fetchBatchRtoRisk(ids).then(risks => setRiskMap(risks)).catch(() => {});
+        }
       })
       .catch((err: any) => { setApiError(err?.response?.status ? `${err.response.status}: ${err.response.data?.message || err.message}` : err?.message || 'API error'); setOrders([]); })
       .finally(() => setLoading(false));
@@ -932,6 +952,16 @@ export function CRMShipmentListing() {
                           {row.customerName}
                         </div>
                         <div className="text-[12px] leading-[18px] font-normal text-[#64748B]">{row.customerPhone}</div>
+                        {riskMap[row._id] && (
+                          <div className="text-[11px] leading-[16px] font-semibold text-[#0F172A]">
+                            RTO Risk:{' '}
+                            <span className={`inline-flex items-center gap-0.5 border-b border-dotted border-current pb-px ${RTO_RISK_COLOR[riskMap[row._id].level]}`}>
+                              {riskMap[row._id].level}
+                              {riskMap[row._id].level === 'High' && <ArrowUp className="w-3 h-3" />}
+                              {riskMap[row._id].level === 'Low'  && <ArrowDown className="w-3 h-3" />}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </td>
                     <td className="p-3">

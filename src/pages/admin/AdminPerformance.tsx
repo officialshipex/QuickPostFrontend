@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { useAdminTab } from '../../context/AdminUserContext';
 import { apiClient } from '../../services/apiClient';
+import { useUserSearchFilter } from '../../hooks/filters/useUserSearchFilter';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Calendar, ChevronDown, ChevronLeft, Users, Truck, IndianRupee,
@@ -66,64 +67,6 @@ interface PlatformSummary {
   deliveryRate: number; rtoRate: number; ndrRate: number;
   topRevenueSellers: { name: string; value: number }[];
   topRtoSellers: { name: string; value: number }[];
-}
-
-// ─── Dummy Profit & Loss data ─────────────────────────────────────────────────
-// Placeholder used until the /admin-reports/profit-loss backend endpoint exists.
-const DUMMY_COURIERS_POOL = [
-  'Delhivery Surface', 'Delhivery Air', 'Bluedart Air', 'Bluedart Surface',
-  'Ekart Logistics', 'XpressBees Surface', 'Shadowfax Express', 'DTDC Surface',
-];
-const DUMMY_SELLER_NAMES = [
-  'Aarav Textiles', 'Priya Handicrafts', 'Kumar Electronics', 'Sharma Fashion Hub', 'Nova Gadgets',
-  'Meera Cosmetics', 'Rohan Sports', 'Everest Books', 'Sunrise Kitchenware', 'Blue Ocean Toys',
-  'Golden Leaf Tea Co.', 'Silver Line Jewellery', 'Urban Threads', 'Prime Furniture', 'Green Valley Organics',
-  'Metro Mobile Zone', 'Coastal Footwear', 'Heritage Handloom', 'Zenith Auto Parts', 'Crimson Bakers',
-];
-// Built once with fixed values — sorting only ever reorders this same data,
-// it never regenerates the numbers (so switching Top Profit/Top Loss doesn't
-// look like nothing happened just because the same 20 names come back).
-let _dummyProfitLossCache: ProfitLossSeller[] | null = null;
-function getDummyProfitLossBase(): ProfitLossSeller[] {
-  if (_dummyProfitLossCache) return _dummyProfitLossCache;
-  _dummyProfitLossCache = DUMMY_SELLER_NAMES.map((name, i) => {
-    const totalOrders = 200 + ((i * 37) % 800);
-    const deliveredPct = 78 + ((i * 7) % 20);
-    const rtoPct = Math.max(1, 15 - ((i * 5) % 14));
-    const sellerRevenue = 40000 + ((i * 9137) % 260000);
-    // Fixed split: roughly the top half of the list are profit-making, the rest run at a loss —
-    // independent of how the table is currently sorted.
-    const isLossRow = i % 2 === 1;
-    const marginPct = isLossRow ? -(0.03 + (i % 5) * 0.02) : (0.06 + (i % 6) * 0.03);
-    const profit = Math.round(sellerRevenue * marginPct);
-    const courierRevenue = sellerRevenue - profit;
-    const shuffled = [...DUMMY_COURIERS_POOL].sort((a, b) => ((a.length + i) % 3) - ((b.length + i) % 3));
-    const courierCount = 2 + (i % 3);
-    const couriers: ProfitCourierItem[] = shuffled.slice(0, courierCount).map((name2, ci) => {
-      const cCourierRevenue = Math.round(courierRevenue / courierCount);
-      const cSellerRevenue = Math.round(sellerRevenue / courierCount);
-      return {
-        courierServiceName: name2,
-        orders: Math.round(totalOrders / courierCount) - ci * 5,
-        deliveredPct: Math.max(60, deliveredPct - ci * 4),
-        ndrPct: Math.min(20, 2 + ci * 2 + (i % 4)),
-        courierRevenue: cCourierRevenue,
-        sellerRevenue: cSellerRevenue,
-        profit: cSellerRevenue - cCourierRevenue,
-      };
-    });
-    return {
-      _id: `dummy-${i}`, userId: 1000 + i, fullname: name, email: `${name.toLowerCase().replace(/[^a-z0-9]+/g, '.')}@example.com`,
-      phoneNumber: `9${(800000000 + i * 12345).toString().slice(0, 9)}`,
-      totalOrders, deliveredPct, rtoPct, courierRevenue, sellerRevenue, profit, couriers,
-    };
-  });
-  return _dummyProfitLossCache;
-}
-function buildDummyProfitLoss(sort: 'profit_desc' | 'profit_asc'): ProfitLossSeller[] {
-  const rows = [...getDummyProfitLossBase()];
-  rows.sort((a, b) => sort === 'profit_desc' ? b.profit - a.profit : a.profit - b.profit);
-  return rows;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -207,17 +150,15 @@ export function AdminPerformance() {
   const [sellerPage, setSellerPage]   = useState(1);
   const [sellerRowsPerPage, setSellerRowsPerPage] = useState(10);
 
-  // Seller search (same dropdown pattern as AdminOrders)
-  const [sellerQuery, setSellerQuery]           = useState('');
-  const [debouncedSellerQuery, setDebouncedSellerQuery] = useState('');
-  const [sellerSuggestions, setSellerSuggestions] = useState<any[]>([]);
-  const [sellerMongoId, setSellerMongoId]       = useState('');
-
-  // Debounce free-text seller search so it filters the table without requiring a suggestion click
-  useEffect(() => {
-    const t = setTimeout(() => setDebouncedSellerQuery(sellerQuery.trim()), 400);
-    return () => clearTimeout(t);
-  }, [sellerQuery]);
+  // Seller / user search — shared across Seller Performance and Profit & Loss tabs
+  const {
+    userQuery:       sellerQuery,
+    userMongoId:     sellerMongoId,
+    userSuggestions: sellerSuggestions,
+    onQueryChange:   onSellerQueryChange,
+    selectUser:      selectSellerUser,
+    clearUser:       clearSellerUser,
+  } = useUserSearchFilter(isAdminView);
 
   // Selected seller detail (uses _id string) — persisted in URL so refresh works
   const selectedSellerId = searchParams.get('id') || null;
@@ -298,7 +239,6 @@ export function AdminPerformance() {
     try {
       const params: any = { page: sellerPage, limit: sellerRowsPerPage, ...getDateParams() };
       if (sellerMongoId) params.userId = sellerMongoId;
-      else if (debouncedSellerQuery) params.search = debouncedSellerQuery;
       const res = await apiClient.get('/admin-reports/sellers', { params });
       setSellers(res.data?.data || []);
       setSellerTotal(res.data?.total || 0);
@@ -308,11 +248,11 @@ export function AdminPerformance() {
       setSellerError(e?.response?.data?.error || e?.message || 'Failed to load sellers');
     }
     finally { setLoadingSellers(false); }
-  }, [isAdminView, sellerPage, sellerRowsPerPage, sellerMongoId, debouncedSellerQuery, dateRange, getDateParams]);
+  }, [isAdminView, sellerPage, sellerRowsPerPage, sellerMongoId, dateRange, getDateParams]);
 
   useEffect(() => { setSellerPage(1); }, [sellerRowsPerPage]);
 
-  useEffect(() => { setSellerPage(1); }, [debouncedSellerQuery, sellerMongoId]);
+  useEffect(() => { setSellerPage(1); }, [sellerMongoId]);
 
   const fetchSellerDetail = useCallback(async () => {
     if (!isAdminView || !selectedSellerId) return;
@@ -347,27 +287,16 @@ export function AdminPerformance() {
     try {
       const params: any = { page: profitPage, limit: profitRowsPerPage, sort: profitSort, ...getDateParams() };
       if (sellerMongoId) params.userId = sellerMongoId;
-      else if (debouncedSellerQuery) params.search = debouncedSellerQuery;
       const res = await apiClient.get('/admin-reports/profit-loss', { params });
-      const data = res.data?.data;
-      if (Array.isArray(data) && data.length > 0) {
-        setProfitSellers(data);
-        setProfitTotal(res.data?.total || 0);
-        setProfitTotalPages(res.data?.totalPages || 0);
-      } else {
-        throw new Error('empty');
-      }
-    } catch {
-      // Backend endpoint not wired up yet (or returned no data) — fall back to dummy data so the tab is browsable.
-      const dummy = buildDummyProfitLoss(profitSort);
-      const start = (profitPage - 1) * profitRowsPerPage;
-      setProfitSellers(dummy.slice(start, start + profitRowsPerPage));
-      setProfitTotal(dummy.length);
-      setProfitTotalPages(Math.ceil(dummy.length / profitRowsPerPage));
-      setProfitError(null);
+      setProfitSellers(res.data?.data || []);
+      setProfitTotal(res.data?.total || 0);
+      setProfitTotalPages(res.data?.totalPages || 0);
+    } catch (e: any) {
+      setProfitSellers([]);
+      setProfitError(e?.response?.data?.error || e?.message || 'Failed to load profit & loss data');
     }
     finally { setLoadingProfit(false); }
-  }, [isAdminView, profitPage, profitRowsPerPage, profitSort, sellerMongoId, debouncedSellerQuery, dateRange, getDateParams]);
+  }, [isAdminView, profitPage, profitRowsPerPage, profitSort, sellerMongoId, dateRange, getDateParams]);
 
   useEffect(() => { setProfitPage(1); }, [profitRowsPerPage, profitSort]);
 
@@ -381,17 +310,6 @@ export function AdminPerformance() {
   useEffect(() => { if (activeTab === 'courier') fetchCouriers(); }, [activeTab, fetchCouriers]);
   useEffect(() => { if (activeTab === 'profit') fetchProfitLoss(); }, [activeTab, fetchProfitLoss]);
 
-  // Seller search autocomplete (same pattern as AdminOrders)
-  useEffect(() => {
-    if (!isAdminView || sellerQuery.trim().length < 2) { setSellerSuggestions([]); return; }
-    const t = setTimeout(async () => {
-      try {
-        const res = await apiClient.get(`/admin/searchUser?query=${encodeURIComponent(sellerQuery)}`);
-        setSellerSuggestions(res.data.users || []);
-      } catch { setSellerSuggestions([]); }
-    }, 300);
-    return () => clearTimeout(t);
-  }, [sellerQuery, isAdminView]);
 
   const openGenerate = (userId?: string | null, userName?: string) => {
     setGenUserId(userId || null);
@@ -504,16 +422,13 @@ export function AdminPerformance() {
                 <div className="relative max-w-xs w-full">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8]" />
                   <input
-                    placeholder="Search seller by name or email…"
+                    placeholder="Search user..."
                     value={sellerQuery}
-                    onChange={e => {
-                      setSellerQuery(e.target.value);
-                      if (!e.target.value.trim()) { setSellerMongoId(''); setSellerSuggestions([]); setSellerPage(1); }
-                    }}
+                    onChange={e => { onSellerQueryChange(e.target.value); if (!e.target.value.trim()) setSellerPage(1); }}
                     className="w-full h-9 pl-10 pr-8 border border-[#E2E8F0] rounded-lg text-xs outline-none focus:border-[#00A86B]"
                   />
                   {sellerQuery && (
-                    <button onClick={() => { setSellerQuery(''); setSellerMongoId(''); setSellerSuggestions([]); setSellerPage(1); }}
+                    <button onClick={() => { clearSellerUser(); setSellerPage(1); }}
                       className="absolute right-2 top-1/2 -translate-y-1/2 text-[#94A3B8] hover:text-[#475569]">
                       <X className="w-3.5 h-3.5" />
                     </button>
@@ -522,20 +437,13 @@ export function AdminPerformance() {
                     <div className="absolute left-0 top-full mt-1 bg-white border border-[#E2E8F0] rounded-xl shadow-xl z-50 w-72 max-h-52 overflow-y-auto py-1">
                       {sellerSuggestions.map((u: any) => (
                         <button key={u._id} type="button"
-                          onClick={() => {
-                            setSellerMongoId(u._id);
-                            setSellerQuery(`${u.fullname || ''} (${u.email})`);
-                            setSellerSuggestions([]);
-                            setSellerPage(1);
-                          }}
-                          className="w-full text-left px-3 py-2 hover:bg-[#F0FDF4] flex items-start gap-2">
-                          <div className="w-6 h-6 rounded-full bg-[#F0FDF4] text-[#00A86B] flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">
-                            {(u.fullname || u.email || '?').charAt(0).toUpperCase()}
+                          onClick={() => { selectSellerUser(u); setSellerPage(1); }}
+                          className="w-full text-left px-3 py-2.5 hover:bg-[#F0FDF4] flex items-start gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="text-[12px] font-bold text-slate-800 truncate">{u.fullname}</div>
+                            <div className="text-[11px] text-slate-400 truncate">{u.email}{u.phoneNumber ? ` · ${u.phoneNumber}` : ''}</div>
                           </div>
-                          <div>
-                            <div className="text-xs font-semibold text-[#0F172A]">{u.fullname || '—'}</div>
-                            <div className="text-[10px] text-[#94A3B8]">{u.email}</div>
-                          </div>
+                          {u.userId && <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded shrink-0">{u.userId}</span>}
                         </button>
                       ))}
                     </div>
@@ -1158,40 +1066,32 @@ export function AdminPerformance() {
             <div className="hidden md:flex shrink-0 py-3 px-6 border-t border-b border-[#CBD5F5] flex-wrap items-center gap-3 bg-[#F8FAFC]/50">
               <div className="relative shrink-0">
                 <div className="relative">
-                  <input type="text" placeholder="Search seller..."
+                  <input type="text" placeholder="Search user..."
                     value={sellerQuery}
-                    onChange={e => {
-                      setSellerQuery(e.target.value);
-                      if (!e.target.value.trim()) { setSellerMongoId(''); setSellerSuggestions([]); }
-                    }}
-                    className="glass-search-input w-[180px]" style={{ paddingLeft: '2rem', paddingRight: '2rem' }} />
+                    onChange={e => onSellerQueryChange(e.target.value)}
+                    className="glass-search-input w-[200px]" style={{ paddingLeft: '2rem', paddingRight: '2rem' }} />
                   <Search className="w-3.5 h-3.5 text-[#94A3B8] absolute left-2.5 top-1/2 -translate-y-1/2" />
                   {sellerQuery && (
-                    <button onClick={() => { setSellerQuery(''); setSellerMongoId(''); setSellerSuggestions([]); }}
+                    <button onClick={() => clearSellerUser()}
                       className="absolute right-2 top-1/2 -translate-y-1/2 text-[#94A3B8] hover:text-red-500">
                       <X className="w-3 h-3" />
                     </button>
                   )}
                 </div>
                 {sellerSuggestions.length > 0 && !sellerMongoId && (
-                  <>
-                    <div className="fixed inset-0 z-40 bg-slate-900/20 backdrop-blur-[1px]" onClick={() => setSellerSuggestions([])} />
-                    <div className="absolute left-0 top-full mt-1 bg-white border border-[#E2E8F0] rounded-xl shadow-xl z-50 w-64 max-h-52 overflow-y-auto py-1">
-                      {sellerSuggestions.map((u: any) => (
-                        <button key={u._id} type="button"
-                          onClick={() => { setSellerMongoId(u._id); setSellerQuery(`${u.fullname || ''} (${u.email})`); setSellerSuggestions([]); }}
-                          className="w-full text-left px-3 py-2 hover:bg-[#F0FDF4] flex items-start gap-2">
-                          <div className="w-6 h-6 rounded-full bg-[#F0FDF4] text-[#00A86B] flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">
-                            {(u.fullname || u.email || '?').charAt(0).toUpperCase()}
-                          </div>
-                          <div>
-                            <div className="text-xs font-semibold text-[#0F172A]">{u.fullname || '—'}</div>
-                            <div className="text-[10px] text-[#94A3B8]">{u.email}</div>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </>
+                  <div className="absolute left-0 top-full mt-1 bg-white border border-[#E2E8F0] rounded-xl shadow-xl z-50 w-full max-h-52 overflow-y-auto py-1">
+                    {sellerSuggestions.map((u: any) => (
+                      <button key={u._id} type="button"
+                        onClick={() => selectSellerUser(u)}
+                        className="w-full text-left px-3 py-2.5 hover:bg-[#F0FDF4] flex items-start gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="text-[12px] font-bold text-slate-800 truncate">{u.fullname}</div>
+                          <div className="text-[11px] text-slate-400 truncate">{u.email}{u.phoneNumber ? ` · ${u.phoneNumber}` : ''}</div>
+                        </div>
+                        {u.userId && <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded shrink-0">{u.userId}</span>}
+                      </button>
+                    ))}
+                  </div>
                 )}
               </div>
               <div className="flex gap-1 bg-white border border-[#E2E8F0] rounded-lg p-0.5 shrink-0">
@@ -1212,36 +1112,31 @@ export function AdminPerformance() {
                 <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
                 <input
                   type="text"
-                  placeholder="Search seller..."
+                  placeholder="Search user..."
                   value={sellerQuery}
-                  onChange={e => {
-                    setSellerQuery(e.target.value);
-                    if (!e.target.value.trim()) { setSellerMongoId(''); setSellerSuggestions([]); }
-                  }}
+                  onChange={e => onSellerQueryChange(e.target.value)}
                   className="w-full h-9 pl-9 pr-8 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] text-sm text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all"
                 />
                 {sellerQuery && (
-                  <button onClick={() => { setSellerQuery(''); setSellerMongoId(''); setSellerSuggestions([]); }}
+                  <button onClick={() => clearSellerUser()}
                     className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#94A3B8] hover:text-red-500">
                     <X className="w-3.5 h-3.5" />
                   </button>
                 )}
                 {sellerSuggestions.length > 0 && !sellerMongoId && (
-                  <>
-                    <div className="fixed inset-0 z-40 bg-slate-900/20 backdrop-blur-[1px]" onClick={() => setSellerSuggestions([])} />
-                    <div className="absolute left-0 top-full mt-1 bg-white border border-[#E2E8F0] rounded-xl shadow-xl z-50 w-full max-h-52 overflow-y-auto py-1">
-                      {sellerSuggestions.map((u: any) => (
-                        <button key={u._id} type="button"
-                          onClick={() => { setSellerMongoId(u._id); setSellerQuery(`${u.fullname || ''} (${u.email})`); setSellerSuggestions([]); }}
-                          className="w-full text-left px-3 py-2.5 hover:bg-[#F0FDF4] flex items-start gap-2">
-                          <div className="flex-1 min-w-0">
-                            <div className="text-[12px] font-bold text-slate-800 truncate">{u.fullname}</div>
-                            <div className="text-[11px] text-slate-400 truncate">{u.email}</div>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </>
+                  <div className="absolute left-0 top-full mt-1 bg-white border border-[#E2E8F0] rounded-xl shadow-xl z-50 w-full max-h-52 overflow-y-auto py-1">
+                    {sellerSuggestions.map((u: any) => (
+                      <button key={u._id} type="button"
+                        onClick={() => selectSellerUser(u)}
+                        className="w-full text-left px-3 py-2.5 hover:bg-[#F0FDF4] flex items-start gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="text-[12px] font-bold text-slate-800 truncate">{u.fullname}</div>
+                          <div className="text-[11px] text-slate-400 truncate">{u.email}{u.phoneNumber ? ` · ${u.phoneNumber}` : ''}</div>
+                        </div>
+                        {u.userId && <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded shrink-0">{u.userId}</span>}
+                      </button>
+                    ))}
+                  </div>
                 )}
               </div>
               <div className="flex gap-1 bg-white border border-[#E2E8F0] rounded-lg p-0.5 shrink-0">
@@ -1287,12 +1182,13 @@ export function AdminPerformance() {
                       const isProfit = s.profit >= 0;
                       return (
                         <React.Fragment key={s._id}>
-                          <tr className={`border-b border-[#E2E8F0] transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]/20'}`}>
+                          <tr onClick={() => setExpandedProfitId(isOpen ? null : s._id)} className={`border-b border-[#E2E8F0] transition-colors cursor-pointer ${i % 2 === 0 ? 'bg-white hover:bg-[#F0FDF4]' : 'bg-[#E6EDF7]/20 hover:bg-[#F0FDF4]'}`}>
                             <td className="p-4 text-xs font-semibold text-[#94A3B8]">{(profitPage - 1) * profitRowsPerPage + i + 1}</td>
                             <td className="p-4 max-w-[220px]">
-                              <div className="min-w-0">
-                                <TruncatedText text={s.fullname || '—'} maxLength={22} className="text-[14px] leading-[20px] font-semibold text-[#0F172A]" />
-                                <TruncatedText text={s.email || '—'} maxLength={28} className="text-[12px] leading-[18px] font-normal text-[#64748B]" />
+                              <div className="flex flex-col gap-0.5 min-w-0">
+                                {s.userId && <div className="text-[12px] leading-[18px] font-semibold text-[#009D64]">{String(s.userId).padStart(4, '0')}</div>}
+                                <TruncatedText text={s.fullname || '—'} maxLength={22} className="text-[14px] leading-[20px] font-semibold text-[#1E293B] max-w-[180px]" />
+                                <TruncatedText text={s.email || '—'} maxLength={28} className="text-[12px] leading-[18px] font-normal text-[#64748B] max-w-[180px]" />
                               </div>
                             </td>
                             <td className="p-4 text-[12px] font-normal text-[#0F172A]">{fn(s.totalOrders)}</td>
@@ -1309,7 +1205,7 @@ export function AdminPerformance() {
                               </span>
                             </td>
                             <td className="p-4 text-center">
-                              <button onClick={() => setExpandedProfitId(isOpen ? null : s._id)}
+                              <button onClick={e => { e.stopPropagation(); setExpandedProfitId(isOpen ? null : s._id); }}
                                 className={`w-7 h-7 rounded-full border flex items-center justify-center transition-all mx-auto ${isOpen ? 'bg-[#00A86B] border-[#00A86B] text-white' : 'border-[#E2E8F0] text-[#64748B] hover:border-[#00A86B] hover:text-[#00A86B]'}`}
                                 title={isOpen ? 'Hide courier breakdown' : 'Show courier breakdown'}>
                                 <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
@@ -1396,8 +1292,9 @@ export function AdminPerformance() {
                             <div className="rounded-xl p-3 mb-3 bg-white" style={{ border: `1px solid ${accent}` }}>
                               <div className="flex items-start justify-between gap-2">
                                 <div className="min-w-0 flex-1">
-                                  <TruncatedText text={s.fullname || '—'} maxLength={22} className="text-[12px] leading-[18px] font-semibold text-[#0F172A]" />
-                                  <TruncatedText text={s.email || '—'} maxLength={26} className="text-[12px] leading-[18px] font-normal text-[#64748B]" />
+                                  {s.userId && <div className="text-[11px] font-semibold text-[#009D64] mb-0.5">{String(s.userId).padStart(4, '0')}</div>}
+                                  <TruncatedText text={s.fullname || '—'} maxLength={22} className="text-[12px] leading-[18px] font-semibold text-[#1E293B]" />
+                                  <TruncatedText text={s.email || '—'} maxLength={26} className="text-[11px] leading-[18px] font-normal text-[#64748B]" />
                                 </div>
                                 <span className={`shrink-0 inline-flex items-center gap-1 text-[11px] font-bold ${isProfit ? 'text-[#00A86B]' : 'text-red-500'}`}>
                                   {isProfit ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}

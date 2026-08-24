@@ -30,7 +30,8 @@ import { Toast } from '../../components/ui/Toast';
 import { useToast } from '../../hooks/useToast';
 import { useProductTooltip, ProductTooltipCard } from '../../hooks/useProductTooltip';
 import { CourierLogo } from '../../components/ui/CourierLogo';
-import { calculateRtoRisk } from '../../services/rtoRisk';
+import { calculateRtoRisk, fetchBatchRtoRisk } from '../../services/rtoRisk';
+import type { RtoRiskResult } from '../../services/rtoRisk';
 
 // ─── Tabs ─────────────────────────────────────────────────────────────────────
 const MAIN_TABS = ['New', 'Ready to Ship', 'Pickup & Manifest', 'In Transit', 'Delivered'];
@@ -263,9 +264,11 @@ const getOrderRtoRisk = (order: ReturnType<typeof mapOrder>, historyMaps: RtoHis
 
 /** "RTO Risk: {level}" — label in the page's default text color, value colored
  *  by risk level with a dotted underline; High gets an up arrow (risk rising),
- *  Low a down arrow (risk falling), Medium shows no arrow (neutral). */
-const RtoRiskLine = ({ order, historyMaps, className = '' }: { order: ReturnType<typeof mapOrder>; historyMaps: RtoHistoryMaps; className?: string }) => {
-  const risk = getOrderRtoRisk(order, historyMaps);
+ *  Low a down arrow (risk falling), Medium shows no arrow (neutral).
+ *  Prefers `riskResult` (backend-computed) when provided; falls back to the
+ *  client-side historyMaps calculation while backend data is still loading. */
+const RtoRiskLine = ({ order, historyMaps, riskResult, className = '' }: { order: ReturnType<typeof mapOrder>; historyMaps: RtoHistoryMaps; riskResult?: RtoRiskResult; className?: string }) => {
+  const risk = riskResult || getOrderRtoRisk(order, historyMaps);
   return (
     <div className={`text-[11px] leading-[16px] font-semibold text-[#0F172A] ${className}`}>
       RTO Risk:{' '}
@@ -412,15 +415,14 @@ export function AdminOrders() {
   // wiring as AdminWallet.tsx (paginatedData drives the table body; loading state drives TableLoader).
   const { paginatedData: paginatedOrders } = usePagination({ data: orders, perPage: rowsPerPage });
 
-  // ── RTO risk history aggregation ──
-  // A best-effort real-data signal computed client-side from a bulk, unfiltered sample of
-  // this account's orders (all statuses), since there's no backend aggregation endpoint yet.
-  // Keyed by customer phone, delivery pincode, and courier+pincode.
+  // ── RTO risk — kept as fallback for the brief window before backend data loads ──
   const [rtoHistoryMaps, setRtoHistoryMaps] = useState<{
     byCustomer: Record<string, { totalOrders: number; totalRtoOrders: number; hasPreviousNdr: boolean }>;
     byPincode: Record<string, { total: number; rto: number }>;
     byCourierPincode: Record<string, { total: number; rto: number }>;
   }>({ byCustomer: {}, byPincode: {}, byCourierPincode: {} });
+  // Backend-computed risk scores keyed by order _id string
+  const [riskMap, setRiskMap] = useState<Record<string, RtoRiskResult>>({});
 
   // ── Filter state (applied on Apply click) ──
   const [orderId,                setOrderId]               = useState('');
@@ -617,7 +619,8 @@ export function AdminOrders() {
       const params = buildOrderParams(pg, rowsPerPage);
       const res = await apiClient.get('/admin/filterEmployeeOrders', { params });
       const raw = res.data?.orders || [];
-      setOrders(raw.map(mapOrder));
+      const mapped = raw.map(mapOrder);
+      setOrders(mapped);
       setTotalPages(res.data?.totalPages || 1);
       setTotalRecords(res.data?.totalOrders || res.data?.totalRecords || raw.length);
       if (res.data?.courierServices) setCourierOptions(res.data.courierServices.map((s: any) => {
@@ -628,74 +631,17 @@ export function AdminOrders() {
         const v = typeof p === 'string' ? p : String(p?.name || p?.contactName || '');
         return { label: v, value: v };
       }));
+      // Fire-and-forget backend risk computation — updates the badge once results arrive
+      if (mapped.length > 0) {
+        const ids = mapped.map((o: any) => o._id).filter(Boolean);
+        fetchBatchRtoRisk(ids).then(risks => setRiskMap(risks)).catch(() => {/* silent — fallback to client-side calc */});
+      }
     } catch (err) {
       console.error('Failed to fetch orders:', err);
     } finally {
       setLoading(false);
     }
   }, [buildOrderParams, page, rowsPerPage]);
-
-  // ── RTO risk history — fetch a bulk, unfiltered sample of this account's orders (all
-  // statuses) once and aggregate real per-customer/pincode/courier RTO rates from it.
-  // Re-runs whenever the account being viewed changes (admin switching users, or the
-  // logged-in user resolving after refresh).
-  useEffect(() => {
-    const scopeUserId = isAdminView ? userMongoId : currentUserId;
-    if (isAdminView && !scopeUserId) return; // admin hasn't picked a user yet — nothing to aggregate
-    if (!isAdminView && !scopeUserId) return; // currentUserId not resolved yet
-
-    let cancelled = false;
-    (async () => {
-      try {
-        const params: Record<string, any> = { page: 1, limit: 1000 };
-        if (isAdminView) { params.userId = scopeUserId; params.selectedUserId = scopeUserId; params.userSearch = scopeUserId; }
-        else { params.userId = scopeUserId; }
-        const res = await apiClient.get('/admin/filterEmployeeOrders', { params });
-        if (cancelled) return;
-        const raw: any[] = res.data?.orders || [];
-
-        const byCustomer: Record<string, { totalOrders: number; totalRtoOrders: number; hasPreviousNdr: boolean }> = {};
-        const byPincode: Record<string, { total: number; rto: number }> = {};
-        const byCourierPincode: Record<string, { total: number; rto: number }> = {};
-
-        for (const o of raw) {
-          const status: string = o.status || '';
-          const isRto = status.startsWith('RTO');
-          const phone = o.receiverAddress?.phoneNumber || '';
-          const pin = o.receiverAddress?.pinCode || o.receiverAddress?.pincode || '';
-          const courier = o.courierServiceName || '';
-          const hasNdr = Array.isArray(o.ndrHistory) && o.ndrHistory.length > 0;
-
-          if (phone) {
-            const c = byCustomer[phone] || { totalOrders: 0, totalRtoOrders: 0, hasPreviousNdr: false };
-            c.totalOrders += 1;
-            if (isRto) c.totalRtoOrders += 1;
-            if (hasNdr) c.hasPreviousNdr = true;
-            byCustomer[phone] = c;
-          }
-          if (pin) {
-            const p = byPincode[pin] || { total: 0, rto: 0 };
-            p.total += 1;
-            if (isRto) p.rto += 1;
-            byPincode[pin] = p;
-          }
-          if (courier && pin) {
-            const key = `${courier}|${pin}`;
-            const cp = byCourierPincode[key] || { total: 0, rto: 0 };
-            cp.total += 1;
-            if (isRto) cp.rto += 1;
-            byCourierPincode[key] = cp;
-          }
-        }
-
-        setRtoHistoryMaps({ byCustomer, byPincode, byCourierPincode });
-      } catch (err) {
-        console.error('Failed to load RTO risk history:', err);
-      }
-    })();
-
-    return () => { cancelled = true; };
-  }, [isAdminView, userMongoId, currentUserId]);
 
   // ── Excel export handlers ──
   const [exportingExcel, setExportingExcel] = useState(false);
@@ -1510,7 +1456,7 @@ export function AdminOrders() {
                                 {order.customerName}
                               </div>
                               <div className="text-[12px] leading-[18px] font-normal text-[#64748B]">{order.customerPhone}</div>
-                              <RtoRiskLine order={order} historyMaps={rtoHistoryMaps} />
+                              <RtoRiskLine order={order} historyMaps={rtoHistoryMaps} riskResult={riskMap[order._id]} />
                             </div>
                           </td>
                           <td className="p-3">
@@ -1752,7 +1698,7 @@ export function AdminOrders() {
                         >
                           <div className="truncate max-w-[130px] ml-auto text-[10px] font-normal text-[#94A3B8] uppercase tracking-wider underline decoration-dotted underline-offset-2">{order.customerName}</div>
                           <div className="text-[12px] font-medium text-[#0F172A] mt-0.5">{order.customerPhone}</div>
-                          <RtoRiskLine order={order} historyMaps={rtoHistoryMaps} className="mt-0.5" />
+                          <RtoRiskLine order={order} historyMaps={rtoHistoryMaps} riskResult={riskMap[order._id]} className="mt-0.5" />
                         </div>
                       </div>
 

@@ -3663,7 +3663,6 @@ export function AdminWallet() {
                         />
                       </div>
                     )}
-                    </div>
 
                     <div>
                       <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Transaction ID</label>
@@ -3750,7 +3749,6 @@ export function AdminWallet() {
                         />
                       </div>
                     )}
-                    </div>
 
                     <div>
                       <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Month</label>
