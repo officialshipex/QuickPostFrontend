@@ -42,6 +42,44 @@ function ciGet(obj: Record<string, any> | undefined, key: string): any {
   return hit !== undefined ? obj[hit] : undefined;
 }
 
+function buildCostingRatesMap(
+  rateCards: any[],
+  svcs: any[]
+): Record<string, Record<string, any>> {
+  const map: Record<string, Record<string, any>> = {};
+  rateCards.forEach((rc: any) => {
+    const svcKey = (rc.courierServiceName || '').trim();
+    const svc = svcs.find((s: any) => (s.name || '').trim() === svcKey);
+    const provKey = (svc?.provider || '').trim();
+    if (!provKey || !svcKey) return;
+    const basic = rc.weightPriceBasic?.[0] || {};
+    const add = rc.weightPriceAdditional?.[0] || {};
+    if (!map[provKey]) map[provKey] = {};
+    map[provKey][svcKey] = {
+      _id: rc._id,
+      isFlatRate: rc.isFlatRate || false,
+      basicWeight: basic.weight != null ? String(basic.weight) : '',
+      basicZoneA: basic.zoneA != null ? String(basic.zoneA) : '',
+      basicZoneB: basic.zoneB != null ? String(basic.zoneB) : '',
+      basicZoneC: basic.zoneC != null ? String(basic.zoneC) : '',
+      basicZoneD: basic.zoneD != null ? String(basic.zoneD) : '',
+      basicZoneE: basic.zoneE != null ? String(basic.zoneE) : '',
+      addWeight: add.weight != null ? String(add.weight) : '',
+      addZoneA: add.zoneA != null ? String(add.zoneA) : '',
+      addZoneB: add.zoneB != null ? String(add.zoneB) : '',
+      addZoneC: add.zoneC != null ? String(add.zoneC) : '',
+      addZoneD: add.zoneD != null ? String(add.zoneD) : '',
+      addZoneE: add.zoneE != null ? String(add.zoneE) : '',
+      codCharge: rc.codCharge != null ? String(rc.codCharge) : '',
+      codPercentage: rc.codPercent != null ? String(rc.codPercent) : '',
+      status: rc.status || 'Active',
+      shipmentType: rc.shipmentType || 'Forward',
+      mode: rc.mode || '',
+    };
+  });
+  return map;
+}
+
 function buildRatesMap(
   _providers: any[],
   _services: any[],
@@ -133,69 +171,10 @@ export function AdminRateCard() {
   const [ratesMap, setRatesMap] = useState<Record<string, Record<string, Record<string, any>>>>({});
 
   // ─── Costing Rate Card tab ─────────────────────────────────────────────────────
-  // 100% structural clone of Rate Card Management — same filter bar, same provider
-  // table with expand-to-edit rate grid, same mobile cards — run entirely on local
-  // dummy data (no endpoints wired up yet; wiring later just means swapping the
-  // dummy arrays below for real fetches, same shape as the Management tab).
-  const DUMMY_COSTING_PROVIDERS = [
-    { _id: 'cst-prov-1', courierName: 'Delhivery', status: 'Enable' },
-    { _id: 'cst-prov-2', courierName: 'DTDC', status: 'Enable' },
-    { _id: 'cst-prov-3', courierName: 'Ekart', status: 'Enable' },
-    { _id: 'cst-prov-4', courierName: 'XpressBees', status: 'Disable' },
-    { _id: 'cst-prov-5', courierName: 'Shadowfax', status: 'Enable' },
-  ];
-  const DUMMY_COSTING_SERVICES = [
-    { _id: 'cst-svc-1', name: 'Delhivery Surface 5kg', provider: 'Delhivery', courierType: 'Surface' },
-    { _id: 'cst-svc-2', name: 'Delhivery Air Express', provider: 'Delhivery', courierType: 'Air' },
-    { _id: 'cst-svc-3', name: 'DTDC Standard', provider: 'DTDC', courierType: 'Surface' },
-    { _id: 'cst-svc-4', name: 'Ekart Logistics', provider: 'Ekart', courierType: 'Surface' },
-    { _id: 'cst-svc-5', name: 'XpressBees Surface', provider: 'XpressBees', courierType: 'Surface' },
-    { _id: 'cst-svc-6', name: 'Shadowfax Same Day', provider: 'Shadowfax', courierType: 'Air' },
-  ];
-  // One pre-filled example so the "● Saved" row state renders too, exactly like ratesMap.
-  const DUMMY_COSTING_RATE_CARDS = [
-    {
-      _id: 'cst-rate-1', courierProviderName: 'Delhivery', courierServiceName: 'Delhivery Surface 5kg',
-      isFlatRate: false, status: 'Active', shipmentType: 'Forward',
-      weightPriceBasic: [{ weight: 500, zoneA: 32, zoneB: 38, zoneC: 45, zoneD: 55, zoneE: 68 }],
-      weightPriceAdditional: [{ weight: 500, zoneA: 18, zoneB: 22, zoneC: 26, zoneD: 32, zoneE: 40 }],
-      codCharge: 25, codPercent: 1.5,
-    },
-  ];
-
-  const [costingProviders] = useState<any[]>(DUMMY_COSTING_PROVIDERS);
-  const [costingServices] = useState<any[]>(DUMMY_COSTING_SERVICES);
-  const [costingRatesMap, setCostingRatesMap] = useState<Record<string, Record<string, any>>>(() => {
-    const map: Record<string, Record<string, any>> = {};
-    DUMMY_COSTING_RATE_CARDS.forEach((rc: any) => {
-      const provKey = (rc.courierProviderName || '').trim();
-      const svcKey = (rc.courierServiceName || '').trim();
-      const basic = rc.weightPriceBasic?.[0] || {};
-      const add = rc.weightPriceAdditional?.[0] || {};
-      if (!map[provKey]) map[provKey] = {};
-      map[provKey][svcKey] = {
-        _id: rc._id,
-        isFlatRate: rc.isFlatRate || false,
-        basicWeight: basic.weight != null ? String(basic.weight) : '',
-        basicZoneA: basic.zoneA != null ? String(basic.zoneA) : '',
-        basicZoneB: basic.zoneB != null ? String(basic.zoneB) : '',
-        basicZoneC: basic.zoneC != null ? String(basic.zoneC) : '',
-        basicZoneD: basic.zoneD != null ? String(basic.zoneD) : '',
-        basicZoneE: basic.zoneE != null ? String(basic.zoneE) : '',
-        addWeight: add.weight != null ? String(add.weight) : '',
-        addZoneA: add.zoneA != null ? String(add.zoneA) : '',
-        addZoneB: add.zoneB != null ? String(add.zoneB) : '',
-        addZoneC: add.zoneC != null ? String(add.zoneC) : '',
-        addZoneD: add.zoneD != null ? String(add.zoneD) : '',
-        addZoneE: add.zoneE != null ? String(add.zoneE) : '',
-        codCharge: rc.codCharge != null ? String(rc.codCharge) : '',
-        codPercentage: rc.codPercent != null ? String(rc.codPercent) : '',
-        status: rc.status || 'Active',
-        shipmentType: rc.shipmentType || 'Forward',
-      };
-    });
-    return map;
-  });
+  // Reuses the same providers/services state as the Management tab.
+  // costingRatesMap is keyed by providerName → serviceName (no plan dimension).
+  // Endpoint: GET /costingRate/getAll  POST /costingRate/save  PUT /costingRate/update/:id
+  const [costingRatesMap, setCostingRatesMap] = useState<Record<string, Record<string, any>>>({});
 
   const [costingSearch, setCostingSearch] = useState('');
   const [costingStatusFilter, setCostingStatusFilter] = useState<string[]>([]);
@@ -222,7 +201,7 @@ export function AdminRateCard() {
   const [addCostingRateForm, setAddCostingRateForm] = useState(emptyAddCostingRateForm);
   const [addCostingRateError, setAddCostingRateError] = useState('');
 
-  const costingServicesGrouped = costingServices.reduce((acc: Record<string, any[]>, svc: any) => {
+  const costingServicesGrouped = services.reduce((acc: Record<string, any[]>, svc: any) => {
     const key = svc.provider;
     if (!acc[key]) acc[key] = [];
     acc[key].push(svc);
@@ -246,7 +225,7 @@ export function AdminRateCard() {
 
   const hasActiveCostingFilters = !!(costingSearch || costingStatusFilter.length || costingTypeFilter.length);
 
-  const filteredCostingProviders = costingProviders.filter((p) => {
+  const filteredCostingProviders = providers.filter((p) => {
     const search = costingAppliedSearch;
     const matchesSearch = (p.courierName || '').toLowerCase().includes(search.toLowerCase());
     const matchesStatus =
@@ -261,57 +240,72 @@ export function AdminRateCard() {
     return matchesSearch && matchesStatus && matchesType;
   });
 
-  /** Local-only "template download" — no endpoint wired up yet. */
-  const handleDownloadCostingTemplate = () => {
-    setCostingSaveError('');
+  const handleDownloadCostingTemplate = async () => {
+    try {
+      const res = await apiClient.get('/costingRate/download-excel', { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'costing-rate-card-template.xlsx');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      setCostingSaveError('Template download not available yet');
+    }
   };
 
-  /** Local-only "upload" — no endpoint wired up yet; just simulates a brief loading state. */
-  const handleCostingUpload = (_file: File) => {
+  const handleCostingUpload = async (file: File) => {
     setCostingUploading(true);
     setCostingSaveError('');
-    setTimeout(() => {
-      setCostingUploading(false);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      await apiClient.post('/costingRate/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      const fresh = await apiClient.get('/costingRate/getAll');
+      setCostingRatesMap(buildCostingRatesMap(fresh.data.costingRateCards || [], services));
       setCostingUploadSuccess('Costing rate card uploaded successfully!');
       setTimeout(() => setCostingUploadSuccess(''), 4000);
-    }, 600);
+    } catch (err: any) {
+      setCostingSaveError(err?.response?.data?.message || 'Upload failed');
+    } finally {
+      setCostingUploading(false);
+    }
   };
 
-  /** Local-only add — no endpoint wired up yet; appends a rate entry straight into costingRatesMap. */
-  const handleAddCostingRateCard = () => {
+  const [addingCostingRate, setAddingCostingRate] = useState(false);
+
+  const handleAddCostingRateCard = async () => {
     if (!addCostingRateForm.providerName || !addCostingRateForm.serviceName) {
       setAddCostingRateError('Provider and service are required');
       return;
     }
+    setAddingCostingRate(true);
     setAddCostingRateError('');
-    const pKey = addCostingRateForm.providerName.trim();
-    const sKey = addCostingRateForm.serviceName.trim();
-    setCostingRatesMap(prev => {
-      const providerRates = prev[pKey] || {};
-      const serviceRates = providerRates[sKey] || {};
-      const updated = {
-        ...serviceRates,
-        _id: serviceRates._id || `cst-rate-${Date.now()}`,
-        isFlatRate: addCostingRateForm.isFlatRate,
-        basicWeight: addCostingRateForm.basicWeight,
-        basicZoneA: addCostingRateForm.basicZoneA,
-        basicZoneB: addCostingRateForm.basicZoneB,
-        basicZoneC: addCostingRateForm.basicZoneC,
-        basicZoneD: addCostingRateForm.basicZoneD,
-        basicZoneE: addCostingRateForm.basicZoneE,
-        addWeight: addCostingRateForm.addWeight,
-        addZoneA: addCostingRateForm.addZoneA,
-        addZoneB: addCostingRateForm.addZoneB,
-        addZoneC: addCostingRateForm.addZoneC,
-        addZoneD: addCostingRateForm.addZoneD,
-        addZoneE: addCostingRateForm.addZoneE,
-        codCharge: addCostingRateForm.codCharge,
-        codPercentage: addCostingRateForm.codPercentage,
+    try {
+      const svc = services.find((s: any) => s.name === addCostingRateForm.serviceName);
+      const payload = {
+        courierServiceName: addCostingRateForm.serviceName,
+        mode: svc?.courierType || '',
         status: addCostingRateForm.status,
+        shipmentType: 'Forward',
+        weightPriceBasic: [{ weight: parseFloat(addCostingRateForm.basicWeight)||0, zoneA: parseFloat(addCostingRateForm.basicZoneA)||0, zoneB: parseFloat(addCostingRateForm.basicZoneB)||0, zoneC: parseFloat(addCostingRateForm.basicZoneC)||0, zoneD: parseFloat(addCostingRateForm.basicZoneD)||0, zoneE: parseFloat(addCostingRateForm.basicZoneE)||0 }],
+        weightPriceAdditional: [{ weight: parseFloat(addCostingRateForm.addWeight)||0, zoneA: parseFloat(addCostingRateForm.addZoneA)||0, zoneB: parseFloat(addCostingRateForm.addZoneB)||0, zoneC: parseFloat(addCostingRateForm.addZoneC)||0, zoneD: parseFloat(addCostingRateForm.addZoneD)||0, zoneE: parseFloat(addCostingRateForm.addZoneE)||0 }],
+        codPercent: parseFloat(addCostingRateForm.codPercentage)||0,
+        codCharge: parseFloat(addCostingRateForm.codCharge)||0,
       };
-      return { ...prev, [pKey]: { ...providerRates, [sKey]: updated } };
-    });
-    setAddCostingRateModal(false);
+      await apiClient.post('/costingRate/save', payload);
+      const fresh = await apiClient.get('/costingRate/getAll');
+      setCostingRatesMap(buildCostingRatesMap(fresh.data.costingRateCards || [], services));
+      setAddCostingRateModal(false);
+    } catch (err: any) {
+      setAddCostingRateError(err?.response?.data?.message || 'Failed to save costing rate card');
+    } finally {
+      setAddingCostingRate(false);
+    }
   };
 
   const handleCostingRateChange = (provKey: string, svcKey: string, field: string, value: any) => {
@@ -327,16 +321,41 @@ export function AdminRateCard() {
     });
   };
 
-  /** Local-only save — no endpoint wired up yet; mirrors handleSaveRates but writes
-   *  straight into local state instead of calling apiClient. */
-  const handleSaveCostingRates = (provider: any) => {
+  const handleSaveCostingRates = async (provider: any) => {
     setCostingSavingId(provider._id);
     setCostingSaveError('');
-    setTimeout(() => {
+    try {
+      const provKey = (provider.courierName || '').trim();
+      const svcs: any[] = costingServicesGrouped[provKey] || [];
+      for (const svc of svcs) {
+        const svcKey = (svc.name || '').trim();
+        const rate = costingRatesMap[provKey]?.[svcKey];
+        if (!rate) continue;
+        const payload = {
+          courierServiceName: svcKey,
+          mode: svc.courierType || '',
+          status: rate.status || 'Active',
+          shipmentType: rate.shipmentType || 'Forward',
+          weightPriceBasic: [{ weight: parseFloat(rate.basicWeight)||0, zoneA: parseFloat(rate.basicZoneA)||0, zoneB: parseFloat(rate.basicZoneB)||0, zoneC: parseFloat(rate.basicZoneC)||0, zoneD: parseFloat(rate.basicZoneD)||0, zoneE: parseFloat(rate.basicZoneE)||0 }],
+          weightPriceAdditional: [{ weight: parseFloat(rate.addWeight)||0, zoneA: parseFloat(rate.addZoneA)||0, zoneB: parseFloat(rate.addZoneB)||0, zoneC: parseFloat(rate.addZoneC)||0, zoneD: parseFloat(rate.addZoneD)||0, zoneE: parseFloat(rate.addZoneE)||0 }],
+          codPercent: parseFloat(rate.codPercentage)||0,
+          codCharge: parseFloat(rate.codCharge)||0,
+        };
+        if (rate._id && !String(rate._id).startsWith('cst-rate-')) {
+          await apiClient.put(`/costingRate/update/${rate._id}`, payload);
+        } else {
+          await apiClient.post('/costingRate/save', payload);
+        }
+      }
+      const fresh = await apiClient.get('/costingRate/getAll');
+      setCostingRatesMap(buildCostingRatesMap(fresh.data.costingRateCards || [], services));
       setEditingCostingProviderId(null);
       setExpandedCostingProviderId(null);
+    } catch (err: any) {
+      setCostingSaveError(err?.response?.data?.message || 'Failed to save costing rates');
+    } finally {
       setCostingSavingId(null);
-    }, 300);
+    }
   };
 
   // ─── Global search listener (navbar search bar) ──────────────────────────────
@@ -353,11 +372,12 @@ export function AdminRateCard() {
   useEffect(() => {
     const init = async () => {
       setLoading(true);
-      const [plansRes, providersRes, servicesRes, rateCardsRes] = await Promise.allSettled([
+      const [plansRes, providersRes, servicesRes, rateCardsRes, costingRes] = await Promise.allSettled([
         apiClient.get('/saveRate/getPlanNames'),
         apiClient.get('/allCourier/couriers'),
         apiClient.get('/courierServices/couriers'),
         apiClient.get('/saveRate/getRateCard'),
+        apiClient.get('/costingRate/getAll'),
       ]);
 
       const fetchedProviders: any[] = providersRes.status === 'fulfilled' && Array.isArray(providersRes.value.data)
@@ -366,6 +386,8 @@ export function AdminRateCard() {
         ? servicesRes.value.data : [];
       const fetchedCards: any[] = rateCardsRes.status === 'fulfilled'
         ? (rateCardsRes.value.data.rateCards || []) : [];
+      const fetchedCostingCards: any[] = costingRes.status === 'fulfilled'
+        ? (costingRes.value.data.costingRateCards || []) : [];
 
       const namedPlans: string[] = plansRes.status === 'fulfilled'
         ? (plansRes.value.data.planNames || []) : [];
@@ -377,6 +399,7 @@ export function AdminRateCard() {
       setServices(fetchedServices);
       if (fetchedPlans.length > 0) setSelectedPlan(fetchedPlans[0]);
       setRatesMap(buildRatesMap(fetchedProviders, fetchedServices, fetchedCards));
+      setCostingRatesMap(buildCostingRatesMap(fetchedCostingCards, fetchedServices));
       setLoading(false);
     };
     init();
@@ -2154,7 +2177,7 @@ export function AdminRateCard() {
                       onChange={(e) => setAddCostingRateForm(f => ({ ...f, providerName: e.target.value, serviceName: '' }))}
                       className="w-full h-11 px-4 bg-white border border-[#E2E8F0] rounded-[14px] text-sm font-medium text-[#0F172A] focus:outline-none focus:border-[#00A86B] appearance-none">
                       <option value="">Select Provider</option>
-                      {costingProviders.map(p => <option key={p._id} value={p.courierName}>{p.courierName}</option>)}
+                      {providers.map((p: any) => <option key={p._id} value={p.courierName}>{p.courierName}</option>)}
                     </select>
                   </div>
                   <div>
@@ -2163,7 +2186,7 @@ export function AdminRateCard() {
                       disabled={!addCostingRateForm.providerName}
                       className="w-full h-11 px-4 bg-white border border-[#E2E8F0] rounded-[14px] text-sm font-medium text-[#0F172A] focus:outline-none focus:border-[#00A86B] appearance-none disabled:opacity-50">
                       <option value="">Select Service</option>
-                      {costingServices.filter((s: any) => s.provider === addCostingRateForm.providerName).map((s: any) => (
+                      {services.filter((s: any) => s.provider === addCostingRateForm.providerName).map((s: any) => (
                         <option key={s._id} value={s.name}>{s.name}</option>
                       ))}
                     </select>
@@ -2254,9 +2277,9 @@ export function AdminRateCard() {
                   className="px-5 h-11 rounded-[14px] font-semibold text-sm text-[#475569] bg-white border border-[#E2E8F0] hover:bg-[#F8FAFC] transition-all">
                   Cancel
                 </button>
-                <button onClick={handleAddCostingRateCard}
-                  className="px-6 h-11 rounded-[14px] font-semibold text-sm text-white bg-[#00A86B] hover:bg-[#009B63] transition-all shadow-sm flex items-center gap-2">
-                  <Save className="w-4 h-4" /> Save Rate Card
+                <button onClick={handleAddCostingRateCard} disabled={addingCostingRate}
+                  className="px-6 h-11 rounded-[14px] font-semibold text-sm text-white bg-[#00A86B] hover:bg-[#009B63] transition-all shadow-sm flex items-center gap-2 disabled:opacity-60">
+                  <Save className="w-4 h-4" /> {addingCostingRate ? 'Saving...' : 'Save Rate Card'}
                 </button>
               </div>
             </motion.div>

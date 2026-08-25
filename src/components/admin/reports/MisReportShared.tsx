@@ -553,7 +553,7 @@ export function MisReportTable({ userId, isAdminView, fillHeight }: {
     setLoading(true);
     try {
       const params: any = { page, limit: rowsPerPage };
-      if (isAdminView && userId) params.userSearch = userId;
+      if (userId) params.userSearch = userId;
       const res = await apiClient.get('/mis-report/list', { params });
       setReports(res.data?.results || []);
       setTotalReports(res.data?.total || 0);

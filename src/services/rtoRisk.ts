@@ -3,12 +3,15 @@
 // the scoring rules — or eventually an ML-based predictor — can be swapped in
 // without touching the pages that render the result.
 
+import { apiClient } from './apiClient';
+
 export type RtoRiskLevel = 'Low' | 'Medium' | 'High';
 
 export interface RtoRiskResult {
   score: number;
   level: RtoRiskLevel;
   reasons: string[];
+  action?: string[];
 }
 
 /** Minimal order shape the scorer needs — a subset of AdminOrders' mapped order. */
@@ -135,7 +138,19 @@ export function calculateRtoRisk(
   return { score, level, reasons };
 }
 
-// The logic for rto based prediction is 
+// ─── Backend-powered batch fetch ───────────────────────────────────────────────
+/**
+ * Calls POST /rtoRisk/batch with up to 100 order _ids.
+ * Returns a map of { [orderId]: RtoRiskResult } using platform-wide RTO stats
+ * computed in the backend (cross-seller pincode rates, real customer history).
+ */
+export async function fetchBatchRtoRisk(orderIds: string[]): Promise<Record<string, RtoRiskResult>> {
+  if (orderIds.length === 0) return {};
+  const res = await apiClient.post('/rtoRisk/batch', { orderIds });
+  return (res.data?.risks || {}) as Record<string, RtoRiskResult>;
+}
+
+// The logic for rto based prediction is
 // logic for rto risk Implement a **Rule-Based RTO Risk Prediction System** for QuickPost orders.
 
 // For every order, calculate an **RTO Risk Score out of 100** using these conditions:
