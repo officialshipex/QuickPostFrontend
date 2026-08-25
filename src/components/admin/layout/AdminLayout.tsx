@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { AdminSidebar } from './AdminSidebar';
 import { AdminHeader } from './AdminHeader';
 import { TableLoader } from '../../ui/TableLoader';
@@ -14,10 +14,58 @@ interface AdminLayoutProps {
 export function AdminLayout({ children }: AdminLayoutProps) {
   const isInsideShell = useAdminLayoutShell();
   const location = useLocation();
+  const navigate = useNavigate();
   const { loadingAdminTab } = useAdminTab();
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [accessDeniedMsg, setAccessDeniedMsg] = useState<string | null>(null);
   const isImpersonating = !!localStorage.getItem('admin_token_backup');
+  const awaitingSecondKeyRef = useRef(false);
+  const awaitingKeyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Keyboard shortcut: "A" then "O" opens Add Order (user side, desktop only)
+  useEffect(() => {
+    if (!location.pathname.startsWith('/user/')) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const isTypingTarget =
+        !!target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.tagName === 'SELECT' ||
+          target.isContentEditable);
+      if (isTypingTarget || e.metaKey || e.ctrlKey || e.altKey) {
+        awaitingSecondKeyRef.current = false;
+        return;
+      }
+
+      const key = e.key.toLowerCase();
+
+      if (!awaitingSecondKeyRef.current) {
+        if (key === 'a') {
+          awaitingSecondKeyRef.current = true;
+          if (awaitingKeyTimeoutRef.current) clearTimeout(awaitingKeyTimeoutRef.current);
+          awaitingKeyTimeoutRef.current = setTimeout(() => {
+            awaitingSecondKeyRef.current = false;
+          }, 1000);
+        }
+        return;
+      }
+
+      awaitingSecondKeyRef.current = false;
+      if (awaitingKeyTimeoutRef.current) clearTimeout(awaitingKeyTimeoutRef.current);
+      if (key === 'o') {
+        e.preventDefault();
+        navigate('/user/add-order');
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      if (awaitingKeyTimeoutRef.current) clearTimeout(awaitingKeyTimeoutRef.current);
+    };
+  }, [location.pathname, navigate]);
 
   useEffect(() => {
     if (isInsideShell) return;

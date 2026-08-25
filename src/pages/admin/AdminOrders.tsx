@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useParams, useLocation, useSearchParams } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -11,7 +11,8 @@ import {
   Search, ChevronDown, RefreshCcw, Send, Calendar, Check, MoreHorizontal,
   IndianRupee, Package, User, Settings, MapPin, X, Truck, CreditCard,
   CheckCircle2, Clock, AlertTriangle, Flame, History, Layers, RefreshCw, Mail,
-  Filter, Copy, PackagePlus, FileText, Download, MoreVertical, Loader2, ArrowUp, ArrowDown
+  Filter, Copy, PackagePlus, FileText, Download, MoreVertical, Loader2, ArrowUp, ArrowDown,
+  UserCheck, Eye, EyeOff
 } from 'lucide-react';
 import { usePagination, DesktopPagination } from '../../hooks/usePagination';
 import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
@@ -32,6 +33,31 @@ import { useProductTooltip, ProductTooltipCard } from '../../hooks/useProductToo
 import { CourierLogo } from '../../components/ui/CourierLogo';
 import { calculateRtoRisk, fetchBatchRtoRisk } from '../../services/rtoRisk';
 import type { RtoRiskResult } from '../../services/rtoRisk';
+import flatRateAdImg from '../../assets/flat-rate-ad.png';
+
+// Renders the ad image on a <canvas> so no src= URL is exposed in the DOM.
+// Right-click "Save Image As" doesn't work on canvas elements.
+function ProtectedAdImage({ src }: { src: string }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const img = new Image();
+    img.onload = () => {
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      canvas.getContext('2d')?.drawImage(img, 0, 0);
+    };
+    img.src = src;
+  }, [src]);
+  return (
+    <canvas
+      ref={canvasRef}
+      onContextMenu={e => e.preventDefault()}
+      style={{ width: '100%', height: 'auto', display: 'block' }}
+    />
+  );
+}
 
 // ─── Tabs ─────────────────────────────────────────────────────────────────────
 const MAIN_TABS = ['New', 'Ready to Ship', 'Pickup & Manifest', 'In Transit', 'Delivered'];
@@ -153,6 +179,13 @@ const renderAgeing = (dateStr: string) => {
 // Guards against non-email placeholder values (e.g. a stray phone/id like "123") leaking through the fallback chain.
 const asEmail = (v: any): string => (typeof v === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim())) ? v.trim() : '';
 
+/** Masks all but the last 2 digits of a phone number, e.g. "9876543210" -> "xxxxxxxx10". */
+const maskPhone = (phone: string): string => {
+  const digits = phone.replace(/\D/g, '');
+  if (digits.length <= 2) return phone;
+  return 'x'.repeat(digits.length - 2) + digits.slice(-2);
+};
+
 // ─── Map raw API order → display shape ────────────────────────────────────────
 const mapOrder = (o: any) => {
   const l = o.packageDetails?.volumetricWeight?.length || 0;
@@ -169,6 +202,7 @@ const mapOrder = (o: any) => {
     userEmail:      o.userId?.email || '—',
     userUserId:     o.userId?.userId || '',
     date:           o.createdAt ? new Date(o.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—',
+    createdAtRaw:   o.createdAt || null,
     manifestDate:   o.manifestDate || o.createdAt || new Date().toISOString(),
     productName:    (o.productDetails || []).map((p: any) => p.name).filter(Boolean).join(', ') || '—',
     sku:            (o.productDetails || []).map((p: any) => p.sku).filter(Boolean).join(', ') || '—',
@@ -347,6 +381,18 @@ export function AdminOrders() {
   // otherwise the extra 32px overflows the viewport and the whole page scrolls.
   const isImpersonating = !!localStorage.getItem('admin_token_backup');
 
+  // ── Flat Rate Services ad — shown once per login session, dismissible ──
+  const [showFlatRateAd, setShowFlatRateAd] = useState(() => {
+    const token = getToken();
+    if (!token) return false;
+    return sessionStorage.getItem(`flatRateAdSeen_${token}`) !== '1';
+  });
+  const dismissFlatRateAd = () => {
+    const token = getToken();
+    if (token) sessionStorage.setItem(`flatRateAdSeen_${token}`, '1');
+    setShowFlatRateAd(false);
+  };
+
   // ── Tabs — each tab is its own URL sub-route (/admin/orders/:tabSlug or /user/orders/:tabSlug) ──
   const navigate = useNavigate();
   const location = useLocation();
@@ -424,6 +470,44 @@ export function AdminOrders() {
   // Backend-computed risk scores keyed by order _id string
   const [riskMap, setRiskMap] = useState<Record<string, RtoRiskResult>>({});
 
+  // ── Repeat-customer detection (user-side, desktop, New tab only) ──
+  // Matching key is customer identity + address: phone number first (the closest
+  // thing to a stable customer id on the order payload), normalized delivery
+  // address as the tiebreaker — so two different people who happen to type the
+  // same address text don't get merged, and the same customer re-ordering to a
+  // slightly differently-formatted address still matches.
+  const [repeatCustomerMap, setRepeatCustomerMap] = useState<Record<string, {
+    totalOrders: number; lastOrderDate: string | null; previousOrderDate: string | null; customerName: string;
+    delivered: number; cancelled: number; rto: number;
+  }>>({});
+  const normalizeAddress = (addr: string, pin: string) => `${(addr || '').trim().toLowerCase().replace(/\s+/g, ' ')}|${(pin || '').trim()}`;
+  const repeatCustomerKey = (phone: string, addr: string, pin: string) =>
+    `${(phone || '').replace(/\D/g, '')}__${normalizeAddress(addr, pin)}`;
+
+  // Which single order, per customer+address, is the "latest" one — computed
+  // dynamically from the orders actually on screen (this is what the indicator
+  // anchors to), never a hardcoded id. Compares the FULL creation timestamp
+  // (date + time, down to the millisecond) via createdAtRaw, not just the
+  // calendar date, so a 4:45 PM order correctly beats a 10:30 AM order on the
+  // same day. If two orders share the exact same timestamp, Mongo's _id is used
+  // as a deterministic tiebreaker — ObjectIds are chronologically sortable by
+  // creation, so this is a stable, meaningful fallback rather than an arbitrary one.
+  const latestOrderIdByCustomer = useMemo(() => {
+    const latest: Record<string, { id: string; time: number }> = {};
+    for (const o of orders) {
+      if (!o.customerAddress || !o.createdAtRaw) continue;
+      const key = repeatCustomerKey(o.customerPhone, o.customerAddress, o.customerPinCode);
+      const time = new Date(o.createdAtRaw).getTime();
+      const current = latest[key];
+      if (!current || time > current.time || (time === current.time && String(o._id) > String(current.id))) {
+        latest[key] = { id: o._id, time };
+      }
+    }
+    const result: Record<string, string> = {};
+    for (const key in latest) result[key] = latest[key].id;
+    return result;
+  }, [orders]);
+
   // ── Filter state (applied on Apply click) ──
   const [orderId,                setOrderId]               = useState('');
   const [awbNumber,              setAwbNumber]             = useState('');
@@ -457,6 +541,11 @@ export function AdminOrders() {
   const ageingLegendRef = useRef<any>(null);
   const [hoveredPickup,   setHoveredPickup]     = useState<{ id: string; rect: DOMRect; name: string; address: string; city: string; state: string; pinCode: string; phone: string } | null>(null);
   const [hoveredCustomer, setHoveredCustomer]   = useState<{ rect: DOMRect; name: string; address: string; city: string; state: string; pinCode: string; email: string } | null>(null);
+  // Repeat-customer popover — click-triggered (not hover), portaled. Only one can
+  // be open at a time since it's a single piece of state; clicking the same
+  // indicator again, or clicking outside, closes it.
+  const [repeatCustomerPopover, setRepeatCustomerPopover] = useState<{ rect: DOMRect; key: string } | null>(null);
+  const [revealedPhones, setRevealedPhones] = useState<Set<string>>(new Set());
 
   // ── Update Package Details modal ──
   const [showPackageModal,  setShowPackageModal]  = useState(false);
@@ -1110,6 +1199,34 @@ export function AdminOrders() {
             </button>
           </div>
 
+          {/* ── Flat Rate Services ad — user side only, first time per login session ── */}
+          {!isAdminView && (
+            <AnimatePresence initial={false}>
+              {showFlatRateAd && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.25, ease: 'easeInOut' }}
+                  className="overflow-hidden"
+                >
+                  <div className="px-4 md:px-6 pt-3">
+                    <div className="relative rounded-xl overflow-hidden border border-[#E2E8F0] shadow-sm">
+                      <ProtectedAdImage src={flatRateAdImg} />
+                      <button
+                        onClick={dismissFlatRateAd}
+                        aria-label="Dismiss ad"
+                        className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white/90 hover:bg-white shadow-sm border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:text-[#0F172A] transition-colors"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          )}
+
           {/* ── Filter Row — hidden for Pickup & Manifest (that tab has its own UI) ── */}
           {!isPMTab && <div className="orders-filter-bar hidden md:flex py-3 px-6 border-b border-[#CBD5F5] flex-wrap items-center gap-3 bg-[#F8FAFC]/50">
 
@@ -1447,13 +1564,64 @@ export function AdminOrders() {
                             </div>
                           </td>
                           <td className="p-3">
-                            <div className="flex flex-col gap-1">
-                              <div
-                                className="text-[12px] leading-[18px] font-normal text-[#1E293B] underline decoration-dotted underline-offset-2 hover:text-[#00A86B] cursor-help inline-block truncate max-w-[110px]"
-                                onMouseEnter={(e) => setHoveredCustomer({ rect: e.currentTarget.getBoundingClientRect(), name: order.customerName, address: order.customerAddress, city: order.customerCity, state: order.customerState, pinCode: order.customerPinCode, email: order.customerEmail })}
-                                onMouseLeave={() => setHoveredCustomer(null)}
-                              >
-                                {order.customerName}
+                            <div className="relative flex flex-col gap-1 overflow-visible">
+                              <div className="flex items-center gap-1">
+                                <div
+                                  className="text-[12px] leading-[18px] font-normal text-[#1E293B] underline decoration-dotted underline-offset-2 hover:text-[#00A86B] cursor-help inline-block truncate max-w-[110px]"
+                                  onMouseEnter={(e) => setHoveredCustomer({ rect: e.currentTarget.getBoundingClientRect(), name: order.customerName, address: order.customerAddress, city: order.customerCity, state: order.customerState, pinCode: order.customerPinCode, email: order.customerEmail })}
+                                  onMouseLeave={() => setHoveredCustomer(null)}
+                                >
+                                  {order.customerName}
+                                </div>
+                                {!isAdminView && isNewTab && (() => {
+                                  const key = repeatCustomerKey(order.customerPhone, order.customerAddress, order.customerPinCode);
+                                  const repeat = repeatCustomerMap[key];
+                                  if (!repeat || repeat.totalOrders <= 1) return null;
+                                  // Only the single most-recent order for this customer+address (among
+                                  // what's on screen) gets the icon — never more than one row.
+                                  // "Most recent" is decided by the full creation timestamp (date + time),
+                                  // see latestOrderIdByCustomer above.
+                                  if (latestOrderIdByCustomer[key] !== order._id) return null;
+                                  return (
+                                    <button
+                                      type="button"
+                                      title="Repeat customer"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        const rect = e.currentTarget.getBoundingClientRect();
+                                        setRepeatCustomerPopover(prev => prev?.key === key ? null : { rect, key });
+                                      }}
+                                      className="shrink-0 text-[#4F46E5] hover:text-[#4338CA] cursor-pointer transition-colors ml-[5px]"
+                                    >
+                                      <UserCheck className="w-3.5 h-3.5" />
+                                    </button>
+                                  );
+                                })()}
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                <div className="text-[12px] leading-[18px] font-normal text-[#64748B]">
+                                  {!isAdminView && order.customerPhone && order.customerPhone !== '—' && !revealedPhones.has(order._id)
+                                    ? maskPhone(order.customerPhone)
+                                    : order.customerPhone}
+                                </div>
+                                {!isAdminView && order.customerPhone && order.customerPhone !== '—' && (
+                                  <button
+                                    type="button"
+                                    title={revealedPhones.has(order._id) ? 'Hide mobile number' : 'Show mobile number'}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setRevealedPhones(prev => {
+                                        const next = new Set(prev);
+                                        if (next.has(order._id)) next.delete(order._id);
+                                        else next.add(order._id);
+                                        return next;
+                                      });
+                                    }}
+                                    className="shrink-0 text-[#94A3B8] hover:text-[#0F172A] cursor-pointer transition-colors"
+                                  >
+                                    {revealedPhones.has(order._id) ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                                  </button>
+                                )}
                               </div>
                               <div className="text-[12px] leading-[18px] font-normal text-[#64748B]">{order.customerPhone}</div>
                               <RtoRiskLine order={order} historyMaps={rtoHistoryMaps} riskResult={riskMap[order._id]} />
@@ -2214,6 +2382,71 @@ export function AdminOrders() {
                 <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 border-[6px] border-transparent border-t-[#0F172A]" />
               )}
             </div>,
+            document.body
+          );
+        })()}
+
+        {/* ── Repeat Customer "Customer Profile" popover — click-triggered, portaled,
+             opens on the same page, closes on outside click. ── */}
+        {repeatCustomerPopover && (() => {
+          const repeat = repeatCustomerMap[repeatCustomerPopover.key];
+          if (!repeat) return null;
+          const rect = repeatCustomerPopover.rect;
+          const showBelow = rect.top < 340;
+          const lastOrderDate = repeat.lastOrderDate
+            ? new Date(repeat.lastOrderDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+            : '—';
+          const POPOVER_WIDTH = 272;
+          return createPortal(
+            <>
+              <div className="fixed inset-0 z-[9998]" onClick={() => setRepeatCustomerPopover(null)} />
+              <div className="fixed z-[9999] bg-white rounded-2xl shadow-[0_16px_40px_-8px_rgba(15,23,42,0.2)] border border-[#E2E8F0]"
+                style={{
+                  width: POPOVER_WIDTH,
+                  top: showBelow ? rect.bottom + 8 : undefined,
+                  bottom: showBelow ? undefined : window.innerHeight - rect.top + 8,
+                  left: Math.min(Math.max(rect.left, 12), window.innerWidth - POPOVER_WIDTH - 12),
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="p-4">
+                  <h4 className="text-[14px] font-bold text-[#0F172A] mb-3">Customer Profile</h4>
+
+                  <div className="flex items-center justify-between px-3 py-2.5 bg-[#F8FAFC] rounded-xl mb-3">
+                    <span className="text-[12px] font-medium text-[#64748B]">Last Order Date:</span>
+                    <span className="text-[12px] font-bold text-[#0F172A]">{lastOrderDate}</span>
+                  </div>
+
+                  <div className="px-3 py-2.5 bg-[#F8FAFC] rounded-xl space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[12px] font-bold text-[#0F172A]">Total Orders:</span>
+                      <span className="text-[12px] font-bold text-[#0F172A]">{repeat.totalOrders}</span>
+                    </div>
+                    <div className="h-px bg-[#E2E8F0]" />
+                    <div className="flex items-center justify-between">
+                      <span className="text-[12px] font-medium text-[#64748B]">Delivered:</span>
+                      <span className="text-[12px] font-bold text-[#0F172A]">{repeat.delivered}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[12px] font-medium text-[#64748B]">Cancelled:</span>
+                      <span className="text-[12px] font-bold text-[#0F172A]">{repeat.cancelled}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[12px] font-medium text-[#64748B]">RTO:</span>
+                      <span className="text-[12px] font-bold text-[#0F172A]">{repeat.rto}</span>
+                    </div>
+                  </div>
+
+                  <p className="text-[10px] text-[#94A3B8] mt-3">This data is for last 6 months only</p>
+
+                  <div className="flex justify-end mt-3">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#EEF2FF] text-[#4F46E5] text-[10px] font-semibold tracking-wide">
+                      <UserCheck className="w-3 h-3" /> REPEAT CUSTOMER
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </>,
             document.body
           );
         })()}
