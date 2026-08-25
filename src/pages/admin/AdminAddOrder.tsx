@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import {
   ArrowLeft, Upload, Trash2, Plus, Minus, ChevronDown, ChevronUp, Loader2,
-  PackagePlus, X, CheckCircle2, MapPin, Search, Pencil
+  PackagePlus, X, CheckCircle2, MapPin, Search, Pencil, AlertTriangle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
@@ -82,12 +82,15 @@ export function AdminAddOrder() {
   const [pickupAddressTag, setPickupAddressTag] = useState<'Home' | 'Work' | 'Warehouse' | 'Other'>('Home');
   const [pickupAtLocationNow, setPickupAtLocationNow] = useState<'current' | 'manual'>('manual');
   const [pickupLocationSearch, setPickupLocationSearch] = useState('');
+  const [pickupLocationSuggestions, setPickupLocationSuggestions] = useState<any[]>([]);
+  const [pickupLocationSearching, setPickupLocationSearching] = useState(false);
   const [showPickupContactDetails, setShowPickupContactDetails] = useState(true);
   const [showPickupOperationalTimings, setShowPickupOperationalTimings] = useState(false);
   const [pickupOpeningTime, setPickupOpeningTime] = useState('');
   const [pickupClosingTime, setPickupClosingTime] = useState('');
   const [detectingLocation, setDetectingLocation] = useState(false);
   const [locationDetectError, setLocationDetectError] = useState('');
+  const [locationDetectWarning, setLocationDetectWarning] = useState('');
 
   // ── Receiver ──
   const [contactName, setContactName] = useState('');
@@ -349,6 +352,7 @@ export function AdminAddOrder() {
   // ── Detect device location and auto-fill pickup address ──
   const handleUseCurrentLocation = () => {
     setLocationDetectError('');
+    setLocationDetectWarning('');
     if (!navigator.geolocation) {
       setLocationDetectError('Location access is not supported on this device.');
       return;
@@ -358,16 +362,30 @@ export function AdminAddOrder() {
       async (pos) => {
         try {
           const { latitude, longitude } = pos.coords;
+          // zoom=16 → neighbourhood-level precision; accept-language=en → English names
           const res = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}&addressdetails=1`,
+            `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}&addressdetails=1&zoom=16&accept-language=en`,
             { headers: { Accept: 'application/json' } }
           );
+          if (!res.ok) throw new Error('Geocoding API error');
           const data = await res.json();
           const a = data?.address || {};
-          const pin = (a.postcode || '').replace(/\D/g, '').slice(0, 6);
-          const city = a.city || a.town || a.village || a.suburb || a.county || '';
+
+          // Pincode: postcode field first, then regex-extract any 6-digit number from display_name
+          const rawPin = (a.postcode || '').replace(/\D/g, '').slice(0, 6);
+          const pin = rawPin || (data?.display_name || '').match(/\b(\d{6})\b/)?.[1] || '';
+
+          // City: Nominatim uses different fields across Indian cities
+          const city = a.city || a.town || a.municipality || a.city_district || a.village || a.suburb || a.county || '';
           const state = a.state || '';
-          const streetParts = [a.house_number, a.road || a.neighbourhood, a.suburb].filter(Boolean);
+
+          // Street: include pedestrian/path/quarter for dense urban Indian areas
+          const streetParts = [
+            a.house_number,
+            a.road || a.pedestrian || a.footway || a.path,
+            a.neighbourhood || a.quarter,
+            a.suburb,
+          ].filter(Boolean);
           const streetAddress = streetParts.length ? streetParts.join(', ') : (data?.display_name || '');
 
           setPickupForm(prev => ({
@@ -378,6 +396,13 @@ export function AdminAddOrder() {
             state: state || prev.state,
           }));
           setPickupLocationSearch(streetAddress || data?.display_name || '');
+
+          // Warn (amber) if critical fields couldn't be filled — not a hard error
+          if (!pin || !city || !state) {
+            setLocationDetectWarning(
+              'Location detected but some fields (pincode/city/state) could not be auto-filled. Please complete them manually.'
+            );
+          }
         } catch {
           setLocationDetectError('Could not determine your address from the detected location. Please enter it manually.');
         } finally {
@@ -388,12 +413,57 @@ export function AdminAddOrder() {
         setDetectingLocation(false);
         setLocationDetectError(
           err.code === err.PERMISSION_DENIED
-            ? 'Location permission denied. Please allow location access or enter the address manually.'
+            ? 'Location permission denied. Please allow location access in your browser settings.'
+            : err.code === 3 // TIMEOUT
+            ? 'Location detection timed out. Please try again or enter the address manually.'
             : 'Could not detect your location. Please enter the address manually.'
         );
       },
       { enableHighAccuracy: true, timeout: 10000 }
     );
+  };
+
+  // Debounced forward geocoding for the manual location search box
+  useEffect(() => {
+    setPickupLocationSuggestions([]);
+    if (pickupAtLocationNow !== 'manual') return;
+    const q = pickupLocationSearch.trim();
+    if (q.length < 5) return;
+    const timer = setTimeout(async () => {
+      setPickupLocationSearching(true);
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(q)}&countrycodes=in&limit=5&addressdetails=1`,
+          { headers: { Accept: 'application/json' } }
+        );
+        const results = await res.json();
+        setPickupLocationSuggestions(Array.isArray(results) ? results : []);
+      } catch {
+        setPickupLocationSuggestions([]);
+      } finally {
+        setPickupLocationSearching(false);
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pickupLocationSearch, pickupAtLocationNow]);
+
+  const handlePickupLocationSelect = (item: any) => {
+    const a = item.address || {};
+    const pin = (a.postcode || '').replace(/\D/g, '').slice(0, 6);
+    const city = a.city || a.town || a.village || a.suburb || a.county || '';
+    const state = a.state || '';
+    const streetParts = [a.house_number, a.road || a.neighbourhood, a.suburb].filter(Boolean);
+    const streetAddress = streetParts.length ? streetParts.join(', ') : item.display_name;
+    setPickupForm(prev => ({
+      ...prev,
+      address: streetAddress || prev.address,
+      pinCode: pin || prev.pinCode,
+      city: city || prev.city,
+      state: state || prev.state,
+    }));
+    setPickupLocationSearch(item.display_name);
+    setPickupLocationSuggestions([]);
   };
 
   const resetPickupForm = () => {
@@ -402,7 +472,9 @@ export function AdminAddOrder() {
     setPickupAddressTag('Home');
     setPickupAtLocationNow('manual');
     setPickupLocationSearch('');
+    setPickupLocationSuggestions([]);
     setLocationDetectError('');
+    setLocationDetectWarning('');
   };
 
   const handleOpenAddPickup = () => {
@@ -1316,7 +1388,11 @@ export function AdminAddOrder() {
                 </div>
 
                 {pickupAtLocationNow === 'current' && (
-                  <div className="bg-[#F8FAFC] rounded-xl border border-[#E2E8F0] p-4 flex items-start gap-3">
+                  <div className={`rounded-xl border p-4 flex items-start gap-3 ${
+                    locationDetectError ? 'bg-red-50 border-red-200' :
+                    locationDetectWarning ? 'bg-amber-50 border-amber-200' :
+                    'bg-[#F8FAFC] border-[#E2E8F0]'
+                  }`}>
                     {detectingLocation ? (
                       <>
                         <Loader2 className="w-4 h-4 text-[#00A86B] animate-spin mt-0.5 shrink-0" />
@@ -1336,6 +1412,11 @@ export function AdminAddOrder() {
                           </button>
                         </div>
                       </>
+                    ) : locationDetectWarning ? (
+                      <>
+                        <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
+                        <p className="text-[13px] text-amber-700 font-medium">{locationDetectWarning}</p>
+                      </>
                     ) : (
                       <>
                         <CheckCircle2 className="w-4 h-4 text-[#00A86B] mt-0.5 shrink-0" />
@@ -1352,14 +1433,32 @@ export function AdminAddOrder() {
                     <p className="text-[13px] font-bold text-[#0F172A]">Search for your pickup address location/building name/area/landmark</p>
                     <p className="text-[11px] text-[#94A3B8] mb-3">Please add minimum 5 characters</p>
                     <div className="relative">
-                      <Search className="w-4 h-4 text-[#94A3B8] absolute left-4 top-1/2 -translate-y-1/2" />
+                      <Search className="w-4 h-4 text-[#94A3B8] absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
                       <input
                         type="text"
                         value={pickupLocationSearch}
                         onChange={e => setPickupLocationSearch(e.target.value)}
                         placeholder="Search Location"
-                        className="w-full h-11 pl-11 pr-4 border border-[#E2E8F0] rounded-full text-[13px] bg-white placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]"
+                        className="w-full h-11 pl-11 pr-10 border border-[#E2E8F0] rounded-full text-[13px] bg-white placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]"
                       />
+                      {pickupLocationSearching && (
+                        <Loader2 className="w-4 h-4 text-[#00A86B] animate-spin absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      )}
+                      {pickupLocationSuggestions.length > 0 && (
+                        <div className="absolute left-0 top-full mt-1.5 w-full bg-white border border-[#E2E8F0] rounded-2xl shadow-xl z-50 max-h-56 overflow-y-auto py-1.5 thin-scrollbar">
+                          {pickupLocationSuggestions.map((item, i) => (
+                            <button
+                              key={i}
+                              type="button"
+                              onClick={() => handlePickupLocationSelect(item)}
+                              className="w-full text-left px-4 py-2.5 hover:bg-[#F0FDF4] transition-colors flex items-start gap-2"
+                            >
+                              <MapPin className="w-3.5 h-3.5 text-[#94A3B8] shrink-0 mt-0.5" />
+                              <span className="text-[12px] text-[#0F172A] leading-relaxed">{item.display_name}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
