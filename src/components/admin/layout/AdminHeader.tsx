@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Search, LogOut, Bell, User, Building2, Calendar, ChevronDown, Shield, Zap, Calculator, PackagePlus, Wallet, Check, X, Menu, Upload, Users } from 'lucide-react';
+import { Search, LogOut, Bell, User, Building2, Calendar, ChevronDown, Shield, Zap, Calculator, PackagePlus, Wallet, Check, X, Menu, Upload, Users, Package, UploadCloud, Loader2 } from 'lucide-react';
 import { useAuth } from '../../../hooks/useAuth';
 import { apiClient } from '../../../services/apiClient';
 import { getToken, setToken } from '../../../utils/session';
@@ -12,6 +12,9 @@ import { BulkUploadModal } from '../../ui/BulkUploadModal';
 import { RechargeWalletModal } from '../../ui/RechargeWalletModal';
 import { Toast } from '../../ui/Toast';
 import { useToast } from '../../../hooks/useToast';
+import { useNotificationList } from '../../../context/NotificationListContext';
+import { JobDetailModal } from '../notifications/JobDetailModal';
+import { NotificationHistoryModal } from '../notifications/NotificationHistoryModal';
 
 interface AdminHeaderProps {
   onMobileMenuToggle?: () => void;
@@ -24,6 +27,9 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showQuickActions, setShowQuickActions] = useState(false);
+  const { notifications, dismiss } = useNotificationList();
+  const [openNotificationId, setOpenNotificationId] = useState<string | null>(null);
+  const [showNotificationHistory, setShowNotificationHistory] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [orderSearchResults, setOrderSearchResults] = useState<any[]>([]);
   const [orderSearchLoading, setOrderSearchLoading] = useState(false);
@@ -433,7 +439,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                           }
                         </motion.span>
                       </AnimatePresence>
-                      {activeIcon === 'bell' && !!pendingAgreement && (
+                      {activeIcon === 'bell' && (pendingAgreement || notifications.length > 0) && (
                         <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-[#EF4444] rounded-full" />
                       )}
                     </button>
@@ -444,12 +450,14 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                         <div className={`fixed right-3 ${isImpersonating ? 'top-[96px]' : 'top-[64px]'} w-56 max-w-[calc(100vw-24px)] bg-white rounded-xl shadow-xl border border-[#E2E8F0] overflow-hidden z-50 origin-top-right`}>
                           <div className="px-2.5 py-1.5 border-b border-[#E2E8F0] flex justify-between items-center bg-slate-50/50">
                             <h3 className="font-bold text-[#0F172A] text-[10px] uppercase tracking-wider">Notifications</h3>
-                            {!!pendingAgreement && (
-                              <span className="text-[8.5px] font-bold text-white bg-[#EF4444] rounded-full px-1.5 py-0.5">1</span>
+                            {((pendingAgreement ? 1 : 0) + notifications.length) > 0 && (
+                              <span className="text-[8.5px] font-bold text-white bg-[#EF4444] rounded-full px-1.5 py-0.5">
+                                {(pendingAgreement ? 1 : 0) + notifications.length}
+                              </span>
                             )}
                           </div>
                           <div className="max-h-[160px] overflow-y-auto">
-                            {pendingAgreement ? (
+                            {pendingAgreement && (
                               <div className="px-2.5 py-2 border-b border-[#E2E8F0]/60">
                                 <div className="flex items-start gap-1.5">
                                   <div className="w-1.5 h-1.5 rounded-full bg-[#EF4444] shrink-0 mt-1" />
@@ -465,7 +473,51 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                                   </div>
                                 </div>
                               </div>
-                            ) : (
+                            )}
+
+                            {notifications.map((n) => {
+                              const ref: any = n.refId;
+                              const isBulkShip = n.refModel === 'BulkShipJob';
+                              const isRunning = isBulkShip && ref?.status === 'running';
+                              let summary = '';
+                              if (ref) {
+                                if (isBulkShip) {
+                                  const done = (ref.successCount || 0) + (ref.failureCount || 0);
+                                  summary = isRunning
+                                    ? `Processing… ${done}/${ref.totalOrders}`
+                                    : `${ref.successCount || 0} succeeded, ${ref.failureCount || 0} failed`;
+                                } else {
+                                  summary = `${ref.successfullyUploaded || 0}/${ref.noOfOrders || 0} rows uploaded${ref.errorOrders ? `, ${ref.errorOrders} failed` : ''}`;
+                                }
+                              }
+                              return (
+                                <div
+                                  key={n._id}
+                                  onClick={() => { setShowNotifications(false); setOpenNotificationId(n._id); }}
+                                  className="px-2.5 py-2 border-b border-[#E2E8F0]/60 flex items-start gap-1.5 cursor-pointer hover:bg-slate-50"
+                                >
+                                  {isRunning ? (
+                                    <Loader2 className="w-3 h-3 text-[#00A86B] animate-spin shrink-0 mt-0.5" />
+                                  ) : isBulkShip ? (
+                                    <Package className="w-3 h-3 text-[#00A86B] shrink-0 mt-0.5" />
+                                  ) : (
+                                    <UploadCloud className="w-3 h-3 text-[#00A86B] shrink-0 mt-0.5" />
+                                  )}
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-[10.5px] font-semibold text-[#0F172A] leading-snug truncate">{n.title}</p>
+                                    <p className="text-[9.5px] text-[#64748B] mt-0.5 leading-snug">{summary}</p>
+                                  </div>
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); dismiss(n._id); }}
+                                    className="p-0.5 text-[#CBD5E1] hover:text-red-500 shrink-0"
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              );
+                            })}
+
+                            {!pendingAgreement && notifications.length === 0 && (
                               <div className="px-2.5 py-3.5 text-center">
                                 <Bell className="w-4.5 h-4.5 text-[#CBD5E1] mx-auto mb-1.5" />
                                 <p className="text-[10px] font-semibold text-[#94A3B8]">No new notifications</p>
@@ -474,7 +526,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                           </div>
                           <div
                             className="px-2.5 py-1.5 border-t border-[#E2E8F0] bg-[#F8FAFC] text-center cursor-pointer hover:bg-[#F1F5F9] transition-colors"
-                            onClick={() => { navigate('/user/notification'); setShowNotifications(false); }}
+                            onClick={() => { setShowNotifications(false); setShowNotificationHistory(true); }}
                           >
                             <span className="text-[9.5px] font-bold text-[#0F172A]">View All Notifications</span>
                           </div>
@@ -1131,7 +1183,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
               className={`w-10 h-10 rounded-[14px] border flex items-center justify-center transition-all relative cursor-pointer ${showNotifications ? 'bg-[#F8FAFC] border-[#CBD5E1] text-[#0F172A]' : 'bg-white border-[#E2E8F0] text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A]'}`}
             >
               <Bell className="w-5 h-5" />
-              {!!pendingAgreement && (
+              {(pendingAgreement || notifications.length > 0) && (
                 <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-[#EF4444] rounded-full border-[1.5px] border-white shadow-sm" />
               )}
             </motion.button>
@@ -1148,12 +1200,14 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                 >
                   <div className="px-4 py-3.5 border-b border-[#E2E8F0]/60 flex justify-between items-center bg-white/50">
                     <h3 className="font-bold text-[#0F172A] text-[13px] tracking-wide uppercase">Notifications</h3>
-                    {!!pendingAgreement && (
-                      <span className="text-[11px] font-bold text-white bg-[#EF4444] rounded-full px-2 py-0.5">1</span>
+                    {((pendingAgreement ? 1 : 0) + notifications.length) > 0 && (
+                      <span className="text-[11px] font-bold text-white bg-[#EF4444] rounded-full px-2 py-0.5">
+                        {(pendingAgreement ? 1 : 0) + notifications.length}
+                      </span>
                     )}
                   </div>
                   <div className="max-h-[300px] overflow-y-auto">
-                    {pendingAgreement ? (
+                    {pendingAgreement && (
                       <div className="px-4 py-3.5 border-b border-[#E2E8F0]/60 hover:bg-[#F8FAFC] transition-colors">
                         <div className="flex items-start gap-2">
                           <div className="w-1.5 h-1.5 rounded-full bg-[#EF4444] shrink-0 mt-1.5" />
@@ -1169,14 +1223,58 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                           </div>
                         </div>
                       </div>
-                    ) : (
+                    )}
+
+                    {notifications.map((n) => {
+                      const ref: any = n.refId;
+                      const isBulkShip = n.refModel === 'BulkShipJob';
+                      const isRunning = isBulkShip && ref?.status === 'running';
+                      let summary = '';
+                      if (ref) {
+                        if (isBulkShip) {
+                          const done = (ref.successCount || 0) + (ref.failureCount || 0);
+                          summary = isRunning
+                            ? `Processing… ${done}/${ref.totalOrders}`
+                            : `${ref.successCount || 0} succeeded, ${ref.failureCount || 0} failed`;
+                        } else {
+                          summary = `${ref.successfullyUploaded || 0}/${ref.noOfOrders || 0} rows uploaded${ref.errorOrders ? `, ${ref.errorOrders} failed` : ''}`;
+                        }
+                      }
+                      return (
+                        <div
+                          key={n._id}
+                          onClick={() => { setShowNotifications(false); setOpenNotificationId(n._id); }}
+                          className="px-4 py-3.5 border-b border-[#E2E8F0]/60 hover:bg-[#F8FAFC] transition-colors cursor-pointer flex items-start gap-2"
+                        >
+                          {isRunning ? (
+                            <Loader2 className="w-3.5 h-3.5 text-[#00A86B] animate-spin shrink-0 mt-0.5" />
+                          ) : isBulkShip ? (
+                            <Package className="w-3.5 h-3.5 text-[#00A86B] shrink-0 mt-0.5" />
+                          ) : (
+                            <UploadCloud className="w-3.5 h-3.5 text-[#00A86B] shrink-0 mt-0.5" />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[13px] font-semibold text-[#0F172A] leading-snug truncate">{n.title}</p>
+                            <p className="text-[12px] text-[#64748B] mt-0.5">{summary}</p>
+                          </div>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); dismiss(n._id); }}
+                            className="p-1 text-[#CBD5E1] hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors shrink-0"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      );
+                    })}
+
+                    {!pendingAgreement && notifications.length === 0 && (
                       <div className="px-4 py-8 flex flex-col items-center gap-2">
                         <Bell className="w-8 h-8 text-[#CBD5E1]" />
                         <p className="text-[13px] font-semibold text-[#94A3B8]">No notifications right now</p>
                       </div>
                     )}
                   </div>
-                  <div className="p-2.5 text-center bg-[#F8FAFC]/80 hover:bg-[#F1F5F9] transition-colors cursor-pointer" onClick={() => { navigate('/user/notification'); setShowNotifications(false); }}>
+                  <div className="p-2.5 text-center bg-[#F8FAFC]/80 hover:bg-[#F1F5F9] transition-colors cursor-pointer" onClick={() => { setShowNotifications(false); setShowNotificationHistory(true); }}>
                     <span className="text-xs font-bold text-[#0F172A]">View All Notifications</span>
                   </div>
                 </motion.div>
@@ -1377,6 +1475,9 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
         </AnimatePresence>,
         document.body
       )}
+
+      <JobDetailModal notificationId={openNotificationId} onClose={() => setOpenNotificationId(null)} />
+      <NotificationHistoryModal open={showNotificationHistory} onClose={() => setShowNotificationHistory(false)} />
     </>
   );
 }

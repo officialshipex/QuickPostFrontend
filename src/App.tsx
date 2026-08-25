@@ -14,6 +14,7 @@ import { EmployeeLogin } from './pages/EmployeeLogin';
 import { ProtectedRoute } from './components/layout/ProtectedRoute';
 import { AdminUserProvider } from './context/AdminUserContext';
 import { DashboardFilterProvider } from './context/DashboardFilterContext';
+import { NotificationListProvider } from './context/NotificationListContext';
 import { OfflineOverlay } from './components/ui/OfflineOverlay';
 
 
@@ -197,7 +198,7 @@ function App() {
           <Route path="/forgot-password" element={<AuthRedirect><ForgotPassword /></AuthRedirect>} />
 
           {/* Protected Routes — auth check + context providers */}
-          <Route element={<AdminUserProvider><DashboardFilterProvider><ProtectedRoute /></DashboardFilterProvider></AdminUserProvider>}>
+          <Route element={<AdminUserProvider><DashboardFilterProvider><NotificationListProvider><ProtectedRoute /></NotificationListProvider></DashboardFilterProvider></AdminUserProvider>}>
 
             {/* Persistent shell — sidebar + header mount once, only content area animates */}
             <Route element={<AdminShell />}>
