@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { useAdminTab } from '../../context/AdminUserContext';
 import { apiClient } from '../../services/apiClient';
+import { getToken } from '../../utils/session';
 import { Toast } from '../../components/ui/Toast';
 import { useToast } from '../../hooks/useToast';
 import { usePagination, DesktopPagination } from '../../hooks/usePagination';
@@ -21,6 +22,8 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { TruncatedText } from '../../components/ui/TruncatedText';
 import { RechargeWalletModal } from '../../components/ui/RechargeWalletModal';
 import { StatusRibbon } from '../../components/ui/StatusRibbon';
+import { ProtectedAdImage } from '../../components/ui/ProtectedAdImage';
+import walletReferAdImg from '../../assets/wallet-refer-ad.png';
 
 const UPB_CATEGORY_OPTIONS = [
   { label: 'Wallet Recharge', value: 'recharge' },
@@ -461,6 +464,32 @@ export function AdminWallet() {
 
   // Modals States
   const [isRechargeModalOpen, setIsRechargeModalOpen] = useState(false);
+
+  // ── Refer & Earn ad — user side only, first time per login session, appears 5s after page load ──
+  const [showReferAd, setShowReferAd] = useState(false);
+  useEffect(() => {
+    const token = getToken();
+    if (!token) return;
+    if (sessionStorage.getItem(`walletReferAdSeen_${token}`) === '1') return;
+    const timer = setTimeout(() => setShowReferAd(true), 5000);
+    return () => clearTimeout(timer);
+  }, []);
+  const dismissReferAd = () => {
+    const token = getToken();
+    if (token) sessionStorage.setItem(`walletReferAdSeen_${token}`, '1');
+    setShowReferAd(false);
+  };
+
+  // Deep-link support: ?recharge=1 auto-opens the recharge modal (used by the dashboard wallet ad)
+  useEffect(() => {
+    if (searchParams.get('recharge') === '1') {
+      setIsRechargeModalOpen(true);
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('recharge');
+      setSearchParams(newParams, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [activeShipmentHistory, setActiveShipmentHistory] = useState<any | null>(null);
   const [activeInvoicePreview, setActiveInvoicePreview] = useState<any | null>(null);
@@ -3928,6 +3957,54 @@ export function AdminWallet() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* ── Refer & Earn ad — user side only, floating bottom-right, first time per login session ── */}
+      {!isAdminView && (
+        <AnimatePresence>
+          {showReferAd && (
+            <motion.div
+              key="refer-ad"
+              initial={{ opacity: 0, y: 56, scale: 0.92 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 20, scale: 0.85, transition: { duration: 0.22, ease: [0.4, 0, 1, 1] } }}
+              transition={{ type: 'spring', stiffness: 340, damping: 26, mass: 0.9 }}
+              className="fixed bottom-4 right-4 z-[300] w-[640px] max-w-[calc(100vw-32px)]"
+              style={{ transformOrigin: 'bottom right' }}
+            >
+              <motion.div
+                whileHover={{ scale: 1.015, y: -2 }}
+                whileTap={{ scale: 0.98 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                className="relative rounded-xl overflow-hidden border border-[#E2E8F0] shadow-[0_12px_40px_-8px_rgba(0,0,0,0.25)] bg-white"
+              >
+                <motion.button
+                  type="button"
+                  onClick={() => navigate('/user/referral')}
+                  className="block w-full text-left cursor-pointer"
+                  aria-label="Refer and earn"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.35, delay: 0.3 }}
+                >
+                  <ProtectedAdImage src={walletReferAdImg} />
+                </motion.button>
+                <motion.button
+                  onClick={(e) => { e.stopPropagation(); dismissReferAd(); }}
+                  aria-label="Dismiss ad"
+                  initial={{ opacity: 0, scale: 0.6 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.25, delay: 0.45 }}
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white/90 hover:bg-white shadow-sm border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:text-[#0F172A] transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </motion.button>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      )}
     </AdminLayout>
   );
 }
