@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { apiClient } from '../../services/apiClient';
+import { getToken } from '../../utils/session';
 import { useAdminTab } from '../../context/AdminUserContext';
 import { useDashboardFilters } from '../../context/DashboardFilterContext';
 import { useTableLoader } from '../../hooks/useTableLoader';
 import { TableLoader } from '../../components/ui/TableLoader';
 import { TruncatedText } from '../../components/ui/TruncatedText';
+import { ProtectedAdImage } from '../../components/ui/ProtectedAdImage';
 import { useUserSearchFilter } from '../../hooks/filters/useUserSearchFilter';
 import {
   RefreshCcw, Package, IndianRupee, Users, CreditCard, Search, X,
@@ -14,6 +16,8 @@ import {
   ShieldAlert, Truck, FileText, ArrowRight, Percent,
 } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import { motion, AnimatePresence } from 'framer-motion';
+import walletRechargeAdImg from '../../assets/wallet-recharge-ad.png';
 
 /* ─── helpers ─────────────────────────────────────────────────────── */
 const fmt = (v: number) =>
@@ -126,8 +130,24 @@ export function AdminDashboard() {
   const { filters } = useDashboardFilters();
   const isAdminView = isAdmin && adminTab;
   const location = useLocation();
+  const navigate = useNavigate();
   const isUserRoute = location.pathname === '/user/dashboard';
   const navBase = isUserRoute ? '/user' : '/admin';
+
+  // ── Wallet recharge ad — user side only, first time per login session, appears 2s after page load ──
+  const [showWalletAd, setShowWalletAd] = useState(false);
+  useEffect(() => {
+    const token = getToken();
+    if (!token) return;
+    if (sessionStorage.getItem(`walletAdSeen_${token}`) === '1') return;
+    const timer = setTimeout(() => setShowWalletAd(true), 2000);
+    return () => clearTimeout(timer);
+  }, []);
+  const dismissWalletAd = () => {
+    const token = getToken();
+    if (token) sessionStorage.setItem(`walletAdSeen_${token}`, '1');
+    setShowWalletAd(false);
+  };
 
   const { isLoading: loading, setIsLoading: setLoading } = useTableLoader(0);
   const [overview,    setOverview]    = useState<any>(null);
@@ -906,6 +926,54 @@ export function AdminDashboard() {
         </div>
 
       </div>
+
+      {/* ── Wallet Recharge ad — user side only, floating bottom-right, first time per login session ── */}
+      {!isAdminView && (
+        <AnimatePresence>
+          {showWalletAd && (
+            <motion.div
+              key="wallet-ad"
+              initial={{ opacity: 0, y: 56, scale: 0.92 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 20, scale: 0.85, transition: { duration: 0.22, ease: [0.4, 0, 1, 1] } }}
+              transition={{ type: 'spring', stiffness: 340, damping: 26, mass: 0.9 }}
+              className="fixed bottom-4 right-4 z-[300] w-[320px] max-w-[calc(100vw-32px)]"
+              style={{ transformOrigin: 'bottom right' }}
+            >
+              <motion.div
+                whileHover={{ scale: 1.015, y: -2 }}
+                whileTap={{ scale: 0.98 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                className="relative rounded-xl overflow-hidden border border-[#E2E8F0] shadow-[0_12px_40px_-8px_rgba(0,0,0,0.25)] bg-white"
+              >
+                <motion.button
+                  type="button"
+                  onClick={() => navigate('/user/wallet?tab=Wallet%20Recharge&recharge=1')}
+                  className="block w-full text-left cursor-pointer"
+                  aria-label="Recharge your wallet"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.35, delay: 0.3 }}
+                >
+                  <ProtectedAdImage src={walletRechargeAdImg} />
+                </motion.button>
+                <motion.button
+                  onClick={(e) => { e.stopPropagation(); dismissWalletAd(); }}
+                  aria-label="Dismiss ad"
+                  initial={{ opacity: 0, scale: 0.6 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.25, delay: 0.45 }}
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white/90 hover:bg-white shadow-sm border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:text-[#0F172A] transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </motion.button>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      )}
     </AdminLayout>
   );
 }

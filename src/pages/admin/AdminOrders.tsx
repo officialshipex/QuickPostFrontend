@@ -35,30 +35,7 @@ import { CourierLogo } from '../../components/ui/CourierLogo';
 import { calculateRtoRisk, fetchBatchRtoRisk } from '../../services/rtoRisk';
 import type { RtoRiskResult } from '../../services/rtoRisk';
 import flatRateAdImg from '../../assets/flat-rate-ad.png';
-
-// Renders the ad image on a <canvas> so no src= URL is exposed in the DOM.
-// Right-click "Save Image As" doesn't work on canvas elements.
-function ProtectedAdImage({ src }: { src: string }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const img = new Image();
-    img.onload = () => {
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
-      canvas.getContext('2d')?.drawImage(img, 0, 0);
-    };
-    img.src = src;
-  }, [src]);
-  return (
-    <canvas
-      ref={canvasRef}
-      onContextMenu={e => e.preventDefault()}
-      style={{ width: '100%', height: 'auto', display: 'block' }}
-    />
-  );
-}
+import { ProtectedAdImage } from '../../components/ui/ProtectedAdImage';
 
 // ─── Tabs ─────────────────────────────────────────────────────────────────────
 const MAIN_TABS = ['New', 'Ready to Ship', 'Pickup & Manifest', 'In Transit', 'Delivered'];
@@ -732,6 +709,97 @@ export function AdminOrders() {
       setLoading(false);
     }
   }, [buildOrderParams, page, rowsPerPage]);
+
+  // ── RTO risk history — fetch a bulk, unfiltered sample of this account's orders (all
+  // statuses) once and aggregate real per-customer/pincode/courier RTO rates from it.
+  // Re-runs whenever the account being viewed changes (admin switching users, or the
+  // logged-in user resolving after refresh).
+  useEffect(() => {
+    const scopeUserId = isAdminView ? userMongoId : currentUserId;
+    if (isAdminView && !scopeUserId) return; // admin hasn't picked a user yet — nothing to aggregate
+    if (!isAdminView && !scopeUserId) return; // currentUserId not resolved yet
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const params: Record<string, any> = { page: 1, limit: 1000 };
+        if (isAdminView) { params.userId = scopeUserId; params.selectedUserId = scopeUserId; params.userSearch = scopeUserId; }
+        else { params.userId = scopeUserId; }
+        const res = await apiClient.get('/admin/filterEmployeeOrders', { params });
+        if (cancelled) return;
+        const raw: any[] = res.data?.orders || [];
+
+        const byCustomer: Record<string, { totalOrders: number; totalRtoOrders: number; hasPreviousNdr: boolean }> = {};
+        const byPincode: Record<string, { total: number; rto: number }> = {};
+        const byCourierPincode: Record<string, { total: number; rto: number }> = {};
+        const byCustomerAddress: Record<string, {
+          totalOrders: number; lastOrderDate: string | null; previousOrderDate: string | null; customerName: string;
+          delivered: number; cancelled: number; rto: number;
+        }> = {};
+        const sixMonthsAgo = new Date();
+        sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
+        for (const o of raw) {
+          const status: string = o.status || '';
+          const isRto = status.startsWith('RTO');
+          const phone = o.receiverAddress?.phoneNumber || '';
+          const pin = o.receiverAddress?.pinCode || o.receiverAddress?.pincode || '';
+          const courier = o.courierServiceName || '';
+          const hasNdr = Array.isArray(o.ndrHistory) && o.ndrHistory.length > 0;
+
+          if (phone) {
+            const c = byCustomer[phone] || { totalOrders: 0, totalRtoOrders: 0, hasPreviousNdr: false };
+            c.totalOrders += 1;
+            if (isRto) c.totalRtoOrders += 1;
+            if (hasNdr) c.hasPreviousNdr = true;
+            byCustomer[phone] = c;
+          }
+          if (pin) {
+            const p = byPincode[pin] || { total: 0, rto: 0 };
+            p.total += 1;
+            if (isRto) p.rto += 1;
+            byPincode[pin] = p;
+          }
+          if (courier && pin) {
+            const key = `${courier}|${pin}`;
+            const cp = byCourierPincode[key] || { total: 0, rto: 0 };
+            cp.total += 1;
+            if (isRto) cp.rto += 1;
+            byCourierPincode[key] = cp;
+          }
+
+          const createdAt = o.createdAt ? new Date(o.createdAt) : null;
+          const addr = o.receiverAddress?.address || '';
+          if (createdAt && addr && createdAt >= sixMonthsAgo) {
+            const key = repeatCustomerKey(phone, addr, pin);
+            const c = byCustomerAddress[key] || {
+              totalOrders: 0, lastOrderDate: null, previousOrderDate: null, customerName: o.receiverAddress?.contactName || '',
+              delivered: 0, cancelled: 0, rto: 0,
+            };
+            c.totalOrders += 1;
+            if (status === 'Delivered') c.delivered += 1;
+            if (status === 'Cancelled') c.cancelled += 1;
+            if (isRto) c.rto += 1;
+            if (!c.lastOrderDate || createdAt > new Date(c.lastOrderDate)) {
+              c.previousOrderDate = c.lastOrderDate;
+              c.lastOrderDate = createdAt.toISOString();
+              c.customerName = o.receiverAddress?.contactName || c.customerName;
+            } else if (!c.previousOrderDate || createdAt > new Date(c.previousOrderDate)) {
+              c.previousOrderDate = createdAt.toISOString();
+            }
+            byCustomerAddress[key] = c;
+          }
+        }
+
+        setRtoHistoryMaps({ byCustomer, byPincode, byCourierPincode });
+        setRepeatCustomerMap(byCustomerAddress);
+      } catch (err) {
+        console.error('Failed to load RTO risk history:', err);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [isAdminView, userMongoId, currentUserId]);
 
   // ── Excel export handlers ──
   const [exportingExcel, setExportingExcel] = useState(false);
@@ -1644,7 +1712,6 @@ export function AdminOrders() {
                                   </button>
                                 )}
                               </div>
-                              <div className="text-[12px] leading-[18px] font-normal text-[#64748B]">{order.customerPhone}</div>
                               <RtoRiskLine order={order} historyMaps={rtoHistoryMaps} riskResult={riskMap[order._id]} />
                             </div>
                           </td>
