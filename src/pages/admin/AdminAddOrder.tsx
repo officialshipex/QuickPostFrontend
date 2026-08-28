@@ -830,15 +830,15 @@ export function AdminAddOrder() {
 
               <div className="grid grid-cols-1 md:grid-cols-4 gap-3 md:gap-5">
                 <div className="md:col-span-2">
-                  <div className="flex items-center justify-between gap-2 mb-1.5">
-                    <label className="block text-[12px] font-bold text-[#64748B]">Address <span className="text-red-500">*</span></label>
-                    <div className="flex items-center gap-1.5 shrink-0">
+                  <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Address <span className="text-red-500">*</span></label>
+                  {errors.address && <p className="text-[12px] md:text-[11px] text-red-500 mb-1">{errors.address}</p>}
+                  <div className="relative">
+                    <input type="text" value={address} onChange={e => setAddress(e.target.value)} placeholder="Enter Address" className={`${fieldCls(errors.address)} !pr-28`} />
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
                       <span className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Accuracy</span>
                       <AddressAccuracyGauge address={address} size="sm" showLabel={false} />
                     </div>
                   </div>
-                  {errors.address && <p className="text-[12px] md:text-[11px] text-red-500 mb-1">{errors.address}</p>}
-                  <input type="text" value={address} onChange={e => setAddress(e.target.value)} placeholder="Enter Address" className={fieldCls(errors.address)} />
                 </div>
                 <div>
                   <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Pincode <span className="text-red-500">*</span></label>

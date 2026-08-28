@@ -459,8 +459,13 @@ export function AdminOrders() {
     delivered: number; cancelled: number; rto: number;
   }>>({});
   const normalizeAddress = (addr: string, pin: string) => `${(addr || '').trim().toLowerCase().replace(/\s+/g, ' ')}|${(pin || '').trim()}`;
+  // Normalize to the last 10 digits (not just digits-only) — the same customer
+  // can end up stored as "9876543210" on one order and "919876543210" on
+  // another (manual entry vs. a channel webhook that includes the country
+  // code), and without this they'd silently fail to match as the same person.
+  const normalizePhone = (phone: string) => (phone || '').replace(/\D/g, '').slice(-10);
   const repeatCustomerKey = (phone: string, addr: string, pin: string) =>
-    `${(phone || '').replace(/\D/g, '')}__${normalizeAddress(addr, pin)}`;
+    `${normalizePhone(phone)}__${normalizeAddress(addr, pin)}`;
 
   // Which single order, per customer+address, is the "latest" one — computed
   // dynamically from the orders actually on screen (this is what the indicator
@@ -1662,7 +1667,7 @@ export function AdminOrders() {
                                 >
                                   {order.customerName}
                                 </div>
-                                {!isAdminView && isNewTab && (() => {
+                                {(() => {
                                   const key = repeatCustomerKey(order.customerPhone, order.customerAddress, order.customerPinCode);
                                   const repeat = repeatCustomerMap[key];
                                   if (!repeat || repeat.totalOrders <= 1) return null;

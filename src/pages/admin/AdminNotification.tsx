@@ -7,7 +7,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import {
   Bell, MessageSquare, Smartphone, Mail, History,
   RefreshCw, CreditCard, Edit2, X, Send, Search,
-  AlertTriangle, CheckCircle, Plus, PhoneCall, Copy, Filter,
+  AlertTriangle, CheckCircle, Plus, PhoneCall, Copy, Filter, Users,
 } from 'lucide-react';
 import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
 import { Toast } from '../../components/ui/Toast';
@@ -280,6 +280,259 @@ function SendAlertModal({ open, onClose, targetUserId, targetUserName }: {
           <button onClick={handleSend} disabled={loading}
             className="px-4 py-2 rounded-xl bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors disabled:opacity-60 flex items-center gap-1.5">
             <Send className="w-3.5 h-3.5" />{loading ? 'Sending…' : 'Dispatch Alert'}
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+// ─── BulkNotifyModal ──────────────────────────────────────────────────────────
+// Admin broadcast to many sellers at once, by filter or explicit selection.
+// Free for the seller — no credit deduction — this is an admin-initiated
+// blast, not a per-order transactional notification.
+type BulkTarget = 'all' | 'filtered' | 'selected';
+interface BulkPreviewUser { id: string; fullname: string; email: string; phoneNumber: string; kycDone: boolean; walletBalance: number }
+
+function BulkNotifyModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const [target, setTarget] = useState<BulkTarget>('all');
+  const [kycStatus, setKycStatus] = useState<'' | 'pending' | 'verified'>('');
+  const [balanceType, setBalanceType] = useState<'' | 'negative' | 'zero' | 'positive'>('');
+  const [userQuery, setUserQuery] = useState('');
+  const [userSuggestions, setUserSuggestions] = useState<any[]>([]);
+  const [selectedUsers, setSelectedUsers] = useState<{ _id: string; fullname: string; email: string }[]>([]);
+
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewCount, setPreviewCount] = useState<number | null>(null);
+  const [previewUsers, setPreviewUsers] = useState<BulkPreviewUser[]>([]);
+  const [whatsappEnabled, setWhatsappEnabled] = useState(false);
+
+  const [channels, setChannels] = useState<{ email: boolean; whatsapp: boolean }>({ email: true, whatsapp: false });
+  const [emailSubject, setEmailSubject] = useState('');
+  const [emailBody, setEmailBody] = useState('');
+  const [whatsappBody, setWhatsappBody] = useState('');
+
+  const [sending, setSending] = useState(false);
+  const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    setTarget('all'); setKycStatus(''); setBalanceType('');
+    setUserQuery(''); setUserSuggestions([]); setSelectedUsers([]);
+    setPreviewCount(null); setPreviewUsers([]);
+    setChannels({ email: true, whatsapp: false });
+    setEmailSubject(''); setEmailBody(''); setWhatsappBody('');
+    setResult(null);
+  }, [open]);
+
+  // User search for "selected" targeting — same endpoint/pattern as AdminAnnouncements
+  useEffect(() => {
+    if (target !== 'selected' || userQuery.trim().length < 2) { setUserSuggestions([]); return; }
+    const timer = setTimeout(async () => {
+      try {
+        const res = await apiClient.get(`/admin/searchUser?query=${encodeURIComponent(userQuery)}`);
+        setUserSuggestions(res.data.users || []);
+      } catch { setUserSuggestions([]); }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [userQuery, target]);
+
+  // Auto-fetch the matching count/list whenever targeting changes.
+  useEffect(() => {
+    if (!open) return;
+    if (target === 'selected' && selectedUsers.length === 0) { setPreviewCount(0); setPreviewUsers([]); return; }
+
+    const timer = setTimeout(async () => {
+      setPreviewLoading(true);
+      try {
+        const body: any = { target };
+        if (target === 'filtered') { body.kycStatus = kycStatus || undefined; body.balanceType = balanceType || undefined; }
+        if (target === 'selected') { body.userIds = selectedUsers.map(u => u._id); }
+        const res = await apiClient.post('/notification/bulkNotify/preview', body);
+        setPreviewCount(res.data?.count ?? 0);
+        setPreviewUsers(res.data?.users || []);
+        setWhatsappEnabled(!!res.data?.whatsappEnabled);
+      } catch {
+        setPreviewCount(null); setPreviewUsers([]);
+      } finally {
+        setPreviewLoading(false);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [open, target, kycStatus, balanceType, selectedUsers]);
+
+  const addUser = (user: any) => {
+    if (selectedUsers.some(u => u._id === user._id)) return;
+    setSelectedUsers(prev => [...prev, { _id: user._id, fullname: user.fullname || 'User', email: user.email || '' }]);
+    setUserQuery(''); setUserSuggestions([]);
+  };
+  const removeUser = (id: string) => setSelectedUsers(prev => prev.filter(u => u._id !== id));
+
+  const canSend = (channels.email || channels.whatsapp)
+    && (!channels.email || (emailSubject.trim() && emailBody.trim()))
+    && (!channels.whatsapp || whatsappBody.trim())
+    && (previewCount ?? 0) > 0;
+
+  const handleSend = async () => {
+    if (!canSend) return;
+    setSending(true); setResult(null);
+    try {
+      const body: any = { target, channels: [channels.email && 'email', channels.whatsapp && 'whatsapp'].filter(Boolean) };
+      if (target === 'filtered') { body.kycStatus = kycStatus || undefined; body.balanceType = balanceType || undefined; }
+      if (target === 'selected') { body.userIds = selectedUsers.map(u => u._id); }
+      if (channels.email) { body.emailSubject = emailSubject; body.emailBody = emailBody; }
+      if (channels.whatsapp) { body.whatsappBody = whatsappBody; }
+
+      const res = await apiClient.post('/notification/bulkNotify/send', body);
+      setResult({ ok: true, text: res.data?.message || 'Bulk notification started!' });
+      setTimeout(() => onClose(), 2500);
+    } catch (e: any) {
+      setResult({ ok: false, text: e?.response?.data?.error || 'Failed to send bulk notification' });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        className="absolute inset-0 bg-[#0F172A]/40 backdrop-blur-sm" onClick={onClose} />
+      <motion.div initial={{ opacity: 0, scale: 0.95, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 10 }}
+        className="relative z-10 w-full max-w-2xl max-h-[90vh] bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+        <div className="flex items-center justify-between p-5 border-b border-[#E2E8F0] bg-[#F8FAFC] shrink-0">
+          <h3 className="text-base font-bold text-[#0F172A] flex items-center gap-2"><Users className="w-4 h-4 text-[#00A86B]" /> Bulk Notify Sellers</h3>
+          <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center text-[#64748B] hover:bg-[#E2E8F0] transition-colors"><X className="w-4 h-4" /></button>
+        </div>
+
+        <div className="p-5 space-y-5 overflow-y-auto">
+          {/* Target */}
+          <div>
+            <label className="block text-xs font-bold text-[#475569] mb-2 uppercase tracking-wide">Recipients</label>
+            <div className="flex gap-4 flex-wrap">
+              {([['all', 'All Users'], ['filtered', 'Filter'], ['selected', 'Select Users']] as const).map(([v, l]) => (
+                <label key={v} className="flex items-center gap-1.5 text-xs font-semibold text-[#475569] cursor-pointer">
+                  <input type="radio" checked={target === v} onChange={() => setTarget(v)} className="accent-[#00A86B]" />{l}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {target === 'filtered' && (
+            <div className="grid grid-cols-2 gap-4 p-3 bg-[#F8FAFC] rounded-xl border border-[#E2E8F0]">
+              <div>
+                <label className="block text-[11px] font-bold text-[#64748B] mb-1.5 uppercase tracking-wide">KYC Status</label>
+                <select value={kycStatus} onChange={e => setKycStatus(e.target.value as any)}
+                  className="w-full h-9 px-3 rounded-lg border border-[#E2E8F0] text-xs bg-white focus:outline-none focus:border-[#00A86B]">
+                  <option value="">Any</option>
+                  <option value="pending">KYC Pending</option>
+                  <option value="verified">KYC Verified</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-[#64748B] mb-1.5 uppercase tracking-wide">Wallet Balance</label>
+                <select value={balanceType} onChange={e => setBalanceType(e.target.value as any)}
+                  className="w-full h-9 px-3 rounded-lg border border-[#E2E8F0] text-xs bg-white focus:outline-none focus:border-[#00A86B]">
+                  <option value="">Any</option>
+                  <option value="negative">Negative Balance</option>
+                  <option value="zero">Zero Balance</option>
+                  <option value="positive">Positive Balance</option>
+                </select>
+              </div>
+            </div>
+          )}
+
+          {target === 'selected' && (
+            <div className="p-3 bg-[#F8FAFC] rounded-xl border border-[#E2E8F0] space-y-3">
+              <div className="relative">
+                <input type="text" placeholder="Search user by name or email..." value={userQuery}
+                  onChange={e => setUserQuery(e.target.value)}
+                  className="w-full h-9 pl-8 pr-3 rounded-lg border border-[#E2E8F0] text-xs bg-white focus:outline-none focus:border-[#00A86B]" />
+                <Search className="w-3.5 h-3.5 text-[#94A3B8] absolute left-2.5 top-1/2 -translate-y-1/2" />
+                {userSuggestions.length > 0 && (
+                  <div className="absolute left-0 top-full mt-1 bg-white border border-[#E2E8F0] rounded-xl shadow-xl z-50 w-full max-h-48 overflow-y-auto py-1">
+                    {userSuggestions.map((u: any) => (
+                      <button key={u._id} onClick={() => addUser(u)}
+                        className="w-full text-left px-4 py-2.5 text-xs text-[#0F172A] hover:bg-[#F8FAFC] flex flex-col">
+                        <span className="font-semibold">{u.fullname}</span>
+                        <span className="text-[#94A3B8]">{u.email}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="space-y-2 max-h-32 overflow-y-auto">
+                {selectedUsers.length === 0 ? (
+                  <p className="text-center text-xs text-[#94A3B8] italic py-2">No users selected</p>
+                ) : selectedUsers.map(u => (
+                  <div key={u._id} className="flex items-center justify-between p-2 bg-white border border-[#E2E8F0] rounded-lg text-xs">
+                    <div className="min-w-0"><div className="font-bold text-[#0F172A] truncate">{u.fullname}</div><div className="text-[#94A3B8] truncate">{u.email}</div></div>
+                    <button onClick={() => removeUser(u._id)} className="ml-2 w-5 h-5 flex items-center justify-center text-[#94A3B8] hover:text-red-500 transition-colors shrink-0"><X className="w-3.5 h-3.5" /></button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Live count */}
+          <div className="flex items-center gap-2 text-xs font-semibold text-[#0F172A] bg-[#F0FDF4] border border-[#DCFCE7] rounded-xl px-3 py-2.5">
+            <Users className="w-3.5 h-3.5 text-[#00A86B] shrink-0" />
+            {previewLoading ? 'Counting matching users…' : previewCount === null ? '—' : `${previewCount} user(s) will be notified`}
+          </div>
+
+          {/* Channels */}
+          <div>
+            <label className="block text-xs font-bold text-[#475569] mb-2 uppercase tracking-wide">Channels</label>
+            <div className="flex gap-4">
+              <label className="flex items-center gap-1.5 text-xs font-semibold text-[#475569] cursor-pointer">
+                <input type="checkbox" checked={channels.email} onChange={e => setChannels(c => ({ ...c, email: e.target.checked }))} className="accent-[#00A86B]" />
+                <Mail className="w-3.5 h-3.5" /> Email
+              </label>
+              <label className={`flex items-center gap-1.5 text-xs font-semibold ${whatsappEnabled ? 'text-[#475569] cursor-pointer' : 'text-[#CBD5E1] cursor-not-allowed'}`}
+                title={whatsappEnabled ? undefined : 'WhatsApp broadcast template not approved yet'}>
+                <input type="checkbox" checked={channels.whatsapp} disabled={!whatsappEnabled}
+                  onChange={e => setChannels(c => ({ ...c, whatsapp: e.target.checked }))} className="accent-[#00A86B]" />
+                <MessageSquare className="w-3.5 h-3.5" /> WhatsApp {!whatsappEnabled && '(pending template approval)'}
+              </label>
+            </div>
+          </div>
+
+          {channels.email && (
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-[#475569] mb-1.5 uppercase tracking-wide">Email Subject</label>
+                <input value={emailSubject} onChange={e => setEmailSubject(e.target.value)} placeholder="Subject…"
+                  className="w-full h-10 px-3 rounded-lg border border-[#E2E8F0] text-xs focus:outline-none focus:border-[#00A86B]" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-[#475569] mb-1.5 uppercase tracking-wide">Email Body</label>
+                <textarea value={emailBody} onChange={e => setEmailBody(e.target.value)} rows={4} placeholder="Write the email…"
+                  className="w-full p-3 rounded-xl border border-[#E2E8F0] text-xs focus:outline-none focus:border-[#00A86B] resize-none" />
+              </div>
+            </div>
+          )}
+
+          {channels.whatsapp && (
+            <div>
+              <label className="block text-xs font-bold text-[#475569] mb-1.5 uppercase tracking-wide">WhatsApp Message</label>
+              <textarea value={whatsappBody} onChange={e => setWhatsappBody(e.target.value)} rows={3} placeholder="Write the WhatsApp message…"
+                className="w-full p-3 rounded-xl border border-[#E2E8F0] text-xs focus:outline-none focus:border-[#00A86B] resize-none" />
+            </div>
+          )}
+
+          {result && (
+            <div className={`flex items-center gap-2 text-xs font-semibold p-3 rounded-xl ${result.ok ? 'bg-green-50 text-[#00A86B]' : 'bg-red-50 text-red-600'}`}>
+              {result.ok ? <CheckCircle className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
+              {result.text}
+            </div>
+          )}
+        </div>
+
+        <div className="flex justify-end gap-3 p-5 border-t border-[#E2E8F0] bg-[#F8FAFC] shrink-0">
+          <button onClick={onClose} className="px-4 py-2 rounded-xl text-xs font-bold text-[#64748B] hover:bg-[#E2E8F0] transition-colors">Cancel</button>
+          <button onClick={handleSend} disabled={!canSend || sending}
+            className="px-4 py-2 rounded-xl bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors disabled:opacity-50 flex items-center gap-1.5">
+            <Send className="w-3.5 h-3.5" />{sending ? 'Sending…' : `Send to ${previewCount ?? 0} User(s)`}
           </button>
         </div>
       </motion.div>
@@ -1332,6 +1585,7 @@ export function AdminNotification() {
   }, [tabSlug]);
   const [buyOpen, setBuyOpen] = useState(false);
   const [alertOpen, setAlertOpen] = useState(false);
+  const [bulkNotifyOpen, setBulkNotifyOpen] = useState(false);
   const { toast, showToast: _pageShowToast, closeToast: closePageToast } = useToast();
   const showToast = (t: string) => _pageShowToast('success', t);
 
@@ -1422,35 +1676,48 @@ export function AdminNotification() {
             </p>
           </div>
 
-          {showContent && (
+          {(showContent || isAdminView) && (
             <div className="flex items-center gap-2 shrink-0">
-              {/* Credit balance chip */}
-              <div className="flex items-center gap-1.5 md:gap-2 bg-white border border-[#E2E8F0] rounded-xl px-2 md:px-3 py-1.5 md:py-2 shadow-sm">
-                <CreditCard className="w-3.5 h-3.5 md:w-4 md:h-4 text-[#00A86B] shrink-0" />
-                <div className="hidden sm:block">
-                  <div className="text-[9px] font-bold text-[#64748B] uppercase tracking-wide leading-tight">Credits</div>
-                  <div className="text-sm font-extrabold text-[#0F172A] leading-tight">
-                    {creditBalance === null || loadingBal ? '—' : creditBalance}
+              {showContent && (
+                <>
+                  {/* Credit balance chip */}
+                  <div className="flex items-center gap-1.5 md:gap-2 bg-white border border-[#E2E8F0] rounded-xl px-2 md:px-3 py-1.5 md:py-2 shadow-sm">
+                    <CreditCard className="w-3.5 h-3.5 md:w-4 md:h-4 text-[#00A86B] shrink-0" />
+                    <div className="hidden sm:block">
+                      <div className="text-[9px] font-bold text-[#64748B] uppercase tracking-wide leading-tight">Credits</div>
+                      <div className="text-sm font-extrabold text-[#0F172A] leading-tight">
+                        {creditBalance === null || loadingBal ? '—' : creditBalance}
+                      </div>
+                    </div>
+                    <span className="sm:hidden text-[12px] font-extrabold text-[#0F172A]">
+                      {creditBalance === null || loadingBal ? '—' : creditBalance}
+                    </span>
+                    <button onClick={fetchBalance} title="Refresh balance"
+                      className={`hidden md:inline-flex text-[#94A3B8] hover:text-[#00A86B] transition-colors ml-1 ${loadingBal ? 'animate-spin' : ''}`}>
+                      <RefreshCw className="w-3.5 h-3.5" />
+                    </button>
                   </div>
-                </div>
-                <span className="sm:hidden text-[12px] font-extrabold text-[#0F172A]">
-                  {creditBalance === null || loadingBal ? '—' : creditBalance}
-                </span>
-                <button onClick={fetchBalance} title="Refresh balance"
-                  className={`hidden md:inline-flex text-[#94A3B8] hover:text-[#00A86B] transition-colors ml-1 ${loadingBal ? 'animate-spin' : ''}`}>
-                  <RefreshCw className="w-3.5 h-3.5" />
-                </button>
-              </div>
 
-              <button onClick={() => setBuyOpen(true)} title="Buy Credits"
-                className="h-8 w-8 md:h-9 md:w-auto md:px-4 rounded-xl border border-[#00A86B] text-[#00A86B] text-xs font-bold hover:bg-[#F0FDF4] transition-colors flex items-center justify-center gap-1.5 shrink-0">
-                <Plus className="w-3.5 h-3.5" /> <span className="hidden md:inline">Buy Credits</span>
-              </button>
+                  <button onClick={() => setBuyOpen(true)} title="Buy Credits"
+                    className="h-8 w-8 md:h-9 md:w-auto md:px-4 rounded-xl border border-[#00A86B] text-[#00A86B] text-xs font-bold hover:bg-[#F0FDF4] transition-colors flex items-center justify-center gap-1.5 shrink-0">
+                    <Plus className="w-3.5 h-3.5" /> <span className="hidden md:inline">Buy Credits</span>
+                  </button>
 
+                  {isAdminView && (
+                    <button onClick={() => setAlertOpen(true)} title="Send Alert"
+                      className="h-8 w-8 md:h-9 md:w-auto md:px-4 rounded-xl bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors flex items-center justify-center gap-1.5 shadow-sm shrink-0">
+                      <Send className="w-3.5 h-3.5" /> <span className="hidden md:inline">Send Alert</span>
+                    </button>
+                  )}
+                </>
+              )}
+
+              {/* Not gated on showContent/selectedUser — Bulk Notify targets many
+                  users by filter, it isn't tied to the single-user settings panel. */}
               {isAdminView && (
-                <button onClick={() => setAlertOpen(true)} title="Send Alert"
-                  className="h-8 w-8 md:h-9 md:w-auto md:px-4 rounded-xl bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors flex items-center justify-center gap-1.5 shadow-sm shrink-0">
-                  <Send className="w-3.5 h-3.5" /> <span className="hidden md:inline">Send Alert</span>
+                <button onClick={() => setBulkNotifyOpen(true)} title="Bulk Notify"
+                  className="h-8 w-8 md:h-9 md:w-auto md:px-4 rounded-xl border border-[#00A86B] text-[#00A86B] text-xs font-bold hover:bg-[#F0FDF4] transition-colors flex items-center justify-center gap-1.5 shrink-0">
+                  <Users className="w-3.5 h-3.5" /> <span className="hidden md:inline">Bulk Notify</span>
                 </button>
               )}
             </div>
@@ -1616,6 +1883,11 @@ export function AdminNotification() {
           {alertOpen && (
             <SendAlertModal open onClose={() => setAlertOpen(false)}
               targetUserId={targetUserId} targetUserName={targetUserName} />
+          )}
+        </AnimatePresence>
+        <AnimatePresence>
+          {bulkNotifyOpen && (
+            <BulkNotifyModal open onClose={() => setBulkNotifyOpen(false)} />
           )}
         </AnimatePresence>
 
