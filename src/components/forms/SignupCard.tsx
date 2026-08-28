@@ -11,10 +11,11 @@ import { useAuth } from '../../hooks/useAuth';
 import { getRoleFromToken } from '../../utils/session';
 
 const MONTHLY_ORDER_OPTIONS = [
-  'Less than 100',
-  '100 - 500',
-  '500 - 1000',
-  'More than 1000',
+  '0 - 500',
+  '500 - 1500',
+  '1500 - 3000',
+  '3000 - 5000',
+  '5000+',
 ];
 
 const formSchema = z.object({
@@ -46,10 +47,12 @@ export function SignupCard({ onBack }: SignupCardProps) {
   const [searchParams] = useSearchParams();
   const { login } = useAuth();
 
-  const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
+  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: { checked: false },
   });
+  const monthlyOrders = watch('monthlyOrders');
+  const [isMonthlyOrdersOpen, setIsMonthlyOrdersOpen] = useState(false);
 
   const onSubmit = async (data: FormData) => {
     setStatus('loading');
@@ -121,15 +124,46 @@ export function SignupCard({ onBack }: SignupCardProps) {
           </div>
           <div>
             <label className="block text-xs font-semibold text-[#475569] mb-1.5">Monthly Orders<span className="text-red-500">*</span></label>
-            <select
-              {...register('monthlyOrders')}
-              className="h-11 w-full rounded-md border border-[#E2E8F0] bg-transparent px-3 text-sm text-[#0F172A] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]"
-            >
-              <option value="">Select range</option>
-              {MONTHLY_ORDER_OPTIONS.map(opt => (
-                <option key={opt} value={opt}>{opt}</option>
-              ))}
-            </select>
+            <input type="hidden" {...register('monthlyOrders')} />
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setIsMonthlyOrdersOpen(o => !o)}
+                className={`h-11 w-full flex items-center justify-between rounded-md border bg-transparent px-3 text-sm text-left transition-colors focus:outline-none ${
+                  isMonthlyOrdersOpen ? 'border-[#00A86B] ring-1 ring-[#00A86B]' : 'border-[#E2E8F0] hover:border-[#00A86B]/50'
+                } ${monthlyOrders ? 'text-[#0F172A]' : 'text-[#94A3B8]'}`}
+              >
+                <span className="truncate">{monthlyOrders || 'Select range'}</span>
+                <ChevronDown className={`w-4 h-4 text-[#94A3B8] shrink-0 transition-transform ${isMonthlyOrdersOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {isMonthlyOrdersOpen && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setIsMonthlyOrdersOpen(false)} />
+                  <div className="absolute top-[calc(100%+6px)] left-0 w-full bg-white border border-[#E2E8F0] rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.15)] z-20 overflow-hidden py-1.5">
+                    {MONTHLY_ORDER_OPTIONS.map(opt => {
+                      const isSelected = monthlyOrders === opt;
+                      return (
+                        <button
+                          key={opt}
+                          type="button"
+                          onClick={() => {
+                            setValue('monthlyOrders', opt, { shouldValidate: true });
+                            setIsMonthlyOrdersOpen(false);
+                          }}
+                          className={`w-full text-left px-3.5 py-2.5 text-sm transition-colors flex items-center justify-between gap-2 ${
+                            isSelected ? 'bg-[#F0FDF4] text-[#00A86B] font-semibold' : 'text-[#0F172A] hover:bg-[#F8FAFC]'
+                          }`}
+                        >
+                          {opt}
+                          {isSelected && <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
             {errors.monthlyOrders && <p className="mt-1 text-xs text-red-500">{errors.monthlyOrders.message}</p>}
           </div>
         </div>
