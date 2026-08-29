@@ -132,11 +132,9 @@ export function AdminAddOrder() {
   const [showExtraFees, setShowExtraFees] = useState(false);
 
   // ── Other Details ──
-  const [customOrderNumber, setCustomOrderNumber] = useState('');
   const [resellerName, setResellerName] = useState('');
   const [gstin, setGstin] = useState('');
   const [ewaybill, setEwaybill] = useState('');
-  const [notes, setNotes] = useState('');
 
   // ── Bulk Upload ──
   const [showBulkModal, setShowBulkModal] = useState(false);
@@ -251,8 +249,6 @@ export function AdminAddOrder() {
         }
 
         setPaymentMode(order.paymentDetails?.method || '');
-        setCustomOrderNumber(order.customOrderNumber || '');
-        setNotes(order.notes || '');
 
         const od = order.otherDetails || {};
         setResellerName(od.resellerName || '');
@@ -588,8 +584,6 @@ export function AdminAddOrder() {
       paymentDetails: { method: paymentMode, amount: totalOrderValue },
       otherDetails: { resellerName, gstin, ewaybill },
       orderType,
-      customOrderNumber,
-      notes,
     };
     if (orderType === 'B2C') {
       return {
@@ -1260,14 +1254,6 @@ export function AdminAddOrder() {
                   {errors.ewaybill && <p className="text-[12px] md:text-[11px] text-red-500 mb-1">{errors.ewaybill}</p>}
                   <input type="text" value={ewaybill} onChange={e => setEwaybill(e.target.value)} placeholder="E-Waybill Number"
                     className={fieldCls(errors.ewaybill)} />
-                </div>
-                <div>
-                  <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Order ID (Custom)</label>
-                  <input type="text" value={customOrderNumber} onChange={e => setCustomOrderNumber(e.target.value)} placeholder="e.g. 6543217890" className={fieldCls()} />
-                </div>
-                <div>
-                  <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Notes</label>
-                  <input type="text" value={notes} onChange={e => setNotes(e.target.value)} placeholder="Notes" className={fieldCls()} />
                 </div>
               </div>
             </div>
