@@ -11,10 +11,11 @@ import { useAuth } from '../../hooks/useAuth';
 import { getRoleFromToken } from '../../utils/session';
 
 const MONTHLY_ORDER_OPTIONS = [
-  'Less than 100',
-  '100 - 500',
-  '500 - 1000',
-  'More than 1000',
+  '0 - 500',
+  '500 - 1500',
+  '1500 - 3000',
+  '3000 - 5000',
+  '5000+',
 ];
 
 const formSchema = z.object({
