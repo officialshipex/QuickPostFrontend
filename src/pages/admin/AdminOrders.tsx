@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { apiClient } from '../../services/apiClient';
+import { refreshNotifications } from '../../context/NotificationListContext';
 import { getToken } from '../../utils/session';
 import { PDFDocument } from 'pdf-lib';
 import * as XLSX from 'xlsx';
@@ -458,8 +459,13 @@ export function AdminOrders() {
     delivered: number; cancelled: number; rto: number;
   }>>({});
   const normalizeAddress = (addr: string, pin: string) => `${(addr || '').trim().toLowerCase().replace(/\s+/g, ' ')}|${(pin || '').trim()}`;
+  // Normalize to the last 10 digits (not just digits-only) — the same customer
+  // can end up stored as "9876543210" on one order and "919876543210" on
+  // another (manual entry vs. a channel webhook that includes the country
+  // code), and without this they'd silently fail to match as the same person.
+  const normalizePhone = (phone: string) => (phone || '').replace(/\D/g, '').slice(-10);
   const repeatCustomerKey = (phone: string, addr: string, pin: string) =>
-    `${(phone || '').replace(/\D/g, '')}__${normalizeAddress(addr, pin)}`;
+    `${normalizePhone(phone)}__${normalizeAddress(addr, pin)}`;
 
   // Which single order, per customer+address, is the "latest" one — computed
   // dynamically from the orders actually on screen (this is what the indicator
@@ -1011,6 +1017,26 @@ export function AdminOrders() {
   const toggleAll = () => setSelectedOrders(selectedOrders.length === orders.length && orders.length > 0 ? [] : orders.map(o => o._id));
   const toggleSelect = (id: string) => setSelectedOrders(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
+  // Single selected order keeps the existing manual rate-picker flow
+  // (ShipOrderModal); 2+ selected orders go through the real bulk-ship
+  // endpoint, which assigns a courier per order automatically and reports
+  // progress via the notification bell instead of a modal.
+  const handleBulkShipClick = async () => {
+    if (selectedOrders.length === 0) return;
+    if (selectedOrders.length === 1) {
+      setShipOrder(orders.find(o => o._id === selectedOrders[0]) || null);
+      return;
+    }
+    try {
+      const res = await apiClient.post('/bulk/create-bulk-order', { selectedOrders });
+      showToast('success', res.data?.message || `Bulk shipment started for ${selectedOrders.length} orders.`);
+      refreshNotifications();
+      fetchOrders(page);
+    } catch (error: any) {
+      showToast('error', error?.response?.data?.message || 'Failed to start bulk shipment.');
+    }
+  };
+
   // ── Tab-specific boolean helpers ──
   const isPMTab  = activeTab === 'Pickup & Manifest';
   const isNewTab = activeTab === 'New';
@@ -1038,7 +1064,7 @@ export function AdminOrders() {
     if (isNewTab) return (
       <>
         {selectAllItem}
-        <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { setShipOrder(orders.find(o => selectedOrders.includes(o._id)) || null); closeMenu(); }}>Bulk Ship</button>
+        <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { handleBulkShipClick(); closeMenu(); }}>Bulk Ship</button>
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { setShowPackageModal(true); closeMenu(); }}>Update Package Details</button>
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { openPickupModal(); closeMenu(); }}>Update Pickup Address</button>
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { handleBulkLabel(selectedOrders); closeMenu(); }}>Verify Orders</button>
@@ -1439,7 +1465,7 @@ export function AdminOrders() {
           {!isPMTab && selectedOrders.length > 0 && (
             <div className="hidden md:flex px-4 py-2 bg-blue-50 border-b border-blue-100 items-center gap-3">
               <span className="text-xs font-bold text-blue-700">{selectedOrders.length} selected</span>
-              {isNewTab && <button onClick={() => setShipOrder(orders.find(o => selectedOrders.includes(o._id)) || null)} className="h-8 px-3 rounded-md bg-white border border-blue-200 text-xs font-bold text-blue-700 shadow-sm hover:bg-blue-50 cursor-pointer">Bulk Ship</button>}
+              {isNewTab && <button onClick={handleBulkShipClick} className="h-8 px-3 rounded-md bg-white border border-blue-200 text-xs font-bold text-blue-700 shadow-sm hover:bg-blue-50 cursor-pointer">Bulk Ship</button>}
               {isNewTab && <button onClick={() => setShowPackageModal(true)} className="h-8 px-3 rounded-md bg-white border border-blue-200 text-xs font-bold text-blue-700 shadow-sm hover:bg-blue-50 cursor-pointer">Update Package Details</button>}
               {isNewTab && <button onClick={() => openPickupModal()} className="h-8 px-3 rounded-md bg-white border border-blue-200 text-xs font-bold text-blue-700 shadow-sm hover:bg-blue-50 cursor-pointer">Update Pickup Address</button>}
               <button onClick={() => setShowExportModal(true)} className="h-8 px-3 rounded-md bg-white border border-blue-200 text-xs font-bold text-blue-700 shadow-sm hover:bg-blue-50 cursor-pointer">Export Excel</button>
@@ -1641,7 +1667,7 @@ export function AdminOrders() {
                                 >
                                   {order.customerName}
                                 </div>
-                                {!isAdminView && isNewTab && (() => {
+                                {(() => {
                                   const key = repeatCustomerKey(order.customerPhone, order.customerAddress, order.customerPinCode);
                                   const repeat = repeatCustomerMap[key];
                                   if (!repeat || repeat.totalOrders <= 1) return null;

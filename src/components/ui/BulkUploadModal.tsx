@@ -1,5 +1,6 @@
 import { apiClient } from '../../services/apiClient';
 import { SharedUploadModal } from './SharedUploadModal';
+import { refreshNotifications } from '../../context/NotificationListContext';
 
 interface Props {
   open: boolean;
@@ -28,6 +29,7 @@ export function BulkUploadModal({ open, onClose }: Props) {
       validateStatus: (s: number) => s < 500,
     });
     const { message, successCount = 0, failedCount = 0 } = res.data || {};
+    refreshNotifications();
     if (res.status === 207) {
       throw new Error(`${message} | ✅ ${successCount} success, ❌ ${failedCount} failed`);
     }

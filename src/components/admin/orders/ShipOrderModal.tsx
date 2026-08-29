@@ -78,7 +78,6 @@ export function ShipOrderModal({ order, onClose, onShipped }: ShipOrderModalProp
   // inside the scrollable rate list, which clipped/forced a scrollbar whenever a
   // tooltip near the middle of a long list didn't fit within the visible viewport.
   const [hoveredInfo, setHoveredInfo] = useState<{ id: string; rect: DOMRect } | null>(null);
-  const [hoveredWeight, setHoveredWeight] = useState<{ id: string; rect: DOMRect } | null>(null);
   // Sidebar tooltips (Pickup From / Deliver To / Applicable Weight) — same portal pattern
   // as the courier-list tooltips, since the plain group-hover version got clipped by the
   // sidebar's overflow-y-auto and the modal's overflow-hidden.
@@ -464,17 +463,12 @@ export function ShipOrderModal({ order, onClose, onShipped }: ShipOrderModalProp
                           <p className={`${TXT.value} text-center text-[#475569]`}>{formatPickupDate(item.pickupDate)}</p>
                           <p className={`${TXT.value} text-center text-[#475569]`}>{formatDeliveryDate(item.estimatedDeliveryDate)}</p>
 
-                          {/* Chargeable weight with hover detail */}
+                          {/* Chargeable weight — same for every row it's derived from the
+                              order's own package, so no per-row detail popup (see sidebar) */}
                           <div className="flex justify-center">
-                            <div
-                              className="relative inline-block"
-                              onMouseEnter={(e) => setHoveredWeight({ id: String(i), rect: e.currentTarget.getBoundingClientRect() })}
-                              onMouseLeave={() => setHoveredWeight(null)}
-                            >
-                              <span className={`${TXT.value} text-[#475569] border-b border-dashed border-[#94A3B8] cursor-help`}>
-                                {chargeableWeight}
-                              </span>
-                            </div>
+                            <span className={`${TXT.value} text-[#475569]`}>
+                              {chargeableWeight}
+                            </span>
                           </div>
 
                           {/* Charges + price breakup hover */}
@@ -510,49 +504,13 @@ export function ShipOrderModal({ order, onClose, onShipped }: ShipOrderModalProp
               </div>
             </div>
 
-            {/* ── Weight/Price hover tooltips — portaled to document.body with fixed
-                 positioning (computed from the trigger's rect) so they escape the
+            {/* ── Price hover tooltip — portaled to document.body with fixed
+                 positioning (computed from the trigger's rect) so it escapes the
                  rate list's overflow-y-auto clipping instead of getting cut off or
-                 forcing a scrollbar when they don't fit within the visible area. ── */}
-            {hoveredWeight && pkg && (() => {
-              const rect = hoveredWeight.rect;
-              const TIP_H = 140;
-              const showBelow = rect.top < TIP_H + 16;
-              return createPortal(
-                <motion.div
-                  initial={{ opacity: 0, y: 4, scale: 0.96 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 4, scale: 0.96 }}
-                  transition={{ duration: 0.12 }}
-                  className="fixed z-[300] w-52 bg-[#0F172A] text-white rounded-[10px] p-3 shadow-xl pointer-events-none"
-                  style={{
-                    top: showBelow ? rect.bottom + 8 : undefined,
-                    bottom: showBelow ? undefined : window.innerHeight - rect.top + 8,
-                    left: Math.min(Math.max(rect.right - 208, 8), window.innerWidth - 216),
-                  }}
-                >
-                  <p className={`${TXT.label} text-slate-300 mb-1.5 border-b border-slate-700 pb-1.5`}>Weight Detail</p>
-                  {[
-                    { label: 'Dead Weight', val: `${pkg.weight || pkg.applicableWeight} kg` },
-                    ...(volW ? [
-                      { label: 'Volumetric', val: `${volWeightKg} kg` },
-                      { label: 'L × W × H', val: `${volW.length}×${volW.width}×${volW.height}` },
-                    ] : []),
-                  ].map((b) => (
-                    <div key={b.label} className="flex justify-between items-center py-0.5">
-                      <span className={`${TXT.value} text-slate-400`}>{b.label}</span>
-                      <span className={`${TXT.value} text-white`}>{b.val}</span>
-                    </div>
-                  ))}
-                  <div className="flex justify-between items-center border-t border-slate-700 mt-1 pt-1">
-                    <span className={`${TXT.label} text-slate-300`}>Applicable</span>
-                    <span className={`${TXT.label} text-[#00A86B]`}>{pkg.applicableWeight} kg</span>
-                  </div>
-                </motion.div>,
-                document.body
-              );
-            })()}
-
+                 forcing a scrollbar when it doesn't fit within the visible area.
+                 (There's no per-row weight tooltip: chargeable weight is a property
+                 of the order's own package, not the courier, so it's identical on
+                 every row — the one weight breakdown lives once in the sidebar.) ── */}
             {hoveredInfo && (() => {
               const item = tabFilteredRates[Number(hoveredInfo.id)];
               if (!item) return null;
@@ -704,23 +662,10 @@ export function ShipOrderModal({ order, onClose, onShipped }: ShipOrderModalProp
                             {item.courierType}
                           </p>
                         </div>
-                        {/* Chargeable weight with tap popup */}
-                        <div className="relative shrink-0" onClick={(e) => { e.stopPropagation(); setOpenPopup(openPopup === `weight_${i}` ? null : `weight_${i}`); }}>
-                          <span className="text-[11px] font-semibold text-[#64748B] border-b border-dashed border-[#94A3B8] cursor-pointer">{chargeableWeight}</span>
-                          {openPopup === `weight_${i}` && pkg && (
-                            <div className={`absolute z-[500] bg-white border border-[#E2E8F0] shadow-xl rounded-lg p-3 w-[190px] right-0 text-[10px] ${i === 0 ? 'top-full mt-2' : 'bottom-full mb-2'}`} onClick={(e) => e.stopPropagation()}>
-                              <p className="font-semibold text-[#0F172A] mb-1.5 border-b border-[#F1F5F9] pb-1">Weight Details</p>
-                              <div className="space-y-1">
-                                <div className="flex justify-between"><span className="text-[#94A3B8]">Dead Weight:</span><span className="font-semibold">{pkg.weight || pkg.applicableWeight} kg</span></div>
-                                {volW && <>
-                                  <div className="flex justify-between"><span className="text-[#94A3B8]">Volumetric:</span><span className="font-semibold">{volWeightKg} kg</span></div>
-                                  <div className="flex justify-between"><span className="text-[#94A3B8]">L×W×H:</span><span className="font-semibold">{volW.length}×{volW.width}×{volW.height}</span></div>
-                                </>}
-                                <div className="flex justify-between border-t border-[#F1F5F9] pt-1"><span className="font-semibold text-[#0F172A]">Applicable:</span><span className="font-semibold text-[#00A86B]">{pkg.applicableWeight} kg</span></div>
-                              </div>
-                            </div>
-                          )}
-                        </div>
+                        {/* Chargeable weight — same for every card, it's the order's own
+                            package, not the courier's; the one breakdown lives in the
+                            summary card above, so no per-card detail popup here */}
+                        <span className="text-[11px] font-semibold text-[#64748B] shrink-0">{chargeableWeight}</span>
                       </div>
 
                       {/* Info section */}
