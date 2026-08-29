@@ -121,6 +121,8 @@ const MENU_GROUPS: MenuGroup[] = [
       { name: 'Complete KYC', path: '/admin/kyc', icon: FileText, userOnly: true, noEmployee: true },
       { name: 'Employees', path: '/user/employees', icon: Users, userOnly: true, noEmployee: true },
       { name: 'Pickup Address', path: '/admin/settings/pickup-address', icon: MapPin },
+      { name: 'Channels', path: '/user/channels', icon: ShoppingCart, userOnly: true },
+      { name: 'Courier', path: '/user/courier-setup', icon: Truck, userOnly: true },
       { name: 'Settings', path: '/user/settings', icon: Settings, userOnly: true },
     ]
   },

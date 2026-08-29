@@ -59,6 +59,8 @@ import { AdminTracking } from './pages/admin/AdminTracking';
 import { AdminProfile } from './pages/admin/AdminProfile';
 import { AdminOrderTracking } from './pages/admin/AdminOrderTracking';
 import { AdminSettingsHub } from './pages/admin/AdminSettingsHub';
+import { AdminChannels } from './pages/admin/AdminChannels';
+import { AdminCourierSetup } from './pages/admin/AdminCourierSetup';
 import { AdminSettingsPlaceholder } from './pages/admin/AdminSettingsPlaceholder';
 import { AdminWebhookSettings } from './pages/admin/AdminWebhookSettings';
 import { AdminLabelSettings } from './pages/admin/AdminLabelSettings';
@@ -288,6 +290,8 @@ function App() {
               <Route path="/user/settings/pickup-address" element={<AdminPickupAddress />} />
               <Route path="/user/pickup-manifest/:pickupId" element={<AdminPickupManifestDetails />} />
               <Route path="/user/employees" element={<AdminRoles />} />
+              <Route path="/user/channels" element={<AdminChannels />} />
+              <Route path="/user/courier-setup" element={<AdminCourierSetup />} />
             </Route>
 
             </Route>{/* /AdminShell */}

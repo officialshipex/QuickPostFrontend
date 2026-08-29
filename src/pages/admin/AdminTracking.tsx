@@ -195,6 +195,8 @@ export function AdminTracking() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [showAllEvents, setShowAllEvents] = useState(false);
+  const TRACKING_EVENTS_COLLAPSED_COUNT = 6;
 
   useEffect(() => {
     const paramAwb = searchParams.get('awb') || location.state?.awb || '';
@@ -213,6 +215,7 @@ export function AdminTracking() {
     try {
       const data = await fetchTrackingData(trackingAwb);
       setTrackingData(data);
+      setShowAllEvents(false);
     } catch (err) {
       setError('Failed to fetch tracking details. Please check the AWB number and try again.');
       setTrackingData(null);
@@ -258,7 +261,7 @@ export function AdminTracking() {
             <button
               onClick={() => handleTrack()}
               disabled={isLoading}
-              className="h-11 px-6 bg-[#00A86B] hover:bg-[#009B63] text-white text-[13px] font-bold rounded-lg transition-colors shadow-sm disabled:opacity-70 flex items-center justify-center gap-2 shrink-0"
+              className="h-11 px-6 bg-[#00A86B] hover:bg-[#009B63] text-white text-[13px] font-bold rounded-full transition-colors shadow-sm disabled:opacity-70 flex items-center justify-center gap-2 shrink-0"
             >
               {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
               Track Shipment
@@ -301,16 +304,16 @@ export function AdminTracking() {
             <div className="bg-white rounded-xl border border-[#E2E8F0] shadow-[0_2px_10px_rgba(0,0,0,0.02)] overflow-hidden">
               <div className="px-4 sm:px-6 pt-5 pb-6 border-b border-[#F1F5F9]">
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
-                  <div className="flex items-center gap-3 sm:gap-4">
+                  <div className="flex items-center gap-3 sm:gap-4 min-w-0">
                     <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] flex items-center justify-center shrink-0 overflow-hidden">
                       <img src={trackingData.courierLogo} alt={trackingData.courierName} className="max-w-[26px] max-h-[26px] sm:max-w-[30px] sm:max-h-[30px] object-contain" />
                     </div>
-                    <div className="min-w-0">
-                      <div className={`inline-flex items-center gap-1.5 text-[10.5px] sm:text-[11px] font-bold px-2.5 py-1 rounded-full border ${statusStyle.chip} mb-1`}>
+                    <div className="min-w-0 flex-1 flex flex-col gap-1">
+                      <h2 className="text-[15px] sm:text-[16px] font-bold text-[#0F172A] truncate leading-tight">{trackingData.courierName}</h2>
+                      <div className={`inline-flex items-center gap-1.5 self-start max-w-full text-[10.5px] sm:text-[11px] font-bold px-2.5 py-1 rounded-full border ${statusStyle.chip}`}>
                         <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${statusStyle.dot} ${isException ? '' : 'animate-pulse'}`} />
-                        {trackingData.currentStatus}
+                        <span className="truncate">{trackingData.currentStatus}</span>
                       </div>
-                      <h2 className="text-[15px] sm:text-[16px] font-bold text-[#0F172A] truncate">{trackingData.courierName}</h2>
                     </div>
                   </div>
 
@@ -391,7 +394,7 @@ export function AdminTracking() {
                   </div>
                 ) : (
                   <div className="pl-1">
-                    {trackingData.events.map((event, index, arr) => (
+                    {(showAllEvents ? trackingData.events : trackingData.events.slice(0, TRACKING_EVENTS_COLLAPSED_COUNT)).map((event, index, arr) => (
                       <div key={event.id} className="relative flex gap-4 pb-7 last:pb-0">
                         {index !== arr.length - 1 && (
                           <div className={`absolute left-[13px] top-7 bottom-0 w-[2px] ${event.active ? 'bg-[#00A86B]' : 'bg-[#E2E8F0]'}`} />
@@ -432,6 +435,15 @@ export function AdminTracking() {
                         </div>
                       </div>
                     ))}
+
+                    {trackingData.events.length > TRACKING_EVENTS_COLLAPSED_COUNT && (
+                      <button
+                        onClick={() => setShowAllEvents(v => !v)}
+                        className="w-full mt-1 h-9 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] text-[12px] font-bold text-[#475569] hover:bg-[#F1F5F9] hover:text-[#0F172A] transition-colors"
+                      >
+                        {showAllEvents ? 'Show Less' : `Show More (${trackingData.events.length - TRACKING_EVENTS_COLLAPSED_COUNT} more)`}
+                      </button>
+                    )}
                   </div>
                 )}
               </div>

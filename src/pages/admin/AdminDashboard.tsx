@@ -290,15 +290,15 @@ export function AdminDashboard() {
       <div className="max-w-[1400px] mx-auto text-[#0F172A] pb-10 min-w-0 overflow-x-hidden">
 
         {/* Header */}
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-3 mb-4">
           <div className="flex items-center gap-2 text-[11px] font-medium text-[#64748B]">
             {isUserRoute ? 'My Dashboard' : userMongoId ? `${userQuery.split(' (')[0]}'s Dashboard` : 'Platform Dashboard'}
             {' — '}{filters.dateRange.label} ({fd(filters.dateRange.start)} – {fd(filters.dateRange.end)})
           </div>
 
           {isAdminView && (
-            <div className="flex items-center gap-2 shrink-0">
-              <div className="relative w-[260px] max-w-full">
+            <div className="flex items-center gap-2 w-full sm:w-auto sm:shrink-0">
+              <div className="relative flex-1 min-w-0 sm:flex-none sm:w-[260px]">
                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8] pointer-events-none" />
                 <input
                   type="text"
@@ -722,8 +722,10 @@ export function AdminDashboard() {
               </table>
             </div>
 
-            {/* Mobile cards */}
-            <div className="md:hidden space-y-3 mb-6">
+            {/* Mobile cards — bounded to ~3 cards tall by default; the rest scroll
+                inside this container instead of pushing the whole page down. */}
+            <div className="md:hidden mb-6 relative">
+              <div className="max-h-[560px] overflow-y-auto space-y-3 pr-0.5 rounded-xl">
               {topSellers.length > 0 ? topSellers.map((s, i) => {
                 const rto = parseFloat(s.rtoRate || '0');
                 const rtoColor = rto < 5 ? 'text-emerald-600 bg-emerald-50' : rto < 15 ? 'text-amber-600 bg-amber-50' : 'text-red-600 bg-red-50';
@@ -780,6 +782,13 @@ export function AdminDashboard() {
                     ? <span className="text-red-500 font-medium">{topSellersErr}</span>
                     : <span className="text-[#94A3B8]">No seller data available</span>}
                 </div>
+              )}
+              </div>
+              {topSellers.length > 3 && (
+                <>
+                  <div className="pointer-events-none absolute bottom-0 left-0 right-0.5 h-8 bg-gradient-to-t from-[#F8FAFC] to-transparent rounded-b-xl" />
+                  <div className="text-center text-[10px] font-semibold text-[#94A3B8] mt-1.5">Scroll for {topSellers.length - 3} more</div>
+                </>
               )}
             </div>
           </>
@@ -854,8 +863,10 @@ export function AdminDashboard() {
           </table>
         </div>
 
-        {/* Mobile cards */}
-        <div className="md:hidden space-y-3">
+        {/* Mobile cards — bounded to ~3 cards tall by default; the rest scroll
+            inside this container instead of pushing the whole page down. */}
+        <div className="md:hidden relative">
+          <div className="max-h-[560px] overflow-y-auto space-y-3 pr-0.5 rounded-xl">
           {couriers.length > 0 ? couriers.map((c, i) => {
             const icon = courierIcon(c.courier);
             return (
@@ -922,6 +933,13 @@ export function AdminDashboard() {
             <div className="bg-white rounded-xl border border-[#E2E8F0] p-6 text-center text-[#94A3B8] text-[12px]">
               No courier data for the last 30 days
             </div>
+          )}
+          </div>
+          {couriers.length > 3 && (
+            <>
+              <div className="pointer-events-none absolute bottom-0 left-0 right-0.5 h-8 bg-gradient-to-t from-[#F8FAFC] to-transparent rounded-b-xl" />
+              <div className="text-center text-[10px] font-semibold text-[#94A3B8] mt-1.5">Scroll for {couriers.length - 3} more</div>
+            </>
           )}
         </div>
 
