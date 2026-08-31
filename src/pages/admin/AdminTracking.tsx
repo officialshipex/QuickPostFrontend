@@ -133,10 +133,16 @@ const STAGE_DEFS = [
 
 const resolveStageIndex = (status: string): number => {
   const s = (status || '').toLowerCase();
+  // Must run before the substring loop below: 'undelivered' contains
+  // 'delivered' as a substring, so it would otherwise match the LAST stage
+  // ('delivered', matched via s.includes('delivered')) since the loop scans
+  // backward from the end — incorrectly showing the rail as fully complete
+  // for a failed delivery attempt instead of treating it as an exception.
+  if (s.includes('rto') || s.includes('cancel') || s.includes('lost') || s === 'undelivered') return -1;
   for (let i = STAGE_DEFS.length - 1; i >= 0; i--) {
     if (STAGE_DEFS[i].match.some((m) => s.includes(m))) return i;
   }
-  return s.includes('rto') || s.includes('cancel') || s.includes('lost') ? -1 : 0;
+  return 0;
 };
 
 function ProgressRail({ status }: { status: string }) {
@@ -318,7 +324,7 @@ export function AdminTracking() {
                     <div className="flex items-center justify-between sm:justify-start gap-2 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg px-3 py-2">
                       <div className="min-w-0">
                         <p className="text-[9.5px] font-bold text-[#94A3B8] uppercase tracking-wider">AWB Number</p>
-                        <p className="text-[12.5px] font-bold text-[#0F172A] font-mono truncate">{trackingData.awb}</p>
+                        <p onClick={copyAwb} title="Click to copy AWB" className="text-[12.5px] font-bold text-[#00A86B] font-mono truncate cursor-pointer hover:underline">{trackingData.awb}</p>
                       </div>
                       <button
                         onClick={copyAwb}
@@ -448,12 +454,21 @@ export function AdminTracking() {
                       { label: 'Courier Partner', value: trackingData.courierName },
                       { label: 'Tracking Number', value: trackingData.awb },
                       { label: 'Current Status', value: trackingData.currentStatus },
-                    ].map((row) => (
-                      <div key={row.label} className="flex items-center justify-between gap-3">
-                        <span className="text-[11.5px] font-semibold text-[#64748B]">{row.label}</span>
-                        <span className="text-[12px] font-bold text-[#0F172A] text-right truncate max-w-[160px]">{row.value}</span>
-                      </div>
-                    ))}
+                    ].map((row) => {
+                      const isAwbRow = row.label === 'Tracking Number';
+                      return (
+                        <div key={row.label} className="flex items-center justify-between gap-3">
+                          <span className="text-[11.5px] font-semibold text-[#64748B]">{row.label}</span>
+                          <span
+                            onClick={isAwbRow ? copyAwb : undefined}
+                            title={isAwbRow ? 'Click to copy AWB' : undefined}
+                            className={`text-[12px] font-bold text-right truncate max-w-[160px] ${isAwbRow ? 'text-[#00A86B] cursor-pointer hover:underline' : 'text-[#0F172A]'}`}
+                          >
+                            {row.value}
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 

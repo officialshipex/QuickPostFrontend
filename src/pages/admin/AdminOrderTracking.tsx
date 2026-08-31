@@ -231,6 +231,20 @@ const getMilestonesFromStatus = (rawStatus: string, order?: OrderData) => {
     ];
   }
 
+  // Undelivered (NDR) — a delivery attempt was made and failed, distinct from
+  // the normal in-progress "Out for Delivery" step so it's visually clear
+  // something went wrong rather than looking like it's still en route.
+  // Previously fell through to the standard flow's default activeIdx = 0,
+  // incorrectly showing "Ready to Ship" as the active step.
+  if (s === 'undelivered') {
+    return [
+      { name: 'Order Placed',     date: created,  status: 'completed', icon: 'check' },
+      { name: 'Picked Up',        date: pickedUp, status: 'completed', icon: 'check' },
+      { name: 'Out for Delivery', date: '',       status: 'completed', icon: 'truck' },
+      { name: 'Undelivered',      date: '',       status: 'active',    icon: 'alert-triangle' },
+    ];
+  }
+
   // Standard 4-step delivery flow
   // 0 = Booked / Ready to Ship → new / Booked / Not Picked / Ready To Ship / Pickup Scheduled
   // 1 = In Transit             → Pickup & Manifest / In-transit / In Transit
@@ -1299,7 +1313,7 @@ export function AdminOrderTracking() {
               <div className="flex items-center justify-between bg-slate-50 rounded-xl p-3 mb-5">
                 <div>
                   <div className="text-[10px] leading-4 font-semibold text-[#94A3B8] uppercase tracking-wider">AWB Number</div>
-                  <div className="text-[12px] leading-[18px] font-bold text-[#0F172A] mt-0.5 tracking-wide font-mono">{awbNumber}</div>
+                  <div onClick={handleCopyAwb} title="Click to copy AWB Number" className="text-[12px] leading-[18px] font-bold text-[#00A86B] mt-0.5 tracking-wide font-mono cursor-pointer hover:underline">{awbNumber}</div>
                 </div>
                 <div className="flex items-center gap-2">
                   {courierName !== '—' && (
@@ -1523,7 +1537,7 @@ export function AdminOrderTracking() {
             <div className="p-5 space-y-4">
               <div className="bg-slate-50 rounded-lg p-3 flex justify-between items-center text-[12px] leading-[18px]">
                 <span className="font-medium text-[#64748B]">AWB Number</span>
-                <span className="font-mono font-semibold text-[#0F172A]">{awbNumber}</span>
+                <span onClick={handleCopyAwb} title="Click to copy AWB Number" className="font-mono font-semibold text-[#00A86B] cursor-pointer hover:underline">{awbNumber}</span>
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-[10px] leading-4 font-semibold text-[#64748B] uppercase tracking-wider">

@@ -1037,6 +1037,48 @@ export function AdminOrders() {
     }
   };
 
+  // Ready to Ship tab's "Bulk Cancel" — these orders already have a courier
+  // booking (AWB), so this cancels the SHIPMENT with that courier and marks
+  // the order Cancelled; the order record itself is kept. Same dedicated
+  // endpoint old ShipexFrontend's BookedOrders/ReadyToShipOrders "Bulk Cancel"
+  // uses — the backend handles per-courier cancel calls, wallet refunds, and
+  // skipping non-cancellable statuses in the background, one call not N.
+  const handleBulkCancel = async () => {
+    if (selectedOrders.length === 0) return;
+    try {
+      const res = await apiClient.post('/order/bulkCancelOrder', { selectedOrders });
+      showToast('success', res.data?.message || `Bulk cancellation started for ${selectedOrders.length} order(s).`);
+      setSelectedOrders([]);
+      fetchOrders(page);
+    } catch (error: any) {
+      showToast('error', error?.response?.data?.message || 'Failed to cancel orders.');
+    }
+  };
+
+  // New tab's "Bulk Delete" — these orders were never booked with a courier
+  // (no AWB yet), so there's no shipment to cancel — this PERMANENTLY DELETES
+  // each selected order from the database instead. Deliberately a different
+  // endpoint from handleBulkCancel above: old ShipexFrontend's "New" tab calls
+  // /order/cancelOrdersAtNotShipped (a real Order.findByIdAndDelete) per order,
+  // not /order/bulkCancelOrder — that endpoint only accepts Booked/Not
+  // Picked/Ready To Ship statuses and would silently skip "new" orders.
+  const handleBulkDelete = async () => {
+    if (selectedOrders.length === 0) return;
+    try {
+      const results = await Promise.allSettled(
+        selectedOrders.map(id => apiClient.post('/order/cancelOrdersAtNotShipped', { orderId: id }))
+      );
+      const failed = results.filter(r => r.status === 'rejected').length;
+      const succeeded = results.length - failed;
+      if (failed === 0) showToast('success', `Deleted ${succeeded} order(s).`);
+      else showToast('error', `Deleted ${succeeded} order(s), ${failed} failed.`);
+      setSelectedOrders([]);
+      fetchOrders(page);
+    } catch (error: any) {
+      showToast('error', 'Failed to delete orders.');
+    }
+  };
+
   // ── Tab-specific boolean helpers ──
   const isPMTab  = activeTab === 'Pickup & Manifest';
   const isNewTab = activeTab === 'New';
@@ -1070,7 +1112,17 @@ export function AdminOrders() {
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { handleBulkLabel(selectedOrders); closeMenu(); }}>Verify Orders</button>
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { setShowExportModal(true); closeMenu(); }}>Export Excel</button>
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { handleBulkInvoice(selectedOrders); closeMenu(); }}>Download Invoices</button>
-        <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#EF4444] hover:bg-red-50 mt-1 cursor-pointer" onClick={() => { selectedOrders.forEach(id => { const o = orders.find(x => x._id === id); if (o) handleCancelOrder(o); }); closeMenu(); }}>Bulk Delete</button>
+        <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#EF4444] hover:bg-red-50 mt-1 cursor-pointer" onClick={() => { handleBulkDelete(); closeMenu(); }}>Bulk Delete</button>
+      </>
+    );
+    if (activeTab === 'Ready to Ship') return (
+      <>
+        {selectAllItem}
+        <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { setShowExportModal(true); closeMenu(); }}>Export Excel</button>
+        <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { handleBulkLabel(selectedOrders); closeMenu(); }}>Download Labels</button>
+        <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { handleBulkInvoice(selectedOrders); closeMenu(); }}>Download Invoices</button>
+        <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { handleBulkManifest(selectedOrders); closeMenu(); }}>Download Manifests</button>
+        <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#EF4444] hover:bg-red-50 mt-1 cursor-pointer" onClick={() => { handleBulkCancel(); closeMenu(); }}>Bulk Cancel</button>
       </>
     );
     return (
@@ -1473,7 +1525,12 @@ export function AdminOrders() {
               {activeTab === 'Ready to Ship' && (
                 <button onClick={() => handleBulkManifest(selectedOrders)} className="h-8 px-3 rounded-md bg-white border border-blue-200 text-xs font-bold text-blue-700 shadow-sm hover:bg-blue-50 cursor-pointer">Download Manifests</button>
               )}
-              {isNewTab && <button onClick={() => { selectedOrders.forEach(id => { const o = orders.find(x => x._id === id); if (o) handleCancelOrder(o); }); setSelectedOrders([]); }} className="h-8 px-3 rounded-md bg-white border border-red-200 text-xs font-bold text-red-600 shadow-sm ml-auto hover:bg-red-50 cursor-pointer">Bulk Delete</button>}
+              {isNewTab && (
+                <button onClick={handleBulkDelete} className="h-8 px-3 rounded-md bg-white border border-red-200 text-xs font-bold text-red-600 shadow-sm ml-auto hover:bg-red-50 cursor-pointer">Bulk Delete</button>
+              )}
+              {activeTab === 'Ready to Ship' && (
+                <button onClick={handleBulkCancel} className="h-8 px-3 rounded-md bg-white border border-red-200 text-xs font-bold text-red-600 shadow-sm ml-auto hover:bg-red-50 cursor-pointer">Bulk Cancel</button>
+              )}
             </div>
           )}
         </div>
