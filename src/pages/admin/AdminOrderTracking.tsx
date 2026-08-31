@@ -775,9 +775,13 @@ export function AdminOrderTracking() {
             </div>
           </div>
 
-          {/* Mobile — compact horizontal tracker, scrolls if it overflows */}
-          <div className="block md:hidden overflow-x-auto no-scrollbar -mx-3 px-3">
-            <div className="flex items-start" style={{ minWidth: `${milestones.length * 64}px` }}>
+          {/* Mobile — compact horizontal tracker. When it fits (≤5 steps, the common
+              case), each step grows to fill the full width evenly instead of sitting
+              at a fixed 64px and leaving empty space on the right. Longer flows (e.g.
+              RTO's extra steps) fall back to a fixed-width, horizontally-scrolling strip. */}
+          <div className={`block md:hidden ${milestones.length > 5 ? 'overflow-x-auto no-scrollbar -mx-3 px-3' : ''}`}>
+            <div className={milestones.length > 5 ? 'flex items-start' : 'flex items-start w-full'}
+              style={milestones.length > 5 ? { minWidth: `${milestones.length * 64}px` } : undefined}>
               {milestones.map((m, i) => {
                 const isCompleted = m.status === 'completed';
                 const isActive = m.status === 'active';
@@ -785,7 +789,8 @@ export function AdminOrderTracking() {
                 const MilestoneIcon = MILESTONE_ICONS[m.icon] || Package;
                 const isLast = i === milestones.length - 1;
                 return (
-                  <div key={i} className="flex flex-col items-center text-center shrink-0" style={{ width: '64px' }}>
+                  <div key={i} className={`flex flex-col items-center text-center ${milestones.length > 5 ? 'shrink-0' : 'flex-1 min-w-0'}`}
+                    style={milestones.length > 5 ? { width: '64px' } : undefined}>
                     <div className="flex items-center w-full">
                       <div className="flex-1 h-[2px]" style={{ background: i === 0 ? 'transparent' : (milestones[i - 1].status === 'completed' ? '#00A86B' : '#E2E8F0') }} />
                       <div className="shrink-0">
