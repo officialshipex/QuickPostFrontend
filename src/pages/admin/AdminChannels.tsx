@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import {
   ArrowLeft, Plus, ShoppingBag, ChevronDown, Check,
-  Trash2, Pencil, RefreshCw, Loader2, AlertTriangle,
+  Trash2, Pencil, RefreshCw, Loader2, AlertTriangle, Download, ChevronRight,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { apiClient } from '../../services/apiClient';
@@ -109,6 +109,35 @@ const emptyForm = {
 const VIEW_PARAM_TO_VIEW: Record<string, ChannelView> = {
   add: 'add', woocommerce: 'woocommerce', shopify: 'shopify',
 };
+
+function ShopifyGuideSteps({ steps }: { steps: { title: string; detail: string }[] }) {
+  const [openIndex, setOpenIndex] = useState<number | null>(null);
+  return (
+    <ol className="space-y-1.5">
+      {steps.map((step, i) => {
+        const isOpen = openIndex === i;
+        return (
+          <li key={i} className="rounded-xl border border-[#E2E8F0] overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setOpenIndex(isOpen ? null : i)}
+              className="w-full flex items-center gap-3 px-3.5 py-2.5 text-left hover:bg-[#F8FAFC] transition-colors"
+            >
+              <span className="w-5 h-5 rounded-full bg-[#00A86B] text-white text-[10px] font-bold flex items-center justify-center shrink-0">{i + 1}</span>
+              <span className="flex-1 text-[12px] font-semibold text-[#334155]">{step.title}</span>
+              <ChevronRight className={`w-3.5 h-3.5 text-[#94A3B8] shrink-0 transition-transform ${isOpen ? 'rotate-90' : ''}`} />
+            </button>
+            {isOpen && (
+              <div className="px-4 pb-3 pt-1 text-[12px] text-[#475569] leading-relaxed border-t border-[#F1F5F9] bg-[#FAFBFC]">
+                {step.detail}
+              </div>
+            )}
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
 
 export function AdminChannels() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -440,13 +469,17 @@ export function AdminChannels() {
     'Copy and paste the generated API key and secret into the form above.',
     'Click "Add Channel" to complete the integration.',
   ];
-  const shopifySteps = [
-    'Fill in your Shopify Store name, Store URL, Store Client ID and Store client secret.',
-    'If you do not have these details, login to your Shopify account and copy the URL from the address bar (Store URL). The Store name is the name of your store.',
-    'Click on Settings and in the left menu choose Apps and sales channels.',
-    'Click on Develop apps and in the new page, click on Create an App.',
-    'Enter the App name and choose the App developer, then click Create.',
-    'Click on API credentials. The API key is the Client ID, and the API secret is the Client Secret.',
+  const shopifySteps: { title: string; detail: string }[] = [
+    { title: 'Create the Shopify App', detail: 'Go to dev.shopify.com/dashboard → Apps → Create app → Start from Dev Dashboard. Enter an app name and click Create.' },
+    { title: 'Add the read_orders permission', detail: 'Open the app → Versions/Configuration → Admin API access scopes. Enable read_orders (required). Enable write_orders only if you need to push orders back to Shopify. Click Release/Deploy the version.' },
+    { title: 'Install the app on your store', detail: 'Open the app\'s Home page → Install app → select the correct Shopify store → review permissions → click Install. Wait for Shopify to confirm installation.' },
+    { title: 'Copy Client ID and Client Secret', detail: 'Open the app → Settings → Credentials. Copy the Client ID and the Client Secret. Keep both values safe — never share the Client Secret publicly.' },
+    { title: 'Install Postman', detail: 'Download and install Postman from postman.com/downloads if you do not have it.' },
+    { title: 'Create an Access Token request', detail: 'In Postman: New → HTTP Request → method POST. URL: https://YOUR-STORE.myshopify.com/admin/oauth/access_token (replace YOUR-STORE with your store\'s myshopify domain).' },
+    { title: 'Set the Postman body', detail: 'Body → x-www-form-urlencoded. Add 3 keys: grant_type = client_credentials, client_id = your Client ID, client_secret = your Client Secret. Click Send.' },
+    { title: 'Copy the Access Token', detail: 'From the Postman response, copy the access_token value. Note: this token expires in ~24 hours and must be regenerated when it does.' },
+    { title: 'Enter credentials here', detail: 'Paste your Store URL (abc-store.myshopify.com), Client ID, Client Secret and Access Token into the form fields on the left and click Add Channel.' },
+    { title: 'Orders older than 60 days', detail: 'Shopify limits orders to the last 60 days by default. If you need older orders, Shopify requires approval for the read_all_orders scope — contact us before enabling it.' },
   ];
 
   return (
@@ -602,13 +635,31 @@ export function AdminChannels() {
               </p>
             </div>
 
-            <div className="w-full lg:w-[380px] shrink-0 bg-white rounded-2xl border border-[#E2E8F0] shadow-sm p-6">
-              <h3 className="text-[14px] font-bold text-[#0F172A] mb-3">Steps to Integrate {isWoo ? 'WooCommerce' : 'Shopify'}</h3>
-              <ol className="space-y-2.5 list-decimal list-inside">
-                {(isWoo ? wooSteps : shopifySteps).map((step, i) => (
-                  <li key={i} className="text-[13px] text-[#475569] leading-relaxed">{step}</li>
-                ))}
-              </ol>
+            <div className="w-full lg:w-[400px] shrink-0 bg-white rounded-2xl border border-[#E2E8F0] shadow-sm p-6">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-[14px] font-bold text-[#0F172A]">
+                  Steps to Integrate {isWoo ? 'WooCommerce' : 'Shopify'}
+                </h3>
+                {!isWoo && (
+                  <a
+                    href="/guides/shopify-order-sync-guide.pdf"
+                    download="Shopify_Order_Sync_Setup_Guide.pdf"
+                    className="flex items-center gap-1.5 h-8 px-3 rounded-full border border-[#00A86B] text-[#00A86B] text-[12px] font-bold hover:bg-[#F0FDF4] transition-colors shrink-0"
+                  >
+                    <Download className="w-3.5 h-3.5" /> PDF Guide
+                  </a>
+                )}
+              </div>
+
+              {isWoo ? (
+                <ol className="space-y-2.5 list-decimal list-inside">
+                  {wooSteps.map((step, i) => (
+                    <li key={i} className="text-[13px] text-[#475569] leading-relaxed">{step}</li>
+                  ))}
+                </ol>
+              ) : (
+                <ShopifyGuideSteps steps={shopifySteps} />
+              )}
             </div>
           </div>
         )}
