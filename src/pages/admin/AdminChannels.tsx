@@ -1,13 +1,16 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
-import { ArrowLeft, Plus, ShoppingBag, ChevronDown, Check } from 'lucide-react';
+import {
+  ArrowLeft, Plus, ShoppingBag, ChevronDown, Check,
+  Trash2, Pencil, RefreshCw, Loader2, AlertTriangle,
+} from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { apiClient } from '../../services/apiClient';
 
 type ChannelView = 'list' | 'add' | 'woocommerce' | 'shopify';
 
-// ─── Pill single-select dropdown — matches the form's rounded-full field style
-//     with an animated panel, instead of a native <select>. ──────────────────
+// ─── Pill single-select dropdown ────────────────────────────────────────────
 interface PillOption { label: string; value: string; }
 function PillSelect({ value, onChange, options, placeholder = 'Please Select', className = '' }: {
   value: string; onChange: (v: string) => void; options: PillOption[]; placeholder?: string; className?: string;
@@ -69,20 +72,38 @@ function PillSelect({ value, onChange, options, placeholder = 'Please Select', c
   );
 }
 
+// ─── Types ──────────────────────────────────────────────────────────────────
 interface Channel {
   _id: string;
-  platform: 'WooCommerce' | 'Shopify';
+  channel: 'WooCommerce' | 'Shopify';
   storeName: string;
-  storeUrl: string;
+  storeURL: string;
+  storeClientId?: string;
+  storeClientSecret?: string;
+  storeAccessToken?: string;
+  orderSyncFrequency?: string;
+  paymentStatus?: { COD?: string; Prepaid?: string };
+  multiSeller?: boolean;
+  syncInventory?: boolean;
+  syncFromDate?: string;
+  lastSync?: string;
 }
 
-const PAYMENT_STATUS_OPTIONS = ['Booked', 'Ready To Ship', 'Pickup Scheduled', 'In-transit', 'Delivered'];
-const SYNC_FREQUENCY_OPTIONS = ['Every 15 minutes', 'Every 30 minutes', 'Every 1 hour', 'Every 6 hours', 'Daily'];
+const PAYMENT_STATUS_OPTIONS = [
+  'Booked', 'Ready To Ship', 'Pickup Scheduled', 'In-transit', 'Delivered',
+];
 
-const emptyIntegrationForm = {
-  storeName: '', storeUrl: '', clientId: '', clientSecret: '', accessToken: '',
-  syncFrequency: '', codStatus: '', prepaidStatus: '',
-  multiSeller: false, inventorySync: false, syncFromDate: '',
+// Backend enum: daily | weekly | monthly
+const SYNC_FREQUENCY_OPTIONS: PillOption[] = [
+  { label: 'Daily',   value: 'daily'   },
+  { label: 'Weekly',  value: 'weekly'  },
+  { label: 'Monthly', value: 'monthly' },
+];
+
+const emptyForm = {
+  storeName: '', storeURL: '', storeClientId: '', storeClientSecret: '',
+  storeAccessToken: '', orderSyncFrequency: '', paymentStatusCOD: '',
+  paymentStatusPrepaid: '', multiSeller: false, syncInventory: false, syncDate: '',
 };
 
 const VIEW_PARAM_TO_VIEW: Record<string, ChannelView> = {
@@ -90,55 +111,177 @@ const VIEW_PARAM_TO_VIEW: Record<string, ChannelView> = {
 };
 
 export function AdminChannels() {
-  // The current step lives in the URL (?view=add / woocommerce / shopify) instead of
-  // plain component state, so the browser Back button steps back through Add Channel →
-  // the integration form correctly, and always resolves to the channel list at the end
-  // rather than navigating away from the page entirely.
   const [searchParams, setSearchParams] = useSearchParams();
   const view: ChannelView = VIEW_PARAM_TO_VIEW[searchParams.get('view') || ''] || 'list';
-  const [channels, setChannels] = useState<Channel[]>([]);
-  const [form, setForm] = useState(emptyIntegrationForm);
+  const editId = searchParams.get('id') || '';
+  const isEditing = !!editId;
+  const isWoo = view === 'woocommerce';
 
-  const goToView = (v: ChannelView) => {
-    if (v === 'list') setSearchParams({}, { replace: false });
-    else setSearchParams({ view: v }, { replace: false });
+  // ── List state
+  const [channels, setChannels]           = useState<Channel[]>([]);
+  const [loading, setLoading]             = useState(false);
+  const [listError, setListError]         = useState('');
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deletingId, setDeletingId]       = useState<string | null>(null);
+  const [syncingId, setSyncingId]         = useState<string | null>(null);
+
+  // ── Form state
+  const [form, setForm]                   = useState(emptyForm);
+  const [formErrors, setFormErrors]       = useState<Record<string, string>>({});
+  const [submitting, setSubmitting]       = useState(false);
+  const [editLoading, setEditLoading]     = useState(false);
+
+  const goToView = (v: ChannelView | 'list', id?: string) => {
+    const params: Record<string, string> = {};
+    if (v !== 'list') params.view = v;
+    if (id) params.id = id;
+    setSearchParams(params, { replace: false });
   };
 
-  const resetForm = () => setForm(emptyIntegrationForm);
+  const resetForm = () => { setForm(emptyForm); setFormErrors({}); };
 
-  const handleAddChannel = (platform: 'WooCommerce' | 'Shopify') => {
-    if (!form.storeName.trim() || !form.storeUrl.trim()) return;
-    setChannels(prev => [...prev, {
-      _id: `dummy-channel-${Date.now()}`,
-      platform,
-      storeName: form.storeName.trim(),
-      storeUrl: form.storeUrl.trim(),
-    }]);
-    resetForm();
-    goToView('list');
+  // ── Fetch all channels (called on list view mount / after mutations)
+  const fetchChannels = useCallback(async () => {
+    setLoading(true); setListError('');
+    try {
+      const res = await apiClient.get('/channel/getAllChannel');
+      setChannels(res.data?.data || []);
+    } catch {
+      setListError('Failed to load channels. Please refresh.');
+    } finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => {
+    if (view === 'list') fetchChannels();
+  }, [view, fetchChannels]);
+
+  // ── Pre-fill form when editing an existing channel
+  useEffect(() => {
+    if (!editId || (view !== 'woocommerce' && view !== 'shopify')) return;
+    setEditLoading(true);
+    apiClient.get(`/channel/getOneChannel/${editId}`)
+      .then(res => {
+        const ch: Channel = res.data?.data || res.data || {};
+        setForm({
+          storeName:          ch.storeName || '',
+          storeURL:           ch.storeURL || '',
+          storeClientId:      ch.storeClientId || '',
+          storeClientSecret:  ch.storeClientSecret || '',
+          storeAccessToken:   ch.storeAccessToken || '',
+          orderSyncFrequency: ch.orderSyncFrequency || '',
+          paymentStatusCOD:   ch.paymentStatus?.COD || '',
+          paymentStatusPrepaid: ch.paymentStatus?.Prepaid || '',
+          multiSeller:        ch.multiSeller ?? false,
+          syncInventory:      ch.syncInventory ?? false,
+          syncDate:           ch.syncFromDate ? ch.syncFromDate.slice(0, 10) : '',
+        });
+      })
+      .catch(() => {})
+      .finally(() => setEditLoading(false));
+  }, [editId, view]);
+
+  // ── Submit: create or update
+  const handleSubmit = async () => {
+    const errs: Record<string, string> = {};
+    if (!form.storeName.trim())      errs.storeName      = 'Required';
+    if (!form.storeURL.trim())       errs.storeURL       = 'Required';
+    if (!form.storeClientId.trim())  errs.storeClientId  = 'Required';
+    if (!form.storeClientSecret.trim()) errs.storeClientSecret = 'Required';
+    if (!isWoo && !form.storeAccessToken.trim()) errs.storeAccessToken = 'Required';
+    setFormErrors(errs);
+    if (Object.keys(errs).length > 0) return;
+
+    setSubmitting(true);
+    try {
+      const body: Record<string, any> = {
+        channel:          isWoo ? 'WooCommerce' : 'Shopify',
+        storeName:        form.storeName.trim(),
+        storeURL:         form.storeURL.trim(),
+        storeClientId:    form.storeClientId.trim(),
+        storeClientSecret: form.storeClientSecret.trim(),
+        multiSeller:      form.multiSeller,
+        syncInventory:    form.syncInventory,
+      };
+      if (!isWoo)                    body.storeAccessToken   = form.storeAccessToken.trim();
+      if (form.orderSyncFrequency)   body.orderSyncFrequency = form.orderSyncFrequency;
+      if (form.paymentStatusCOD)     body.paymentStatusCOD   = form.paymentStatusCOD;
+      if (form.paymentStatusPrepaid) body.paymentStatusPrepaid = form.paymentStatusPrepaid;
+      if (form.syncDate)             body.syncDate           = form.syncDate;
+
+      if (isEditing) {
+        await apiClient.put(`/channel/updateChannel/${editId}`, body);
+      } else {
+        await apiClient.post('/channel/storeAllChannelDetails', body);
+      }
+      resetForm();
+      goToView('list');
+    } catch (e: any) {
+      setFormErrors({ submit: e?.response?.data?.message || 'Failed to save channel. Please try again.' });
+    } finally { setSubmitting(false); }
   };
 
-  const inputCls = "w-full h-11 px-4 bg-white border border-[#E2E8F0] rounded-full text-[13px] font-medium text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all";
-  const labelCls = "block text-[13px] font-semibold text-[#334155] mb-1.5";
+  // ── Delete with confirmation
+  const handleDelete = async (id: string) => {
+    setDeletingId(id);
+    try {
+      await apiClient.delete(`/channel/delete/${id}`);
+      setChannels(prev => prev.filter(c => c._id !== id));
+    } catch {}
+    finally { setDeletingId(null); setConfirmDeleteId(null); }
+  };
 
-  const canSubmit = form.storeName.trim() && form.storeUrl.trim();
+  // ── Sync existing orders from the connected store
+  const handleSync = async (id: string) => {
+    setSyncingId(id);
+    try {
+      await apiClient.post('/channel/fetchOrder', {});
+    } catch {}
+    finally { setSyncingId(null); }
+  };
 
-  // ─── Channels list ──────────────────────────────────────────────────────────
+  const inputCls = (err?: string) =>
+    `w-full h-11 px-4 bg-white border rounded-full text-[13px] font-medium text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all ${err ? 'border-red-400' : 'border-[#E2E8F0]'}`;
+  const labelCls = 'block text-[13px] font-semibold text-[#334155] mb-1.5';
+  const errCls   = 'text-[11px] text-red-500 mt-1';
+
+  // ── Channel list view ──────────────────────────────────────────────────────
   if (view === 'list') {
     return (
       <AdminLayout>
         <div className="max-w-[1400px] mx-auto pb-10">
           <div className="flex items-center justify-between mb-5">
             <h1 className="text-[20px] font-bold text-[#0F172A]">Channels</h1>
-            <button
-              onClick={() => { resetForm(); goToView('add'); }}
-              className="flex items-center gap-1.5 h-10 px-4 rounded-full bg-[#00A86B] text-white text-[13px] font-bold hover:bg-[#009B63] transition-colors shadow-sm"
-            >
-              <Plus className="w-4 h-4" /> New Channel
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={fetchChannels}
+                disabled={loading}
+                className="w-9 h-9 flex items-center justify-center rounded-full border border-[#E2E8F0] text-[#64748B] hover:text-[#00A86B] hover:border-[#00A86B] transition-colors"
+                title="Refresh"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+              </button>
+              <button
+                onClick={() => { resetForm(); goToView('add'); }}
+                className="flex items-center gap-1.5 h-10 px-4 rounded-full bg-[#00A86B] text-white text-[13px] font-bold hover:bg-[#009B63] transition-colors shadow-sm"
+              >
+                <Plus className="w-4 h-4" /> New Channel
+              </button>
+            </div>
           </div>
 
-          {channels.length === 0 ? (
+          {listError && (
+            <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-4">
+              <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />
+              <p className="text-[13px] text-red-600">{listError}</p>
+            </div>
+          )}
+
+          {loading ? (
+            <div className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm py-24 flex items-center justify-center gap-2 text-[#94A3B8]">
+              <Loader2 className="w-5 h-5 animate-spin" />
+              <span className="text-[14px] font-medium">Loading channels…</span>
+            </div>
+          ) : channels.length === 0 ? (
             <div className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm py-24 flex items-center justify-center">
               <p className="text-[15px] font-bold text-[#334155]">No Channels Found</p>
             </div>
@@ -146,21 +289,100 @@ export function AdminChannels() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {channels.map(ch => (
                 <div key={ch._id} className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm p-5">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-11 h-11 rounded-xl bg-[#F0FDF4] flex items-center justify-center shrink-0">
-                      <ShoppingBag className="w-5 h-5 text-[#00A86B]" />
+                  <div className="flex items-start justify-between gap-2 mb-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${ch.channel === 'WooCommerce' ? 'bg-[#7F54B3]/10' : 'bg-[#95BF47]/10'}`}>
+                        {ch.channel === 'WooCommerce'
+                          ? <span className="text-[#7F54B3] font-black text-[10px]">Woo</span>
+                          : <ShoppingBag className="w-5 h-5 text-[#95BF47]" />}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-[14px] font-bold text-[#0F172A] truncate">{ch.storeName}</div>
+                        <div className="text-[11px] font-semibold text-[#94A3B8]">{ch.channel}</div>
+                      </div>
                     </div>
-                    <div className="min-w-0">
-                      <div className="text-[14px] font-bold text-[#0F172A] truncate">{ch.storeName}</div>
-                      <div className="text-[11px] font-semibold text-[#94A3B8]">{ch.platform}</div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      {/* Sync */}
+                      <button
+                        onClick={() => handleSync(ch._id)}
+                        disabled={syncingId === ch._id}
+                        title="Sync orders"
+                        className="w-8 h-8 flex items-center justify-center rounded-full text-[#64748B] hover:bg-[#F0FDF4] hover:text-[#00A86B] transition-colors"
+                      >
+                        <RefreshCw className={`w-3.5 h-3.5 ${syncingId === ch._id ? 'animate-spin' : ''}`} />
+                      </button>
+                      {/* Edit */}
+                      <button
+                        onClick={() => goToView(ch.channel === 'WooCommerce' ? 'woocommerce' : 'shopify', ch._id)}
+                        title="Edit channel"
+                        className="w-8 h-8 flex items-center justify-center rounded-full text-[#64748B] hover:bg-[#F0FDF4] hover:text-[#00A86B] transition-colors"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      {/* Delete */}
+                      <button
+                        onClick={() => setConfirmDeleteId(ch._id)}
+                        title="Delete channel"
+                        className="w-8 h-8 flex items-center justify-center rounded-full text-[#64748B] hover:bg-red-50 hover:text-red-500 transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   </div>
-                  <div className="text-[12px] text-[#64748B] truncate">{ch.storeUrl}</div>
+                  <div className="text-[12px] text-[#64748B] truncate">{ch.storeURL}</div>
+                  {ch.lastSync && (
+                    <div className="text-[11px] text-[#94A3B8] mt-1.5">
+                      Last synced: {new Date(ch.lastSync).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
           )}
         </div>
+
+        {/* Delete confirmation modal */}
+        <AnimatePresence>
+          {confirmDeleteId && (
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0F172A]/40 backdrop-blur-sm"
+              onClick={() => setConfirmDeleteId(null)}
+            >
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+                onClick={e => e.stopPropagation()}
+                className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm"
+              >
+                <div className="flex items-start gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center shrink-0">
+                    <Trash2 className="w-4 h-4 text-red-500" />
+                  </div>
+                  <div>
+                    <p className="text-[15px] font-bold text-[#0F172A]">Delete Channel</p>
+                    <p className="text-[13px] text-[#64748B] mt-0.5">This will permanently remove the channel and disconnect your store. This action cannot be undone.</p>
+                  </div>
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <button
+                    onClick={() => setConfirmDeleteId(null)}
+                    className="h-9 px-4 rounded-full border border-[#E2E8F0] text-[13px] font-bold text-[#64748B] hover:bg-[#F8FAFC] transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => handleDelete(confirmDeleteId)}
+                    disabled={!!deletingId}
+                    className="h-9 px-4 rounded-full bg-red-500 text-white text-[13px] font-bold hover:bg-red-600 disabled:opacity-60 transition-colors flex items-center gap-1.5"
+                  >
+                    {deletingId ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+                    Delete
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </AdminLayout>
     );
   }
@@ -211,7 +433,6 @@ export function AdminChannels() {
   }
 
   // ─── WooCommerce / Shopify integration form ────────────────────────────────
-  const isWoo = view === 'woocommerce';
   const wooSteps = [
     'Fill in your WooCommerce credentials and API details.',
     "If you don't have API details, go to WooCommerce settings and generate a key.",
@@ -220,12 +441,12 @@ export function AdminChannels() {
     'Click "Add Channel" to complete the integration.',
   ];
   const shopifySteps = [
-    'Fill in your Shopify Store name, Store URL, Store Client ID and Store client secret. Enter the details and click on add Channel to connect Shopify with Shipex.',
-    'If you do not have these details available, Login to your Shopify account and copy the URL link in the address bar. This is the store URL. Store name is the name of your store.',
-    'Click on settings and in the left menu choose apps and sales channels.',
-    'Click on develop apps and in the new page, click on Create an App.',
-    'Enter the App name and choose the app developer and click on Create.',
-    'Click on API credentials. The API key is the Client ID, and the API secret is the client secret. Use the details provided to enter in the Carrier application and connect Shopify.',
+    'Fill in your Shopify Store name, Store URL, Store Client ID and Store client secret.',
+    'If you do not have these details, login to your Shopify account and copy the URL from the address bar (Store URL). The Store name is the name of your store.',
+    'Click on Settings and in the left menu choose Apps and sales channels.',
+    'Click on Develop apps and in the new page, click on Create an App.',
+    'Enter the App name and choose the App developer, then click Create.',
+    'Click on API credentials. The API key is the Client ID, and the API secret is the Client Secret.',
   ];
 
   return (
@@ -241,118 +462,156 @@ export function AdminChannels() {
           ) : (
             <ShoppingBag className="w-6 h-6 text-[#95BF47]" />
           )}
-          <h1 className="text-[18px] font-bold text-[#0F172A]">{isWoo ? 'WooCommerce Integration' : 'Shopify Integration'}</h1>
+          <h1 className="text-[18px] font-bold text-[#0F172A]">
+            {isEditing ? 'Edit' : (isWoo ? 'WooCommerce' : 'Shopify')} {isEditing ? (isWoo ? 'WooCommerce' : 'Shopify') + ' Integration' : 'Integration'}
+          </h1>
         </div>
 
-        <div className="flex flex-col lg:flex-row gap-5 items-start">
-          <div className="flex-1 w-full bg-white rounded-2xl border border-[#E2E8F0] shadow-sm p-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-              <div>
-                <label className={labelCls}>Store Name</label>
-                <input type="text" placeholder="Provide your store name" value={form.storeName}
-                  onChange={(e) => setForm(f => ({ ...f, storeName: e.target.value }))} className={inputCls} />
-              </div>
-              <div>
-                <label className={labelCls}>Store URL</label>
-                <input type="text" placeholder="Provide your store URL" value={form.storeUrl}
-                  onChange={(e) => setForm(f => ({ ...f, storeUrl: e.target.value }))} className={inputCls} />
-              </div>
-              <div>
-                <label className={labelCls}>Store Client ID</label>
-                <input type="text" placeholder="Provide your consumer key" value={form.clientId}
-                  onChange={(e) => setForm(f => ({ ...f, clientId: e.target.value }))} className={inputCls} />
-              </div>
-              <div>
-                <label className={labelCls}>Store Client Secret</label>
-                <input type="text" placeholder="Provide your consumer secret" value={form.clientSecret}
-                  onChange={(e) => setForm(f => ({ ...f, clientSecret: e.target.value }))} className={inputCls} />
-              </div>
-
-              {!isWoo && (
-                <div>
-                  <label className={labelCls}>Access Token</label>
-                  <input type="text" placeholder="Provide your Access Token" value={form.accessToken}
-                    onChange={(e) => setForm(f => ({ ...f, accessToken: e.target.value }))} className={inputCls} />
+        {editLoading ? (
+          <div className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm py-24 flex items-center justify-center gap-2 text-[#94A3B8]">
+            <Loader2 className="w-5 h-5 animate-spin" />
+            <span className="text-[14px] font-medium">Loading channel details…</span>
+          </div>
+        ) : (
+          <div className="flex flex-col lg:flex-row gap-5 items-start">
+            <div className="flex-1 w-full bg-white rounded-2xl border border-[#E2E8F0] shadow-sm p-6">
+              {formErrors.submit && (
+                <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-4">
+                  <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />
+                  <p className="text-[13px] text-red-600">{formErrors.submit}</p>
                 </div>
               )}
 
-              <div>
-                <label className={labelCls}>Order Sync Frequency</label>
-                <PillSelect
-                  value={form.syncFrequency}
-                  onChange={(v) => setForm(f => ({ ...f, syncFrequency: v }))}
-                  options={SYNC_FREQUENCY_OPTIONS.map(o => ({ label: o, value: o }))}
-                  placeholder="Please Select"
-                />
-              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                <div>
+                  <label className={labelCls}>Store Name <span className="text-red-500">*</span></label>
+                  <input type="text" placeholder="Provide your store name" value={form.storeName}
+                    onChange={e => setForm(f => ({ ...f, storeName: e.target.value }))}
+                    className={inputCls(formErrors.storeName)} />
+                  {formErrors.storeName && <p className={errCls}>{formErrors.storeName}</p>}
+                </div>
 
-              <div className="md:col-span-2">
-                <div className="text-[13px] font-bold text-[#0F172A] mb-2">Map Payment Statuses</div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                <div>
+                  <label className={labelCls}>Store URL <span className="text-red-500">*</span></label>
+                  <input type="text" placeholder="https://yourstore.com" value={form.storeURL}
+                    onChange={e => setForm(f => ({ ...f, storeURL: e.target.value }))}
+                    className={inputCls(formErrors.storeURL)} />
+                  {formErrors.storeURL && <p className={errCls}>{formErrors.storeURL}</p>}
+                </div>
+
+                <div>
+                  <label className={labelCls}>Store Client ID <span className="text-red-500">*</span></label>
+                  <input type="text" placeholder="Provide your consumer key" value={form.storeClientId}
+                    onChange={e => setForm(f => ({ ...f, storeClientId: e.target.value }))}
+                    className={inputCls(formErrors.storeClientId)} />
+                  {formErrors.storeClientId && <p className={errCls}>{formErrors.storeClientId}</p>}
+                </div>
+
+                <div>
+                  <label className={labelCls}>Store Client Secret <span className="text-red-500">*</span></label>
+                  <input type="text" placeholder="Provide your consumer secret" value={form.storeClientSecret}
+                    onChange={e => setForm(f => ({ ...f, storeClientSecret: e.target.value }))}
+                    className={inputCls(formErrors.storeClientSecret)} />
+                  {formErrors.storeClientSecret && <p className={errCls}>{formErrors.storeClientSecret}</p>}
+                </div>
+
+                {!isWoo && (
                   <div>
-                    <label className={labelCls}>COD</label>
-                    <PillSelect
-                      value={form.codStatus}
-                      onChange={(v) => setForm(f => ({ ...f, codStatus: v }))}
-                      options={PAYMENT_STATUS_OPTIONS.map(o => ({ label: o, value: o }))}
-                      placeholder="Payment Status"
-                    />
+                    <label className={labelCls}>Access Token <span className="text-red-500">*</span></label>
+                    <input type="text" placeholder="Provide your Access Token" value={form.storeAccessToken}
+                      onChange={e => setForm(f => ({ ...f, storeAccessToken: e.target.value }))}
+                      className={inputCls(formErrors.storeAccessToken)} />
+                    {formErrors.storeAccessToken && <p className={errCls}>{formErrors.storeAccessToken}</p>}
                   </div>
-                  <div>
-                    <label className={labelCls}>Prepaid</label>
-                    <PillSelect
-                      value={form.prepaidStatus}
-                      onChange={(v) => setForm(f => ({ ...f, prepaidStatus: v }))}
-                      options={PAYMENT_STATUS_OPTIONS.map(o => ({ label: o, value: o }))}
-                      placeholder="Payment Status"
-                    />
+                )}
+
+                <div>
+                  <label className={labelCls}>Order Sync Frequency</label>
+                  <PillSelect
+                    value={form.orderSyncFrequency}
+                    onChange={v => setForm(f => ({ ...f, orderSyncFrequency: v }))}
+                    options={SYNC_FREQUENCY_OPTIONS}
+                    placeholder="Please Select"
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <div className="text-[13px] font-bold text-[#0F172A] mb-2">Map Payment Statuses</div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                    <div>
+                      <label className={labelCls}>COD</label>
+                      <PillSelect
+                        value={form.paymentStatusCOD}
+                        onChange={v => setForm(f => ({ ...f, paymentStatusCOD: v }))}
+                        options={PAYMENT_STATUS_OPTIONS.map(o => ({ label: o, value: o }))}
+                        placeholder="Payment Status"
+                      />
+                    </div>
+                    <div>
+                      <label className={labelCls}>Prepaid</label>
+                      <PillSelect
+                        value={form.paymentStatusPrepaid}
+                        onChange={v => setForm(f => ({ ...f, paymentStatusPrepaid: v }))}
+                        options={PAYMENT_STATUS_OPTIONS.map(o => ({ label: o, value: o }))}
+                        placeholder="Payment Status"
+                      />
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="md:col-span-2 flex items-center gap-2 pt-1">
-                <input type="checkbox" id="multiSeller" checked={form.multiSeller}
-                  onChange={(e) => setForm(f => ({ ...f, multiSeller: e.target.checked }))}
-                  className="w-4 h-4 rounded border-[#CBD5E1] text-[#00A86B] focus:ring-[#00A86B]/30" />
-                <label htmlFor="multiSeller" className="text-[13px] font-semibold text-[#334155]">Enable Multi Seller</label>
-              </div>
-
-              <div className="md:col-span-2">
-                <div className="text-[13px] font-bold text-[#0F172A] mb-2">Inventory</div>
-                <div className="flex items-center gap-2 mb-3">
-                  <input type="checkbox" id="inventorySync" checked={form.inventorySync}
-                    onChange={(e) => setForm(f => ({ ...f, inventorySync: e.target.checked }))}
+                <div className="md:col-span-2 flex items-center gap-2 pt-1">
+                  <input type="checkbox" id="multiSeller" checked={form.multiSeller}
+                    onChange={e => setForm(f => ({ ...f, multiSeller: e.target.checked }))}
                     className="w-4 h-4 rounded border-[#CBD5E1] text-[#00A86B] focus:ring-[#00A86B]/30" />
-                  <label htmlFor="inventorySync" className="text-[13px] font-semibold text-[#334155]">Enable Inventory Sync</label>
+                  <label htmlFor="multiSeller" className="text-[13px] font-semibold text-[#334155]">Enable Multi Seller</label>
                 </div>
-                <label className={labelCls}>Sync From Date</label>
-                <input type="date" value={form.syncFromDate}
-                  onChange={(e) => setForm(f => ({ ...f, syncFromDate: e.target.value }))}
-                  className={`${inputCls} md:w-[280px]`} />
+
+                <div className="md:col-span-2">
+                  <div className="text-[13px] font-bold text-[#0F172A] mb-2">Inventory</div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <input type="checkbox" id="inventorySync" checked={form.syncInventory}
+                      onChange={e => setForm(f => ({ ...f, syncInventory: e.target.checked }))}
+                      className="w-4 h-4 rounded border-[#CBD5E1] text-[#00A86B] focus:ring-[#00A86B]/30" />
+                    <label htmlFor="inventorySync" className="text-[13px] font-semibold text-[#334155]">Enable Inventory Sync</label>
+                  </div>
+                  <label className={labelCls}>Sync From Date</label>
+                  <input type="date" value={form.syncDate}
+                    onChange={e => setForm(f => ({ ...f, syncDate: e.target.value }))}
+                    className={`${inputCls()} md:w-[280px]`} />
+                </div>
               </div>
+
+              <div className="flex items-center gap-3 mt-6">
+                <button
+                  onClick={handleSubmit}
+                  disabled={submitting}
+                  className="h-10 px-6 rounded-lg bg-[#00A86B] text-white text-[13px] font-bold hover:bg-[#009B63] disabled:opacity-60 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
+                >
+                  {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  {isEditing ? 'Update Channel' : 'Add Channel'}
+                </button>
+                <button
+                  onClick={() => { resetForm(); goToView('list'); }}
+                  className="h-10 px-5 rounded-lg border border-[#E2E8F0] text-[#64748B] text-[13px] font-bold hover:bg-[#F8FAFC] transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+              <p className="text-[12px] text-[#94A3B8] mt-2">
+                Please click on the "{isEditing ? 'Update Channel' : 'Add Channel'}" button to {isEditing ? 'save your changes to' : 'integrate with'} your {isWoo ? 'WooCommerce' : 'Shopify'} account.
+              </p>
             </div>
 
-            <button
-              onClick={() => handleAddChannel(isWoo ? 'WooCommerce' : 'Shopify')}
-              disabled={!canSubmit}
-              className="mt-6 h-10 px-6 rounded-lg bg-[#94A3B8] text-white text-[13px] font-bold enabled:bg-[#00A86B] enabled:hover:bg-[#009B63] disabled:cursor-not-allowed transition-colors"
-            >
-              Add Channel
-            </button>
-            <p className="text-[12px] text-[#94A3B8] mt-2">
-              Please click on the "Add Channel" button, to integrate with your {isWoo ? 'WooCommerce' : 'shopify'} account.
-            </p>
+            <div className="w-full lg:w-[380px] shrink-0 bg-white rounded-2xl border border-[#E2E8F0] shadow-sm p-6">
+              <h3 className="text-[14px] font-bold text-[#0F172A] mb-3">Steps to Integrate {isWoo ? 'WooCommerce' : 'Shopify'}</h3>
+              <ol className="space-y-2.5 list-decimal list-inside">
+                {(isWoo ? wooSteps : shopifySteps).map((step, i) => (
+                  <li key={i} className="text-[13px] text-[#475569] leading-relaxed">{step}</li>
+                ))}
+              </ol>
+            </div>
           </div>
-
-          <div className="w-full lg:w-[380px] shrink-0 bg-white rounded-2xl border border-[#E2E8F0] shadow-sm p-6">
-            <h3 className="text-[14px] font-bold text-[#0F172A] mb-3">Steps to Integrate {isWoo ? 'WooCommerce' : 'Shopify'}</h3>
-            <ol className="space-y-2.5 list-decimal list-inside">
-              {(isWoo ? wooSteps : shopifySteps).map((step, i) => (
-                <li key={i} className="text-[13px] text-[#475569] leading-relaxed">{step}</li>
-              ))}
-            </ol>
-          </div>
-        </div>
+        )}
       </div>
     </AdminLayout>
   );
