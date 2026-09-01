@@ -525,10 +525,17 @@ export function AdminAddOrder() {
     }
 
     try {
-      await apiClient.post('/order/pickupAddress', pickupForm);
+      const res = await apiClient.post('/order/pickupAddress', pickupForm);
+      // The list-fetch effect only auto-selects when nothing was previously
+      // selected (list.length > 0 && !selectedPickupId) — so without this,
+      // adding a new address while one was already selected (the common
+      // case) silently kept using the OLD address for this order, even
+      // though the newly added one now exists and was just filled in.
+      const newId = res.data?.data?._id;
       setShowPickupModal(false);
       resetPickupForm();
       setPickupRefresh(v => !v);
+      if (newId) setSelectedPickupId(newId);
     } catch {
       setPickupFormErrors({ submit: 'Failed to add pickup address. Please try again.' });
     } finally {
