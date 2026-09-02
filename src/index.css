@@ -93,6 +93,31 @@ thead.sticky tr.border-\[\#B9EFDB\] > th:last-child {
   50% { box-shadow: 0 0 0 4px rgba(0, 168, 107, 0.08); }
 }
 
+@keyframes progressShimmer {
+  0% { transform: translateX(-20%); }
+  100% { transform: translateX(320%); }
+}
+
+@keyframes parcelFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+@keyframes strapWrap {
+  0% { transform: scaleY(0); opacity: 0; }
+  100% { transform: scaleY(1); opacity: 0.85; }
+}
+
+@keyframes strapFadeIn {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+@keyframes buttonShine {
+  0% { transform: translateX(-130%) skewX(-20deg); }
+  100% { transform: translateX(230%) skewX(-20deg); }
+}
+
 @keyframes checkIn {
   from {
     transform: scale(0) rotate(-45deg);

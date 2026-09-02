@@ -24,6 +24,8 @@ interface AdminTabContextType {
   employeeId: string;
   employeeAccessRights: Record<string, EmployeeAccessRights>;
   parentEmail: string;
+  showOnboarding: boolean;
+  setShowOnboarding: (value: boolean) => void;
   toggleAdminTab: (value: boolean) => Promise<void>;
   refetchUser: () => Promise<void>;
 }
@@ -44,6 +46,8 @@ const AdminTabContext = createContext<AdminTabContextType>({
   employeeId: '',
   employeeAccessRights: {},
   parentEmail: '',
+  showOnboarding: false,
+  setShowOnboarding: () => {},
   toggleAdminTab: async () => {},
   refetchUser: async () => {},
 });
@@ -67,6 +71,7 @@ export function AdminUserProvider({ children }: { children: ReactNode }) {
   const [employeeId, setEmployeeId] = useState('');
   const [employeeAccessRights, setEmployeeAccessRights] = useState<Record<string, EmployeeAccessRights>>({});
   const [parentEmail, setParentEmail] = useState('');
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   const fetchAdminTab = useCallback(async () => {
     const token = getToken();
@@ -143,6 +148,7 @@ export function AdminUserProvider({ children }: { children: ReactNode }) {
       isAdmin, adminTab, loadingAdminTab, currentUserId,
       userName, userEmail, businessName, profileImage, walletBalance, walletHold, creditLimit,
       isEmployee, employeeId, employeeAccessRights, parentEmail,
+      showOnboarding, setShowOnboarding,
       toggleAdminTab,
       refetchUser: fetchAdminTab,
     }}>

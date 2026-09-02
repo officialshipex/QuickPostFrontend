@@ -11,6 +11,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { BulkUploadModal } from '../../ui/BulkUploadModal';
 import { RechargeWalletModal } from '../../ui/RechargeWalletModal';
 import { Toast } from '../../ui/Toast';
+import { ShineBox } from '../../ui/ShineButton';
 import { useToast } from '../../../hooks/useToast';
 import { useNotificationList } from '../../../context/NotificationListContext';
 import { JobDetailModal } from '../notifications/JobDetailModal';
@@ -22,7 +23,7 @@ interface AdminHeaderProps {
 
 export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
   const { logout } = useAuth();
-  const { isAdmin, adminTab, toggleAdminTab, userName, userEmail, businessName, profileImage, walletBalance: ctxWalletBalance, walletHold, creditLimit, isEmployee, parentEmail, currentUserId } = useAdminTab();
+  const { isAdmin, adminTab, toggleAdminTab, userName, userEmail, businessName, profileImage, walletBalance: ctxWalletBalance, walletHold, creditLimit, isEmployee, parentEmail, currentUserId, showOnboarding } = useAdminTab();
   const { filters, updateFilter } = useDashboardFilters();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -569,7 +570,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
 
               {/* Wallet Balance */}
               <div className="relative shrink-0">
-                <div
+                <ShineBox
                   className={`flex items-center gap-1.5 shrink-0 whitespace-nowrap text-white pl-3 pr-1.5 py-2 rounded-full text-[12px] font-bold shadow-sm transition-all duration-200 ${walletBalance < 0 ? 'bg-[#EF4444]' : 'bg-[#00A86B]'} ${showMobileWalletSummary ? 'scale-105' : ''}`}
                 >
                   <button
@@ -592,7 +593,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                   >
                     +
                   </button>
-                </div>
+                </ShineBox>
 
                 {showMobileWalletSummary && (
                   <>
@@ -902,8 +903,8 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
       {/* Right Section - Actions */}
       <div className="flex items-center gap-3 shrink-0">
         
-        {/* Date Filter */}
-        {!isDateFilterHiddenPage && (
+        {/* Date Filter — also hidden while the user-side account setup / onboarding screen is showing */}
+        {!isDateFilterHiddenPage && !showOnboarding && (
           <div className="relative">
             <motion.button
               whileHover={{ scale: 1.02 }}
@@ -1030,7 +1031,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
           onMouseEnter={() => setShowWalletHover(true)}
           onMouseLeave={() => setShowWalletHover(false)}
         >
-          <div className={`h-10 pl-3.5 pr-1 rounded-full text-white flex items-center gap-2 shadow-sm ${walletBalance < 0 ? 'bg-[#EF4444]' : 'bg-[#03C27D]'}`}>
+          <ShineBox className={`h-10 pl-3.5 pr-1 rounded-full text-white flex items-center gap-2 shadow-sm ${walletBalance < 0 ? 'bg-[#EF4444]' : 'bg-[#03C27D]'}`}>
             <button
               type="button"
               onClick={() => setShowWalletHover(v => !v)}
@@ -1048,7 +1049,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
             >
               +
             </motion.button>
-          </div>
+          </ShineBox>
 
           <AnimatePresence>
             {showWalletHover && (

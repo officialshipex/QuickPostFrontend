@@ -10,6 +10,7 @@ import { TableLoader } from '../../components/ui/TableLoader';
 import { TruncatedText } from '../../components/ui/TruncatedText';
 import { ProtectedAdImage } from '../../components/ui/ProtectedAdImage';
 import { useUserSearchFilter } from '../../hooks/filters/useUserSearchFilter';
+import { UserOnboarding } from '../../components/admin/dashboard/UserOnboarding';
 import {
   RefreshCcw, Package, IndianRupee, Users, CreditCard, Search, X,
   ShoppingCart, Clock, AlertTriangle, CheckCircle2, RotateCcw,
@@ -126,7 +127,7 @@ function BarRow({ name, value, maxValue, color }: { name: string; value: number;
 
 /* ─── main component ──────────────────────────────────────────────── */
 export function AdminDashboard() {
-  const { isAdmin, adminTab, loadingAdminTab, isEmployee } = useAdminTab();
+  const { isAdmin, adminTab, loadingAdminTab, isEmployee, setShowOnboarding } = useAdminTab();
   const { filters } = useDashboardFilters();
   const isAdminView = isAdmin && adminTab;
   const location = useLocation();
@@ -160,6 +161,8 @@ export function AdminDashboard() {
   const [topSellers,     setTopSellers]     = useState<any[]>([]);
   const [topSellersErr,  setTopSellersErr]  = useState<string>('');
   const [kycComplete, setKycComplete] = useState(false);
+  const [userDetails, setUserDetails] = useState<any>(null);
+  const [contractAccepted, setContractAccepted] = useState(false);
 
   // Seller search (admin-only) — selecting a seller loads their dashboard instead of the platform-wide one.
   const {
@@ -176,7 +179,7 @@ export function AdminDashboard() {
     const userIdParam = isAdminView && userMongoId ? `&userId=${userMongoId}` : '';
     const dateParams = `?startDate=${startISO}&endDate=${endISO}${userIdParam}`;
     const plainParams = userIdParam ? `?${userIdParam.slice(1)}` : '';
-    const [ovRes, insRes, grRes, cdRes, wdRes, crRes, acRes, tsRes, kycRes] =
+    const [ovRes, insRes, grRes, cdRes, wdRes, crRes, acRes, tsRes, kycRes, agRes] =
       await Promise.allSettled([
         apiClient.get(`/dashboard/getDashboardOverview${dateParams}`),
         apiClient.get(`/dashboard/getBusinessInsights${plainParams}`),
@@ -187,6 +190,7 @@ export function AdminDashboard() {
         apiClient.get(`/dashboard/getAdminActionCards${plainParams}`),
         apiClient.get('/dashboard/topSellersData'),
         apiClient.get(`/user/getUserDetails${plainParams}`),
+        apiClient.get('/agreement/user/list'),
       ]);
 
     if (ovRes.status  === 'fulfilled') setOverview(ovRes.value.data?.data);
@@ -208,7 +212,15 @@ export function AdminDashboard() {
       const msg = err?.response?.data?.message || err?.response?.status || err?.message || 'unknown error';
       setTopSellersErr(`API failed: ${msg}`);
     }
-    if (kycRes.status === 'fulfilled') setKycComplete(kycRes.value.data?.user?.kycDone === true);
+    if (kycRes.status === 'fulfilled') {
+      const u = kycRes.value.data?.user;
+      setKycComplete(u?.kycDone === true);
+      setUserDetails(u || null);
+    }
+    if (agRes.status === 'fulfilled') {
+      const agreements = agRes.value.data?.agreements || [];
+      setContractAccepted(agreements.every((a: any) => a?.isAccepted === true));
+    }
 
     setLoading(false);
   }, [startISO, endISO, isAdminView, userMongoId]);
@@ -268,6 +280,16 @@ export function AdminDashboard() {
   /* date label */
   const fd = (d: Date) => d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
 
+  /* Onboarding gate — see full logic below. Computed pre-loading so the header
+     (which reacts to context, not local component state) knows to hide the
+     date filter as soon as this page mounts, not after data finishes loading. */
+  const hasPlacedOrder = monthOrders > 0 || totalShip > 0;
+  const showOnboardingNow = isUserRoute && !isEmployee && !loading && !loadingAdminTab && (!hasPlacedOrder || !kycComplete);
+  useEffect(() => {
+    setShowOnboarding(showOnboardingNow);
+    return () => setShowOnboarding(false);
+  }, [showOnboardingNow, setShowOnboarding]);
+
   /* ── loading ────────────────────────────────────────────────────── */
   if (loading || loadingAdminTab) {
     return (
@@ -281,6 +303,30 @@ export function AdminDashboard() {
             <p className="text-xs text-slate-400">Just a moment while we fetch the latest data…</p>
           </div>
         </div>
+      </AdminLayout>
+    );
+  }
+
+  /* ── Onboarding view ─────────────────────────────────────────────
+     User side accounts see the account setup flow instead of the dashboard
+     until they've both placed an order AND completed KYC. Employees are
+     excluded — they're linked to a parent user whose setup they don't own.
+     Order-activity check: lifetime month count (insights is fetched without
+     a date filter) OR shipments in the selected range, so an established
+     user narrowing to a quiet date range never drops back here. */
+  if (showOnboardingNow) {
+    return (
+      <AdminLayout>
+        <UserOnboarding
+          status={{
+            personalDone:  !!(userDetails?.fullname && userDetails?.phoneNumber),
+            kycDone:       userDetails?.kycDone === true,
+            bankDone:      !!(userDetails?.bankDetails?.accountNumber || userDetails?.bankDetails?.accountNo),
+            contractDone:  contractAccepted,
+            phoneVerified: userDetails?.isPhoneVerified === true,
+            emailVerified: userDetails?.isEmailVerified === true,
+          }}
+        />
       </AdminLayout>
     );
   }
