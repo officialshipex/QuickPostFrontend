@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { apiClient } from '../../services/apiClient';
+import { useSearchNoResults } from '../../hooks/useSearchNoResults';
 
 type ChannelView = 'list' | 'add' | 'woocommerce' | 'shopify';
 
@@ -145,6 +146,7 @@ export function AdminChannels() {
   const editId = searchParams.get('id') || '';
   const isEditing = !!editId;
   const isWoo = view === 'woocommerce';
+  const { NoResultsIllustration } = useSearchNoResults();
 
   // ── List state
   const [channels, setChannels]           = useState<Channel[]>([]);
@@ -312,7 +314,7 @@ export function AdminChannels() {
             </div>
           ) : channels.length === 0 ? (
             <div className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm py-24 flex items-center justify-center">
-              <p className="text-[15px] font-bold text-[#334155]">No Channels Found</p>
+              <NoResultsIllustration />
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
