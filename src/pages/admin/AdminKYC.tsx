@@ -25,8 +25,6 @@ import {
   BadgeCheck,
   Landmark,
   ReceiptText,
-  Fingerprint,
-  Scan,
 } from 'lucide-react';
 
 /* ── READ-ONLY KYC DATA TYPES ── */
@@ -104,6 +102,177 @@ function FieldLabel({ children, required }: { children: React.ReactNode; require
 }
 
 const inputCls = 'w-full h-11 px-4 rounded-full border border-[#E2E8F0] bg-white text-[13px] text-[#0F172A] font-medium focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all disabled:bg-[#F8FAFC] disabled:text-[#64748B]';
+
+/* ── BUSINESS TYPE SELECTOR (shared by both flows) — module-level so it keeps
+   a stable component identity across renders; when this was a function
+   defined inside AdminKYC's body, React saw a brand-new component type on
+   every keystroke and remounted the whole subtree, dropping input focus. ── */
+function BusinessTypeSelector({
+  businessType, setBusinessType, disabled,
+}: {
+  businessType: 'INDIVIDUAL' | 'COMPANY' | null;
+  setBusinessType: (t: 'INDIVIDUAL' | 'COMPANY') => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div>
+      <label className="block text-[16px] font-semibold text-[#0F172A] mb-1.5">Select Business Type</label>
+      <div className="grid grid-cols-2 gap-2.5 max-w-sm">
+        {(['INDIVIDUAL', 'COMPANY'] as const).map((t) => (
+          <button
+            key={t}
+            type="button"
+            disabled={disabled}
+            onClick={() => setBusinessType(t)}
+            className={`flex items-center gap-2 h-11 px-4 rounded-full border-2 transition-all text-left ${
+              businessType === t
+                ? 'border-[#00A86B] bg-[#F0FDF4] text-[#00A86B]'
+                : 'border-[#E2E8F0] bg-[#F8FAFC] text-[#0F172A] hover:border-[#CBD5E1]'
+            } ${disabled ? 'opacity-70 cursor-default' : 'cursor-pointer'}`}
+          >
+            <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${businessType === t ? 'border-[#00A86B]' : 'border-[#CBD5E1]'}`}>
+              {businessType === t && <span className="w-2 h-2 rounded-full bg-[#00A86B]" />}
+            </span>
+            <span className="text-[13px] font-bold">{t === 'INDIVIDUAL' ? 'Individual' : 'Company'}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ── GSTIN FIELD (company only) ── */
+function GstinField({
+  gstin, setGstin, isGstinVerified, isGstinLoading, onVerify, disabled,
+}: {
+  gstin: string;
+  setGstin: (v: string) => void;
+  isGstinVerified: boolean;
+  isGstinLoading: boolean;
+  onVerify: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div>
+      <FieldLabel required>GSTIN No.</FieldLabel>
+      <div className="relative flex items-center">
+        <input
+          type="text"
+          maxLength={15}
+          value={gstin}
+          onChange={(e) => setGstin(e.target.value.toUpperCase())}
+          disabled={isGstinVerified || disabled}
+          placeholder="Enter 15 chars valid GSTIN no."
+          className={`${inputCls} pr-24 uppercase`}
+        />
+        {!isGstinVerified ? (
+          <button
+            type="button"
+            onClick={onVerify}
+            disabled={isGstinLoading || gstin.length < 15 || disabled}
+            className="absolute right-1.5 h-8 px-3.5 rounded-full bg-[#334155] hover:bg-[#1E293B] text-white text-[11px] font-bold disabled:opacity-40 disabled:pointer-events-none transition-colors flex items-center gap-1.5"
+          >
+            {isGstinLoading ? <RefreshCcw className="w-3 h-3 animate-spin" /> : 'Verify'}
+          </button>
+        ) : (
+          <span className="absolute right-3 flex items-center gap-1 text-[11px] font-bold text-[#00A86B]">
+            <Check className="w-3.5 h-3.5" /> Verified
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ── BANK DETAILS PANEL (shared) — Account Number + IFSC verify inline,
+   matching the PAN/GSTIN pattern (no separate "Save" button, no Bank Type
+   selector — neither existed in the original flow). ── */
+function BankDetailsPanel({
+  accountNumber, setAccountNumber,
+  confirmAccountNumber, setConfirmAccountNumber,
+  accountNumbersMatch,
+  accountHolderName, setAccountHolderName,
+  ifscCode, setIfscCode,
+  bankName, setBankName,
+  branchName, setBranchName,
+  isBankVerified, isBankLoading,
+  onVerify,
+}: {
+  accountNumber: string; setAccountNumber: (v: string) => void;
+  confirmAccountNumber: string; setConfirmAccountNumber: (v: string) => void;
+  accountNumbersMatch: boolean;
+  accountHolderName: string; setAccountHolderName: (v: string) => void;
+  ifscCode: string; setIfscCode: (v: string) => void;
+  bankName: string; setBankName: (v: string) => void;
+  branchName: string; setBranchName: (v: string) => void;
+  isBankVerified: boolean; isBankLoading: boolean;
+  onVerify: () => void;
+}) {
+  const canVerify = !!accountNumber && ifscCode.length === 11 && accountNumbersMatch;
+  return (
+    <Panel title="Bank Details">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <FieldLabel required>Account Number</FieldLabel>
+          <input type="text" value={accountNumber} onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, ''))} disabled={isBankVerified} placeholder="Enter account number" className={inputCls} />
+        </div>
+        <div>
+          <FieldLabel required>Confirm Acc. Number</FieldLabel>
+          <input type="text" value={confirmAccountNumber} onChange={(e) => setConfirmAccountNumber(e.target.value.replace(/\D/g, ''))} disabled={isBankVerified} placeholder="Re-enter account number" className={`${inputCls} ${confirmAccountNumber && !accountNumbersMatch ? 'border-red-300 focus:border-red-400 focus:ring-red-100' : ''}`} />
+          {confirmAccountNumber && !accountNumbersMatch && (
+            <p className="text-[10.5px] font-semibold text-red-500 mt-1">Account numbers do not match</p>
+          )}
+        </div>
+        <div>
+          <FieldLabel required>Account Holder Name</FieldLabel>
+          <input type="text" value={accountHolderName} onChange={(e) => setAccountHolderName(e.target.value)} disabled={isBankVerified} placeholder="Enter account holder name" className={inputCls} />
+        </div>
+        <div>
+          <FieldLabel required>IFSC Code</FieldLabel>
+          <div className="relative flex items-center">
+            <input
+              type="text"
+              maxLength={11}
+              value={ifscCode}
+              onChange={(e) => setIfscCode(e.target.value.toUpperCase())}
+              disabled={isBankVerified}
+              placeholder="Enter IFSC code"
+              className={`${inputCls} pr-20 uppercase`}
+            />
+            {!isBankVerified ? (
+              <button
+                type="button"
+                onClick={onVerify}
+                disabled={isBankLoading || !canVerify}
+                className="absolute right-1.5 h-8 px-3.5 rounded-full bg-[#334155] hover:bg-[#1E293B] text-white text-[11px] font-bold disabled:opacity-40 disabled:pointer-events-none transition-colors flex items-center gap-1.5"
+              >
+                {isBankLoading ? <RefreshCcw className="w-3 h-3 animate-spin" /> : 'Verify'}
+              </button>
+            ) : (
+              <span className="absolute right-3 flex items-center gap-1 text-[11px] font-bold text-[#00A86B]">
+                <Check className="w-3.5 h-3.5" /> Verified
+              </span>
+            )}
+          </div>
+        </div>
+        <div>
+          <FieldLabel required>Bank Name</FieldLabel>
+          <input type="text" value={bankName} onChange={(e) => setBankName(e.target.value)} disabled={isBankVerified} placeholder="Enter bank name" className={inputCls} />
+        </div>
+        <div>
+          <FieldLabel>Branch Name</FieldLabel>
+          <input type="text" value={branchName} onChange={(e) => setBranchName(e.target.value)} disabled={isBankVerified} placeholder="Enter branch name" className={inputCls} />
+        </div>
+      </div>
+
+      {isBankVerified && (
+        <div className="mt-4 flex items-center gap-1.5 text-[12px] font-bold text-[#00A86B] bg-[#F0FDF4] border border-[#00A86B]/20 rounded-lg px-3 py-2">
+          <BadgeCheck className="w-4 h-4 shrink-0" /> Bank account verified
+        </div>
+      )}
+    </Panel>
+  );
+}
 
 /* ── MAIN COMPONENT ── */
 export function AdminKYC() {
@@ -219,7 +388,12 @@ export function AdminKYC() {
   const [aadhaarNumber, setAadhaarNumber] = useState('');
   const [isAadhaarVerified, setIsAadhaarVerified] = useState(false);
   const [aadhaarData, setAadhaarData] = useState({ name: '', guardianName: '', address: '', state: '', city: '' });
-  const [connectingDigiLocker, setConnectingDigiLocker] = useState(false);
+  const [sendingAadhaarOtp, setSendingAadhaarOtp] = useState(false);
+  const [verifyingAadhaarOtp, setVerifyingAadhaarOtp] = useState(false);
+  const [aadhaarRefId, setAadhaarRefId] = useState('');
+  const [aadhaarOtpTimer, setAadhaarOtpTimer] = useState(0);
+  const [isAadhaarOtpModalOpen, setIsAadhaarOtpModalOpen] = useState(false);
+  const [aadhaarOtpValues, setAadhaarOtpValues] = useState(['', '', '', '', '', '']);
 
   // PAN
   const [panNumber, setPanNumber] = useState('');
@@ -231,7 +405,6 @@ export function AdminKYC() {
   const [accountNumber, setAccountNumber] = useState('');
   const [confirmAccountNumber, setConfirmAccountNumber] = useState('');
   const [accountHolderName, setAccountHolderName] = useState('');
-  const [bankType, setBankType] = useState('');
   const [ifscCode, setIfscCode] = useState('');
   const [bankName, setBankName] = useState('');
   const [branchName, setBranchName] = useState('');
@@ -267,24 +440,57 @@ export function AdminKYC() {
     }
   };
 
-  const handleConnectDigiLocker = async () => {
-    if (connectingDigiLocker || isAadhaarVerified) return;
-    setConnectingDigiLocker(true);
+  useEffect(() => {
+    if (aadhaarOtpTimer <= 0) return;
+    const interval = setInterval(() => setAadhaarOtpTimer(t => t - 1), 1000);
+    return () => clearInterval(interval);
+  }, [aadhaarOtpTimer]);
+
+  const sendAadhaarOtpAndOpen = async () => {
+    if (!aadhaarNumber || aadhaarNumber.length < 12 || aadhaarOtpTimer > 0 || sendingAadhaarOtp) return;
+    setSendingAadhaarOtp(true);
     try {
-      const res = await apiClient.post('/merchant/verfication/digilocker', { aadhaarNo: aadhaarNumber });
+      const res = await apiClient.post('/merchant/verfication/generate-otp', { aadhaarNo: aadhaarNumber });
+      if (res.data?.data?.ref_id) {
+        setAadhaarRefId(res.data.data.ref_id);
+        setAadhaarOtpValues(['', '', '', '', '', '']);
+        setAadhaarOtpTimer(180);
+        setIsAadhaarOtpModalOpen(true);
+        showToast('success', res.data?.message || 'OTP sent to your Aadhaar-linked mobile');
+      } else {
+        showToast('error', res.data?.message || 'Failed to send OTP');
+      }
+    } catch (err: any) {
+      showToast('error', err?.response?.data?.message || 'Failed to send OTP');
+    } finally {
+      setSendingAadhaarOtp(false);
+    }
+  };
+
+  const closeAadhaarOtpModal = () => {
+    setIsAadhaarOtpModalOpen(false);
+    setAadhaarOtpValues(['', '', '', '', '', '']);
+  };
+
+  const handleVerifyAadhaarOtp = async () => {
+    const otp = aadhaarOtpValues.join('');
+    if (otp.length < 6) return;
+    setVerifyingAadhaarOtp(true);
+    try {
+      const res = await apiClient.post('/merchant/verfication/verify-otp', { otp, aadhaarNo: aadhaarNumber, refId: aadhaarRefId });
       if (res.data?.success) {
         const d = res.data.data || {};
         setIsAadhaarVerified(true);
-        setAadhaarNumber(d.aadhaarNumber || aadhaarNumber);
         setAadhaarData({ name: d.name || '', guardianName: d.sonOf || '', address: d.address || '', state: d.state || '', city: d.city || '' });
-        showToast('success', 'Aadhaar verified via DigiLocker!');
+        showToast('success', 'Aadhaar verified successfully!');
+        closeAadhaarOtpModal();
       } else {
-        showToast('error', res.data?.message || 'DigiLocker verification failed');
+        showToast('error', res.data?.message || 'OTP verification failed');
       }
     } catch (err: any) {
-      showToast('error', err?.response?.data?.message || 'Unable to connect to DigiLocker');
+      showToast('error', err?.response?.data?.message || 'OTP verification failed');
     } finally {
-      setConnectingDigiLocker(false);
+      setVerifyingAadhaarOtp(false);
     }
   };
 
@@ -324,13 +530,6 @@ export function AdminKYC() {
     } finally {
       setIsGstinLoading(false);
     }
-  };
-
-  const canSaveBank = accountNumber && ifscCode.length === 11 && accountHolderName && accountNumbersMatch;
-
-  const handleSaveBank = async () => {
-    if (!canSaveBank) return;
-    await handleVerifyBank();
   };
 
   const handleKycSubmit = async () => {
@@ -572,125 +771,6 @@ export function AdminKYC() {
     );
   }
 
-  /* ── BUSINESS TYPE SELECTOR (shared by both flows) ── */
-  const BusinessTypeSelector = ({ disabled }: { disabled?: boolean }) => (
-    <div>
-      <label className="block text-[16px] font-semibold text-[#0F172A] mb-1.5">Select Business Type</label>
-      <div className="grid grid-cols-2 gap-2.5 max-w-sm">
-        {(['INDIVIDUAL', 'COMPANY'] as const).map((t) => (
-          <button
-            key={t}
-            type="button"
-            disabled={disabled}
-            onClick={() => setBusinessType(t)}
-            className={`flex items-center gap-2 h-11 px-4 rounded-full border-2 transition-all text-left ${
-              businessType === t
-                ? 'border-[#00A86B] bg-[#F0FDF4] text-[#00A86B]'
-                : 'border-[#E2E8F0] bg-[#F8FAFC] text-[#0F172A] hover:border-[#CBD5E1]'
-            } ${disabled ? 'opacity-70 cursor-default' : 'cursor-pointer'}`}
-          >
-            <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${businessType === t ? 'border-[#00A86B]' : 'border-[#CBD5E1]'}`}>
-              {businessType === t && <span className="w-2 h-2 rounded-full bg-[#00A86B]" />}
-            </span>
-            <span className="text-[13px] font-bold">{t === 'INDIVIDUAL' ? 'Individual' : 'Company'}</span>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-
-  /* ── GSTIN FIELD (company only) ── */
-  const GstinField = ({ disabled }: { disabled?: boolean }) => (
-    <div>
-      <FieldLabel required>GSTIN No.</FieldLabel>
-      <div className="relative flex items-center">
-        <input
-          type="text"
-          maxLength={15}
-          value={gstin}
-          onChange={(e) => setGstin(e.target.value.toUpperCase())}
-          disabled={isGstinVerified || disabled}
-          placeholder="Enter 15 chars valid GSTIN no."
-          className={`${inputCls} pr-24 uppercase`}
-        />
-        {!isGstinVerified ? (
-          <button
-            type="button"
-            onClick={handleVerifyGstin}
-            disabled={isGstinLoading || gstin.length < 15 || disabled}
-            className="absolute right-1.5 h-8 px-3.5 rounded-full bg-[#334155] hover:bg-[#1E293B] text-white text-[11px] font-bold disabled:opacity-40 disabled:pointer-events-none transition-colors flex items-center gap-1.5"
-          >
-            {isGstinLoading ? <RefreshCcw className="w-3 h-3 animate-spin" /> : 'Verify'}
-          </button>
-        ) : (
-          <span className="absolute right-3 flex items-center gap-1 text-[11px] font-bold text-[#00A86B]">
-            <Check className="w-3.5 h-3.5" /> Verified
-          </span>
-        )}
-      </div>
-    </div>
-  );
-
-  /* ── BANK DETAILS PANEL (shared) ── */
-  const BankDetailsPanel = () => (
-    <Panel title="Bank Details">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <FieldLabel required>Account Number</FieldLabel>
-          <input type="text" value={accountNumber} onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, ''))} disabled={isBankVerified} placeholder="Enter account number" className={inputCls} />
-        </div>
-        <div>
-          <FieldLabel required>Confirm Acc. Number</FieldLabel>
-          <input type="text" value={confirmAccountNumber} onChange={(e) => setConfirmAccountNumber(e.target.value.replace(/\D/g, ''))} disabled={isBankVerified} placeholder="Re-enter account number" className={`${inputCls} ${confirmAccountNumber && !accountNumbersMatch ? 'border-red-300 focus:border-red-400 focus:ring-red-100' : ''}`} />
-          {confirmAccountNumber && !accountNumbersMatch && (
-            <p className="text-[10.5px] font-semibold text-red-500 mt-1">Account numbers do not match</p>
-          )}
-        </div>
-        <div>
-          <FieldLabel required>Account Holder Name</FieldLabel>
-          <input type="text" value={accountHolderName} onChange={(e) => setAccountHolderName(e.target.value)} disabled={isBankVerified} placeholder="Enter account holder name" className={inputCls} />
-        </div>
-        <div>
-          <FieldLabel>Bank Type</FieldLabel>
-          <select value={bankType} onChange={(e) => setBankType(e.target.value)} disabled={isBankVerified} className={`${inputCls} appearance-none`}>
-            <option value="">-- Select --</option>
-            <option value="SAVINGS">Savings</option>
-            <option value="CURRENT">Current</option>
-          </select>
-        </div>
-        <div>
-          <FieldLabel required>IFSC Code</FieldLabel>
-          <div className="relative flex items-center">
-            <input type="text" maxLength={11} value={ifscCode} onChange={(e) => setIfscCode(e.target.value.toUpperCase())} disabled={isBankVerified} placeholder="Enter IFSC code" className={`${inputCls} uppercase`} />
-          </div>
-        </div>
-        <div>
-          <FieldLabel required>Bank Name</FieldLabel>
-          <input type="text" value={bankName} onChange={(e) => setBankName(e.target.value)} disabled={isBankVerified} placeholder="Enter bank name" className={inputCls} />
-        </div>
-        <div>
-          <FieldLabel>Branch Name</FieldLabel>
-          <input type="text" value={branchName} onChange={(e) => setBranchName(e.target.value)} disabled={isBankVerified} placeholder="Enter branch name" className={inputCls} />
-        </div>
-      </div>
-
-      {isBankVerified ? (
-        <div className="mt-4 flex items-center gap-1.5 text-[12px] font-bold text-[#00A86B] bg-[#F0FDF4] border border-[#00A86B]/20 rounded-lg px-3 py-2">
-          <BadgeCheck className="w-4 h-4 shrink-0" /> Bank account verified
-        </div>
-      ) : (
-        <button
-          type="button"
-          onClick={handleSaveBank}
-          disabled={!canSaveBank || isBankLoading}
-          className="mt-4 h-10 px-5 rounded-lg bg-[#7C3AED] hover:bg-[#6D28D9] text-white text-[13px] font-bold shadow-sm transition-all disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2"
-        >
-          {isBankLoading ? <><RefreshCcw className="w-3.5 h-3.5 animate-spin" /> Saving...</> : 'Save Bank Details'}
-        </button>
-      )}
-    </Panel>
-  );
-
   /* ── E-KYC FLOW ── */
   if (method === 'EKYC') {
     return (
@@ -708,33 +788,44 @@ export function AdminKYC() {
                   </button>
                 }
               >
-                <BusinessTypeSelector disabled={isGstinVerified} />
+                <BusinessTypeSelector businessType={businessType} setBusinessType={setBusinessType} disabled={isGstinVerified} />
               </Panel>
 
               {businessType === 'COMPANY' && (
                 <Panel title="GST Details">
-                  <GstinField />
+                  <GstinField gstin={gstin} setGstin={setGstin} isGstinVerified={isGstinVerified} isGstinLoading={isGstinLoading} onVerify={handleVerifyGstin} />
                 </Panel>
               )}
 
               <Panel title="Aadhaar Verification">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <FieldLabel required>Aadhar Verification</FieldLabel>
-                    {isAadhaarVerified ? (
-                      <div className="h-11 flex items-center gap-1.5 text-[12.5px] font-bold text-[#00A86B] bg-[#F0FDF4] border border-[#00A86B]/20 rounded-full px-4">
-                        <Check className="w-4 h-4 shrink-0" /> Verified via DigiLocker
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={handleConnectDigiLocker}
-                        disabled={connectingDigiLocker}
-                        className="w-full h-11 px-4 rounded-full bg-[#0F172A] hover:bg-[#1E293B] text-white text-[13px] font-bold transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
-                      >
-                        {connectingDigiLocker ? <><RefreshCcw className="w-4 h-4 animate-spin" /> Connecting...</> : <><Fingerprint className="w-4 h-4" /> Verify Aadhar through DigiLocker</>}
-                      </button>
-                    )}
+                    <FieldLabel required>Aadhaar Number</FieldLabel>
+                    <div className="relative flex items-center">
+                      <input
+                        type="text"
+                        maxLength={12}
+                        value={aadhaarNumber}
+                        onChange={(e) => setAadhaarNumber(e.target.value.replace(/\D/g, ''))}
+                        disabled={isAadhaarVerified}
+                        placeholder="Enter 12 digit valid Aadhaar no."
+                        className={`${inputCls} pr-20`}
+                      />
+                      {!isAadhaarVerified ? (
+                        <button
+                          type="button"
+                          onClick={sendAadhaarOtpAndOpen}
+                          disabled={sendingAadhaarOtp || aadhaarOtpTimer > 0 || aadhaarNumber.length < 12}
+                          className="absolute right-1.5 h-8 px-3.5 rounded-full bg-[#334155] hover:bg-[#1E293B] text-white text-[11px] font-bold disabled:opacity-40 disabled:pointer-events-none transition-colors flex items-center gap-1.5"
+                        >
+                          {sendingAadhaarOtp ? <RefreshCcw className="w-3 h-3 animate-spin" /> : aadhaarOtpTimer > 0 ? `Resend in ${aadhaarOtpTimer}s` : 'Verify'}
+                        </button>
+                      ) : (
+                        <span className="absolute right-3 flex items-center gap-1 text-[11px] font-bold text-[#00A86B]">
+                          <Check className="w-3.5 h-3.5" /> Verified
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <div>
                     <FieldLabel required>PAN No.</FieldLabel>
@@ -778,7 +869,10 @@ export function AdminKYC() {
                           </>
                         )}
                         {isPanVerified && (
-                          <div><span className="block text-[10px] font-semibold text-[#94A3B8] mb-1">PAN Type</span><span className="text-[12.5px] font-bold text-[#0F172A]">{panData.panType || '—'}</span></div>
+                          <>
+                            <div><span className="block text-[10px] font-semibold text-[#94A3B8] mb-1">Name</span><span className="text-[12.5px] font-bold text-[#0F172A]">{panData.name || '—'}</span></div>
+                            <div><span className="block text-[10px] font-semibold text-[#94A3B8] mb-1">PAN Type</span><span className="text-[12.5px] font-bold text-[#0F172A]">{panData.panType || '—'}</span></div>
+                          </>
                         )}
                       </div>
                     </motion.div>
@@ -799,10 +893,64 @@ export function AdminKYC() {
             </div>
 
             <div className="lg:sticky lg:top-6">
-              <BankDetailsPanel />
+              <BankDetailsPanel accountNumber={accountNumber} setAccountNumber={setAccountNumber} confirmAccountNumber={confirmAccountNumber} setConfirmAccountNumber={setConfirmAccountNumber} accountNumbersMatch={accountNumbersMatch} accountHolderName={accountHolderName} setAccountHolderName={setAccountHolderName} ifscCode={ifscCode} setIfscCode={setIfscCode} bankName={bankName} setBankName={setBankName} branchName={branchName} setBranchName={setBranchName} isBankVerified={isBankVerified} isBankLoading={isBankLoading} onVerify={handleVerifyBank} />
             </div>
           </div>
         </div>
+
+        {/* Aadhaar OTP modal */}
+        <AnimatePresence>
+          {isAadhaarOtpModalOpen && (
+            <>
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={closeAadhaarOtpModal} className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm z-[200]" />
+              <div className="fixed inset-0 flex items-center justify-center z-[201] p-4 pointer-events-none">
+                <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} transition={{ type: 'spring', duration: 0.5 }} className="w-full max-w-[380px] bg-white rounded-2xl shadow-2xl p-6 relative pointer-events-auto border border-[#E2E8F0] text-center">
+                  <button type="button" onClick={closeAadhaarOtpModal} className="absolute -top-5 left-1/2 -translate-x-1/2 w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-md hover:bg-[#F8FAFC] transition-colors border border-[#E2E8F0] cursor-pointer focus:outline-none">
+                    <X className="w-4 h-4 text-[#64748B]" />
+                  </button>
+                  <motion.div initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 260, damping: 16, delay: 0.1 }} className="w-16 h-16 rounded-2xl bg-[#F0FDF4] flex items-center justify-center mx-auto mt-3 mb-4">
+                    <ShieldCheck className="w-7 h-7 text-[#00A86B]" />
+                  </motion.div>
+                  <h2 className="text-base font-bold text-[#0F172A] mb-1.5">Verify Aadhaar OTP</h2>
+                  <p className="text-[13px] text-[#64748B] leading-relaxed mb-5">Enter the OTP sent to your Aadhaar-linked mobile number.</p>
+
+                  <div className="flex justify-center gap-2 mb-5">
+                    {aadhaarOtpValues.map((value, idx) => (
+                      <input
+                        key={idx}
+                        type="tel"
+                        maxLength={1}
+                        inputMode="numeric"
+                        value={value}
+                        onChange={(e) => {
+                          const v = e.target.value.replace(/\D/, '');
+                          const next = [...aadhaarOtpValues]; next[idx] = v; setAadhaarOtpValues(next);
+                          if (v && idx < 5) (document.getElementById(`aotp-${idx + 1}`) as HTMLInputElement)?.focus();
+                        }}
+                        onKeyDown={(e) => { if (e.key === 'Backspace' && !value && idx > 0) (document.getElementById(`aotp-${idx - 1}`) as HTMLInputElement)?.focus(); }}
+                        id={`aotp-${idx}`}
+                        className={`w-10 h-11 md:w-11 md:h-11 rounded-xl border text-center text-base md:text-lg font-bold text-[#00A86B] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/15 transition-all ${value ? 'border-[#00A86B]/40 bg-[#F0FDF4]/40' : 'border-[#E2E8F0]'}`}
+                      />
+                    ))}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleVerifyAadhaarOtp}
+                    disabled={verifyingAadhaarOtp || aadhaarOtpValues.join('').length !== 6}
+                    className="w-full h-11 rounded-xl bg-[#00A86B] hover:bg-[#009B63] text-white text-[13px] font-bold shadow-sm disabled:opacity-50 disabled:pointer-events-none mb-3 cursor-pointer transition-all"
+                  >
+                    {verifyingAadhaarOtp ? <span className="flex items-center justify-center gap-2"><RefreshCcw className="w-3.5 h-3.5 animate-spin" /> Verifying...</span> : 'Verify OTP'}
+                  </button>
+                  <p className="text-xs text-[#94A3B8]">
+                    {aadhaarOtpTimer > 0 ? `Resend in ${aadhaarOtpTimer}s` : <span className="text-[#00A86B] cursor-pointer font-bold hover:underline" onClick={sendAadhaarOtpAndOpen}>Resend OTP</span>}
+                  </p>
+                </motion.div>
+              </div>
+            </>
+          )}
+        </AnimatePresence>
+
         <Toast toast={toast} onClose={closeToast} />
       </AdminLayout>
     );
@@ -824,27 +972,27 @@ export function AdminKYC() {
                 </button>
               }
             >
-              <BusinessTypeSelector />
+              <BusinessTypeSelector businessType={businessType} setBusinessType={setBusinessType} />
             </Panel>
 
             {businessType === 'COMPANY' && (
               <Panel title="GST Details">
-                <GstinField />
+                <GstinField gstin={gstin} setGstin={setGstin} isGstinVerified={isGstinVerified} isGstinLoading={isGstinLoading} onVerify={handleVerifyGstin} />
               </Panel>
             )}
 
-            <button
+            <ShineButton
               type="button"
               onClick={handleManualSubmit}
               disabled={!businessType || (businessType === 'COMPANY' && !gstin)}
-              className="h-11 px-6 rounded-lg bg-[#7C3AED] hover:bg-[#6D28D9] text-white text-[13px] font-bold shadow-sm transition-all disabled:opacity-50 disabled:pointer-events-none"
+              className="h-11 px-6 rounded-full bg-[#009D64] hover:bg-[#008856] text-white text-[13px] font-bold shadow-sm transition-colors disabled:opacity-50 disabled:pointer-events-none"
             >
               Submit
-            </button>
+            </ShineButton>
           </div>
 
           <div className="lg:sticky lg:top-6">
-            <BankDetailsPanel />
+            <BankDetailsPanel accountNumber={accountNumber} setAccountNumber={setAccountNumber} confirmAccountNumber={confirmAccountNumber} setConfirmAccountNumber={setConfirmAccountNumber} accountNumbersMatch={accountNumbersMatch} accountHolderName={accountHolderName} setAccountHolderName={setAccountHolderName} ifscCode={ifscCode} setIfscCode={setIfscCode} bankName={bankName} setBankName={setBankName} branchName={branchName} setBranchName={setBranchName} isBankVerified={isBankVerified} isBankLoading={isBankLoading} onVerify={handleVerifyBank} />
           </div>
         </div>
       </div>
