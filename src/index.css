@@ -114,8 +114,8 @@ thead.sticky tr.border-\[\#B9EFDB\] > th:last-child {
 }
 
 @keyframes buttonShine {
-  0% { transform: translateX(-130%) skewX(-20deg); }
-  100% { transform: translateX(230%) skewX(-20deg); }
+  0% { transform: translateX(-100%) skewX(-20deg); }
+  100% { transform: translateX(600%) skewX(-20deg); }
 }
 
 @keyframes checkIn {

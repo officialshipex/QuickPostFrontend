@@ -135,9 +135,9 @@ export function LoginCard() {
           </div>
         )}
 
-        <Button 
-          type="submit" 
-          className="w-full h-11 bg-[#00A86B] hover:bg-[#009B63] text-sm font-semibold rounded-md shadow-none transition-colors" 
+        <Button
+          type="submit"
+          className="w-full h-11 bg-[#00A86B] hover:bg-[#009B63] text-sm font-semibold rounded-md shadow-none transition-colors"
           disabled={status === 'loading' || status === 'success'}
         >
           {status === 'loading' ? (

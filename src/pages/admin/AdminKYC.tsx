@@ -326,11 +326,12 @@ export function AdminKYC() {
 
           setKycComplete(true);
         } else {
-          const [gstRes, aRes, pRes, bRes] = await Promise.allSettled([
+          const [gstRes, aRes, pRes, bRes, billRes2] = await Promise.allSettled([
             apiClient.get('/getKyc/getGST'),
             apiClient.get('/getKyc/getAadhaar'),
             apiClient.get('/getKyc/getPan'),
             apiClient.get('/getKyc/getBankAccount'),
+            apiClient.get('/getKyc/getBillingInfo'),
           ]);
 
           const g = gstRes.status === 'fulfilled' ? gstRes.value.data : null;
@@ -338,6 +339,14 @@ export function AdminKYC() {
             setBusinessType('COMPANY');
             setGstin(g.gstin);
             setIsGstinVerified(true);
+          }
+
+          const bill = billRes2.status === 'fulfilled' ? billRes2.value.data : null;
+          if (bill?.address) {
+            setAddress(bill.address || '');
+            setPincode(bill.postalCode || '');
+            setCity((bill.city || '').toUpperCase());
+            setState((bill.state || '').toUpperCase());
           }
 
           const a = aRes.status === 'fulfilled' ? (aRes.value.data?.data ?? {}) : {};
@@ -383,6 +392,26 @@ export function AdminKYC() {
   const [gstin, setGstin] = useState('');
   const [isGstinVerified, setIsGstinVerified] = useState(false);
   const [isGstinLoading, setIsGstinLoading] = useState(false);
+
+  // Billing Information (individual only) — address + pincode, city/state auto-filled
+  const [address, setAddress] = useState('');
+  const [pincode, setPincode] = useState('');
+  const [city, setCity] = useState('');
+  const [state, setState] = useState('');
+
+  useEffect(() => {
+    if (pincode.length !== 6) { setCity(''); setState(''); return; }
+    fetch(`https://api.postalpincode.in/pincode/${pincode}`)
+      .then(r => r.json())
+      .then(data => {
+        const po = data?.[0]?.PostOffice?.[0];
+        if (po) {
+          setCity((po.District || po.Name || '').toUpperCase());
+          setState((po.State || '').toUpperCase());
+        }
+      })
+      .catch(() => {});
+  }, [pincode]);
 
   // Aadhaar
   const [aadhaarNumber, setAadhaarNumber] = useState('');
@@ -535,6 +564,7 @@ export function AdminKYC() {
   const handleKycSubmit = async () => {
     if (!isAadhaarVerified || !isPanVerified || !isBankVerified) return;
     if (businessType === 'COMPANY' && !isGstinVerified) return;
+    if (businessType === 'INDIVIDUAL' && (!address || !pincode || !city || !state)) return;
     setIsSubmitting(true);
     try {
       const payload = {
@@ -545,6 +575,7 @@ export function AdminKYC() {
           panName: panData.name,
         },
         gstNumber: businessType === 'COMPANY' ? (gstin || null) : null,
+        billingInfo: businessType === 'INDIVIDUAL' ? { address, pincode, city, state } : null,
         bankDetails: {
           ifsc: ifscCode,
           accountNumber: accountNumber,
@@ -797,6 +828,44 @@ export function AdminKYC() {
                 </Panel>
               )}
 
+              {businessType === 'INDIVIDUAL' && (
+                <Panel title="Billing Information">
+                  <div className="space-y-4">
+                    <div>
+                      <FieldLabel required>Address</FieldLabel>
+                      <textarea
+                        rows={2}
+                        value={address}
+                        onChange={(e) => setAddress(e.target.value)}
+                        placeholder="Enter your registered billing address"
+                        className={`${inputCls} !rounded-2xl h-auto py-3 resize-none`}
+                      />
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div>
+                        <FieldLabel required>Pincode</FieldLabel>
+                        <input
+                          type="text"
+                          maxLength={6}
+                          value={pincode}
+                          onChange={(e) => setPincode(e.target.value.replace(/\D/g, ''))}
+                          placeholder="Enter 6-digit pincode"
+                          className={inputCls}
+                        />
+                      </div>
+                      <div>
+                        <FieldLabel>City</FieldLabel>
+                        <input type="text" value={city} readOnly placeholder="Auto-filled" className={`${inputCls} uppercase`} />
+                      </div>
+                      <div>
+                        <FieldLabel>State</FieldLabel>
+                        <input type="text" value={state} readOnly placeholder="Auto-filled" className={`${inputCls} uppercase`} />
+                      </div>
+                    </div>
+                  </div>
+                </Panel>
+              )}
+
               <Panel title="Aadhaar Verification">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
@@ -884,7 +953,7 @@ export function AdminKYC() {
                 <ShineButton
                   type="button"
                   onClick={handleKycSubmit}
-                  disabled={isSubmitting || !isAadhaarVerified || !isPanVerified || !isBankVerified || (businessType === 'COMPANY' && !isGstinVerified)}
+                  disabled={isSubmitting || !isAadhaarVerified || !isPanVerified || !isBankVerified || (businessType === 'COMPANY' && !isGstinVerified) || (businessType === 'INDIVIDUAL' && (!address || !pincode || !city || !state))}
                   className="h-11 px-6 rounded-full bg-[#009D64] hover:bg-[#008856] transition-colors text-white text-[13px] font-bold shadow-sm disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2"
                 >
                   {isSubmitting ? <><RefreshCcw className="w-4 h-4 animate-spin" /> Processing...</> : 'Submit KYC'}

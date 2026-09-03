@@ -6,7 +6,7 @@ function ShineSweep() {
   return (
     <span
       aria-hidden
-      className="pointer-events-none absolute inset-y-0 left-0 w-2/5 -translate-x-[130%] -skew-x-[20deg] bg-gradient-to-r from-transparent via-white/55 to-transparent group-hover:animate-[buttonShine_0.75s_ease-out]"
+      className="pointer-events-none absolute inset-y-0 left-0 w-1/4 -translate-x-full -skew-x-20 bg-gradient-to-r from-transparent via-white/55 to-transparent group-hover:animate-[buttonShine_0.9s_ease-out]"
     />
   );
 }

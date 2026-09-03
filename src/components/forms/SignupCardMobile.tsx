@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '../ui/Button';
+import { ShineButton } from '../ui/ShineButton';
 import { Input } from '../ui/Input';
 import { Apple, ChevronDown, Eye, EyeOff, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
@@ -194,9 +195,9 @@ export function SignupCardMobile({ onBack }: SignupCardMobileProps) {
           </div>
         )}
 
-        <Button
+        <ShineButton
           type="submit"
-          className="w-full h-11 bg-[#00A86B] hover:bg-[#009B63] text-sm font-semibold rounded-md shadow-none font-sans"
+          className="inline-flex items-center justify-center whitespace-nowrap w-full h-11 bg-[#00A86B] hover:bg-[#009B63] text-white text-sm font-semibold rounded-md transition-colors disabled:opacity-50 disabled:pointer-events-none cursor-pointer font-sans"
           disabled={status === 'loading' || status === 'success'}
         >
           {status === 'loading' ? (
@@ -208,7 +209,7 @@ export function SignupCardMobile({ onBack }: SignupCardMobileProps) {
               Creating account...
             </div>
           ) : 'Sign up'}
-        </Button>
+        </ShineButton>
       </form>
 
       {/* Google/Apple sign-up disabled per request
