@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
-import { Truck, Plane, Loader2, ChevronDown, Info, Sparkles, Zap } from 'lucide-react';
+import { Truck, Plane, Loader2, ChevronDown, Info, Sparkles } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../../services/apiClient';
 import { ParcelPreview } from '../../components/ui/ParcelPreview';
@@ -56,7 +56,8 @@ interface CourierResult {
   mode_name?: string;
   pickupDate?: string | null;
   estimatedDeliveryDate?: string | null;
-  forward: { finalCharges: number | null; freightCharges?: number; codCharges?: number; smartOrderCharges?: number };
+  cod?: number;
+  forward: { finalCharges: number | null; charges?: number; gst?: number | string };
   working?: {
     freight: number;
     docket_charges: number;
@@ -115,7 +116,7 @@ export function AdminRateCalculator() {
   const [error, setError] = useState('');
   const [b2bPopup, setB2bPopup] = useState<CourierResult['working'] | null>(null);
   const [popupPos, setPopupPos] = useState({ top: 0, left: 0 });
-  const [ratePopup, setRatePopup] = useState<CourierResult['forward'] | null>(null);
+  const [ratePopup, setRatePopup] = useState<{ freightCharges: number; codCharges: number; gstCharges: number; totalCharges: number } | null>(null);
   const [ratePopupPos, setRatePopupPos] = useState({ top: 0, left: 0 });
   const [resultsTab, setResultsTab] = useState<'All' | 'Air' | 'Surface'>('All');
 
@@ -273,13 +274,18 @@ export function AdminRateCalculator() {
     setB2bPopup(working);
   };
 
-  const openRatePopup = (e: React.MouseEvent, forward: CourierResult['forward']) => {
+  const openRatePopup = (e: React.MouseEvent, item: CourierResult) => {
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const popupWidth = 190;
     let left = rect.left + rect.width / 2 - popupWidth / 2;
     left = Math.max(10, Math.min(window.innerWidth - popupWidth - 10, left));
     setRatePopupPos({ top: rect.bottom + 8, left });
-    setRatePopup(forward);
+    setRatePopup({
+      freightCharges: item.forward.charges ?? 0,
+      codCharges: item.cod ?? 0,
+      gstCharges: Number(item.forward.gst) || 0,
+      totalCharges: item.forward.finalCharges ?? 0,
+    });
   };
 
   const isModeAir = (item: CourierResult) =>
@@ -676,9 +682,9 @@ export function AdminRateCalculator() {
                                 ) : (
                                   <Info
                                     className="rate-info-icon w-3.5 h-3.5 text-[#00A86B] cursor-pointer inline ml-1"
-                                    onMouseEnter={e => openRatePopup(e as unknown as React.MouseEvent, item.forward)}
+                                    onMouseEnter={e => openRatePopup(e as unknown as React.MouseEvent, item)}
                                     onMouseLeave={() => setRatePopup(null)}
-                                    onClick={e => { e.stopPropagation(); openRatePopup(e, item.forward); }}
+                                    onClick={e => { e.stopPropagation(); openRatePopup(e, item); }}
                                   />
                                 )}
                               </div>
@@ -750,7 +756,7 @@ export function AdminRateCalculator() {
                                     ) : (
                                       <Info
                                         className="rate-info-icon w-3.5 h-3.5 text-[#00A86B] cursor-pointer inline ml-1"
-                                        onClick={e => { e.stopPropagation(); openRatePopup(e, item.forward); }}
+                                        onClick={e => { e.stopPropagation(); openRatePopup(e, item); }}
                                       />
                                     )}
                                   </div>
@@ -817,7 +823,7 @@ export function AdminRateCalculator() {
         </div>
       )}
 
-      {/* Rate breakdown popup — Freight / COD / Smart Order */}
+      {/* Rate breakdown popup — Freight / COD / GST / Total */}
       {ratePopup && (
         <div
           className="rate-popup fixed z-[9999] bg-white border border-[#E2E8F0] shadow-xl rounded-xl p-3 text-[12px] w-[190px] space-y-1.5"
@@ -825,17 +831,19 @@ export function AdminRateCalculator() {
         >
           <div className="flex justify-between">
             <span className="text-[#334155] font-semibold">Freight charges :</span>
-            <span className="font-bold text-[#0F172A]">₹{(ratePopup.freightCharges ?? 0).toFixed(2)}</span>
+            <span className="font-bold text-[#0F172A]">₹{ratePopup.freightCharges.toFixed(2)}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-[#334155] font-semibold">COD charges :</span>
-            <span className="font-bold text-[#0F172A]">₹{(ratePopup.codCharges ?? 0).toFixed(2)}</span>
+            <span className="font-bold text-[#0F172A]">₹{ratePopup.codCharges.toFixed(2)}</span>
           </div>
-          <div className="flex items-center justify-between">
-            <span className="flex items-center gap-1 text-[#7C3AED] font-semibold">
-              <Zap className="w-3.5 h-3.5 fill-[#7C3AED]" /> Smart Order :
-            </span>
-            <span className="font-bold text-[#7C3AED]">₹{(ratePopup.smartOrderCharges ?? 0).toFixed(2)}</span>
+          <div className="flex justify-between">
+            <span className="text-[#334155] font-semibold">GST :</span>
+            <span className="font-bold text-[#0F172A]">₹{ratePopup.gstCharges.toFixed(2)}</span>
+          </div>
+          <div className="border-t border-[#E2E8F0] pt-1.5 flex justify-between">
+            <span className="text-[#0F172A] font-bold">Total :</span>
+            <span className="font-bold text-[#00A86B]">₹{ratePopup.totalCharges.toFixed(2)}</span>
           </div>
         </div>
       )}
