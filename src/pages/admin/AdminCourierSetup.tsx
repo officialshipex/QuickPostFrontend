@@ -7,6 +7,7 @@ import { TableLoader } from '../../components/ui/TableLoader';
 import { Toast } from '../../components/ui/Toast';
 import { useToast } from '../../hooks/useToast';
 import { apiClient } from '../../services/apiClient';
+import { useSearchNoResults } from '../../hooks/useSearchNoResults';
 
 type SetupTab = 'selection' | 'priority';
 type PriorityMode = 'Fastest' | 'Cheapest' | 'Custom';
@@ -51,6 +52,7 @@ export function AdminCourierSetup() {
   const [activeTab, setActiveTab] = useState<SetupTab>('selection');
   const [couriers, setCouriers] = useState<CourierServiceRow[]>([]);
   const [search, setSearch] = useState('');
+  const { NoResultsState } = useSearchNoResults();
   const [loading, setLoading] = useState(true);
 
   // Priority state
@@ -252,16 +254,16 @@ export function AdminCourierSetup() {
       <div className="flex flex-col h-[calc(100vh-72px)] -m-4 md:-m-6 bg-white">
         {/* Tabs + search */}
         <div className="shrink-0 flex flex-col md:flex-row md:items-center md:justify-between gap-3 px-4 md:px-6 py-4 border-b border-[#E2E8F0] bg-white">
-          <div className="flex items-center gap-1.5 bg-white border border-[#E2E8F0] rounded-full p-1 w-fit shadow-sm">
+          <div className="flex gap-1 items-center w-fit bg-[#F7FEFC] rounded-full p-1.5">
             <button
               onClick={() => setActiveTab('selection')}
-              className={`px-4 h-9 rounded-full text-[13px] font-bold whitespace-nowrap transition-colors ${activeTab === 'selection' ? 'bg-[#00A86B] text-white shadow-sm' : 'text-[#475569] hover:text-[#0F172A]'}`}
+              className={`relative px-4 py-2 text-[14px] md:text-[13px] font-semibold md:font-bold transition-colors whitespace-nowrap rounded-full cursor-pointer ${activeTab === 'selection' ? 'text-[#00A86B] underline underline-offset-4 decoration-2' : 'text-[#64748B] hover:text-[#0F172A]'}`}
             >
               Courier Selection
             </button>
             <button
               onClick={() => setActiveTab('priority')}
-              className={`px-4 h-9 rounded-full text-[13px] font-bold whitespace-nowrap transition-colors ${activeTab === 'priority' ? 'bg-[#00A86B] text-white shadow-sm' : 'text-[#475569] hover:text-[#0F172A]'}`}
+              className={`relative px-4 py-2 text-[14px] md:text-[13px] font-semibold md:font-bold transition-colors whitespace-nowrap rounded-full cursor-pointer ${activeTab === 'priority' ? 'text-[#00A86B] underline underline-offset-4 decoration-2' : 'text-[#64748B] hover:text-[#0F172A]'}`}
             >
               Courier Priority
             </button>
@@ -298,7 +300,7 @@ export function AdminCourierSetup() {
                   </thead>
                   <tbody>
                     {!loading && filteredCouriers.length === 0 ? (
-                      <tr><td colSpan={4} className="py-12 text-center text-sm font-semibold text-[#94A3B8]">No courier services found</td></tr>
+                      <tr><td colSpan={4}><NoResultsState query={search.trim() || undefined} /></td></tr>
                     ) : paginatedCouriers.map((svc, index) => {
                       const logo = getProviderLogo(svc.provider);
                       return (
@@ -351,7 +353,7 @@ export function AdminCourierSetup() {
               <div className="flex-1 overflow-y-auto relative">
                 {loading && <TableLoader />}
                 {!loading && filteredCouriers.length === 0 ? (
-                  <div className="p-8 text-center text-sm font-semibold text-[#94A3B8]">No courier services found</div>
+                  <NoResultsState query={search.trim() || undefined} />
                 ) : (
                   <div className="p-2 space-y-2">
                     {paginatedCouriers.map((svc) => {
