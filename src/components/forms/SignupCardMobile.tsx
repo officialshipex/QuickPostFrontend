@@ -108,7 +108,7 @@ export function SignupCardMobile({ onBack }: SignupCardMobileProps) {
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div>
-          <label className="block text-xs font-semibold text-[#475569] mb-1.5 font-sans">Full Name<span className="text-[#00A86B]">*</span></label>
+          <label className="block text-xs font-semibold text-[#475569] mb-1.5 font-sans">Full Name<span className="text-red-500">*</span></label>
           <Input placeholder="Enter your full name" className="h-11 bg-transparent border-[#E2E8F0] text-sm focus-visible:ring-[#00A86B]" {...register('fullname')} error={errors.fullname?.message} />
         </div>
 
@@ -147,7 +147,7 @@ export function SignupCardMobile({ onBack }: SignupCardMobileProps) {
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-[#475569] mb-1.5 font-sans">Password<span className="text-[#00A86B]">*</span></label>
+          <label className="block text-xs font-semibold text-[#475569] mb-1.5 font-sans">Password<span className="text-red-500">*</span></label>
           <div className="relative">
             <Input type={showPassword ? 'text' : 'password'} placeholder="Create a password" className="h-11 bg-transparent border-[#E2E8F0] text-sm pr-10 focus-visible:ring-[#00A86B]" {...register('password')} error={errors.password?.message} />
             <button type="button" onClick={() => setShowPassword(p => !p)} className="absolute right-3 top-3.5 text-[#94A3B8] hover:text-[#475569]">
@@ -158,7 +158,7 @@ export function SignupCardMobile({ onBack }: SignupCardMobileProps) {
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-[#475569] mb-1.5 font-sans">Confirm Password<span className="text-[#00A86B]">*</span></label>
+          <label className="block text-xs font-semibold text-[#475569] mb-1.5 font-sans">Confirm Password<span className="text-red-500">*</span></label>
           <div className="relative">
             <Input type={showConfirm ? 'text' : 'password'} placeholder="Confirm your password" className="h-11 bg-transparent border-[#E2E8F0] text-sm pr-10 focus-visible:ring-[#00A86B]" {...register('confirmedPassword')} error={errors.confirmedPassword?.message} />
             <button type="button" onClick={() => setShowConfirm(p => !p)} className="absolute right-3 top-3.5 text-[#94A3B8] hover:text-[#475569]">

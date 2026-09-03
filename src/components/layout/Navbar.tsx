@@ -101,24 +101,37 @@ export function Navbar() {
 
           {/* ── Desktop Nav ── */}
           <nav className="hidden lg:flex items-center gap-0.5 flex-1 justify-center">
-            {navLinks.map((link) => (
-              <a
-                key={link.label}
-                href={link.href}
-                className={`qp-nav-link flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-[13.5px] font-medium tracking-[-0.01em] transition-colors duration-200 ${
-                  isScrolled
-                    ? 'qp-nav-link-dark text-[#4A5568] hover:text-[#0F172A] hover:bg-slate-50'
-                    : 'qp-nav-link-light text-white/85 hover:text-white hover:bg-white/10'
-                }`}
-              >
-                {link.label}
-                {link.badge && (
-                  <span className="text-[10px] font-bold px-1.5 py-[2px] rounded-full bg-[#00A86B] text-white leading-none">
-                    {link.badge}
-                  </span>
-                )}
-              </a>
-            ))}
+            {navLinks.map((link) => {
+              const navLinkClass = `qp-nav-link flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-[13.5px] font-medium tracking-[-0.01em] transition-colors duration-200 ${
+                isScrolled
+                  ? 'qp-nav-link-dark text-[#4A5568] hover:text-[#0F172A] hover:bg-slate-50'
+                  : 'qp-nav-link-light text-white/85 hover:text-white hover:bg-white/10'
+              }`;
+              const content = (
+                <>
+                  {link.label}
+                  {link.badge && (
+                    <span className="text-[10px] font-bold px-1.5 py-[2px] rounded-full bg-[#00A86B] text-white leading-none">
+                      {link.badge}
+                    </span>
+                  )}
+                </>
+              );
+              // Real same-app routes (e.g. /rate-calculator) get client-side
+              // SPA navigation via Link — a plain <a> to a different path
+              // always forces a full browser reload. Pure in-page hash
+              // anchors (#features) stay as native <a> tags, which is what
+              // gives free native browser scroll-to-anchor behavior.
+              return link.href.startsWith('/') ? (
+                <Link key={link.label} to={link.href} className={navLinkClass}>
+                  {content}
+                </Link>
+              ) : (
+                <a key={link.label} href={link.href} className={navLinkClass}>
+                  {content}
+                </a>
+              );
+            })}
           </nav>
 
           {/* ── Desktop CTAs ── */}
@@ -185,28 +198,49 @@ export function Navbar() {
               style={{ maxHeight: 'calc(100dvh - 78px)' }}
             >
               <div className="max-w-7xl mx-auto px-4 sm:px-5 py-3 sm:py-4 flex flex-col gap-1">
-                {navLinks.map((link, i) => (
-                  <motion.a
-                    key={link.label}
-                    href={link.href}
-                    onClick={() => setMobileOpen(false)}
-                    initial={{ opacity: 0, x: -12 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.22, delay: i * 0.05 }}
-                    className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-[14px] font-medium transition-colors ${
-                      isScrolled
-                        ? 'text-[#4A5568] hover:text-[#0F172A] hover:bg-slate-50'
-                        : 'text-white/85 hover:text-white hover:bg-white/10'
-                    }`}
-                  >
-                    {link.label}
-                    {link.badge && (
-                      <span className="text-[10px] font-bold px-1.5 py-[2px] rounded-full bg-[#00A86B] text-white">
-                        {link.badge}
-                      </span>
-                    )}
-                  </motion.a>
-                ))}
+                {navLinks.map((link, i) => {
+                  const mobileLinkClass = `flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-[14px] font-medium transition-colors ${
+                    isScrolled
+                      ? 'text-[#4A5568] hover:text-[#0F172A] hover:bg-slate-50'
+                      : 'text-white/85 hover:text-white hover:bg-white/10'
+                  }`;
+                  const content = (
+                    <>
+                      {link.label}
+                      {link.badge && (
+                        <span className="text-[10px] font-bold px-1.5 py-[2px] rounded-full bg-[#00A86B] text-white">
+                          {link.badge}
+                        </span>
+                      )}
+                    </>
+                  );
+                  // Same fix as the desktop nav — real routes use Link (client-side,
+                  // no reload), pure hash anchors stay as native <a> tags.
+                  return link.href.startsWith('/') ? (
+                    <motion.div
+                      key={link.label}
+                      initial={{ opacity: 0, x: -12 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.22, delay: i * 0.05 }}
+                    >
+                      <Link to={link.href} onClick={() => setMobileOpen(false)} className={mobileLinkClass}>
+                        {content}
+                      </Link>
+                    </motion.div>
+                  ) : (
+                    <motion.a
+                      key={link.label}
+                      href={link.href}
+                      onClick={() => setMobileOpen(false)}
+                      initial={{ opacity: 0, x: -12 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.22, delay: i * 0.05 }}
+                      className={mobileLinkClass}
+                    >
+                      {content}
+                    </motion.a>
+                  );
+                })}
 
                 <div className={`flex flex-col gap-2.5 mt-3 pt-3 border-t ${isScrolled ? 'border-slate-100' : 'border-white/15'}`}>
                   <a

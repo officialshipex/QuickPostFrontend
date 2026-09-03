@@ -10,6 +10,7 @@ import { PrivacyPolicy } from './pages/PrivacyPolicy';
 import { RateCalculator } from './pages/RateCalculator';
 import { ForgotPassword } from './pages/ForgotPassword';
 import { Login } from './pages/Login';
+import { Register } from './pages/Register';
 import { EmployeeLogin } from './pages/EmployeeLogin';
 import { ProtectedRoute } from './components/layout/ProtectedRoute';
 import { AdminUserProvider } from './context/AdminUserContext';
@@ -196,6 +197,7 @@ function App() {
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           <Route path="/rate-calculator" element={<RateCalculator />} />
           <Route path="/login" element={<AuthRedirect><Login /></AuthRedirect>} />
+          <Route path="/register" element={<AuthRedirect><Register /></AuthRedirect>} />
           <Route path="/employee-login" element={<AuthRedirect><EmployeeLogin /></AuthRedirect>} />
           <Route path="/forgot-password" element={<AuthRedirect><ForgotPassword /></AuthRedirect>} />
 

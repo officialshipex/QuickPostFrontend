@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import heroImg from '../../assets/hero-image.png';
 
@@ -16,6 +16,14 @@ interface MobileAuthHeroProps {
  */
 export function MobileAuthHero({ ctaLabel, renderForm, initialShowForm = false }: MobileAuthHeroProps) {
   const [showForm, setShowForm] = useState(initialShowForm);
+
+  // Same fix as HeroSection's flip card — useState's initial value doesn't
+  // re-sync if this prop changes after mount (e.g. hash updates to #signup
+  // without a remount), so a same-page "Get Started" click would otherwise
+  // never actually reveal the form here either.
+  useEffect(() => {
+    if (initialShowForm) setShowForm(true);
+  }, [initialShowForm]);
 
   return (
     <section className="md:hidden bg-[#00A86B] pt-[88px] pb-10 px-4 overflow-hidden">

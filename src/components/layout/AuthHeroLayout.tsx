@@ -12,13 +12,21 @@ export function AuthHeroLayout({ children, showInlineLogo = true }: AuthHeroLayo
   return (
     <section className={`relative min-h-screen bg-[#00A86B] overflow-hidden pb-16 ${showInlineLogo ? 'pt-8' : 'pt-[88px]'}`}>
       <div className="container mx-auto px-6 md:px-12 max-w-7xl">
-        {/* Header / Logo — hidden when the page Navbar handles branding */}
+        {/* Header / Logo — hidden when the page Navbar handles branding.
+            Same logo image the Navbar uses (white variant, for contrast
+            against this section's solid green background) — this used to be
+            a hand-drawn placeholder SVG + text that didn't match the real
+            brand mark shown everywhere else. */}
         {showInlineLogo && (
-          <div className="flex items-center gap-2 mb-8 md:mb-0">
-            <div className="bg-white p-1.5 rounded-full text-[#00A86B] flex items-center justify-center">
-               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
-            </div>
-            <span className="text-2xl font-bold tracking-tight text-white">Quickpost</span>
+          <div className="flex items-center mb-8 md:mb-0">
+            {/* Same base size + scale as the Navbar logo (64px, scaled 1.5x
+                to ~96px) — matching it exactly rather than guessing a size. */}
+            <img
+              src="/logo-white.png"
+              alt="Quickpost"
+              className="object-contain scale-[1.5] origin-left"
+              style={{ height: '64px', width: 'auto', filter: 'drop-shadow(0 1px 4px rgba(0,0,0,0.18)) brightness(1.1)' }}
+            />
           </div>
         )}
 

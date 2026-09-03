@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { landingUrl } from '../../utils/domainUrl';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -97,7 +96,7 @@ export function LoginCard() {
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-[#475569] mb-1.5">Password<span className="text-[#00A86B]">*</span></label>
+          <label className="block text-xs font-semibold text-[#475569] mb-1.5">Password<span className="text-red-500">*</span></label>
           <div className="relative">
             <Input 
               type={showPassword ? 'text' : 'password'} 
@@ -154,7 +153,7 @@ export function LoginCard() {
 
       <div className="text-center mt-6 space-y-2">
         <p className="text-xs text-[#64748B]">
-          Don't have an account? <a href={landingUrl()} className="text-[#00A86B] font-semibold hover:underline">Sign up</a>
+          Don't have an account? <Link to="/register" className="text-[#00A86B] font-semibold hover:underline">Sign up</Link>
         </p>
         <p className="text-xs text-[#64748B]">
           Employee?{' '}
