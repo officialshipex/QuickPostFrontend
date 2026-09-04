@@ -208,7 +208,7 @@ function BankDetailsPanel({
   isBankVerified: boolean; isBankLoading: boolean;
   onVerify: () => void;
 }) {
-  const canVerify = !!accountNumber && ifscCode.length === 11 && accountNumbersMatch;
+  const canVerify = !!accountNumber && ifscCode.length === 11;
   return (
     <Panel title="Bank Details">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -303,6 +303,11 @@ export function AdminKYC() {
         ]);
 
         const userData = userRes.status === 'fulfilled' ? userRes.value.data?.user : null;
+        if (userData?.email) setEmail(userData.email);
+        if (userData?.phoneNumber) setPhoneNumber(userData.phoneNumber);
+        if (userData?.isEmailVerified) setIsEmailVerified(true);
+        if (userData?.isPhoneVerified) setIsPhoneVerified(true);
+
         const isVerified: boolean = userData?.kycDone === true;
         const companyCategory: string =
           statusRes.status === 'fulfilled' ? (statusRes.value.data?.companyCategory || 'individual') : 'individual';
@@ -380,6 +385,98 @@ export function AdminKYC() {
     };
     fetchAll();
   }, []);
+
+  // Mandatory Information — email & phone, verified via OTP
+  const [email, setEmail] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [isEmailVerified, setIsEmailVerified] = useState(false);
+  const [isPhoneVerified, setIsPhoneVerified] = useState(false);
+
+  const [showEmailOtpModal, setShowEmailOtpModal] = useState(false);
+  const [emailOtpValues, setEmailOtpValues] = useState(['', '', '', '', '', '']);
+  const [emailOtpTimer, setEmailOtpTimer] = useState(0);
+  const [loadingEmailOtp, setLoadingEmailOtp] = useState(false);
+  const [verifyingEmailOtp, setVerifyingEmailOtp] = useState(false);
+
+  const [showPhoneOtpModal, setShowPhoneOtpModal] = useState(false);
+  const [phoneOtpValues, setPhoneOtpValues] = useState(['', '', '', '', '', '']);
+  const [phoneOtpTimer, setPhoneOtpTimer] = useState(0);
+  const [loadingPhoneOtp, setLoadingPhoneOtp] = useState(false);
+  const [verifyingPhoneOtp, setVerifyingPhoneOtp] = useState(false);
+
+  useEffect(() => {
+    if (emailOtpTimer <= 0) return;
+    const interval = setInterval(() => setEmailOtpTimer(t => t - 1), 1000);
+    return () => clearInterval(interval);
+  }, [emailOtpTimer]);
+
+  useEffect(() => {
+    if (phoneOtpTimer <= 0) return;
+    const interval = setInterval(() => setPhoneOtpTimer(t => t - 1), 1000);
+    return () => clearInterval(interval);
+  }, [phoneOtpTimer]);
+
+  const sendEmailOtp = async () => {
+    if (emailOtpTimer > 0 || loadingEmailOtp || !email || !email.includes('@')) return;
+    setLoadingEmailOtp(true);
+    try {
+      await apiClient.post('/auth/send-email-otp', { email });
+      setEmailOtpValues(['', '', '', '', '', '']);
+      setEmailOtpTimer(180);
+      setShowEmailOtpModal(true);
+    } catch (err: any) {
+      showToast('error', err?.response?.data?.message || 'Failed to send OTP');
+    } finally {
+      setLoadingEmailOtp(false);
+    }
+  };
+
+  const verifyEmailOtp = async () => {
+    const otp = emailOtpValues.join('');
+    if (otp.length !== 6) return;
+    setVerifyingEmailOtp(true);
+    try {
+      await apiClient.post('/auth/verify-email-otp', { email, otp });
+      setIsEmailVerified(true);
+      setShowEmailOtpModal(false);
+      showToast('success', 'Email verified successfully!');
+    } catch (err: any) {
+      showToast('error', err?.response?.data?.message || 'OTP verification failed');
+    } finally {
+      setVerifyingEmailOtp(false);
+    }
+  };
+
+  const sendPhoneOtp = async () => {
+    if (phoneOtpTimer > 0 || loadingPhoneOtp || phoneNumber.replace(/\D/g, '').length !== 10) return;
+    setLoadingPhoneOtp(true);
+    try {
+      await apiClient.post('/auth/send-otp', { phoneNumber: phoneNumber.replace(/\D/g, '') });
+      setPhoneOtpValues(['', '', '', '', '', '']);
+      setPhoneOtpTimer(180);
+      setShowPhoneOtpModal(true);
+    } catch (err: any) {
+      showToast('error', err?.response?.data?.message || 'Failed to send OTP');
+    } finally {
+      setLoadingPhoneOtp(false);
+    }
+  };
+
+  const verifyPhoneOtp = async () => {
+    const otp = phoneOtpValues.join('');
+    if (otp.length !== 6) return;
+    setVerifyingPhoneOtp(true);
+    try {
+      await apiClient.post('/auth/verify-otp', { phoneNumber: phoneNumber.replace(/\D/g, ''), otp });
+      setIsPhoneVerified(true);
+      setShowPhoneOtpModal(false);
+      showToast('success', 'Phone verified successfully!');
+    } catch (err: any) {
+      showToast('error', err?.response?.data?.message || 'OTP verification failed');
+    } finally {
+      setVerifyingPhoneOtp(false);
+    }
+  };
 
   /* ── FLOW STATE ── */
   const [method, setMethod] = useState<'EKYC' | 'MANUAL' | null>(null);
@@ -524,7 +621,11 @@ export function AdminKYC() {
   };
 
   const handleVerifyBank = async () => {
-    if (!accountNumber || !ifscCode || ifscCode.length < 11 || !accountNumbersMatch) return;
+    if (!accountNumber || !ifscCode || ifscCode.length < 11) return;
+    if (!accountNumbersMatch) {
+      showToast('error', 'Account numbers do not match');
+      return;
+    }
     setIsBankLoading(true);
     try {
       const res = await apiClient.post('/merchant/verfication/bank-account', { accountNo: accountNumber, ifsc: ifscCode });
@@ -562,6 +663,7 @@ export function AdminKYC() {
   };
 
   const handleKycSubmit = async () => {
+    if (!isEmailVerified || !isPhoneVerified) return;
     if (!isAadhaarVerified || !isPanVerified || !isBankVerified) return;
     if (businessType === 'COMPANY' && !isGstinVerified) return;
     if (businessType === 'INDIVIDUAL' && (!address || !pincode || !city || !state)) return;
@@ -822,6 +924,66 @@ export function AdminKYC() {
                 <BusinessTypeSelector businessType={businessType} setBusinessType={setBusinessType} disabled={isGstinVerified} />
               </Panel>
 
+              <Panel title="Mandatory Information">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <FieldLabel required>Email</FieldLabel>
+                    <div className="relative flex items-center">
+                      <input
+                        type="email"
+                        value={email}
+                        onChange={(e) => !isEmailVerified && setEmail(e.target.value)}
+                        disabled={isEmailVerified}
+                        placeholder="Enter your email"
+                        className={`${inputCls} pr-28`}
+                      />
+                      {!isEmailVerified ? (
+                        <button
+                          type="button"
+                          onClick={sendEmailOtp}
+                          disabled={loadingEmailOtp || emailOtpTimer > 0 || !email || !email.includes('@')}
+                          className="absolute right-1.5 h-8 px-3.5 rounded-full bg-[#334155] hover:bg-[#1E293B] text-white text-[11px] font-bold disabled:opacity-40 disabled:pointer-events-none transition-colors flex items-center gap-1.5"
+                        >
+                          {loadingEmailOtp ? <RefreshCcw className="w-3 h-3 animate-spin" /> : emailOtpTimer > 0 ? `Resend in ${emailOtpTimer}s` : 'Send OTP'}
+                        </button>
+                      ) : (
+                        <span className="absolute right-3 flex items-center gap-1 text-[11px] font-bold text-[#00A86B]">
+                          <Check className="w-3.5 h-3.5" /> Verified
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    <FieldLabel required>Phone Number</FieldLabel>
+                    <div className="relative flex items-center">
+                      <input
+                        type="tel"
+                        maxLength={10}
+                        value={phoneNumber}
+                        onChange={(e) => !isPhoneVerified && setPhoneNumber(e.target.value.replace(/\D/g, ''))}
+                        disabled={isPhoneVerified}
+                        placeholder="Enter 10-digit mobile number"
+                        className={`${inputCls} pr-28`}
+                      />
+                      {!isPhoneVerified ? (
+                        <button
+                          type="button"
+                          onClick={sendPhoneOtp}
+                          disabled={loadingPhoneOtp || phoneOtpTimer > 0 || phoneNumber.replace(/\D/g, '').length !== 10}
+                          className="absolute right-1.5 h-8 px-3.5 rounded-full bg-[#334155] hover:bg-[#1E293B] text-white text-[11px] font-bold disabled:opacity-40 disabled:pointer-events-none transition-colors flex items-center gap-1.5"
+                        >
+                          {loadingPhoneOtp ? <RefreshCcw className="w-3 h-3 animate-spin" /> : phoneOtpTimer > 0 ? `Resend in ${phoneOtpTimer}s` : 'Send OTP'}
+                        </button>
+                      ) : (
+                        <span className="absolute right-3 flex items-center gap-1 text-[11px] font-bold text-[#00A86B]">
+                          <Check className="w-3.5 h-3.5" /> Verified
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </Panel>
+
               {businessType === 'COMPANY' && (
                 <Panel title="GST Details">
                   <GstinField gstin={gstin} setGstin={setGstin} isGstinVerified={isGstinVerified} isGstinLoading={isGstinLoading} onVerify={handleVerifyGstin} />
@@ -932,9 +1094,14 @@ export function AdminKYC() {
                       <div className="mt-4 pt-4 border-t border-dashed border-[#E2E8F0] grid grid-cols-2 md:grid-cols-3 gap-3">
                         {isAadhaarVerified && (
                           <>
+                            <div className="col-span-2 md:col-span-3 flex items-center gap-1.5 text-[10px] md:text-[10.5px] font-bold text-[#00A86B] mb-0.5">
+                              <BadgeCheck className="w-3.5 h-3.5 shrink-0" /> Auto-fetched from UIDAI
+                            </div>
                             <div><span className="block text-[10px] font-semibold text-[#94A3B8] mb-1">Name</span><span className="text-[12.5px] font-bold text-[#0F172A]">{aadhaarData.name || '—'}</span></div>
                             <div><span className="block text-[10px] font-semibold text-[#94A3B8] mb-1">Guardian</span><span className="text-[12.5px] font-bold text-[#0F172A]">{aadhaarData.guardianName || '—'}</span></div>
+                            <div><span className="block text-[10px] font-semibold text-[#94A3B8] mb-1">City</span><span className="text-[12.5px] font-bold text-[#0F172A]">{aadhaarData.city || '—'}</span></div>
                             <div><span className="block text-[10px] font-semibold text-[#94A3B8] mb-1">State</span><span className="text-[12.5px] font-bold text-[#0F172A]">{aadhaarData.state || '—'}</span></div>
+                            <div className="col-span-2 md:col-span-3"><span className="block text-[10px] font-semibold text-[#94A3B8] mb-1">Address</span><span className="text-[12.5px] font-bold text-[#0F172A]">{aadhaarData.address || '—'}</span></div>
                           </>
                         )}
                         {isPanVerified && (
@@ -953,7 +1120,7 @@ export function AdminKYC() {
                 <ShineButton
                   type="button"
                   onClick={handleKycSubmit}
-                  disabled={isSubmitting || !isAadhaarVerified || !isPanVerified || !isBankVerified || (businessType === 'COMPANY' && !isGstinVerified) || (businessType === 'INDIVIDUAL' && (!address || !pincode || !city || !state))}
+                  disabled={isSubmitting || !isEmailVerified || !isPhoneVerified || !isAadhaarVerified || !isPanVerified || !isBankVerified || (businessType === 'COMPANY' && !isGstinVerified) || (businessType === 'INDIVIDUAL' && (!address || !pincode || !city || !state))}
                   className="h-11 px-6 rounded-full bg-[#009D64] hover:bg-[#008856] transition-colors text-white text-[13px] font-bold shadow-sm disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2"
                 >
                   {isSubmitting ? <><RefreshCcw className="w-4 h-4 animate-spin" /> Processing...</> : 'Submit KYC'}
@@ -1013,6 +1180,112 @@ export function AdminKYC() {
                   </button>
                   <p className="text-xs text-[#94A3B8]">
                     {aadhaarOtpTimer > 0 ? `Resend in ${aadhaarOtpTimer}s` : <span className="text-[#00A86B] cursor-pointer font-bold hover:underline" onClick={sendAadhaarOtpAndOpen}>Resend OTP</span>}
+                  </p>
+                </motion.div>
+              </div>
+            </>
+          )}
+        </AnimatePresence>
+
+        {/* Email OTP modal */}
+        <AnimatePresence>
+          {showEmailOtpModal && (
+            <>
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowEmailOtpModal(false)} className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm z-[200]" />
+              <div className="fixed inset-0 flex items-center justify-center z-[201] p-4 pointer-events-none">
+                <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} transition={{ type: 'spring', duration: 0.5 }} className="w-full max-w-[380px] bg-white rounded-2xl shadow-2xl p-6 relative pointer-events-auto border border-[#E2E8F0] text-center">
+                  <button type="button" onClick={() => setShowEmailOtpModal(false)} className="absolute -top-5 left-1/2 -translate-x-1/2 w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-md hover:bg-[#F8FAFC] transition-colors border border-[#E2E8F0] cursor-pointer focus:outline-none">
+                    <X className="w-4 h-4 text-[#64748B]" />
+                  </button>
+                  <motion.div initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 260, damping: 16, delay: 0.1 }} className="w-16 h-16 rounded-2xl bg-[#F0FDF4] flex items-center justify-center mx-auto mt-3 mb-4">
+                    <ShieldCheck className="w-7 h-7 text-[#00A86B]" />
+                  </motion.div>
+                  <h2 className="text-base font-bold text-[#0F172A] mb-1.5">Verify Email OTP</h2>
+                  <p className="text-[13px] text-[#64748B] leading-relaxed mb-5">OTP sent to <span className="font-semibold text-[#334155]">{email}</span></p>
+
+                  <div className="flex justify-center gap-2 mb-5">
+                    {emailOtpValues.map((value, idx) => (
+                      <input
+                        key={idx}
+                        type="tel"
+                        maxLength={1}
+                        inputMode="numeric"
+                        value={value}
+                        onChange={(e) => {
+                          const v = e.target.value.replace(/\D/, '');
+                          const next = [...emailOtpValues]; next[idx] = v; setEmailOtpValues(next);
+                          if (v && idx < 5) (document.getElementById(`eotp-${idx + 1}`) as HTMLInputElement)?.focus();
+                        }}
+                        onKeyDown={(e) => { if (e.key === 'Backspace' && !value && idx > 0) (document.getElementById(`eotp-${idx - 1}`) as HTMLInputElement)?.focus(); }}
+                        id={`eotp-${idx}`}
+                        className={`w-10 h-11 md:w-11 md:h-11 rounded-xl border text-center text-base md:text-lg font-bold text-[#00A86B] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/15 transition-all ${value ? 'border-[#00A86B]/40 bg-[#F0FDF4]/40' : 'border-[#E2E8F0]'}`}
+                      />
+                    ))}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={verifyEmailOtp}
+                    disabled={verifyingEmailOtp || emailOtpValues.join('').length !== 6}
+                    className="w-full h-11 rounded-xl bg-[#00A86B] hover:bg-[#009B63] text-white text-[13px] font-bold shadow-sm disabled:opacity-50 disabled:pointer-events-none mb-3 cursor-pointer transition-all"
+                  >
+                    {verifyingEmailOtp ? <span className="flex items-center justify-center gap-2"><RefreshCcw className="w-3.5 h-3.5 animate-spin" /> Verifying...</span> : 'Verify OTP'}
+                  </button>
+                  <p className="text-xs text-[#94A3B8]">
+                    {emailOtpTimer > 0 ? `Resend in ${emailOtpTimer}s` : <span className="text-[#00A86B] cursor-pointer font-bold hover:underline" onClick={sendEmailOtp}>Resend OTP</span>}
+                  </p>
+                </motion.div>
+              </div>
+            </>
+          )}
+        </AnimatePresence>
+
+        {/* Phone OTP modal */}
+        <AnimatePresence>
+          {showPhoneOtpModal && (
+            <>
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowPhoneOtpModal(false)} className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm z-[200]" />
+              <div className="fixed inset-0 flex items-center justify-center z-[201] p-4 pointer-events-none">
+                <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} transition={{ type: 'spring', duration: 0.5 }} className="w-full max-w-[380px] bg-white rounded-2xl shadow-2xl p-6 relative pointer-events-auto border border-[#E2E8F0] text-center">
+                  <button type="button" onClick={() => setShowPhoneOtpModal(false)} className="absolute -top-5 left-1/2 -translate-x-1/2 w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-md hover:bg-[#F8FAFC] transition-colors border border-[#E2E8F0] cursor-pointer focus:outline-none">
+                    <X className="w-4 h-4 text-[#64748B]" />
+                  </button>
+                  <motion.div initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 260, damping: 16, delay: 0.1 }} className="w-16 h-16 rounded-2xl bg-[#F0FDF4] flex items-center justify-center mx-auto mt-3 mb-4">
+                    <ShieldCheck className="w-7 h-7 text-[#00A86B]" />
+                  </motion.div>
+                  <h2 className="text-base font-bold text-[#0F172A] mb-1.5">Verify Phone OTP</h2>
+                  <p className="text-[13px] text-[#64748B] leading-relaxed mb-5">OTP sent to <span className="font-semibold text-[#334155]">+91 {phoneNumber}</span></p>
+
+                  <div className="flex justify-center gap-2 mb-5">
+                    {phoneOtpValues.map((value, idx) => (
+                      <input
+                        key={idx}
+                        type="tel"
+                        maxLength={1}
+                        inputMode="numeric"
+                        value={value}
+                        onChange={(e) => {
+                          const v = e.target.value.replace(/\D/, '');
+                          const next = [...phoneOtpValues]; next[idx] = v; setPhoneOtpValues(next);
+                          if (v && idx < 5) (document.getElementById(`potp-${idx + 1}`) as HTMLInputElement)?.focus();
+                        }}
+                        onKeyDown={(e) => { if (e.key === 'Backspace' && !value && idx > 0) (document.getElementById(`potp-${idx - 1}`) as HTMLInputElement)?.focus(); }}
+                        id={`potp-${idx}`}
+                        className={`w-10 h-11 md:w-11 md:h-11 rounded-xl border text-center text-base md:text-lg font-bold text-[#00A86B] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/15 transition-all ${value ? 'border-[#00A86B]/40 bg-[#F0FDF4]/40' : 'border-[#E2E8F0]'}`}
+                      />
+                    ))}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={verifyPhoneOtp}
+                    disabled={verifyingPhoneOtp || phoneOtpValues.join('').length !== 6}
+                    className="w-full h-11 rounded-xl bg-[#00A86B] hover:bg-[#009B63] text-white text-[13px] font-bold shadow-sm disabled:opacity-50 disabled:pointer-events-none mb-3 cursor-pointer transition-all"
+                  >
+                    {verifyingPhoneOtp ? <span className="flex items-center justify-center gap-2"><RefreshCcw className="w-3.5 h-3.5 animate-spin" /> Verifying...</span> : 'Verify OTP'}
+                  </button>
+                  <p className="text-xs text-[#94A3B8]">
+                    {phoneOtpTimer > 0 ? `Resend in ${phoneOtpTimer}s` : <span className="text-[#00A86B] cursor-pointer font-bold hover:underline" onClick={sendPhoneOtp}>Resend OTP</span>}
                   </p>
                 </motion.div>
               </div>
