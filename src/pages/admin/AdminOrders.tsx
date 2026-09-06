@@ -13,13 +13,14 @@ import {
   IndianRupee, Package, User, Settings, MapPin, X, Truck, CreditCard,
   CheckCircle2, Clock, AlertTriangle, Flame, History, Layers, RefreshCw, Mail,
   Filter, Copy, PackagePlus, FileText, Download, MoreVertical, Loader2, ArrowUp, ArrowDown,
-  UserCheck, Eye, EyeOff
+  UserCheck, Eye, EyeOff, Store
 } from 'lucide-react';
 import { usePagination, DesktopPagination } from '../../hooks/usePagination';
 import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
 import { useUserSearchFilter } from '../../hooks/filters/useUserSearchFilter';
 import { useDateRangeFilter } from '../../hooks/filters/useDateRangeFilter';
 import { TableLoader } from '../../components/ui/TableLoader';
+import { ShineButton } from '../../components/ui/ShineButton';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { TruncatedText } from '../../components/ui/TruncatedText';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
@@ -985,6 +986,8 @@ export function AdminOrders() {
     setOrderId(''); setAwbNumber(''); setSelectedPaymentTypes([]); setSelectedPickupAddresses([]);
     setSelectedCouriers([]); setDateStart(defStart); setDateEnd(defEnd);
     setUserQuery(''); setUserSuggestions([]); setUserMongoId('');
+    setSelectedChannels([]); setSelectedOrderQtys([]);
+    setSelectedOrderWeights([]); setSkuSearch(''); setAutoCancelledOption('');
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
@@ -1004,12 +1007,56 @@ export function AdminOrders() {
 
   const handleApplyFilters = () => { setPage(1); setRefreshTrigger(t => t + 1); };
 
-  const hasActiveFilters = orderId || awbNumber || selectedPaymentTypes.length > 0 || selectedPickupAddresses.length > 0 || selectedCouriers.length > 0 || (dateStart && dateEnd && !(dateStart === defStart && dateEnd === defEnd)) || (isAdminView && userMongoId);
+  // ── More Filters drawer (right-to-left) — Channel, order qty, order weight,
+  // SKU search, and the "Automated Cancelled Orders" radio group. Backend wiring
+  // for these comes later; for now they just live in local state.
+  const [showMoreFilters, setShowMoreFilters] = useState(false);
+  const [selectedChannels, setSelectedChannels] = useState<string[]>([]);
+  const [selectedOrderQtys, setSelectedOrderQtys] = useState<string[]>([]);
+  const [selectedOrderWeights, setSelectedOrderWeights] = useState<string[]>([]);
+  const [skuSearch, setSkuSearch] = useState('');
+  const [autoCancelledOption, setAutoCancelledOption] = useState<'noPickup10Days' | 'noPickupGenerated15Days' | 'nonCancelled' | ''>('');
+
+  const CHANNEL_OPTIONS = [
+    { label: 'WooCommerce', value: 'WooCommerce' },
+    { label: 'Shopify', value: 'Shopify' },
+  ];
+  const ORDER_QTY_OPTIONS = [
+    { label: '1', value: '1' },
+    { label: '2', value: '2' },
+    { label: '3', value: '3' },
+    { label: '4 and above', value: '4+' },
+  ];
+  const ORDER_WEIGHT_OPTIONS = [
+    { label: 'Less than 500 gm', value: 'lt500g' },
+    { label: '500gm - 1 Kg', value: '500g-1kg' },
+    { label: '1 Kg - 2 Kg', value: '1kg-2kg' },
+    { label: '2 Kg - 3 Kg', value: '2kg-3kg' },
+    { label: 'More than 3 Kg', value: 'gt3kg' },
+  ];
+
+  const hasMoreFiltersActive = selectedChannels.length > 0 || selectedOrderQtys.length > 0 || selectedOrderWeights.length > 0 || skuSearch || autoCancelledOption;
+
+  const handleResetMoreFilters = () => {
+    setSelectedChannels([]);
+    setSelectedOrderQtys([]);
+    setSelectedOrderWeights([]);
+    setSkuSearch('');
+    setAutoCancelledOption('');
+  };
+
+  const handleApplyMoreFilters = () => {
+    setShowMoreFilters(false);
+    handleApplyFilters();
+  };
+
+  const hasActiveFilters = orderId || awbNumber || selectedPaymentTypes.length > 0 || selectedPickupAddresses.length > 0 || selectedCouriers.length > 0 || (dateStart && dateEnd && !(dateStart === defStart && dateEnd === defEnd)) || (isAdminView && userMongoId) || hasMoreFiltersActive;
 
   const handleClearAllFilters = () => {
     setOrderId(''); setAwbNumber(''); setSelectedPaymentTypes([]); setSelectedPickupAddresses([]);
     setSelectedCouriers([]); setDateStart(defStart); setDateEnd(defEnd);
     if (isAdminView) { setUserQuery(''); setUserSuggestions([]); setUserMongoId(''); }
+    handleResetMoreFilters();
     setPage(1);
     setRefreshTrigger(t => t + 1); // fires useEffect after all state updates are committed
   };
@@ -1475,6 +1522,18 @@ export function AdminOrders() {
               defaultStart={defStart}
               defaultEnd={defEnd}
             />
+
+            <button
+              onClick={() => setShowMoreFilters(true)}
+              className={`py-2 px-4 shrink-0 rounded-[32px] border text-xs font-medium leading-[18px] transition-colors cursor-pointer flex items-center gap-1.5 ${
+                hasMoreFiltersActive
+                  ? 'bg-[#F0FDF4] border-[#00A86B] text-[#00A86B]'
+                  : 'bg-white border-[#E2E8F0] text-[#475569] hover:border-[#94A3B8]'
+              }`}
+            >
+              <Filter className="w-3.5 h-3.5" /> More Filters
+              {hasMoreFiltersActive && <span className="w-1.5 h-1.5 rounded-full bg-[#00A86B]" />}
+            </button>
 
             <button onClick={handleApplyFilters} className="py-2 px-4 shrink-0 rounded-[32px] bg-[#009D64] border border-[#009D64] text-white text-xs font-medium leading-[18px] hover:bg-[#008a57] transition-colors cursor-pointer">
               Apply Filters
@@ -2247,6 +2306,160 @@ export function AdminOrders() {
                 </div>
               </motion.div>
             </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* ── More Filters Drawer (right-to-left) ── */}
+        <AnimatePresence>
+          {showMoreFilters && (
+            <div className="fixed inset-0 z-[250] flex justify-end">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25 }}
+                onClick={() => setShowMoreFilters(false)}
+                className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+              />
+              <motion.div
+                initial={{ x: '100%' }}
+                animate={{ x: 0 }}
+                exit={{ x: '100%' }}
+                transition={{ type: 'tween', ease: [0.22, 1, 0.36, 1], duration: 0.32 }}
+                className="relative bg-white w-full max-w-md h-full shadow-[-24px_0_60px_-20px_rgba(0,0,0,0.25)] flex flex-col"
+              >
+                <div className="flex items-center justify-between px-6 py-4 border-b border-[#E2E8F0] shrink-0">
+                  <h3 className="text-[16px] font-bold text-[#0F172A] flex items-center gap-2">
+                    <Filter className="w-4 h-4 text-[#00A86B]" /> More Filters
+                  </h3>
+                  <button onClick={() => setShowMoreFilters(false)}
+                    className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-[#F1F5F9] text-[#64748B]">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <div className="p-6 space-y-5 overflow-y-auto flex-1">
+                  {/* Channel */}
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Channel</label>
+                    <GlassDropdown
+                      label="Channel"
+                      options={CHANNEL_OPTIONS}
+                      selected={selectedChannels}
+                      onChange={setSelectedChannels}
+                      searchable={false}
+                      icon={<Store className="w-3.5 h-3.5" />}
+                      className="w-full [&_.glass-dropdown-trigger]:!w-full [&_.glass-dropdown-trigger]:!h-11 [&_.glass-dropdown-trigger]:!min-w-0 [&_.glass-dropdown-trigger]:!rounded-full"
+                    />
+                  </div>
+
+                  {/* Order Quantity */}
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Order Quantity</label>
+                    <GlassDropdown
+                      label="Order Quantity"
+                      options={ORDER_QTY_OPTIONS}
+                      selected={selectedOrderQtys}
+                      onChange={setSelectedOrderQtys}
+                      searchable={false}
+                      className="w-full [&_.glass-dropdown-trigger]:!w-full [&_.glass-dropdown-trigger]:!h-11 [&_.glass-dropdown-trigger]:!min-w-0 [&_.glass-dropdown-trigger]:!rounded-full"
+                    />
+                  </div>
+
+                  {/* Order Weight */}
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Order Weight</label>
+                    <GlassDropdown
+                      label="Order Weight"
+                      options={ORDER_WEIGHT_OPTIONS}
+                      selected={selectedOrderWeights}
+                      onChange={setSelectedOrderWeights}
+                      searchable={false}
+                      className="w-full [&_.glass-dropdown-trigger]:!w-full [&_.glass-dropdown-trigger]:!h-11 [&_.glass-dropdown-trigger]:!min-w-0 [&_.glass-dropdown-trigger]:!rounded-full"
+                    />
+                  </div>
+
+                  {/* SKU */}
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">SKU</label>
+                    <div className="relative">
+                      <Search className="w-3.5 h-3.5 text-[#94A3B8] absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <input
+                        type="text"
+                        placeholder="Search by SKU..."
+                        value={skuSearch}
+                        onChange={(e) => setSkuSearch(e.target.value)}
+                        className="w-full h-11 pl-10 pr-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Automated Cancelled Orders */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider">Automated Cancelled Orders</label>
+                      {autoCancelledOption && (
+                        <button
+                          type="button"
+                          onClick={() => setAutoCancelledOption('')}
+                          className="text-[11px] font-bold text-[#94A3B8] hover:text-red-500 transition-colors"
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      {[
+                        { value: 'noPickup10Days' as const, label: 'No pickup done in 10 days from pickup generated date' },
+                        { value: 'noPickupGenerated15Days' as const, label: 'Pickup not generated in 15 days after AWB assigned date' },
+                        { value: 'nonCancelled' as const, label: 'Non-Cancelled Orders' },
+                      ].map(opt => {
+                        const isSelected = autoCancelledOption === opt.value;
+                        return (
+                          <label
+                            key={opt.value}
+                            className={`flex items-center gap-3 rounded-xl border p-3 cursor-pointer transition-colors ${
+                              isSelected ? 'border-[#00A86B] bg-[#F0FDF4]' : 'border-slate-200 hover:border-[#94A3B8] hover:bg-slate-50'
+                            }`}
+                          >
+                            <span
+                              className={`w-[18px] h-[18px] rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
+                                isSelected ? 'border-[#00A86B]' : 'border-slate-300'
+                              }`}
+                            >
+                              {isSelected && <span className="w-2 h-2 rounded-full bg-[#00A86B]" />}
+                            </span>
+                            <input
+                              type="radio"
+                              name="autoCancelledOption"
+                              className="hidden"
+                              checked={isSelected}
+                              onChange={() => setAutoCancelledOption(opt.value)}
+                            />
+                            <span className={`text-[13px] leading-snug ${isSelected ? 'text-[#0F172A] font-semibold' : 'text-slate-700'}`}>{opt.label}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="px-6 py-4 border-t border-[#E2E8F0] flex items-center gap-3 shrink-0">
+                  <button
+                    onClick={handleResetMoreFilters}
+                    className="flex-1 h-11 rounded-full border border-[#E2E8F0] text-[#475569] text-sm font-bold hover:bg-[#F8FAFC] transition-colors"
+                  >
+                    Reset
+                  </button>
+                  <ShineButton
+                    onClick={handleApplyMoreFilters}
+                    className="flex-1 h-11 rounded-full bg-[#009D64] text-white text-sm font-bold hover:bg-[#009B63] transition-colors shadow-sm flex items-center justify-center"
+                  >
+                    Apply Filters
+                  </ShineButton>
+                </div>
+              </motion.div>
+            </div>
           )}
         </AnimatePresence>
 

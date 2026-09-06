@@ -468,9 +468,11 @@ export function AdminPickupAddress() {
             {!isAdminView && (
               <button
                 onClick={openAdd}
-                className="flex items-center gap-2 h-9 px-4 rounded-lg bg-[#00A86B] hover:bg-[#009B63] text-white text-[13px] font-semibold transition-colors shadow-sm"
+                title="Add Address"
+                aria-label="Add Address"
+                className="w-9 h-9 rounded-full bg-[#00A86B] hover:bg-[#009B63] text-white flex items-center justify-center transition-colors shadow-sm shrink-0"
               >
-                <Plus className="w-4 h-4" /> Add Address
+                <Plus className="w-4 h-4" />
               </button>
             )}
           </div>
@@ -508,7 +510,7 @@ export function AdminPickupAddress() {
             <button
               onClick={openAdd}
               aria-label="Add Address"
-              className="w-9 h-9 rounded-xl bg-[#00A86B] hover:bg-[#009B63] text-white flex items-center justify-center shrink-0 shadow-sm"
+              className="w-9 h-9 rounded-full bg-[#00A86B] hover:bg-[#009B63] text-white flex items-center justify-center shrink-0 shadow-sm"
             >
               <Plus className="w-4 h-4" />
             </button>
@@ -1021,10 +1023,16 @@ export function AdminPickupAddress() {
                   <div>
                     <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Address <span className="text-red-500">*</span></label>
                     {errors.address && <p className="text-[12px] md:text-[11px] text-red-500 mb-1">{errors.address}</p>}
-                    <input type="text" value={form.address}
-                      onChange={setField('address')}
-                      placeholder="Street Address"
-                      className={`w-full h-11 px-4 border rounded-full text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B] ${errors.address ? 'border-red-400' : 'border-[#E2E8F0]'}`} />
+                    <div className="relative">
+                      <input type="text" value={form.address}
+                        onChange={setField('address')}
+                        placeholder="Street Address"
+                        className={`w-full h-11 px-4 !pr-28 border rounded-full text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B] ${errors.address ? 'border-red-400' : 'border-[#E2E8F0]'}`} />
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+                        <span className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Accuracy</span>
+                        <AddressAccuracyGauge address={form.address} size="sm" showLabel={false} />
+                      </div>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

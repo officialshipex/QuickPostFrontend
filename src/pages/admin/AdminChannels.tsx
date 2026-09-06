@@ -3,11 +3,16 @@ import { useSearchParams } from 'react-router-dom';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import {
   ArrowLeft, Plus, ShoppingBag, ChevronDown, Check,
-  Trash2, Pencil, RefreshCw, Loader2, AlertTriangle, Download, ChevronRight,
+  Trash2, Pencil, RefreshCw, Loader2, AlertTriangle, Download, ChevronRight, X,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { apiClient } from '../../services/apiClient';
 import { useSearchNoResults } from '../../hooks/useSearchNoResults';
+import { getToken } from '../../utils/session';
+import { ShineButton } from '../../components/ui/ShineButton';
+import wooCommerceLogo from '../../assets/woo-commerce-logo.png';
+import shopifyLogo from '../../assets/shopify-logo.png';
+import channelsPromoBanner from '../../assets/channels-promo-banner.png';
 
 type ChannelView = 'list' | 'add' | 'woocommerce' | 'shopify';
 
@@ -147,6 +152,20 @@ export function AdminChannels() {
   const isEditing = !!editId;
   const isWoo = view === 'woocommerce';
   const { NoResultsIllustration } = useSearchNoResults();
+
+  // ── Promo banner — shown once per login session, dismissible
+  const [showPromoBanner, setShowPromoBanner] = useState(false);
+  useEffect(() => {
+    const token = getToken();
+    if (!token) return;
+    if (sessionStorage.getItem(`channelsPromoBannerSeen_${token}`) === '1') return;
+    setShowPromoBanner(true);
+  }, []);
+  const dismissPromoBanner = () => {
+    const token = getToken();
+    if (token) sessionStorage.setItem(`channelsPromoBannerSeen_${token}`, '1');
+    setShowPromoBanner(false);
+  };
 
   // ── List state
   const [channels, setChannels]           = useState<Channel[]>([]);
@@ -300,6 +319,33 @@ export function AdminChannels() {
             </div>
           </div>
 
+          <AnimatePresence>
+            {showPromoBanner && (
+              <motion.div
+                key="channels-promo-banner"
+                initial={{ opacity: 0, y: -12, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -8, scale: 0.98, transition: { duration: 0.2 } }}
+                transition={{ type: 'spring', stiffness: 340, damping: 28, mass: 0.9 }}
+                className="relative mb-5 rounded-2xl overflow-hidden border border-[#E2E8F0] shadow-[0_8px_30px_-12px_rgba(0,0,0,0.18)] bg-gradient-to-r from-[#F0FDF4] via-white to-[#F0FDF4]"
+              >
+                <img
+                  src={channelsPromoBanner}
+                  alt="More Channels, More Growth — connect Shopify, WooCommerce, WordPress, Amazon and more, all in one place."
+                  className="w-full h-auto block"
+                />
+                <button
+                  type="button"
+                  onClick={dismissPromoBanner}
+                  aria-label="Dismiss"
+                  className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/90 hover:bg-white shadow-sm border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:text-[#0F172A] transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           {listError && (
             <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-4">
               <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />
@@ -322,10 +368,12 @@ export function AdminChannels() {
                 <div key={ch._id} className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm p-5">
                   <div className="flex items-start justify-between gap-2 mb-3">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${ch.channel === 'WooCommerce' ? 'bg-[#7F54B3]/10' : 'bg-[#95BF47]/10'}`}>
-                        {ch.channel === 'WooCommerce'
-                          ? <span className="text-[#7F54B3] font-black text-[10px]">Woo</span>
-                          : <ShoppingBag className="w-5 h-5 text-[#95BF47]" />}
+                      <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 p-0.5 ${ch.channel === 'WooCommerce' ? 'bg-[#7F54B3]/10' : 'bg-[#95BF47]/10'}`}>
+                        <img
+                          src={ch.channel === 'WooCommerce' ? wooCommerceLogo : shopifyLogo}
+                          alt={ch.channel}
+                          className="w-full h-full object-contain"
+                        />
                       </div>
                       <div className="min-w-0">
                         <div className="text-[14px] font-bold text-[#0F172A] truncate">{ch.storeName}</div>
@@ -433,8 +481,8 @@ export function AdminChannels() {
 
           <div className="flex flex-wrap gap-4">
             <div className="w-[280px] bg-white rounded-2xl border border-[#E2E8F0] shadow-sm p-6 flex flex-col items-center text-center">
-              <div className="w-16 h-16 rounded-xl bg-[#7F54B3]/10 flex items-center justify-center mb-4">
-                <span className="text-[#7F54B3] font-black text-[15px] tracking-tight">Woo</span>
+              <div className="w-20 h-20 rounded-xl bg-[#7F54B3]/10 flex items-center justify-center mb-4 p-1">
+                <img src={wooCommerceLogo} alt="WooCommerce" className="w-full h-full object-contain" />
               </div>
               <div className="text-[14px] font-bold text-[#0F172A] mb-4">Woocommerce</div>
               <button
@@ -446,8 +494,8 @@ export function AdminChannels() {
             </div>
 
             <div className="w-[280px] bg-white rounded-2xl border border-[#E2E8F0] shadow-sm p-6 flex flex-col items-center text-center">
-              <div className="w-16 h-16 rounded-xl bg-[#95BF47]/10 flex items-center justify-center mb-4">
-                <ShoppingBag className="w-7 h-7 text-[#95BF47]" />
+              <div className="w-20 h-20 rounded-xl bg-[#95BF47]/10 flex items-center justify-center mb-4 p-1">
+                <img src={shopifyLogo} alt="Shopify" className="w-full h-full object-contain" />
               </div>
               <div className="text-[14px] font-bold text-[#0F172A] mb-4">Shopify</div>
               <button
@@ -617,17 +665,17 @@ export function AdminChannels() {
               </div>
 
               <div className="flex items-center gap-3 mt-6">
-                <button
+                <ShineButton
                   onClick={handleSubmit}
                   disabled={submitting}
-                  className="h-10 px-6 rounded-lg bg-[#00A86B] text-white text-[13px] font-bold hover:bg-[#009B63] disabled:opacity-60 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
+                  className="h-10 px-6 rounded-full bg-[#00A86B] text-white text-[13px] font-bold hover:bg-[#009B63] disabled:opacity-60 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
                 >
                   {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                   {isEditing ? 'Update Channel' : 'Add Channel'}
-                </button>
+                </ShineButton>
                 <button
                   onClick={() => { resetForm(); goToView('list'); }}
-                  className="h-10 px-5 rounded-lg border border-[#E2E8F0] text-[#64748B] text-[13px] font-bold hover:bg-[#F8FAFC] transition-colors"
+                  className="h-10 px-5 rounded-full border border-[#E2E8F0] text-[#64748B] text-[13px] font-bold hover:bg-[#F8FAFC] transition-colors"
                 >
                   Cancel
                 </button>

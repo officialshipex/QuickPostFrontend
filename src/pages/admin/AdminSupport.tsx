@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
+import { GlassSingleSelect } from '../../components/ui/GlassSingleSelect';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
 import { useDateRangeFilter } from '../../hooks/filters/useDateRangeFilter';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -184,32 +185,51 @@ function CreateTicketModal({ onClose, onCreated }: CreateTicketModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end md:items-center justify-center md:p-4">
-      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white md:rounded-2xl rounded-t-[24px] shadow-2xl w-full md:max-w-lg max-h-[92vh] md:max-h-[90vh] overflow-y-auto z-10">
-        <div className="sticky top-0 bg-white z-10 px-4 md:px-6 py-4 border-b border-[#E2E8F0] flex items-center justify-between">
+    <div className="fixed inset-0 z-[200] flex justify-end">
+      <motion.div
+        className="absolute inset-0 bg-black/30 backdrop-blur-sm"
+        onClick={onClose}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.25, ease: 'easeOut' }}
+      />
+      <motion.div
+        className="relative bg-white shadow-2xl w-full md:max-w-md h-full z-10 flex flex-col"
+        initial={{ x: '100%' }}
+        animate={{ x: 0 }}
+        exit={{ x: '100%' }}
+        transition={{ type: 'spring', stiffness: 300, damping: 32, mass: 0.9 }}
+      >
+        <div className="bg-white z-10 px-5 md:px-6 py-4 border-b border-[#E2E8F0] flex items-center justify-between shrink-0">
           <h2 className="text-[14px] md:text-base font-bold text-[#0F172A]">Create Support Ticket</h2>
-          <button onClick={onClose} className="w-7 h-7 rounded-full border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC] shrink-0"><X className="w-4 h-4" /></button>
+          <button onClick={onClose} className="w-7 h-7 rounded-full border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC] hover:border-[#CBD5E1] transition-colors shrink-0"><X className="w-4 h-4" /></button>
         </div>
-        <form onSubmit={handleSubmit} className="p-4 md:p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="flex-1 min-h-0 flex flex-col">
+        <div className="flex-1 min-h-0 overflow-y-auto p-5 md:p-6 space-y-5">
           {error && <p className="text-[12px] text-red-500 font-semibold bg-red-50 rounded-xl px-3 py-2">{error}</p>}
 
           {/* Category */}
           <div>
             <label className="block text-[12px] font-semibold text-[#475569] mb-1.5">Category *</label>
-            <select value={category} onChange={e => { setCategory(e.target.value); setSubcategory(''); }} className="w-full h-11 md:h-9 px-4 md:px-3 rounded-full md:rounded-lg border border-[#E2E8F0] text-[12px] focus:outline-none focus:border-[#00A86B] bg-white">
-              <option value="">Select category</option>
-              {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
+            <GlassSingleSelect
+              value={category}
+              onChange={v => { setCategory(v); setSubcategory(''); }}
+              options={CATEGORIES.map(c => ({ label: c, value: c }))}
+              placeholder="Select category"
+            />
           </div>
 
           {/* Subcategory */}
           <div>
             <label className="block text-[12px] font-semibold text-[#475569] mb-1.5">Subcategory *</label>
-            <select value={subcategory} onChange={e => setSubcategory(e.target.value)} disabled={!category} className="w-full h-11 md:h-9 px-4 md:px-3 rounded-full md:rounded-lg border border-[#E2E8F0] text-[12px] focus:outline-none focus:border-[#00A86B] bg-white disabled:bg-slate-50 disabled:text-slate-400">
-              <option value="">Select subcategory</option>
-              {subcategoryOptions.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
+            <GlassSingleSelect
+              value={subcategory}
+              onChange={setSubcategory}
+              options={subcategoryOptions.map(s => ({ label: s, value: s }))}
+              placeholder={category ? 'Select subcategory' : 'Select a category first'}
+              className={!category ? 'opacity-50 pointer-events-none' : ''}
+            />
           </div>
 
           {/* AWB */}
@@ -222,7 +242,7 @@ function CreateTicketModal({ onClose, onCreated }: CreateTicketModalProps) {
               onChange={e => { setAwbNumbers(e.target.value); setAwbWarning(''); }}
               onBlur={e => { if (e.target.value.trim()) validateAwbs(e.target.value); }}
               placeholder="AWB123, AWB456"
-              className={`w-full h-11 md:h-9 px-4 md:px-3 rounded-full md:rounded-lg border text-[12px] focus:outline-none focus:border-[#00A86B] ${awbWarning ? 'border-amber-400 bg-amber-50' : 'border-[#E2E8F0]'}`}
+              className={`w-full h-10 px-3.5 rounded-xl border text-[12px] font-medium focus:outline-none focus:ring-2 focus:ring-[#00A86B]/15 focus:border-[#00A86B] transition-colors ${awbWarning ? 'border-amber-400 bg-amber-50' : 'border-[#E2E8F0]'}`}
             />
             {awbValidating && (
               <p className="text-[12px] text-[#64748B] mt-1">Validating AWB(s)…</p>
@@ -237,17 +257,18 @@ function CreateTicketModal({ onClose, onCreated }: CreateTicketModalProps) {
           {/* Message */}
           <div>
             <label className="block text-[12px] font-semibold text-[#475569] mb-1.5">Message *</label>
-            <textarea value={message} onChange={e => setMessage(e.target.value)} placeholder="Describe the issue in detail..." rows={4} className="w-full px-4 py-3 rounded-2xl md:rounded-lg border border-[#E2E8F0] text-[12px] focus:outline-none focus:border-[#00A86B] resize-none" />
+            <textarea value={message} onChange={e => setMessage(e.target.value)} placeholder="Describe the issue in detail..." rows={5} className="w-full px-3.5 py-3 rounded-xl border border-[#E2E8F0] text-[12px] font-medium focus:outline-none focus:ring-2 focus:ring-[#00A86B]/15 focus:border-[#00A86B] transition-colors resize-none" />
           </div>
+        </div>
 
-          <div className="flex gap-3 pt-1">
-            <button type="button" onClick={onClose} className="flex-1 h-11 md:h-9 rounded-full border border-[#E2E8F0] text-[#475569] text-[12px] font-semibold hover:bg-[#F8FAFC]">Cancel</button>
-            <button type="submit" disabled={submitting || !userInfo} className="flex-1 h-11 md:h-9 rounded-full bg-[#00A86B] text-white text-[12px] font-bold hover:bg-[#009B63] disabled:opacity-50">
-              {submitting ? 'Creating...' : 'Create Ticket'}
-            </button>
-          </div>
+        <div className="bg-white border-t border-[#E2E8F0] px-5 md:px-6 py-4 flex gap-3 shrink-0">
+          <button type="button" onClick={onClose} className="flex-1 h-11 md:h-10 rounded-full border border-[#E2E8F0] text-[#475569] text-[12px] font-semibold hover:bg-[#F8FAFC] hover:border-[#CBD5E1] transition-colors">Cancel</button>
+          <button type="submit" disabled={submitting || !userInfo} className="flex-1 h-11 md:h-10 rounded-full bg-[#00A86B] text-white text-[12px] font-bold hover:bg-[#009B63] transition-colors disabled:opacity-50 disabled:pointer-events-none">
+            {submitting ? 'Creating...' : 'Create Ticket'}
+          </button>
+        </div>
         </form>
-      </div>
+      </motion.div>
     </div>
   );
 }
@@ -1044,12 +1065,14 @@ export function AdminSupport() {
       )}
 
       {/* ── Create Ticket Modal ── */}
-      {showCreateModal && (
-        <CreateTicketModal
-          onClose={() => setShowCreateModal(false)}
-          onCreated={ticket => setTickets(prev => [ticket, ...prev])}
-        />
-      )}
+      <AnimatePresence>
+        {showCreateModal && (
+          <CreateTicketModal
+            onClose={() => setShowCreateModal(false)}
+            onCreated={ticket => setTickets(prev => [ticket, ...prev])}
+          />
+        )}
+      </AnimatePresence>
     </AdminLayout>
   );
 }
