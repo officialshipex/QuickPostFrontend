@@ -5,8 +5,9 @@ import { apiClient } from '../../services/apiClient';
 import { useAdminTab } from '../../context/AdminUserContext';
 import {
   Plus, Download, Pencil, Trash2, Star, Loader2, X, MapPin, Phone, Mail, AlertCircle, Search,
-  User, Hash, CheckCircle2, Settings, Filter,
+  User, Hash, CheckCircle2, Settings, Filter, AlertTriangle, ChevronDown, ChevronUp,
 } from 'lucide-react';
+import pickupAddressBannerImg from '../../assets/pickup-address-banner.png';
 import { useUserSearchFilter } from '../../hooks/filters/useUserSearchFilter';
 import { useTableLoader } from '../../hooks/useTableLoader';
 import { TableLoader } from '../../components/ui/TableLoader';
@@ -70,6 +71,20 @@ export function AdminPickupAddress() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [pincodeLoading, setPincodeLoading] = useState(false);
+
+  // Same-as-Add-Order drawer extras: tag, geolocation, manual search-autocomplete, collapsibles
+  const [addressTag, setAddressTag] = useState<'Home' | 'Work' | 'Warehouse' | 'Other'>('Home');
+  const [atLocationNow, setAtLocationNow] = useState<'current' | 'manual'>('manual');
+  const [locationSearch, setLocationSearch] = useState('');
+  const [locationSuggestions, setLocationSuggestions] = useState<any[]>([]);
+  const [locationSearching, setLocationSearching] = useState(false);
+  const [showContactDetails, setShowContactDetails] = useState(true);
+  const [showOperationalTimings, setShowOperationalTimings] = useState(false);
+  const [openingTime, setOpeningTime] = useState('');
+  const [closingTime, setClosingTime] = useState('');
+  const [detectingLocation, setDetectingLocation] = useState(false);
+  const [locationDetectError, setLocationDetectError] = useState('');
+  const [locationDetectWarning, setLocationDetectWarning] = useState('');
 
   // Delete confirm
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -152,6 +167,7 @@ export function AdminPickupAddress() {
     setEditId(null);
     setForm({ ...EMPTY_FORM });
     setErrors({});
+    resetDrawerExtras();
     setShowModal(true);
   };
 
@@ -159,6 +175,7 @@ export function AdminPickupAddress() {
     setEditId(doc._id);
     setForm({ ...doc.pickupAddress });
     setErrors({});
+    resetDrawerExtras();
     setShowModal(true);
   };
 
@@ -259,6 +276,127 @@ export function AdminPickupAddress() {
     setErrors(prev => { const n = { ...prev }; delete n.pinCode; return n; });
   };
 
+  // ── Detect device location and auto-fill the form (same as Add Order) ──
+  const handleUseCurrentLocation = () => {
+    setLocationDetectError('');
+    setLocationDetectWarning('');
+    if (!navigator.geolocation) {
+      setLocationDetectError('Location access is not supported on this device.');
+      return;
+    }
+    setDetectingLocation(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const { latitude, longitude } = pos.coords;
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}&addressdetails=1&zoom=16&accept-language=en`,
+            { headers: { Accept: 'application/json' } }
+          );
+          if (!res.ok) throw new Error('Geocoding API error');
+          const data = await res.json();
+          const a = data?.address || {};
+
+          const rawPin = (a.postcode || '').replace(/\D/g, '').slice(0, 6);
+          const pin = rawPin || (data?.display_name || '').match(/\b(\d{6})\b/)?.[1] || '';
+          const city = a.city || a.town || a.municipality || a.city_district || a.village || a.suburb || a.county || '';
+          const state = a.state || '';
+          const streetParts = [
+            a.house_number,
+            a.road || a.pedestrian || a.footway || a.path,
+            a.neighbourhood || a.quarter,
+            a.suburb,
+          ].filter(Boolean);
+          const streetAddress = streetParts.length ? streetParts.join(', ') : (data?.display_name || '');
+
+          setForm(prev => ({
+            ...prev,
+            address: streetAddress || prev.address,
+            pinCode: pin || prev.pinCode,
+            city: city || prev.city,
+            state: state || prev.state,
+          }));
+          setLocationSearch(streetAddress || data?.display_name || '');
+
+          if (!pin || !city || !state) {
+            setLocationDetectWarning(
+              'Location detected but some fields (pincode/city/state) could not be auto-filled. Please complete them manually.'
+            );
+          }
+        } catch {
+          setLocationDetectError('Could not determine your address from the detected location. Please enter it manually.');
+        } finally {
+          setDetectingLocation(false);
+        }
+      },
+      (err) => {
+        setDetectingLocation(false);
+        setLocationDetectError(
+          err.code === err.PERMISSION_DENIED
+            ? 'Location permission denied. Please allow location access in your browser settings.'
+            : err.code === 3
+            ? 'Location detection timed out. Please try again or enter the address manually.'
+            : 'Could not detect your location. Please enter the address manually.'
+        );
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
+  // Debounced forward geocoding for the manual location search box
+  useEffect(() => {
+    setLocationSuggestions([]);
+    if (atLocationNow !== 'manual') return;
+    const q = locationSearch.trim();
+    if (q.length < 5) return;
+    const timer = setTimeout(async () => {
+      setLocationSearching(true);
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(q)}&countrycodes=in&limit=5&addressdetails=1`,
+          { headers: { Accept: 'application/json' } }
+        );
+        const results = await res.json();
+        setLocationSuggestions(Array.isArray(results) ? results : []);
+      } catch {
+        setLocationSuggestions([]);
+      } finally {
+        setLocationSearching(false);
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [locationSearch, atLocationNow]);
+
+  const handleLocationSelect = (item: any) => {
+    const a = item.address || {};
+    const pin = (a.postcode || '').replace(/\D/g, '').slice(0, 6);
+    const city = a.city || a.town || a.village || a.suburb || a.county || '';
+    const state = a.state || '';
+    const streetParts = [a.house_number, a.road || a.neighbourhood, a.suburb].filter(Boolean);
+    const streetAddress = streetParts.length ? streetParts.join(', ') : item.display_name;
+    setForm(prev => ({
+      ...prev,
+      address: streetAddress || prev.address,
+      pinCode: pin || prev.pinCode,
+      city: city || prev.city,
+      state: state || prev.state,
+    }));
+    setLocationSearch(item.display_name);
+    setLocationSuggestions([]);
+  };
+
+  const resetDrawerExtras = () => {
+    setAddressTag('Home');
+    setAtLocationNow('manual');
+    setLocationSearch('');
+    setLocationSuggestions([]);
+    setLocationDetectError('');
+    setLocationDetectWarning('');
+    setOpeningTime('');
+    setClosingTime('');
+  };
+
   // ─────────────────────────────────────────────────────────────────────────
   return (
     <AdminLayout>
@@ -330,9 +468,11 @@ export function AdminPickupAddress() {
             {!isAdminView && (
               <button
                 onClick={openAdd}
-                className="flex items-center gap-2 h-9 px-4 rounded-lg bg-[#00A86B] hover:bg-[#009B63] text-white text-[13px] font-semibold transition-colors shadow-sm"
+                title="Add Address"
+                aria-label="Add Address"
+                className="w-9 h-9 rounded-full bg-[#00A86B] hover:bg-[#009B63] text-white flex items-center justify-center transition-colors shadow-sm shrink-0"
               >
-                <Plus className="w-4 h-4" /> Add Address
+                <Plus className="w-4 h-4" />
               </button>
             )}
           </div>
@@ -370,7 +510,7 @@ export function AdminPickupAddress() {
             <button
               onClick={openAdd}
               aria-label="Add Address"
-              className="w-9 h-9 rounded-xl bg-[#00A86B] hover:bg-[#009B63] text-white flex items-center justify-center shrink-0 shadow-sm"
+              className="w-9 h-9 rounded-full bg-[#00A86B] hover:bg-[#009B63] text-white flex items-center justify-center shrink-0 shadow-sm"
             >
               <Plus className="w-4 h-4" />
             </button>
@@ -707,211 +847,322 @@ export function AdminPickupAddress() {
         )}
       </AnimatePresence>
 
-      {/* ── Add / Edit Modal (user only, desktop) ─────────────────────────── */}
-      {showModal && !isAdminView && (
-        <div className="hidden md:flex fixed inset-0 z-50 items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-[#E2E8F0] shrink-0">
-              <h3 className="text-[15px] font-bold text-[#0F172A]">
-                {editId ? 'Edit Pickup Address' : 'Add New Pickup Address'}
-              </h3>
-              <button onClick={closeModal} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-[#F1F5F9] text-[#64748B] transition-colors">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="p-6 space-y-4 overflow-y-auto">
-              {errors.submit && (
-                <div className="flex items-center gap-2 p-3 bg-red-50 text-red-600 rounded-lg text-[12px]">
-                  <AlertCircle className="w-4 h-4 shrink-0" /> {errors.submit}
-                </div>
-              )}
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Contact Name <span className="text-red-500">*</span></label>
-                  {errors.contactName && <p className="text-[11px] text-red-500 mb-1">{errors.contactName}</p>}
-                  <input type="text" value={form.contactName} onChange={setField('contactName')} placeholder="Full contact name" className={inputCls(errors.contactName)} />
-                </div>
-                <div>
-                  <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Email <span className="text-[#94A3B8] font-normal">(optional)</span></label>
-                  <input type="email" value={form.email} onChange={setField('email')} placeholder="email@example.com" className={inputCls()} />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Phone Number <span className="text-red-500">*</span></label>
-                {errors.phoneNumber && <p className="text-[11px] text-red-500 mb-1">{errors.phoneNumber}</p>}
-                <input type="text" inputMode="numeric" value={form.phoneNumber} onChange={setPhone} placeholder="10-digit number starting with 6-9" className={inputCls(errors.phoneNumber)} />
-              </div>
-
-              <div>
-                <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Address <span className="text-red-500">*</span></label>
-                {errors.address && <p className="text-[11px] text-red-500 mb-1">{errors.address}</p>}
-                <input type="text" value={form.address} onChange={setField('address')} placeholder="Street / Area / Landmark" className={inputCls(errors.address)} />
-              </div>
-
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Pincode <span className="text-red-500">*</span></label>
-                  {errors.pinCode && <p className="text-[11px] text-red-500 mb-1">{errors.pinCode}</p>}
-                  <div className="relative">
-                    <input type="text" inputMode="numeric" value={form.pinCode} onChange={setPin} placeholder="6-digit pin" className={inputCls(errors.pinCode)} />
-                    {pincodeLoading && <Loader2 className="w-4 h-4 text-[#00A86B] animate-spin absolute right-3 top-1/2 -translate-y-1/2" />}
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">City <span className="text-red-500">*</span></label>
-                  {errors.city && <p className="text-[11px] text-red-500 mb-1">{errors.city}</p>}
-                  <input type="text" value={form.city} onChange={setField('city')} placeholder="Auto-filled"
-                    className={`${inputCls(errors.city)} ${!errors.city && form.pinCode.length === 6 ? 'bg-[#F8FAFC]' : ''}`}
-                    readOnly={!errors.city && form.pinCode.length === 6 && !pincodeLoading} />
-                </div>
-                <div>
-                  <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">State <span className="text-red-500">*</span></label>
-                  {errors.state && <p className="text-[11px] text-red-500 mb-1">{errors.state}</p>}
-                  <input type="text" value={form.state} onChange={setField('state')} placeholder="Auto-filled"
-                    className={`${inputCls(errors.state)} ${!errors.state && form.pinCode.length === 6 ? 'bg-[#F8FAFC]' : ''}`}
-                    readOnly={!errors.state && form.pinCode.length === 6 && !pincodeLoading} />
-                </div>
-              </div>
-            </div>
-
-            <div className="flex gap-3 px-6 py-4 border-t border-[#E2E8F0] shrink-0">
-              <button onClick={handleSave} disabled={saving}
-                className="flex items-center gap-2 px-6 h-10 bg-[#00A86B] hover:bg-[#009B63] disabled:opacity-60 text-white text-[13px] font-bold rounded-full transition-colors">
-                {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-                {editId ? 'Save Changes' : 'Add Address'}
-              </button>
-              <button onClick={closeModal}
-                className="px-6 h-10 rounded-full border border-[#E2E8F0] text-[13px] font-semibold text-[#475569] hover:bg-[#F8FAFC] transition-colors">
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Add / Edit Sheet (user only, mobile) ──────────────────────────── */}
+      {/* ── Add / Edit Pickup Address Drawer (user only) — same right-to-left
+          slide-in drawer as AdminAddOrder's pickup address modal ─────────── */}
       <AnimatePresence>
         {showModal && !isAdminView && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="md:hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-end justify-center"
-            onClick={closeModal}
-          >
+          <div className="fixed inset-0 z-[250] flex justify-end">
             <motion.div
-              initial={{ y: '100%' }}
-              animate={{ y: 0 }}
-              exit={{ y: '100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="bg-white rounded-t-3xl border-t border-[#E2E8F0] shadow-2xl w-full max-h-[75vh] flex flex-col"
-              onClick={(e) => e.stopPropagation()}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.25 }}
+              onClick={closeModal}
+              className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'tween', ease: [0.22, 1, 0.36, 1], duration: 0.32 }}
+              className="relative bg-white w-full max-w-3xl h-full shadow-[-24px_0_60px_-20px_rgba(0,0,0,0.25)] flex flex-col"
             >
-              {/* Drag handle */}
-              <div className="flex justify-center pt-2.5 pb-1 shrink-0">
-                <div className="w-10 h-1 rounded-full bg-[#E2E8F0]" />
-              </div>
-
-              <div className="px-5 py-3 border-b border-[#E2E8F0] flex items-center justify-between shrink-0">
-                <h3 className="text-[15px] font-bold text-[#0F172A]">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-[#E2E8F0] shrink-0">
+                <h3 className="text-[17px] font-bold text-[#0F172A]">
                   {editId ? 'Edit Pickup Address' : 'Add New Pickup Address'}
                 </h3>
-                <button onClick={closeModal} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-[#F1F5F9] text-[#64748B] transition-colors">
+                <button onClick={closeModal}
+                  className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-[#F1F5F9] text-[#64748B]">
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
-              <div className="px-5 py-4 space-y-4 overflow-y-auto thin-scrollbar min-h-0">
+              <div className="p-4 md:p-6 space-y-6 overflow-y-auto flex-1">
                 {errors.submit && (
-                  <div className="flex items-center gap-2 p-3 bg-red-50 text-red-600 rounded-xl text-[12px]">
-                    <AlertCircle className="w-4 h-4 shrink-0" /> {errors.submit}
-                  </div>
+                  <p className="text-[12px] text-red-500">{errors.submit}</p>
                 )}
 
-                <div>
-                  <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Contact Name <span className="text-red-500">*</span></label>
-                  {errors.contactName && <p className="text-[11px] text-red-500 mb-1">{errors.contactName}</p>}
-                  <div className="relative">
-                    <User className="w-4 h-4 text-[#94A3B8] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                    <input type="text" value={form.contactName} onChange={setField('contactName')} placeholder="Full contact name"
-                      className={`${inputCls(errors.contactName)} !rounded-full !pl-10`} />
-                  </div>
-                </div>
+                {/* ── Info banner: 3-step guidance ── */}
+                <img
+                  src={pickupAddressBannerImg}
+                  alt="Provide your full address and exact location for accurate pickups. Share the contact details of the person handling shipment handover for smooth coordination. Specify your operational hours to ensure pickups are scheduled on time."
+                  className="w-full h-auto rounded-xl"
+                />
 
-                <div>
-                  <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Phone Number <span className="text-red-500">*</span></label>
-                  {errors.phoneNumber && <p className="text-[11px] text-red-500 mb-1">{errors.phoneNumber}</p>}
-                  <div className="relative">
-                    <Phone className="w-4 h-4 text-[#94A3B8] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                    <input type="text" inputMode="numeric" value={form.phoneNumber} onChange={setPhone} placeholder="10-digit number starting with 6-9"
-                      className={`${inputCls(errors.phoneNumber)} !rounded-full !pl-10`} />
-                  </div>
-                </div>
+                {/* ── Address Details ── */}
+                <div className="space-y-4">
+                  <h4 className="text-[14px] font-bold text-[#0F172A]">Address Details</h4>
 
-                <div>
-                  <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Email <span className="text-[#94A3B8] font-normal">(optional)</span></label>
-                  <div className="relative">
-                    <Mail className="w-4 h-4 text-[#94A3B8] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                    <input type="email" value={form.email} onChange={setField('email')} placeholder="email@example.com"
-                      className={`${inputCls()} !rounded-full !pl-10`} />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Address <span className="text-red-500">*</span></label>
-                  {errors.address && <p className="text-[11px] text-red-500 mb-1">{errors.address}</p>}
-                  <div className="relative">
-                    <MapPin className="w-4 h-4 text-[#94A3B8] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                    <input type="text" value={form.address} onChange={setField('address')} placeholder="Street / Area / Landmark"
-                      className={`${inputCls(errors.address)} !rounded-full !pl-10`} />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Pincode <span className="text-red-500">*</span></label>
-                  {errors.pinCode && <p className="text-[11px] text-red-500 mb-1">{errors.pinCode}</p>}
-                  <div className="relative">
-                    <Hash className="w-4 h-4 text-[#94A3B8] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                    <input type="text" inputMode="numeric" value={form.pinCode} onChange={setPin} placeholder="6-digit pin"
-                      className={`${inputCls(errors.pinCode)} !rounded-full !pl-10`} />
-                    {pincodeLoading && <Loader2 className="w-4 h-4 text-[#00A86B] animate-spin absolute right-4 top-1/2 -translate-y-1/2" />}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">City <span className="text-red-500">*</span></label>
-                    {errors.city && <p className="text-[11px] text-red-500 mb-1">{errors.city}</p>}
-                    <input type="text" value={form.city} onChange={setField('city')} placeholder="Auto-filled"
-                      className={`${inputCls(errors.city)} !rounded-full ${!errors.city && form.pinCode.length === 6 ? 'bg-[#F8FAFC]' : ''}`}
-                      readOnly={!errors.city && form.pinCode.length === 6 && !pincodeLoading} />
+                    <label className="block text-[12px] font-bold text-[#64748B] mb-2">Tag this address as</label>
+                    <div className="flex flex-wrap gap-2">
+                      {(['Home', 'Work', 'Warehouse', 'Other'] as const).map(tag => (
+                        <button
+                          key={tag}
+                          type="button"
+                          onClick={() => setAddressTag(tag)}
+                          className={`h-9 px-4 rounded-full text-[12px] font-semibold border transition-colors ${
+                            addressTag === tag
+                              ? 'border-[#00A86B] text-[#00A86B] bg-[#F0FDF4]'
+                              : 'border-[#E2E8F0] text-[#475569] hover:border-[#94A3B8]'
+                          }`}
+                        >
+                          {tag}
+                        </button>
+                      ))}
+                    </div>
                   </div>
+
                   <div>
-                    <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">State <span className="text-red-500">*</span></label>
-                    {errors.state && <p className="text-[11px] text-red-500 mb-1">{errors.state}</p>}
-                    <input type="text" value={form.state} onChange={setField('state')} placeholder="Auto-filled"
-                      className={`${inputCls(errors.state)} !rounded-full ${!errors.state && form.pinCode.length === 6 ? 'bg-[#F8FAFC]' : ''}`}
-                      readOnly={!errors.state && form.pinCode.length === 6 && !pincodeLoading} />
+                    <label className="block text-[12px] font-bold text-[#64748B] mb-2">Are you at this address right now?</label>
+                    <div className="flex flex-wrap gap-6">
+                      {[
+                        { value: 'current' as const, label: 'Yes, use my present location for address' },
+                        { value: 'manual' as const, label: 'No, I will add the location manually' },
+                      ].map(opt => (
+                        <label key={opt.value} className="flex items-center gap-2 cursor-pointer">
+                          <span
+                            className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                              atLocationNow === opt.value ? 'border-[#00A86B]' : 'border-[#CBD5E1]'
+                            }`}
+                          >
+                            {atLocationNow === opt.value && <span className="w-2 h-2 rounded-full bg-[#00A86B]" />}
+                          </span>
+                          <input
+                            type="radio"
+                            className="hidden"
+                            checked={atLocationNow === opt.value}
+                            onChange={() => {
+                              setAtLocationNow(opt.value);
+                              setLocationDetectError('');
+                              if (opt.value === 'current') handleUseCurrentLocation();
+                            }}
+                          />
+                          <span className="text-[13px] text-[#0F172A]">{opt.label}</span>
+                        </label>
+                      ))}
+                    </div>
                   </div>
+
+                  {atLocationNow === 'current' && (
+                    <div className={`rounded-xl border p-4 flex items-start gap-3 ${
+                      locationDetectError ? 'bg-red-50 border-red-200' :
+                      locationDetectWarning ? 'bg-amber-50 border-amber-200' :
+                      'bg-[#F8FAFC] border-[#E2E8F0]'
+                    }`}>
+                      {detectingLocation ? (
+                        <>
+                          <Loader2 className="w-4 h-4 text-[#00A86B] animate-spin mt-0.5 shrink-0" />
+                          <p className="text-[13px] text-[#475569]">Detecting your current location&hellip;</p>
+                        </>
+                      ) : locationDetectError ? (
+                        <>
+                          <MapPin className="w-4 h-4 text-red-500 mt-0.5 shrink-0" />
+                          <div>
+                            <p className="text-[13px] text-red-600 font-medium">{locationDetectError}</p>
+                            <button
+                              type="button"
+                              onClick={handleUseCurrentLocation}
+                              className="mt-1.5 text-[12px] font-bold text-[#00A86B] hover:text-[#009B63]"
+                            >
+                              Try again
+                            </button>
+                          </div>
+                        </>
+                      ) : locationDetectWarning ? (
+                        <>
+                          <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
+                          <p className="text-[13px] text-amber-700 font-medium">{locationDetectWarning}</p>
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 className="w-4 h-4 text-[#00A86B] mt-0.5 shrink-0" />
+                          <p className="text-[13px] text-[#475569]">
+                            Location detected. Address fields below have been auto-filled &mdash; please review before saving.
+                          </p>
+                        </>
+                      )}
+                    </div>
+                  )}
+
+                  {atLocationNow === 'manual' && (
+                    <div className="bg-[#F8FAFC] rounded-xl border border-[#E2E8F0] p-4">
+                      <p className="text-[13px] font-bold text-[#0F172A]">Search for your pickup address location/building name/area/landmark</p>
+                      <p className="text-[11px] text-[#94A3B8] mb-3">Please add minimum 5 characters</p>
+                      <div className="relative">
+                        <Search className="w-4 h-4 text-[#94A3B8] absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        <input
+                          type="text"
+                          value={locationSearch}
+                          onChange={e => setLocationSearch(e.target.value)}
+                          placeholder="Search Location"
+                          className="w-full h-11 pl-11 pr-10 border border-[#E2E8F0] rounded-full text-[13px] bg-white placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]"
+                        />
+                        {locationSearching && (
+                          <Loader2 className="w-4 h-4 text-[#00A86B] animate-spin absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        )}
+                        {locationSuggestions.length > 0 && (
+                          <div className="absolute left-0 top-full mt-1.5 w-full bg-white border border-[#E2E8F0] rounded-2xl shadow-xl z-50 max-h-56 overflow-y-auto py-1.5 thin-scrollbar">
+                            {locationSuggestions.map((item, i) => (
+                              <button
+                                key={i}
+                                type="button"
+                                onClick={() => handleLocationSelect(item)}
+                                className="w-full text-left px-4 py-2.5 hover:bg-[#F0FDF4] transition-colors flex items-start gap-2"
+                              >
+                                <MapPin className="w-3.5 h-3.5 text-[#94A3B8] shrink-0 mt-0.5" />
+                                <span className="text-[12px] text-[#0F172A] leading-relaxed">{item.display_name}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Address <span className="text-red-500">*</span></label>
+                    {errors.address && <p className="text-[12px] md:text-[11px] text-red-500 mb-1">{errors.address}</p>}
+                    <div className="relative">
+                      <input type="text" value={form.address}
+                        onChange={setField('address')}
+                        placeholder="Street Address"
+                        className={`w-full h-11 px-4 !pr-28 border rounded-full text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B] ${errors.address ? 'border-red-400' : 'border-[#E2E8F0]'}`} />
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+                        <span className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Accuracy</span>
+                        <AddressAccuracyGauge address={form.address} size="sm" showLabel={false} />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Pincode <span className="text-red-500">*</span></label>
+                      {errors.pinCode && <p className="text-[12px] md:text-[11px] text-red-500 mb-1">{errors.pinCode}</p>}
+                      <div className="relative">
+                        <input type="text" inputMode="numeric" value={form.pinCode}
+                          onChange={setPin}
+                          placeholder="Pincode"
+                          className={`w-full h-11 px-4 border rounded-full text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B] ${errors.pinCode ? 'border-red-400' : 'border-[#E2E8F0]'}`} />
+                        {pincodeLoading && <Loader2 className="w-4 h-4 text-[#00A86B] animate-spin absolute right-3 top-1/2 -translate-y-1/2" />}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">City <span className="text-red-500">*</span></label>
+                      {errors.city && <p className="text-[12px] md:text-[11px] text-red-500 mb-1">{errors.city}</p>}
+                      <input type="text" value={form.city} readOnly placeholder="Auto-filled"
+                        className={`w-full h-11 px-4 border rounded-full text-[13px] bg-[#F8FAFC] placeholder:text-[#94A3B8] focus:outline-none ${errors.city ? 'border-red-400' : 'border-[#E2E8F0]'}`} />
+                    </div>
+                    <div>
+                      <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">State <span className="text-red-500">*</span></label>
+                      {errors.state && <p className="text-[12px] md:text-[11px] text-red-500 mb-1">{errors.state}</p>}
+                      <input type="text" value={form.state} readOnly placeholder="Auto-filled"
+                        className={`w-full h-11 px-4 border rounded-full text-[13px] bg-[#F8FAFC] placeholder:text-[#94A3B8] focus:outline-none ${errors.state ? 'border-red-400' : 'border-[#E2E8F0]'}`} />
+                    </div>
+                  </div>
+                </div>
+
+                {/* ── Contact Details (collapsible) ── */}
+                <div className="border-t border-[#E2E8F0] pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowContactDetails(v => !v)}
+                    className="w-full flex items-center justify-between"
+                  >
+                    <span className="text-[14px] font-bold text-[#0F172A]">Contact Details</span>
+                    {showContactDetails ? <ChevronUp className="w-4 h-4 text-[#64748B]" /> : <ChevronDown className="w-4 h-4 text-[#64748B]" />}
+                  </button>
+                  <AnimatePresence initial={false}>
+                    {showContactDetails && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
+                          <div>
+                            <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Contact Name <span className="text-red-500">*</span></label>
+                            {errors.contactName && <p className="text-[12px] md:text-[11px] text-red-500 mb-1">{errors.contactName}</p>}
+                            <input type="text" value={form.contactName}
+                              onChange={setField('contactName')}
+                              placeholder="Contact Name"
+                              className={`w-full h-11 px-4 border rounded-full text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B] ${errors.contactName ? 'border-red-400' : 'border-[#E2E8F0]'}`} />
+                          </div>
+                          <div>
+                            <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Email</label>
+                            <input type="email" value={form.email}
+                              onChange={setField('email')}
+                              placeholder="Email"
+                              className="w-full h-11 px-4 border border-[#E2E8F0] rounded-full text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]" />
+                          </div>
+                          <div className="md:col-span-2">
+                            <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Phone Number <span className="text-red-500">*</span></label>
+                            {errors.phoneNumber && <p className="text-[12px] md:text-[11px] text-red-500 mb-1">{errors.phoneNumber}</p>}
+                            <input type="text" value={form.phoneNumber}
+                              onChange={setPhone}
+                              placeholder="Phone Number (10 digits, starts with 6-9)"
+                              className={`w-full h-11 px-4 border rounded-full text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B] ${errors.phoneNumber ? 'border-red-400' : 'border-[#E2E8F0]'}`} />
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+
+                {/* ── Operational timings (collapsible, local-only) ── */}
+                <div className="border-t border-[#E2E8F0] pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowOperationalTimings(v => !v)}
+                    className="w-full flex items-center justify-between"
+                  >
+                    <span className="text-[14px] font-bold text-[#0F172A]">Operational timings</span>
+                    {showOperationalTimings ? <ChevronUp className="w-4 h-4 text-[#64748B]" /> : <ChevronDown className="w-4 h-4 text-[#64748B]" />}
+                  </button>
+                  <AnimatePresence initial={false}>
+                    {showOperationalTimings && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
+                          <div>
+                            <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Opens at</label>
+                            <input type="time" value={openingTime}
+                              onChange={e => setOpeningTime(e.target.value)}
+                              className="w-full h-11 px-4 border border-[#E2E8F0] rounded-full text-[13px] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]" />
+                          </div>
+                          <div>
+                            <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Closes at</label>
+                            <input type="time" value={closingTime}
+                              onChange={e => setClosingTime(e.target.value)}
+                              className="w-full h-11 px-4 border border-[#E2E8F0] rounded-full text-[13px] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]" />
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               </div>
 
-              <div className="flex gap-3 px-5 py-4 border-t border-[#E2E8F0] shrink-0 sticky bottom-0 bg-white" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
-                <button onClick={closeModal}
-                  className="flex-1 h-11 rounded-full border border-[#E2E8F0] text-[13px] font-bold text-[#475569] hover:bg-[#F8FAFC] transition-colors">
-                  Cancel
-                </button>
+              <div className="flex gap-3 px-6 py-4 border-t border-[#E2E8F0] shrink-0">
                 <button onClick={handleSave} disabled={saving}
-                  className="flex-1 flex items-center justify-center gap-2 h-11 bg-[#00A86B] hover:bg-[#009B63] disabled:opacity-60 text-white text-[13px] font-bold rounded-full transition-colors shadow-sm">
-                  {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-                  {editId ? 'Save Changes' : 'Add Address'}
+                  className="flex items-center gap-2 px-6 h-10 bg-[#00A86B] hover:bg-[#009B63] disabled:opacity-60 text-white text-[13px] font-bold rounded-full transition-colors">
+                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                  {editId ? 'Update Address' : 'Save Address'}
+                </button>
+                <button onClick={closeModal}
+                  className="px-6 h-10 border border-[#E2E8F0] text-[#64748B] hover:bg-[#F8FAFC] text-[13px] font-bold rounded-full transition-colors">
+                  Cancel
                 </button>
               </div>
             </motion.div>
-          </motion.div>
+          </div>
         )}
       </AnimatePresence>
 
