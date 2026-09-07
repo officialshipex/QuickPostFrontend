@@ -208,7 +208,7 @@ function BankDetailsPanel({
   isBankVerified: boolean; isBankLoading: boolean;
   onVerify: () => void;
 }) {
-  const canVerify = !!accountNumber && ifscCode.length === 11;
+  const canVerify = !!accountNumber && accountNumbersMatch && ifscCode.length === 11;
   return (
     <Panel title="Bank Details">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -223,13 +223,9 @@ function BankDetailsPanel({
             <p className="text-[10.5px] font-semibold text-red-500 mt-1">Account numbers do not match</p>
           )}
         </div>
-        <div>
-          <FieldLabel required>Account Holder Name</FieldLabel>
-          <input type="text" value={accountHolderName} onChange={(e) => setAccountHolderName(e.target.value)} disabled={isBankVerified} placeholder="Enter account holder name" className={inputCls} />
-        </div>
-        <div>
+        <div className="sm:col-span-2">
           <FieldLabel required>IFSC Code</FieldLabel>
-          <div className="relative flex items-center">
+          <div className="relative flex items-center max-w-xs">
             <input
               type="text"
               maxLength={11}
@@ -255,21 +251,22 @@ function BankDetailsPanel({
             )}
           </div>
         </div>
-        <div>
-          <FieldLabel required>Bank Name</FieldLabel>
-          <input type="text" value={bankName} onChange={(e) => setBankName(e.target.value)} disabled={isBankVerified} placeholder="Enter bank name" className={inputCls} />
-        </div>
-        <div>
-          <FieldLabel>Branch Name</FieldLabel>
-          <input type="text" value={branchName} onChange={(e) => setBranchName(e.target.value)} disabled={isBankVerified} placeholder="Enter branch name" className={inputCls} />
-        </div>
       </div>
 
-      {isBankVerified && (
-        <div className="mt-4 flex items-center gap-1.5 text-[12px] font-bold text-[#00A86B] bg-[#F0FDF4] border border-[#00A86B]/20 rounded-lg px-3 py-2">
-          <BadgeCheck className="w-4 h-4 shrink-0" /> Bank account verified
-        </div>
-      )}
+      <AnimatePresence>
+        {isBankVerified && (
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+            <div className="mt-4 pt-4 border-t border-dashed border-[#E2E8F0] grid grid-cols-2 gap-3">
+              <div className="col-span-2 flex items-center gap-1.5 text-[10px] md:text-[10.5px] font-bold text-[#00A86B] mb-0.5">
+                <BadgeCheck className="w-3.5 h-3.5 shrink-0" /> Auto-fetched from bank
+              </div>
+              <div className="col-span-2"><span className="block text-[10px] font-semibold text-[#94A3B8] mb-1">Account Holder Name</span><span className="text-[12.5px] font-bold text-[#0F172A]">{accountHolderName || '—'}</span></div>
+              <div><span className="block text-[10px] font-semibold text-[#94A3B8] mb-1">Bank Name</span><span className="text-[12.5px] font-bold text-[#0F172A]">{bankName || '—'}</span></div>
+              <div><span className="block text-[10px] font-semibold text-[#94A3B8] mb-1">Branch Name</span><span className="text-[12.5px] font-bold text-[#0F172A]">{branchName || '—'}</span></div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </Panel>
   );
 }
@@ -1106,6 +1103,9 @@ export function AdminKYC() {
                         )}
                         {isPanVerified && (
                           <>
+                            <div className="col-span-2 md:col-span-3 flex items-center gap-1.5 text-[10px] md:text-[10.5px] font-bold text-[#00A86B] mb-0.5 mt-1">
+                              <BadgeCheck className="w-3.5 h-3.5 shrink-0" /> Auto-fetched from PAN
+                            </div>
                             <div><span className="block text-[10px] font-semibold text-[#94A3B8] mb-1">Name</span><span className="text-[12.5px] font-bold text-[#0F172A]">{panData.name || '—'}</span></div>
                             <div><span className="block text-[10px] font-semibold text-[#94A3B8] mb-1">PAN Type</span><span className="text-[12.5px] font-bold text-[#0F172A]">{panData.panType || '—'}</span></div>
                           </>
