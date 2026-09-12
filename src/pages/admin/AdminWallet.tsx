@@ -75,6 +75,10 @@ const mapShippingItem = (item: any) => {
 
 const mapPassbookItem = (item: any) => ({
   id: item.orderId || String(item._id || ''),
+  // Unique per-transaction id — awb is empty for recharges/credit notes/etc.,
+  // so using it as a React key or selection id collapses every such row onto
+  // the same identity and rows end up showing each other's stale content.
+  txnId: String(item._id || item.id || ''),
   userId: item.user?.userId || '',
   awb: item.awb_number || '',
   userName: item.user?.name || '',
@@ -850,6 +854,7 @@ export function AdminWallet() {
 
   const filteredPassbookData = useMemo(() => {
     return passbookList.filter(order => {
+      console.log("passbook",order)
       const matchHeader = headerMobileSearch ? order.mobile.includes(headerMobileSearch) : true;
       const matchGlobal = globalSearchQuery ?
         order.userName.toLowerCase().includes(globalSearchQuery) ||
@@ -1087,7 +1092,7 @@ export function AdminWallet() {
   const toggleAll = () => setSelectedOrders(selectedOrders.length === filteredShippingData.length && filteredShippingData.length > 0 ? [] : filteredShippingData.map(o => o.awb));
   const toggleSelect = (id: string) => setSelectedOrders(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
-  const toggleAllPassbook = () => setSelectedPassbookOrders(selectedPassbookOrders.length === filteredPassbookData.length && filteredPassbookData.length > 0 ? [] : filteredPassbookData.map(o => o.awb));
+  const toggleAllPassbook = () => setSelectedPassbookOrders(selectedPassbookOrders.length === filteredPassbookData.length && filteredPassbookData.length > 0 ? [] : filteredPassbookData.map(o => o.txnId));
   const toggleSelectPassbook = (id: string) => setSelectedPassbookOrders(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
   const toggleAllRecharge = () => setSelectedRechargeOrders(selectedRechargeOrders.length === filteredWalletRechargeData.length && filteredWalletRechargeData.length > 0 ? [] : filteredWalletRechargeData.map(o => o.transactionId));
@@ -2032,7 +2037,7 @@ export function AdminWallet() {
                 <div className="hidden md:flex px-4 py-2 bg-blue-50 border-b border-blue-100 items-center gap-3 animate-fade-in">
                   <span className="text-xs font-bold text-blue-700">{selectedPassbookOrders.length} selected</span>
                   <button
-                    onClick={() => handleExportData('passbook', filteredPassbookData.filter(o => selectedPassbookOrders.includes(o.awb)))}
+                    onClick={() => handleExportData('passbook', filteredPassbookData.filter(o => selectedPassbookOrders.includes(o.txnId)))}
                     className="h-8 px-3 rounded-md bg-white border border-blue-200 text-xs font-bold text-blue-700 shadow-sm ml-auto hover:bg-blue-100"
                   >
                     Export Selected
@@ -2104,9 +2109,9 @@ export function AdminWallet() {
                   </thead>
                   <tbody className="text-[11px] text-[#475569]">
                     {paginatedPassbookData.map((order, idx) => (
-                      <tr key={order.awb} className={`border-b border-[#E2E8F0] transition-colors group ${idx % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]/20'}`}>
+                      <tr key={order.txnId} className={`border-b border-[#E2E8F0] transition-colors group ${idx % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]/20'}`}>
                         <td className="p-4">
-                          <input type="checkbox" checked={selectedPassbookOrders.includes(order.awb)} onChange={() => toggleSelectPassbook(order.awb)} className="rounded border-gray-300 accent-[#00A86B] w-3.5 h-3.5" />
+                          <input type="checkbox" checked={selectedPassbookOrders.includes(order.txnId)} onChange={() => toggleSelectPassbook(order.txnId)} className="rounded border-gray-300 accent-[#00A86B] w-3.5 h-3.5" />
                         </td>
                         {isAdminView && (
                           <td className="p-4">
@@ -2229,13 +2234,13 @@ export function AdminWallet() {
                       const isDebit = order.category === 'Debit';
                       const accent = isDebit ? '#EF4444' : '#00A86B';
                       return (
-                        <div key={order.awb} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm">
+                        <div key={order.txnId} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm">
                           <StatusRibbon label={order.category} color={accent} />
                           <div className="absolute top-1.5 right-2">
                             <input
                               type="checkbox"
-                              checked={selectedPassbookOrders.includes(order.awb)}
-                              onChange={() => toggleSelectPassbook(order.awb)}
+                              checked={selectedPassbookOrders.includes(order.txnId)}
+                              onChange={() => toggleSelectPassbook(order.txnId)}
                               className="rounded border-gray-300 accent-[#00A86B] w-4 h-4"
                             />
                           </div>
