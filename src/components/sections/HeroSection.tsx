@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { AuthHeroLayout } from '../layout/AuthHeroLayout';
 import { MobileAuthHero } from '../layout/MobileAuthHero';
@@ -13,6 +13,14 @@ interface HeroSectionProps {
 
 export function HeroSection({ openSignupOnMount = false }: HeroSectionProps) {
   const [showSignup, setShowSignup] = useState(openSignupOnMount);
+
+  // useState's initial value only applies on first mount — if the user is
+  // already on this page and clicks a "Get Started" CTA that just updates
+  // the URL hash to #signup (no remount), this prop changes but the flip
+  // card's own state never re-syncs to it without this effect.
+  useEffect(() => {
+    if (openSignupOnMount) setShowSignup(true);
+  }, [openSignupOnMount]);
 
   return (
     <>
