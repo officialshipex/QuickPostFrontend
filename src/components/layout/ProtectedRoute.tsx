@@ -19,6 +19,12 @@ const ROUTE_PERMISSION_MAP: Record<string, string> = {
   '/couriers':           'courier',
   '/rate-card':          'courier',
   '/vendors':            'courier',
+  // No employee's accessRights object has this key, by design — this
+  // route manages every company's secrets, so it fails closed for staff
+  // rather than needing an explicit permission a data migration would have
+  // to add. The real enforcement boundary is the backend's isPlatformAdmin
+  // middleware; this is UX-only (redirects before an employee even sees it).
+  '/companies':          'platformAdmin',
 };
 
 function getModuleForPath(pathname: string): string | null {

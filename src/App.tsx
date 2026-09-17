@@ -43,6 +43,7 @@ import { AdminPerformance } from './pages/admin/AdminPerformance';
 import { AdminCOD } from './pages/admin/AdminCOD';
 import { AdminSettings } from './pages/admin/AdminSettings';
 import { AdminAccounts } from './pages/admin/AdminAccounts';
+import { AdminCompanies } from './pages/admin/companies/AdminCompanies';
 import { AdminAuditLogs } from './pages/admin/AdminAuditLogs';
 import { AdminWeightDiscrepancy } from './pages/admin/AdminWeightDiscrepancy';
 import { AdminAnnouncements } from './pages/admin/AdminAnnouncements';
@@ -234,6 +235,7 @@ function App() {
               <Route path="/admin/support/:tabSlug" element={<AdminSupport />} />
               {/* <Route path="/admin/settings" element={<AdminSettings />} /> */}
               <Route path="/admin/accounts" element={<AdminAccounts />} />
+              <Route path="/admin/companies" element={<AdminCompanies />} />
               <Route path="/admin/audit" element={<AdminAuditLogs />} />
               <Route path="/admin/profile" element={<AdminProfile />} />
               <Route path="/admin/company" element={<AdminSettings />} />

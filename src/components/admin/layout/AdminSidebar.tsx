@@ -145,6 +145,7 @@ const MENU_GROUPS: MenuGroup[] = [
       { name: 'Support Tickets', path: '/admin/support', icon: Mail },
       // { name: 'System Settings', path: '/admin/settings', icon: Settings, noEmployee: true },
       { name: 'Admin Accounts', path: '/admin/accounts', icon: Users, noEmployee: true },
+      { name: 'Companies', path: '/admin/companies', icon: Building2, noEmployee: true },
     ]
   },
   {
