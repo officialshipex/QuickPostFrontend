@@ -21,7 +21,7 @@ import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
 import { StatusRibbon } from '../../components/ui/StatusRibbon';
 import { useDateRangeFilter } from '../../hooks/filters/useDateRangeFilter';
 import { TableLoader } from '../../components/ui/TableLoader';
-import { EmptyState } from '../../components/ui/EmptyState';
+import { ExcitingLottie } from '../../hooks/exciting';
 import { TruncatedText } from '../../components/ui/TruncatedText';
 import { NdrActionModal } from './NdrActionModal';
 import { NdrStatusModal } from './NdrStatusModal';
@@ -804,7 +804,11 @@ export function AdminNDR() {
                   {orders.length === 0 ? (
                     <tr>
                       <td colSpan={colCount()}>
-                        <EmptyState title="No NDR orders found" subtitle="Try changing filters" />
+                        <div className="flex flex-col items-center justify-center w-full py-2 mx-auto">
+                          <ExcitingLottie />
+                          <p className="text-sm font-semibold text-[#64748B] -mt-4">Your Shipments Are Flying!</p>
+                          <p className="text-xs font-medium text-[#94A3B8] mt-1">No NDR orders at the moment.</p>
+                        </div>
                       </td>
                     </tr>
                   ) : orders.map((order, idx) => (
@@ -949,7 +953,11 @@ export function AdminNDR() {
             {loading && <TableLoader />}
             {!loading && orders.length === 0 ? (
               <div className="flex items-center justify-center min-h-[60vh]">
-                <EmptyState title="No NDR orders found" subtitle="Try changing filters" />
+                <div className="flex flex-col items-center justify-center w-full py-2 mx-auto">
+                  <ExcitingLottie />
+                  <p className="text-sm font-semibold text-[#64748B] -mt-4">Your Shipments Are Flying!</p>
+                  <p className="text-xs font-medium text-[#94A3B8] mt-1">No NDR orders at the moment.</p>
+                </div>
               </div>
             ) : (
               <div className="p-2 space-y-2">
