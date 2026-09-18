@@ -17,6 +17,7 @@ import { AdminUserProvider } from './context/AdminUserContext';
 import { DashboardFilterProvider } from './context/DashboardFilterContext';
 import { NotificationListProvider } from './context/NotificationListContext';
 import { OfflineOverlay } from './components/ui/OfflineOverlay';
+import { EmailPreview } from './pages/dev/EmailPreview';
 
 
 
@@ -200,6 +201,10 @@ function App() {
       <Router>
         <GlobalOrderClickInterceptor />
         <Routes>
+          {/* Dev-only: preview every transactional email template with sample data.
+              import.meta.env.DEV is statically replaced by Vite at build time, so this
+              route (and the EmailPreview import) is dropped entirely from prod bundles. */}
+          {import.meta.env.DEV && <Route path="/dev/email-preview" element={<EmailPreview />} />}
           <Route path="/" element={<AppRootHandler />} />
           <Route path="/track" element={<Track />} />
           <Route path="/terms-and-conditions" element={<Terms />} />
