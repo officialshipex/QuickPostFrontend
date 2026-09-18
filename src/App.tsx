@@ -61,6 +61,16 @@ import { AdminProfile } from './pages/admin/AdminProfile';
 import { AdminOrderTracking } from './pages/admin/AdminOrderTracking';
 import { AdminSettingsHub } from './pages/admin/AdminSettingsHub';
 import { AdminChannels } from './pages/admin/AdminChannels';
+import { AdminEarlyCodRemittance } from './pages/admin/AdminSellerRemittance';
+import {
+  AdminAutoSecure,
+  AdminRtoScore,
+  AdminDeliveryBoost,
+  // AdminSecureX, // commented out for now — re-enable when Secure X ships
+  // AdminBrandBoost, // commented out for now — re-enable when Brand Boost ships
+  AdminNotify,
+  AdminShipsure,
+} from './pages/admin/AdminValueAddedServices';
 import { AdminCourierSetup } from './pages/admin/AdminCourierSetup';
 import { AdminSettingsPlaceholder } from './pages/admin/AdminSettingsPlaceholder';
 import { AdminWebhookSettings } from './pages/admin/AdminWebhookSettings';
@@ -294,6 +304,14 @@ function App() {
               <Route path="/user/employees" element={<AdminRoles />} />
               <Route path="/user/channels" element={<AdminChannels />} />
               <Route path="/user/courier-setup" element={<AdminCourierSetup />} />
+              <Route path="/user/seller-remittance/early-cod" element={<AdminEarlyCodRemittance />} />
+              <Route path="/user/vas/auto-secure" element={<AdminAutoSecure />} />
+              <Route path="/user/vas/rto-score" element={<AdminRtoScore />} />
+              <Route path="/user/vas/delivery-boost" element={<AdminDeliveryBoost />} />
+              {/* <Route path="/user/vas/secure-x" element={<AdminSecureX />} /> */}
+              {/* <Route path="/user/vas/brand-boost" element={<AdminBrandBoost />} /> */}
+              <Route path="/user/vas/notify" element={<AdminNotify />} />
+              <Route path="/user/vas/shipsure" element={<AdminShipsure />} />
             </Route>
 
             </Route>{/* /AdminShell */}
