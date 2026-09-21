@@ -226,6 +226,8 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
     '/admin/kyc', '/user/kyc',
     '/admin/settings', '/user/settings',
     '/admin/referral', '/user/referral',
+    '/user/seller-remittance',
+    '/user/vas',
     '/internal-crm',
     '/admin/performance',
     '/admin/announcement',

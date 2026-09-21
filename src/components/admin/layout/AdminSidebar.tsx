@@ -26,6 +26,8 @@ import {
   MapPin,
   HelpCircle,
   TrendingUp,
+  Zap,
+  ShieldCheck,
 } from 'lucide-react';
 
 const LOGO_URL = '/logo-white.png';
@@ -38,6 +40,7 @@ interface MenuItem {
   userOnly?: boolean;
   permission?: string;
   noEmployee?: boolean; // hide for all employees regardless of their access rights
+  isNew?: boolean;
 }
 
 interface MenuGroup {
@@ -106,6 +109,15 @@ const MENU_GROUPS: MenuGroup[] = [
       { name: 'Notification', path: '/admin/notification', icon: Bell },
       { name: 'Announcements', path: '/admin/announcement', icon: AlertCircle, adminOnly: true },
       { name: 'Rate Calculator', path: '/user/rate-calculator', icon: Wrench, userOnly: true },
+    ]
+  },
+  {
+    label: 'Value Added Services',
+    icon: Zap,
+    userOnly: true,
+    items: [
+      { name: 'Seller Remittance', path: '/user/seller-remittance/early-cod', icon: Wallet, userOnly: true },
+      { name: 'Secure', path: '/user/vas/auto-secure', icon: ShieldCheck, userOnly: true },
     ]
   },
   {
@@ -312,6 +324,7 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
                               <span className={`text-[13px] ${isSubActive ? 'font-bold' : 'font-medium'}`}>
                                 {item.name}
                               </span>
+                              {item.isNew && <span className="ml-auto text-[9px] font-bold bg-[#00A86B] text-white px-1.5 py-0.5 rounded-md shrink-0">New</span>}
                             </NavLink>
                           );
                         })}
@@ -423,6 +436,7 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
                             >
                               <item.icon className="w-4 h-4" strokeWidth={2} />
                               <span className={`text-[12px] ${isSubActive ? 'font-bold' : 'font-medium'}`}>{item.name}</span>
+                              {item.isNew && <span className="ml-auto text-[9px] font-bold bg-[#00A86B] text-white px-1.5 py-0.5 rounded-md shrink-0">New</span>}
                             </NavLink>
                           );
                         })}
