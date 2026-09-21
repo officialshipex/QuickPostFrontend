@@ -361,6 +361,7 @@ const GROUP_FIELD_HINTS: Record<string, { key: string; label: string; secret?: b
   core: [
     { key: 'jwtSecret', label: 'JWT Secret', secret: true },
     { key: 'sessionSecret', label: 'Session Secret', secret: true },
+    { key: 'cronToken', label: 'Cron Trigger Token (lets a scheduler run this company\'s COD jobs)', secret: true },
   ],
 };
 
