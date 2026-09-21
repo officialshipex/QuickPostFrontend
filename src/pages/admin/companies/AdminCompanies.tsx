@@ -7,7 +7,7 @@ import { useToast } from '../../../hooks/useToast';
 import { ColorField } from '../../../components/admin/companies/ColorField';
 import { ImageDimensionUpload } from '../../../components/admin/companies/ImageDimensionUpload';
 import {
-  companiesApi, type CompanySummary, type ConfigGroups, type GroupStatusMap,
+  companiesApi, type CompanySummary, type ConfigGroups, type ConfigFieldHint, type GroupStatusMap,
 } from '../../../services/companiesApi';
 import {
   Plus, ArrowLeft, Building2, Globe, CheckCircle2, Clock, Pencil, X, ChevronRight,
@@ -372,6 +372,8 @@ function CompanyDetail({ tenantKey, onBack }: { tenantKey: string; onBack: () =>
   const [company, setCompany] = useState<CompanySummary | null>(null);
   const [groupStatus, setGroupStatus] = useState<GroupStatusMap>({});
   const [groups, setGroups] = useState<ConfigGroups | null>(null);
+  // the exact fields the backend expects per group (courier groups today); empty against an older backend
+  const [fieldCatalog, setFieldCatalog] = useState<Record<string, ConfigFieldHint[]>>({});
   const [loading, setLoading] = useState(true);
   const [editingGroup, setEditingGroup] = useState<{ category: string; key: string; groupKey: string } | null>(null);
 
@@ -382,6 +384,7 @@ function CompanyDetail({ tenantKey, onBack }: { tenantKey: string; onBack: () =>
       setCompany(detailRes.data.company);
       setGroupStatus(detailRes.data.groupStatus);
       setGroups(groupsRes.data.groups);
+      setFieldCatalog(groupsRes.data.fields || {});
     } catch {
       showToast('error', 'Failed to load company');
     } finally {
@@ -462,6 +465,7 @@ function CompanyDetail({ tenantKey, onBack }: { tenantKey: string; onBack: () =>
           tenantKey={tenantKey}
           category={editingGroup.category}
           keyName={editingGroup.key}
+          serverFields={fieldCatalog[editingGroup.groupKey]}
           groupKey={editingGroup.groupKey}
           onClose={() => setEditingGroup(null)}
           onSaved={() => { setEditingGroup(null); load(); showToast('success', 'Saved'); }}
@@ -521,10 +525,12 @@ function BrandingSection({ company, onSaved, showToast }: {
   );
 }
 
-function GroupEditModal({ tenantKey, category, keyName, groupKey, onClose, onSaved }: {
-  tenantKey: string; category: string; keyName: string; groupKey: string; onClose: () => void; onSaved: () => void;
+function GroupEditModal({ tenantKey, category, keyName, groupKey, serverFields, onClose, onSaved }: {
+  tenantKey: string; category: string; keyName: string; groupKey: string; serverFields?: ConfigFieldHint[]; onClose: () => void; onSaved: () => void;
 }) {
-  const fields = fieldHintsFor(category, keyName);
+  // The backend's own field list wins (courier groups); the generic hints below are the fallback
+  // for groups it does not list yet and for an older backend.
+  const fields = serverFields && serverFields.length ? serverFields : fieldHintsFor(category, keyName);
   const [values, setValues] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');

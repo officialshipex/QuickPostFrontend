@@ -38,6 +38,14 @@ export interface CompanyCreatePayload {
   secondaryColor?: string;
 }
 
+// One field of a settings group, as the backend defines it (courier groups: named exactly like
+// the backend's env variables — see the backend's courierCredentialCatalog).
+export interface ConfigFieldHint {
+  key: string;
+  label: string;
+  secret?: boolean;
+}
+
 export interface ConfigGroups {
   core: string[];
   couriers: string[];
@@ -53,7 +61,7 @@ export type GroupStatusMap = Record<string, 'set' | 'unset' | { jwtSecret: 'set'
 export const companiesApi = {
   list: () => apiClient.get<{ success: boolean; companies: CompanySummary[] }>('/platform-admin/companies'),
 
-  configGroups: () => apiClient.get<{ success: boolean; groups: ConfigGroups }>('/platform-admin/companies/config-groups'),
+  configGroups: () => apiClient.get<{ success: boolean; groups: ConfigGroups; fields?: Record<string, ConfigFieldHint[]> }>('/platform-admin/companies/config-groups'),
 
   create: (payload: CompanyCreatePayload) =>
     apiClient.post<{ success: boolean; company: { tenantKey: string; displayName: string } }>('/platform-admin/companies', payload),
