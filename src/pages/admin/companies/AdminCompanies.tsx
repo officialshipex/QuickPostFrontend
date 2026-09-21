@@ -132,6 +132,7 @@ function CompaniesList({ onCreate, onOpen }: { onCreate: () => void; onOpen: (ke
                     <td className="py-2.5 px-4"><span className="flex items-center gap-1.5"><Globe className="w-3 h-3 text-[#94A3B8]" />{primaryDomain}</span></td>
                     <td className="py-2.5 px-4">
                       <span className={`${STATUS_BADGE[c.status] || STATUS_BADGE.disabled} px-2 py-0.5 rounded-full border text-[10px] font-semibold uppercase tracking-wider`}>{c.status}</span>
+                      {c.jobsEnabled && <span className="ml-1.5 px-2 py-0.5 rounded-full border border-sky-200 bg-sky-50 text-sky-700 text-[10px] font-semibold uppercase tracking-wider">Jobs on</span>}
                     </td>
                     <td className="py-2.5 px-4">
                       {c.requiredSetupComplete ? (
@@ -461,6 +462,8 @@ function CompanyDetail({ tenantKey, onBack }: { tenantKey: string; onBack: () =>
         ))}
 
         <WebhookAddressesSection tenantKey={tenantKey} refreshKey={JSON.stringify(groupStatus)} />
+
+        <JobsSection company={company} onSaved={load} showToast={showToast} />
       </div>
 
       {editingGroup && (
@@ -592,6 +595,81 @@ function BrandingSection({ company, onSaved, showToast }: {
       </div>
       {uploading && <p className="text-[11px] text-[#94A3B8] mt-2">Uploading {uploading}…</p>}
       <p className="text-[11px] text-[#94A3B8] mt-3">Colors: primary {company.branding?.colors?.primary || '—'}{company.branding?.colors?.secondary ? `, secondary ${company.branding.colors.secondary}` : ''}</p>
+    </SectionCard>
+  );
+}
+
+// What is still shared between companies, said out loud when someone turns jobs on.
+// Keep in step with the backend as each of these becomes per-company.
+const STILL_SHARED = 'WhatsApp / email / SMS, payment gateways, and the Shiprocket, Ecom Express, Nimbus, Shree Maruti, Losung360 and Vamaship logins';
+
+function JobsSection({ company, onSaved, showToast }: {
+  company: CompanySummary; onSaved: () => void; showToast: (t: 'success' | 'error', m: string) => void;
+}) {
+  const [confirming, setConfirming] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // an older backend does not know this setting: show nothing rather than a switch that cannot work
+  if (typeof company.jobsEnabled !== 'boolean') return null;
+
+  const save = async (next: boolean) => {
+    setSaving(true);
+    try {
+      await companiesApi.updateBasic(company.tenantKey, { jobsEnabled: next });
+      setConfirming(false);
+      showToast('success', next ? 'Scheduled jobs turned on' : 'Scheduled jobs turned off');
+      onSaved();
+    } catch (err) {
+      const message = (err as { response?: { data?: { message?: string } } }).response?.data?.message;
+      showToast('error', message || 'Failed to update scheduled jobs');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <SectionCard title="Scheduled jobs">
+      {company.isDefaultTenant ? (
+        <p className="text-[12px] text-[#64748B]">This is the platform&apos;s own company: its scheduled jobs already run as part of the platform, so there is nothing to switch here.</p>
+      ) : (
+        <>
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-[13px] text-[#334155]">Run the scheduled jobs for this company</p>
+              <p className="text-[11px] text-[#94A3B8] mt-0.5">NDR retries, COD remittance, tracking sync, invoices, RTO, weight-discrepancy and the other timed jobs.</p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={company.jobsEnabled}
+              aria-label="Run scheduled jobs for this company"
+              disabled={saving}
+              onClick={() => (company.jobsEnabled ? save(false) : setConfirming(true))}
+              className={`relative w-10 h-6 rounded-full transition-colors shrink-0 disabled:opacity-50 ${company.jobsEnabled ? 'bg-[#00A86B]' : 'bg-[#CBD5E1]'}`}
+            >
+              <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${company.jobsEnabled ? 'translate-x-4' : ''}`} />
+            </button>
+          </div>
+
+          {company.status !== 'active' && (
+            <p className="text-[11px] text-amber-700 mt-3">Jobs only run for companies whose status is Active (this one is {company.status}).</p>
+          )}
+
+          {confirming && (
+            <div className="mt-4 rounded-[8px] border border-amber-200 bg-amber-50 p-3" data-testid="jobs-confirm">
+              <p className="text-[12px] font-semibold text-amber-800">Before you turn this on</p>
+              <ul className="list-disc pl-4 mt-1.5 flex flex-col gap-1 text-[12px] text-amber-800">
+                <li>The jobs will start reading and updating this company&apos;s own database on their schedules, using this company&apos;s own courier accounts. A courier that is not set up for this company makes that job fail for it (it is logged; nothing shared is used).</li>
+                <li>Not yet per-company: {STILL_SHARED}. Anything a job does through those goes out through the platform&apos;s shared accounts.</li>
+              </ul>
+              <div className="flex gap-2 mt-3">
+                <button type="button" disabled={saving} onClick={() => save(true)} className="px-3 py-1.5 rounded-[8px] bg-[#00A86B] text-white text-[12px] font-semibold disabled:opacity-50">Turn on</button>
+                <button type="button" disabled={saving} onClick={() => setConfirming(false)} className="px-3 py-1.5 rounded-[8px] border border-[#E2E8F0] text-[12px] text-[#475569] bg-white">Cancel</button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
     </SectionCard>
   );
 }

@@ -24,6 +24,8 @@ export interface CompanySummary {
   isDefaultTenant: boolean;
   branding?: CompanyBranding;
   requiredSetupComplete: boolean;
+  // whether the scheduled jobs also run for this company; absent from a backend that predates the setting
+  jobsEnabled?: boolean;
   createdAt: string;
 }
 
