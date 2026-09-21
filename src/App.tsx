@@ -17,6 +17,7 @@ import { AdminUserProvider } from './context/AdminUserContext';
 import { DashboardFilterProvider } from './context/DashboardFilterContext';
 import { NotificationListProvider } from './context/NotificationListContext';
 import { OfflineOverlay } from './components/ui/OfflineOverlay';
+import { EmailPreview } from './pages/dev/EmailPreview';
 
 
 
@@ -61,6 +62,16 @@ import { AdminProfile } from './pages/admin/AdminProfile';
 import { AdminOrderTracking } from './pages/admin/AdminOrderTracking';
 import { AdminSettingsHub } from './pages/admin/AdminSettingsHub';
 import { AdminChannels } from './pages/admin/AdminChannels';
+import { AdminEarlyCodRemittance } from './pages/admin/AdminSellerRemittance';
+import {
+  AdminAutoSecure,
+  AdminRtoScore,
+  AdminDeliveryBoost,
+  // AdminSecureX, // commented out for now — re-enable when Secure X ships
+  // AdminBrandBoost, // commented out for now — re-enable when Brand Boost ships
+  AdminNotify,
+  AdminShipsure,
+} from './pages/admin/AdminValueAddedServices';
 import { AdminCourierSetup } from './pages/admin/AdminCourierSetup';
 import { AdminSettingsPlaceholder } from './pages/admin/AdminSettingsPlaceholder';
 import { AdminWebhookSettings } from './pages/admin/AdminWebhookSettings';
@@ -190,6 +201,10 @@ function App() {
       <Router>
         <GlobalOrderClickInterceptor />
         <Routes>
+          {/* Dev-only: preview every transactional email template with sample data.
+              import.meta.env.DEV is statically replaced by Vite at build time, so this
+              route (and the EmailPreview import) is dropped entirely from prod bundles. */}
+          {import.meta.env.DEV && <Route path="/dev/email-preview" element={<EmailPreview />} />}
           <Route path="/" element={<AppRootHandler />} />
           <Route path="/track" element={<Track />} />
           <Route path="/terms-and-conditions" element={<Terms />} />
@@ -294,6 +309,14 @@ function App() {
               <Route path="/user/employees" element={<AdminRoles />} />
               <Route path="/user/channels" element={<AdminChannels />} />
               <Route path="/user/courier-setup" element={<AdminCourierSetup />} />
+              <Route path="/user/seller-remittance/early-cod" element={<AdminEarlyCodRemittance />} />
+              <Route path="/user/vas/auto-secure" element={<AdminAutoSecure />} />
+              <Route path="/user/vas/rto-score" element={<AdminRtoScore />} />
+              <Route path="/user/vas/delivery-boost" element={<AdminDeliveryBoost />} />
+              {/* <Route path="/user/vas/secure-x" element={<AdminSecureX />} /> */}
+              {/* <Route path="/user/vas/brand-boost" element={<AdminBrandBoost />} /> */}
+              <Route path="/user/vas/notify" element={<AdminNotify />} />
+              <Route path="/user/vas/shipsure" element={<AdminShipsure />} />
             </Route>
 
             </Route>{/* /AdminShell */}
