@@ -320,8 +320,8 @@ const GROUP_LABELS: Record<string, string> = {
   delhivery: 'Delhivery', dtdc: 'DTDC', ekart: 'Ekart', shadowfax: 'Shadowfax',
   smartship: 'SmartShip', zipypost: 'Zipypost', amazon: 'Amazon', boxdLogistics: 'BoxdLogistics', proship: 'Proship',
   shiprocket: 'Shiprocket', shreeMaruti: 'Shree Maruti',
-  razorpay: 'Razorpay', paytm: 'Paytm', cashfree: 'Cashfree',
-  smtp: 'Email (SMTP)', whatsapp: 'WhatsApp', sms: 'SMS', s3: 'File Storage (S3)', core: 'Core / Security',
+  razorpay: 'Razorpay', paytm: 'Paytm', cashfree: 'Cashfree (KYC verification)',
+  smtp: 'Email (SMTP)', whatsapp: 'WhatsApp', sms: 'SMS', aiCalling: 'AI Calling (EchQ)', s3: 'File Storage (S3)', core: 'Core / Security',
 };
 
 // Generic field hints per category so the edit modal shows sensible labels
@@ -600,9 +600,9 @@ function BrandingSection({ company, onSaved, showToast }: {
   );
 }
 
-// What is still shared between companies, said out loud when someone turns jobs on.
-// Keep in step with the backend as each of these becomes per-company.
-const STILL_SHARED = 'WhatsApp / email / SMS, payment gateways, and the Shiprocket, Ecom Express, Nimbus, Shree Maruti, Losung360 and Vamaship logins';
+// What is still the platform's for every company, said out loud when someone turns jobs on.
+// Keep in step with the backend: every outside account (couriers, payments, WhatsApp / email, KYC, AI calling) is per company now.
+const STILL_SHARED = 'the wording printed on invoices, manifests and emails and spoken in the AI-call script, which still carries the Shipex India name';
 
 function JobsSection({ company, onSaved, showToast }: {
   company: CompanySummary; onSaved: () => void; showToast: (t: 'success' | 'error', m: string) => void;
@@ -660,8 +660,8 @@ function JobsSection({ company, onSaved, showToast }: {
             <div className="mt-4 rounded-[8px] border border-amber-200 bg-amber-50 p-3" data-testid="jobs-confirm">
               <p className="text-[12px] font-semibold text-amber-800">Before you turn this on</p>
               <ul className="list-disc pl-4 mt-1.5 flex flex-col gap-1 text-[12px] text-amber-800">
-                <li>The jobs will start reading and updating this company&apos;s own database on their schedules, using this company&apos;s own courier accounts. A courier that is not set up for this company makes that job fail for it (it is logged; nothing shared is used).</li>
-                <li>Not yet per-company: {STILL_SHARED}. Anything a job does through those goes out through the platform&apos;s shared accounts.</li>
+                <li>The jobs will start reading and updating this company&apos;s own database on their schedules, using this company&apos;s own accounts (couriers, WhatsApp, email, payments, KYC, AI calling). An account that is not set up for this company makes that step fail or be skipped for it (it is logged; the platform&apos;s account is never used instead).</li>
+                <li>Still the platform&apos;s, for every company: {STILL_SHARED}. Documents and messages a job produces carry that wording.</li>
               </ul>
               <div className="flex gap-2 mt-3">
                 <button type="button" disabled={saving} onClick={() => save(true)} className="px-3 py-1.5 rounded-[8px] bg-[#00A86B] text-white text-[12px] font-semibold disabled:opacity-50">Turn on</button>
