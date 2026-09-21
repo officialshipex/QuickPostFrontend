@@ -46,6 +46,18 @@ export interface ConfigFieldHint {
   secret?: boolean;
 }
 
+// One address a company registers with a courier or shop (or that the backend registers itself).
+export interface WebhookAddress {
+  label: string;
+  url: string;
+  automatic: boolean;
+  authenticated: boolean;
+  secretField: string | null;
+  secretStatus: 'set' | 'unset' | null;
+  settingsGroup: string | null;
+  how: string;
+}
+
 export interface ConfigGroups {
   core: string[];
   couriers: string[];
@@ -62,6 +74,9 @@ export const companiesApi = {
   list: () => apiClient.get<{ success: boolean; companies: CompanySummary[] }>('/platform-admin/companies'),
 
   configGroups: () => apiClient.get<{ success: boolean; groups: ConfigGroups; fields?: Record<string, ConfigFieldHint[]> }>('/platform-admin/companies/config-groups'),
+
+  webhookUrls: (tenantKey: string) =>
+    apiClient.get<{ success: boolean; tenantKey: string; baseUrl: string; urls: WebhookAddress[] }>(`/platform-admin/companies/${tenantKey}/webhook-urls`),
 
   create: (payload: CompanyCreatePayload) =>
     apiClient.post<{ success: boolean; company: { tenantKey: string; displayName: string } }>('/platform-admin/companies', payload),

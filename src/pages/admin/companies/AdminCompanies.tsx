@@ -7,10 +7,10 @@ import { useToast } from '../../../hooks/useToast';
 import { ColorField } from '../../../components/admin/companies/ColorField';
 import { ImageDimensionUpload } from '../../../components/admin/companies/ImageDimensionUpload';
 import {
-  companiesApi, type CompanySummary, type ConfigGroups, type ConfigFieldHint, type GroupStatusMap,
+  companiesApi, type CompanySummary, type ConfigGroups, type ConfigFieldHint, type GroupStatusMap, type WebhookAddress,
 } from '../../../services/companiesApi';
 import {
-  Plus, ArrowLeft, Building2, Globe, CheckCircle2, Clock, Pencil, X, ChevronRight,
+  Plus, ArrowLeft, Building2, Globe, CheckCircle2, Clock, Pencil, X, ChevronRight, Copy,
 } from 'lucide-react';
 
 type View = 'list' | 'create' | 'detail';
@@ -318,6 +318,7 @@ function CompanyCreateForm({ onBack, onCreated }: { onBack: () => void; onCreate
 const GROUP_LABELS: Record<string, string> = {
   delhivery: 'Delhivery', dtdc: 'DTDC', ekart: 'Ekart', shadowfax: 'Shadowfax',
   smartship: 'SmartShip', zipypost: 'Zipypost', amazon: 'Amazon', boxdLogistics: 'BoxdLogistics', proship: 'Proship',
+  shiprocket: 'Shiprocket', shreeMaruti: 'Shree Maruti',
   razorpay: 'Razorpay', paytm: 'Paytm', cashfree: 'Cashfree',
   smtp: 'Email (SMTP)', whatsapp: 'WhatsApp', sms: 'SMS', s3: 'File Storage (S3)', core: 'Core / Security',
 };
@@ -458,6 +459,8 @@ function CompanyDetail({ tenantKey, onBack }: { tenantKey: string; onBack: () =>
             </div>
           </SectionCard>
         ))}
+
+        <WebhookAddressesSection tenantKey={tenantKey} refreshKey={JSON.stringify(groupStatus)} />
       </div>
 
       {editingGroup && (
@@ -472,6 +475,74 @@ function CompanyDetail({ tenantKey, onBack }: { tenantKey: string; onBack: () =>
         />
       )}
     </div>
+  );
+}
+
+function WebhookAddressesSection({ tenantKey, refreshKey }: { tenantKey: string; refreshKey: string }) {
+  const [urls, setUrls] = useState<WebhookAddress[] | null>(null);
+  const [error, setError] = useState('');
+  const [copied, setCopied] = useState('');
+
+  // reload when a settings group is saved: the "secret set" badges come from the same settings
+  useEffect(() => {
+    let cancelled = false;
+    companiesApi.webhookUrls(tenantKey)
+      .then(res => { if (!cancelled) { setUrls(res.data.urls); setError(''); } })
+      .catch(() => { if (!cancelled) setError('Could not load the webhook addresses'); });
+    return () => { cancelled = true; };
+  }, [tenantKey, refreshKey]);
+
+  const copy = async (url: string) => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(url);
+      setTimeout(() => setCopied(''), 1500);
+    } catch { /* clipboard not available */ }
+  };
+
+  const badge = (text: string, tone: 'ok' | 'warn' | 'muted') => (
+    <span className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full border ${
+      tone === 'ok' ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+        : tone === 'warn' ? 'bg-amber-50 text-amber-700 border-amber-200'
+        : 'bg-slate-50 text-slate-500 border-slate-200'}`}>{text}</span>
+  );
+
+  return (
+    <SectionCard title="Webhook addresses">
+      <p className="text-[12px] text-[#64748B] mb-3">
+        Register these with the courier or shop for this company. Each one carries the company's key, so whatever arrives is applied to this company only.
+        A courier's webhook secret (set under its settings above) must be filled in, otherwise its calls are refused.
+      </p>
+      {error && <p className="text-[12px] text-red-600">{error}</p>}
+      {!urls && !error && <p className="text-[12px] text-[#94A3B8]">Loading…</p>}
+      {urls && (
+        <div className="flex flex-col divide-y divide-[#F1F5F9]">
+          {urls.map(u => (
+            <div key={u.url} className="py-2.5">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <span className="text-[13px] text-[#334155]">{u.label}</span>
+                <div className="flex items-center gap-1.5">
+                  {u.automatic && badge('Automatic', 'muted')}
+                  {!u.authenticated && badge('No authentication', 'warn')}
+                  {u.secretStatus && badge(u.secretStatus === 'set' ? 'Secret set' : 'Secret missing', u.secretStatus === 'set' ? 'ok' : 'warn')}
+                </div>
+              </div>
+              <div className="flex items-center gap-2 mt-1">
+                <code data-testid="webhook-url" className="text-[11px] text-[#475569] bg-[#F8FAFC] border border-[#E2E8F0] rounded-[6px] px-2 py-1 break-all flex-1">{u.url}</code>
+                <button
+                  onClick={() => copy(u.url)}
+                  title="Copy"
+                  className="p-1.5 rounded-[6px] text-[#94A3B8] hover:text-[#00A86B] hover:bg-[#ECFDF5] transition-colors shrink-0"
+                >
+                  {copied === u.url ? <span className="text-[10px] font-semibold text-[#00A86B]">Copied</span> : <Copy className="w-3.5 h-3.5" />}
+                </button>
+              </div>
+              <p className="text-[11px] text-[#94A3B8] mt-1">{u.how}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </SectionCard>
   );
 }
 
