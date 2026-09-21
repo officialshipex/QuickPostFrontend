@@ -513,8 +513,8 @@ function WebhookAddressesSection({ tenantKey, refreshKey }: { tenantKey: string;
   return (
     <SectionCard title="Webhook addresses">
       <p className="text-[12px] text-[#64748B] mb-3">
-        Register these with the courier or shop for this company. Each one carries the company's key, so whatever arrives is applied to this company only.
-        A courier's webhook secret (set under its settings above) must be filled in, otherwise its calls are refused.
+        Register these with the courier, shop or payment gateway for this company. Each one carries the company's key, so whatever arrives is applied to this company only.
+        The webhook secret (set under that courier's or gateway's settings above) must be filled in, otherwise its calls are refused.
       </p>
       {error && <p className="text-[12px] text-red-600">{error}</p>}
       {!urls && !error && <p className="text-[12px] text-[#94A3B8]">Loading…</p>}
