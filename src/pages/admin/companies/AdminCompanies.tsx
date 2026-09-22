@@ -513,6 +513,20 @@ function WebhookAddressesSection({ tenantKey, refreshKey }: { tenantKey: string;
   const [urls, setUrls] = useState<WebhookAddress[] | null>(null);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState('');
+  // Which row's inline "Set secret" editor is open, keyed by url — nothing to do with the removed
+  // per-courier credential editor; this sets exactly one field (secretField) in that courier's/gateway's
+  // group, merged with whatever else is already saved there (PATCH .../config/:groupKey merges, never
+  // overwrites the whole group).
+  const [settingSecretFor, setSettingSecretFor] = useState<string | null>(null);
+  const [secretDraft, setSecretDraft] = useState('');
+  const [secretSaving, setSecretSaving] = useState(false);
+  const [secretError, setSecretError] = useState('');
+
+  const reload = useCallback(() => {
+    return companiesApi.webhookUrls(tenantKey)
+      .then(res => { setUrls(res.data.urls); setError(''); })
+      .catch(() => { setError('Could not load the webhook addresses'); });
+  }, [tenantKey]);
 
   // reload when a settings group is saved: the "secret set" badges come from the same settings
   useEffect(() => {
@@ -531,6 +545,28 @@ function WebhookAddressesSection({ tenantKey, refreshKey }: { tenantKey: string;
     } catch { /* clipboard not available */ }
   };
 
+  const startSettingSecret = (u: WebhookAddress) => {
+    setSettingSecretFor(u.url);
+    setSecretDraft('');
+    setSecretError('');
+  };
+
+  const saveSecret = async (u: WebhookAddress) => {
+    if (!u.settingsGroup || !u.secretField) return;
+    if (!secretDraft.trim()) { setSecretError('Enter a value'); return; }
+    setSecretSaving(true);
+    setSecretError('');
+    try {
+      await companiesApi.updateConfigGroup(tenantKey, u.settingsGroup, { [u.secretField]: secretDraft.trim() });
+      setSettingSecretFor(null);
+      await reload();
+    } catch (err: any) {
+      setSecretError(err.response?.data?.message || 'Failed to save');
+    } finally {
+      setSecretSaving(false);
+    }
+  };
+
   const badge = (text: string, tone: 'ok' | 'warn' | 'muted') => (
     <span className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full border ${
       tone === 'ok' ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
@@ -542,7 +578,7 @@ function WebhookAddressesSection({ tenantKey, refreshKey }: { tenantKey: string;
     <SectionCard title="Webhook addresses">
       <p className="text-[12px] text-[#64748B] mb-3">
         Register these with the courier, shop or payment gateway for this company. Each one carries the company's key, so whatever arrives is applied to this company only.
-        The webhook secret (set under that courier's or gateway's settings above) must be filled in, otherwise its calls are refused.
+        Where a secret is required, set it right here — it's the same value saved under that courier's or gateway's settings, without needing a separate credential editor.
       </p>
       {error && <p className="text-[12px] text-red-600">{error}</p>}
       {!urls && !error && <p className="text-[12px] text-[#94A3B8]">Loading…</p>}
@@ -556,6 +592,14 @@ function WebhookAddressesSection({ tenantKey, refreshKey }: { tenantKey: string;
                   {u.automatic && badge('Automatic', 'muted')}
                   {!u.authenticated && badge('No authentication', 'warn')}
                   {u.secretStatus && badge(u.secretStatus === 'set' ? 'Secret set' : 'Secret missing', u.secretStatus === 'set' ? 'ok' : 'warn')}
+                  {u.secretStatus && (
+                    <button
+                      onClick={() => startSettingSecret(u)}
+                      className="text-[10px] font-semibold text-[#00A86B] hover:underline"
+                    >
+                      {u.secretStatus === 'set' ? 'Change' : 'Set secret'}
+                    </button>
+                  )}
                 </div>
               </div>
               <div className="flex items-center gap-2 mt-1">
@@ -569,6 +613,26 @@ function WebhookAddressesSection({ tenantKey, refreshKey }: { tenantKey: string;
                 </button>
               </div>
               <p className="text-[11px] text-[#94A3B8] mt-1">{u.how}</p>
+              {settingSecretFor === u.url && (
+                <div className="flex flex-col gap-1.5 mt-2 p-2.5 rounded-[8px] bg-[#F8FAFC] border border-[#E2E8F0]">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="password"
+                      autoFocus
+                      value={secretDraft}
+                      onChange={e => setSecretDraft(e.target.value)}
+                      placeholder="Paste the secret/token"
+                      autoComplete="new-password"
+                      className="flex-1 min-w-0 h-8 px-2.5 rounded-[6px] border border-[#E2E8F0] text-[12px] text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#00A86B]/40 focus:border-[#00A86B]"
+                    />
+                    <button onClick={() => setSettingSecretFor(null)} disabled={secretSaving} className="text-[11px] font-semibold text-[#64748B] px-2.5 py-1.5 rounded-[6px] border border-[#E2E8F0] hover:bg-white disabled:opacity-50">Cancel</button>
+                    <button onClick={() => saveSecret(u)} disabled={secretSaving} className="text-[11px] font-semibold text-white px-2.5 py-1.5 rounded-[6px] bg-[#00A86B] hover:bg-[#008F5C] disabled:opacity-50">
+                      {secretSaving ? 'Saving…' : 'Save'}
+                    </button>
+                  </div>
+                  {secretError && <p className="text-[11px] text-red-500">{secretError}</p>}
+                </div>
+              )}
             </div>
           ))}
         </div>
