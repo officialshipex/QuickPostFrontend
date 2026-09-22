@@ -381,6 +381,7 @@ function CompanyDetail({ tenantKey, onBack }: { tenantKey: string; onBack: () =>
   const [groups, setGroups] = useState<ConfigGroups | null>(null);
   // the exact fields the backend expects per group (courier groups today); empty against an older backend
   const [fieldCatalog, setFieldCatalog] = useState<Record<string, ConfigFieldHint[]>>({});
+  const [courierLabels, setCourierLabels] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [editingGroup, setEditingGroup] = useState<{ category: string; key: string; groupKey: string } | null>(null);
   const [editingDetails, setEditingDetails] = useState(false);
@@ -393,6 +394,7 @@ function CompanyDetail({ tenantKey, onBack }: { tenantKey: string; onBack: () =>
       setGroupStatus(detailRes.data.groupStatus);
       setGroups(groupsRes.data.groups);
       setFieldCatalog(groupsRes.data.fields || {});
+      setCourierLabels(groupsRes.data.courierLabels || {});
     } catch {
       showToast('error', 'Failed to load company');
     } finally {
@@ -449,34 +451,41 @@ function CompanyDetail({ tenantKey, onBack }: { tenantKey: string; onBack: () =>
 
         {groupSections.map(section => (
           <SectionCard key={section.category} title={section.label}>
-            <div className="flex flex-col divide-y divide-[#F1F5F9]">
-              {section.keys.map(key => {
-                const groupKey = section.category === 'core' ? 'core' : `${section.category}.${key}`;
-                const status = groupStatus[groupKey];
-                const isSet = section.category === 'core'
-                  ? (status as any)?.jwtSecret === 'set'
-                  : status === 'set';
-                return (
-                  <div key={key} className="flex items-center justify-between py-2.5">
-                    <span className="text-[13px] text-[#334155]">{GROUP_LABELS[key] || key}</span>
-                    <div className="flex items-center gap-2">
-                      {section.category === 'couriers' && (
-                        <CourierEnableToggle tenantKey={tenantKey} courierKey={key} allCourierKeys={groups.couriers} enabledCouriers={company.enabledCouriers} onSaved={load} />
-                      )}
-                      <span className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full border ${isSet ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-50 text-slate-500 border-slate-200'}`}>
-                        {isSet ? 'Configured' : 'Not configured'}
-                      </span>
-                      <button
-                        onClick={() => setEditingGroup({ category: section.category, key, groupKey })}
-                        className="p-1.5 rounded-[6px] text-[#94A3B8] hover:text-[#00A86B] hover:bg-[#ECFDF5] transition-colors"
-                      >
-                        <Pencil className="w-3.5 h-3.5" />
-                      </button>
+            {section.category === 'couriers' ? (
+              <CourierMultiSelect
+                tenantKey={tenantKey}
+                allCourierKeys={groups.couriers}
+                courierLabels={courierLabels}
+                enabledCouriers={company.enabledCouriers}
+                onSaved={load}
+              />
+            ) : (
+              <div className="flex flex-col divide-y divide-[#F1F5F9]">
+                {section.keys.map(key => {
+                  const groupKey = section.category === 'core' ? 'core' : `${section.category}.${key}`;
+                  const status = groupStatus[groupKey];
+                  const isSet = section.category === 'core'
+                    ? (status as any)?.jwtSecret === 'set'
+                    : status === 'set';
+                  return (
+                    <div key={key} className="flex items-center justify-between py-2.5">
+                      <span className="text-[13px] text-[#334155]">{GROUP_LABELS[key] || key}</span>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full border ${isSet ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-50 text-slate-500 border-slate-200'}`}>
+                          {isSet ? 'Configured' : 'Not configured'}
+                        </span>
+                        <button
+                          onClick={() => setEditingGroup({ category: section.category, key, groupKey })}
+                          className="p-1.5 rounded-[6px] text-[#94A3B8] hover:text-[#00A86B] hover:bg-[#ECFDF5] transition-colors"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </SectionCard>
         ))}
 
@@ -638,22 +647,24 @@ function EditableDomainRow({ label, hint, value, placeholder, allowBlank, onSave
   );
 }
 
-// Whether a seller of this company can add a NEW account for this courier at all (ShipexFrontend's own Add
-// Courier dropdown only offers what's enabled here). Separate from "Configured" above, which is about the
-// company-level credential fields some couriers fall back to -- this is a platform-level on/off switch.
-// company.enabledCouriers undefined = every courier is enabled (every company predating this feature, and a
-// freshly created one, start unrestricted); the first toggle turns that into an explicit list.
-function CourierEnableToggle({ tenantKey, courierKey, allCourierKeys, enabledCouriers, onSaved }: {
-  tenantKey: string; courierKey: string; allCourierKeys: string[]; enabledCouriers?: string[]; onSaved: () => void;
+// Replaces a 16-row credentials list: which couriers this company's sellers may add at all (ShipexFrontend's
+// Add Courier dropdown only offers what's enabled here) -- no per-company credential fields shown or editable
+// here anymore, since sellers enter their own at Add Courier time. company.enabledCouriers undefined = every
+// courier is enabled (every company predating this feature, and a freshly created one, start unrestricted);
+// the first add/remove turns that into an explicit list. NOTE: 10 of the 16 couriers (the ones that don't
+// validate a seller's submitted credentials against the real courier's own API) still need a company-level
+// credential value set SOMEWHERE for a new company -- that configuration path no longer exists on this screen
+// as of this change; flagged to the user, who chose to drop it here anyway.
+function CourierMultiSelect({ tenantKey, allCourierKeys, courierLabels, enabledCouriers, onSaved }: {
+  tenantKey: string; allCourierKeys: string[]; courierLabels: Record<string, string>; enabledCouriers?: string[]; onSaved: () => void;
 }) {
   const [saving, setSaving] = useState(false);
   const effective = enabledCouriers ?? allCourierKeys;
-  const isEnabled = effective.includes(courierKey);
+  const available = allCourierKeys.filter(k => !effective.includes(k));
 
-  const toggle = async () => {
+  const update = async (next: string[]) => {
     setSaving(true);
     try {
-      const next = isEnabled ? effective.filter(k => k !== courierKey) : [...effective, courierKey];
       await companiesApi.updateBasic(tenantKey, { enabledCouriers: next });
       onSaved();
     } finally {
@@ -662,18 +673,39 @@ function CourierEnableToggle({ tenantKey, courierKey, allCourierKeys, enabledCou
   };
 
   return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={isEnabled}
-      aria-label={`${isEnabled ? 'Disable' : 'Enable'} this courier for sellers to add`}
-      disabled={saving}
-      onClick={toggle}
-      title={isEnabled ? 'Sellers can add this courier — click to disable' : 'Hidden from the Add Courier dropdown — click to enable'}
-      className={`relative w-8 h-[18px] rounded-full transition-colors shrink-0 disabled:opacity-50 ${isEnabled ? 'bg-[#00A86B]' : 'bg-[#CBD5E1]'}`}
-    >
-      <span className={`absolute top-0.5 left-0.5 w-[14px] h-[14px] rounded-full bg-white transition-transform ${isEnabled ? 'translate-x-[14px]' : ''}`} />
-    </button>
+    <div className="flex flex-col gap-2.5">
+      <p className="text-[11px] text-[#94A3B8]">Couriers this company's sellers can add. Each seller enters their own account credentials at Add Courier time.</p>
+      <div className="flex flex-wrap gap-1.5">
+        {effective.length === 0 && (
+          <span className="text-[12px] text-[#94A3B8] italic">No couriers enabled — sellers won't be able to add any yet.</span>
+        )}
+        {effective.map(key => (
+          <span key={key} className="inline-flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-full bg-[#ECFDF5] border border-emerald-200 text-emerald-700 text-[12px] font-semibold">
+            {courierLabels[key] || key}
+            <button
+              type="button"
+              disabled={saving}
+              onClick={() => update(effective.filter(k => k !== key))}
+              aria-label={`Disable ${courierLabels[key] || key}`}
+              className="p-0.5 rounded-full hover:bg-emerald-100 disabled:opacity-50"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </span>
+        ))}
+      </div>
+      {available.length > 0 && (
+        <select
+          value=""
+          disabled={saving}
+          onChange={e => { if (e.target.value) update([...effective, e.target.value]); }}
+          className="w-full sm:w-60 h-9 px-2.5 rounded-[8px] border border-[#E2E8F0] bg-white text-[12px] text-[#475569] focus:outline-none focus:ring-2 focus:ring-[#00A86B]/40 focus:border-[#00A86B] disabled:opacity-50"
+        >
+          <option value="">+ Add a courier…</option>
+          {available.map(key => <option key={key} value={key}>{courierLabels[key] || key}</option>)}
+        </select>
+      )}
+    </div>
   );
 }
 

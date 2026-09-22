@@ -81,7 +81,10 @@ export type GroupStatusMap = Record<string, 'set' | 'unset' | { jwtSecret: 'set'
 export const companiesApi = {
   list: () => apiClient.get<{ success: boolean; companies: CompanySummary[] }>('/platform-admin/companies'),
 
-  configGroups: () => apiClient.get<{ success: boolean; groups: ConfigGroups; fields?: Record<string, ConfigFieldHint[]> }>('/platform-admin/companies/config-groups'),
+  // courierLabels: courier key -> ShipexFrontend's exact dropdown label (e.g. "shreeMaruti" -> "Shree Maruti"),
+  // the single source of truth for display names now — covers all 16, including the 5 added after
+  // GROUP_LABELS was last updated (ecomExpress, nimbus, losung360, vamaship, xpressbees).
+  configGroups: () => apiClient.get<{ success: boolean; groups: ConfigGroups; fields?: Record<string, ConfigFieldHint[]>; courierLabels?: Record<string, string> }>('/platform-admin/companies/config-groups'),
 
   webhookUrls: (tenantKey: string) =>
     apiClient.get<{ success: boolean; tenantKey: string; baseUrl: string; urls: WebhookAddress[] }>(`/platform-admin/companies/${tenantKey}/webhook-urls`),
