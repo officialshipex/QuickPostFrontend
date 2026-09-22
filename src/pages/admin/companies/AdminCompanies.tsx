@@ -239,7 +239,7 @@ function CompanyCreateForm({ onBack, onCreated }: { onBack: () => void; onCreate
       <div className="max-w-2xl w-full mx-auto px-4 md:px-6 py-6 flex flex-col gap-4">
         <div>
           <label className={labelCls}>Company Name <span className="text-red-500">*</span></label>
-          <input value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder="Acme Logistics" className={inputCls(!!errors.displayName)} />
+          <input value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder="Acme Logistics" name="company-display-name" autoComplete="off" className={inputCls(!!errors.displayName)} />
           {errors.displayName && <p className={errCls}>{errors.displayName}</p>}
         </div>
 
@@ -249,6 +249,8 @@ function CompanyCreateForm({ onBack, onCreated }: { onBack: () => void; onCreate
             value={tenantKey}
             onChange={e => { setTenantKey(e.target.value); setKeyEdited(true); }}
             placeholder="acme-logistics"
+            name="company-tenant-key"
+            autoComplete="off"
             className={inputCls(!!errors.tenantKey)}
           />
           {errors.tenantKey && <p className={errCls}>{errors.tenantKey}</p>}
@@ -256,7 +258,7 @@ function CompanyCreateForm({ onBack, onCreated }: { onBack: () => void; onCreate
 
         <div>
           <label className={labelCls}>Domain <span className="text-red-500">*</span> <span className="font-normal text-[#94A3B8]">(where this company's app will be reachable)</span></label>
-          <input value={domain} onChange={e => setDomain(e.target.value)} placeholder="app.acmelogistics.com" className={inputCls(!!errors.domain)} />
+          <input value={domain} onChange={e => setDomain(e.target.value)} placeholder="app.acmelogistics.com" name="company-domain" autoComplete="off" className={inputCls(!!errors.domain)} />
           {errors.domain && <p className={errCls}>{errors.domain}</p>}
         </div>
 
@@ -267,6 +269,8 @@ function CompanyCreateForm({ onBack, onCreated }: { onBack: () => void; onCreate
             onChange={e => setMongoUri(e.target.value)}
             placeholder="mongodb+srv://user:pass@cluster.mongodb.net/dbname"
             type="password"
+            name="company-mongo-uri"
+            autoComplete="new-password"
             className={inputCls(!!errors.mongoUri)}
           />
           {errors.mongoUri && <p className={errCls}>{errors.mongoUri}</p>}
@@ -618,6 +622,7 @@ function EditableDomainRow({ label, hint, value, placeholder, allowBlank, onSave
             value={draft}
             onChange={e => setDraft(e.target.value)}
             placeholder={placeholder}
+            autoComplete="off"
             className="border border-[#E2E8F0] rounded-[8px] px-3 py-2 text-[12px] text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#00A86B]/40 focus:border-[#00A86B] transition-colors"
           />
           {error && <p className="text-[11px] text-red-500">{error}</p>}
@@ -778,19 +783,18 @@ function StatusSection({ company, onSaved, showToast }: {
 function CompanyDetailsModal({ company, onClose, onSaved, showToast }: {
   company: CompanySummary; onClose: () => void; onSaved: () => void; showToast: (t: 'success' | 'error', m: string) => void;
 }) {
-  const [displayName, setDisplayName] = useState(company.displayName);
+  // No Company Name field here on purpose — the domain already identifies the company (shown right
+  // below the name in the header), so a second, editable name here was redundant.
   const [supportEmail, setSupportEmail] = useState(company.branding?.supportEmail || '');
   const [supportPhone, setSupportPhone] = useState(company.branding?.supportPhone || '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
   const save = async () => {
-    if (!displayName.trim()) { setError('Company name is required'); return; }
     setSaving(true);
     setError('');
     try {
       await companiesApi.updateBasic(company.tenantKey, {
-        displayName: displayName.trim(),
         supportEmail: supportEmail.trim() || undefined,
         supportPhone: supportPhone.trim() || undefined,
       });
@@ -813,16 +817,12 @@ function CompanyDetailsModal({ company, onClose, onSaved, showToast }: {
         </div>
         <div className="px-5 py-4 flex flex-col gap-3 overflow-y-auto min-h-0">
           <div className="flex flex-col gap-1">
-            <label className="text-[12px] font-semibold text-[#64748B]">Company Name</label>
-            <input value={displayName} onChange={e => setDisplayName(e.target.value)} className="border border-[#E2E8F0] rounded-[8px] px-3 py-2 text-[12px] text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#00A86B]/40 focus:border-[#00A86B] transition-colors" />
-          </div>
-          <div className="flex flex-col gap-1">
             <label className="text-[12px] font-semibold text-[#64748B]">Support Email</label>
-            <input value={supportEmail} onChange={e => setSupportEmail(e.target.value)} placeholder="support@acmelogistics.com" className="border border-[#E2E8F0] rounded-[8px] px-3 py-2 text-[12px] text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#00A86B]/40 focus:border-[#00A86B] transition-colors" />
+            <input value={supportEmail} onChange={e => setSupportEmail(e.target.value)} placeholder="support@acmelogistics.com" name="company-support-email" autoComplete="off" className="border border-[#E2E8F0] rounded-[8px] px-3 py-2 text-[12px] text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#00A86B]/40 focus:border-[#00A86B] transition-colors" />
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-[12px] font-semibold text-[#64748B]">Support Phone</label>
-            <input value={supportPhone} onChange={e => setSupportPhone(e.target.value)} placeholder="+91 90000 00000" className="border border-[#E2E8F0] rounded-[8px] px-3 py-2 text-[12px] text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#00A86B]/40 focus:border-[#00A86B] transition-colors" />
+            <input value={supportPhone} onChange={e => setSupportPhone(e.target.value)} placeholder="+91 90000 00000" name="company-support-phone" autoComplete="off" className="border border-[#E2E8F0] rounded-[8px] px-3 py-2 text-[12px] text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#00A86B]/40 focus:border-[#00A86B] transition-colors" />
           </div>
           {error && <p className="text-[11px] text-red-500">{error}</p>}
         </div>
@@ -997,6 +997,7 @@ function GroupEditModal({ tenantKey, category, keyName, groupKey, serverFields, 
                 type={f.secret ? 'password' : 'text'}
                 value={values[f.key] || ''}
                 onChange={e => setValues(v => ({ ...v, [f.key]: e.target.value }))}
+                autoComplete={f.secret ? 'new-password' : 'off'}
                 className="border border-[#E2E8F0] rounded-[8px] px-3 py-2 text-[12px] text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#00A86B]/40 focus:border-[#00A86B] transition-colors"
               />
             </div>
