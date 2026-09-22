@@ -226,7 +226,7 @@ function CompanyCreateForm({ onBack, onCreated }: { onBack: () => void; onCreate
   const errCls = 'text-[11px] text-red-500 mt-1';
 
   return (
-    <div className="flex flex-col min-h-[calc(100vh-72px)] -m-4 md:-m-6 bg-white">
+    <div className="flex flex-col h-[calc(100vh-72px)] -m-4 md:-m-6 bg-white">
       <Toast toast={toast} onClose={() => {}} />
       <div className="flex items-center gap-3 px-4 md:px-6 py-4 border-b border-[#E2E8F0] shrink-0">
         <button onClick={onBack} className="w-8 h-8 rounded-[8px] border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC]"><ArrowLeft className="w-4 h-4" /></button>
@@ -236,6 +236,7 @@ function CompanyCreateForm({ onBack, onCreated }: { onBack: () => void; onCreate
         </div>
       </div>
 
+      <div className="flex-1 overflow-y-auto">
       <div className="max-w-2xl w-full mx-auto px-4 md:px-6 py-6 flex flex-col gap-4">
         <div>
           <label className={labelCls}>Company Name <span className="text-red-500">*</span></label>
@@ -314,6 +315,7 @@ function CompanyCreateForm({ onBack, onCreated }: { onBack: () => void; onCreate
             {submitting ? 'Creating…' : 'Create Company'}
           </button>
         </div>
+      </div>
       </div>
     </div>
   );
@@ -421,7 +423,7 @@ function CompanyDetail({ tenantKey, onBack }: { tenantKey: string; onBack: () =>
   ];
 
   return (
-    <div className="flex flex-col min-h-[calc(100vh-72px)] -m-4 md:-m-6 bg-white">
+    <div className="flex flex-col h-[calc(100vh-72px)] -m-4 md:-m-6 bg-white">
       <Toast toast={toast} onClose={() => {}} />
       <div className="flex items-center gap-3 px-4 md:px-6 py-4 border-b border-[#E2E8F0] shrink-0">
         <button onClick={onBack} className="w-8 h-8 rounded-[8px] border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC]"><ArrowLeft className="w-4 h-4" /></button>
@@ -444,54 +446,56 @@ function CompanyDetail({ tenantKey, onBack }: { tenantKey: string; onBack: () =>
         <CompanyDetailsModal company={company} onClose={() => setEditingDetails(false)} onSaved={load} showToast={showToast} />
       )}
 
-      <div className="max-w-3xl w-full mx-auto px-4 md:px-6 py-6 flex flex-col gap-4">
-        <StatusSection company={company} onSaved={load} showToast={showToast} />
-        <BrandingSection company={company} onSaved={load} showToast={showToast} />
-        <DomainsSection company={company} onSaved={load} showToast={showToast} />
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-3xl w-full mx-auto px-4 md:px-6 py-6 flex flex-col gap-4">
+          <StatusSection company={company} onSaved={load} showToast={showToast} />
+          <BrandingSection company={company} onSaved={load} showToast={showToast} />
+          <DomainsSection company={company} onSaved={load} showToast={showToast} />
 
-        {groupSections.map(section => (
-          <SectionCard key={section.category} title={section.label}>
-            {section.category === 'couriers' ? (
-              <CourierMultiSelect
-                tenantKey={tenantKey}
-                allCourierKeys={groups.couriers}
-                courierLabels={courierLabels}
-                enabledCouriers={company.enabledCouriers}
-                onSaved={load}
-              />
-            ) : (
-              <div className="flex flex-col divide-y divide-[#F1F5F9]">
-                {section.keys.map(key => {
-                  const groupKey = section.category === 'core' ? 'core' : `${section.category}.${key}`;
-                  const status = groupStatus[groupKey];
-                  const isSet = section.category === 'core'
-                    ? (status as any)?.jwtSecret === 'set'
-                    : status === 'set';
-                  return (
-                    <div key={key} className="flex items-center justify-between py-2.5">
-                      <span className="text-[13px] text-[#334155]">{GROUP_LABELS[key] || key}</span>
-                      <div className="flex items-center gap-2">
-                        <span className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full border ${isSet ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-50 text-slate-500 border-slate-200'}`}>
-                          {isSet ? 'Configured' : 'Not configured'}
-                        </span>
-                        <button
-                          onClick={() => setEditingGroup({ category: section.category, key, groupKey })}
-                          className="p-1.5 rounded-[6px] text-[#94A3B8] hover:text-[#00A86B] hover:bg-[#ECFDF5] transition-colors"
-                        >
-                          <Pencil className="w-3.5 h-3.5" />
-                        </button>
+          {groupSections.map(section => (
+            <SectionCard key={section.category} title={section.label}>
+              {section.category === 'couriers' ? (
+                <CourierMultiSelect
+                  tenantKey={tenantKey}
+                  allCourierKeys={groups.couriers}
+                  courierLabels={courierLabels}
+                  enabledCouriers={company.enabledCouriers}
+                  onSaved={load}
+                />
+              ) : (
+                <div className="flex flex-col divide-y divide-[#F1F5F9]">
+                  {section.keys.map(key => {
+                    const groupKey = section.category === 'core' ? 'core' : `${section.category}.${key}`;
+                    const status = groupStatus[groupKey];
+                    const isSet = section.category === 'core'
+                      ? (status as any)?.jwtSecret === 'set'
+                      : status === 'set';
+                    return (
+                      <div key={key} className="flex items-center justify-between py-2.5">
+                        <span className="text-[13px] text-[#334155]">{GROUP_LABELS[key] || key}</span>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full border ${isSet ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-50 text-slate-500 border-slate-200'}`}>
+                            {isSet ? 'Configured' : 'Not configured'}
+                          </span>
+                          <button
+                            onClick={() => setEditingGroup({ category: section.category, key, groupKey })}
+                            className="p-1.5 rounded-[6px] text-[#94A3B8] hover:text-[#00A86B] hover:bg-[#ECFDF5] transition-colors"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </SectionCard>
-        ))}
+                    );
+                  })}
+                </div>
+              )}
+            </SectionCard>
+          ))}
 
-        <WebhookAddressesSection tenantKey={tenantKey} refreshKey={JSON.stringify(groupStatus)} />
+          <WebhookAddressesSection tenantKey={tenantKey} refreshKey={JSON.stringify(groupStatus)} />
 
-        <JobsSection company={company} onSaved={load} showToast={showToast} />
+          <JobsSection company={company} onSaved={load} showToast={showToast} />
+        </div>
       </div>
 
       {editingGroup && (
