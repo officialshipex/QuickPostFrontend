@@ -441,7 +441,12 @@ function CompanyDetail({ tenantKey, onBack }: { tenantKey: string; onBack: () =>
               <Pencil className="w-3.5 h-3.5" />
             </button>
           </div>
-          <p className="text-[12px] text-[#64748B]">{company.tenantKey} · {primaryDomain}</p>
+          <p className="text-[12px] text-[#64748B]">
+            {company.tenantKey}
+            {primaryDomain && (
+              <> · <a href={`https://${primaryDomain}`} target="_blank" rel="noopener noreferrer" className="hover:text-[#00A86B] hover:underline">{primaryDomain}</a></>
+            )}
+          </p>
         </div>
         {primaryDomain && (
           <a
