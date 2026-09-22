@@ -320,7 +320,7 @@ const GROUP_LABELS: Record<string, string> = {
   delhivery: 'Delhivery', dtdc: 'DTDC', ekart: 'Ekart', shadowfax: 'Shadowfax',
   smartship: 'SmartShip', zipypost: 'Zipypost', amazon: 'Amazon', boxdLogistics: 'BoxdLogistics', proship: 'Proship',
   shiprocket: 'Shiprocket', shreeMaruti: 'Shree Maruti',
-  razorpay: 'Razorpay', paytm: 'Paytm', cashfree: 'Cashfree (KYC verification)',
+  razorpay: 'Razorpay', cashfree: 'Cashfree (KYC verification)',
   smtp: 'Email (SMTP)', whatsapp: 'WhatsApp', sms: 'SMS', aiCalling: 'AI Calling (EchQ)', s3: 'File Storage (S3)', core: 'Core / Security',
 };
 
