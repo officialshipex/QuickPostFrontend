@@ -23,6 +23,9 @@ export interface CompanySummary {
   status: 'onboarding' | 'active' | 'suspended' | 'disabled';
   isDefaultTenant: boolean;
   branding?: CompanyBranding;
+  // The address this company's backend is reached at for callback/webhook URLs (couriers, Razorpay, AI calling);
+  // unset = the platform's shared address. Absent from a backend that predates the setting.
+  apiDomain?: string;
   requiredSetupComplete: boolean;
   // whether the scheduled jobs also run for this company; absent from a backend that predates the setting
   jobsEnabled?: boolean;

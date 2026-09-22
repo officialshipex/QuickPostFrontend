@@ -431,6 +431,7 @@ function CompanyDetail({ tenantKey, onBack }: { tenantKey: string; onBack: () =>
 
       <div className="max-w-3xl w-full mx-auto px-4 md:px-6 py-6 flex flex-col gap-4">
         <BrandingSection company={company} onSaved={load} showToast={showToast} />
+        <DomainsSection company={company} onSaved={load} showToast={showToast} />
 
         {groupSections.map(section => (
           <SectionCard key={section.category} title={section.label}>
@@ -556,6 +557,76 @@ function SectionCard({ title, children }: { title: string; children: React.React
       <h3 className="text-[14px] font-semibold text-[#0F172A] mb-3">{title}</h3>
       {children}
     </div>
+  );
+}
+
+function DomainsSection({ company, onSaved, showToast }: {
+  company: CompanySummary; onSaved: () => void; showToast: (t: 'success' | 'error', m: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(company.apiDomain || '');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const startEdit = () => { setValue(company.apiDomain || ''); setError(''); setEditing(true); };
+
+  const save = async () => {
+    setSaving(true);
+    setError('');
+    try {
+      await companiesApi.updateBasic(company.tenantKey, { apiDomain: value.trim() });
+      setEditing(false);
+      showToast('success', value.trim() ? 'API domain saved' : 'API domain cleared — back to the shared address');
+      onSaved();
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to save');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <SectionCard title="Domains">
+      <div className="flex flex-col gap-3">
+        <div>
+          <p className="text-[12px] font-semibold text-[#64748B]">Frontend Domain</p>
+          <p className="text-[13px] text-[#334155] mt-0.5">{company.domains[0]?.hostname || '—'}</p>
+          <p className="text-[11px] text-[#94A3B8] mt-0.5">Where this company's app is reached. Point this domain's DNS at the shared frontend deployment.</p>
+        </div>
+        <div className="pt-2 border-t border-[#F1F5F9]">
+          <div className="flex items-center justify-between">
+            <p className="text-[12px] font-semibold text-[#64748B]">API Domain <span className="font-normal text-[#94A3B8]">(optional)</span></p>
+            {!editing && (
+              <button onClick={startEdit} className="p-1.5 rounded-[6px] text-[#94A3B8] hover:text-[#00A86B] hover:bg-[#ECFDF5] transition-colors">
+                <Pencil className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+          {!editing ? (
+            <>
+              <p className="text-[13px] text-[#334155] mt-0.5">{company.apiDomain || 'Not set — using the shared backend address'}</p>
+              <p className="text-[11px] text-[#94A3B8] mt-0.5">Only changes the address handed to couriers, Razorpay and the AI-calling vendor as a callback URL. The app itself always calls the one shared backend, unchanged.</p>
+            </>
+          ) : (
+            <div className="flex flex-col gap-2 mt-1.5">
+              <input
+                value={value}
+                onChange={e => setValue(e.target.value)}
+                placeholder="api.acmelogistics.com"
+                className="border border-[#E2E8F0] rounded-[8px] px-3 py-2 text-[12px] text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#00A86B]/40 focus:border-[#00A86B] transition-colors"
+              />
+              {error && <p className="text-[11px] text-red-500">{error}</p>}
+              <div className="flex gap-2">
+                <button onClick={() => setEditing(false)} className="text-[12px] font-semibold text-[#64748B] px-3 py-1.5 rounded-[8px] border border-[#E2E8F0] hover:bg-[#F8FAFC]">Cancel</button>
+                <button onClick={save} disabled={saving} className="text-[12px] font-semibold text-white px-3 py-1.5 rounded-[8px] bg-[#00A86B] hover:bg-[#008F5C] disabled:opacity-50">
+                  {saving ? 'Saving…' : 'Save'}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </SectionCard>
   );
 }
 
