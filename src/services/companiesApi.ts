@@ -26,6 +26,9 @@ export interface CompanySummary {
   // The address this company's backend is reached at for callback/webhook URLs (couriers, Razorpay, AI calling);
   // unset = the platform's shared address. Absent from a backend that predates the setting.
   apiDomain?: string;
+  // Which couriers this company's sellers may add. Undefined = every courier is allowed (the default, and every
+  // company that predates this setting). Absent from a backend that predates the setting.
+  enabledCouriers?: string[];
   requiredSetupComplete: boolean;
   // whether the scheduled jobs also run for this company; absent from a backend that predates the setting
   jobsEnabled?: boolean;

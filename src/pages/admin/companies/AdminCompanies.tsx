@@ -456,6 +456,9 @@ function CompanyDetail({ tenantKey, onBack }: { tenantKey: string; onBack: () =>
                   <div key={key} className="flex items-center justify-between py-2.5">
                     <span className="text-[13px] text-[#334155]">{GROUP_LABELS[key] || key}</span>
                     <div className="flex items-center gap-2">
+                      {section.category === 'couriers' && (
+                        <CourierEnableToggle tenantKey={tenantKey} courierKey={key} allCourierKeys={groups.couriers} enabledCouriers={company.enabledCouriers} onSaved={load} />
+                      )}
                       <span className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full border ${isSet ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-50 text-slate-500 border-slate-200'}`}>
                         {isSet ? 'Configured' : 'Not configured'}
                       </span>
@@ -627,6 +630,45 @@ function EditableDomainRow({ label, hint, value, placeholder, allowBlank, onSave
         </div>
       )}
     </div>
+  );
+}
+
+// Whether a seller of this company can add a NEW account for this courier at all (ShipexFrontend's own Add
+// Courier dropdown only offers what's enabled here). Separate from "Configured" above, which is about the
+// company-level credential fields some couriers fall back to -- this is a platform-level on/off switch.
+// company.enabledCouriers undefined = every courier is enabled (every company predating this feature, and a
+// freshly created one, start unrestricted); the first toggle turns that into an explicit list.
+function CourierEnableToggle({ tenantKey, courierKey, allCourierKeys, enabledCouriers, onSaved }: {
+  tenantKey: string; courierKey: string; allCourierKeys: string[]; enabledCouriers?: string[]; onSaved: () => void;
+}) {
+  const [saving, setSaving] = useState(false);
+  const effective = enabledCouriers ?? allCourierKeys;
+  const isEnabled = effective.includes(courierKey);
+
+  const toggle = async () => {
+    setSaving(true);
+    try {
+      const next = isEnabled ? effective.filter(k => k !== courierKey) : [...effective, courierKey];
+      await companiesApi.updateBasic(tenantKey, { enabledCouriers: next });
+      onSaved();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={isEnabled}
+      aria-label={`${isEnabled ? 'Disable' : 'Enable'} this courier for sellers to add`}
+      disabled={saving}
+      onClick={toggle}
+      title={isEnabled ? 'Sellers can add this courier — click to disable' : 'Hidden from the Add Courier dropdown — click to enable'}
+      className={`relative w-8 h-[18px] rounded-full transition-colors shrink-0 disabled:opacity-50 ${isEnabled ? 'bg-[#00A86B]' : 'bg-[#CBD5E1]'}`}
+    >
+      <span className={`absolute top-0.5 left-0.5 w-[14px] h-[14px] rounded-full bg-white transition-transform ${isEnabled ? 'translate-x-[14px]' : ''}`} />
+    </button>
   );
 }
 
