@@ -379,6 +379,7 @@ function CompanyDetail({ tenantKey, onBack }: { tenantKey: string; onBack: () =>
   const [fieldCatalog, setFieldCatalog] = useState<Record<string, ConfigFieldHint[]>>({});
   const [loading, setLoading] = useState(true);
   const [editingGroup, setEditingGroup] = useState<{ category: string; key: string; groupKey: string } | null>(null);
+  const [editingDetails, setEditingDetails] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -423,13 +424,22 @@ function CompanyDetail({ tenantKey, onBack }: { tenantKey: string; onBack: () =>
         ) : (
           <div className="w-9 h-9 rounded-[8px] bg-[#F0FDF4] flex items-center justify-center"><Building2 className="w-4 h-4 text-[#00A86B]" /></div>
         )}
-        <div>
-          <h1 className="text-[16px] font-semibold text-[#0F172A]">{company.displayName}</h1>
+        <div className="flex-1">
+          <div className="flex items-center gap-1.5">
+            <h1 className="text-[16px] font-semibold text-[#0F172A]">{company.displayName}</h1>
+            <button onClick={() => setEditingDetails(true)} className="p-1 rounded-[6px] text-[#94A3B8] hover:text-[#00A86B] hover:bg-[#ECFDF5] transition-colors">
+              <Pencil className="w-3.5 h-3.5" />
+            </button>
+          </div>
           <p className="text-[12px] text-[#64748B]">{company.tenantKey} · {company.domains[0]?.hostname}</p>
         </div>
       </div>
+      {editingDetails && (
+        <CompanyDetailsModal company={company} onClose={() => setEditingDetails(false)} onSaved={load} showToast={showToast} />
+      )}
 
       <div className="max-w-3xl w-full mx-auto px-4 md:px-6 py-6 flex flex-col gap-4">
+        <StatusSection company={company} onSaved={load} showToast={showToast} />
         <BrandingSection company={company} onSaved={load} showToast={showToast} />
         <DomainsSection company={company} onSaved={load} showToast={showToast} />
 
@@ -560,24 +570,23 @@ function SectionCard({ title, children }: { title: string; children: React.React
   );
 }
 
-function DomainsSection({ company, onSaved, showToast }: {
-  company: CompanySummary; onSaved: () => void; showToast: (t: 'success' | 'error', m: string) => void;
+function EditableDomainRow({ label, hint, value, placeholder, allowBlank, onSave }: {
+  label: React.ReactNode; hint: string; value: string; placeholder: string; allowBlank?: boolean; onSave: (next: string) => Promise<void>;
 }) {
   const [editing, setEditing] = useState(false);
-  const [value, setValue] = useState(company.apiDomain || '');
+  const [draft, setDraft] = useState(value);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  const startEdit = () => { setValue(company.apiDomain || ''); setError(''); setEditing(true); };
+  const startEdit = () => { setDraft(value); setError(''); setEditing(true); };
 
   const save = async () => {
+    if (!allowBlank && !draft.trim()) { setError('Required'); return; }
     setSaving(true);
     setError('');
     try {
-      await companiesApi.updateBasic(company.tenantKey, { apiDomain: value.trim() });
+      await onSave(draft.trim());
       setEditing(false);
-      showToast('success', value.trim() ? 'API domain saved' : 'API domain cleared — back to the shared address');
-      onSaved();
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to save');
     } finally {
@@ -586,47 +595,203 @@ function DomainsSection({ company, onSaved, showToast }: {
   };
 
   return (
+    <div>
+      <div className="flex items-center justify-between">
+        <p className="text-[12px] font-semibold text-[#64748B]">{label}</p>
+        {!editing && (
+          <button onClick={startEdit} className="p-1.5 rounded-[6px] text-[#94A3B8] hover:text-[#00A86B] hover:bg-[#ECFDF5] transition-colors">
+            <Pencil className="w-3.5 h-3.5" />
+          </button>
+        )}
+      </div>
+      {!editing ? (
+        <>
+          <p className="text-[13px] text-[#334155] mt-0.5">{value || (allowBlank ? 'Not set — using the shared backend address' : '—')}</p>
+          <p className="text-[11px] text-[#94A3B8] mt-0.5">{hint}</p>
+        </>
+      ) : (
+        <div className="flex flex-col gap-2 mt-1.5">
+          <input
+            value={draft}
+            onChange={e => setDraft(e.target.value)}
+            placeholder={placeholder}
+            className="border border-[#E2E8F0] rounded-[8px] px-3 py-2 text-[12px] text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#00A86B]/40 focus:border-[#00A86B] transition-colors"
+          />
+          {error && <p className="text-[11px] text-red-500">{error}</p>}
+          <div className="flex gap-2">
+            <button onClick={() => setEditing(false)} disabled={saving} className="text-[12px] font-semibold text-[#64748B] px-3 py-1.5 rounded-[8px] border border-[#E2E8F0] hover:bg-[#F8FAFC] disabled:opacity-50">Cancel</button>
+            <button onClick={save} disabled={saving} className="text-[12px] font-semibold text-white px-3 py-1.5 rounded-[8px] bg-[#00A86B] hover:bg-[#008F5C] disabled:opacity-50">
+              {saving ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DomainsSection({ company, onSaved, showToast }: {
+  company: CompanySummary; onSaved: () => void; showToast: (t: 'success' | 'error', m: string) => void;
+}) {
+  const saveField = (field: 'domain' | 'apiDomain', successMsg: string, clearedMsg?: string) => async (next: string) => {
+    await companiesApi.updateBasic(company.tenantKey, { [field]: next });
+    showToast('success', next ? successMsg : (clearedMsg || successMsg));
+    onSaved();
+  };
+
+  return (
     <SectionCard title="Domains">
       <div className="flex flex-col gap-3">
-        <div>
-          <p className="text-[12px] font-semibold text-[#64748B]">Frontend Domain</p>
-          <p className="text-[13px] text-[#334155] mt-0.5">{company.domains[0]?.hostname || '—'}</p>
-          <p className="text-[11px] text-[#94A3B8] mt-0.5">Where this company's app is reached. Point this domain's DNS at the shared frontend deployment.</p>
-        </div>
+        <EditableDomainRow
+          label="Frontend Domain"
+          hint="Where this company's app is reached. Point this domain's DNS at the shared frontend deployment."
+          value={company.domains[0]?.hostname || ''}
+          placeholder="app.acmelogistics.com"
+          onSave={saveField('domain', 'Frontend domain saved — DNS may take a moment to catch up')}
+        />
         <div className="pt-2 border-t border-[#F1F5F9]">
-          <div className="flex items-center justify-between">
-            <p className="text-[12px] font-semibold text-[#64748B]">API Domain <span className="font-normal text-[#94A3B8]">(optional)</span></p>
-            {!editing && (
-              <button onClick={startEdit} className="p-1.5 rounded-[6px] text-[#94A3B8] hover:text-[#00A86B] hover:bg-[#ECFDF5] transition-colors">
-                <Pencil className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
-          {!editing ? (
-            <>
-              <p className="text-[13px] text-[#334155] mt-0.5">{company.apiDomain || 'Not set — using the shared backend address'}</p>
-              <p className="text-[11px] text-[#94A3B8] mt-0.5">Only changes the address handed to couriers, Razorpay and the AI-calling vendor as a callback URL. The app itself always calls the one shared backend, unchanged.</p>
-            </>
-          ) : (
-            <div className="flex flex-col gap-2 mt-1.5">
-              <input
-                value={value}
-                onChange={e => setValue(e.target.value)}
-                placeholder="api.acmelogistics.com"
-                className="border border-[#E2E8F0] rounded-[8px] px-3 py-2 text-[12px] text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#00A86B]/40 focus:border-[#00A86B] transition-colors"
-              />
-              {error && <p className="text-[11px] text-red-500">{error}</p>}
-              <div className="flex gap-2">
-                <button onClick={() => setEditing(false)} className="text-[12px] font-semibold text-[#64748B] px-3 py-1.5 rounded-[8px] border border-[#E2E8F0] hover:bg-[#F8FAFC]">Cancel</button>
-                <button onClick={save} disabled={saving} className="text-[12px] font-semibold text-white px-3 py-1.5 rounded-[8px] bg-[#00A86B] hover:bg-[#008F5C] disabled:opacity-50">
-                  {saving ? 'Saving…' : 'Save'}
-                </button>
-              </div>
-            </div>
-          )}
+          <EditableDomainRow
+            label={<>API Domain <span className="font-normal text-[#94A3B8]">(optional)</span></>}
+            hint="Only changes the address handed to couriers, Razorpay and the AI-calling vendor as a callback URL. The app itself always calls the one shared backend, unchanged."
+            value={company.apiDomain || ''}
+            placeholder="api.acmelogistics.com"
+            allowBlank
+            onSave={saveField('apiDomain', 'API domain saved', 'API domain cleared — back to the shared address')}
+          />
         </div>
       </div>
     </SectionCard>
+  );
+}
+
+const STATUS_INFO: Record<string, { label: string; tone: string; blurb: string }> = {
+  onboarding: { label: 'Onboarding', tone: 'bg-amber-50 text-amber-700 border-amber-200', blurb: 'Already serving real traffic on its registered domain(s) — this just means setup isn’t marked complete yet.' },
+  active: { label: 'Active', tone: 'bg-emerald-50 text-emerald-700 border-emerald-200', blurb: 'Serving real traffic normally.' },
+  suspended: { label: 'Suspended', tone: 'bg-red-50 text-red-700 border-red-200', blurb: 'Refused outright: its domain(s), webhooks and API domain all get a clear refusal instead of being served.' },
+  disabled: { label: 'Disabled', tone: 'bg-slate-100 text-slate-600 border-slate-300', blurb: 'Refused outright: its domain(s), webhooks and API domain all get a clear refusal instead of being served.' },
+};
+
+function StatusSection({ company, onSaved, showToast }: {
+  company: CompanySummary; onSaved: () => void; showToast: (t: 'success' | 'error', m: string) => void;
+}) {
+  const [confirmingDisable, setConfirmingDisable] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const info = STATUS_INFO[company.status] || STATUS_INFO.disabled;
+
+  const setStatus = async (status: string) => {
+    setSaving(true);
+    try {
+      await companiesApi.updateBasic(company.tenantKey, { status });
+      setConfirmingDisable(false);
+      showToast('success', status === 'active' ? 'Company enabled' : 'Company disabled');
+      onSaved();
+    } catch (err: any) {
+      showToast('error', err.response?.data?.message || 'Failed to update status');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <SectionCard title="Status">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div>
+          <span className={`text-[11px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full border ${info.tone}`}>{info.label}</span>
+          <p className="text-[11px] text-[#94A3B8] mt-1.5 max-w-md">{info.blurb}</p>
+        </div>
+        {company.isDefaultTenant ? (
+          <p className="text-[11px] text-[#94A3B8]">The platform's own company can't be disabled from here.</p>
+        ) : company.status === 'active' || company.status === 'onboarding' ? (
+          <button
+            onClick={() => setConfirmingDisable(true)}
+            disabled={saving}
+            className="text-[12px] font-semibold text-red-600 px-3 py-1.5 rounded-[8px] border border-red-200 hover:bg-red-50 disabled:opacity-50 shrink-0"
+          >
+            Disable
+          </button>
+        ) : (
+          <button
+            onClick={() => setStatus('active')}
+            disabled={saving}
+            className="text-[12px] font-semibold text-white px-3 py-1.5 rounded-[8px] bg-[#00A86B] hover:bg-[#008F5C] disabled:opacity-50 shrink-0"
+          >
+            {saving ? 'Enabling…' : 'Enable'}
+          </button>
+        )}
+      </div>
+      {confirmingDisable && (
+        <div className="mt-3 rounded-[8px] border border-red-200 bg-red-50 p-3">
+          <p className="text-[12px] font-semibold text-red-800">Disable {company.displayName}?</p>
+          <p className="text-[11px] text-red-800 mt-1">Its domain(s), API domain and webhook addresses will all start refusing requests immediately — nothing falls back to another company's data.</p>
+          <div className="flex gap-2 mt-2.5">
+            <button onClick={() => setStatus('disabled')} disabled={saving} className="px-3 py-1.5 rounded-[8px] bg-red-600 text-white text-[12px] font-semibold disabled:opacity-50">{saving ? 'Disabling…' : 'Disable'}</button>
+            <button onClick={() => setConfirmingDisable(false)} disabled={saving} className="px-3 py-1.5 rounded-[8px] border border-[#E2E8F0] text-[12px] text-[#475569] bg-white">Cancel</button>
+          </div>
+        </div>
+      )}
+    </SectionCard>
+  );
+}
+
+function CompanyDetailsModal({ company, onClose, onSaved, showToast }: {
+  company: CompanySummary; onClose: () => void; onSaved: () => void; showToast: (t: 'success' | 'error', m: string) => void;
+}) {
+  const [displayName, setDisplayName] = useState(company.displayName);
+  const [supportEmail, setSupportEmail] = useState(company.branding?.supportEmail || '');
+  const [supportPhone, setSupportPhone] = useState(company.branding?.supportPhone || '');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const save = async () => {
+    if (!displayName.trim()) { setError('Company name is required'); return; }
+    setSaving(true);
+    setError('');
+    try {
+      await companiesApi.updateBasic(company.tenantKey, {
+        displayName: displayName.trim(),
+        supportEmail: supportEmail.trim() || undefined,
+        supportPhone: supportPhone.trim() || undefined,
+      });
+      showToast('success', 'Company details saved');
+      onSaved();
+      onClose();
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to save');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-end md:items-center justify-center z-50 md:p-4" onClick={onClose}>
+      <div className="bg-white rounded-t-[20px] md:rounded-[12px] shadow-xl w-full md:max-w-md relative max-h-[85vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[#E2E8F0] shrink-0">
+          <h3 className="text-[14px] font-semibold text-[#0F172A]">Company Details</h3>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center text-[#94A3B8] hover:text-[#0F172A] hover:bg-[#F8FAFC]"><X className="w-4 h-4" /></button>
+        </div>
+        <div className="px-5 py-4 flex flex-col gap-3 overflow-y-auto min-h-0">
+          <div className="flex flex-col gap-1">
+            <label className="text-[12px] font-semibold text-[#64748B]">Company Name</label>
+            <input value={displayName} onChange={e => setDisplayName(e.target.value)} className="border border-[#E2E8F0] rounded-[8px] px-3 py-2 text-[12px] text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#00A86B]/40 focus:border-[#00A86B] transition-colors" />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[12px] font-semibold text-[#64748B]">Support Email</label>
+            <input value={supportEmail} onChange={e => setSupportEmail(e.target.value)} placeholder="support@acmelogistics.com" className="border border-[#E2E8F0] rounded-[8px] px-3 py-2 text-[12px] text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#00A86B]/40 focus:border-[#00A86B] transition-colors" />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[12px] font-semibold text-[#64748B]">Support Phone</label>
+            <input value={supportPhone} onChange={e => setSupportPhone(e.target.value)} placeholder="+91 90000 00000" className="border border-[#E2E8F0] rounded-[8px] px-3 py-2 text-[12px] text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#00A86B]/40 focus:border-[#00A86B] transition-colors" />
+          </div>
+          {error && <p className="text-[11px] text-red-500">{error}</p>}
+        </div>
+        <div className="flex justify-end gap-2.5 px-5 py-4 border-t border-[#E2E8F0] shrink-0">
+          <button onClick={onClose} className="text-[12px] font-semibold text-[#64748B] px-4 py-2 rounded-[8px] border border-[#E2E8F0] hover:bg-[#F8FAFC]">Cancel</button>
+          <button onClick={save} disabled={saving} className="text-[12px] font-semibold text-white px-4 py-2 rounded-[8px] bg-[#00A86B] hover:bg-[#008F5C] disabled:opacity-50">
+            {saving ? 'Saving…' : 'Save'}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
