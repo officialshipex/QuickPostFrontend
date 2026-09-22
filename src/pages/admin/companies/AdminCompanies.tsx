@@ -10,7 +10,7 @@ import {
   companiesApi, type CompanySummary, type ConfigGroups, type ConfigFieldHint, type GroupStatusMap, type WebhookAddress,
 } from '../../../services/companiesApi';
 import {
-  Plus, ArrowLeft, Building2, Globe, CheckCircle2, Clock, Pencil, X, ChevronRight, Copy,
+  Plus, ArrowLeft, Building2, Globe, CheckCircle2, Clock, Pencil, X, ChevronRight, Copy, ExternalLink,
 } from 'lucide-react';
 
 type View = 'list' | 'create' | 'detail';
@@ -422,6 +422,8 @@ function CompanyDetail({ tenantKey, onBack }: { tenantKey: string; onBack: () =>
     { category: 'storage', label: 'File Storage', keys: groups.storage },
   ];
 
+  const primaryDomain = company.domains.find(d => d.isPrimary)?.hostname || company.domains[0]?.hostname || '';
+
   return (
     <div className="flex flex-col h-[calc(100vh-72px)] -m-4 md:-m-6 bg-white">
       <Toast toast={toast} onClose={() => {}} />
@@ -439,8 +441,19 @@ function CompanyDetail({ tenantKey, onBack }: { tenantKey: string; onBack: () =>
               <Pencil className="w-3.5 h-3.5" />
             </button>
           </div>
-          <p className="text-[12px] text-[#64748B]">{company.tenantKey} · {company.domains[0]?.hostname}</p>
+          <p className="text-[12px] text-[#64748B]">{company.tenantKey} · {primaryDomain}</p>
         </div>
+        {primaryDomain && (
+          <a
+            href={`https://${primaryDomain}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            title={`Open ${primaryDomain} in a new tab`}
+            className="flex items-center gap-1.5 px-3 h-8 rounded-[8px] border border-[#E2E8F0] text-[12px] font-semibold text-[#64748B] hover:text-[#00A86B] hover:bg-[#ECFDF5] transition-colors shrink-0"
+          >
+            <ExternalLink className="w-3.5 h-3.5" /> Visit site
+          </a>
+        )}
       </div>
       {editingDetails && (
         <CompanyDetailsModal company={company} onClose={() => setEditingDetails(false)} onSaved={load} showToast={showToast} />
