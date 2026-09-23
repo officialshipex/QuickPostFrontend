@@ -10,6 +10,7 @@ export interface CompanyBranding {
   logoUrl?: string;
   faviconUrl?: string;
   iconUrl?: string;
+  emptyStateImageUrl?: string;
   colors?: { primary?: string; secondary?: string; accent?: string };
   companyDisplayName?: string;
   supportEmail?: string;
@@ -112,7 +113,7 @@ export const companiesApi = {
     });
   },
 
-  uploadBrandingAsset: (tenantKey: string, kind: 'logo' | 'favicon' | 'icon', file: File) => {
+  uploadBrandingAsset: (tenantKey: string, kind: 'logo' | 'favicon' | 'icon' | 'emptyState', file: File) => {
     const form = new FormData();
     form.append(kind, file);
     return apiClient.post<{ success: boolean; url: string }>(

@@ -22,6 +22,9 @@ type View = 'list' | 'create' | 'detail';
 // is square, so that one stays tight.
 const LOGO_SHAPE = { minWidth: 120, minHeight: 40, aspectRatio: { min: 1, max: 4 }, hint: 'roughly a wide logo, min 120×40px' };
 const FAVICON_SHAPE = { minWidth: 32, minHeight: 32, aspectRatio: { min: 0.9, max: 1.1 }, hint: 'square, min 32×32px' };
+// Shown in an empty table/list instead of the platform's default illustration — roughly
+// square like that default, but with enough tolerance for most simple illustrations.
+const EMPTY_STATE_SHAPE = { minWidth: 150, minHeight: 150, aspectRatio: { min: 0.7, max: 1.4 }, hint: 'roughly square, min 150×150px' };
 
 const STATUS_BADGE: Record<string, string> = {
   onboarding: 'bg-amber-50 text-amber-700 border-amber-200',
@@ -960,7 +963,7 @@ function CompanyDetailsModal({ company, onClose, onSaved, showToast }: {
 function BrandingSection({ company, onSaved, showToast }: {
   company: CompanySummary; onSaved: () => void; showToast: (t: 'success' | 'error', m: string) => void;
 }) {
-  const [uploading, setUploading] = useState<'logo' | 'favicon' | null>(null);
+  const [uploading, setUploading] = useState<'logo' | 'favicon' | 'emptyState' | null>(null);
   const [primaryColor, setPrimaryColor] = useState(company.branding?.colors?.primary || '#00A86B');
   const [secondaryColor, setSecondaryColor] = useState(company.branding?.colors?.secondary || '');
   const [savingColors, setSavingColors] = useState(false);
@@ -975,7 +978,7 @@ function BrandingSection({ company, onSaved, showToast }: {
   const colorsChanged = primaryColor !== (company.branding?.colors?.primary || '#00A86B')
     || secondaryColor !== (company.branding?.colors?.secondary || '');
 
-  const handleReplace = async (kind: 'logo' | 'favicon', file: File) => {
+  const handleReplace = async (kind: 'logo' | 'favicon' | 'emptyState', file: File) => {
     setUploading(kind);
     try {
       await companiesApi.uploadBrandingAsset(company.tenantKey, kind, file);
@@ -1017,8 +1020,15 @@ function BrandingSection({ company, onSaved, showToast }: {
           value={company.branding?.faviconUrl || null}
           onFileValidated={file => handleReplace('favicon', file)}
         />
+        <ImageDimensionUpload
+          label="Empty state picture"
+          {...EMPTY_STATE_SHAPE}
+          value={company.branding?.emptyStateImageUrl || null}
+          onFileValidated={file => handleReplace('emptyState', file)}
+        />
       </div>
       {uploading && <p className="text-[11px] text-[#94A3B8] mt-2">Uploading {uploading}…</p>}
+      <p className="text-[11px] text-[#94A3B8] mt-2">Shown in an empty table or list (e.g. "no orders found"). Leave unset to use the platform's default picture.</p>
 
       <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-[#E2E8F0]">
         <ColorField label="Primary Color" value={primaryColor} onChange={setPrimaryColor} required />
