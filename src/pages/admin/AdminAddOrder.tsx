@@ -64,6 +64,8 @@ export function AdminAddOrder() {
   const [selectedPickupId, setSelectedPickupId] = useState('');
   const [isPickupDropdownOpen, setIsPickupDropdownOpen] = useState(false);
   const pickupDropdownRef = useRef<HTMLDivElement>(null);
+  const [pickupSearchQuery, setPickupSearchQuery] = useState('');
+  const pickupSearchInputRef = useRef<HTMLInputElement>(null);
   const [pickupRefresh, setPickupRefresh] = useState(false);
   const [prefillPickup, setPrefillPickup] = useState<any>(null);
   const [orderOwnerId, setOrderOwnerId] = useState<string | null>(null);
@@ -315,6 +317,30 @@ export function AdminAddOrder() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Reset the filter once the dropdown closes, and focus the search box the
+  // instant it opens — matches the pattern of an industry-standard combobox
+  // (type-to-filter should be immediately usable, not require an extra click).
+  useEffect(() => {
+    if (isPickupDropdownOpen) {
+      const t = setTimeout(() => pickupSearchInputRef.current?.focus(), 50);
+      return () => clearTimeout(t);
+    }
+    setPickupSearchQuery('');
+  }, [isPickupDropdownOpen]);
+
+  const filteredPickupAddresses = React.useMemo(() => {
+    const q = pickupSearchQuery.trim().toLowerCase();
+    if (!q) return pickupAddresses;
+    return pickupAddresses.filter(pa => {
+      const p = pa.pickupAddress;
+      const haystack = [p?.contactName, p?.address, p?.city, p?.state, p?.pinCode]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return haystack.includes(q);
+    });
+  }, [pickupAddresses, pickupSearchQuery]);
 
   // ── Product helpers ──
   const handleAddProduct = () =>
@@ -734,31 +760,79 @@ export function AdminAddOrder() {
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: -8, scale: 0.97 }}
                         transition={{ duration: 0.15, ease: 'easeOut' }}
-                        className="absolute top-[calc(100%+6px)] left-0 w-full bg-white border border-[#E2E8F0] rounded-2xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.15)] z-20 overflow-hidden py-1.5"
+                        className="absolute top-[calc(100%+6px)] left-0 w-full bg-white border border-[#E2E8F0] rounded-2xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.15)] z-20 overflow-hidden"
                       >
-                        <div className="max-h-[280px] overflow-y-auto">
-                          {pickupAddresses.map(pa => {
-                            const isSelected = pa._id === selectedPickupId;
-                            const fullAddress = pa.pickupAddress?.address || '';
-                            return (
+                        {/* Search bar — filters the saved pickup addresses live by name/address/city/pincode */}
+                        <div className="px-2.5 pt-2.5 pb-2 border-b border-[#F1F5F9] sticky top-0 bg-white z-10">
+                          <div className="relative">
+                            <Search className="w-3 h-3 md:w-3.5 md:h-3.5 text-[#94A3B8] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                            <input
+                              ref={pickupSearchInputRef}
+                              type="text"
+                              value={pickupSearchQuery}
+                              onChange={e => setPickupSearchQuery(e.target.value)}
+                              onClick={e => e.stopPropagation()}
+                              onKeyDown={e => {
+                                if (e.key === 'Escape') { setIsPickupDropdownOpen(false); }
+                                if (e.key === 'Enter' && filteredPickupAddresses.length === 1) {
+                                  setSelectedPickupId(filteredPickupAddresses[0]._id);
+                                  setIsPickupDropdownOpen(false);
+                                }
+                              }}
+                              placeholder="Search address"
+                              className="w-full h-9 md:h-8 pl-8 pr-7 border border-[#E2E8F0] rounded-full text-[12.5px] md:text-[12px] bg-[#F8FAFC] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:bg-white focus:ring-1 focus:ring-[#00A86B]/30 transition-colors"
+                            />
+                            {pickupSearchQuery && (
                               <button
-                                key={pa._id}
                                 type="button"
-                                onClick={() => { setSelectedPickupId(pa._id); setIsPickupDropdownOpen(false); }}
-                                className={`w-full text-left px-4 py-2.5 text-[13px] transition-colors flex items-center justify-between gap-3 ${isSelected ? 'bg-[#F0FDF4]' : 'hover:bg-[#F8FAFC]'}`}
+                                onClick={e => { e.stopPropagation(); setPickupSearchQuery(''); pickupSearchInputRef.current?.focus(); }}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center rounded-full text-[#94A3B8] hover:text-[#475569] hover:bg-[#E2E8F0] transition-colors"
                               >
-                                <div className="min-w-0 flex-1">
-                                  <div className={`font-bold truncate ${isSelected ? 'text-[#00A86B]' : 'text-[#0F172A]'}`}>{pa.pickupAddress?.contactName}</div>
-                                  <div className="text-[11px] text-[#94A3B8] truncate">{fullAddress}, {pa.pickupAddress?.city}, {pa.pickupAddress?.pinCode}</div>
-                                </div>
-                                <div className="flex items-center gap-2 shrink-0">
-                                  <AddressAccuracyGauge address={fullAddress} size="sm" showLabel={false} />
-                                  {isSelected && <CheckCircle2 className="w-4 h-4 text-[#00A86B]" />}
-                                </div>
+                                <X className="w-2.5 h-2.5" />
                               </button>
-                            );
-                          })}
+                            )}
+                          </div>
                         </div>
+
+                        <div className="max-h-[280px] overflow-y-auto py-1.5">
+                          {filteredPickupAddresses.length === 0 ? (
+                            <div className="px-4 py-8 text-center">
+                              <Search className="w-5 h-5 text-[#CBD5E1] mx-auto mb-2" />
+                              <p className="text-[12.5px] font-semibold text-[#94A3B8]">No pickup address matches "{pickupSearchQuery}"</p>
+                              <p className="text-[11px] text-[#CBD5E1] mt-0.5">Try a different name, city or pincode</p>
+                            </div>
+                          ) : (
+                            filteredPickupAddresses.map(pa => {
+                              const isSelected = pa._id === selectedPickupId;
+                              const fullAddress = pa.pickupAddress?.address || '';
+                              return (
+                                <button
+                                  key={pa._id}
+                                  type="button"
+                                  onClick={() => { setSelectedPickupId(pa._id); setIsPickupDropdownOpen(false); }}
+                                  className={`w-full text-left px-4 py-2.5 text-[13px] transition-colors flex items-center justify-between gap-3 ${isSelected ? 'bg-[#F0FDF4]' : 'hover:bg-[#F8FAFC]'}`}
+                                >
+                                  <div className="min-w-0 flex-1">
+                                    <div className={`font-bold truncate ${isSelected ? 'text-[#00A86B]' : 'text-[#0F172A]'}`}>{pa.pickupAddress?.contactName}</div>
+                                    <div className="text-[11px] text-[#94A3B8] truncate">{fullAddress}, {pa.pickupAddress?.city}, {pa.pickupAddress?.pinCode}</div>
+                                  </div>
+                                  <div className="flex items-center gap-2 shrink-0">
+                                    <AddressAccuracyGauge address={fullAddress} size="sm" showLabel={false} />
+                                    {isSelected && <CheckCircle2 className="w-4 h-4 text-[#00A86B]" />}
+                                  </div>
+                                </button>
+                              );
+                            })
+                          )}
+                        </div>
+
+                        {pickupSearchQuery && filteredPickupAddresses.length > 0 && (
+                          <div className="px-4 py-1.5 border-t border-[#F1F5F9] bg-[#F8FAFC]">
+                            <p className="text-[10.5px] font-semibold text-[#94A3B8]">
+                              {filteredPickupAddresses.length} of {pickupAddresses.length} address{pickupAddresses.length === 1 ? '' : 'es'}
+                            </p>
+                          </div>
+                        )}
                       </motion.div>
                     )}
                   </AnimatePresence>
@@ -1269,13 +1343,13 @@ export function AdminAddOrder() {
         </div>
 
         {/* ── Footer ── */}
-        <div className="sticky bottom-6 mt-6 bg-white/95 backdrop-blur-md border border-[#E2E8F0] p-4 flex gap-4 z-40 rounded-xl shadow-[0_-4px_24px_-12px_rgba(0,0,0,0.1)]">
+        <div className="sticky bottom-0 md:bottom-6 mt-2 md:mt-6 bg-white/95 backdrop-blur-md border border-[#E2E8F0] rounded-none md:rounded-xl p-4 flex justify-between md:justify-end gap-4 z-40 shadow-[0_-4px_24px_-12px_rgba(0,0,0,0.1)]">
           <button onClick={handleSaveOrder} disabled={submitting}
-            className="flex items-center gap-2 px-8 h-11 bg-[#00A86B] hover:bg-[#009B63] disabled:opacity-60 disabled:cursor-not-allowed text-white text-[13px] font-bold rounded-full transition-colors shadow-sm">
+            className="flex items-center gap-2 px-8 h-11 bg-[#00A86B] hover:bg-[#009B63] active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed disabled:active:scale-100 text-white text-[13px] font-bold rounded-full transition-all duration-150 shadow-sm hover:shadow-md hover:shadow-[#00A86B]/30">
             {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <PackagePlus className="w-4 h-4" />}
             {isUpdate ? 'Update Order' : 'Add Order'}
           </button>
-          <Link to={backPath} className="px-8 h-11 flex items-center border border-[#E2E8F0] text-[#64748B] hover:bg-[#F8FAFC] text-[13px] font-bold rounded-full transition-colors">
+          <Link to={backPath} className="px-8 h-11 flex items-center border border-[#E2E8F0] text-[#64748B] hover:bg-[#F8FAFC] active:scale-95 text-[13px] font-bold rounded-full transition-all duration-150">
             Cancel
           </Link>
         </div>

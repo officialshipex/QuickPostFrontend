@@ -1995,7 +1995,13 @@ export function AdminOrders() {
                         ) : (
                           <>
                             <span className="text-[#64748B] font-medium text-[12px] shrink-0">Order ID</span>
-                            <span className="text-[12px] font-semibold text-[#0F172A] truncate">{order.orderId}</span>
+                            <span
+                              className="text-[12px] font-semibold truncate cursor-pointer hover:underline"
+                              style={{ color: '#009D64' }}
+                              onClick={(e) => { e.stopPropagation(); navigate(`${isAdminView ? '/admin' : '/user'}/order-tracking?id=${order.orderId}`); }}
+                            >
+                              {order.orderId}
+                            </span>
                           </>
                         )}
                       </div>
@@ -2666,7 +2672,7 @@ export function AdminOrders() {
           <ShipOrderModal
             order={shipOrder}
             onClose={() => setShipOrder(null)}
-            onShipped={() => { showToast('success', 'Shipment created successfully'); fetchOrders(page); }}
+            onShipped={() => { showToast('success', 'Shipment created successfully'); handleTabChange('Ready to Ship'); }}
           />
         )}
 
