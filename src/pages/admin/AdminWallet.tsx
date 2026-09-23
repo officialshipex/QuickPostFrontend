@@ -163,7 +163,7 @@ const getStatusBadgeClass = (status: string) => {
 
 export function AdminWallet() {
   const navigate = useNavigate();
-  const { isAdmin, adminTab, loadingAdminTab, currentUserId } = useAdminTab();
+  const { isAdmin, adminTab, loadingAdminTab, currentUserId, walletBalance: ctxWalletBalance, walletHold, creditLimit } = useAdminTab();
   const isAdminView = isAdmin && adminTab;
   // AdminLayout adds a 32px impersonation banner (pt-8) above the page when an
   // admin is impersonating a user — the page height calc must account for it too,
@@ -248,6 +248,17 @@ export function AdminWallet() {
 
   // Wallet Balance State
   const [walletBalance, setWalletBalance] = useState(0);
+
+  // Passbook summary strip — fixed "last 30 days" KPIs shown above the Passbook
+  // table, independent of whatever date range/filters the table itself is using.
+  const [passbookStats, setPassbookStats] = useState({
+    totalCashback: 0,
+    totalCredited: 0,
+    totalDebited: 0,
+    lastRechargeAmount: null as number | null,
+    lastRechargeDate: null as string | null,
+  });
+  const [passbookStatsLoading, setPassbookStatsLoading] = useState(false);
 
   // Server totals for pagination
   const [shippingTotal, setShippingTotal] = useState(0);
@@ -634,6 +645,65 @@ export function AdminWallet() {
     } catch (_) { }
   }, []);
 
+  // Fixed "last 30 days" summary for the Passbook stat strip — deliberately
+  // independent of the table's own date filters/pagination, so it pulls the
+  // full 30-day window itself (high limit, page 1) and aggregates client-side,
+  // since the backend has no dedicated summary endpoint for these totals yet.
+  const fetchPassbookStats = useCallback(async () => {
+    setPassbookStatsLoading(true);
+    try {
+      const now = new Date();
+      const thirtyDaysAgo = new Date(now);
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const fromDate = thirtyDaysAgo.toISOString();
+      const toDate = now.toISOString();
+
+      const baseParams: Record<string, any> = { page: 1, limit: 5000, fromDate, toDate };
+      if (isAdminView) {
+        if (pbUserMongoId) baseParams.userSearch = pbUserMongoId;
+      } else if (currentUserId) {
+        baseParams.userSearch = currentUserId;
+      }
+
+      const [pbRes, rcRes] = await Promise.allSettled([
+        apiClient.get('/adminBilling/allPassbook', { params: baseParams }),
+        apiClient.get('/adminBilling/allTransactionHistory', { params: baseParams }),
+      ]);
+
+      let totalCashback = 0;
+      let totalCredited = 0;
+      let totalDebited = 0;
+      if (pbRes.status === 'fulfilled') {
+        const rows = pbRes.value.data?.results || [];
+        for (const row of rows) {
+          const amount = Number(row.amount) || 0;
+          const isDebit = row.category === 'debit';
+          if (isDebit) totalDebited += amount; else totalCredited += amount;
+          if (String(row.description || '').toLowerCase().includes('cashback')) totalCashback += amount;
+        }
+      }
+
+      let lastRechargeAmount: number | null = null;
+      let lastRechargeDate: string | null = null;
+      if (rcRes.status === 'fulfilled') {
+        const rows = rcRes.value.data?.results || [];
+        const successful = rows
+          .filter((r: any) => (r.status || '').toLowerCase() === 'success')
+          .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        if (successful.length > 0) {
+          lastRechargeAmount = Number(successful[0].amount) || 0;
+          lastRechargeDate = successful[0].date;
+        }
+      }
+
+      setPassbookStats({ totalCashback, totalCredited, totalDebited, lastRechargeAmount, lastRechargeDate });
+    } catch (_) {
+      // Silent — this is a supplementary summary strip, not the primary table data.
+    } finally {
+      setPassbookStatsLoading(false);
+    }
+  }, [isAdminView, currentUserId, pbUserMongoId]);
+
   const fetchShippingData = useCallback(async (page: number) => {
     setIsLoading(true);
     try {
@@ -750,7 +820,7 @@ export function AdminWallet() {
     if (loadingAdminTab) return;
     switch (activeTab) {
       case 'Shipping': fetchShippingData(1); setShippingPage(1); break;
-      case 'Passbook': fetchPassbookData(1); setPassbookPage(1); break;
+      case 'Passbook': fetchPassbookData(1); setPassbookPage(1); fetchPassbookStats(); break;
       case 'Wallet Recharge': fetchRechargeData(1); setRechargePage(1); break;
       case 'Invoices': fetchInvoiceData(1); setInvoicePage(1); break;
     }
@@ -1374,6 +1444,45 @@ export function AdminWallet() {
 
           {activeTab === 'Passbook' && (
             <>
+              {/* ── Passbook Summary Strip — fixed last-30-days KPIs ── */}
+              <div className="border-b border-[#E2E8F0] bg-[#F8FAFC]/40 px-3 md:px-6 py-3 md:py-4">
+                <div className="flex items-center gap-2 mb-2.5">
+                  <h3 className="text-[13px] md:text-[14px] font-bold text-[#0F172A]">Wallet Summary</h3>
+                  <span className="text-[10px] font-semibold text-[#94A3B8] bg-white border border-[#E2E8F0] px-1.5 py-0.5 rounded-full">Last 30 days</span>
+                  {passbookStatsLoading && <RefreshCcw className="w-3 h-3 text-[#94A3B8] animate-spin" />}
+                </div>
+                <div className="flex md:grid md:grid-cols-4 lg:grid-cols-7 gap-2.5 overflow-x-auto md:overflow-visible thin-scrollbar pb-1 md:pb-0">
+                  {[
+                    { label: 'Current Usable Balance', value: `₹${walletBalance.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`, icon: Wallet, tone: 'text-[#0F172A]' },
+                    { label: 'Balance On Hold', value: `₹${walletHold.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`, icon: Clock, tone: 'text-amber-600' },
+                    { label: 'Credit Limit', value: `₹${creditLimit.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`, icon: CreditCard, tone: 'text-[#0F172A]' },
+                    {
+                      label: 'Last Successful Recharge',
+                      value: passbookStats.lastRechargeAmount != null ? `₹${passbookStats.lastRechargeAmount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}` : '—',
+                      sub: passbookStats.lastRechargeDate ? new Date(passbookStats.lastRechargeDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : undefined,
+                      icon: RefreshCcw, tone: 'text-[#0F172A]',
+                    },
+                    { label: 'Total Cashback', value: `₹${passbookStats.totalCashback.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`, icon: TrendingUp, tone: 'text-[#00A86B]' },
+                    { label: 'Amount Credited', value: `₹${passbookStats.totalCredited.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`, icon: ArrowDownCircle, tone: 'text-[#00A86B]' },
+                    { label: 'Amount Debited', value: `₹${passbookStats.totalDebited.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`, icon: ArrowUpCircle, tone: 'text-red-500' },
+                  ].map((stat) => (
+                    <div
+                      key={stat.label}
+                      className="shrink-0 w-[168px] md:w-auto bg-white border border-[#E2E8F0] rounded-xl px-3.5 py-3"
+                    >
+                      <div className="flex items-center gap-1.5 mb-1.5">
+                        <stat.icon className="w-3.5 h-3.5 text-[#94A3B8] shrink-0" />
+                        <span className="text-[11px] font-semibold text-[#64748B] truncate">{stat.label}</span>
+                      </div>
+                      <div className="flex items-baseline gap-1.5">
+                        <span className={`text-[15px] font-bold ${stat.tone} truncate`}>{stat.value}</span>
+                        {stat.sub && <span className="text-[10px] font-medium text-[#94A3B8] shrink-0">{stat.sub}</span>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               {/* Desktop Filters Row */}
               <div className="hidden md:flex py-3 px-6 border-b border-[#CBD5F5] flex-wrap items-center gap-3 bg-[#F8FAFC]/50">
                 {isAdminView && (
