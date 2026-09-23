@@ -1,21 +1,32 @@
 import { useRef, useState } from 'react';
 import { Upload, X, AlertCircle } from 'lucide-react';
 
-// Loads the picked file into an off-DOM Image() and checks naturalWidth/
-// naturalHeight before accepting it — same technique as
+const MAX_FILE_SIZE_MB = 2;
+
+// Loads the picked file into an off-DOM Image() and checks its real
+// dimensions/shape before accepting it — same technique as
 // src/components/ui/ProtectedAdImage.tsx, just used for validation here
 // instead of rendering. This is a client-side convenience check only; the
 // backend does not currently re-validate dimensions on upload.
+//
+// Checks a MINIMUM resolution and an aspect-ratio RANGE rather than one
+// exact pixel size — a real company logo is essentially never a perfect
+// square (ShipexFrontend's own current logo is a ~2.6:1 wide wordmark), so
+// forcing e.g. exactly 512×512 just forces every admin to pre-distort their
+// logo into a square before they can upload it, which is what was actually
+// making logos look wrong everywhere they render downstream.
 export function ImageDimensionUpload({
-  label, requiredWidth, requiredHeight, value, onFileValidated, onClear, required,
+  label, minWidth, minHeight, aspectRatio, value, onFileValidated, onClear, required, hint,
 }: {
   label: string;
-  requiredWidth: number;
-  requiredHeight: number;
+  minWidth: number;
+  minHeight: number;
+  aspectRatio: { min: number; max: number }; // width / height
   value: string | null;
   onFileValidated: (file: File, previewUrl: string) => void;
   onClear?: () => void;
   required?: boolean;
+  hint?: string;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState('');
@@ -24,16 +35,32 @@ export function ImageDimensionUpload({
   const handleFile = (file: File | null) => {
     if (!file) return;
     setError('');
+
+    if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+      setError(`File is too large — please keep it under ${MAX_FILE_SIZE_MB}MB`);
+      return;
+    }
+
     setChecking(true);
     const objectUrl = URL.createObjectURL(file);
     const img = new Image();
     img.onload = () => {
       setChecking(false);
-      if (img.naturalWidth !== requiredWidth || img.naturalHeight !== requiredHeight) {
-        setError(`Must be exactly ${requiredWidth}×${requiredHeight}px (this is ${img.naturalWidth}×${img.naturalHeight}px)`);
+      const { naturalWidth: w, naturalHeight: h } = img;
+
+      if (w < minWidth || h < minHeight) {
+        setError(`Too small — needs to be at least ${minWidth}×${minHeight}px (this is ${w}×${h}px)`);
         URL.revokeObjectURL(objectUrl);
         return;
       }
+
+      const ratio = w / h;
+      if (ratio < aspectRatio.min || ratio > aspectRatio.max) {
+        setError(`Wrong shape for this spot (this image is ${w}×${h}px) — ${hint || 'try a different image'}`);
+        URL.revokeObjectURL(objectUrl);
+        return;
+      }
+
       onFileValidated(file, objectUrl);
     };
     img.onerror = () => {
@@ -48,7 +75,7 @@ export function ImageDimensionUpload({
     <div className="flex flex-col gap-1">
       <label className="text-[12px] font-semibold text-[#64748B]">
         {label}{required && <span className="text-red-500"> *</span>}
-        <span className="text-[#94A3B8] font-normal"> ({requiredWidth}×{requiredHeight}px)</span>
+        {hint && <span className="text-[#94A3B8] font-normal"> ({hint})</span>}
       </label>
       <div className="flex items-center gap-3">
         {value ? (

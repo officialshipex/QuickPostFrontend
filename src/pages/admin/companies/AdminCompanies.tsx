@@ -15,9 +15,13 @@ import {
 
 type View = 'list' | 'create' | 'detail';
 
-// Placeholder dimensions — adjust here if the brand has exact specs in mind.
-const LOGO_DIMENSIONS = { width: 512, height: 512 };
-const FAVICON_DIMENSIONS = { width: 32, height: 32 };
+// A logo is a wide wordmark/banner in practice (ShipexFrontend's own current
+// logo is ~2.6:1), never a forced square — the shape check below is a range,
+// not one exact size, so an admin can upload a company's real logo as-is
+// instead of having to pre-distort it into a square first. A favicon really
+// is square, so that one stays tight.
+const LOGO_SHAPE = { minWidth: 120, minHeight: 40, aspectRatio: { min: 1, max: 4 }, hint: 'roughly a wide logo, min 120×40px' };
+const FAVICON_SHAPE = { minWidth: 32, minHeight: 32, aspectRatio: { min: 0.9, max: 1.1 }, hint: 'square, min 32×32px' };
 
 const STATUS_BADGE: Record<string, string> = {
   onboarding: 'bg-amber-50 text-amber-700 border-amber-200',
@@ -281,8 +285,7 @@ function CompanyCreateForm({ onBack, onCreated }: { onBack: () => void; onCreate
         <div className="grid grid-cols-2 gap-4">
           <ImageDimensionUpload
             label="Logo"
-            requiredWidth={LOGO_DIMENSIONS.width}
-            requiredHeight={LOGO_DIMENSIONS.height}
+            {...LOGO_SHAPE}
             value={logoPreview}
             required
             onFileValidated={(file, preview) => { setLogoFile(file); setLogoPreview(preview); }}
@@ -290,8 +293,7 @@ function CompanyCreateForm({ onBack, onCreated }: { onBack: () => void; onCreate
           />
           <ImageDimensionUpload
             label="Favicon"
-            requiredWidth={FAVICON_DIMENSIONS.width}
-            requiredHeight={FAVICON_DIMENSIONS.height}
+            {...FAVICON_SHAPE}
             value={faviconPreview}
             onFileValidated={(file, preview) => { setFaviconFile(file); setFaviconPreview(preview); }}
             onClear={() => { setFaviconFile(null); setFaviconPreview(null); }}
@@ -959,6 +961,19 @@ function BrandingSection({ company, onSaved, showToast }: {
   company: CompanySummary; onSaved: () => void; showToast: (t: 'success' | 'error', m: string) => void;
 }) {
   const [uploading, setUploading] = useState<'logo' | 'favicon' | null>(null);
+  const [primaryColor, setPrimaryColor] = useState(company.branding?.colors?.primary || '#00A86B');
+  const [secondaryColor, setSecondaryColor] = useState(company.branding?.colors?.secondary || '');
+  const [savingColors, setSavingColors] = useState(false);
+
+  // Re-sync the color fields if a different company's data loads into this
+  // same mounted section (list -> detail -> back -> a different company).
+  useEffect(() => {
+    setPrimaryColor(company.branding?.colors?.primary || '#00A86B');
+    setSecondaryColor(company.branding?.colors?.secondary || '');
+  }, [company.tenantKey, company.branding?.colors?.primary, company.branding?.colors?.secondary]);
+
+  const colorsChanged = primaryColor !== (company.branding?.colors?.primary || '#00A86B')
+    || secondaryColor !== (company.branding?.colors?.secondary || '');
 
   const handleReplace = async (kind: 'logo' | 'favicon', file: File) => {
     setUploading(kind);
@@ -972,26 +987,52 @@ function BrandingSection({ company, onSaved, showToast }: {
     }
   };
 
+  const saveColors = async () => {
+    setSavingColors(true);
+    try {
+      await companiesApi.updateBasic(company.tenantKey, {
+        colors: { primary: primaryColor, ...(secondaryColor ? { secondary: secondaryColor } : {}) },
+      });
+      showToast('success', 'Colors updated');
+      onSaved();
+    } catch (err: any) {
+      showToast('error', err.response?.data?.message || 'Failed to update colors');
+    } finally {
+      setSavingColors(false);
+    }
+  };
+
   return (
     <SectionCard title="Branding">
       <div className="grid grid-cols-2 gap-4">
         <ImageDimensionUpload
           label="Logo"
-          requiredWidth={LOGO_DIMENSIONS.width}
-          requiredHeight={LOGO_DIMENSIONS.height}
+          {...LOGO_SHAPE}
           value={company.branding?.logoUrl || null}
           onFileValidated={file => handleReplace('logo', file)}
         />
         <ImageDimensionUpload
           label="Favicon"
-          requiredWidth={FAVICON_DIMENSIONS.width}
-          requiredHeight={FAVICON_DIMENSIONS.height}
+          {...FAVICON_SHAPE}
           value={company.branding?.faviconUrl || null}
           onFileValidated={file => handleReplace('favicon', file)}
         />
       </div>
       {uploading && <p className="text-[11px] text-[#94A3B8] mt-2">Uploading {uploading}…</p>}
-      <p className="text-[11px] text-[#94A3B8] mt-3">Colors: primary {company.branding?.colors?.primary || '—'}{company.branding?.colors?.secondary ? `, secondary ${company.branding.colors.secondary}` : ''}</p>
+
+      <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-[#E2E8F0]">
+        <ColorField label="Primary Color" value={primaryColor} onChange={setPrimaryColor} required />
+        <ColorField label="Secondary Color" value={secondaryColor} onChange={setSecondaryColor} />
+      </div>
+      <div className="flex justify-end mt-2">
+        <button
+          onClick={saveColors}
+          disabled={savingColors || !colorsChanged}
+          className="text-[12px] font-semibold text-white px-4 py-2 rounded-[8px] bg-[#00A86B] hover:bg-[#008F5C] disabled:opacity-50"
+        >
+          {savingColors ? 'Saving…' : 'Save colors'}
+        </button>
+      </div>
     </SectionCard>
   );
 }
