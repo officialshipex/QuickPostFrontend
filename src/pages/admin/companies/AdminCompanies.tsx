@@ -1199,6 +1199,7 @@ function BillingDetailsSection({ company, onSaved, showToast }: { company: Compa
   const [gstin, setGstin] = useState(bd.gstin || '');
   const [pan, setPan] = useState(bd.pan || '');
   const [cin, setCin] = useState(bd.cin || '');
+  const [invoicePrefix, setInvoicePrefix] = useState(bd.invoicePrefix || '');
   const [accountName, setAccountName] = useState(bd.bank?.accountName || '');
   const [accountNumber, setAccountNumber] = useState(bd.bank?.accountNumber || '');
   const [bankName, setBankName] = useState(bd.bank?.bankName || '');
@@ -1212,6 +1213,7 @@ function BillingDetailsSection({ company, onSaved, showToast }: { company: Compa
     setGstin(bd.gstin || '');
     setPan(bd.pan || '');
     setCin(bd.cin || '');
+    setInvoicePrefix(bd.invoicePrefix || '');
     setAccountName(bd.bank?.accountName || '');
     setAccountNumber(bd.bank?.accountNumber || '');
     setBankName(bd.bank?.bankName || '');
@@ -1233,6 +1235,7 @@ function BillingDetailsSection({ company, onSaved, showToast }: { company: Compa
           gstin: gstin.trim(),
           pan: pan.trim(),
           cin: cin.trim(),
+          invoicePrefix: invoicePrefix.trim().toUpperCase(),
           bank: {
             accountName: accountName.trim(),
             accountNumber: accountNumber.trim(),
@@ -1269,6 +1272,7 @@ function BillingDetailsSection({ company, onSaved, showToast }: { company: Compa
             <p className="mt-1"><strong className="text-[#0F172A]">Address:</strong> {bd.address || '—'}</p>
             <p className="mt-1"><strong className="text-[#0F172A]">Phone:</strong> {bd.phone || '—'}</p>
             <p className="mt-1"><strong className="text-[#0F172A]">Email:</strong> {bd.email || '—'}</p>
+            <p className="mt-1"><strong className="text-[#0F172A]">Invoice Prefix:</strong> {bd.invoicePrefix || 'Default (QPS / SFC)'}</p>
           </div>
           <div>
             <p><strong className="text-[#0F172A]">GSTIN:</strong> {bd.gstin || '—'}</p>
@@ -1296,13 +1300,17 @@ function BillingDetailsSection({ company, onSaved, showToast }: { company: Compa
               <label className="text-[11px] font-semibold text-[#64748B]">Email</label>
               <input value={email} onChange={e => setEmail(e.target.value)} placeholder="support@quickpost.in" className="w-full mt-1 border border-[#E2E8F0] rounded-[6px] px-2.5 py-1.5 text-[12px]" />
             </div>
-            <div className="md:col-span-2">
-              <label className="text-[11px] font-semibold text-[#64748B]">Registered Address</label>
-              <input value={address} onChange={e => setAddress(e.target.value)} placeholder="Registered office address" className="w-full mt-1 border border-[#E2E8F0] rounded-[6px] px-2.5 py-1.5 text-[12px]" />
+            <div>
+              <label className="text-[11px] font-semibold text-[#64748B]">Invoice Number Prefix</label>
+              <input value={invoicePrefix} onChange={e => setInvoicePrefix(e.target.value)} placeholder="e.g. QPS, SHX, ACME" className="w-full mt-1 border border-[#E2E8F0] rounded-[6px] px-2.5 py-1.5 text-[12px]" />
             </div>
             <div>
               <label className="text-[11px] font-semibold text-[#64748B]">PAN</label>
               <input value={pan} onChange={e => setPan(e.target.value)} placeholder="PAN Number" className="w-full mt-1 border border-[#E2E8F0] rounded-[6px] px-2.5 py-1.5 text-[12px]" />
+            </div>
+            <div className="md:col-span-2">
+              <label className="text-[11px] font-semibold text-[#64748B]">Registered Address</label>
+              <input value={address} onChange={e => setAddress(e.target.value)} placeholder="Registered office address" className="w-full mt-1 border border-[#E2E8F0] rounded-[6px] px-2.5 py-1.5 text-[12px]" />
             </div>
             <div>
               <label className="text-[11px] font-semibold text-[#64748B]">CIN</label>

@@ -17,6 +17,23 @@ export interface CompanyBranding {
   supportPhone?: string;
 }
 
+export interface CompanyBillingDetails {
+  companyName?: string;
+  address?: string;
+  phone?: string;
+  email?: string;
+  gstin?: string;
+  pan?: string;
+  cin?: string;
+  invoicePrefix?: string;
+  bank?: {
+    accountName?: string;
+    accountNumber?: string;
+    bankName?: string;
+    ifsc?: string;
+  };
+}
+
 export interface CompanySummary {
   tenantKey: string;
   displayName: string;
@@ -24,6 +41,7 @@ export interface CompanySummary {
   status: 'onboarding' | 'active' | 'suspended' | 'disabled';
   isDefaultTenant: boolean;
   branding?: CompanyBranding;
+  billingDetails?: CompanyBillingDetails;
   // The address this company's backend is reached at for callback/webhook URLs (couriers, Razorpay, AI calling);
   // unset = the platform's shared address. Absent from a backend that predates the setting.
   apiDomain?: string;
