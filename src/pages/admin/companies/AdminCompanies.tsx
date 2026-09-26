@@ -473,6 +473,7 @@ function CompanyDetail({ tenantKey, onBack }: { tenantKey: string; onBack: () =>
         <div className="max-w-3xl w-full mx-auto px-4 md:px-6 py-6 flex flex-col gap-4">
           <StatusSection company={company} onSaved={load} showToast={showToast} />
           <BrandingSection company={company} onSaved={load} showToast={showToast} />
+          <BillingDetailsSection company={company} onSaved={load} showToast={showToast} />
           <DomainsSection company={company} onSaved={load} showToast={showToast} />
 
           {groupSections.map(section => (
@@ -1181,5 +1182,158 @@ function GroupEditModal({ tenantKey, category, keyName, groupKey, serverFields, 
         </div>
       </div>
     </div>
+  );
+}
+
+
+function BillingDetailsSection({ company, onSaved, showToast }: { company: CompanyDetail; onSaved: () => void; showToast: (type: 'success' | 'error', msg: string) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const bd = company.billingDetails || {};
+  const [companyName, setCompanyName] = useState(bd.companyName || '');
+  const [address, setAddress] = useState(bd.address || '');
+  const [phone, setPhone] = useState(bd.phone || '');
+  const [email, setEmail] = useState(bd.email || '');
+  const [gstin, setGstin] = useState(bd.gstin || '');
+  const [pan, setPan] = useState(bd.pan || '');
+  const [cin, setCin] = useState(bd.cin || '');
+  const [accountName, setAccountName] = useState(bd.bank?.accountName || '');
+  const [accountNumber, setAccountNumber] = useState(bd.bank?.accountNumber || '');
+  const [bankName, setBankName] = useState(bd.bank?.bankName || '');
+  const [ifsc, setIfsc] = useState(bd.bank?.ifsc || '');
+
+  const startEdit = () => {
+    setCompanyName(bd.companyName || '');
+    setAddress(bd.address || '');
+    setPhone(bd.phone || '');
+    setEmail(bd.email || '');
+    setGstin(bd.gstin || '');
+    setPan(bd.pan || '');
+    setCin(bd.cin || '');
+    setAccountName(bd.bank?.accountName || '');
+    setAccountNumber(bd.bank?.accountNumber || '');
+    setBankName(bd.bank?.bankName || '');
+    setIfsc(bd.bank?.ifsc || '');
+    setError('');
+    setEditing(true);
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    setError('');
+    try {
+      await companiesApi.patch(company.tenantKey, {
+        billingDetails: {
+          companyName: companyName.trim(),
+          address: address.trim(),
+          phone: phone.trim(),
+          email: email.trim(),
+          gstin: gstin.trim(),
+          pan: pan.trim(),
+          cin: cin.trim(),
+          bank: {
+            accountName: accountName.trim(),
+            accountNumber: accountNumber.trim(),
+            bankName: bankName.trim(),
+            ifsc: ifsc.trim(),
+          },
+        },
+      });
+      setEditing(false);
+      onSaved();
+      showToast('success', 'Billing details updated');
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to save billing details');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <SectionCard title="Invoice Billing & Tax Details">
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-[12px] text-[#64748B]">These details appear on tax invoices, manifests, and billing receipts generated for this company.</p>
+        {!editing && (
+          <button onClick={startEdit} className="p-1.5 rounded-[6px] text-[#94A3B8] hover:text-[#00A86B] hover:bg-[#ECFDF5] transition-colors">
+            <Pencil className="w-3.5 h-3.5" />
+          </button>
+        )}
+      </div>
+
+      {!editing ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-[12px] text-[#334155] bg-[#F8FAFC] border border-[#E2E8F0] p-4 rounded-[10px]">
+          <div>
+            <p><strong className="text-[#0F172A]">Company Name:</strong> {bd.companyName || 'Default / Not set'}</p>
+            <p className="mt-1"><strong className="text-[#0F172A]">Address:</strong> {bd.address || '—'}</p>
+            <p className="mt-1"><strong className="text-[#0F172A]">Phone:</strong> {bd.phone || '—'}</p>
+            <p className="mt-1"><strong className="text-[#0F172A]">Email:</strong> {bd.email || '—'}</p>
+          </div>
+          <div>
+            <p><strong className="text-[#0F172A]">GSTIN:</strong> {bd.gstin || '—'}</p>
+            <p className="mt-1"><strong className="text-[#0F172A]">PAN:</strong> {bd.pan || '—'}</p>
+            <p className="mt-1"><strong className="text-[#0F172A]">CIN:</strong> {bd.cin || '—'}</p>
+            <p className="mt-1"><strong className="text-[#0F172A]">Bank:</strong> {bd.bank?.bankName ? `${bd.bank.bankName} (${bd.bank.accountNumber || ''})` : '—'}</p>
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3 p-4 bg-[#F8FAFC] border border-[#E2E8F0] rounded-[10px]">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className="text-[11px] font-semibold text-[#64748B]">Legal Billing Name</label>
+              <input value={companyName} onChange={e => setCompanyName(e.target.value)} placeholder="e.g. Quickpost360 Services Pvt Ltd" className="w-full mt-1 border border-[#E2E8F0] rounded-[6px] px-2.5 py-1.5 text-[12px]" />
+            </div>
+            <div>
+              <label className="text-[11px] font-semibold text-[#64748B]">GSTIN</label>
+              <input value={gstin} onChange={e => setGstin(e.target.value)} placeholder="06AABCQ1885H1ZC" className="w-full mt-1 border border-[#E2E8F0] rounded-[6px] px-2.5 py-1.5 text-[12px]" />
+            </div>
+            <div>
+              <label className="text-[11px] font-semibold text-[#64748B]">Phone</label>
+              <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="+91-9813981344" className="w-full mt-1 border border-[#E2E8F0] rounded-[6px] px-2.5 py-1.5 text-[12px]" />
+            </div>
+            <div>
+              <label className="text-[11px] font-semibold text-[#64748B]">Email</label>
+              <input value={email} onChange={e => setEmail(e.target.value)} placeholder="support@quickpost.in" className="w-full mt-1 border border-[#E2E8F0] rounded-[6px] px-2.5 py-1.5 text-[12px]" />
+            </div>
+            <div className="md:col-span-2">
+              <label className="text-[11px] font-semibold text-[#64748B]">Registered Address</label>
+              <input value={address} onChange={e => setAddress(e.target.value)} placeholder="Registered office address" className="w-full mt-1 border border-[#E2E8F0] rounded-[6px] px-2.5 py-1.5 text-[12px]" />
+            </div>
+            <div>
+              <label className="text-[11px] font-semibold text-[#64748B]">PAN</label>
+              <input value={pan} onChange={e => setPan(e.target.value)} placeholder="PAN Number" className="w-full mt-1 border border-[#E2E8F0] rounded-[6px] px-2.5 py-1.5 text-[12px]" />
+            </div>
+            <div>
+              <label className="text-[11px] font-semibold text-[#64748B]">CIN</label>
+              <input value={cin} onChange={e => setCin(e.target.value)} placeholder="Corporate Identity Number" className="w-full mt-1 border border-[#E2E8F0] rounded-[6px] px-2.5 py-1.5 text-[12px]" />
+            </div>
+            <div>
+              <label className="text-[11px] font-semibold text-[#64748B]">Bank Name</label>
+              <input value={bankName} onChange={e => setBankName(e.target.value)} placeholder="Indusind Bank Limited" className="w-full mt-1 border border-[#E2E8F0] rounded-[6px] px-2.5 py-1.5 text-[12px]" />
+            </div>
+            <div>
+              <label className="text-[11px] font-semibold text-[#64748B]">Bank Account Name</label>
+              <input value={accountName} onChange={e => setAccountName(e.target.value)} placeholder="Account Name" className="w-full mt-1 border border-[#E2E8F0] rounded-[6px] px-2.5 py-1.5 text-[12px]" />
+            </div>
+            <div>
+              <label className="text-[11px] font-semibold text-[#64748B]">Account Number</label>
+              <input value={accountNumber} onChange={e => setAccountNumber(e.target.value)} placeholder="Account Number" className="w-full mt-1 border border-[#E2E8F0] rounded-[6px] px-2.5 py-1.5 text-[12px]" />
+            </div>
+            <div>
+              <label className="text-[11px] font-semibold text-[#64748B]">IFSC Code</label>
+              <input value={ifsc} onChange={e => setIfsc(e.target.value)} placeholder="INDB0000673" className="w-full mt-1 border border-[#E2E8F0] rounded-[6px] px-2.5 py-1.5 text-[12px]" />
+            </div>
+          </div>
+          {error && <p className="text-[11px] text-red-500">{error}</p>}
+          <div className="flex justify-end gap-2 mt-2">
+            <button onClick={() => setEditing(false)} disabled={saving} className="text-[12px] font-semibold text-[#64748B] px-3 py-1.5 rounded-[8px] border border-[#E2E8F0] hover:bg-[#F8FAFC]">Cancel</button>
+            <button onClick={handleSave} disabled={saving} className="text-[12px] font-semibold text-white px-3 py-1.5 rounded-[8px] bg-[#00A86B] hover:bg-[#008F5C]">
+              {saving ? 'Saving…' : 'Save Billing Details'}
+            </button>
+          </div>
+        </div>
+      )}
+    </SectionCard>
   );
 }
