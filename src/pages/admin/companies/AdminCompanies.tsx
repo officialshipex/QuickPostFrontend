@@ -1186,7 +1186,7 @@ function GroupEditModal({ tenantKey, category, keyName, groupKey, serverFields, 
 }
 
 
-function BillingDetailsSection({ company, onSaved, showToast }: { company: CompanyDetail; onSaved: () => void; showToast: (type: 'success' | 'error', msg: string) => void }) {
+function BillingDetailsSection({ company, onSaved, showToast }: { company: CompanySummary; onSaved: () => void; showToast: (type: 'success' | 'error', msg: string) => void }) {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -1226,7 +1226,7 @@ function BillingDetailsSection({ company, onSaved, showToast }: { company: Compa
     setSaving(true);
     setError('');
     try {
-      await companiesApi.patch(company.tenantKey, {
+      await companiesApi.updateBasic(company.tenantKey, {
         billingDetails: {
           companyName: companyName.trim(),
           address: address.trim(),
