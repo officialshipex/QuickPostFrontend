@@ -60,8 +60,13 @@ export function AddServiceModal({ isOpen, onClose, courier, onSuccess, editData 
         const res = await apiClient.get('/NimbusPost/getCourierServices');
         setProviderServices((res.data || []).map((i: any) => ({ service: i.service || i })));
       } else if (p === 'xpressbees') {
+        // Keep Xpressbees' own courier id: bookings send it so Xpressbees
+        // ships exactly the service that was priced.
         const res = await apiClient.get('/Xpressbees/getCourierList');
-        setProviderServices((res.data || []).map((i: any) => ({ service: i.service || i })));
+        setProviderServices((res.data || []).map((i: any) => ({
+          service: i.service || i,
+          courier_id: i.courier_id ?? i.provider_courier_id,
+        })));
       } else if (p === 'dtdc') {
         setProviderServices(DTDC_SERVICES.map(s => ({ service: s })));
       }
@@ -74,8 +79,8 @@ export function AddServiceModal({ isOpen, onClose, courier, onSuccess, editData 
 
   const handleCourierSelect = (value: string) => {
     setCourierField(value);
-    // For Shiprocket, auto-fill courier_id from the fetched service list
-    if (p === 'shiprocket') {
+    // For Shiprocket and Xpressbees, auto-fill courier_id from the fetched service list
+    if (p === 'shiprocket' || p === 'xpressbees') {
       const found = providerServices.find(s => s.service === value);
       setCourierId(found?.courier_id != null ? String(found.courier_id) : '');
     }
