@@ -9,6 +9,7 @@ import OrderBooked, { subject as bookedSubject } from "./templates/OrderBooked";
 import OrderShipped, { subject as shippedSubject } from "./templates/OrderShipped";
 import OutForDelivery, { subject as ofdSubject } from "./templates/OutForDelivery";
 import OrderDelivered, { subject as deliveredSubject } from "./templates/OrderDelivered";
+import WalletRecharge, { subject as walletSubject } from "./templates/WalletRecharge";
 
 export { renderEmail } from "./render";
 export { default as EmailLayout } from "./components/EmailLayout";
@@ -26,4 +27,5 @@ export const templates = {
   orderShipped: { component: OrderShipped, subject: shippedSubject },
   outForDelivery: { component: OutForDelivery, subject: ofdSubject },
   orderDelivered: { component: OrderDelivered, subject: deliveredSubject },
+  walletRecharge: { component: WalletRecharge, subject: walletSubject },
 };
