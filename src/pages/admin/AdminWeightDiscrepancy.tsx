@@ -406,10 +406,10 @@ export function AdminWeightDiscrepancy() {
   const handleWdUpload = async (file: File): Promise<string> => {
     const fd = new FormData();
     fd.append('file', file);
-    await apiClient.post('/dispreancy/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+    const res = await apiClient.post('/dispreancy/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
     fetchDiscrepancy();
     fetchCounts();
-    return 'Weight discrepancy uploaded successfully!';
+    return res.data?.message || 'Weight discrepancy uploaded successfully!';
   };
 
   const actionMenuRef = useRef<HTMLDivElement>(null);

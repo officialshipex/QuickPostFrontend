@@ -531,6 +531,10 @@ export function AdminOrders() {
   const [repeatCustomerPopover, setRepeatCustomerPopover] = useState<{ rect: DOMRect; key: string } | null>(null);
   const [revealedPhones, setRevealedPhones] = useState<Set<string>>(new Set());
 
+  // ── AI Order Verification (Ready to Ship tab) ──
+  const [aiVerifyEnabled, setAiVerifyEnabled] = useState(false);
+  const [verifyingOrders, setVerifyingOrders] = useState(false);
+
   // ── Update Package Details modal ──
   const [showPackageModal,  setShowPackageModal]  = useState(false);
   const [packageForm,       setPackageForm]        = useState({ weight: '', length: '', width: '', height: '' });
@@ -637,6 +641,24 @@ export function AdminOrders() {
       showMobileToast('error', `Failed to copy ${label}.`);
     }
   };
+
+  // ── Fetch AI verify setting on mount (same gate as ShipexFrontend's BookedOrders.jsx) ──
+  useEffect(() => {
+    const fetchAiSettings = async () => {
+      try {
+        const res = await apiClient.get('/ai-calling/settings');
+        if (res.data?.success) {
+          setAiVerifyEnabled(
+            res.data.isAiOrderVerifyEnable === true &&
+            res.data.isAdminAiOrderVerifyEnable !== false
+          );
+        }
+      } catch (e) {
+        console.error('AI settings fetch failed:', e);
+      }
+    };
+    fetchAiSettings();
+  }, []);
 
   // ── Global search (header bar) ──
   const [globalSearchQuery, setGlobalSearchQuery] = useState((window as any).__adminSearchQuery?.toLowerCase() || '');
@@ -1126,6 +1148,30 @@ export function AdminOrders() {
     }
   };
 
+  // AI Order Verification — only meaningful for orders already Booked with a
+  // courier (the "Ready to Ship" tab), same as ShipexFrontend's BookedOrders.jsx
+  // handleBulkVerifyOrders. The backend re-checks status === "Booked" and the
+  // account's AI-calling toggle per order, so this is a UX gate, not the only one.
+  const handleBulkVerifyOrders = async () => {
+    if (!aiVerifyEnabled) {
+      showToast('error', 'Enable AI Order Verification in Settings → Notification → AI Smart Calling first.');
+      return;
+    }
+    if (selectedOrders.length === 0) return;
+    try {
+      setVerifyingOrders(true);
+      showToast('success', `Initiating AI verification for ${selectedOrders.length} order(s)...`);
+      const res = await apiClient.post('/ai-calling/initiate', { orderIds: selectedOrders, serviceType: 'order_verification' });
+      if (res.data?.success) showToast('success', res.data.message || 'AI verification calls initiated.');
+      else showToast('error', res.data?.message || 'Bulk verification failed.');
+      setSelectedOrders([]);
+    } catch (error: any) {
+      showToast('error', error?.response?.data?.message || 'Failed to initiate AI verification.');
+    } finally {
+      setVerifyingOrders(false);
+    }
+  };
+
   // ── Tab-specific boolean helpers ──
   const isPMTab  = activeTab === 'Pickup & Manifest';
   const isNewTab = activeTab === 'New';
@@ -1156,7 +1202,6 @@ export function AdminOrders() {
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { handleBulkShipClick(); closeMenu(); }}>Bulk Ship</button>
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { setShowPackageModal(true); closeMenu(); }}>Update Package Details</button>
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { openPickupModal(); closeMenu(); }}>Update Pickup Address</button>
-        <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { handleBulkLabel(selectedOrders); closeMenu(); }}>Verify Orders</button>
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { setShowExportModal(true); closeMenu(); }}>Export Excel</button>
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { handleBulkInvoice(selectedOrders); closeMenu(); }}>Download Invoices</button>
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#EF4444] hover:bg-red-50 mt-1 cursor-pointer" onClick={() => { handleBulkDelete(); closeMenu(); }}>Bulk Delete</button>
@@ -1169,6 +1214,15 @@ export function AdminOrders() {
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { handleBulkLabel(selectedOrders); closeMenu(); }}>Download Labels</button>
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { handleBulkInvoice(selectedOrders); closeMenu(); }}>Download Invoices</button>
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { handleBulkManifest(selectedOrders); closeMenu(); }}>Download Manifests</button>
+        {!isAdminView && (
+          <button
+            className={`w-full text-left px-4 py-2.5 text-[13px] font-medium cursor-pointer ${aiVerifyEnabled ? 'text-[#0CBB7D] hover:bg-green-50' : 'text-gray-400 cursor-not-allowed'}`}
+            title={aiVerifyEnabled ? '' : 'Enable AI Calling in Settings first'}
+            onClick={() => { if (aiVerifyEnabled) { handleBulkVerifyOrders(); closeMenu(); } }}
+          >
+            {verifyingOrders ? 'Verifying...' : 'Verify Orders'}
+          </button>
+        )}
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#EF4444] hover:bg-red-50 mt-1 cursor-pointer" onClick={() => { handleBulkCancel(); closeMenu(); }}>Bulk Cancel</button>
       </>
     );
@@ -1198,6 +1252,21 @@ export function AdminOrders() {
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { handleInvoice(rowOrder._id); close(); }}>Download Invoice</button>
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { handleManifest(rowOrder._id); close(); }}>Download Manifest</button>
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { navigate(`${isAdminView ? '/admin' : '/user'}/add-order?cloneId=${rowOrder._id}`); close(); }}>Clone Order</button>
+        {!isAdminView && ['Booked', 'Not Picked', 'Ready To Ship'].includes(rowOrder.status) && (
+          <button
+            className={`w-full text-left px-4 py-2.5 text-[13px] font-medium cursor-pointer ${aiVerifyEnabled ? 'text-[#0CBB7D] hover:bg-green-50' : 'text-gray-400 cursor-not-allowed'}`}
+            title={aiVerifyEnabled ? '' : 'Enable AI Calling in Settings first'}
+            onClick={() => {
+              if (!aiVerifyEnabled) return;
+              apiClient.post('/ai-calling/initiate', { orderId: rowOrder._id, serviceType: 'order_verification' })
+                .then(res => showToast(res.data?.success ? 'success' : 'error', res.data?.message || (res.data?.success ? 'AI verification call initiated.' : 'Failed to initiate call.')))
+                .catch((err: any) => showToast('error', err?.response?.data?.message || 'Failed to initiate call.'));
+              close();
+            }}
+          >
+            Verify Order
+          </button>
+        )}
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#EF4444] hover:bg-red-50 mt-1 cursor-pointer" onClick={() => { handleCancelOrder(rowOrder); close(); }}>Cancel Order</button>
       </>
     );
@@ -1583,6 +1652,16 @@ export function AdminOrders() {
               <button onClick={() => handleBulkInvoice(selectedOrders)} className="h-8 px-3 rounded-md bg-white border border-blue-200 text-xs font-bold text-blue-700 shadow-sm hover:bg-blue-50 cursor-pointer">Download Invoices</button>
               {activeTab === 'Ready to Ship' && (
                 <button onClick={() => handleBulkManifest(selectedOrders)} className="h-8 px-3 rounded-md bg-white border border-blue-200 text-xs font-bold text-blue-700 shadow-sm hover:bg-blue-50 cursor-pointer">Download Manifests</button>
+              )}
+              {activeTab === 'Ready to Ship' && !isAdminView && (
+                <button
+                  onClick={handleBulkVerifyOrders}
+                  disabled={!aiVerifyEnabled}
+                  title={aiVerifyEnabled ? '' : 'Enable AI Calling in Settings first'}
+                  className={`h-8 px-3 rounded-md border text-xs font-bold shadow-sm ${aiVerifyEnabled ? 'bg-white border-green-200 text-green-700 hover:bg-green-50 cursor-pointer' : 'bg-slate-50 border-slate-200 text-slate-400 cursor-not-allowed'}`}
+                >
+                  {verifyingOrders ? 'Verifying...' : 'Verify Orders'}
+                </button>
               )}
               {isNewTab && (
                 <button onClick={handleBulkDelete} className="h-8 px-3 rounded-md bg-white border border-red-200 text-xs font-bold text-red-600 shadow-sm ml-auto hover:bg-red-50 cursor-pointer">Bulk Delete</button>

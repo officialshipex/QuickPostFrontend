@@ -13,6 +13,10 @@ apiClient.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  const devTenant = localStorage.getItem('dev_tenant_key') || localStorage.getItem('dev_tenant');
+  if (devTenant) {
+    config.headers['x-tenant-key'] = devTenant;
+  }
   return config;
 });
 

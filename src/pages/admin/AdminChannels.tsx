@@ -237,7 +237,6 @@ export function AdminChannels() {
     if (!form.storeURL.trim())       errs.storeURL       = 'Required';
     if (!form.storeClientId.trim())  errs.storeClientId  = 'Required';
     if (!form.storeClientSecret.trim()) errs.storeClientSecret = 'Required';
-    if (!isWoo && !form.storeAccessToken.trim()) errs.storeAccessToken = 'Required';
     setFormErrors(errs);
     if (Object.keys(errs).length > 0) return;
 
@@ -252,7 +251,6 @@ export function AdminChannels() {
         multiSeller:      form.multiSeller,
         syncInventory:    form.syncInventory,
       };
-      if (!isWoo)                    body.storeAccessToken   = form.storeAccessToken.trim();
       if (form.orderSyncFrequency)   body.orderSyncFrequency = form.orderSyncFrequency;
       if (form.paymentStatusCOD)     body.paymentStatusCOD   = form.paymentStatusCOD;
       if (form.paymentStatusPrepaid) body.paymentStatusPrepaid = form.paymentStatusPrepaid;
@@ -524,11 +522,7 @@ export function AdminChannels() {
     { title: 'Add the read_orders permission', detail: 'Open the app → Versions/Configuration → Admin API access scopes. Enable read_orders (required). Enable write_orders only if you need to push orders back to Shopify. Click Release/Deploy the version.' },
     { title: 'Install the app on your store', detail: 'Open the app\'s Home page → Install app → select the correct Shopify store → review permissions → click Install. Wait for Shopify to confirm installation.' },
     { title: 'Copy Client ID and Client Secret', detail: 'Open the app → Settings → Credentials. Copy the Client ID and the Client Secret. Keep both values safe — never share the Client Secret publicly.' },
-    { title: 'Install Postman', detail: 'Download and install Postman from postman.com/downloads if you do not have it.' },
-    { title: 'Create an Access Token request', detail: 'In Postman: New → HTTP Request → method POST. URL: https://YOUR-STORE.myshopify.com/admin/oauth/access_token (replace YOUR-STORE with your store\'s myshopify domain).' },
-    { title: 'Set the Postman body', detail: 'Body → x-www-form-urlencoded. Add 3 keys: grant_type = client_credentials, client_id = your Client ID, client_secret = your Client Secret. Click Send.' },
-    { title: 'Copy the Access Token', detail: 'From the Postman response, copy the access_token value. Note: this token expires in ~24 hours and must be regenerated when it does.' },
-    { title: 'Enter credentials here', detail: 'Paste your Store URL (abc-store.myshopify.com), Client ID, Client Secret and Access Token into the form fields on the left and click Add Channel.' },
+    { title: 'Enter credentials here', detail: 'Paste your Store URL (abc-store.myshopify.com), Client ID and Client Secret into the form fields on the left and click Add Channel. The access token is generated and kept fresh automatically — you never need to create or paste one.' },
     { title: 'Orders older than 60 days', detail: 'Shopify limits orders to the last 60 days by default. If you need older orders, Shopify requires approval for the read_all_orders scope — contact us before enabling it.' },
   ];
 
@@ -597,16 +591,6 @@ export function AdminChannels() {
                     className={inputCls(formErrors.storeClientSecret)} />
                   {formErrors.storeClientSecret && <p className={errCls}>{formErrors.storeClientSecret}</p>}
                 </div>
-
-                {!isWoo && (
-                  <div>
-                    <label className={labelCls}>Access Token <span className="text-red-500">*</span></label>
-                    <input type="text" placeholder="Provide your Access Token" value={form.storeAccessToken}
-                      onChange={e => setForm(f => ({ ...f, storeAccessToken: e.target.value }))}
-                      className={inputCls(formErrors.storeAccessToken)} />
-                    {formErrors.storeAccessToken && <p className={errCls}>{formErrors.storeAccessToken}</p>}
-                  </div>
-                )}
 
                 <div>
                   <label className={labelCls}>Order Sync Frequency</label>

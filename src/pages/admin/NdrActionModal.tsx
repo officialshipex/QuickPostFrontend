@@ -66,14 +66,18 @@ export function NdrActionModal({ isOpen, onClose, order, onSubmit }: Props) {
   const isEkart         = provider === 'Ekart';
   const isShreeMaruti   = provider === 'Shree Maruti';
   const isLosung360     = partner  === 'Losung360' || provider === 'Losung360';
+  // Xpressbees shipments are identified by partner.
+  const isXpressbees    = partner  === 'Xpressbees';
+  // Xpressbees' API has no RTO request: re-attempt / change address / phone only.
+  const actionOptions   = isXpressbees ? ACTIONS.filter(a => a.value !== 'RTO') : ACTIONS;
 
   const isChangeAddress = action === 'CHANGE_ADDRESS';
   const isReattempt     = action === 'RE-ATTEMPT';
   const isRTO           = action === 'RTO';
 
-  const needsScheduledDate       = (isEcomExpress && (isReattempt || isChangeAddress)) || (isSmartship && (isReattempt || isChangeAddress));
+  const needsScheduledDate       = (isEcomExpress && (isReattempt || isChangeAddress)) || (isSmartship && (isReattempt || isChangeAddress)) || (isXpressbees && isReattempt);
   const needsChangeAddressFields = isChangeAddress && !isAmazon;
-  const needsMobile              = isChangeAddress || isSmartship || isShreeMaruti || isBoxdLogistics || (isEcomExpress && isReattempt);
+  const needsMobile              = isChangeAddress || isSmartship || isShreeMaruti || isBoxdLogistics || isXpressbees || (isEcomExpress && isReattempt);
 
   const resetActionFields = () => {
     setRemarks(''); setScheduledDate(''); setDeliverySlot(''); setMobile('');
@@ -144,6 +148,12 @@ export function NdrActionModal({ isOpen, onClose, order, onSubmit }: Props) {
       payload.remarks = remarks;
       if (mobile) payload.new_phone = mobile;
       if (isChangeAddress) { payload.new_address = address.line1; payload.new_address2 = address.line2; payload.updated_city = address.city; payload.updated_state = address.state; payload.new_pincode = address.pincode; payload.customer_name = address.customerName; }
+    } else if (isXpressbees) {
+      payload.action  = action;
+      payload.remarks = remarks;
+      if (scheduledDate) payload.scheduledDate = scheduledDate;
+      if (mobile) payload.phone = mobile;
+      if (isChangeAddress) { payload.customer_name = address.customerName; payload.address1 = address.line1; payload.address2 = address.line2; payload.city = address.city; payload.state = address.state; }
     } else if (isLosung360) {
       payload.action   = isChangeAddress ? 'RE-ATTEMPT' : action;
       payload.comments = remarks;
@@ -213,7 +223,7 @@ export function NdrActionModal({ isOpen, onClose, order, onSubmit }: Props) {
 
           {/* Mobile: tap-friendly segmented options */}
           <div className="sm:hidden grid grid-cols-1 gap-2">
-            {ACTIONS.map(({ label, value }) => (
+            {actionOptions.map(({ label, value }) => (
               <button
                 key={value}
                 type="button"
@@ -298,7 +308,7 @@ export function NdrActionModal({ isOpen, onClose, order, onSubmit }: Props) {
               <div className="flex flex-col gap-1.5">
                 <label className="text-[11px] font-bold text-[#475569] flex items-center gap-1.5">
                   <Calendar className="w-3 h-3 text-[#00A86B]" />
-                  {isSmartship ? 'Next Attempt Date' : 'Scheduled Delivery Date'}
+                  {isSmartship ? 'Next Attempt Date' : isXpressbees ? 'Re-attempt Date (default: tomorrow)' : 'Scheduled Delivery Date'}
                 </label>
                 <input
                   type="date"
@@ -378,7 +388,7 @@ export function NdrActionModal({ isOpen, onClose, order, onSubmit }: Props) {
           className="fixed bg-white border border-[#E2E8F0] rounded-xl shadow-xl z-[500] overflow-hidden"
           style={{ top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width }}
         >
-          {ACTIONS.map(({ label, value }) => (
+          {actionOptions.map(({ label, value }) => (
             <li
               key={value}
               onClick={() => { setAction(value); setDropdownOpen(false); resetActionFields(); }}

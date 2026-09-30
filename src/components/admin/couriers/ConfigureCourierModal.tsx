@@ -99,7 +99,7 @@ export function ConfigureCourierModal({ isOpen, onClose, courier, onSave }: Conf
 
   if (!courier) return null;
 
-  const fields = getFieldsForCourier(courier.name);
+  const fields = getFieldsForCourier(courier.name).filter((f) => f.id in courier);
 
   const handleConnect = async () => {
     setSaving(true);
