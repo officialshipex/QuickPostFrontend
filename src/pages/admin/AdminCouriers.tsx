@@ -7,6 +7,8 @@ import { ConfigureCourierModal } from '../../components/admin/couriers/Configure
 import { AddServiceModal } from '../../components/admin/couriers/AddServiceModal';
 import { AddCourierModal } from '../../components/admin/couriers/AddCourierModal';
 import { DeleteServiceModal } from '../../components/admin/couriers/DeleteServiceModal';
+import { CourierDeleteRejectionModal } from '../../components/admin/couriers/CourierDeleteRejectionModal';
+import { ConfirmDeleteCourierModal } from '../../components/admin/couriers/ConfirmDeleteCourierModal';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { TableLoader } from '../../components/ui/TableLoader';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -194,11 +196,60 @@ export function AdminCouriers() {
     } catch {}
   };
 
+  const [rejectionModalData, setRejectionModalData] = useState<{ courier: any; services: any[] } | null>(null);
+  const [courierToDelete, setCourierToDelete] = useState<any | null>(null);
+  const [deletingCourier, setDeletingCourier] = useState(false);
+
   const handleDeleteProvider = async (provider: any) => {
+    const name = provider.courierName || provider.courierProvider || provider.name || '';
+    const logo = LOGO_MAP[name] || '';
+    const courierObj = { ...provider, name, logo };
+
     try {
-      await apiClient.delete(`/allCourier/deleteCourier/${provider._id}`);
-      setProviders(prev => prev.filter(p => p._id !== provider._id));
-    } catch {}
+      setLoading(true);
+      const res = await apiClient.get(`/allCourier/checkDelete/${provider._id}`);
+      setLoading(false);
+
+      if (res.data?.canDelete === false || (res.data?.serviceCount && res.data.serviceCount > 0)) {
+        setRejectionModalData({
+          courier: courierObj,
+          services: res.data.services || [],
+        });
+      } else {
+        setCourierToDelete(courierObj);
+      }
+    } catch (err: any) {
+      setLoading(false);
+      const localServices = servicesMap[name] || [];
+      if (localServices.length > 0) {
+        setRejectionModalData({
+          courier: courierObj,
+          services: localServices,
+        });
+      } else {
+        setCourierToDelete(courierObj);
+      }
+    }
+  };
+
+  const handleConfirmDeleteCourier = async () => {
+    if (!courierToDelete) return;
+    setDeletingCourier(true);
+    try {
+      await apiClient.delete(`/allCourier/deleteCourier/${courierToDelete._id}`);
+      setProviders(prev => prev.filter(p => p._id !== courierToDelete._id));
+      setCourierToDelete(null);
+    } catch (err: any) {
+      if (err.response?.data?.rejected) {
+        setCourierToDelete(null);
+        setRejectionModalData({
+          courier: courierToDelete,
+          services: err.response?.data?.services || [],
+        });
+      }
+    } finally {
+      setDeletingCourier(false);
+    }
   };
 
   const toggleSelectService = (id: string) => {
@@ -484,9 +535,10 @@ export function AdminCouriers() {
                               <>
                                 <button
                                   onClick={() => setSelectedCourier({ ...provider, name, logo })}
-                                  className="text-sm font-semibold text-[#64748B] hover:text-[#00A86B] transition-colors flex items-center gap-1"
+                                  className="text-sm font-semibold text-[#64748B] hover:text-[#00A86B] transition-colors flex items-center gap-1.5"
+                                  title="Edit courier credentials & settings"
                                 >
-                                  <Settings className="w-4 h-4" /> Configure
+                                  <Settings className="w-4 h-4" /> Edit / Configure
                                 </button>
                                 <button
                                   onClick={() => handleDeleteProvider(provider)}
@@ -709,9 +761,9 @@ export function AdminCouriers() {
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => setSelectedCourier({ ...provider, name, logo })}
-                          className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-[#E2E8F0] text-[12px] font-semibold text-[#475569] bg-white active:bg-[#F8FAFC]"
+                          className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-[#E2E8F0] text-[12px] font-semibold text-[#475569] bg-white active:bg-[#F8FAFC]"
                         >
-                          <Settings className="w-3.5 h-3.5" /> Configure
+                          <Settings className="w-3.5 h-3.5" /> Edit / Configure
                         </button>
                         <button
                           onClick={() => handleDeleteProvider(provider)}
@@ -984,6 +1036,21 @@ export function AdminCouriers() {
           fetchAll();
           setSelectedServiceIds([]);
         }}
+      />
+
+      <CourierDeleteRejectionModal
+        isOpen={!!rejectionModalData}
+        onClose={() => setRejectionModalData(null)}
+        courier={rejectionModalData?.courier}
+        services={rejectionModalData?.services || []}
+      />
+
+      <ConfirmDeleteCourierModal
+        isOpen={!!courierToDelete}
+        onClose={() => setCourierToDelete(null)}
+        courier={courierToDelete}
+        onConfirm={handleConfirmDeleteCourier}
+        deleting={deletingCourier}
       />
     </AdminLayout>
   );
