@@ -83,6 +83,7 @@ import { AdminAgreementSettings } from './pages/admin/AdminAgreementSettings';
 import { AdminPickupAddress } from './pages/admin/AdminPickupAddress';
 import { AdminPickupManifestDetails } from './pages/admin/AdminPickupManifestDetails';
 import { AdminShell } from './components/admin/layout/AdminShell';
+import { UserHome } from './pages/admin/UserHome';
 
 function GlobalOrderClickInterceptor() {
   const navigate = useNavigate();
@@ -277,6 +278,7 @@ function App() {
 
             {/* ── User-only routes (/user/*) ── */}
             <Route element={<ProtectedRoute allowedRoles={['user']} />}>
+              <Route path="/user/home" element={<UserHome />} />
               <Route path="/user/dashboard" element={<AdminDashboard />} />
               <Route path="/user/orders" element={<AdminOrders />} />
               <Route path="/user/orders/:tabSlug" element={<AdminOrders />} />
