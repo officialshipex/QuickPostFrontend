@@ -13,6 +13,7 @@ interface Courier {
   tenantId?: string;
   carrierId?: string;
   carrierName?: string;
+  channelId?: string;
   liabilityCharge?: number;
   liabilityPercent?: number;
 }
@@ -64,7 +65,15 @@ const getFieldsForCourier = (name: string) => {
       { id: 'carrierName', label: 'Carrier Name (optional)', type: 'text', placeholder: 'Overrides default carrier name', icon: Hash },
     ];
   }
-  if (['shiprocket', 'lousung360', 'losung360', 'ekart', 'smartship', 'ecom express', 'ecomexpress', 'proship', 'zipypost', 'boxdlogistics'].includes(n)) {
+  if (['shipmaxx', 'lousung360', 'losung360'].includes(n)) {
+    return [
+      ...defaultFields,
+      { id: 'email', label: 'User / Email', type: 'text', placeholder: 'Enter User or Email', icon: User },
+      { id: 'password', label: 'Password', type: 'password', placeholder: 'Enter Password', icon: ShieldCheck },
+      { id: 'channelId', label: 'Channel ID', type: 'text', placeholder: 'Channel ID given for this account', icon: Hash },
+    ];
+  }
+  if (['shiprocket', 'ekart', 'smartship', 'ecom express', 'ecomexpress', 'proship', 'zipypost', 'boxdlogistics'].includes(n)) {
     return [
       ...defaultFields,
       { id: 'email', label: 'User / Email', type: 'text', placeholder: 'Enter User or Email', icon: User },
@@ -93,6 +102,7 @@ export function ConfigureCourierModal({ isOpen, onClose, courier, onSave }: Conf
         tenantId: courier.tenantId || '',
         carrierId: courier.carrierId || '',
         carrierName: courier.carrierName || '',
+        channelId: courier.channelId || '',
       });
     }
   }, [courier]);

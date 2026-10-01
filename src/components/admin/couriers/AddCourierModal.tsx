@@ -5,7 +5,7 @@ import { apiClient } from '../../../services/apiClient';
 
 const PROVIDERS = [
   'Amazon Shipping', 'Delhivery', 'DTDC', 'EcomExpress', 'Ekart',
-  'Losung360', 'NimbusPost', 'Proship', 'Shadowfax', 'Shiprocket',
+  'ShipMaxx', 'NimbusPost', 'Proship', 'Shadowfax', 'Shiprocket',
   'Shree Maruti', 'Smartship', 'XpressBees', 'ZipyPost', 'BoxdLogistics',
 ];
 
@@ -38,7 +38,15 @@ const getCredFields = (provider: string): CredField[] => {
       { id: 'carrierName', label: 'Carrier Name (optional)', type: 'text', placeholder: 'Overrides default carrier name', icon: Hash },
     ];
   }
-  // Shiprocket, Losung360, Ekart, NimbusPost, Smartship,
+  // ShipMaxx (Losung360 internally): login + the channel id given for the account
+  if (p === 'shipmaxx') {
+    return [
+      { id: 'email', label: 'Email / Username', type: 'text', placeholder: 'Enter email or username', icon: User },
+      { id: 'password', label: 'Password', type: 'password', placeholder: 'Enter password', icon: ShieldCheck },
+      { id: 'channelId', label: 'Channel ID', type: 'text', placeholder: 'Channel ID given for this account', icon: Hash },
+    ];
+  }
+  // Shiprocket, Ekart, NimbusPost, Smartship,
   // EcomExpress, Proship, ZipyPost, BoxdLogistics, etc.
   return [
     { id: 'email', label: 'Email / Username', type: 'text', placeholder: 'Enter email or username', icon: User },
@@ -82,6 +90,9 @@ export function AddCourierModal({ isOpen, onClose, onSuccess }: AddCourierModalP
     if (!provider) { setError('Select a provider'); return; }
     if (!courierName.trim()) { setError('Courier name is required'); return; }
     if (!status) { setError('Status is required'); return; }
+    if (provider === 'ShipMaxx' && !/^d+$/.test((creds.channelId || '').trim())) {
+      setError('Channel ID is required (numeric)'); return;
+    }
 
     setSaving(true);
     try {
@@ -98,6 +109,7 @@ export function AddCourierModal({ isOpen, onClose, onSuccess }: AddCourierModalP
         tenantId: creds.tenantId || undefined,
         carrierId: creds.carrierId || undefined,
         carrierName: creds.carrierName || undefined,
+        channelId: creds.channelId ? creds.channelId.trim() : undefined,
       });
       onSuccess();
       onClose();

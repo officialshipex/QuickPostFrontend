@@ -149,13 +149,11 @@ const STATUS_STYLES: Record<string, { bg: string; text: string; border: string; 
   'Out for Delivery': { bg: 'bg-[#EFF6FF]', text: 'text-[#2563EB]', border: 'border-[#2563EB]/20', dot: 'bg-[#2563EB]' },
   'In-transit':       { bg: 'bg-[#F5F3FF]', text: 'text-[#7C3AED]', border: 'border-[#7C3AED]/20', dot: 'bg-[#7C3AED]' },
   'Ready To Ship':    { bg: 'bg-[#F0F9FF]', text: 'text-[#0369A1]', border: 'border-[#0369A1]/20', dot: 'bg-[#0369A1]' },
-  'Booked':           { bg: 'bg-[#F0F9FF]', text: 'text-[#0369A1]', border: 'border-[#0369A1]/20', dot: 'bg-[#0369A1]' },
   'Undelivered':      { bg: 'bg-[#FFFBEB]', text: 'text-[#D97706]', border: 'border-[#D97706]/20', dot: 'bg-[#D97706]' },
   'RTO':              { bg: 'bg-[#FFFBEB]', text: 'text-[#D97706]', border: 'border-[#D97706]/20', dot: 'bg-[#D97706]' },
   'RTO In-transit':   { bg: 'bg-[#FFFBEB]', text: 'text-[#D97706]', border: 'border-[#D97706]/20', dot: 'bg-[#D97706]' },
   'Cancelled':        { bg: 'bg-[#FEF2F2]', text: 'text-[#DC2626]', border: 'border-[#DC2626]/20', dot: 'bg-[#DC2626]' },
   'Lost':             { bg: 'bg-[#FEF2F2]', text: 'text-[#DC2626]', border: 'border-[#DC2626]/20', dot: 'bg-[#DC2626]' },
-  'Not Picked':       { bg: 'bg-[#FEF2F2]', text: 'text-[#DC2626]', border: 'border-[#DC2626]/20', dot: 'bg-[#DC2626]' },
 };
 
 /* ── Dot-grid background, same recipe as TrustedBrands ── */

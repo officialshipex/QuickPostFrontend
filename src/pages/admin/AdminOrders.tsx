@@ -67,7 +67,7 @@ const SLUG_TO_TAB: Record<string, string> = Object.fromEntries(
 // Status array sent to API per tab
 const STATUS_FOR_TAB: Record<string, string[]> = {
   'New':              ['new'],
-  'Ready to Ship':    ['Booked', 'Not Picked', 'Ready To Ship'],
+  'Ready to Ship':    ['Ready To Ship'],
   'Pickup & Manifest':['Pickup Scheduled', 'Pickup & Manifest'],
   'In Transit':       ['In-transit'],
   'Out for Delivery': ['Out for Delivery'],
@@ -86,8 +86,6 @@ const STATUS_FOR_TAB: Record<string, string[]> = {
 // ─── Badge styles ──────────────────────────────────────────────────────────────
 const STATUS_BADGE_STYLES: Record<string, string> = {
   'New':               'bg-slate-50 text-slate-700 border-slate-200',
-  'Booked':            'bg-blue-50 text-blue-700 border-blue-200',
-  'Not Picked':        'bg-amber-50 text-amber-700 border-amber-200',
   'Ready To Ship':     'bg-indigo-50 text-indigo-700 border-indigo-200',
   'Ready to Ship':     'bg-indigo-50 text-indigo-700 border-indigo-200',
   'Pickup & Manifest': 'bg-violet-50 text-violet-700 border-violet-200',
@@ -110,8 +108,6 @@ const STATUS_BADGE_STYLES: Record<string, string> = {
 // ─── Ribbon accent colors — mobile card layout (mirrors STATUS_BADGE_STYLES per status) ──
 const STATUS_RIBBON_COLORS: Record<string, string> = {
   'New':               '#64748B',
-  'Booked':            '#2563EB',
-  'Not Picked':        '#F59E0B',
   'Ready To Ship':     '#4F46E5',
   'Ready to Ship':     '#4F46E5',
   'Pickup & Manifest': '#7C3AED',
@@ -876,7 +872,7 @@ export function AdminOrders() {
   };
 
   const handleCancelOrder = async (order: any) => {
-    const isBooked = ['Booked', 'Not Picked', 'Ready To Ship'].includes(order.status);
+    const isBooked = ['Ready To Ship'].includes(order.status);
     const endpoint = isBooked ? '/order/cancelOrdersAtBooked' : '/order/cancelOrdersAtNotShipped';
     setCancellingIds(prev => new Set(prev).add(order._id));
     setDropdownPos(null); // close any open per-row dropdown immediately
@@ -1129,8 +1125,8 @@ export function AdminOrders() {
   // each selected order from the database instead. Deliberately a different
   // endpoint from handleBulkCancel above: old ShipexFrontend's "New" tab calls
   // /order/cancelOrdersAtNotShipped (a real Order.findByIdAndDelete) per order,
-  // not /order/bulkCancelOrder — that endpoint only accepts Booked/Not
-  // Picked/Ready To Ship statuses and would silently skip "new" orders.
+  // not /order/bulkCancelOrder — that endpoint only accepts Ready To Ship
+  // orders and would silently skip "new" orders.
   const handleBulkDelete = async () => {
     if (selectedOrders.length === 0) return;
     try {
@@ -1148,9 +1144,9 @@ export function AdminOrders() {
     }
   };
 
-  // AI Order Verification — only meaningful for orders already Booked with a
-  // courier (the "Ready to Ship" tab), same as ShipexFrontend's BookedOrders.jsx
-  // handleBulkVerifyOrders. The backend re-checks status === "Booked" and the
+  // AI Order Verification — only meaningful for orders already booked with a
+  // courier (the "Ready to Ship" tab), same as ShipexFrontend's Ready To Ship
+  // list. The backend re-checks status === "Ready To Ship" and the
   // account's AI-calling toggle per order, so this is a UX gate, not the only one.
   const handleBulkVerifyOrders = async () => {
     if (!aiVerifyEnabled) {
@@ -1176,7 +1172,7 @@ export function AdminOrders() {
   const isPMTab  = activeTab === 'Pickup & Manifest';
   const isNewTab = activeTab === 'New';
   const showShipmentCol = !isNewTab && !isPMTab;
-  const showLastUpdateCol = !isNewTab && !isPMTab && !['Ready to Ship', 'Booked'].includes(activeTab);
+  const showLastUpdateCol = !isNewTab && !isPMTab && !['Ready to Ship'].includes(activeTab);
 
 
 
@@ -1252,7 +1248,7 @@ export function AdminOrders() {
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { handleInvoice(rowOrder._id); close(); }}>Download Invoice</button>
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { handleManifest(rowOrder._id); close(); }}>Download Manifest</button>
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { navigate(`${isAdminView ? '/admin' : '/user'}/add-order?cloneId=${rowOrder._id}`); close(); }}>Clone Order</button>
-        {!isAdminView && ['Booked', 'Not Picked', 'Ready To Ship'].includes(rowOrder.status) && (
+        {!isAdminView && ['Ready To Ship'].includes(rowOrder.status) && (
           <button
             className={`w-full text-left px-4 py-2.5 text-[13px] font-medium cursor-pointer ${aiVerifyEnabled ? 'text-[#0CBB7D] hover:bg-green-50' : 'text-gray-400 cursor-not-allowed'}`}
             title={aiVerifyEnabled ? '' : 'Enable AI Calling in Settings first'}

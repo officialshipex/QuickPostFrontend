@@ -22,7 +22,7 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
 import { useProductTooltip, ProductTooltipCard } from '../../hooks/useProductTooltip';
 
-const STATUS_OPTS = ['Ready To Ship', 'Not Picked', 'Booked', 'Pickup Scheduled', 'Picked Up', 'In Transit', 'Out for Delivery', 'Delivered', 'Undelivered', 'Action Requested', 'RTO Initiated', 'RTO In Transit', 'RTO Delivered', 'RTO Lost', 'RTO Damaged', 'Lost', 'Damaged', 'Cancelled'];
+const STATUS_OPTS = ['Ready To Ship', 'Pickup Scheduled', 'Picked Up', 'In Transit', 'Out for Delivery', 'Delivered', 'Undelivered', 'Action Requested', 'RTO Initiated', 'RTO In Transit', 'RTO Delivered', 'RTO Lost', 'RTO Damaged', 'Lost', 'Damaged', 'Cancelled'];
 const CHANNEL_OPTS = ['custom', 'api', 'shopify', 'woocommerce'];
 const ORDER_TYPE_OPTS = ['Prepaid', 'COD'];
 const WEIGHT_RANGE_OPTS = [
@@ -35,8 +35,6 @@ const WEIGHT_RANGE_OPTS = [
 
 const STATUS_STYLES: Record<string, string> = {
   'Ready To Ship': 'bg-teal-50 text-teal-700 border-teal-200',
-  'Not Picked': 'bg-yellow-50 text-yellow-700 border-yellow-200',
-  'Booked': 'bg-slate-50 text-slate-700 border-slate-200',
   'Pickup Scheduled': 'bg-slate-50 text-slate-600 border-slate-200',
   'Picked Up': 'bg-indigo-50 text-indigo-700 border-indigo-200',
   'In Transit': 'bg-sky-50 text-sky-700 border-sky-200',
@@ -56,8 +54,6 @@ const STATUS_STYLES: Record<string, string> = {
 
 const STATUS_RIBBON_COLORS: Record<string, string> = {
   'Ready To Ship': '#0D9488',
-  'Not Picked': '#CA8A04',
-  'Booked': '#64748B',
   'Pickup Scheduled': '#64748B',
   'Picked Up': '#4F46E5',
   'In Transit': '#0284C7',
@@ -166,7 +162,7 @@ const mapOrder = (o: any) => ({
   shippingAddr: o.receiverAddress?.city || '—',
   paymentMode: o.paymentDetails?.method || 'Prepaid',
   shipmentValue: `₹${(o.paymentDetails?.amount || 0).toLocaleString('en-IN')}`,
-  status: o.status || 'Booked',
+  status: o.status || 'Ready To Ship',
   manifestDate: o.shipmentCreatedAt || o.createdAt || new Date().toISOString(),
   expectedDeliveryDate: o.expectedDeliveryDate || null,
   customerName: o.receiverAddress?.contactName || '—',
@@ -318,7 +314,7 @@ export function CRMShipmentListing() {
       if (selectedCouriers.length) params.courier = selectedCouriers.join(',');
       // pendingPickupOnly / pendingNdrOnly take precedence over the status dropdown
       if (pendingPickupOnly) {
-        params.status = 'Not Picked,Ready To Ship,Booked,Pickup Scheduled';
+        params.status = 'Ready To Ship,Pickup Scheduled';
         // Exclude today — shipments created today are still within the courier's pickup window
         const yd = new Date(); yd.setDate(yd.getDate() - 1);
         const yesterday = yd.toISOString().split('T')[0];
@@ -466,7 +462,7 @@ export function CRMShipmentListing() {
       }
       if (selectedCouriers.length) params.courier = selectedCouriers.join(',');
       if (pendingPickupOnly) {
-        params.status = 'Not Picked,Ready To Ship,Booked,Pickup Scheduled';
+        params.status = 'Ready To Ship,Pickup Scheduled';
         const yd = new Date(); yd.setDate(yd.getDate() - 1);
         const yesterday = yd.toISOString().split('T')[0];
         if (dateFrom) params.dateFrom = dateFrom;

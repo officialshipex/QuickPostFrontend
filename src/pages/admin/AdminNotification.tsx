@@ -25,9 +25,6 @@ interface UserResult { _id: string; fullname?: string; name?: string; email?: st
 // ─── Statuses ─────────────────────────────────────────────────────────────────
 // fieldKey maps to backend model field names (e.g. Intransit not In-transit)
 const STATUSES = [
-  { key: 'Booked',          fieldKey: 'Booked',          label: 'Booked',
-    tpl: { whatsapp: 'Your order {order_id} has been booked. Track: {tracking_link}', sms: 'Order {order_id} booked. Track: {tracking_link}', email: 'Your order {order_id} has been successfully booked.' },
-    subject: 'Your Order has been Booked' },
   { key: 'PickupPending',   fieldKey: 'PickupPending',   label: 'Ready To Ship',
     tpl: { whatsapp: 'Your order {order_id} is ready to ship. Track: {tracking_link}', sms: 'Order {order_id} ready to ship. {tracking_link}', email: 'Your order {order_id} is ready to ship from our warehouse.' },
     subject: 'Your Order is Ready to Ship' },

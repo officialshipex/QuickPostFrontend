@@ -541,7 +541,7 @@ export function AdminPickupManifest({
                     {(() => {
                       const orders = m.orderIds || [];
                       const total  = orders.length;
-                      const NOT_PICKED = ['new', 'Booked', 'Ready To Ship', 'Not Picked', 'Cancelled'];
+                      const NOT_PICKED = ['new', 'Ready To Ship', 'Cancelled'];
                       const picked = orders.filter((o: any) => !NOT_PICKED.includes(o.status)).length;
                       return (
                         <>

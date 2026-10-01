@@ -22,8 +22,6 @@ import { CourierLogo } from '../../components/ui/CourierLogo';
 const BACKEND_BASE = (import.meta.env.VITE_API_URL as string) || 'http://localhost:5000/v1';
 
 const STATUS_RIBBON_COLORS: Record<string, string> = {
-  'Booked':            '#2563EB',
-  'Not Picked':        '#F59E0B',
   'Ready To Ship':     '#4F46E5',
   'Pickup Scheduled':  '#7C3AED',
   'Picked Up':         '#4F46E5',
@@ -65,9 +63,7 @@ const asEmail = (v: any): string =>
   (typeof v === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim())) ? v.trim() : '';
 
 const STATUS_STYLES: Record<string, string> = {
-  'Booked':           'bg-slate-50 text-slate-700 border-slate-200',
   'Ready To Ship':    'bg-teal-50 text-teal-700 border-teal-200',
-  'Not Picked':       'bg-yellow-50 text-yellow-700 border-yellow-200',
   'Pickup Scheduled': 'bg-slate-50 text-slate-600 border-slate-200',
   'Picked Up':        'bg-indigo-50 text-indigo-700 border-indigo-200',
   'In Transit':       'bg-sky-50 text-sky-700 border-sky-200',
@@ -285,7 +281,7 @@ export function AdminPickupManifestDetails() {
 
   const selectedOrderIds = selected.map(sid => orders.find(o => o._id === sid)?._id).filter(Boolean) as string[];
 
-  const NOT_PICKED  = ['new', 'Booked', 'Ready To Ship', 'Not Picked', 'Cancelled'];
+  const NOT_PICKED  = ['new', 'Ready To Ship', 'Cancelled'];
   const pickedCount = orders.filter(o => !NOT_PICKED.includes(o.status)).length;
   const ageingDays  = manifest?.createdAt ? calcAgeingDays(manifest.createdAt) : 0;
 

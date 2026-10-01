@@ -113,7 +113,6 @@ const STATUS_STYLES: Record<string, { chip: string; dot: string; ring: string }>
   'In-transit':          { chip: 'bg-sky-50 text-sky-700 border-sky-200', dot: 'bg-sky-500', ring: 'rgba(14,165,233,0.12)' },
   'Picked Up':           { chip: 'bg-indigo-50 text-indigo-700 border-indigo-200', dot: 'bg-indigo-500', ring: 'rgba(99,102,241,0.12)' },
   'Ready To Ship':       { chip: 'bg-teal-50 text-teal-700 border-teal-200', dot: 'bg-teal-500', ring: 'rgba(20,184,166,0.12)' },
-  'Booked':              { chip: 'bg-slate-50 text-slate-700 border-slate-200', dot: 'bg-slate-400', ring: 'rgba(100,116,139,0.12)' },
   'RTO Initiated':       { chip: 'bg-orange-50 text-orange-700 border-orange-200', dot: 'bg-orange-500', ring: 'rgba(249,115,22,0.12)' },
   'RTO In Transit':      { chip: 'bg-orange-50 text-orange-600 border-orange-200', dot: 'bg-orange-500', ring: 'rgba(249,115,22,0.12)' },
   'Undelivered':         { chip: 'bg-amber-50 text-amber-700 border-amber-200', dot: 'bg-amber-500', ring: 'rgba(245,158,11,0.12)' },

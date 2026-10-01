@@ -97,7 +97,7 @@ interface Channel {
 }
 
 const PAYMENT_STATUS_OPTIONS = [
-  'Booked', 'Ready To Ship', 'Pickup Scheduled', 'In-transit', 'Delivered',
+  'Ready To Ship', 'Pickup Scheduled', 'In-transit', 'Delivered',
 ];
 
 // Backend enum: daily | weekly | monthly
