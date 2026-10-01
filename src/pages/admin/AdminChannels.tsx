@@ -1,9 +1,10 @@
+import type { ReactNode } from 'react';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import {
   ArrowLeft, Plus, ShoppingBag, ChevronDown, Check,
-  Trash2, Pencil, RefreshCw, Loader2, AlertTriangle, Download, ChevronRight, X,
+  Trash2, Pencil, RefreshCw, Loader2, AlertTriangle, Download, ChevronRight, X, Copy,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { apiClient } from '../../services/apiClient';
@@ -116,7 +117,46 @@ const VIEW_PARAM_TO_VIEW: Record<string, ChannelView> = {
   add: 'add', woocommerce: 'woocommerce', shopify: 'shopify',
 };
 
-function ShopifyGuideSteps({ steps }: { steps: { title: string; detail: string }[] }) {
+// Admin API access scopes the Shopify app must have for order sync + fulfilment push-back.
+const SHOPIFY_SCOPES = [
+  'read_orders', 'read_all_orders', 'write_orders',
+  'read_order_edits', 'write_order_edits',
+  'read_locations',
+  'read_fulfillments', 'write_fulfillments',
+  'read_merchant_managed_fulfillment_orders', 'write_merchant_managed_fulfillment_orders',
+  'read_assigned_fulfillment_orders', 'write_assigned_fulfillment_orders',
+  'read_third_party_fulfillment_orders', 'write_third_party_fulfillment_orders',
+];
+
+function ShopifyScopesDetail() {
+  const [copied, setCopied] = useState(false);
+  const copyAll = () => {
+    try {
+      navigator.clipboard.writeText(SHOPIFY_SCOPES.join(','));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch { /* clipboard blocked: the scopes are still listed to copy by hand */ }
+  };
+  return (
+    <div className="space-y-2">
+      <p>
+        Open the app → Versions/Configuration → Admin API access scopes and enable all of the
+        scopes below, then click Release/Deploy the version.
+      </p>
+      <div className="flex flex-wrap gap-1.5">
+        {SHOPIFY_SCOPES.map(s => (
+          <span key={s} className="px-2 py-0.5 rounded-md bg-[#F1F5F9] border border-[#E2E8F0] text-[11px] font-mono text-[#334155]">{s}</span>
+        ))}
+      </div>
+      <button type="button" onClick={copyAll}
+        className="flex items-center gap-1.5 h-7 px-2.5 rounded-full border border-[#00A86B] text-[#00A86B] text-[11px] font-bold hover:bg-[#F0FDF4] transition-colors">
+        <Copy className="w-3 h-3" /> {copied ? 'Copied!' : 'Copy all scopes'}
+      </button>
+    </div>
+  );
+}
+
+function ShopifyGuideSteps({ steps }: { steps: { title: string; detail: ReactNode }[] }) {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
   return (
     <ol className="space-y-1.5">
@@ -517,13 +557,13 @@ export function AdminChannels() {
     'Copy and paste the generated API key and secret into the form above.',
     'Click "Add Channel" to complete the integration.',
   ];
-  const shopifySteps: { title: string; detail: string }[] = [
+  const shopifySteps: { title: string; detail: ReactNode }[] = [
     { title: 'Create the Shopify App', detail: 'Go to dev.shopify.com/dashboard → Apps → Create app → Start from Dev Dashboard. Enter an app name and click Create.' },
-    { title: 'Add the read_orders permission', detail: 'Open the app → Versions/Configuration → Admin API access scopes. Enable read_orders (required). Enable write_orders only if you need to push orders back to Shopify. Click Release/Deploy the version.' },
+    { title: 'Enable the required API scopes', detail: <ShopifyScopesDetail /> },
     { title: 'Install the app on your store', detail: 'Open the app\'s Home page → Install app → select the correct Shopify store → review permissions → click Install. Wait for Shopify to confirm installation.' },
     { title: 'Copy Client ID and Client Secret', detail: 'Open the app → Settings → Credentials. Copy the Client ID and the Client Secret. Keep both values safe — never share the Client Secret publicly.' },
     { title: 'Enter credentials here', detail: 'Paste your Store URL (abc-store.myshopify.com), Client ID and Client Secret into the form fields on the left and click Add Channel. The access token is generated and kept fresh automatically — you never need to create or paste one.' },
-    { title: 'Orders older than 60 days', detail: 'Shopify limits orders to the last 60 days by default. If you need older orders, Shopify requires approval for the read_all_orders scope — contact us before enabling it.' },
+    { title: 'Orders older than 60 days', detail: 'Shopify limits orders to the last 60 days unless the read_all_orders scope is approved for your app. If Shopify refuses to release the version because of read_all_orders, remove just that scope and release again — orders from the last 60 days will still sync. Contact us if you need older orders.' },
   ];
 
   return (

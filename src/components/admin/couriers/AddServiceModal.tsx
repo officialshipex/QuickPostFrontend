@@ -67,6 +67,9 @@ export function AddServiceModal({ isOpen, onClose, courier, onSuccess, editData 
           service: i.service || i,
           courier_id: i.courier_id ?? i.provider_courier_id,
         })));
+      } else if (p === 'shipexindia' || p === 'shipxindia') {
+        const res = await apiClient.get('/ShipexIndia/getCourierServices');
+        setProviderServices(res.data || []);
       } else if (p === 'dtdc') {
         setProviderServices(DTDC_SERVICES.map(s => ({ service: s })));
       }
@@ -178,7 +181,7 @@ export function AddServiceModal({ isOpen, onClose, courier, onSuccess, editData 
               <div className="p-4 md:p-7 overflow-y-auto max-h-[65vh] space-y-4 md:space-y-5 bg-[#F8FAFC]/50">
 
                 {/* Sub-service selector — shown for NimbusPost, Xpressbees, Shiprocket, DTDC */}
-                {hasServiceDropdown && (
+                {(hasServiceDropdown || loadingServices) && (
                   <div>
                     <label className="block text-[12px] font-semibold text-[#64748B] mb-1.5 md:mb-2 md:uppercase md:tracking-wide">
                       <Tag className="inline w-3 h-3 mr-1" />
@@ -186,7 +189,8 @@ export function AddServiceModal({ isOpen, onClose, courier, onSuccess, editData 
                     </label>
                     {loadingServices ? (
                       <div className="h-11 md:h-12 bg-white border border-[#E2E8F0] rounded-full md:rounded-[14px] flex items-center px-4 text-[12px] md:text-sm text-[#94A3B8]">
-                        Loading services...
+                        <span className="inline-block w-3.5 h-3.5 mr-2 border-2 border-[#E2E8F0] border-t-[#00A86B] rounded-full animate-spin" />
+                        Loading services, please wait...
                       </div>
                     ) : (
                       <div className="relative">
