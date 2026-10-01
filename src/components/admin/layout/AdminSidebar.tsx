@@ -28,6 +28,7 @@ import {
   TrendingUp,
   Zap,
   ShieldCheck,
+  Palette,
   LayoutDashboard,
 } from 'lucide-react';
 
@@ -125,6 +126,7 @@ const MENU_GROUPS: MenuGroup[] = [
     items: [
       { name: 'Seller Remittance', path: '/user/seller-remittance/early-cod', icon: Wallet, userOnly: true },
       { name: 'Secure', path: '/user/vas/auto-secure', icon: ShieldCheck, userOnly: true },
+      { name: 'Branded Tracking Page', path: '/user/vas/branded-tracking', icon: Palette, userOnly: true },
     ]
   },
   {
