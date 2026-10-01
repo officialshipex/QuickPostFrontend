@@ -171,6 +171,8 @@ function CompanyCreateForm({ onBack, onCreated }: { onBack: () => void; onCreate
   const [mongoUri, setMongoUri] = useState('');
   const [primaryColor, setPrimaryColor] = useState('#00A86B');
   const [secondaryColor, setSecondaryColor] = useState('');
+  const [autoVerifyEmail, setAutoVerifyEmail] = useState(false);
+  const [autoVerifyPhone, setAutoVerifyPhone] = useState(false);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [faviconFile, setFaviconFile] = useState<File | null>(null);
@@ -216,6 +218,8 @@ function CompanyCreateForm({ onBack, onCreated }: { onBack: () => void; onCreate
         faviconUrl,
         primaryColor,
         secondaryColor: secondaryColor || undefined,
+        autoVerifyEmail,
+        autoVerifyPhone,
       });
 
       showToast('success', 'Company created — you can fill in the rest of its setup now.');
@@ -309,6 +313,9 @@ function CompanyCreateForm({ onBack, onCreated }: { onBack: () => void; onCreate
           <ColorField label="Secondary Color" value={secondaryColor} onChange={setSecondaryColor} />
         </div>
         {errors.primaryColor && <p className={errCls}>{errors.primaryColor}</p>}
+
+        <VerificationSwitch label="Email verification" autoVerified={autoVerifyEmail} onToggle={() => setAutoVerifyEmail((v) => !v)} />
+        <VerificationSwitch label="Phone verification" autoVerified={autoVerifyPhone} onToggle={() => setAutoVerifyPhone((v) => !v)} />
 
         <div className="flex justify-end gap-3 pt-2">
           <button onClick={onBack} className="text-[12px] font-semibold text-[#64748B] px-4 py-2.5 rounded-[8px] border border-[#E2E8F0] hover:bg-[#F8FAFC]">Cancel</button>
@@ -518,6 +525,7 @@ function CompanyDetail({ tenantKey, onBack }: { tenantKey: string; onBack: () =>
 
           <WebhookAddressesSection tenantKey={tenantKey} refreshKey={JSON.stringify(groupStatus)} />
 
+          <ContactVerificationSection company={company} onSaved={load} showToast={showToast} />
           <JobsSection company={company} onSaved={load} showToast={showToast} />
         </div>
       </div>
@@ -1051,6 +1059,74 @@ function BrandingSection({ company, onSaved, showToast }: {
 // What is still the platform's for every company, said out loud when someone turns jobs on.
 // Keep in step with the backend: every outside account (couriers, payments, WhatsApp / email, KYC, AI calling) is per company now.
 const STILL_SHARED = 'the wording printed on invoices, manifests and emails and spoken in the AI-call script, which still carries the Shipex India name';
+
+// Enabled = users verify this contact with an OTP in KYC; disabled = it is marked verified automatically.
+function VerificationSwitch({ label, autoVerified, onToggle, disabled }: {
+  label: string; autoVerified: boolean; onToggle: () => void; disabled?: boolean;
+}) {
+  const enabled = !autoVerified;
+  return (
+    <div className="flex items-center justify-between gap-4 rounded-[8px] border border-[#E2E8F0] p-3">
+      <div>
+        <p className="text-[13px] text-[#334155]">{label}</p>
+        <p className="text-[11px] text-[#94A3B8] mt-0.5">
+          {enabled ? 'Enabled: new users verify with an OTP in KYC.' : 'Disabled: new users are marked verified automatically, no OTP in KYC.'}
+        </p>
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={enabled}
+        aria-label={label}
+        disabled={disabled}
+        onClick={onToggle}
+        className={`relative w-10 h-6 rounded-full transition-colors shrink-0 disabled:opacity-50 ${enabled ? 'bg-[#00A86B]' : 'bg-[#CBD5E1]'}`}
+      >
+        <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${enabled ? 'translate-x-4' : ''}`} />
+      </button>
+    </div>
+  );
+}
+
+function ContactVerificationSection({ company, onSaved, showToast }: {
+  company: CompanySummary; onSaved: () => void; showToast: (t: 'success' | 'error', m: string) => void;
+}) {
+  const [saving, setSaving] = useState(false);
+
+  const save = async (field: 'autoVerifyEmail' | 'autoVerifyPhone', next: boolean, what: string) => {
+    setSaving(true);
+    try {
+      await companiesApi.updateBasic(company.tenantKey, { [field]: next });
+      showToast('success', next ? `${what} verification disabled (auto-verified)` : `${what} verification enabled`);
+      onSaved();
+    } catch (err) {
+      const message = (err as { response?: { data?: { message?: string } } }).response?.data?.message;
+      showToast('error', message || 'Failed to update verification setting');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <SectionCard title="Email & phone verification">
+      <div className="flex flex-col gap-3">
+        <VerificationSwitch
+          label="Email verification"
+          autoVerified={company.autoVerifyEmail === true}
+          disabled={saving}
+          onToggle={() => save('autoVerifyEmail', !(company.autoVerifyEmail === true), 'Email')}
+        />
+        <VerificationSwitch
+          label="Phone verification"
+          autoVerified={company.autoVerifyPhone === true}
+          disabled={saving}
+          onToggle={() => save('autoVerifyPhone', !(company.autoVerifyPhone === true), 'Phone')}
+        />
+        <p className="text-[11px] text-[#94A3B8]">Applies to users who register after the change; existing users are not changed.</p>
+      </div>
+    </SectionCard>
+  );
+}
 
 function JobsSection({ company, onSaved, showToast }: {
   company: CompanySummary; onSaved: () => void; showToast: (t: 'success' | 'error', m: string) => void;
