@@ -29,6 +29,7 @@ import { StatusRibbon } from '../../components/ui/StatusRibbon';
 import { AdminPickupManifest } from './AdminPickupManifest';
 import { useAdminTab } from '../../context/AdminUserContext';
 import { ShipOrderModal } from '../../components/admin/orders/ShipOrderModal';
+import { BulkShipModal } from '../../components/admin/orders/BulkShipModal';
 import { Toast } from '../../components/ui/Toast';
 import { useToast } from '../../hooks/useToast';
 import { useProductTooltip, ProductTooltipCard } from '../../hooks/useProductTooltip';
@@ -176,6 +177,7 @@ const mapOrder = (o: any) => {
     userName:       o.userId?.fullname || o.userId?.name || '—',
     userEmail:      o.userId?.email || '—',
     userUserId:     o.userId?.userId || '',
+    userMongoId:    (o.userId && typeof o.userId === 'object' ? o.userId._id : o.userId) || '',
     date:           o.createdAt ? new Date(o.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—',
     createdAtRaw:   o.createdAt || null,
     manifestDate:   o.manifestDate || o.createdAt || new Date().toISOString(),
@@ -1082,23 +1084,37 @@ export function AdminOrders() {
   const toggleAll = () => setSelectedOrders(selectedOrders.length === orders.length && orders.length > 0 ? [] : orders.map(o => o._id));
   const toggleSelect = (id: string) => setSelectedOrders(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
-  // Single selected order keeps the existing manual rate-picker flow
-  // (ShipOrderModal); 2+ selected orders go through the real bulk-ship
-  // endpoint, which assigns a courier per order automatically and reports
-  // progress via the notification bell instead of a modal.
+  // 2+ selected orders: the Bulk Ship popup (pickup address + courier priority), then the real
+  // bulk-ship endpoint, which assigns a courier per order automatically and reports progress via
+  // the notification bell. A single order is shipped from its row's Ship button (ShipOrderModal).
+  const [showBulkShipModal, setShowBulkShipModal] = useState(false);
   const handleBulkShipClick = async () => {
-    if (selectedOrders.length === 0) return;
-    if (selectedOrders.length === 1) {
-      setShipOrder(orders.find(o => o._id === selectedOrders[0]) || null);
+    // same rule as Shiproxx / ShipexFrontend: bulk ship needs 2+ orders (one order is shipped from its row's Ship button)
+    if (selectedOrders.length < 2) {
+      showToast('info', 'Please select at least 2 orders to create a bulk shipment.');
       return;
     }
+    // pickup address / courier priority are chosen in the popup; an admin must be working on one seller's orders
+    if (isAdminView) {
+      const owners = new Set(orders.filter(o => selectedOrders.includes(o._id)).map(o => String(o.userMongoId)));
+      if (owners.size > 1) { showToast('error', 'Please select orders of a single seller to bulk ship.'); return; }
+    }
+    setShowBulkShipModal(true);
+  };
+
+  const bulkShipUserId = isAdminView
+    ? (orders.find(o => selectedOrders.includes(o._id))?.userMongoId || undefined)
+    : undefined;
+
+  const runBulkShip = async (wh?: Record<string, string>) => {
     try {
-      const res = await apiClient.post('/bulk/create-bulk-order', { selectedOrders });
+      const res = await apiClient.post('/bulk/create-bulk-order', { selectedOrders, ...(wh ? { wh } : {}) });
       showToast('success', res.data?.message || `Bulk shipment started for ${selectedOrders.length} orders.`);
       refreshNotifications();
       fetchOrders(page);
     } catch (error: any) {
       showToast('error', error?.response?.data?.message || 'Failed to start bulk shipment.');
+      throw error;
     }
   };
 
@@ -2682,6 +2698,14 @@ export function AdminOrders() {
           </div>,
           document.body
         )}
+
+        <BulkShipModal
+          open={showBulkShipModal}
+          onClose={() => setShowBulkShipModal(false)}
+          selectedOrders={selectedOrders}
+          userId={bulkShipUserId}
+          onShip={runBulkShip}
+        />
 
         {/* ── Order Detail Drawer ── */}
         {drawerOrder && (
