@@ -28,6 +28,8 @@ import {
   TrendingUp,
   Zap,
   ShieldCheck,
+  Palette,
+  LayoutDashboard,
 } from 'lucide-react';
 
 const LOGO_URL = '/logo-white.png';
@@ -57,8 +59,14 @@ interface MenuGroup {
 
 const MENU_GROUPS: MenuGroup[] = [
   {
-    label: 'Dashboard',
+    label: 'Home',
     icon: Home,
+    path: '/user/home',
+    userOnly: true,
+  },
+  {
+    label: 'Dashboard',
+    icon: LayoutDashboard,
     path: '/admin/dashboard'
   },
   {
@@ -118,6 +126,7 @@ const MENU_GROUPS: MenuGroup[] = [
     items: [
       { name: 'Seller Remittance', path: '/user/seller-remittance/early-cod', icon: Wallet, userOnly: true },
       { name: 'Secure', path: '/user/vas/auto-secure', icon: ShieldCheck, userOnly: true },
+      { name: 'Branded Tracking Page', path: '/user/vas/branded-tracking', icon: Palette, userOnly: true },
     ]
   },
   {

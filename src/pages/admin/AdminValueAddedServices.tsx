@@ -10,7 +10,7 @@ import { ShineButton } from '../../components/ui/ShineButton';
 import {
   Gauge, ShieldCheck, Rocket, BellRing, PackageCheck,
   ChevronDown, CheckCircle2, Clock, Users, BadgeCheck, Wallet2, PlayCircle,
-  ArrowRight, AlertTriangle, ShieldOff,
+  ArrowRight, AlertTriangle, ShieldOff, Palette,
 } from 'lucide-react';
 import autoSecureHowItWorks from '../../assets/auto-secure-how-it-works.png';
 import rtoScoreHowItWorks from '../../assets/rto-score-how-it-works.png';
@@ -24,6 +24,7 @@ const VAS_NAV = [
   // { id: 'brand-boost', label: 'Brand Boost', path: '/user/vas/brand-boost', icon: Award },
   { id: 'notify', label: 'Notify', path: '/user/vas/notify', icon: BellRing },
   { id: 'shipsure', label: 'Shipsure', path: '/user/vas/shipsure', icon: PackageCheck, isNew: true },
+  { id: 'branded-tracking', label: 'Branded Tracking Page', path: '/user/vas/branded-tracking', icon: Palette, isNew: true },
 ];
 
 function VasShell({ children }: { children: React.ReactNode }) {

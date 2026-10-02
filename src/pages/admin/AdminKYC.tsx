@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { apiClient } from '../../services/apiClient';
 import { useTableLoader } from '../../hooks/useTableLoader';
@@ -8,6 +8,7 @@ import { TableLoader } from '../../components/ui/TableLoader';
 import { useToast } from '../../hooks/useToast';
 import { Toast } from '../../components/ui/Toast';
 import { ShineButton } from '../../components/ui/ShineButton';
+import aadhaarLogo from '../../assets/aadhaar-logo.png';
 import {
   Check,
   X,
@@ -25,6 +26,8 @@ import {
   BadgeCheck,
   Landmark,
   ReceiptText,
+  ScanLine,
+  User,
 } from 'lucide-react';
 
 /* ── READ-ONLY KYC DATA TYPES ── */
@@ -271,6 +274,900 @@ function BankDetailsPanel({
   );
 }
 
+/* ── PAN VERIFICATION MODAL ──
+   Bottom-sheet containing a PAN-card-style flip card. Front = enter PAN +
+   Verify (calls the existing handleVerifyPan — no new API logic). On success
+   the card performs a 3D flip to reveal only the fields the backend actually
+   returns (panData.name, panData.panType) plus the PAN number itself — no
+   fabricated Father's Name/DOB/photo/signature, since the API doesn't supply
+   them and this must never fake verification data. ── */
+function PanVerificationModal({
+  open, onClose,
+  panNumber, setPanNumber,
+  isPanVerified, isPanLoading,
+  panData,
+  onVerify,
+  onContinue,
+}: {
+  open: boolean;
+  onClose: () => void;
+  panNumber: string; setPanNumber: (v: string) => void;
+  isPanVerified: boolean; isPanLoading: boolean;
+  panData: { panType: string; name: string };
+  onVerify: () => void;
+  onContinue?: () => void;
+}) {
+  const prefersReducedMotion = useReducedMotion();
+
+  return (
+    <AnimatePresence>
+      {open && (
+        <>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            onClick={onClose}
+            className="fixed inset-0 bg-[#0B1220]/80 backdrop-blur-md z-[230]"
+          />
+          <div className="fixed inset-0 z-[231] flex items-center justify-center p-4 pointer-events-none overflow-y-auto">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.92, y: 24 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.92, y: 24 }}
+              transition={{ type: 'spring', stiffness: 260, damping: 24 }}
+              className="w-full max-w-[520px] pointer-events-auto flex flex-col items-center py-6"
+            >
+              <div className="w-full flex items-center justify-between px-1 mb-6">
+                <h3 className="text-[22px] sm:text-[24px] font-extrabold text-white tracking-tight">PAN Verification</h3>
+                <button type="button" onClick={onClose} className="w-10 h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors shrink-0">
+                  <X className="w-4.5 h-4.5" />
+                </button>
+              </div>
+
+              {/* ── Flip card — physical PAN-card proportions, floating on the backdrop with an ambient glow ── */}
+              <div className="relative [perspective:1800px] w-full max-w-[460px]">
+                {/* ambient glow behind the card */}
+                <div className="absolute -inset-6 rounded-[40px] bg-[#4A85C7]/35 blur-3xl pointer-events-none" />
+
+                <motion.div
+                  animate={{ rotateY: isPanVerified ? 180 : 0 }}
+                  transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.75, ease: [0.4, 0.0, 0.2, 1] }}
+                  className="relative w-full aspect-[1.586/1] [transform-style:preserve-3d]"
+                >
+                  {/* FRONT — entry state, styled after an actual PAN card */}
+                  <div className="absolute inset-0 rounded-[26px] bg-gradient-to-br from-[#7FB3E8] via-[#4A85C7] to-[#254E85] p-5 sm:p-6 flex flex-col overflow-hidden [backface-visibility:hidden] shadow-[0_30px_70px_-20px_rgba(0,0,0,0.6),inset_0_1px_0_0_rgba(255,255,255,0.25)] ring-1 ring-white/15">
+                    {/* card-stock sheen + corner highlight */}
+                    <div className="absolute inset-0 bg-gradient-to-tr from-white/12 via-transparent to-white/8 pointer-events-none" />
+                    <div className="absolute -top-16 -right-16 w-40 h-40 rounded-full bg-white/10 blur-2xl pointer-events-none" />
+
+                    <div className="relative flex items-start justify-between">
+                      <div className="leading-tight">
+                        <p className="text-[13px] sm:text-[14px] font-bold text-white">आयकर विभाग</p>
+                        <p className="text-[9px] sm:text-[9.5px] font-semibold text-white/80 tracking-wide">INCOME TAX DEPARTMENT</p>
+                      </div>
+                      <span className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white/15 border border-white/30 flex items-center justify-center shrink-0 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.3)]">
+                        <ShieldCheck className="w-4.5 h-4.5 sm:w-5 sm:h-5 text-white" />
+                      </span>
+                      <div className="leading-tight text-right">
+                        <p className="text-[13px] sm:text-[14px] font-bold text-white">भारत सरकार</p>
+                        <p className="text-[9px] sm:text-[9.5px] font-semibold text-white/80 tracking-wide">GOVT. OF INDIA</p>
+                      </div>
+                    </div>
+
+                    <div className="relative flex-1 flex items-center gap-4 sm:gap-5 mt-2">
+                      <div className="flex-1 space-y-2.5">
+                        <span className="block h-[4px] w-[85%] rounded-full bg-white/35" />
+                        <span className="block h-[4px] w-[70%] rounded-full bg-white/35" />
+                        <span className="block h-[4px] w-[55%] rounded-full bg-white/25" />
+                      </div>
+                      <span className="w-12 h-14 sm:w-14 sm:h-16 rounded-lg bg-white/15 border border-white/25 flex items-center justify-center shrink-0 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.25)]">
+                        <User className="w-5 h-5 sm:w-6 sm:h-6 text-white/70" />
+                      </span>
+                    </div>
+
+                    <p className="relative text-[9.5px] sm:text-[10px] font-medium text-white/70 text-center">Permanent Account Number Card</p>
+                  </div>
+
+                  {/* BACK — verified state (only real fields, no fabricated data) */}
+                  <div className="absolute inset-0 rounded-[26px] bg-gradient-to-br from-white to-[#F0FDF4] p-5 sm:p-6 flex flex-col overflow-hidden [backface-visibility:hidden] [transform:rotateY(180deg)] shadow-[0_30px_70px_-20px_rgba(0,0,0,0.6),inset_0_1px_0_0_rgba(255,255,255,0.6)] ring-1 ring-[#00A86B]/25">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] sm:text-[10.5px] font-bold text-[#64748B] uppercase tracking-wider">Income Tax Department</span>
+                      <span className="flex items-center gap-1 text-[10px] sm:text-[10.5px] font-bold text-[#00A86B] uppercase tracking-wider">
+                        <CheckCircle2 className="w-3.5 h-3.5" /> Verified
+                      </span>
+                    </div>
+
+                    <div className="flex-1 flex flex-col justify-center gap-2.5 py-2">
+                      {isPanVerified && (
+                        <>
+                          <motion.div initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4, duration: 0.25 }}>
+                            <span className="block text-[9px] font-semibold text-[#94A3B8] uppercase tracking-wider">PAN Number</span>
+                            <span className="text-[17px] sm:text-[18px] font-bold text-[#0F172A] tracking-[0.15em]">{panNumber}</span>
+                          </motion.div>
+                          <motion.div initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.5, duration: 0.25 }}>
+                            <span className="block text-[9px] font-semibold text-[#94A3B8] uppercase tracking-wider">Name</span>
+                            <span className="text-[15px] font-bold text-[#0F172A]">{panData.name || '—'}</span>
+                          </motion.div>
+                          <motion.div initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.6, duration: 0.25 }}>
+                            <span className="block text-[9px] font-semibold text-[#94A3B8] uppercase tracking-wider">PAN Type</span>
+                            <span className="text-[15px] font-bold text-[#0F172A]">{panData.panType || '—'}</span>
+                          </motion.div>
+                        </>
+                      )}
+                    </div>
+
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 0.7, duration: 0.25 }}
+                      className="flex items-center justify-between pt-2.5 border-t border-dashed border-[#DCFCE7]"
+                    >
+                      <span className="text-[9.5px] text-[#94A3B8] font-medium">QuickPost KYC · Secure Verification</span>
+                      <BadgeCheck className="w-4 h-4 text-[#00A86B]" />
+                    </motion.div>
+                  </div>
+                </motion.div>
+              </div>
+
+              {/* ── PAN input — inset/pressed field, carved into a soft white surface ── */}
+              {!isPanVerified && (
+                <div className="w-full max-w-[460px] mt-7 space-y-3">
+                  <div
+                    className="relative rounded-[16px] px-5 pt-3 pb-3 transition-shadow duration-200 focus-within:shadow-[inset_2px_2px_6px_rgba(15,23,42,0.12),inset_-2px_-2px_5px_rgba(255,255,255,0.9),0_0_0_3px_rgba(0,157,100,0.18),0_0_16px_rgba(0,157,100,0.2)]"
+                    style={{
+                      background: 'linear-gradient(155deg, #eef1f5 0%, #f7f9fb 45%, #eef1f5 100%)',
+                      boxShadow: 'inset 2px 2px 5px rgba(15,23,42,0.1), inset -2px -2px 4px rgba(255,255,255,0.85), 0 1px 0 rgba(255,255,255,0.6)',
+                      border: '1px solid rgba(15,23,42,0.06)',
+                    }}
+                  >
+                    <label htmlFor="pan-number-input" className="block text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider mb-0.5">
+                      PAN Number
+                    </label>
+                    <input
+                      id="pan-number-input"
+                      type="text"
+                      maxLength={10}
+                      value={panNumber}
+                      onChange={(e) => setPanNumber(e.target.value.toUpperCase())}
+                      disabled={isPanLoading}
+                      placeholder="ABCDE1234F"
+                      aria-label="PAN number"
+                      className="w-full bg-transparent border-0 p-0 tracking-[0.2em] font-bold uppercase text-[17px] text-[#0F172A] placeholder:text-[#CBD5E1] placeholder:tracking-[0.2em] placeholder:font-bold focus:outline-none disabled:opacity-50"
+                    />
+                  </div>
+                  <ShineButton
+                    type="button"
+                    onClick={onVerify}
+                    disabled={isPanLoading || panNumber.length < 10}
+                    className="relative w-full h-[52px] rounded-full bg-gradient-to-r from-[#00E08A] to-[#00C97B] hover:from-[#00C97B] hover:to-[#00B36D] disabled:opacity-40 disabled:pointer-events-none text-white text-[14px] font-extrabold shadow-[0_18px_45px_-14px_rgba(0,201,123,0.7)] transition-all overflow-hidden flex items-center justify-center gap-2"
+                  >
+                    {isPanLoading ? (
+                      <>
+                        <ScanLine className="w-4 h-4" />
+                        Verifying
+                        {!prefersReducedMotion && (
+                          <motion.span
+                            className="absolute inset-y-0 left-0 w-1/3 bg-black/10"
+                            animate={{ x: ['-100%', '300%'] }}
+                            transition={{ duration: 1.1, repeat: Infinity, ease: 'linear' }}
+                          />
+                        )}
+                      </>
+                    ) : (
+                      'Verify PAN'
+                    )}
+                  </ShineButton>
+                </div>
+              )}
+
+              {isPanVerified && (
+                <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.75, duration: 0.25 }} className="w-full max-w-[460px] mt-6">
+                  <button
+                    type="button"
+                    onClick={onContinue || onClose}
+                    className="w-full h-12 rounded-full bg-[#00C97B] hover:bg-[#00B36D] text-[#0B1220] text-[13.5px] font-bold shadow-[0_8px_24px_-8px_rgba(0,201,123,0.6)] transition-colors"
+                  >
+                    {onContinue ? 'Continue to Aadhaar Verification' : 'Done'}
+                  </button>
+                </motion.div>
+              )}
+            </motion.div>
+          </div>
+        </>
+      )}
+    </AnimatePresence>
+  );
+}
+
+function AadhaarVerificationModal({
+  open, onClose,
+  aadhaarNumber, setAadhaarNumber,
+  isAadhaarVerified,
+  sendingAadhaarOtp, aadhaarOtpTimer,
+  aadhaarData,
+  onSendOtp,
+  onContinue,
+}: {
+  open: boolean;
+  onClose: () => void;
+  aadhaarNumber: string; setAadhaarNumber: (v: string) => void;
+  isAadhaarVerified: boolean;
+  sendingAadhaarOtp: boolean; aadhaarOtpTimer: number;
+  aadhaarData: { name: string; guardianName: string; address: string; state: string; city: string };
+  onSendOtp: () => void;
+  onContinue?: () => void;
+}) {
+  const prefersReducedMotion = useReducedMotion();
+  const maskedAadhaar = aadhaarNumber
+    ? aadhaarNumber.replace(/\D/g, '').padEnd(12, 'X').replace(/(.{4})(.{4})(.{4})/, '$1 $2 $3')
+    : 'XXXX XXXX XXXX';
+
+  // Once verified, the card can be flipped back and forth by clicking it —
+  // defaults to showing the back (verified details) right after verification.
+  const [showBack, setShowBack] = useState(false);
+  useEffect(() => {
+    if (isAadhaarVerified) setShowBack(true);
+  }, [isAadhaarVerified]);
+
+  return (
+    <AnimatePresence>
+      {open && (
+        <>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            onClick={onClose}
+            className="fixed inset-0 bg-[#0B1220]/80 backdrop-blur-md z-[230]"
+          />
+          <div className="fixed inset-0 z-[231] flex items-center justify-center p-4 pointer-events-none overflow-y-auto">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.92, y: 24 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.92, y: 24 }}
+              transition={{ type: 'spring', stiffness: 260, damping: 24 }}
+              className="w-full max-w-[560px] pointer-events-auto flex flex-col items-center py-6"
+            >
+              <div className="w-full flex items-center justify-between px-1 mb-6">
+                <h3 className="text-[22px] sm:text-[24px] font-extrabold text-white tracking-tight">Aadhaar Verification</h3>
+                <button type="button" onClick={onClose} className="w-10 h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors shrink-0">
+                  <X className="w-4.5 h-4.5" />
+                </button>
+              </div>
+
+              {/* ── Flip card — Aadhaar card proportions, floating on the backdrop ── */}
+              <div className="relative [perspective:1800px] w-full max-w-[500px]">
+                <div className="absolute -inset-6 rounded-[40px] bg-[#F4A24A]/30 blur-3xl pointer-events-none" />
+
+                <motion.div
+                  animate={{ rotateY: showBack ? 180 : 0 }}
+                  transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.75, ease: [0.4, 0.0, 0.2, 1] }}
+                  className={`relative w-full aspect-[1.586/1] [transform-style:preserve-3d] ${isAadhaarVerified ? 'cursor-pointer' : ''}`}
+                  onClick={() => { if (isAadhaarVerified) setShowBack(v => !v); }}
+                  title={isAadhaarVerified ? 'Tap to flip the card' : undefined}
+                >
+                  {/* FRONT — entry/verified state, styled after an actual Aadhaar card */}
+                  <div className="absolute inset-0 rounded-[22px] bg-[#FAFAF9] p-4 sm:p-5 flex flex-col overflow-hidden [backface-visibility:hidden] shadow-[0_30px_70px_-20px_rgba(0,0,0,0.6),inset_0_1px_0_0_rgba(255,255,255,0.6)] ring-1 ring-black/5">
+                    <div className="flex flex-col items-center text-center">
+                      {/* saffron + green hand-painted brush-stroke bands, like a printed ID card header */}
+                      <svg viewBox="0 0 220 24" className="w-[62%] max-w-[190px] h-[16px] sm:h-[18px]" preserveAspectRatio="none">
+                        <path d="M2 7 C 18 3, 36 8, 55 5 C 78 2, 100 7, 122 4 C 145 1.5, 168 6, 188 3 C 196 2, 202 4, 208 3 L 209 7 C 200 8.5, 190 6, 180 8 C 158 11, 136 6, 113 9 C 90 12, 66 7, 44 10 C 28 12, 14 9, 3 11 Z" fill="#FF9933" />
+                        <path d="M4 15 C 20 12, 40 16, 60 13.5 C 82 11, 105 15, 128 12.5 C 150 10.5, 172 14, 192 11.5 C 199 10.7, 204 12, 209 11.3 L 209.5 15 C 201 16.3, 192 14.5, 182 16 C 160 19, 138 15, 115 17.5 C 92 20, 68 16, 46 18.5 C 30 20.3, 16 18, 5 19.5 Z" fill="#138808" />
+                      </svg>
+                      <p className="text-[11px] sm:text-[12.5px] font-bold text-[#1F2937] mt-1.5 leading-tight">भारत सरकार</p>
+                      <p className="text-[10px] sm:text-[11px] font-semibold text-[#334155] leading-tight">Government of India</p>
+                    </div>
+
+                    <div className="relative flex-1 flex items-center gap-3 sm:gap-4 mt-2">
+                      <span className="w-14 h-16 sm:w-16 sm:h-[72px] rounded-lg bg-[#E5E7EB] border border-black/5 flex items-center justify-center shrink-0 overflow-hidden">
+                        <User className="w-6 h-6 sm:w-7 sm:h-7 text-[#9CA3AF]" />
+                      </span>
+                      {isAadhaarVerified ? (
+                        <motion.div initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.25 }} className="flex-1 min-w-0 space-y-1 text-[#1F2937]">
+                          <p className="text-[13px] sm:text-[14.5px] font-bold leading-tight truncate">{aadhaarData.name || '—'}</p>
+                          {aadhaarData.guardianName && (
+                            <p className="text-[10px] sm:text-[11px] font-medium text-[#334155] truncate">{aadhaarData.guardianName}</p>
+                          )}
+                        </motion.div>
+                      ) : (
+                        <div className="flex-1 space-y-2">
+                          <span className="block h-[8px] w-[80%] rounded-full bg-[#D1D5DB]" />
+                          <span className="block h-[8px] w-[60%] rounded-full bg-[#D1D5DB]" />
+                          <span className="block h-[8px] w-[45%] rounded-full bg-[#E5E7EB]" />
+                        </div>
+                      )}
+                      <span className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-white border border-[#E2E8F0] p-2 shrink-0 self-center shadow-sm ml-3 sm:ml-4">
+                        <img src={aadhaarLogo} alt="Aadhaar" className="w-full h-full object-contain" />
+                      </span>
+                    </div>
+
+                    <p className="relative text-[15px] sm:text-[17px] font-bold text-[#1F2937] tracking-[0.25em] mt-2 text-center">{maskedAadhaar}</p>
+                  </div>
+
+                  {/* BACK — verified state, address only (only real fields, no fabricated data) */}
+                  <div className="absolute inset-0 rounded-[22px] bg-[#FAFAF9] p-4 sm:p-5 flex flex-col overflow-hidden [backface-visibility:hidden] [transform:rotateY(180deg)] shadow-[0_30px_70px_-20px_rgba(0,0,0,0.6),inset_0_1px_0_0_rgba(255,255,255,0.6)] ring-1 ring-[#00A86B]/25">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[9px] sm:text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Unique Identification Authority of India</span>
+                      <span className="flex items-center gap-1 text-[9px] sm:text-[10px] font-bold text-[#00A86B] uppercase tracking-wider shrink-0">
+                        <CheckCircle2 className="w-3.5 h-3.5" /> Verified
+                      </span>
+                    </div>
+
+                    <div className="flex-1 flex gap-3 sm:gap-4 py-2 min-h-0">
+                      <div className="flex-1 min-w-0 flex flex-col justify-center">
+                        {isAadhaarVerified && (
+                          <motion.div
+                            initial={{ opacity: 0, x: -8 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: 0.3, duration: 0.25 }}
+                            className="text-[11px] sm:text-[12px] leading-[1.6] text-[#1F2937]"
+                          >
+                            <span className="font-bold uppercase tracking-wide text-[9px] text-[#94A3B8] block mb-0.5">Address</span>
+                            <span className="block font-semibold line-clamp-4">
+                              {aadhaarData.address || '—'}{aadhaarData.city ? `, ${aadhaarData.city}` : ''}{aadhaarData.state ? `, ${aadhaarData.state}` : ''}
+                            </span>
+                          </motion.div>
+                        )}
+                      </div>
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: 0.4, duration: 0.25 }}
+                        className="w-16 h-16 sm:w-[72px] sm:h-[72px] rounded-xl bg-white border border-[#E2E8F0] p-2 shrink-0 self-center shadow-sm"
+                      >
+                        <img src={aadhaarLogo} alt="Aadhaar" className="w-full h-full object-contain" />
+                      </motion.div>
+                    </div>
+
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 0.5, duration: 0.25 }}
+                      className="flex items-center justify-between pt-2 border-t border-dashed border-[#E2E8F0]"
+                    >
+                      <span className="text-[9.5px] text-[#94A3B8] font-medium">QuickPost KYC · Secure Verification</span>
+                      <BadgeCheck className="w-4 h-4 text-[#00A86B]" />
+                    </motion.div>
+                  </div>
+                </motion.div>
+              </div>
+
+              {/* ── Aadhaar input — inset/pressed field, matches PAN modal styling ── */}
+              {!isAadhaarVerified && (
+                <div className="w-full max-w-[460px] mt-7 space-y-3">
+                  <div
+                    className="relative rounded-[16px] px-5 pt-3 pb-3 transition-shadow duration-200 focus-within:shadow-[inset_2px_2px_6px_rgba(15,23,42,0.12),inset_-2px_-2px_5px_rgba(255,255,255,0.9),0_0_0_3px_rgba(0,157,100,0.18),0_0_16px_rgba(0,157,100,0.2)]"
+                    style={{
+                      background: 'linear-gradient(155deg, #eef1f5 0%, #f7f9fb 45%, #eef1f5 100%)',
+                      boxShadow: 'inset 2px 2px 5px rgba(15,23,42,0.1), inset -2px -2px 4px rgba(255,255,255,0.85), 0 1px 0 rgba(255,255,255,0.6)',
+                      border: '1px solid rgba(15,23,42,0.06)',
+                    }}
+                  >
+                    <label htmlFor="aadhaar-number-input" className="block text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider mb-0.5">
+                      Aadhaar Number
+                    </label>
+                    <input
+                      id="aadhaar-number-input"
+                      type="text"
+                      maxLength={12}
+                      value={aadhaarNumber}
+                      onChange={(e) => setAadhaarNumber(e.target.value.replace(/\D/g, ''))}
+                      disabled={sendingAadhaarOtp}
+                      placeholder="XXXX XXXX XXXX"
+                      aria-label="Aadhaar number"
+                      className="w-full bg-transparent border-0 p-0 tracking-[0.2em] font-bold text-[17px] text-[#0F172A] placeholder:text-[#CBD5E1] placeholder:tracking-[0.2em] placeholder:font-bold focus:outline-none disabled:opacity-50"
+                    />
+                  </div>
+                  <ShineButton
+                    type="button"
+                    onClick={onSendOtp}
+                    disabled={sendingAadhaarOtp || aadhaarOtpTimer > 0 || aadhaarNumber.length < 12}
+                    className="relative w-full h-[52px] rounded-full bg-gradient-to-r from-[#00E08A] to-[#00C97B] hover:from-[#00C97B] hover:to-[#00B36D] disabled:opacity-40 disabled:pointer-events-none text-white text-[14px] font-extrabold shadow-[0_18px_45px_-14px_rgba(0,201,123,0.7)] transition-all overflow-hidden flex items-center justify-center gap-2"
+                  >
+                    {sendingAadhaarOtp ? (
+                      <>
+                        <ScanLine className="w-4 h-4" />
+                        Sending OTP
+                        {!prefersReducedMotion && (
+                          <motion.span
+                            className="absolute inset-y-0 left-0 w-1/3 bg-black/10"
+                            animate={{ x: ['-100%', '300%'] }}
+                            transition={{ duration: 1.1, repeat: Infinity, ease: 'linear' }}
+                          />
+                        )}
+                      </>
+                    ) : aadhaarOtpTimer > 0 ? (
+                      `Resend in ${aadhaarOtpTimer}s`
+                    ) : (
+                      'Send OTP to Verify'
+                    )}
+                  </ShineButton>
+                </div>
+              )}
+
+              {isAadhaarVerified && (
+                <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.75, duration: 0.25 }} className="w-full max-w-[460px] mt-6">
+                  <button
+                    type="button"
+                    onClick={onContinue || onClose}
+                    className="w-full h-12 rounded-full bg-[#00C97B] hover:bg-[#00B36D] text-[#0B1220] text-[13.5px] font-bold shadow-[0_8px_24px_-8px_rgba(0,201,123,0.6)] transition-colors"
+                  >
+                    {onContinue ? 'Continue' : 'Done'}
+                  </button>
+                </motion.div>
+              )}
+            </motion.div>
+          </div>
+        </>
+      )}
+    </AnimatePresence>
+  );
+}
+
+/* ── GSTIN VERIFICATION MODAL — centered, same visual language as PAN/Aadhaar
+   modals but form-style (no flip card, GSTIN has no standardized physical
+   card look). Reuses the existing handleVerifyGstin unchanged. ── */
+function GstinVerificationModal({
+  open, onClose,
+  gstin, setGstin,
+  isGstinVerified, isGstinLoading,
+  gstData,
+  onVerify, onContinue,
+}: {
+  open: boolean;
+  onClose: () => void;
+  gstin: string; setGstin: (v: string) => void;
+  isGstinVerified: boolean; isGstinLoading: boolean;
+  gstData: { gstin?: string; nameOfBusiness?: string; legalNameOfBusiness?: string; address?: string; pincode?: string; city?: string; state?: string };
+  onVerify: () => void;
+  onContinue?: () => void;
+}) {
+  const prefersReducedMotion = useReducedMotion();
+  return (
+    <AnimatePresence>
+      {open && (
+        <>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }} onClick={onClose} className="fixed inset-0 bg-[#0B1220]/80 backdrop-blur-md z-[230]" />
+          <div className="fixed inset-0 z-[231] flex items-center justify-center p-4 pointer-events-none overflow-y-auto">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.94, y: 24 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.94, y: 24 }}
+              transition={{ type: 'spring', stiffness: 260, damping: 24 }}
+              className="w-full max-w-[440px] bg-white rounded-[28px] shadow-[0_40px_90px_-24px_rgba(0,0,0,0.55)] relative pointer-events-auto overflow-hidden"
+            >
+              <div className="px-7 pt-7 pb-6 bg-gradient-to-b from-[#F0FDF4] to-white relative overflow-hidden">
+                <div className="absolute -top-16 -right-14 w-44 h-44 rounded-full bg-[#00A86B]/10 blur-3xl pointer-events-none" />
+                <button type="button" onClick={onClose} className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-white/80 hover:bg-white text-[#64748B] shadow-sm ring-1 ring-black/5 transition-colors cursor-pointer focus:outline-none">
+                  <X className="w-4 h-4" />
+                </button>
+                <motion.div
+                  initial={{ scale: 0.6, opacity: 0, y: -8 }}
+                  animate={{ scale: 1, opacity: 1, y: 0 }}
+                  transition={{ type: 'spring', stiffness: 260, damping: 16, delay: 0.1 }}
+                  className="relative w-16 h-16 rounded-[20px] bg-white flex items-center justify-center mx-auto mb-4 shadow-[0_12px_28px_-10px_rgba(0,168,107,0.3)] ring-1 ring-black/5"
+                >
+                  <ReceiptText className="w-8 h-8 text-[#00A86B]" />
+                </motion.div>
+                <h2 className="text-[18px] font-extrabold text-[#0F172A] mb-1 tracking-tight text-center">GST Verification</h2>
+                <p className="text-[12.5px] text-[#64748B] leading-relaxed text-center px-2">Enter your company's GSTIN to verify its registration details.</p>
+              </div>
+
+              <div className="px-7 pb-7 pt-1">
+                {!isGstinVerified ? (
+                  <div className="space-y-3">
+                    <div
+                      className="relative rounded-[16px] px-5 pt-3 pb-3 transition-shadow duration-200 focus-within:shadow-[inset_2px_2px_6px_rgba(15,23,42,0.12),inset_-2px_-2px_5px_rgba(255,255,255,0.9),0_0_0_3px_rgba(0,157,100,0.18),0_0_16px_rgba(0,157,100,0.2)]"
+                      style={{
+                        background: 'linear-gradient(155deg, #eef1f5 0%, #f7f9fb 45%, #eef1f5 100%)',
+                        boxShadow: 'inset 2px 2px 5px rgba(15,23,42,0.1), inset -2px -2px 4px rgba(255,255,255,0.85), 0 1px 0 rgba(255,255,255,0.6)',
+                        border: '1px solid rgba(15,23,42,0.06)',
+                      }}
+                    >
+                      <label htmlFor="gstin-input" className="block text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider mb-0.5">GSTIN</label>
+                      <input
+                        id="gstin-input"
+                        type="text"
+                        maxLength={15}
+                        value={gstin}
+                        onChange={(e) => setGstin(e.target.value.toUpperCase())}
+                        disabled={isGstinLoading}
+                        placeholder="22AAAAA0000A1Z5"
+                        aria-label="GSTIN"
+                        className="w-full bg-transparent border-0 p-0 tracking-[0.15em] font-bold uppercase text-[16px] text-[#0F172A] placeholder:text-[#CBD5E1] placeholder:tracking-[0.15em] placeholder:font-bold focus:outline-none disabled:opacity-50"
+                      />
+                    </div>
+                    <ShineButton
+                      type="button"
+                      onClick={onVerify}
+                      disabled={isGstinLoading || gstin.length < 15}
+                      className="relative w-full h-[52px] rounded-full bg-[#009D64] hover:bg-[#008856] disabled:opacity-40 disabled:pointer-events-none text-white text-[14px] font-extrabold shadow-[0_18px_45px_-14px_rgba(0,157,100,0.55)] transition-all overflow-hidden flex items-center justify-center gap-2"
+                    >
+                      {isGstinLoading ? (
+                        <>
+                          <ScanLine className="w-4 h-4" />
+                          Verifying
+                          {!prefersReducedMotion && (
+                            <motion.span className="absolute inset-y-0 left-0 w-1/3 bg-black/10" animate={{ x: ['-100%', '300%'] }} transition={{ duration: 1.1, repeat: Infinity, ease: 'linear' }} />
+                          )}
+                        </>
+                      ) : (
+                        'Verify GSTIN'
+                      )}
+                    </ShineButton>
+                  </div>
+                ) : (
+                  <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="space-y-4">
+                    <div className="rounded-2xl bg-[#F0FDF4] border border-[#00A86B]/20 px-4 py-3.5">
+                      <div className="flex items-center gap-3 mb-1">
+                        <span className="w-9 h-9 rounded-full bg-[#00A86B]/10 flex items-center justify-center shrink-0">
+                          <CheckCircle2 className="w-5 h-5 text-[#00A86B]" />
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-[12px] font-bold text-[#00A86B]">GSTIN Verified</p>
+                          <p className="text-[13px] font-bold text-[#0F172A] tracking-wide truncate">{gstData.gstin || gstin}</p>
+                        </div>
+                      </div>
+                      {(gstData.nameOfBusiness || gstData.legalNameOfBusiness || gstData.address || gstData.pincode || gstData.city || gstData.state) && (
+                        <div className="grid grid-cols-2 gap-3 pt-3 mt-3 border-t border-dashed border-[#00A86B]/20">
+                          {gstData.nameOfBusiness && (
+                            <div className="col-span-2"><span className="block text-[10px] font-semibold text-[#94A3B8] mb-1">Company Name</span><span className="text-[12.5px] font-bold text-[#0F172A]">{gstData.nameOfBusiness}</span></div>
+                          )}
+                          {gstData.address && (
+                            <div className="col-span-2"><span className="block text-[10px] font-semibold text-[#94A3B8] mb-1">Company Address</span><span className="text-[12.5px] font-bold text-[#0F172A]">{gstData.address}</span></div>
+                          )}
+                          {gstData.pincode && (
+                            <div><span className="block text-[10px] font-semibold text-[#94A3B8] mb-1">Pincode</span><span className="text-[12.5px] font-bold text-[#0F172A]">{gstData.pincode}</span></div>
+                          )}
+                          {gstData.city && (
+                            <div><span className="block text-[10px] font-semibold text-[#94A3B8] mb-1">City</span><span className="text-[12.5px] font-bold text-[#0F172A]">{gstData.city}</span></div>
+                          )}
+                          {gstData.state && (
+                            <div><span className="block text-[10px] font-semibold text-[#94A3B8] mb-1">State</span><span className="text-[12.5px] font-bold text-[#0F172A]">{gstData.state}</span></div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={onContinue || onClose}
+                      className="w-full h-12 rounded-full bg-[#009D64] hover:bg-[#008856] text-white text-[13.5px] font-bold shadow-[0_8px_24px_-8px_rgba(0,157,100,0.5)] transition-colors"
+                    >
+                      {onContinue ? 'Continue to Bank Details' : 'Done'}
+                    </button>
+                  </motion.div>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        </>
+      )}
+    </AnimatePresence>
+  );
+}
+
+/* ── BANK VERIFICATION PAGE — full page (not a modal), styled like a
+   real seller-onboarding "Add bank account" screen (Amazon Seller Central /
+   Flipkart Seller Hub / Shiprocket pattern): sticky header with step context,
+   a single clean form card, a trust/security strip, sticky footer CTA.
+   Same fields as before (no field changes), reusing handleVerifyBank unchanged. ── */
+function BankVerificationPage({
+  open, onClose,
+  accountNumber, setAccountNumber,
+  confirmAccountNumber, setConfirmAccountNumber,
+  accountNumbersMatch,
+  accountHolderName,
+  ifscCode, setIfscCode,
+  bankName, branchName,
+  isBankVerified, isBankLoading,
+  onVerify, onContinue,
+}: {
+  open: boolean;
+  onClose: () => void;
+  accountNumber: string; setAccountNumber: (v: string) => void;
+  confirmAccountNumber: string; setConfirmAccountNumber: (v: string) => void;
+  accountNumbersMatch: boolean;
+  accountHolderName: string;
+  ifscCode: string; setIfscCode: (v: string) => void;
+  bankName: string; branchName: string;
+  isBankVerified: boolean; isBankLoading: boolean;
+  onVerify: () => void;
+  onContinue?: () => void;
+}) {
+  const canVerify = !!accountNumber && accountNumbersMatch && ifscCode.length === 11;
+  return (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          initial={{ opacity: 0, y: '100%' }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: '100%' }}
+          transition={{ type: 'tween', ease: [0.22, 1, 0.36, 1], duration: 0.35 }}
+          className="fixed inset-0 z-[250] bg-[#F8FAFC] flex flex-col"
+        >
+          <div className="flex items-center justify-between px-4 md:px-8 h-16 border-b border-[#E2E8F0] bg-white shrink-0">
+            <div>
+              <h2 className="text-[15px] md:text-[17px] font-bold text-[#0F172A]">Bank Account Details</h2>
+              <p className="text-[11px] md:text-[12px] text-[#64748B]">Add the account where your payouts will be settled.</p>
+            </div>
+            <button type="button" onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-[#F1F5F9] text-[#64748B] shrink-0">
+              <X className="w-4.5 h-4.5" />
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6">
+            <div className="max-w-2xl mx-auto">
+              <div className="bg-white rounded-2xl shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_-16px_rgba(15,23,42,0.12)] overflow-hidden">
+                <div className="flex items-center gap-3 px-5 md:px-6 py-4">
+                  <span className="w-10 h-10 rounded-xl bg-[#F8FAFC] flex items-center justify-center shrink-0">
+                    <Landmark className="w-5 h-5 text-[#00A86B]" />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-[13.5px] font-bold text-[#0F172A]">Payout Account</p>
+                    <p className="text-[11.5px] text-[#64748B]">Your business's settlement bank account</p>
+                  </div>
+                  {isBankVerified && (
+                    <span className="ml-auto flex items-center gap-1 text-[11px] font-bold text-[#00A86B] shrink-0">
+                      <CheckCircle2 className="w-3.5 h-3.5" /> Verified
+                    </span>
+                  )}
+                </div>
+
+                <div className="px-5 md:px-6 py-5 md:py-6">
+                  {!isBankVerified ? (
+                    <div className="space-y-5">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <FieldLabel required>Account Number</FieldLabel>
+                          <input type="text" value={accountNumber} onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, ''))} disabled={isBankLoading} placeholder="Enter account number" className={inputCls} />
+                        </div>
+                        <div>
+                          <FieldLabel required>Confirm Account Number</FieldLabel>
+                          <input type="text" value={confirmAccountNumber} onChange={(e) => setConfirmAccountNumber(e.target.value.replace(/\D/g, ''))} disabled={isBankLoading} placeholder="Re-enter account number" className={`${inputCls} ${confirmAccountNumber && !accountNumbersMatch ? 'border-red-300 focus:border-red-400 focus:ring-red-100' : ''}`} />
+                          {confirmAccountNumber && !accountNumbersMatch && (
+                            <p className="text-[10.5px] font-semibold text-red-500 mt-1.5 flex items-center gap-1"><X className="w-3 h-3" /> Account numbers do not match</p>
+                          )}
+                        </div>
+                        <div className="sm:col-span-2 sm:max-w-xs">
+                          <FieldLabel required>IFSC Code</FieldLabel>
+                          <input type="text" maxLength={11} value={ifscCode} onChange={(e) => setIfscCode(e.target.value.toUpperCase())} disabled={isBankLoading} placeholder="e.g. HDFC0001234" className={`${inputCls} uppercase`} />
+                        </div>
+                      </div>
+
+                      <div className="flex items-start gap-2.5 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] px-4 py-3">
+                        <ShieldCheck className="w-4 h-4 text-[#00A86B] mt-0.5 shrink-0" />
+                        <p className="text-[11.5px] text-[#64748B] leading-relaxed">Your bank details are used only for payout settlement and are encrypted end-to-end. We never share this information with third parties.</p>
+                      </div>
+
+                      <ShineButton
+                        type="button"
+                        onClick={onVerify}
+                        disabled={isBankLoading || !canVerify}
+                        className="w-full sm:w-auto sm:min-w-[220px] h-12 px-8 rounded-full bg-[#009D64] hover:bg-[#008856] disabled:opacity-40 disabled:pointer-events-none text-white text-[13.5px] font-bold shadow-sm transition-colors flex items-center justify-center gap-2"
+                      >
+                        {isBankLoading ? <><RefreshCcw className="w-4 h-4 animate-spin" /> Verifying Account...</> : 'Verify Bank Account'}
+                      </ShineButton>
+                    </div>
+                  ) : (
+                    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="space-y-5">
+                      <div className="flex items-center gap-3 rounded-xl bg-[#F0FDF4] border border-[#00A86B]/20 px-4 py-3.5">
+                        <span className="w-9 h-9 rounded-full bg-[#00A86B]/10 flex items-center justify-center shrink-0">
+                          <CheckCircle2 className="w-5 h-5 text-[#00A86B]" />
+                        </span>
+                        <p className="text-[12.5px] font-bold text-[#00A86B]">Bank account verified successfully</p>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+                        <div className="sm:col-span-2">
+                          <span className="block text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider mb-1">Account Holder Name</span>
+                          <span className="text-[13.5px] font-bold text-[#0F172A]">{accountHolderName || '—'}</span>
+                        </div>
+                        <div>
+                          <span className="block text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider mb-1">Account Number</span>
+                          <span className="text-[13.5px] font-bold text-[#0F172A] tracking-wide">•••• •••• {accountNumber.slice(-4)}</span>
+                        </div>
+                        <div>
+                          <span className="block text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider mb-1">IFSC Code</span>
+                          <span className="text-[13.5px] font-bold text-[#0F172A] tracking-wide">{ifscCode}</span>
+                        </div>
+                        <div>
+                          <span className="block text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider mb-1">Bank Name</span>
+                          <span className="text-[13.5px] font-bold text-[#0F172A]">{bankName || '—'}</span>
+                        </div>
+                        <div>
+                          <span className="block text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider mb-1">Branch Name</span>
+                          <span className="text-[13.5px] font-bold text-[#0F172A]">{branchName || '—'}</span>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="sticky bottom-0 bg-white border-t border-[#E2E8F0] px-4 md:px-8 py-4 shrink-0">
+            <div className="max-w-2xl mx-auto flex gap-3 justify-end">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-8 h-12 border border-[#E2E8F0] text-[#64748B] hover:bg-[#F8FAFC] text-[14px] font-bold rounded-full transition-colors shrink-0"
+              >
+                Close
+              </button>
+              {isBankVerified && (
+                <ShineButton
+                  type="button"
+                  onClick={onContinue || onClose}
+                  className="px-8 h-12 rounded-full bg-[#009D64] hover:bg-[#008856] transition-colors text-white text-[14px] font-bold shadow-sm flex items-center justify-center gap-2 shrink-0"
+                >
+                  {onContinue ? 'Review & Submit' : 'Done'} <ArrowRight className="w-4 h-4" />
+                </ShineButton>
+              )}
+            </div>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+/* ── KYC REVIEW PAGE — full-page (not a modal/drawer), slides up from the
+   bottom and covers the screen, showing a read-only summary of every
+   verified section. Submit KYC / Close live in a sticky bottom bar. ── */
+function KycReviewPage({
+  open, onClose,
+  businessType,
+  email, phoneNumber,
+  address, pincode, city, state,
+  aadhaarNumber, aadhaarData,
+  panNumber, panData,
+  gstin, isGstinVerified, gstData,
+  accountNumber, ifscCode, accountHolderName, bankName, branchName,
+  isSubmitting, onSubmit,
+}: {
+  open: boolean;
+  onClose: () => void;
+  businessType: 'INDIVIDUAL' | 'COMPANY' | null;
+  email: string; phoneNumber: string;
+  address: string; pincode: string; city: string; state: string;
+  aadhaarNumber: string; aadhaarData: { name: string; guardianName: string; address: string; state: string; city: string };
+  panNumber: string; panData: { panType: string; name: string };
+  gstin: string; isGstinVerified: boolean;
+  gstData: { gstin?: string; nameOfBusiness?: string; legalNameOfBusiness?: string; address?: string; pincode?: string; city?: string; state?: string };
+  accountNumber: string; ifscCode: string; accountHolderName: string; bankName: string; branchName: string;
+  isSubmitting: boolean;
+  onSubmit: () => void;
+}) {
+  const maskedAadhaar = aadhaarNumber ? aadhaarNumber.replace(/(.{4})(.{4})(.{4})/, '$1 $2 $3') : '—';
+  const maskedAccount = accountNumber ? `•••• •••• ${accountNumber.slice(-4)}` : '—';
+
+  const Row = ({ label, value }: { label: string; value: string }) => (
+    <div>
+      <span className="block text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider mb-1">{label}</span>
+      <span className="text-[13px] font-bold text-[#0F172A]">{value || '—'}</span>
+    </div>
+  );
+
+  const SectionCard = ({ icon: Icon, title, children }: { icon: React.ComponentType<{ className?: string }>; title: string; children: React.ReactNode }) => (
+    <div className="bg-white rounded-2xl p-4 md:p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_-16px_rgba(15,23,42,0.12)]">
+      <div className="flex items-center gap-2.5 mb-4">
+        <span className="w-9 h-9 rounded-xl bg-[#F0FDF4] flex items-center justify-center shrink-0">
+          <Icon className="w-4.5 h-4.5 text-[#00A86B]" />
+        </span>
+        <h3 className="text-[14px] font-bold text-[#0F172A]">{title}</h3>
+        <span className="ml-auto flex items-center gap-1 text-[10.5px] font-bold text-[#00A86B]">
+          <CheckCircle2 className="w-3.5 h-3.5" /> Verified
+        </span>
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">{children}</div>
+    </div>
+  );
+
+  return (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          initial={{ opacity: 0, y: '100%' }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: '100%' }}
+          transition={{ type: 'tween', ease: [0.22, 1, 0.36, 1], duration: 0.35 }}
+          className="fixed inset-0 z-[250] bg-[#F8FAFC] flex flex-col"
+        >
+          <div className="flex items-center justify-between px-4 md:px-8 h-16 border-b border-[#E2E8F0] bg-white shrink-0">
+            <div>
+              <h2 className="text-[15px] md:text-[17px] font-bold text-[#0F172A]">Review &amp; Submit KYC</h2>
+              <p className="text-[11px] md:text-[12px] text-[#64748B]">Please review your details before submitting.</p>
+            </div>
+            <button type="button" onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-[#F1F5F9] text-[#64748B] shrink-0">
+              <X className="w-4.5 h-4.5" />
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6">
+            <div className="max-w-3xl mx-auto space-y-4">
+              <SectionCard icon={User} title="Mandatory Information">
+                <Row label="Email" value={email} />
+                <Row label="Phone Number" value={phoneNumber} />
+              </SectionCard>
+
+              <SectionCard icon={MapPin} title="Billing Information">
+                <Row label="Business Type" value={businessType === 'COMPANY' ? 'Company' : 'Individual'} />
+                <Row label="Pincode" value={pincode} />
+                <Row label="City" value={city} />
+                <Row label="State" value={state} />
+                <div className="col-span-2 md:col-span-3"><Row label="Address" value={address} /></div>
+              </SectionCard>
+
+              <SectionCard icon={CreditCard} title="Aadhaar Details">
+                <Row label="Aadhaar Number" value={maskedAadhaar} />
+                <Row label="Name" value={aadhaarData.name} />
+                <Row label="Guardian Name" value={aadhaarData.guardianName} />
+                <div className="col-span-2 md:col-span-3"><Row label="Address" value={[aadhaarData.address, aadhaarData.city, aadhaarData.state].filter(Boolean).join(', ')} /></div>
+              </SectionCard>
+
+              <SectionCard icon={FileText} title="PAN Details">
+                <Row label="PAN Number" value={panNumber} />
+                <Row label="Name" value={panData.name} />
+                <Row label="PAN Type" value={panData.panType} />
+              </SectionCard>
+
+              {businessType === 'COMPANY' && isGstinVerified && (
+                <SectionCard icon={ReceiptText} title="GST Details">
+                  <Row label="GSTIN" value={gstData.gstin || gstin} />
+                  {gstData.nameOfBusiness && <Row label="Company Name" value={gstData.nameOfBusiness} />}
+                  {gstData.pincode && <Row label="Pincode" value={gstData.pincode} />}
+                  {gstData.city && <Row label="City" value={gstData.city} />}
+                  {gstData.state && <Row label="State" value={gstData.state} />}
+                  {gstData.address && <div className="col-span-2 md:col-span-3"><Row label="Company Address" value={gstData.address} /></div>}
+                </SectionCard>
+              )}
+
+              <SectionCard icon={Landmark} title="Bank Details">
+                <Row label="Account Number" value={maskedAccount} />
+                <Row label="IFSC Code" value={ifscCode} />
+                <Row label="Account Holder Name" value={accountHolderName} />
+                <Row label="Bank Name" value={bankName} />
+                <Row label="Branch Name" value={branchName} />
+              </SectionCard>
+            </div>
+          </div>
+
+          <div className="sticky bottom-0 bg-white border-t border-[#E2E8F0] px-4 md:px-8 py-4 shrink-0">
+            <div className="max-w-3xl mx-auto flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-6 h-10 border border-[#E2E8F0] text-[#64748B] hover:bg-[#F8FAFC] text-[13px] font-bold rounded-full transition-colors shrink-0"
+              >
+                Close
+              </button>
+              <ShineButton
+                type="button"
+                onClick={onSubmit}
+                disabled={isSubmitting}
+                className="h-10 px-7 rounded-full bg-[#009D64] hover:bg-[#008856] transition-colors text-white text-[13px] font-bold shadow-sm disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2 shrink-0"
+              >
+                {isSubmitting ? <><RefreshCcw className="w-3.5 h-3.5 animate-spin" /> Processing...</> : 'Submit KYC'}
+              </ShineButton>
+            </div>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+// Backend reconnected — email and phone OTP verification are mandatory
+// again, and every KYC apiClient call below hits the real API.
+const EMAIL_VERIFICATION_MANDATORY = true;
+const PHONE_VERIFICATION_MANDATORY = true;
+const KYC_USE_MOCK_API = false;
+const mockDelay = (ms = 700) => new Promise((resolve) => setTimeout(resolve, ms));
+
 /* ── MAIN COMPONENT ── */
 export function AdminKYC() {
   const navigate = useNavigate();
@@ -293,6 +1190,14 @@ export function AdminKYC() {
 
   useEffect(() => {
     const fetchAll = async () => {
+      // Mock mode: skip the real status/profile fetch entirely and start
+      // from a clean, empty flow — there's no backend data to prefill from
+      // while disconnected. Real call: apiClient.get('/getKyc/getKycStatus')
+      // + apiClient.get('/user/getUserDetails').
+      if (KYC_USE_MOCK_API) {
+        setKycLoading(false);
+        return;
+      }
       try {
         const [statusRes, userRes] = await Promise.allSettled([
           apiClient.get('/getKyc/getKycStatus'),
@@ -417,10 +1322,16 @@ export function AdminKYC() {
     if (emailOtpTimer > 0 || loadingEmailOtp || !email || !email.includes('@')) return;
     setLoadingEmailOtp(true);
     try {
-      await apiClient.post('/auth/send-email-otp', { email });
+      if (KYC_USE_MOCK_API) {
+        // Real call: apiClient.post('/auth/send-email-otp', { email })
+        await mockDelay(500);
+      } else {
+        await apiClient.post('/auth/send-email-otp', { email });
+      }
       setEmailOtpValues(['', '', '', '', '', '']);
       setEmailOtpTimer(180);
       setShowEmailOtpModal(true);
+      if (KYC_USE_MOCK_API) showToast('success', 'Dev mode: use any 6-digit code to verify.');
     } catch (err: any) {
       showToast('error', err?.response?.data?.message || 'Failed to send OTP');
     } finally {
@@ -433,7 +1344,12 @@ export function AdminKYC() {
     if (otp.length !== 6) return;
     setVerifyingEmailOtp(true);
     try {
-      await apiClient.post('/auth/verify-email-otp', { email, otp });
+      if (KYC_USE_MOCK_API) {
+        // Real call: apiClient.post('/auth/verify-email-otp', { email, otp })
+        await mockDelay(500);
+      } else {
+        await apiClient.post('/auth/verify-email-otp', { email, otp });
+      }
       setIsEmailVerified(true);
       setShowEmailOtpModal(false);
       showToast('success', 'Email verified successfully!');
@@ -448,10 +1364,16 @@ export function AdminKYC() {
     if (phoneOtpTimer > 0 || loadingPhoneOtp || phoneNumber.replace(/\D/g, '').length !== 10) return;
     setLoadingPhoneOtp(true);
     try {
-      await apiClient.post('/auth/send-otp', { phoneNumber: phoneNumber.replace(/\D/g, '') });
+      if (KYC_USE_MOCK_API) {
+        // Real call: apiClient.post('/auth/send-otp', { phoneNumber })
+        await mockDelay(500);
+      } else {
+        await apiClient.post('/auth/send-otp', { phoneNumber: phoneNumber.replace(/\D/g, '') });
+      }
       setPhoneOtpValues(['', '', '', '', '', '']);
       setPhoneOtpTimer(180);
       setShowPhoneOtpModal(true);
+      if (KYC_USE_MOCK_API) showToast('success', 'Dev mode: use any 6-digit code to verify.');
     } catch (err: any) {
       showToast('error', err?.response?.data?.message || 'Failed to send OTP');
     } finally {
@@ -464,7 +1386,12 @@ export function AdminKYC() {
     if (otp.length !== 6) return;
     setVerifyingPhoneOtp(true);
     try {
-      await apiClient.post('/auth/verify-otp', { phoneNumber: phoneNumber.replace(/\D/g, ''), otp });
+      if (KYC_USE_MOCK_API) {
+        // Real call: apiClient.post('/auth/verify-otp', { phoneNumber, otp })
+        await mockDelay(500);
+      } else {
+        await apiClient.post('/auth/verify-otp', { phoneNumber: phoneNumber.replace(/\D/g, ''), otp });
+      }
       setIsPhoneVerified(true);
       setShowPhoneOtpModal(false);
       showToast('success', 'Phone verified successfully!');
@@ -481,11 +1408,20 @@ export function AdminKYC() {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showManualSuccess, setShowManualSuccess] = useState(false);
+  // E-KYC page 1 shows only Business Type + Billing/GST; the rest of the flow
+  // (PAN -> Aadhaar -> GST [company only] -> Bank) opens as a chain of
+  // centered modals, ending in the full-page KycReviewPage below.
+  const [isPanModalOpen, setIsPanModalOpen] = useState(false);
+  const [isAadhaarModalOpen, setIsAadhaarModalOpen] = useState(false);
+  const [isGstinModalOpen, setIsGstinModalOpen] = useState(false);
+  const [isBankModalOpen, setIsBankModalOpen] = useState(false);
+  const [isReviewPageOpen, setIsReviewPageOpen] = useState(false);
 
   const [businessType, setBusinessType] = useState<'INDIVIDUAL' | 'COMPANY' | null>(null);
   const [gstin, setGstin] = useState('');
   const [isGstinVerified, setIsGstinVerified] = useState(false);
   const [isGstinLoading, setIsGstinLoading] = useState(false);
+  const [gstData, setGstData] = useState<GstData>({});
 
   // Billing Information (individual only) — address + pincode, city/state auto-filled
   const [address, setAddress] = useState('');
@@ -547,6 +1483,14 @@ export function AdminKYC() {
     if (!panNumber || panNumber.length < 10) return;
     setIsPanLoading(true);
     try {
+      if (KYC_USE_MOCK_API) {
+        // Real call: apiClient.post('/merchant/verfication/pan', { pan: panNumber })
+        await mockDelay(900);
+        setIsPanVerified(true);
+        setPanData({ panType: 'Individual', name: 'Test User (Dev Mode)' });
+        showToast('success', 'PAN verified successfully! (mock)');
+        return;
+      }
       const res = await apiClient.post('/merchant/verfication/pan', { pan: panNumber });
       if (res.data?.success) {
         const d = res.data.data || {};
@@ -573,6 +1517,16 @@ export function AdminKYC() {
     if (!aadhaarNumber || aadhaarNumber.length < 12 || aadhaarOtpTimer > 0 || sendingAadhaarOtp) return;
     setSendingAadhaarOtp(true);
     try {
+      if (KYC_USE_MOCK_API) {
+        // Real call: apiClient.post('/merchant/verfication/generate-otp', { aadhaarNo: aadhaarNumber })
+        await mockDelay(600);
+        setAadhaarRefId('mock-ref-id');
+        setAadhaarOtpValues(['', '', '', '', '', '']);
+        setAadhaarOtpTimer(180);
+        setIsAadhaarOtpModalOpen(true);
+        showToast('success', 'Dev mode: use any 6-digit code to verify.');
+        return;
+      }
       const res = await apiClient.post('/merchant/verfication/generate-otp', { aadhaarNo: aadhaarNumber });
       if (res.data?.data?.ref_id) {
         setAadhaarRefId(res.data.data.ref_id);
@@ -600,6 +1554,21 @@ export function AdminKYC() {
     if (otp.length < 6) return;
     setVerifyingAadhaarOtp(true);
     try {
+      if (KYC_USE_MOCK_API) {
+        // Real call: apiClient.post('/merchant/verfication/verify-otp', { otp, aadhaarNo, refId })
+        await mockDelay(900);
+        setIsAadhaarVerified(true);
+        setAadhaarData({
+          name: 'Test User (Dev Mode)',
+          guardianName: 'Dev Guardian',
+          address: '123 Mock Street, Sample Layout',
+          state: 'KARNATAKA',
+          city: 'BENGALURU',
+        });
+        showToast('success', 'Aadhaar verified successfully! (mock)');
+        closeAadhaarOtpModal();
+        return;
+      }
       const res = await apiClient.post('/merchant/verfication/verify-otp', { otp, aadhaarNo: aadhaarNumber, refId: aadhaarRefId });
       if (res.data?.success) {
         const d = res.data.data || {};
@@ -625,6 +1594,14 @@ export function AdminKYC() {
     }
     setIsBankLoading(true);
     try {
+      if (KYC_USE_MOCK_API) {
+        // Real call: apiClient.post('/merchant/verfication/bank-account', { accountNo, ifsc })
+        await mockDelay(900);
+        setIsBankVerified(true);
+        setBankData({ beneficiaryName: 'Test User (Dev Mode)', bankName: 'Mock Bank of India', branchName: 'Dev Branch', city: 'BENGALURU' });
+        showToast('success', 'Bank account verified successfully! (mock)');
+        return;
+      }
       const res = await apiClient.post('/merchant/verfication/bank-account', { accountNo: accountNumber, ifsc: ifscCode });
       if (res.data?.success) {
         const d = res.data.data || {};
@@ -645,9 +1622,26 @@ export function AdminKYC() {
     if (!gstin || gstin.length < 15) return;
     setIsGstinLoading(true);
     try {
+      if (KYC_USE_MOCK_API) {
+        // Real call: apiClient.post('/merchant/verfication/gstin', { GSTIN: gstin })
+        await mockDelay(900);
+        setIsGstinVerified(true);
+        setGstData({
+          gstin,
+          nameOfBusiness: 'Test Enterprises (Dev Mode)',
+          legalNameOfBusiness: 'Test Enterprises Private Limited',
+          address: '221B, Business Park Road',
+          pincode: '560001',
+          city: 'BENGALURU',
+          state: 'KARNATAKA',
+        });
+        showToast('success', 'GST verified successfully! (mock)');
+        return;
+      }
       const res = await apiClient.post('/merchant/verfication/gstin', { GSTIN: gstin });
       if (res.data?.success) {
         setIsGstinVerified(true);
+        setGstData(res.data.data || {});
         showToast('success', 'GST verified successfully!');
       } else {
         showToast('error', res.data?.message || 'GST verification failed');
@@ -660,7 +1654,7 @@ export function AdminKYC() {
   };
 
   const handleKycSubmit = async () => {
-    if (!isEmailVerified || !isPhoneVerified) return;
+    if ((EMAIL_VERIFICATION_MANDATORY && !isEmailVerified) || (PHONE_VERIFICATION_MANDATORY && !isPhoneVerified)) return;
     if (!isAadhaarVerified || !isPanVerified || !isBankVerified) return;
     if (businessType === 'COMPANY' && !isGstinVerified) return;
     if (businessType === 'INDIVIDUAL' && (!address || !pincode || !city || !state)) return;
@@ -681,7 +1675,12 @@ export function AdminKYC() {
         },
         isVerified: true,
       };
-      await apiClient.post('/merchant/verfication/kyc', { payload });
+      if (KYC_USE_MOCK_API) {
+        // Real call: apiClient.post('/merchant/verfication/kyc', { payload })
+        await mockDelay(1000);
+      } else {
+        await apiClient.post('/merchant/verfication/kyc', { payload });
+      }
       setIsSubmitted(true);
     } catch (err: any) {
       showToast('error', err?.response?.data?.message || 'KYC submission failed. Please try again.');
@@ -903,91 +1902,91 @@ export function AdminKYC() {
 
   /* ── E-KYC FLOW ── */
   if (method === 'EKYC') {
+    const emailOk = !EMAIL_VERIFICATION_MANDATORY || isEmailVerified;
+    const phoneOk = !PHONE_VERIFICATION_MANDATORY || isPhoneVerified;
+    const billingReady = (businessType === 'COMPANY' || businessType === 'INDIVIDUAL')
+      && emailOk && phoneOk
+      && !!(address && pincode && city && state);
+
     return (
       <AdminLayout>
         <div className="mx-2 text-[#0F172A] pb-16">
           <h1 className="text-lg md:text-xl font-bold text-[#0F172A] mb-4 md:mb-6">KYC</h1>
 
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-5 items-start">
-            <div className="space-y-5">
-              <Panel
-                title={<span className="text-[20px] font-bold">e-KYC (Get KYC verified within a minute)</span>}
-                right={
-                  <button type="button" onClick={() => setMethod(null)} className="inline-flex items-center gap-1.5 text-[12px] font-bold text-[#64748B] hover:text-[#0F172A] px-3 h-8 rounded-lg hover:bg-[#F8FAFC] transition-colors">
-                    <ArrowLeft className="w-3.5 h-3.5" /> Back
-                  </button>
-                }
-              >
-                <BusinessTypeSelector businessType={businessType} setBusinessType={setBusinessType} disabled={isGstinVerified} />
-              </Panel>
+          <div className="max-w-2xl mx-auto space-y-5">
+            <Panel
+              title={<span className="text-[20px] font-bold">e-KYC (Get KYC verified within a minute)</span>}
+              right={
+                <button type="button" onClick={() => setMethod(null)} className="inline-flex items-center gap-1.5 text-[12px] font-bold text-[#64748B] hover:text-[#0F172A] px-3 h-8 rounded-lg hover:bg-[#F8FAFC] transition-colors">
+                  <ArrowLeft className="w-3.5 h-3.5" /> Back
+                </button>
+              }
+            >
+              <BusinessTypeSelector businessType={businessType} setBusinessType={setBusinessType} disabled={isGstinVerified} />
+            </Panel>
 
-              <Panel title="Mandatory Information">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <FieldLabel required>Email</FieldLabel>
-                    <div className="relative flex items-center">
-                      <input
-                        type="email"
-                        value={email}
-                        onChange={(e) => !isEmailVerified && setEmail(e.target.value)}
-                        disabled={isEmailVerified}
-                        placeholder="Enter your email"
-                        className={`${inputCls} pr-28`}
-                      />
-                      {!isEmailVerified ? (
-                        <button
-                          type="button"
-                          onClick={sendEmailOtp}
-                          disabled={loadingEmailOtp || emailOtpTimer > 0 || !email || !email.includes('@')}
-                          className="absolute right-1.5 h-8 px-3.5 rounded-full bg-[#334155] hover:bg-[#1E293B] text-white text-[11px] font-bold disabled:opacity-40 disabled:pointer-events-none transition-colors flex items-center gap-1.5"
-                        >
-                          {loadingEmailOtp ? <RefreshCcw className="w-3 h-3 animate-spin" /> : emailOtpTimer > 0 ? `Resend in ${emailOtpTimer}s` : 'Send OTP'}
-                        </button>
-                      ) : (
-                        <span className="absolute right-3 flex items-center gap-1 text-[11px] font-bold text-[#00A86B]">
-                          <Check className="w-3.5 h-3.5" /> Verified
-                        </span>
-                      )}
+            {(businessType === 'COMPANY' || businessType === 'INDIVIDUAL') && (
+              <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="space-y-5">
+                <Panel title="Mandatory Information">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <FieldLabel required>Email</FieldLabel>
+                      <div className="relative flex items-center">
+                        <input
+                          type="email"
+                          value={email}
+                          onChange={(e) => !isEmailVerified && setEmail(e.target.value)}
+                          disabled={isEmailVerified}
+                          placeholder="Enter your email"
+                          className={`${inputCls} pr-28`}
+                        />
+                        {!isEmailVerified ? (
+                          <button
+                            type="button"
+                            onClick={sendEmailOtp}
+                            disabled={loadingEmailOtp || emailOtpTimer > 0 || !email || !email.includes('@')}
+                            className="absolute right-1.5 h-8 px-3.5 rounded-full bg-[#334155] hover:bg-[#1E293B] text-white text-[11px] font-bold disabled:opacity-40 disabled:pointer-events-none transition-colors flex items-center gap-1.5"
+                          >
+                            {loadingEmailOtp ? <RefreshCcw className="w-3 h-3 animate-spin" /> : emailOtpTimer > 0 ? `Resend in ${emailOtpTimer}s` : 'Send OTP'}
+                          </button>
+                        ) : (
+                          <span className="absolute right-3 flex items-center gap-1 text-[11px] font-bold text-[#00A86B]">
+                            <Check className="w-3.5 h-3.5" /> Verified
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div>
+                      <FieldLabel required>Phone Number</FieldLabel>
+                      <div className="relative flex items-center">
+                        <input
+                          type="tel"
+                          maxLength={10}
+                          value={phoneNumber}
+                          onChange={(e) => !isPhoneVerified && setPhoneNumber(e.target.value.replace(/\D/g, ''))}
+                          disabled={isPhoneVerified}
+                          placeholder="Enter 10-digit mobile number"
+                          className={`${inputCls} pr-28`}
+                        />
+                        {!isPhoneVerified ? (
+                          <button
+                            type="button"
+                            onClick={sendPhoneOtp}
+                            disabled={loadingPhoneOtp || phoneOtpTimer > 0 || phoneNumber.replace(/\D/g, '').length !== 10}
+                            className="absolute right-1.5 h-8 px-3.5 rounded-full bg-[#334155] hover:bg-[#1E293B] text-white text-[11px] font-bold disabled:opacity-40 disabled:pointer-events-none transition-colors flex items-center gap-1.5"
+                          >
+                            {loadingPhoneOtp ? <RefreshCcw className="w-3 h-3 animate-spin" /> : phoneOtpTimer > 0 ? `Resend in ${phoneOtpTimer}s` : 'Send OTP'}
+                          </button>
+                        ) : (
+                          <span className="absolute right-3 flex items-center gap-1 text-[11px] font-bold text-[#00A86B]">
+                            <Check className="w-3.5 h-3.5" /> Verified
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
-                  <div>
-                    <FieldLabel required>Phone Number</FieldLabel>
-                    <div className="relative flex items-center">
-                      <input
-                        type="tel"
-                        maxLength={10}
-                        value={phoneNumber}
-                        onChange={(e) => !isPhoneVerified && setPhoneNumber(e.target.value.replace(/\D/g, ''))}
-                        disabled={isPhoneVerified}
-                        placeholder="Enter 10-digit mobile number"
-                        className={`${inputCls} pr-28`}
-                      />
-                      {!isPhoneVerified ? (
-                        <button
-                          type="button"
-                          onClick={sendPhoneOtp}
-                          disabled={loadingPhoneOtp || phoneOtpTimer > 0 || phoneNumber.replace(/\D/g, '').length !== 10}
-                          className="absolute right-1.5 h-8 px-3.5 rounded-full bg-[#334155] hover:bg-[#1E293B] text-white text-[11px] font-bold disabled:opacity-40 disabled:pointer-events-none transition-colors flex items-center gap-1.5"
-                        >
-                          {loadingPhoneOtp ? <RefreshCcw className="w-3 h-3 animate-spin" /> : phoneOtpTimer > 0 ? `Resend in ${phoneOtpTimer}s` : 'Send OTP'}
-                        </button>
-                      ) : (
-                        <span className="absolute right-3 flex items-center gap-1 text-[11px] font-bold text-[#00A86B]">
-                          <Check className="w-3.5 h-3.5" /> Verified
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </Panel>
-
-              {businessType === 'COMPANY' && (
-                <Panel title="GST Details">
-                  <GstinField gstin={gstin} setGstin={setGstin} isGstinVerified={isGstinVerified} isGstinLoading={isGstinLoading} onVerify={handleVerifyGstin} />
                 </Panel>
-              )}
 
-              {businessType === 'INDIVIDUAL' && (
                 <Panel title="Billing Information">
                   <div className="space-y-4">
                     <div>
@@ -1023,164 +2022,114 @@ export function AdminKYC() {
                     </div>
                   </div>
                 </Panel>
-              )}
+              </motion.div>
+            )}
 
-              <Panel title="Aadhaar Verification">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <FieldLabel required>Aadhaar Number</FieldLabel>
-                    <div className="relative flex items-center">
-                      <input
-                        type="text"
-                        maxLength={12}
-                        value={aadhaarNumber}
-                        onChange={(e) => setAadhaarNumber(e.target.value.replace(/\D/g, ''))}
-                        disabled={isAadhaarVerified}
-                        placeholder="Enter 12 digit valid Aadhaar no."
-                        className={`${inputCls} pr-20`}
-                      />
-                      {!isAadhaarVerified ? (
-                        <button
-                          type="button"
-                          onClick={sendAadhaarOtpAndOpen}
-                          disabled={sendingAadhaarOtp || aadhaarOtpTimer > 0 || aadhaarNumber.length < 12}
-                          className="absolute right-1.5 h-8 px-3.5 rounded-full bg-[#334155] hover:bg-[#1E293B] text-white text-[11px] font-bold disabled:opacity-40 disabled:pointer-events-none transition-colors flex items-center gap-1.5"
-                        >
-                          {sendingAadhaarOtp ? <RefreshCcw className="w-3 h-3 animate-spin" /> : aadhaarOtpTimer > 0 ? `Resend in ${aadhaarOtpTimer}s` : 'Verify'}
-                        </button>
-                      ) : (
-                        <span className="absolute right-3 flex items-center gap-1 text-[11px] font-bold text-[#00A86B]">
-                          <Check className="w-3.5 h-3.5" /> Verified
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div>
-                    <FieldLabel required>PAN No.</FieldLabel>
-                    <div className="relative flex items-center">
-                      <input
-                        type="text"
-                        maxLength={10}
-                        value={panNumber}
-                        onChange={(e) => setPanNumber(e.target.value.toUpperCase())}
-                        disabled={isPanVerified}
-                        placeholder="Enter 10 chars valid PAN no."
-                        className={`${inputCls} pr-20 uppercase`}
-                      />
-                      {!isPanVerified ? (
-                        <button
-                          type="button"
-                          onClick={handleVerifyPan}
-                          disabled={isPanLoading || panNumber.length < 10}
-                          className="absolute right-1.5 h-8 px-3.5 rounded-full bg-[#334155] hover:bg-[#1E293B] text-white text-[11px] font-bold disabled:opacity-40 disabled:pointer-events-none transition-colors flex items-center gap-1.5"
-                        >
-                          {isPanLoading ? <RefreshCcw className="w-3 h-3 animate-spin" /> : 'Verify'}
-                        </button>
-                      ) : (
-                        <span className="absolute right-3 flex items-center gap-1 text-[11px] font-bold text-[#00A86B]">
-                          <Check className="w-3.5 h-3.5" /> Verified
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <AnimatePresence>
-                  {(isAadhaarVerified || isPanVerified) && (
-                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
-                      <div className="mt-4 pt-4 border-t border-dashed border-[#E2E8F0] grid grid-cols-2 md:grid-cols-3 gap-3">
-                        {isAadhaarVerified && (
-                          <>
-                            <div className="col-span-2 md:col-span-3 flex items-center gap-1.5 text-[10px] md:text-[10.5px] font-bold text-[#00A86B] mb-0.5">
-                              <BadgeCheck className="w-3.5 h-3.5 shrink-0" /> Auto-fetched from UIDAI
-                            </div>
-                            <div><span className="block text-[10px] font-semibold text-[#94A3B8] mb-1">Name</span><span className="text-[12.5px] font-bold text-[#0F172A]">{aadhaarData.name || '—'}</span></div>
-                            <div><span className="block text-[10px] font-semibold text-[#94A3B8] mb-1">Guardian</span><span className="text-[12.5px] font-bold text-[#0F172A]">{aadhaarData.guardianName || '—'}</span></div>
-                            <div><span className="block text-[10px] font-semibold text-[#94A3B8] mb-1">City</span><span className="text-[12.5px] font-bold text-[#0F172A]">{aadhaarData.city || '—'}</span></div>
-                            <div><span className="block text-[10px] font-semibold text-[#94A3B8] mb-1">State</span><span className="text-[12.5px] font-bold text-[#0F172A]">{aadhaarData.state || '—'}</span></div>
-                            <div className="col-span-2 md:col-span-3"><span className="block text-[10px] font-semibold text-[#94A3B8] mb-1">Address</span><span className="text-[12.5px] font-bold text-[#0F172A]">{aadhaarData.address || '—'}</span></div>
-                          </>
-                        )}
-                        {isPanVerified && (
-                          <>
-                            <div className="col-span-2 md:col-span-3 flex items-center gap-1.5 text-[10px] md:text-[10.5px] font-bold text-[#00A86B] mb-0.5 mt-1">
-                              <BadgeCheck className="w-3.5 h-3.5 shrink-0" /> Auto-fetched from PAN
-                            </div>
-                            <div><span className="block text-[10px] font-semibold text-[#94A3B8] mb-1">Name</span><span className="text-[12.5px] font-bold text-[#0F172A]">{panData.name || '—'}</span></div>
-                            <div><span className="block text-[10px] font-semibold text-[#94A3B8] mb-1">PAN Type</span><span className="text-[12.5px] font-bold text-[#0F172A]">{panData.panType || '—'}</span></div>
-                          </>
-                        )}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </Panel>
-
-              <div className="flex justify-end">
-                <ShineButton
-                  type="button"
-                  onClick={handleKycSubmit}
-                  disabled={isSubmitting || !isEmailVerified || !isPhoneVerified || !isAadhaarVerified || !isPanVerified || !isBankVerified || (businessType === 'COMPANY' && !isGstinVerified) || (businessType === 'INDIVIDUAL' && (!address || !pincode || !city || !state))}
-                  className="h-11 px-6 rounded-full bg-[#009D64] hover:bg-[#008856] transition-colors text-white text-[13px] font-bold shadow-sm disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2"
-                >
-                  {isSubmitting ? <><RefreshCcw className="w-4 h-4 animate-spin" /> Processing...</> : 'Submit KYC'}
-                </ShineButton>
+            {/* Entry point — PAN verification first (its own centered card), then
+                Aadhaar/PAN summary + Bank Details in the drawer. */}
+            <div className="bg-white rounded-xl md:rounded-2xl border border-[#E2E8F0] p-4 md:p-5 shadow-sm flex items-center justify-between gap-4">
+              <div className="min-w-0">
+                <h3 className="text-[13.5px] md:text-[14px] font-bold text-[#0F172A]">Identity &amp; Bank Verification</h3>
+                <p className="text-[11.5px] md:text-[12.5px] text-[#64748B] mt-0.5">Aadhaar, PAN and bank details — verified in one quick step.</p>
               </div>
-            </div>
-
-            <div className="lg:sticky lg:top-6">
-              <BankDetailsPanel accountNumber={accountNumber} setAccountNumber={setAccountNumber} confirmAccountNumber={confirmAccountNumber} setConfirmAccountNumber={setConfirmAccountNumber} accountNumbersMatch={accountNumbersMatch} accountHolderName={accountHolderName} setAccountHolderName={setAccountHolderName} ifscCode={ifscCode} setIfscCode={setIfscCode} bankName={bankName} setBankName={setBankName} branchName={branchName} setBranchName={setBranchName} isBankVerified={isBankVerified} isBankLoading={isBankLoading} onVerify={handleVerifyBank} />
+              <ShineButton
+                type="button"
+                onClick={() => {
+                  const allVerified = emailOk && phoneOk && isAadhaarVerified && isPanVerified && isBankVerified && (businessType !== 'COMPANY' || isGstinVerified);
+                  if (allVerified) setIsReviewPageOpen(true);
+                  else if (!isPanVerified) setIsPanModalOpen(true);
+                  else if (!isAadhaarVerified) setIsAadhaarModalOpen(true);
+                  else if (businessType === 'COMPANY' && !isGstinVerified) setIsGstinModalOpen(true);
+                  else if (!isBankVerified) setIsBankModalOpen(true);
+                  else setIsReviewPageOpen(true);
+                }}
+                disabled={!billingReady}
+                className="h-11 px-5 md:px-6 rounded-full bg-[#009D64] hover:bg-[#008856] transition-colors text-white text-[12.5px] md:text-[13px] font-bold shadow-sm disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-1.5 shrink-0"
+              >
+                {emailOk && phoneOk && isAadhaarVerified && isPanVerified && isBankVerified && (businessType !== 'COMPANY' || isGstinVerified) ? 'Review & Submit' : 'Continue'} <ArrowRight className="w-4 h-4" />
+              </ShineButton>
             </div>
           </div>
         </div>
 
-        {/* Aadhaar OTP modal */}
+        {/* Aadhaar OTP modal — premium, Aadhaar-branded, sits above the Aadhaar card modal */}
         <AnimatePresence>
           {isAadhaarOtpModalOpen && (
             <>
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={closeAadhaarOtpModal} className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm z-[200]" />
-              <div className="fixed inset-0 flex items-center justify-center z-[201] p-4 pointer-events-none">
-                <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} transition={{ type: 'spring', duration: 0.5 }} className="w-full max-w-[380px] bg-white rounded-2xl shadow-2xl p-6 relative pointer-events-auto border border-[#E2E8F0] text-center">
-                  <button type="button" onClick={closeAadhaarOtpModal} className="absolute -top-5 left-1/2 -translate-x-1/2 w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-md hover:bg-[#F8FAFC] transition-colors border border-[#E2E8F0] cursor-pointer focus:outline-none">
-                    <X className="w-4 h-4 text-[#64748B]" />
-                  </button>
-                  <motion.div initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 260, damping: 16, delay: 0.1 }} className="w-16 h-16 rounded-2xl bg-[#F0FDF4] flex items-center justify-center mx-auto mt-3 mb-4">
-                    <ShieldCheck className="w-7 h-7 text-[#00A86B]" />
-                  </motion.div>
-                  <h2 className="text-base font-bold text-[#0F172A] mb-1.5">Verify Aadhaar OTP</h2>
-                  <p className="text-[13px] text-[#64748B] leading-relaxed mb-5">Enter the OTP sent to your Aadhaar-linked mobile number.</p>
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={closeAadhaarOtpModal} className="fixed inset-0 bg-[#0B1220]/80 backdrop-blur-md z-[240]" />
+              <div className="fixed inset-0 flex items-center justify-center z-[241] p-4 pointer-events-none">
+                <motion.div initial={{ opacity: 0, scale: 0.94, y: 24 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.94, y: 24 }} transition={{ type: 'spring', stiffness: 260, damping: 24 }} className="w-full max-w-[400px] bg-white rounded-[28px] shadow-[0_40px_90px_-24px_rgba(0,0,0,0.55)] relative pointer-events-auto border border-black/5 text-center overflow-hidden">
+                  {/* ── Header strip — Aadhaar brand identity ── */}
+                  <div className="relative px-7 pt-7 pb-6 bg-gradient-to-b from-[#FFF8F0] to-white overflow-hidden">
+                    <div className="absolute -top-16 -right-14 w-44 h-44 rounded-full bg-[#F4A24A]/20 blur-3xl pointer-events-none" />
+                    <div className="absolute -top-10 -left-14 w-36 h-36 rounded-full bg-[#E11D48]/10 blur-3xl pointer-events-none" />
 
-                  <div className="flex justify-center gap-2 mb-5">
-                    {aadhaarOtpValues.map((value, idx) => (
-                      <input
-                        key={idx}
-                        type="tel"
-                        maxLength={1}
-                        inputMode="numeric"
-                        value={value}
-                        onChange={(e) => {
-                          const v = e.target.value.replace(/\D/, '');
-                          const next = [...aadhaarOtpValues]; next[idx] = v; setAadhaarOtpValues(next);
-                          if (v && idx < 5) (document.getElementById(`aotp-${idx + 1}`) as HTMLInputElement)?.focus();
-                        }}
-                        onKeyDown={(e) => { if (e.key === 'Backspace' && !value && idx > 0) (document.getElementById(`aotp-${idx - 1}`) as HTMLInputElement)?.focus(); }}
-                        id={`aotp-${idx}`}
-                        className={`w-10 h-11 md:w-11 md:h-11 rounded-xl border text-center text-base md:text-lg font-bold text-[#00A86B] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/15 transition-all ${value ? 'border-[#00A86B]/40 bg-[#F0FDF4]/40' : 'border-[#E2E8F0]'}`}
-                      />
-                    ))}
+                    <button type="button" onClick={closeAadhaarOtpModal} className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-white/80 hover:bg-white text-[#64748B] shadow-sm ring-1 ring-black/5 transition-colors cursor-pointer focus:outline-none">
+                      <X className="w-4 h-4" />
+                    </button>
+
+                    <motion.div
+                      initial={{ scale: 0.6, opacity: 0, y: -8 }}
+                      animate={{ scale: 1, opacity: 1, y: 0 }}
+                      transition={{ type: 'spring', stiffness: 260, damping: 16, delay: 0.1 }}
+                      className="relative w-20 h-20 rounded-[22px] bg-white flex items-center justify-center mx-auto mb-5 shadow-[0_14px_32px_-10px_rgba(225,29,72,0.3)] ring-1 ring-black/5"
+                    >
+                      <img src={aadhaarLogo} alt="Aadhaar" className="w-14 h-14 object-contain" />
+                    </motion.div>
+
+                    <h2 className="text-[18px] font-extrabold text-[#0F172A] mb-1 tracking-tight">Verify Aadhaar OTP</h2>
+                    <p className="text-[12.5px] text-[#64748B] leading-relaxed px-3">
+                      Enter the 6-digit OTP sent to the mobile number linked with
+                      {aadhaarNumber ? (
+                        <span className="font-bold text-[#0F172A]"> {aadhaarNumber.replace(/(.{4})(.{4})(.{4})/, '$1 $2 $3')}</span>
+                      ) : ' your Aadhaar'}
+                    </p>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={handleVerifyAadhaarOtp}
-                    disabled={verifyingAadhaarOtp || aadhaarOtpValues.join('').length !== 6}
-                    className="w-full h-11 rounded-xl bg-[#00A86B] hover:bg-[#009B63] text-white text-[13px] font-bold shadow-sm disabled:opacity-50 disabled:pointer-events-none mb-3 cursor-pointer transition-all"
-                  >
-                    {verifyingAadhaarOtp ? <span className="flex items-center justify-center gap-2"><RefreshCcw className="w-3.5 h-3.5 animate-spin" /> Verifying...</span> : 'Verify OTP'}
-                  </button>
-                  <p className="text-xs text-[#94A3B8]">
-                    {aadhaarOtpTimer > 0 ? `Resend in ${aadhaarOtpTimer}s` : <span className="text-[#00A86B] cursor-pointer font-bold hover:underline" onClick={sendAadhaarOtpAndOpen}>Resend OTP</span>}
-                  </p>
+                  {/* ── Body ── */}
+                  <div className="px-7 pb-7 pt-1">
+                    <div className="flex justify-center gap-2 mb-6">
+                      {aadhaarOtpValues.map((value, idx) => (
+                        <input
+                          key={idx}
+                          type="tel"
+                          maxLength={1}
+                          inputMode="numeric"
+                          value={value}
+                          onChange={(e) => {
+                            const v = e.target.value.replace(/\D/, '');
+                            const next = [...aadhaarOtpValues]; next[idx] = v; setAadhaarOtpValues(next);
+                            if (v && idx < 5) (document.getElementById(`aotp-${idx + 1}`) as HTMLInputElement)?.focus();
+                          }}
+                          onKeyDown={(e) => { if (e.key === 'Backspace' && !value && idx > 0) (document.getElementById(`aotp-${idx - 1}`) as HTMLInputElement)?.focus(); }}
+                          id={`aotp-${idx}`}
+                          className={`w-10 h-12 md:w-11 md:h-12 rounded-[14px] text-center text-lg font-extrabold text-[#0F172A] focus:outline-none transition-all duration-200 ${value ? 'bg-[#FFF1F2] ring-2 ring-[#E11D48]/50' : 'bg-[#F8FAFC] ring-1 ring-[#E2E8F0]'} focus:ring-2 focus:ring-[#E11D48]/60`}
+                          style={value ? { boxShadow: 'inset 0 1px 2px rgba(225,29,72,0.08)' } : { boxShadow: 'inset 1px 1px 3px rgba(15,23,42,0.06)' }}
+                        />
+                      ))}
+                    </div>
+
+                    <ShineButton
+                      type="button"
+                      onClick={handleVerifyAadhaarOtp}
+                      disabled={verifyingAadhaarOtp || aadhaarOtpValues.join('').length !== 6}
+                      className="w-full h-12 rounded-full bg-[#009D64] hover:bg-[#008856] text-white text-[13.5px] font-extrabold shadow-[0_16px_36px_-12px_rgba(0,157,100,0.45)] disabled:opacity-40 disabled:pointer-events-none mb-4 transition-all flex items-center justify-center gap-2"
+                    >
+                      {verifyingAadhaarOtp ? <><RefreshCcw className="w-3.5 h-3.5 animate-spin" /> Verifying...</> : 'Verify OTP'}
+                    </ShineButton>
+
+                    <div className="flex items-center justify-center gap-1.5 text-[11.5px] text-[#94A3B8]">
+                      {aadhaarOtpTimer > 0 ? (
+                        <span>Resend OTP in <span className="font-bold text-[#334155]">{aadhaarOtpTimer}s</span></span>
+                      ) : (
+                        <span className="text-[#E11D48] cursor-pointer font-bold hover:underline" onClick={sendAadhaarOtpAndOpen}>Resend OTP</span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center justify-center gap-1.5 mt-4 pt-4 border-t border-dashed border-[#E2E8F0] text-[10.5px] text-[#94A3B8] font-medium">
+                      <ShieldCheck className="w-3.5 h-3.5 text-[#00A86B]" /> Secured by UIDAI · QuickPost KYC
+                    </div>
+                  </div>
                 </motion.div>
               </div>
             </>
@@ -1292,6 +2241,96 @@ export function AdminKYC() {
             </>
           )}
         </AnimatePresence>
+
+        <PanVerificationModal
+          open={isPanModalOpen}
+          onClose={() => setIsPanModalOpen(false)}
+          panNumber={panNumber}
+          setPanNumber={setPanNumber}
+          isPanVerified={isPanVerified}
+          isPanLoading={isPanLoading}
+          panData={panData}
+          onVerify={handleVerifyPan}
+          onContinue={!isAadhaarVerified ? () => { setIsPanModalOpen(false); setIsAadhaarModalOpen(true); } : undefined}
+        />
+
+        <AadhaarVerificationModal
+          open={isAadhaarModalOpen}
+          onClose={() => setIsAadhaarModalOpen(false)}
+          aadhaarNumber={aadhaarNumber}
+          setAadhaarNumber={setAadhaarNumber}
+          isAadhaarVerified={isAadhaarVerified}
+          sendingAadhaarOtp={sendingAadhaarOtp}
+          aadhaarOtpTimer={aadhaarOtpTimer}
+          aadhaarData={aadhaarData}
+          onSendOtp={sendAadhaarOtpAndOpen}
+          onContinue={
+            !((businessType === 'COMPANY' && isGstinVerified) || (businessType !== 'COMPANY' && isBankVerified)) || !isBankVerified
+              ? () => {
+                  setIsAadhaarModalOpen(false);
+                  if (businessType === 'COMPANY' && !isGstinVerified) setIsGstinModalOpen(true);
+                  else setIsBankModalOpen(true);
+                }
+              : undefined
+          }
+        />
+
+        <GstinVerificationModal
+          open={isGstinModalOpen}
+          onClose={() => setIsGstinModalOpen(false)}
+          gstin={gstin}
+          setGstin={setGstin}
+          isGstinVerified={isGstinVerified}
+          isGstinLoading={isGstinLoading}
+          gstData={gstData}
+          onVerify={handleVerifyGstin}
+          onContinue={!isBankVerified ? () => { setIsGstinModalOpen(false); setIsBankModalOpen(true); } : undefined}
+        />
+
+        <BankVerificationPage
+          open={isBankModalOpen}
+          onClose={() => setIsBankModalOpen(false)}
+          accountNumber={accountNumber}
+          setAccountNumber={setAccountNumber}
+          confirmAccountNumber={confirmAccountNumber}
+          setConfirmAccountNumber={setConfirmAccountNumber}
+          accountNumbersMatch={accountNumbersMatch}
+          accountHolderName={accountHolderName}
+          ifscCode={ifscCode}
+          setIfscCode={setIfscCode}
+          bankName={bankName}
+          branchName={branchName}
+          isBankVerified={isBankVerified}
+          isBankLoading={isBankLoading}
+          onVerify={handleVerifyBank}
+          onContinue={() => { setIsBankModalOpen(false); setIsReviewPageOpen(true); }}
+        />
+
+        <KycReviewPage
+          open={isReviewPageOpen}
+          onClose={() => setIsReviewPageOpen(false)}
+          businessType={businessType}
+          email={email}
+          phoneNumber={phoneNumber}
+          address={address}
+          pincode={pincode}
+          city={city}
+          state={state}
+          aadhaarNumber={aadhaarNumber}
+          aadhaarData={aadhaarData}
+          panNumber={panNumber}
+          panData={panData}
+          gstin={gstin}
+          isGstinVerified={isGstinVerified}
+          gstData={gstData}
+          accountNumber={accountNumber}
+          ifscCode={ifscCode}
+          accountHolderName={accountHolderName}
+          bankName={bankName}
+          branchName={branchName}
+          isSubmitting={isSubmitting}
+          onSubmit={handleKycSubmit}
+        />
 
         <Toast toast={toast} onClose={closeToast} />
       </AdminLayout>

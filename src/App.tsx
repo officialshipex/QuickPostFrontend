@@ -84,6 +84,9 @@ import { AdminAgreementSettings } from './pages/admin/AdminAgreementSettings';
 import { AdminPickupAddress } from './pages/admin/AdminPickupAddress';
 import { AdminPickupManifestDetails } from './pages/admin/AdminPickupManifestDetails';
 import { AdminShell } from './components/admin/layout/AdminShell';
+import { UserHome } from './pages/admin/UserHome';
+import { BrandedTrackingBuilder } from './pages/admin/brandedTracking/builder/BrandedTrackingBuilder';
+import { BrandedTrackingPublicPage } from './pages/admin/brandedTracking/BrandedTrackingPublicPage';
 
 function GlobalOrderClickInterceptor() {
   const navigate = useNavigate();
@@ -208,6 +211,7 @@ function App() {
           {import.meta.env.DEV && <Route path="/dev/email-preview" element={<EmailPreview />} />}
           <Route path="/" element={<AppRootHandler />} />
           <Route path="/track" element={<Track />} />
+          <Route path="/track/:storeSlug" element={<BrandedTrackingPublicPage />} />
           <Route path="/terms-and-conditions" element={<Terms />} />
           <Route path="/refund-and-cancellation-policy" element={<RefundPolicy />} />
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
@@ -279,6 +283,7 @@ function App() {
 
             {/* ── User-only routes (/user/*) ── */}
             <Route element={<ProtectedRoute allowedRoles={['user']} />}>
+              <Route path="/user/home" element={<UserHome />} />
               <Route path="/user/dashboard" element={<AdminDashboard />} />
               <Route path="/user/orders" element={<AdminOrders />} />
               <Route path="/user/orders/:tabSlug" element={<AdminOrders />} />
@@ -319,6 +324,7 @@ function App() {
               {/* <Route path="/user/vas/brand-boost" element={<AdminBrandBoost />} /> */}
               <Route path="/user/vas/notify" element={<AdminNotify />} />
               <Route path="/user/vas/shipsure" element={<AdminShipsure />} />
+              <Route path="/user/vas/branded-tracking" element={<BrandedTrackingBuilder />} />
             </Route>
 
             </Route>{/* /AdminShell */}
