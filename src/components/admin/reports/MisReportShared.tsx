@@ -21,6 +21,7 @@ export interface MisReport {
   _id: string; reportType: string; dateFilterType?: string; fromDate: string; toDate: string;
   email?: string; status: 'pending' | 'completed' | 'failed'; downloadUrl?: string;
   createdAt: string; selectedDescriptions?: string[];
+  isAllUsers?: boolean; // an admin "All Users" report has no single user
   user?: { _id: string; userId?: number; fullname?: string; email?: string };
 }
 
