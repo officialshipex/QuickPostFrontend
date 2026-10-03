@@ -181,7 +181,7 @@ function AppRootHandler() {
     const isValid = token && !isTokenExpired(token);
     if (isValid) {
       const role = getRoleFromToken(token!);
-      return <Navigate to={role === 'admin' ? '/admin/dashboard' : '/user/dashboard'} replace />;
+      return <Navigate to={role === 'admin' ? '/admin/dashboard' : '/user/home'} replace />;
     }
     return <Navigate to="/login" replace />;
   }
@@ -193,7 +193,7 @@ function AuthRedirect({ children }: { children: React.ReactNode }) {
   const isValid = token && !isTokenExpired(token);
   if (!isValid) return <>{children}</>;
   const role = getRoleFromToken(token!);
-  return <Navigate to={role === 'admin' ? '/admin/dashboard' : '/user/dashboard'} replace />;
+  return <Navigate to={role === 'admin' ? '/admin/dashboard' : '/user/home'} replace />;
 }
 
 const queryClient = new QueryClient();

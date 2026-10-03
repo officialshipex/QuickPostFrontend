@@ -77,7 +77,7 @@ const STATUS_FOR_TAB: Record<string, string[]> = {
   'Lost':             ['Lost'],
   'Damaged':          ['Damaged'],
   'RTO Initiated':    ['RTO Initiated'],
-  'RTO In Transit':   ['RTO In Transit'],
+  'RTO In Transit':   ['RTO In-transit', 'RTO In Transit'], // couriers store "RTO In-transit"; Ekart sends "RTO In Transit"
   'RTO Delivered':    ['RTO Delivered'],
   'RTO Lost':         ['RTO Lost'],
   'RTO Damaged':      ['RTO Damaged'],
@@ -496,7 +496,7 @@ export function AdminOrders() {
   const [selectedPaymentTypes,   setSelectedPaymentTypes]  = useState<string[]>([]);
   const [selectedPickupAddresses,setSelectedPickupAddresses] = useState<string[]>([]);
   const [selectedCouriers,       setSelectedCouriers]      = useState<string[]>([]);
-  const { dateStart, dateEnd, setDateStart, setDateEnd, onDateChange: onOrderDateChange, defStart, defEnd } = useDateRangeFilter();
+  const { dateStart, dateEnd, setDateStart, setDateEnd, onDateChange: onOrderDateChange, defStart, defEnd } = useDateRangeFilter(searchParams.get('startDate') || undefined, searchParams.get('endDate') || undefined);
 
   // ── Dynamic options from API ──
   const [courierOptions,  setCourierOptions]  = useState<{ label: string; value: string }[]>([]);

@@ -134,6 +134,11 @@ export function AdminDashboard() {
   const navigate = useNavigate();
   const isUserRoute = location.pathname === '/user/dashboard';
   const navBase = isUserRoute ? '/user' : '/admin';
+  // Card counts are computed over the dashboard's date range, so the destination lists must open on the same range.
+  // Counts that ignore the range (RTO In-Transit, weight discrepancies) open on a wide window instead.
+  const ymdLocal = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const rangeQ = `?startDate=${ymdLocal(filters.dateRange.start)}&endDate=${ymdLocal(filters.dateRange.end)}`;
+  const allTimeQ = (() => { const s = new Date(); s.setFullYear(s.getFullYear() - 3); return `?startDate=${ymdLocal(s)}&endDate=${ymdLocal(new Date())}`; })();
 
   // ── Wallet recharge ad — user side only, first time per login session, appears 2s after page load ──
   const [showWalletAd, setShowWalletAd] = useState(false);
@@ -163,6 +168,7 @@ export function AdminDashboard() {
   const [kycComplete, setKycComplete] = useState(false);
   const [userDetails, setUserDetails] = useState<any>(null);
   const [contractAccepted, setContractAccepted] = useState(false);
+  const [bankVerified, setBankVerified] = useState(false);
 
   // Seller search (admin-only) — selecting a seller loads their dashboard instead of the platform-wide one.
   const {
@@ -179,7 +185,7 @@ export function AdminDashboard() {
     const userIdParam = isAdminView && userMongoId ? `&userId=${userMongoId}` : '';
     const dateParams = `?startDate=${startISO}&endDate=${endISO}${userIdParam}`;
     const plainParams = userIdParam ? `?${userIdParam.slice(1)}` : '';
-    const [ovRes, insRes, grRes, cdRes, wdRes, crRes, acRes, tsRes, kycRes, agRes] =
+    const [ovRes, insRes, grRes, cdRes, wdRes, crRes, acRes, tsRes, kycRes, agRes, bankRes] =
       await Promise.allSettled([
         apiClient.get(`/dashboard/getDashboardOverview${dateParams}`),
         apiClient.get(`/dashboard/getBusinessInsights${plainParams}`),
@@ -191,6 +197,7 @@ export function AdminDashboard() {
         apiClient.get('/dashboard/topSellersData'),
         apiClient.get(`/user/getUserDetails${plainParams}`),
         apiClient.get('/agreement/user/list'),
+        apiClient.get('/getKyc/getBankAccount'),
       ]);
 
     if (ovRes.status  === 'fulfilled') setOverview(ovRes.value.data?.data);
@@ -216,6 +223,11 @@ export function AdminDashboard() {
       const u = kycRes.value.data?.user;
       setKycComplete(u?.kycDone === true);
       setUserDetails(u || null);
+    }
+    // Verified bank details live in the BankAccount collection (204 + empty body when none), not on the User doc
+    if (bankRes.status === 'fulfilled') {
+      const b = bankRes.value.data;
+      setBankVerified(!!b?.accountNumber && b?.AccountStatus !== 'INVALID');
     }
     if (agRes.status === 'fulfilled') {
       const agreements = agRes.value.data?.agreements || [];
@@ -321,7 +333,7 @@ export function AdminDashboard() {
           status={{
             personalDone:  !!(userDetails?.fullname && userDetails?.phoneNumber),
             kycDone:       userDetails?.kycDone === true,
-            bankDone:      !!(userDetails?.bankDetails?.accountNumber || userDetails?.bankDetails?.accountNo),
+            bankDone:      bankVerified,
             contractDone:  contractAccepted,
             phoneVerified: userDetails?.isPhoneVerified === true,
             emailVerified: userDetails?.isEmailVerified === true,
@@ -465,17 +477,17 @@ export function AdminDashboard() {
           <MiniStatCard title="Pickup Delays"
             value={fmtN(overview?.delayStats?.pickupDelays || 0)}
             icon={Clock} iconColor="text-amber-500" iconBg="bg-amber-50"
-            to={`${navBase}/orders/ready-to-ship`}
+            to={`${navBase}/orders/ready-to-ship${rangeQ}`}
           />
           <MiniStatCard title="Delayed Deliveries"
             value={fmtN(overview?.delayStats?.delayedDeliveries || 0)}
             icon={AlertTriangle} iconColor="text-rose-500" iconBg="bg-rose-50"
-            to={`${navBase}/orders/in-transit`}
+            to={`${navBase}/orders/in-transit${rangeQ}`}
           />
           <MiniStatCard title="Weight Disputes"
             value={fmtN(weightData?.counts?.New || 0)}
             icon={ShieldAlert} iconColor="text-purple-500" iconBg="bg-purple-50"
-            to={`${navBase}/weight-discrepancy/pending`}
+            to={`${navBase}/weight-discrepancy/pending${allTimeQ}`}
           />
           {isAdminView && (
             <MiniStatCard title="Pending KYC/Docs"
@@ -494,39 +506,39 @@ export function AdminDashboard() {
           <MiniStatCard title="Pending NDR"
             value={fmtN(ndr?.actionRequired || 0)}
             icon={RotateCcw} iconColor="text-indigo-500" iconBg="bg-indigo-50"
-            to={`${navBase}/ndr/action-required`}
+            to={`${navBase}/ndr/action-required${rangeQ}`}
           />
         </div>
 
         {/* ── Row 3: Shipments Details ───────────────────────────────── */}
         <SectionHeading title="Shipments Details" />
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
-          <MiniStatCard title="Total Shipments"   value={fmtN(ship.total)}           icon={Package}       iconColor="text-blue-500"    iconBg="bg-blue-50"    to={`${navBase}/orders/all`} />
-          <MiniStatCard title="Pending Pickups"   value={fmtN(ship.readyToShip)}     icon={ShoppingCart}  iconColor="text-purple-500"  iconBg="bg-purple-50"  to={`${navBase}/orders/ready-to-ship`} />
-          <MiniStatCard title="In-Transit"        value={fmtN(ship.inTransit)}       icon={RefreshCcw}    iconColor="text-amber-500"   iconBg="bg-amber-50"   to={`${navBase}/orders/in-transit`} />
-          <MiniStatCard title="Out For Delivery"  value={fmtN(ship.outForDelivery)}  icon={Truck}         iconColor="text-emerald-500" iconBg="bg-emerald-50" to={`${navBase}/orders/out-for-delivery`} />
-          <MiniStatCard title="Delivered"         value={fmtN(ship.delivered)}       icon={CheckCircle2}  iconColor="text-purple-400"  iconBg="bg-purple-50"  to={`${navBase}/orders/delivered`} />
-          <MiniStatCard title="Un-Delivered"      value={fmtN(ndr.totalNdr)}         icon={AlertTriangle} iconColor="text-rose-500"    iconBg="bg-rose-50"    to={`${navBase}/ndr/undelivered`} />
-          <MiniStatCard title="RTO In-Transit"    value={fmtN(ship.rtoInTransit)}    icon={RotateCcw}     iconColor="text-emerald-500" iconBg="bg-emerald-50" to={`${navBase}/orders/rto-in-transit`} />
+          <MiniStatCard title="Total Shipments"   value={fmtN(ship.total)}           icon={Package}       iconColor="text-blue-500"    iconBg="bg-blue-50"    to={`${navBase}/orders/all${rangeQ}`} />
+          <MiniStatCard title="Pending Pickups"   value={fmtN(ship.readyToShip)}     icon={ShoppingCart}  iconColor="text-purple-500"  iconBg="bg-purple-50"  to={`${navBase}/orders/ready-to-ship${rangeQ}`} />
+          <MiniStatCard title="In-Transit"        value={fmtN(ship.inTransit)}       icon={RefreshCcw}    iconColor="text-amber-500"   iconBg="bg-amber-50"   to={`${navBase}/orders/in-transit${rangeQ}`} />
+          <MiniStatCard title="Out For Delivery"  value={fmtN(ship.outForDelivery)}  icon={Truck}         iconColor="text-emerald-500" iconBg="bg-emerald-50" to={`${navBase}/orders/out-for-delivery${rangeQ}`} />
+          <MiniStatCard title="Delivered"         value={fmtN(ship.delivered)}       icon={CheckCircle2}  iconColor="text-purple-400"  iconBg="bg-purple-50"  to={`${navBase}/orders/delivered${rangeQ}`} />
+          <MiniStatCard title="Un-Delivered"      value={fmtN(ndr.undelivered)}         icon={AlertTriangle} iconColor="text-rose-500"    iconBg="bg-rose-50"    to={`${navBase}/ndr/undelivered${rangeQ}`} />
+          <MiniStatCard title="RTO In-Transit"    value={fmtN(ship.rtoInTransit)}    icon={RotateCcw}     iconColor="text-emerald-500" iconBg="bg-emerald-50" to={`${navBase}/orders/rto-in-transit${allTimeQ}`} />
         </div>
 
         {/* ── Row 4: NDR Details ────────────────────────────────────── */}
         <SectionHeading title="NDR Details" />
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-          <MiniStatCard title="Total NDR"        value={fmtN(ndr.totalNdr)}        icon={AlertTriangle} iconColor="text-blue-400"    iconBg="bg-blue-50"    to={`${navBase}/ndr/undelivered`} />
-          <MiniStatCard title="Action Required"  value={fmtN(ndr.actionRequired)}  icon={FileText}      iconColor="text-purple-500"  iconBg="bg-purple-50"  to={`${navBase}/ndr/action-required`} />
-          <MiniStatCard title="Action Requested" value={fmtN(ndr.actionRequested)} icon={Package}       iconColor="text-amber-500"   iconBg="bg-amber-50"   to={`${navBase}/ndr/action-requested`} />
-          <MiniStatCard title="Delivered"        value={fmtN(ndr.ndrDelivered)}    icon={CheckCircle2}  iconColor="text-emerald-500" iconBg="bg-emerald-50" to={`${navBase}/ndr/delivered`} />
-          <MiniStatCard title="RTO Delivered"    value={fmtN(ship.rto)}            icon={RotateCcw}     iconColor="text-indigo-500"  iconBg="bg-indigo-50"  to={`${navBase}/ndr/rto-initiated`} />
+          <MiniStatCard title="Total NDR"        value={fmtN(ndr.totalNdr)}        icon={AlertTriangle} iconColor="text-blue-400"    iconBg="bg-blue-50"    to={`${navBase}/ndr/undelivered${rangeQ}`} />
+          <MiniStatCard title="Action Required"  value={fmtN(ndr.actionRequired)}  icon={FileText}      iconColor="text-purple-500"  iconBg="bg-purple-50"  to={`${navBase}/ndr/action-required${rangeQ}`} />
+          <MiniStatCard title="Action Requested" value={fmtN(ndr.actionRequested)} icon={Package}       iconColor="text-amber-500"   iconBg="bg-amber-50"   to={`${navBase}/ndr/action-requested${rangeQ}`} />
+          <MiniStatCard title="Delivered"        value={fmtN(ndr.ndrDelivered)}    icon={CheckCircle2}  iconColor="text-emerald-500" iconBg="bg-emerald-50" to={`${navBase}/ndr/delivered${rangeQ}`} />
+          <MiniStatCard title="RTO Delivered"    value={fmtN(ship.rto)}            icon={RotateCcw}     iconColor="text-indigo-500"  iconBg="bg-indigo-50"  to={`${navBase}/orders/rto-delivered${rangeQ}`} />
         </div>
 
         {/* ── Row 5: Weight Discrepancy ─────────────────────────────── */}
         <SectionHeading title="Weight Discrepancy Details" />
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <MiniStatCard title="Total Discrepancy"    value={fmtN(weightData.total)}                          icon={AlertTriangle} iconColor="text-teal-500"  iconBg="bg-teal-50"   to={`${navBase}/weight-discrepancy/all`} />
-          <MiniStatCard title="New Discrepancy"      value={fmtN(weightData.counts?.New || 0)}               icon={FileText}      iconColor="text-amber-500" iconBg="bg-amber-50"  to={`${navBase}/weight-discrepancy/pending`} />
-          <MiniStatCard title="Accepted Discrepancy" value={fmtN(weightData.counts?.Accepted || 0)}          icon={Package}       iconColor="text-blue-500"  iconBg="bg-blue-50"   to={`${navBase}/weight-discrepancy/complete`} />
-          <MiniStatCard title="Discrepancy Raised"   value={fmtN(weightData.counts?.DiscrepancyRaised || 0)} icon={AlertTriangle} iconColor="text-rose-500"  iconBg="bg-rose-50"   to={`${navBase}/weight-discrepancy/dispute`} />
+          <MiniStatCard title="Total Discrepancy"    value={fmtN(weightData.total)}                          icon={AlertTriangle} iconColor="text-teal-500"  iconBg="bg-teal-50"   to={`${navBase}/weight-discrepancy/all${allTimeQ}`} />
+          <MiniStatCard title="New Discrepancy"      value={fmtN(weightData.counts?.New || 0)}               icon={FileText}      iconColor="text-amber-500" iconBg="bg-amber-50"  to={`${navBase}/weight-discrepancy/pending${allTimeQ}`} />
+          <MiniStatCard title="Accepted Discrepancy" value={fmtN(weightData.counts?.Accepted || 0)}          icon={Package}       iconColor="text-blue-500"  iconBg="bg-blue-50"   to={`${navBase}/weight-discrepancy/complete${allTimeQ}`} />
+          <MiniStatCard title="Discrepancy Raised"   value={fmtN(weightData.counts?.DiscrepancyRaised || 0)} icon={AlertTriangle} iconColor="text-rose-500"  iconBg="bg-rose-50"   to={`${navBase}/weight-discrepancy/dispute${allTimeQ}`} />
         </div>
 
         {/* ── Row 6: COD Status ─────────────────────────────────────── */}

@@ -357,7 +357,7 @@ export function AdminWeightDiscrepancy() {
   const [searchInput, setSearchInput] = useState('');
   const [searchBy, setSearchBy] = useState('awbNumber');
   const [selectedCouriers, setSelectedCouriers] = useState<string[]>([]);
-  const { dateStart, dateEnd, setDateStart, setDateEnd, onDateChange, defStart, defEnd } = useDateRangeFilter();
+  const { dateStart, dateEnd, setDateStart, setDateEnd, onDateChange, defStart, defEnd } = useDateRangeFilter(new URLSearchParams(window.location.search).get('startDate') || undefined, new URLSearchParams(window.location.search).get('endDate') || undefined);
   const {
     userQuery: userSearchText, userMongoId, userSuggestions: userResults,
     setUserQuery: setUserSearchText, setUserMongoId, setUserSuggestions: setUserResults,
