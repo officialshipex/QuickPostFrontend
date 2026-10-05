@@ -11,6 +11,7 @@ export type NotificationRefModel = 'BulkShipJob' | 'BulkOrderFiles';
 
 export interface BulkShipJobSummary {
   status: 'running' | 'completed';
+  jobType?: 'ship' | 'cancel'; // a Bulk Cancel is a BulkShipJob of jobType "cancel"
   totalOrders: number;
   successCount: number;
   failureCount: number;
@@ -28,6 +29,7 @@ export interface AppNotification {
   refModel: NotificationRefModel;
   refId: (BulkShipJobSummary | BulkOrderFilesSummary) | null;
   title: string;
+  jobType?: 'ship' | 'cancel';
   dismissed: boolean;
   createdAt: string;
 }
@@ -37,6 +39,7 @@ export interface BulkShipResult {
   displayOrderId: number | null;
   status: 'pending' | 'processing' | 'success' | 'failed';
   courierServiceName: string | null;
+  awbNumber?: string | null;
   failureReason: string | null;
 }
 

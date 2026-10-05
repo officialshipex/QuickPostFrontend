@@ -343,7 +343,7 @@ export function NdrActionModal({ isOpen, onClose, order, onSubmit }: Props) {
             )}
             {isLosung360 && isChangeAddress && (
               <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-[11px] text-amber-700 font-medium leading-relaxed">
-                ⚠️ Losung360 does not support address changes. This will be submitted as a Re-Attempt.
+                ⚠️ This courier does not support address changes. This will be submitted as a Re-Attempt.
               </div>
             )}
             {isEkart && (

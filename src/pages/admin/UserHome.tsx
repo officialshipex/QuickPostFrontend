@@ -26,6 +26,8 @@ const BACKEND_BASE = (import.meta.env.VITE_API_URL as string) || 'http://localho
 const ymd = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const addDays = (d: Date, n: number) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+// Delay-alert links open the Orders list over the same 90-day window the backend counts
+const delayRange = () => `?startDate=${ymd(addDays(new Date(), -90))}&endDate=${ymd(new Date())}`;
 const fmtAmt = (v: number) => (v || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 });
 
 // Whole days from today until the courier's estimated delivery date
@@ -234,85 +236,36 @@ export function UserHome() {
   const [showAllOffers, setShowAllOffers] = useState(false);
   const offersScrollRef = useRef<HTMLDivElement>(null);
 
-  const fetchSummary = useCallback(async () => {
-    if (!currentUserId) return;
-    setSummaryLoading(true);
-    const now = new Date();
-    const today = ymd(now);
-    const yesterday = ymd(addDays(now, -1));
-    const fetchDay = (day: string) => apiClient.get('/admin/filterEmployeeOrders', {
-      params: { page: 1, limit: 1000, startDate: day, endDate: day, userId: currentUserId },
-    });
-    const [tRes, yRes, anyRes] = await Promise.allSettled([
-      fetchDay(today),
-      fetchDay(yesterday),
-      apiClient.get('/admin/filterEmployeeOrders', { params: { page: 1, limit: 1, userId: currentUserId } }),
-    ]);
-    const tally = (r: PromiseSettledResult<any>) => {
-      if (r.status !== 'fulfilled') return { count: 0, revenue: 0 };
-      const orders: any[] = r.value.data?.orders || [];
-      const count = r.value.data?.totalOrders || r.value.data?.totalRecords || orders.length;
-      const revenue = orders
-        .filter(o => !/cancel/i.test(o.status || ''))
-        .reduce((s, o) => s + (Number(o.paymentDetails?.amount) || 0), 0);
-      return { count, revenue };
-    };
-    const t = tally(tRes); const y = tally(yRes);
-    setSummary({ ordersToday: t.count, ordersYesterday: y.count, revenueToday: t.revenue, revenueYesterday: y.revenue });
-    if (anyRes.status === 'fulfilled') {
-      const d = anyRes.value.data;
-      setHasAnyOrder((d?.totalOrders || d?.totalRecords || (d?.orders || []).length) > 0);
-    }
-    setSummaryLoading(false);
-  }, [currentUserId]);
-
-  const fetchActions = useCallback(async () => {
-    setActionsLoading(true);
-    const end = new Date();
-    const start = addDays(end, -30);
-    const [ovRes, wdRes, userRes] = await Promise.allSettled([
-      apiClient.get(`/dashboard/getDashboardOverview?startDate=${start.toISOString()}&endDate=${end.toISOString()}`),
-      apiClient.get('/dashboard/getWeightDisputeData'),
-      apiClient.get('/user/getUserDetails'),
-    ]);
-    const ov = ovRes.status === 'fulfilled' ? ovRes.value.data?.data || {} : {};
-    const wd = wdRes.status === 'fulfilled' ? wdRes.value.data || {} : {};
-    const user = userRes.status === 'fulfilled' ? userRes.value.data?.user : null;
-
-    const list = [
-      { key: 'kyc', label: 'Complete your KYC', desc: 'Verify your business to unlock shipping and COD remittance', count: user && user.kycDone !== true && !isEmployee ? 1 : 0, to: '/user/kyc', icon: FileCheck2, tone: 'bg-blue-50 text-blue-600' },
-      { key: 'ndr', label: 'NDR Action Required', desc: 'Shipments awaiting your reattempt or RTO decision', count: ov.ndrStats?.actionRequired || 0, to: '/user/ndr/action-required', icon: RotateCcw, tone: 'bg-indigo-50 text-indigo-600' },
-      { key: 'pickup', label: 'Pickup Delays', desc: 'Orders not yet picked up by the courier', count: ov.delayStats?.pickupDelays || 0, to: '/user/orders/ready-to-ship', icon: Clock, tone: 'bg-amber-50 text-amber-600' },
-      { key: 'delivery', label: 'Delayed Deliveries', desc: 'In-transit shipments past their expected delivery date', count: ov.delayStats?.delayedDeliveries || 0, to: '/user/orders/in-transit', icon: AlertTriangle, tone: 'bg-rose-50 text-rose-600' },
-      { key: 'weight', label: 'Weight Discrepancies', desc: 'New weight disputes that need your review', count: wd.counts?.New || 0, to: '/user/weight-discrepancy/pending', icon: ShieldAlert, tone: 'bg-purple-50 text-purple-600' },
-    ].filter(a => a.count > 0);
-    setActions(list);
-    setActionsLoading(false);
-  }, [isEmployee]);
-
-  const fetchPickups = useCallback(async () => {
-    if (!currentUserId) return;
-    setPickupsLoading(true);
-    const now = new Date();
-    const today = ymd(now);
-    const tomorrow = ymd(addDays(now, 1));
+  // One backend call feeds Summary, Actions and Upcoming Pickups (scoped to the logged-in seller)
+  const fetchHome = useCallback(async () => {
+    setSummaryLoading(true); setActionsLoading(true); setPickupsLoading(true);
     try {
-      const res = await apiClient.get('/admin/filterPickupManifests', {
-        params: { page: 1, limit: 200, startDate: ymd(addDays(now, -7)), endDate: tomorrow, userId: currentUserId },
+      const res = await apiClient.get('/dashboard/getHomeSummary');
+      const d = res.data?.data || {};
+      const s = d.summary || {};
+      const a = d.actions || {};
+      setSummary({
+        ordersToday: s.ordersToday || 0, ordersYesterday: s.ordersYesterday || 0,
+        revenueToday: s.revenueToday || 0, revenueYesterday: s.revenueYesterday || 0,
       });
-      const all: any[] = (res.data?.manifests || []).filter((m: any) => !/cancel/i.test(m.status || ''));
-      const dayOf = (m: any) => (m.pickupDate ? ymd(new Date(m.pickupDate)) : '');
-      setPickups({
-        today: all.filter(m => dayOf(m) === today),
-        tomorrow: all.filter(m => dayOf(m) === tomorrow),
-      });
+      setHasAnyOrder(s.hasAnyOrder !== false);
+      setActions([
+        { key: 'kyc', label: 'Complete your KYC', desc: 'Verify your business to unlock shipping and COD remittance', count: a.kycPending && !isEmployee ? 1 : 0, to: '/user/kyc', icon: FileCheck2, tone: 'bg-blue-50 text-blue-600' },
+        { key: 'ndr', label: 'NDR Action Required', desc: 'Shipments awaiting your reattempt or RTO decision', count: a.ndrActionRequired || 0, to: '/user/ndr/action-required', icon: RotateCcw, tone: 'bg-indigo-50 text-indigo-600' },
+        { key: 'pickup', label: 'Pickup Delays', desc: 'Orders not yet picked up by the courier', count: a.pickupDelays || 0, to: `/user/orders/ready-to-ship${delayRange()}`, icon: Clock, tone: 'bg-amber-50 text-amber-600' },
+        { key: 'delivery', label: 'Delayed Deliveries', desc: 'In-transit shipments past their expected delivery date', count: a.delayedDeliveries || 0, to: `/user/orders/in-transit${delayRange()}`, icon: AlertTriangle, tone: 'bg-rose-50 text-rose-600' },
+        { key: 'weight', label: 'Weight Discrepancies', desc: 'New weight disputes that need your review', count: a.weightNew || 0, to: '/user/weight-discrepancy/pending', icon: ShieldAlert, tone: 'bg-purple-50 text-purple-600' },
+      ].filter(x => x.count > 0));
+      setPickups({ today: d.pickups?.today || [], tomorrow: d.pickups?.tomorrow || [] });
     } catch (e) {
-      console.error('Failed to fetch pickups', e);
+      console.error('Failed to load home summary', e);
+      setSummary({ ordersToday: 0, ordersYesterday: 0, revenueToday: 0, revenueYesterday: 0 });
+      setActions([]);
       setPickups({ today: [], tomorrow: [] });
     } finally {
-      setPickupsLoading(false);
+      setSummaryLoading(false); setActionsLoading(false); setPickupsLoading(false);
     }
-  }, [currentUserId]);
+  }, [isEmployee]);
 
   // Admin announcements targeted at this seller. Raw fetch (not apiClient) so a
   // restricted endpoint fails silently instead of raising the access-denied modal.
@@ -346,11 +299,9 @@ export function UserHome() {
   useEffect(() => {
     if (loadingAdminTab) return;
     fetchFeed();
-    fetchSummary();
-    fetchActions();
-    fetchPickups();
+    fetchHome();
     fetchAnnouncements();
-  }, [loadingAdminTab, fetchSummary, fetchActions, fetchPickups, fetchAnnouncements, fetchFeed]);
+  }, [loadingAdminTab, fetchHome, fetchAnnouncements, fetchFeed]);
 
   /* ── Pickup document downloads ─────────────────────────────────── */
   const activePickups = pickups[pickupTab];

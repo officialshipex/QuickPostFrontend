@@ -34,6 +34,7 @@ interface OrderData {
   userId?: string;
   channel?: string;
   channelId?: number;
+  channelOrderName?: string;
   createdAt?: string;
   shipmentCreatedAt?: string;
   pickupDate?: string;
@@ -167,8 +168,6 @@ const mapApiStatus = (status?: string): 'placed' | 'ready' | 'transit' | 'delive
 // ── Status badge styles (mirrors AdminOrders STATUS_BADGE_STYLES) ──────────────
 const STATUS_BADGE_STYLES: Record<string, string> = {
   'New':               'bg-slate-50 text-slate-700 border-slate-200',
-  'Booked':            'bg-blue-50 text-blue-700 border-blue-200',
-  'Not Picked':        'bg-amber-50 text-amber-700 border-amber-200',
   'Ready To Ship':     'bg-indigo-50 text-indigo-700 border-indigo-200',
   'Pickup & Manifest': 'bg-violet-50 text-violet-700 border-violet-200',
   'Pickup Scheduled':  'bg-violet-50 text-violet-700 border-violet-200',
@@ -246,7 +245,7 @@ const getMilestonesFromStatus = (rawStatus: string, order?: OrderData) => {
   }
 
   // Standard 4-step delivery flow
-  // 0 = Booked / Ready to Ship → new / Booked / Not Picked / Ready To Ship / Pickup Scheduled
+  // 0 = Ready to Ship        → new / Ready To Ship / Pickup Scheduled
   // 1 = In Transit             → Pickup & Manifest / In-transit / In Transit
   // 2 = Out for Delivery       → Out for Delivery
   // 3 = Delivered              → Delivered
@@ -490,7 +489,7 @@ export function AdminOrderTracking() {
   const handleCancelOrder = async () => {
     if (!order?._id || cancelling) return;
     setCancelling(true);
-    const isBooked = ['Booked', 'Not Picked', 'Ready To Ship'].includes(order.status || '');
+    const isBooked = ['Ready To Ship'].includes(order.status || '');
     const endpoint = isBooked ? '/order/cancelOrdersAtBooked' : '/order/cancelOrdersAtNotShipped';
     try {
       await apiClient.post(endpoint, { orderId: order._id });
@@ -514,12 +513,11 @@ export function AdminOrderTracking() {
 
   // ── Header actions — match AdminOrders renderRowActions per status ────────────
   const rawStatus = order?.status || 'New';
-  // Display-only relabel — "Booked" reads as "Ready to Ship" to the user; all status logic
-  // below still keys off the underlying rawStatus value.
-  const displayStatus = rawStatus === 'Booked' ? 'Ready to Ship' : rawStatus;
+  // "Booked" is retired: every pre-pickup order is already "Ready To Ship", shown as-is.
+  const displayStatus = rawStatus;
   const statusBadgeClass = STATUS_BADGE_STYLES[rawStatus] || 'bg-slate-50 text-slate-700 border-slate-200';
   const isNewOrder = rawStatus.toLowerCase() === 'new';
-  const isBookedOrder = ['Booked', 'Not Picked', 'Ready To Ship'].includes(rawStatus);
+  const isBookedOrder = ['Ready To Ship'].includes(rawStatus);
   const isPickupManifestOrder = ['Pickup Scheduled', 'Pickup & Manifest'].includes(rawStatus);
   const isDeliveredOrder = rawStatus === 'Delivered';
   const isCancelledOrder = ['Cancelled', 'Lost', 'Damaged', 'RTO Initiated', 'RTO In Transit', 'RTO Delivered', 'RTO Lost', 'RTO Damaged'].includes(rawStatus);
@@ -838,7 +836,7 @@ export function AdminOrderTracking() {
                   <label className="block text-[12px] leading-[18px] font-medium text-[#94A3B8] uppercase tracking-wider">Channel</label>
                   <div className="mt-1">
                     <span className="bg-[#F0FDF4] text-[#009B63] text-[12px] leading-[18px] font-normal px-2.5 py-0.5 rounded">
-                      {(order?.channel || 'CUSTOM').toUpperCase()}{order?.channelId ? ` (${order.channelId})` : ''}
+                      {(order?.channel || 'CUSTOM').toUpperCase()}{(order?.channelOrderName || order?.channelId) ? ` (${order.channelOrderName || order.channelId})` : ''}
                     </span>
                   </div>
                 </div>

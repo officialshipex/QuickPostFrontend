@@ -177,14 +177,14 @@ function GlobalOrderClickInterceptor() {
 }
 
 function AppRootHandler() {
-  // Marketing domains always show the homepage at `/`.
-  if (isLandingDomain()) return <Home />;
-
-  const token = getToken();
-  const isValid = token && !isTokenExpired(token);
-  if (isValid) {
-    const role = getRoleFromToken(token!);
-    return <Navigate to={role === 'admin' ? '/admin/dashboard' : '/user/dashboard'} replace />;
+  if (window.location.hostname === 'app.quickpost.in') {
+    const token = getToken();
+    const isValid = token && !isTokenExpired(token);
+    if (isValid) {
+      const role = getRoleFromToken(token!);
+      return <Navigate to={role === 'admin' ? '/admin/dashboard' : '/user/home'} replace />;
+    }
+    return <Navigate to="/login" replace />;
   }
   // The app domain has no public homepage; elsewhere (localhost, previews) logged-out users still see it.
   if (window.location.hostname === 'app.quickpost.in') return <Navigate to="/login" replace />;
@@ -196,7 +196,7 @@ function AuthRedirect({ children }: { children: React.ReactNode }) {
   const isValid = token && !isTokenExpired(token);
   if (!isValid) return <>{children}</>;
   const role = getRoleFromToken(token!);
-  return <Navigate to={role === 'admin' ? '/admin/dashboard' : '/user/dashboard'} replace />;
+  return <Navigate to={role === 'admin' ? '/admin/dashboard' : '/user/home'} replace />;
 }
 
 const queryClient = new QueryClient();

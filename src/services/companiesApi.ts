@@ -51,6 +51,9 @@ export interface CompanySummary {
   requiredSetupComplete: boolean;
   // whether the scheduled jobs also run for this company; absent from a backend that predates the setting
   jobsEnabled?: boolean;
+  // when on, users who register under this company are saved with that contact already verified
+  autoVerifyEmail?: boolean;
+  autoVerifyPhone?: boolean;
   createdAt: string;
 }
 
@@ -63,6 +66,8 @@ export interface CompanyCreatePayload {
   faviconUrl?: string;
   primaryColor: string;
   secondaryColor?: string;
+  autoVerifyEmail?: boolean;
+  autoVerifyPhone?: boolean;
 }
 
 // One field of a settings group, as the backend defines it (courier groups: named exactly like

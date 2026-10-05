@@ -693,7 +693,7 @@ export function AdminStatusMap() {
                     <label className="block text-[10px] font-bold text-[#475569] mb-1.5">Internal System Status *</label>
                     <select value={editForm.syStatus ?? ''} onChange={e => setEditForm(prev => ({ ...prev, syStatus: e.target.value }))}
                       className="w-full h-9 px-3 rounded-lg border border-[#E2E8F0] text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white">
-                      {['Not Picked','Booked','Ready to Ship','In Transit','Out for Delivery','Delivered','NDR Raised','RTO Initiated','RTO Delivered','Lost','Damaged'].map(s => <option key={s} value={s}>{s}</option>)}
+                      {['Ready to Ship','In Transit','Out for Delivery','Delivered','NDR Raised','RTO Initiated','RTO Delivered','Lost','Damaged'].map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
                   </div>
                   <div>

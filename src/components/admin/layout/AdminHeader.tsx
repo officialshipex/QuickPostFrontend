@@ -483,14 +483,15 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                             {notifications.map((n) => {
                               const ref: any = n.refId;
                               const isBulkShip = n.refModel === 'BulkShipJob';
+                              const isCancelJob = isBulkShip && (n.jobType === 'cancel' || ref?.jobType === 'cancel');
                               const isRunning = isBulkShip && ref?.status === 'running';
                               let summary = '';
                               if (ref) {
                                 if (isBulkShip) {
                                   const done = (ref.successCount || 0) + (ref.failureCount || 0);
                                   summary = isRunning
-                                    ? `Processing… ${done}/${ref.totalOrders}`
-                                    : `${ref.successCount || 0} succeeded, ${ref.failureCount || 0} failed`;
+                                    ? `${isCancelJob ? 'Cancelling' : 'Processing'}… ${done}/${ref.totalOrders}`
+                                    : `${ref.successCount || 0} ${isCancelJob ? 'cancelled' : 'succeeded'}, ${ref.failureCount || 0} failed`;
                                 } else {
                                   summary = `${ref.successfullyUploaded || 0}/${ref.noOfOrders || 0} rows uploaded${ref.errorOrders ? `, ${ref.errorOrders} failed` : ''}`;
                                 }
@@ -1247,14 +1248,15 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                     {notifications.map((n) => {
                       const ref: any = n.refId;
                       const isBulkShip = n.refModel === 'BulkShipJob';
+                      const isCancelJob = isBulkShip && (n.jobType === 'cancel' || ref?.jobType === 'cancel');
                       const isRunning = isBulkShip && ref?.status === 'running';
                       let summary = '';
                       if (ref) {
                         if (isBulkShip) {
                           const done = (ref.successCount || 0) + (ref.failureCount || 0);
                           summary = isRunning
-                            ? `Processing… ${done}/${ref.totalOrders}`
-                            : `${ref.successCount || 0} succeeded, ${ref.failureCount || 0} failed`;
+                            ? `${isCancelJob ? 'Cancelling' : 'Processing'}… ${done}/${ref.totalOrders}`
+                            : `${ref.successCount || 0} ${isCancelJob ? 'cancelled' : 'succeeded'}, ${ref.failureCount || 0} failed`;
                         } else {
                           summary = `${ref.successfullyUploaded || 0}/${ref.noOfOrders || 0} rows uploaded${ref.errorOrders ? `, ${ref.errorOrders} failed` : ''}`;
                         }

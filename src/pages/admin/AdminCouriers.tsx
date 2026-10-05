@@ -30,6 +30,7 @@ const LOGO_MAP: Record<string, string> = {
   'Dtdc': '/brands/dtdc.png',
   'Ekart': '/brands/ekart.png',
   'Losung360': '/brands/losung.jpg',
+  'ShipMaxx': '/brands/losung.jpg',
   'Lousung360': '/brands/losung.jpg',
   'Shadowfax': '/brands/shadowfax.png',
   'Shiprocket': '/brands/shiprocket.jpg',

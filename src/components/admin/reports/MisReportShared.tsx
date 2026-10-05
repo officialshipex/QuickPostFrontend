@@ -21,6 +21,7 @@ export interface MisReport {
   _id: string; reportType: string; dateFilterType?: string; fromDate: string; toDate: string;
   email?: string; status: 'pending' | 'completed' | 'failed'; downloadUrl?: string;
   createdAt: string; selectedDescriptions?: string[];
+  isAllUsers?: boolean; // an admin "All Users" report has no single user
   user?: { _id: string; userId?: number; fullname?: string; email?: string };
 }
 
@@ -267,6 +268,7 @@ export function GenerateReportModal({ open, onClose, prefillUserId, prefillUserN
   // Seller search — only relevant when the modal wasn't opened for a specific
   // pre-known seller (i.e. from the global reports hub, not a seller's own page).
   const showSellerSearch = isAdminView && !prefillUserId;
+  const [allUsers, setAllUsers] = useState(false); // one combined report for every seller
   const {
     userQuery, userSuggestions, userMongoId,
     onQueryChange: onUserQueryChange, selectUser: selectUserSuggestion, clearUser: clearUserFilter,
@@ -290,6 +292,9 @@ export function GenerateReportModal({ open, onClose, prefillUserId, prefillUserN
 
   const handleGenerate = async () => {
     if (!fromDate || !toDate) { setResult({ ok: false, text: 'From date and to date are required' }); return; }
+    if (showSellerSearch && !userMongoId && !(allUsers && reportType !== 'Passbook')) {
+      setResult({ ok: false, text: reportType === 'Passbook' ? 'Please select a seller' : 'Please select a seller or tick All Users' }); return;
+    }
     setSubmitting(true); setResult(null);
     try {
       const body: any = {
@@ -310,6 +315,7 @@ export function GenerateReportModal({ open, onClose, prefillUserId, prefillUserN
       if (email) body.email = email;
       if (isAdminView && prefillUserId) body.userSearch = prefillUserId;
       else if (showSellerSearch && userMongoId) body.userSearch = userMongoId;
+      else if (showSellerSearch && allUsers && reportType !== 'Passbook') body.userSearch = 'ALL';
       await apiClient.post('/mis-report/generate', body);
       setResult({ ok: true, text: 'Report generation started! It will appear in the table below shortly.' });
       setTimeout(() => onClose(), 2500);
@@ -347,14 +353,25 @@ export function GenerateReportModal({ open, onClose, prefillUserId, prefillUserN
         <div className="p-5 md:p-6 space-y-4 overflow-y-auto thin-scrollbar">
           {showSellerSearch && (
             <div className="relative">
-              <label className={labelCls}>Seller (optional — leave blank for all sellers)</label>
+              <div className="flex items-center justify-between">
+                <label className={labelCls}>Seller</label>
+                {reportType !== 'Passbook' && (
+                  <label className="flex items-center gap-1.5 text-[12px] font-medium text-[#475569] cursor-pointer">
+                    <input type="checkbox" checked={allUsers}
+                      onChange={e => { setAllUsers(e.target.checked); if (e.target.checked) clearUserFilter(); }}
+                      className="accent-[#00A86B] w-3.5 h-3.5 cursor-pointer" />
+                    All Users
+                  </label>
+                )}
+              </div>
               <div className="relative">
                 <Search className="w-4 h-4 text-[#94A3B8] absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   type="text"
                   value={userQuery}
+                  disabled={allUsers}
                   onChange={e => onUserQueryChange(e.target.value)}
-                  placeholder="Search user..."
+                  placeholder={allUsers ? 'All users' : 'Search user...'}
                   className="w-full h-11 pl-10 pr-9 rounded-full border border-[#E2E8F0] bg-white text-[13px] text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all"
                 />
                 {userMongoId && (
@@ -622,8 +639,8 @@ export function MisReportTable({ userId, isAdminView, fillHeight }: {
                   <td className="p-3 text-[12px] font-normal text-[#94A3B8]">{(page - 1) * rowsPerPage + i + 1}</td>
                   {isAdminView && !userId && (
                     <td className="p-3">
-                      <TruncatedText text={r.user?.fullname || '—'} maxLength={22} className="text-[12px] leading-[18px] font-semibold text-[#0F172A]" />
-                      <TruncatedText text={r.user?.email || '—'} maxLength={26} className="text-[12px] leading-[18px] font-normal text-[#64748B]" />
+                      <TruncatedText text={r.isAllUsers ? 'All Users' : (r.user?.fullname || '—')} maxLength={22} className="text-[12px] leading-[18px] font-semibold text-[#0F172A]" />
+                      <TruncatedText text={r.isAllUsers ? '' : (r.user?.email || '—')} maxLength={26} className="text-[12px] leading-[18px] font-normal text-[#64748B]" />
                     </td>
                   )}
                   <td className="p-3">
@@ -677,8 +694,8 @@ export function MisReportTable({ userId, isAdminView, fillHeight }: {
                       </div>
                       {isAdminView && !userId && (
                         <>
-                          <TruncatedText text={r.user?.fullname || '—'} maxLength={22} className="text-[12px] leading-[18px] font-semibold text-[#0F172A]" />
-                          <TruncatedText text={r.user?.email || '—'} maxLength={26} className="text-[12px] leading-[18px] font-normal text-[#64748B]" />
+                          <TruncatedText text={r.isAllUsers ? 'All Users' : (r.user?.fullname || '—')} maxLength={22} className="text-[12px] leading-[18px] font-semibold text-[#0F172A]" />
+                          <TruncatedText text={r.isAllUsers ? '' : (r.user?.email || '—')} maxLength={26} className="text-[12px] leading-[18px] font-normal text-[#64748B]" />
                         </>
                       )}
                     </div>

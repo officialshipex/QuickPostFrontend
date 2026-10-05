@@ -226,7 +226,7 @@ export function AdminNDR() {
   const [selectedPaymentTypes, setSelectedPaymentTypes] = useState<string[]>([]);
   const [selectedPickups,      setSelectedPickups]      = useState<string[]>([]);
   const [selectedCouriers,     setSelectedCouriers]     = useState<string[]>([]);
-  const { dateStart, dateEnd, setDateStart, setDateEnd, onDateChange, defStart, defEnd } = useDateRangeFilter();
+  const { dateStart, dateEnd, setDateStart, setDateEnd, onDateChange, defStart, defEnd } = useDateRangeFilter(new URLSearchParams(window.location.search).get('startDate') || undefined, new URLSearchParams(window.location.search).get('endDate') || undefined);
   const [refreshTrigger,       setRefreshTrigger]       = useState(0);
 
   // ── Dynamic options ──
