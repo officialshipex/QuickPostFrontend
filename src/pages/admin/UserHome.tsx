@@ -158,7 +158,7 @@ const COMMUNITY_STATS = [
 /* ─── card shell ──────────────────────────────────────────────────── */
 function Card({ className = '', children }: { className?: string; children: React.ReactNode }) {
   return (
-    <div className={`bg-white rounded-2xl border border-[#EEF2F6] shadow-[0_1px_3px_rgba(15,23,42,0.04)] p-5 md:p-7 min-w-0 ${className}`}>
+    <div className={`bg-white rounded-2xl shadow-[0_1px_2px_rgba(16,24,40,0.04),0_2px_8px_rgba(16,24,40,0.05)] p-5 md:p-7 min-w-0 ${className}`}>
       {children}
     </div>
   );
@@ -166,7 +166,7 @@ function Card({ className = '', children }: { className?: string; children: Reac
 
 function SummaryTile({ title, icon: Icon, today, yesterday, loading }: any) {
   return (
-    <div className="flex-1 min-w-0 rounded-xl border border-[#E2E8F0] p-4 md:p-5 flex gap-4">
+    <div className="flex-1 min-w-0 rounded-xl bg-[#F8FAFC] p-4 md:p-5 flex gap-4">
       <div className="w-11 h-11 md:w-12 md:h-12 rounded-full bg-[#E6F7F0] text-[#00A86B] flex items-center justify-center shrink-0">
         <Icon className="w-5 h-5" />
       </div>
@@ -477,8 +477,8 @@ export function UserHome() {
 
         {/* Welcome */}
         <div className="mb-4 md:mb-5">
-          <h1 className="text-[22px] md:text-[28px] font-bold tracking-tight">Welcome{firstName ? ` ${firstName}` : ''}!</h1>
-          <p className="text-[14px] md:text-[16px] text-[#475569] mt-0.5">
+          <h1 className="text-[20px] font-bold tracking-tight">Welcome{firstName ? ` ${firstName}` : ''}!</h1>
+          <p className="text-[14px] text-[#475569] mt-0.5">
             {hasAnyOrder ? "Here's a quick look at your shipping activity today." : "You're few steps away from shipping your first order."}
           </p>
         </div>
@@ -510,9 +510,9 @@ export function UserHome() {
                   <p className="text-[14px] md:text-[15px] text-[#475569] mt-2">No Pending Actions Today</p>
                 </div>
               ) : (
-                <div className="divide-y divide-[#F1F5F9] border border-[#E2E8F0] rounded-xl overflow-hidden">
+                <div className="divide-y divide-[#EEF2F6] bg-[#F8FAFC] rounded-xl overflow-hidden">
                   {actions.map(a => (
-                    <Link key={a.key} to={a.to} className="flex items-center gap-4 p-4 hover:bg-[#F8FAFC] transition-colors group">
+                    <Link key={a.key} to={a.to} className="flex items-center gap-4 p-4 hover:bg-[#F1F5F9] transition-colors group">
                       <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${a.tone}`}>
                         <a.icon className="w-5 h-5" />
                       </div>
@@ -572,7 +572,7 @@ export function UserHome() {
                     const count = (m.orderIds || []).length;
                     return (
                       <button key={m._id} onClick={() => navigate(`/user/pickup-manifest/${m.pickupId}`)}
-                        className="text-left flex items-center gap-4 p-4 rounded-xl border border-[#E2E8F0] hover:border-[#00A86B]/50 hover:bg-[#F8FAFC] transition-colors">
+                        className="text-left flex items-center gap-4 p-4 rounded-xl bg-[#F8FAFC] hover:bg-[#F0FDF4] transition-colors">
                         <div className="w-10 h-10 rounded-full bg-[#E6F7F0] text-[#00A86B] flex items-center justify-center shrink-0">
                           <MapPin className="w-5 h-5" />
                         </div>
@@ -680,7 +680,7 @@ export function UserHome() {
                           const days = eddDays(c.estimatedDeliveryDate);
                           return (
                             <div key={c._id || i}
-                              className="flex items-center justify-between gap-3 px-3.5 py-3 rounded-lg border border-[#E2E8F0] bg-gradient-to-r from-[#ECFDF5] via-[#F7FEFB] to-white">
+                              className="flex items-center justify-between gap-3 px-3.5 py-3 rounded-lg bg-gradient-to-r from-[#ECFDF5] via-[#F7FEFB] to-[#F8FAFC]">
                               <div className="min-w-0">
                                 <div className="text-[13px] md:text-[14px] text-[#0F172A] truncate">{c.courierServiceName}</div>
                                 <div className="flex items-center gap-1.5 mt-1 text-[11px] text-[#64748B]">
@@ -732,8 +732,8 @@ export function UserHome() {
               </div>
 
               {/* Updates & Alerts */}
-              <div className="mt-8 rounded-xl border border-[#EEF2F6] overflow-hidden">
-                <div className="px-4 md:px-5 py-3.5 bg-[#FAFBFC] border-b border-[#EEF2F6] flex items-center justify-between gap-3">
+              <div className="mt-8 rounded-xl bg-[#F8FAFC] overflow-hidden">
+                <div className="px-4 md:px-5 py-3.5 border-b border-[#EEF2F6] flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2.5 min-w-0">
                     <div className="relative w-9 h-9 rounded-full bg-[#E6F7F0] text-[#00A86B] flex items-center justify-center shrink-0">
                       <BellRing className="w-4 h-4" />
@@ -800,7 +800,7 @@ export function UserHome() {
 
                 {feed.length > 2 && (
                   <button onClick={() => setShowNotificationHistory(true)}
-                    className="w-full py-2.5 border-t border-[#F1F5F9] text-[12px] font-medium text-[#475569] hover:text-[#00A86B] hover:bg-[#F8FAFC] transition-colors">
+                    className="w-full py-2.5 border-t border-[#EEF2F6] text-[12px] font-medium text-[#475569] hover:text-[#00A86B] hover:bg-[#F1F5F9] transition-colors">
                     +{feed.length - 2} more update{feed.length - 2 === 1 ? '' : 's'}
                   </button>
                 )}

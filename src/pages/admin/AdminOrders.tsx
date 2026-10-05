@@ -12,7 +12,7 @@ import {
   Search, ChevronDown, RefreshCcw, Send, Calendar, Check, MoreHorizontal,
   IndianRupee, Package, User, Settings, MapPin, X, Truck, CreditCard,
   CheckCircle2, Clock, AlertTriangle, Flame, History, Layers, RefreshCw, Mail,
-  Filter, Copy, PackagePlus, FileText, Download, MoreVertical, Loader2, ArrowUp, ArrowDown,
+  Filter, Copy, PackagePlus, FileText, Download, MoreVertical, Loader2,
   UserCheck, Eye, EyeOff, Store
 } from 'lucide-react';
 import { usePagination, DesktopPagination } from '../../hooks/usePagination';
@@ -35,6 +35,7 @@ import { useProductTooltip, ProductTooltipCard } from '../../hooks/useProductToo
 import { CourierLogo } from '../../components/ui/CourierLogo';
 import { calculateRtoRisk, fetchBatchRtoRisk } from '../../services/rtoRisk';
 import type { RtoRiskResult } from '../../services/rtoRisk';
+import { RtoRiskBadge } from '../../components/ui/RtoRiskBadge';
 import flatRateAdImg from '../../assets/flat-rate-ad.png';
 import { ProtectedAdImage } from '../../components/ui/ProtectedAdImage';
 
@@ -232,11 +233,6 @@ const mapOrder = (o: any) => {
 
 // ─── RTO risk display — label stays neutral (#0F172A); only the value's color
 //     varies by risk level, matching existing text-color tokens on this page. ──
-const RTO_RISK_COLOR: Record<string, string> = {
-  High: 'text-red-500',
-  Medium: 'text-purple-600',
-  Low: 'text-[#00A86B]',
-};
 
 type RtoHistoryMaps = {
   byCustomer: Record<string, { totalOrders: number; totalRtoOrders: number; hasPreviousNdr: boolean }>;
@@ -275,24 +271,12 @@ const getOrderRtoRisk = (order: ReturnType<typeof mapOrder>, historyMaps: RtoHis
   );
 };
 
-/** "RTO Risk: {level}" — label in the page's default text color, value colored
- *  by risk level with a dotted underline; High gets an up arrow (risk rising),
- *  Low a down arrow (risk falling), Medium shows no arrow (neutral).
+/** Computes the order's RTO risk and renders it behind a "View RTO Risk" link.
  *  Prefers `riskResult` (backend-computed) when provided; falls back to the
  *  client-side historyMaps calculation while backend data is still loading. */
-const RtoRiskLine = ({ order, historyMaps, riskResult, className = '' }: { order: ReturnType<typeof mapOrder>; historyMaps: RtoHistoryMaps; riskResult?: RtoRiskResult; className?: string }) => {
-  const risk = riskResult || getOrderRtoRisk(order, historyMaps);
-  return (
-    <div className={`text-[11px] leading-[16px] font-semibold text-[#0F172A] ${className}`}>
-      RTO Risk:{' '}
-      <span className={`inline-flex items-center gap-0.5 border-b border-dotted border-current pb-px ${RTO_RISK_COLOR[risk.level]}`}>
-        {risk.level}
-        {risk.level === 'High' && <ArrowUp className="w-3 h-3" />}
-        {risk.level === 'Low' && <ArrowDown className="w-3 h-3" />}
-      </span>
-    </div>
-  );
-};
+const RtoRiskLine = ({ order, historyMaps, riskResult, className = '' }: { order: ReturnType<typeof mapOrder>; historyMaps: RtoHistoryMaps; riskResult?: RtoRiskResult; className?: string }) => (
+  <RtoRiskBadge risk={riskResult || getOrderRtoRisk(order, historyMaps)} className={className} />
+);
 
 // ─── File download helper ──────────────────────────────────────────────────────
 const BACKEND_BASE = (import.meta.env.VITE_API_URL as string) || 'http://localhost:5000/v1';
@@ -2160,7 +2144,7 @@ export function AdminOrders() {
                         >
                           <div className="truncate max-w-[130px] ml-auto text-[10px] font-normal text-[#94A3B8] uppercase tracking-wider underline decoration-dotted underline-offset-2">{order.customerName}</div>
                           <div className="text-[12px] font-medium text-[#0F172A] mt-0.5">{order.customerPhone}</div>
-                          <RtoRiskLine order={order} historyMaps={rtoHistoryMaps} riskResult={riskMap[order._id]} className="mt-0.5" />
+                          <RtoRiskLine order={order} historyMaps={rtoHistoryMaps} riskResult={riskMap[order._id]} className="mt-0.5 justify-end" />
                         </div>
                       </div>
 

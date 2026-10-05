@@ -718,7 +718,7 @@ export function AdminAddOrder() {
         <div className="space-y-3 md:space-y-6 px-2 md:px-0">
 
           {/* ── Pickup Details ── */}
-          <div className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm">
+          <div className="bg-white rounded-xl shadow-[0_1px_2px_rgba(16,24,40,0.04),0_2px_8px_rgba(16,24,40,0.05)]">
             <div className="px-3 md:px-6 py-2.5 md:py-4 border-b border-[#E2E8F0] rounded-t-xl">
               <h2 className="text-[14px] font-semibold text-[#0F172A]">Pickup Details</h2>
             </div>
@@ -874,7 +874,7 @@ export function AdminAddOrder() {
           </div>
 
           {/* ── Delivery Details ── */}
-          <div className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm overflow-hidden">
+          <div className="bg-white rounded-xl shadow-[0_1px_2px_rgba(16,24,40,0.04),0_2px_8px_rgba(16,24,40,0.05)] overflow-hidden">
             <div className="px-3 md:px-6 py-2.5 md:py-4 border-b border-[#E2E8F0]">
               <h2 className="text-[14px] font-semibold text-[#0F172A]">Delivery Details</h2>
             </div>
@@ -946,7 +946,7 @@ export function AdminAddOrder() {
           </div>
 
           {/* ── Product Details ── */}
-          <div className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm overflow-hidden">
+          <div className="bg-white rounded-xl shadow-[0_1px_2px_rgba(16,24,40,0.04),0_2px_8px_rgba(16,24,40,0.05)] overflow-hidden">
             <div className="px-3 md:px-6 py-2.5 md:py-4 border-b border-[#E2E8F0]">
               <h2 className="text-[14px] font-semibold text-[#0F172A]">Product Details</h2>
             </div>
@@ -1081,7 +1081,7 @@ export function AdminAddOrder() {
                 )}
               </div>
 
-              <div className="bg-[#F8FAFC] rounded-xl p-5 border border-[#E2E8F0] space-y-3">
+              <div className="bg-[#F8FAFC] rounded-xl p-5 space-y-3">
                 <div className="flex justify-between items-center text-[12px] md:text-[13px]">
                   <span className="text-[#64748B] font-medium">Sub-total for Product</span>
                   <span className="font-semibold text-[#0F172A]">₹{subTotal.toFixed(2)}</span>
@@ -1102,7 +1102,7 @@ export function AdminAddOrder() {
           </div>
 
           {/* ── Package Details ── */}
-          <div className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm overflow-hidden">
+          <div className="bg-white rounded-xl shadow-[0_1px_2px_rgba(16,24,40,0.04),0_2px_8px_rgba(16,24,40,0.05)] overflow-hidden">
             <div className="px-3 md:px-6 py-2.5 md:py-4 border-b border-[#E2E8F0] flex items-center justify-between gap-3 flex-wrap">
               <h2 className="text-[14px] font-semibold text-[#0F172A]">Package Details</h2>
               <button
@@ -1190,7 +1190,7 @@ export function AdminAddOrder() {
                       </div>
                     ))}
                   </div>
-                  <div className="bg-[#F8FAFC] rounded-xl p-5 border border-[#E2E8F0] space-y-3">
+                  <div className="bg-[#F8FAFC] rounded-xl p-5 space-y-3">
                     <div className="flex justify-between items-center">
                       <span className="text-[12px] md:text-[13px] font-semibold text-[#0F172A]">Applicable Weight</span>
                       <span className="font-semibold text-[#0F172A] text-[12px] md:text-[13px]">{applicableWeight.toFixed(2)} kg</span>
@@ -1252,7 +1252,7 @@ export function AdminAddOrder() {
                       <Plus className="w-3.5 h-3.5" /> Add Package
                     </button>
                   </div>
-                  <div className="bg-[#F8FAFC] rounded-xl p-5 border border-[#E2E8F0] space-y-3">
+                  <div className="bg-[#F8FAFC] rounded-xl p-5 space-y-3">
                     <div className="flex justify-between items-center">
                       <span className="text-[12px] md:text-[13px] font-semibold text-[#0F172A]">Applicable Weight</span>
                       <span className="font-semibold text-[#0F172A] text-[12px] md:text-[13px]">{b2bApplicable.toFixed(2)} kg</span>
@@ -1283,7 +1283,7 @@ export function AdminAddOrder() {
           </div>
 
           {/* ── Payment Details ── */}
-          <div className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm overflow-hidden">
+          <div className="bg-white rounded-xl shadow-[0_1px_2px_rgba(16,24,40,0.04),0_2px_8px_rgba(16,24,40,0.05)] overflow-hidden">
             <div className="px-3 md:px-6 py-2.5 md:py-4 border-b border-[#E2E8F0]">
               <h2 className="text-[14px] font-semibold text-[#0F172A]">Payment Details</h2>
             </div>
@@ -1313,7 +1313,7 @@ export function AdminAddOrder() {
           </div>
 
           {/* ── Other Details ── */}
-          <div className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm overflow-hidden">
+          <div className="bg-white rounded-xl shadow-[0_1px_2px_rgba(16,24,40,0.04),0_2px_8px_rgba(16,24,40,0.05)] overflow-hidden">
             <div className="px-3 md:px-6 py-2.5 md:py-4 border-b border-[#E2E8F0]">
               <h2 className="text-[14px] font-semibold text-[#0F172A]">Other Details</h2>
             </div>
@@ -1343,15 +1343,15 @@ export function AdminAddOrder() {
         </div>
 
         {/* ── Footer ── */}
-        <div className="sticky bottom-0 md:bottom-6 mt-2 md:mt-6 bg-white/95 backdrop-blur-md border border-[#E2E8F0] rounded-none md:rounded-xl p-4 flex justify-between md:justify-end gap-4 z-40 shadow-[0_-4px_24px_-12px_rgba(0,0,0,0.1)]">
+        <div className="sticky bottom-0 md:bottom-6 mt-2 md:mt-6 bg-white/95 backdrop-blur-md border-t border-[#E2E8F0] md:border-0 rounded-none md:rounded-xl p-4 flex justify-between md:justify-end gap-4 z-40 shadow-[0_-4px_24px_-12px_rgba(0,0,0,0.1)]">
+          <Link to={backPath} className="px-8 h-11 flex items-center border border-[#E2E8F0] text-[#64748B] hover:bg-[#F8FAFC] active:scale-95 text-[13px] font-bold rounded-full transition-all duration-150">
+            Cancel
+          </Link>
           <button onClick={handleSaveOrder} disabled={submitting}
             className="flex items-center gap-2 px-8 h-11 bg-[#00A86B] hover:bg-[#009B63] active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed disabled:active:scale-100 text-white text-[13px] font-bold rounded-full transition-all duration-150 shadow-sm hover:shadow-md hover:shadow-[#00A86B]/30">
             {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <PackagePlus className="w-4 h-4" />}
             {isUpdate ? 'Update Order' : 'Add Order'}
           </button>
-          <Link to={backPath} className="px-8 h-11 flex items-center border border-[#E2E8F0] text-[#64748B] hover:bg-[#F8FAFC] active:scale-95 text-[13px] font-bold rounded-full transition-all duration-150">
-            Cancel
-          </Link>
         </div>
 
       </div>

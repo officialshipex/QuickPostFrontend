@@ -310,8 +310,17 @@ export function AdminSupport() {
   const [tickets, setTickets]           = useState<Ticket[]>([]);
   const { isLoading: loading, setIsLoading: setLoading, startLoading } = useTableLoader(0);
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
-  const [showCreateModal, setShowCreateModal] = useState(false);
+  // Opened directly when arriving from the navbar's "Create a Ticket" quick action.
+  const [showCreateModal, setShowCreateModal] = useState(() => !!(location.state as { openCreateTicket?: boolean } | null)?.openCreateTicket);
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
+
+  // Consume the one-shot flag so a refresh or back-navigation doesn't reopen the modal.
+  useEffect(() => {
+    if ((location.state as { openCreateTicket?: boolean } | null)?.openCreateTicket) {
+      navigate(location.pathname + location.search, { replace: true, state: null });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [mobileActionMenuId, setMobileActionMenuId] = useState<string | null>(null);
 
   // Drawer state

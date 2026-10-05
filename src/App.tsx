@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { getToken, isTokenExpired, getRoleFromToken } from './utils/session';
+import { isLandingDomain } from './utils/domainUrl';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Home } from './pages/Home';
 import { Track } from './pages/Track';
@@ -176,15 +177,17 @@ function GlobalOrderClickInterceptor() {
 }
 
 function AppRootHandler() {
-  if (window.location.hostname === 'app.quickpost.in') {
-    const token = getToken();
-    const isValid = token && !isTokenExpired(token);
-    if (isValid) {
-      const role = getRoleFromToken(token!);
-      return <Navigate to={role === 'admin' ? '/admin/dashboard' : '/user/dashboard'} replace />;
-    }
-    return <Navigate to="/login" replace />;
+  // Marketing domains always show the homepage at `/`.
+  if (isLandingDomain()) return <Home />;
+
+  const token = getToken();
+  const isValid = token && !isTokenExpired(token);
+  if (isValid) {
+    const role = getRoleFromToken(token!);
+    return <Navigate to={role === 'admin' ? '/admin/dashboard' : '/user/dashboard'} replace />;
   }
+  // The app domain has no public homepage; elsewhere (localhost, previews) logged-out users still see it.
+  if (window.location.hostname === 'app.quickpost.in') return <Navigate to="/login" replace />;
   return <Home />;
 }
 

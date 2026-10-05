@@ -1,4 +1,9 @@
 const LANDING_DOMAINS = ['quickpost.in', 'www.quickpost.in'];
+
+/** True on the public marketing domains, where `/` must always show the homepage. */
+export function isLandingDomain(): boolean {
+  return LANDING_DOMAINS.includes(window.location.hostname);
+}
 const APP_DOMAIN = 'app.quickpost.in';
 
 /** On quickpost.in/www → full app subdomain URL. On localhost/app subdomain → relative path. */

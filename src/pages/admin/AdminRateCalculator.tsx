@@ -303,7 +303,7 @@ export function AdminRateCalculator() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
           {/* Form */}
-          <form onSubmit={handleSubmit} className="lg:col-span-2 bg-white rounded-2xl border border-[#E2E8F0] p-6 shadow-sm space-y-5">
+          <form onSubmit={handleSubmit} className="lg:col-span-2 bg-white rounded-2xl p-6 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_2px_8px_rgba(16,24,40,0.05)] space-y-5">
 
             {error && (
               <div className="px-4 py-3 bg-red-50 border border-red-100 rounded-xl text-[13px] font-semibold text-red-600">
@@ -466,7 +466,7 @@ export function AdminRateCalculator() {
           </form>
 
           {/* Graphic — desktop only */}
-          <div className="hidden lg:flex relative bg-white rounded-2xl border border-[#E2E8F0] p-6 shadow-sm flex-col items-center overflow-hidden min-h-[460px]">
+          <div className="hidden lg:flex relative bg-white rounded-2xl p-6 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_2px_8px_rgba(16,24,40,0.05)] flex-col items-center overflow-hidden min-h-[460px]">
             {/* Soft accent glow — small, tucked in a corner so it never washes out taller content */}
             <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-[#F0FDF4] blur-2xl pointer-events-none" />
 
@@ -541,7 +541,7 @@ export function AdminRateCalculator() {
               <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
 
                 {/* Order Details sidebar */}
-                <div className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm p-6 h-fit">
+                <div className="bg-white rounded-2xl shadow-[0_1px_2px_rgba(16,24,40,0.04),0_2px_8px_rgba(16,24,40,0.05)] p-6 h-fit">
                   <h3 className="text-[16px] font-bold text-[#0F172A] mb-5">Order Details</h3>
                   <div className="space-y-4">
                     <div>
@@ -587,7 +587,7 @@ export function AdminRateCalculator() {
                 </div>
 
                 {/* Serviceable Courier Partners */}
-                <div className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm p-6">
+                <div className="bg-white rounded-2xl shadow-[0_1px_2px_rgba(16,24,40,0.04),0_2px_8px_rgba(16,24,40,0.05)] p-6">
                   <h3 className="text-[16px] font-bold text-[#0F172A]">Serviceable Courier Partners</h3>
 
                   {/* Tabs */}
@@ -782,7 +782,7 @@ export function AdminRateCalculator() {
         </div>
 
         {/* Important Terms */}
-        <div className="bg-[#F0FDF4] rounded-2xl border border-[#DCFCE7] p-6 shadow-sm">
+        <div className="bg-[#F0FDF4] rounded-2xl p-6">
           <h3 className="text-[15px] font-bold text-[#0F172A] mb-4">Important Terms</h3>
           <ol className="list-decimal list-inside text-[12px] text-[#475569] space-y-2 leading-relaxed">
             {IMPORTANT_TERMS.map((term, i) => (
