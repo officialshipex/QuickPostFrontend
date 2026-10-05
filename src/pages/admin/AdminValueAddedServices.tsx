@@ -10,21 +10,21 @@ import { ShineButton } from '../../components/ui/ShineButton';
 import {
   Gauge, ShieldCheck, Rocket, BellRing, PackageCheck,
   ChevronDown, CheckCircle2, Clock, Users, BadgeCheck, Wallet2, PlayCircle,
-  ArrowRight, AlertTriangle, ShieldOff, Palette,
+  ArrowRight, AlertTriangle, ShieldOff,
 } from 'lucide-react';
 import autoSecureHowItWorks from '../../assets/auto-secure-how-it-works.png';
 import rtoScoreHowItWorks from '../../assets/rto-score-how-it-works.png';
+import comingSoonIllustration from '../../assets/coming-soon.webp';
 
 /* ── Left sub-nav — mirrors the sidebar's Value Added Services group ── */
 const VAS_NAV = [
   { id: 'rto-score', label: 'RTO Score', path: '/user/vas/rto-score', icon: Gauge },
   { id: 'auto-secure', label: 'Auto-Secure Shipments', path: '/user/vas/auto-secure', icon: ShieldCheck },
-  { id: 'delivery-boost', label: 'Delivery Boost', path: '/user/vas/delivery-boost', icon: Rocket },
+  { id: 'delivery-boost', label: 'QuickBoost', path: '/user/vas/delivery-boost', icon: Rocket },
   // { id: 'secure-x', label: 'Secure X', path: '/user/vas/secure-x', icon: ShieldAlert },
   // { id: 'brand-boost', label: 'Brand Boost', path: '/user/vas/brand-boost', icon: Award },
   { id: 'notify', label: 'Notify', path: '/user/vas/notify', icon: BellRing },
-  { id: 'shipsure', label: 'Shipsure', path: '/user/vas/shipsure', icon: PackageCheck, isNew: true },
-  { id: 'branded-tracking', label: 'Branded Tracking Page', path: '/user/vas/branded-tracking', icon: Palette, isNew: true },
+  { id: 'shipsure', label: 'QuickSure', path: '/user/vas/shipsure', icon: PackageCheck, isNew: true },
 ];
 
 function VasShell({ children }: { children: React.ReactNode }) {
@@ -34,9 +34,9 @@ function VasShell({ children }: { children: React.ReactNode }) {
   return (
     <AdminLayout>
       <div className="max-w-[1400px] mx-auto pb-10 grid grid-cols-1 md:grid-cols-[240px_1fr] gap-6">
-        {/* Left sub-nav */}
+        {/* Left sub-nav — same pattern as the Seller Remittance nav */}
         <aside className="md:sticky md:top-6 md:self-start">
-          <p className="text-[11px] font-bold text-[#94A3B8] uppercase tracking-wider mb-2 px-1">Value Added Services</p>
+          <p className="hidden md:block text-[11px] font-bold text-[#94A3B8] uppercase tracking-[0.08em] mb-2.5 px-3">Value Added Services</p>
           <nav className="flex md:flex-col gap-1 overflow-x-auto md:overflow-visible pb-1 md:pb-0">
             {VAS_NAV.map((item) => {
               const isActive = location.pathname === item.path;
@@ -44,14 +44,24 @@ function VasShell({ children }: { children: React.ReactNode }) {
                 <button
                   key={item.id}
                   onClick={() => navigate(item.path)}
-                  className={`shrink-0 md:w-full text-left px-3.5 py-2.5 rounded-xl text-[13px] transition-colors flex items-center gap-2 ${
+                  aria-current={isActive ? 'page' : undefined}
+                  className={`relative shrink-0 md:w-full h-10 text-left px-3.5 md:pl-4 rounded-xl text-[13px] whitespace-nowrap flex items-center gap-2 transition-colors duration-200 ${
                     isActive
-                      ? 'bg-[#F0FDF4] text-[#00A86B] font-bold'
-                      : 'text-[#475569] font-semibold hover:bg-[#F8FAFC] hover:text-[#0F172A]'
+                      ? 'text-[#00A86B] font-bold'
+                      : 'text-[#64748B] font-semibold hover:bg-[#F1F5F9]/80 hover:text-[#0F172A]'
                   }`}
                 >
-                  <span className="truncate">{item.label}</span>
-                  {item.isNew && <span className="ml-auto shrink-0 text-[9px] font-bold bg-[#00A86B] text-white px-1.5 py-0.5 rounded-md">New</span>}
+                  {isActive && (
+                    <motion.span
+                      layoutId="vas-nav-active"
+                      transition={{ type: 'spring', stiffness: 520, damping: 42 }}
+                      className="absolute inset-0 rounded-xl bg-[#F0FDF4] ring-1 ring-inset ring-[#00A86B]/10"
+                    >
+                      <span className="hidden md:block absolute left-0 top-2.5 bottom-2.5 w-[3px] rounded-r-full bg-[#00A86B]" />
+                    </motion.span>
+                  )}
+                  <span className="relative truncate">{item.label}</span>
+                  {item.isNew && <span className="relative ml-auto shrink-0 text-[9px] font-bold bg-[#00A86B] text-white px-1.5 py-0.5 rounded-md">New</span>}
                 </button>
               );
             })}
@@ -555,16 +565,24 @@ function RtoScorePanel() {
 }
 
 /* ── Placeholder panels for the other VAS items — content to follow ── */
-function VasComingSoonPanel({ title, description, icon: Icon }: { title: string; description: string; icon: React.ElementType }) {
+function VasComingSoonPanel({ title, description }: { title: string; description: string }) {
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-[20px] font-bold text-[#0F172A]">{title}</h1>
         <p className="text-[13px] text-[#64748B] mt-1">{description}</p>
       </div>
-      <div className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm p-10 text-center">
-        <Icon className="w-8 h-8 text-[#CBD5E1] mx-auto mb-3" />
-        <p className="text-[13px] font-semibold text-[#94A3B8]">{title} is coming soon</p>
+      <div className="bg-white rounded-2xl shadow-[0_1px_2px_rgba(16,24,40,0.04),0_2px_8px_rgba(16,24,40,0.05)] px-6 py-10 md:py-14 flex flex-col items-center text-center">
+        <img
+          src={comingSoonIllustration}
+          alt=""
+          className="w-full max-w-[260px] md:max-w-[320px] h-auto select-none pointer-events-none"
+          draggable={false}
+        />
+        <h2 className="text-[18px] md:text-[20px] font-bold text-[#0F172A] mt-6">{title} is coming soon</h2>
+        <p className="text-[13px] md:text-[14px] text-[#64748B] leading-relaxed mt-2 max-w-[460px]">
+          We're putting the finishing touches on {title}. It will be available in your QuickPost account shortly — no action is needed from your side.
+        </p>
       </div>
     </div>
   );
@@ -589,7 +607,7 @@ export function AdminRtoScore() {
 export function AdminDeliveryBoost() {
   return (
     <VasShell>
-      <VasComingSoonPanel title="Delivery Boost" description="Improve delivery speed and success rate across couriers." icon={Rocket} />
+      <VasComingSoonPanel title="QuickBoost" description="Improve delivery speed and success rate across couriers." />
     </VasShell>
   );
 }
@@ -598,7 +616,7 @@ export function AdminDeliveryBoost() {
 // export function AdminSecureX() {
 //   return (
 //     <VasShell>
-//       <VasComingSoonPanel title="Secure X" description="Extended shipment protection for high-risk categories." icon={ShieldAlert} />
+//       <VasComingSoonPanel title="Secure X" description="Extended shipment protection for high-risk categories." />
 //     </VasShell>
 //   );
 // }
@@ -607,7 +625,7 @@ export function AdminDeliveryBoost() {
 // export function AdminBrandBoost() {
 //   return (
 //     <VasShell>
-//       <VasComingSoonPanel title="Brand Boost" description="Grow brand recall with custom packaging and tracking pages." icon={Award} />
+//       <VasComingSoonPanel title="Brand Boost" description="Grow brand recall with custom packaging and tracking pages." />
 //     </VasShell>
 //   );
 // }
@@ -615,7 +633,7 @@ export function AdminDeliveryBoost() {
 export function AdminNotify() {
   return (
     <VasShell>
-      <VasComingSoonPanel title="Notify" description="Automated order and delivery notifications for your customers." icon={BellRing} />
+      <VasComingSoonPanel title="Notify" description="Automated order and delivery notifications for your customers." />
     </VasShell>
   );
 }
@@ -623,7 +641,7 @@ export function AdminNotify() {
 export function AdminShipsure() {
   return (
     <VasShell>
-      <VasComingSoonPanel title="Shipsure" description="End-to-end shipment assurance for your most valuable orders." icon={PackageCheck} />
+      <VasComingSoonPanel title="QuickSure" description="End-to-end shipment assurance for your most valuable orders." />
     </VasShell>
   );
 }

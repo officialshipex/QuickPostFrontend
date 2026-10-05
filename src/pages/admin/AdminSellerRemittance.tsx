@@ -8,15 +8,15 @@ import { useTableLoader } from '../../hooks/useTableLoader';
 import { apiClient } from '../../services/apiClient';
 import { TableLoader } from '../../components/ui/TableLoader';
 import { ShineButton } from '../../components/ui/ShineButton';
-import { Landmark, Zap, FileClock, ChevronDown, CheckCircle2, Clock, Info, RefreshCcw, Check, Power, Ban, TrendingUp, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { Zap, ChevronDown, CheckCircle2, Clock, Info, RefreshCcw, Check, Power, Ban, TrendingUp, AlertTriangle, ShieldCheck } from 'lucide-react';
 import turnoffIllustration from '../../assets/postpaid-turnoff.png';
 
 type SubTab = 'bank-details' | 'early-cod' | 'postpaid-plan';
 
-const SUB_TABS: { id: SubTab; label: string; icon: typeof Landmark }[] = [
-  { id: 'bank-details', label: 'Bank Details', icon: Landmark },
-  { id: 'early-cod', label: 'Early COD Remittance', icon: Zap },
-  { id: 'postpaid-plan', label: 'Postpaid Plan', icon: FileClock },
+const SUB_TABS: { id: SubTab; label: string }[] = [
+  { id: 'bank-details', label: 'Bank Details' },
+  { id: 'early-cod', label: 'Early COD Remittance' },
+  { id: 'postpaid-plan', label: 'Postpaid Plan' },
 ];
 
 /* ── Early COD Remittance plan data ── */
@@ -564,24 +564,34 @@ export function AdminEarlyCodRemittance() {
 
   return (
     <AdminLayout>
-      <div className="max-w-[1400px] mx-auto pb-10 grid grid-cols-1 md:grid-cols-[220px_1fr] gap-6">
-        {/* Left sub-nav */}
+      <div className="max-w-[1400px] mx-auto pb-10 grid grid-cols-1 md:grid-cols-[240px_1fr] gap-6">
+        {/* Left sub-nav — same pattern as the Value Added Services nav */}
         <aside className="md:sticky md:top-6 md:self-start">
-          <p className="text-[11px] font-bold text-[#94A3B8] uppercase tracking-wider mb-2 px-1">Seller Remittance</p>
-          <nav className="flex md:flex-col gap-1 overflow-x-auto md:overflow-visible pb-1 md:pb-0">
+          <p className="hidden md:block text-[11px] font-bold text-[#94A3B8] uppercase tracking-[0.08em] mb-2.5 px-3">Seller Remittance</p>
+          <nav aria-label="Seller remittance" className="flex md:flex-col gap-1 overflow-x-auto md:overflow-visible pb-1 md:pb-0">
             {SUB_TABS.map((tab) => {
               const isActive = activeTab === tab.id;
               return (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`shrink-0 md:w-full text-left px-3.5 py-2.5 rounded-xl text-[13px] transition-colors ${
+                  aria-current={isActive ? 'page' : undefined}
+                  className={`relative shrink-0 md:w-full h-10 text-left px-3.5 md:pl-4 rounded-xl text-[13px] whitespace-nowrap transition-colors duration-200 ${
                     isActive
-                      ? 'bg-[#F0FDF4] text-[#00A86B] font-bold'
-                      : 'text-[#475569] font-semibold hover:bg-[#F8FAFC] hover:text-[#0F172A]'
+                      ? 'text-[#00A86B] font-bold'
+                      : 'text-[#64748B] font-semibold hover:bg-[#F1F5F9]/80 hover:text-[#0F172A]'
                   }`}
                 >
-                  {tab.label}
+                  {isActive && (
+                    <motion.span
+                      layoutId="remittance-nav-active"
+                      transition={{ type: 'spring', stiffness: 520, damping: 42 }}
+                      className="absolute inset-0 rounded-xl bg-[#F0FDF4] ring-1 ring-inset ring-[#00A86B]/10"
+                    >
+                      <span className="hidden md:block absolute left-0 top-2.5 bottom-2.5 w-[3px] rounded-r-full bg-[#00A86B]" />
+                    </motion.span>
+                  )}
+                  <span className="relative">{tab.label}</span>
                 </button>
               );
             })}
