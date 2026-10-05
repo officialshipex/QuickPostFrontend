@@ -9,6 +9,7 @@ import { TableLoader } from '../../components/ui/TableLoader';
 import { StatusRibbon } from '../../components/ui/StatusRibbon';
 import { DesktopPagination, usePagination } from '../../hooks/usePagination';
 import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
+import { refreshNotifications } from '../../context/NotificationListContext';
 
 const STATUS_OPTIONS = [
   { label: 'Active', value: 'Active' },
@@ -507,24 +508,30 @@ export function AdminRateCard() {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      await apiClient.post('/saveRate/uploadRatecard', formData, {
+      const res = await apiClient.post('/saveRate/uploadRatecard', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      const fresh = await apiClient.get('/saveRate/getRateCard');
-      const freshCards: any[] = fresh.data.rateCards || [];
-      setRatesMap(buildRatesMap(providers, services, freshCards));
-      setUploadSuccess('Rate card uploaded successfully!');
-      setTimeout(() => setUploadSuccess(''), 4000);
+      const { message, errors } = res.data || {};
+      if (errors?.length) {
+        setSaveError(`${message || 'Upload failed'} — ${errors[0]}${errors.length > 1 ? ` (+${errors.length - 1} more, see notifications)` : ''}`);
+      } else {
+        const fresh = await apiClient.get('/saveRate/getRateCard');
+        const freshCards: any[] = fresh.data.rateCards || [];
+        setRatesMap(buildRatesMap(providers, services, freshCards));
+        setUploadSuccess(message || 'Rate card uploaded successfully!');
+        setTimeout(() => setUploadSuccess(''), 6000);
+      }
     } catch (err: any) {
-      setSaveError(err?.response?.data?.message || 'Upload failed');
+      setSaveError(err?.response?.data?.error || err?.response?.data?.message || 'Upload failed');
     } finally {
+      refreshNotifications();
       setUploading(false);
     }
   };
 
   const handleDownloadTemplate = async () => {
     try {
-      const res = await apiClient.get('/saveRate/download-excel', { responseType: 'blob' });
+      const res = await apiClient.get('/saveRate/download-excel', { params: selectedPlan ? { plan: selectedPlan } : undefined, responseType: 'blob' });
       const url = window.URL.createObjectURL(new Blob([res.data]));
       const link = document.createElement('a');
       link.href = url;

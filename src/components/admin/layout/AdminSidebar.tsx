@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAdminTab } from '../../../context/AdminUserContext';
+import { hasPermission, showAccessDenied } from '../../../utils/permissions';
 import {
   Home,
   Wallet,
@@ -30,10 +31,13 @@ import {
   ShieldCheck,
   Palette,
   LayoutDashboard,
+  Lock,
 } from 'lucide-react';
 
 const LOGO_URL = '/logo-white.png';
 
+// `permission` is a module key from utils/permissions.ts. Employees SEE every item of their panel;
+// the ones they hold no View right for are locked (a click opens the "no access" popup).
 interface MenuItem {
   name: string;
   path: string;
@@ -41,7 +45,7 @@ interface MenuItem {
   adminOnly?: boolean;
   userOnly?: boolean;
   permission?: string;
-  noEmployee?: boolean; // hide for all employees regardless of their access rights
+  noEmployee?: boolean; // owner-only: hidden from all employees regardless of their access rights
   isNew?: boolean;
 }
 
@@ -54,7 +58,7 @@ interface MenuGroup {
   userOnly?: boolean;
   items?: MenuItem[];
   divider?: boolean;
-  permission?: string;
+  permission?: string; // only for groups that are themselves a link (no items)
 }
 
 const MENU_GROUPS: MenuGroup[] = [
@@ -74,7 +78,8 @@ const MENU_GROUPS: MenuGroup[] = [
     icon: Building2,
     path: '/internal-crm/shipments',
     isBeta: true,
-    adminOnly: true
+    adminOnly: true,
+    permission: 'internalCrm',
   },
   {
     label: 'Orders',
@@ -93,30 +98,27 @@ const MENU_GROUPS: MenuGroup[] = [
   {
     label: 'Finance',
     icon: Wallet,
-    permission: 'finance',
     items: [
-      { name: 'Wallet', path: '/admin/wallet', icon: Wallet },
-      { name: 'COD', path: '/admin/cod', icon: Banknote },
+      { name: 'Wallet', path: '/admin/wallet', icon: Wallet, permission: 'wallet' },
+      { name: 'COD', path: '/admin/cod', icon: Banknote, permission: 'cod' },
     ]
   },
   {
     label: 'Reports',
     icon: FileText,
-    permission: 'reports',
     items: [
-      { name: 'Reports', path: '/admin/reports', icon: FileText },
-      { name: 'Performance', path: '/admin/performance', icon: TrendingUp, adminOnly: true },
+      { name: 'Reports', path: '/admin/reports', icon: FileText, permission: 'reportsHub' },
+      { name: 'Performance', path: '/admin/performance', icon: TrendingUp, adminOnly: true, permission: 'performance' },
     ]
   },
   {
     label: 'Tools',
     icon: Wrench,
-    permission: 'tools',
     items: [
-      { name: 'Weight Discrepancy', path: '/admin/weight-discrepancy', icon: Scale },
-      { name: 'Notification', path: '/admin/notification', icon: Bell },
-      { name: 'Announcements', path: '/admin/announcement', icon: AlertCircle, adminOnly: true },
-      { name: 'Rate Calculator', path: '/user/rate-calculator', icon: Wrench, userOnly: true },
+      { name: 'Weight Discrepancy', path: '/admin/weight-discrepancy', icon: Scale, permission: 'weightDiscrepancy' },
+      { name: 'Notification', path: '/admin/notification', icon: Bell, permission: 'notification' },
+      { name: 'Announcements', path: '/admin/announcement', icon: AlertCircle, adminOnly: true, permission: 'announcement' },
+      { name: 'Rate Calculator', path: '/user/rate-calculator', icon: Wrench, userOnly: true, permission: 'rateCalculator' },
     ]
   },
   {
@@ -124,46 +126,44 @@ const MENU_GROUPS: MenuGroup[] = [
     icon: Zap,
     userOnly: true,
     items: [
-      { name: 'Seller Remittance', path: '/user/seller-remittance/early-cod', icon: Wallet, userOnly: true },
-      { name: 'Secure', path: '/user/vas/auto-secure', icon: ShieldCheck, userOnly: true },
-      { name: 'Branded Tracking Page', path: '/user/vas/branded-tracking', icon: Palette, userOnly: true },
+      { name: 'Seller Remittance', path: '/user/seller-remittance/early-cod', icon: Wallet, userOnly: true, permission: 'sellerRemittance' },
+      { name: 'Secure', path: '/user/vas/auto-secure', icon: ShieldCheck, userOnly: true, permission: 'vasSecure' },
+      { name: 'Branded Tracking Page', path: '/user/vas/branded-tracking', icon: Palette, userOnly: true, permission: 'brandedTracking' },
     ]
   },
   {
     label: 'Setup & Manage',
     icon: Settings,
-    permission: 'setupAndManage',
     items: [
-      { name: 'Users', path: '/admin/users', icon: Users, adminOnly: true },
-      { name: 'Status Map', path: '/admin/status-map', icon: Route, adminOnly: true },
-      { name: 'EDD Mapping', path: '/admin/edd-mapping', icon: Calendar, adminOnly: true },
-      { name: 'EPD Mapping', path: '/admin/epd-mapping', icon: Calendar, adminOnly: true },
-      { name: 'Agreement', path: '/admin/agreement', icon: FileText, adminOnly: true },
+      { name: 'Users', path: '/admin/users', icon: Users, adminOnly: true, permission: 'users' },
+      { name: 'Employees', path: '/admin/roles', icon: Users, adminOnly: true, noEmployee: true },
+      { name: 'Status Map', path: '/admin/status-map', icon: Route, adminOnly: true, permission: 'statusMap' },
+      { name: 'EDD Mapping', path: '/admin/edd-mapping', icon: Calendar, adminOnly: true, permission: 'eddMapping' },
+      { name: 'EPD Mapping', path: '/admin/epd-mapping', icon: Calendar, adminOnly: true, permission: 'epdMapping' },
+      { name: 'Agreement', path: '/admin/agreement', icon: FileText, adminOnly: true, permission: 'agreement' },
       { name: 'Complete KYC', path: '/admin/kyc', icon: FileText, userOnly: true, noEmployee: true },
       { name: 'Employees', path: '/user/employees', icon: Users, userOnly: true, noEmployee: true },
-      { name: 'Pickup Address', path: '/admin/settings/pickup-address', icon: MapPin },
-      { name: 'Channels', path: '/user/channels', icon: ShoppingCart, userOnly: true },
-      { name: 'Courier', path: '/user/courier-setup', icon: Truck, userOnly: true },
-      { name: 'Settings', path: '/user/settings', icon: Settings, userOnly: true },
+      { name: 'Pickup Address', path: '/admin/settings/pickup-address', icon: MapPin, permission: 'pickupAddress' },
+      { name: 'Channels', path: '/user/channels', icon: ShoppingCart, userOnly: true, permission: 'channels' },
+      { name: 'Courier', path: '/user/courier-setup', icon: Truck, userOnly: true, permission: 'courierSetup' },
+      { name: 'Settings', path: '/user/settings', icon: Settings, userOnly: true, permission: 'settings' },
     ]
   },
   {
     label: 'Courier',
     icon: Truck,
     adminOnly: true,
-    permission: 'courier',
     items: [
-      { name: 'Couriers', path: '/admin/couriers', icon: Truck },
-      { name: 'Rate Card', path: '/admin/rate-card', icon: Banknote },
+      { name: 'Couriers', path: '/admin/couriers', icon: Truck, permission: 'couriers' },
+      { name: 'Rate Card', path: '/admin/rate-card', icon: Banknote, permission: 'rateCard' },
     ]
   },
   {
     label: 'System',
     icon: Monitor,
     adminOnly: true,
-    permission: 'support',
     items: [
-      { name: 'Support Tickets', path: '/admin/support', icon: Mail },
+      { name: 'Support Tickets', path: '/admin/support', icon: Mail, permission: 'support' },
       // { name: 'System Settings', path: '/admin/settings', icon: Settings, noEmployee: true },
       { name: 'Admin Accounts', path: '/admin/accounts', icon: Users, noEmployee: true },
       { name: 'Companies', path: '/admin/companies', icon: Building2, noEmployee: true },
@@ -174,6 +174,7 @@ const MENU_GROUPS: MenuGroup[] = [
     icon: Star,
     path: '/admin/referral',
     adminOnly: true,
+    permission: 'referral',
   },
   {
     label: 'Support',
@@ -204,16 +205,18 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
     return path;
   };
 
-  const filterItems = (items?: MenuItem[], groupPermission?: string) =>
+  // Visible to the employee but not permitted
+  const isLocked = (permission?: string) =>
+    isEmployee && !!permission && !hasPermission(employeeAccessRights, permission, 'view');
+
+  const notifyLocked = (label?: string) =>
+    showAccessDenied(`You don't have access to ${label ? `"${label}"` : 'this page'}. Please contact your administrator.`);
+
+  const filterItems = (items?: MenuItem[]) =>
     (items || []).filter(item => {
       if (item.adminOnly && !isAdminView) return false;
       if (item.userOnly && isAdminView) return false;
-      if (isEmployee) {
-        if (item.noEmployee) return false;
-        // Use item's own permission if set, else fall back to the group's permission
-        const permKey = item.permission ?? groupPermission;
-        if (permKey && employeeAccessRights[permKey]?.view !== true) return false;
-      }
+      if (isEmployee && item.noEmployee) return false;
       return true;
     });
 
@@ -221,16 +224,7 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
     if (group.divider) return true;
     if (group.adminOnly && !isAdminView) return false;
     if (group.userOnly && isAdminView) return false;
-    // Employees only see what they have explicit permission for
-    if (isEmployee) {
-      if (group.permission) {
-        if (employeeAccessRights[group.permission]?.view !== true) return false;
-      } else if (group.adminOnly || group.userOnly) {
-        // Role-restricted groups without a permission key (Internal CRM, Referral, etc.) are hidden
-        return false;
-      }
-    }
-    if (group.items) return filterItems(group.items, group.permission).length > 0;
+    if (group.items) return filterItems(group.items).length > 0;
     return true;
   };
 
@@ -268,12 +262,15 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
               return <div key={index} className="w-8 border-b border-[#1E293B] my-1 opacity-50" />;
             }
 
-            const filteredGroupItems = group.items ? filterItems(group.items, group.permission) : [];
+            const filteredGroupItems = group.items ? filterItems(group.items) : [];
             // If only one item is visible after filtering (e.g. user sees "Reports" but not "Performance"),
             // navigate directly instead of opening a flyout popup.
+            const singleItem = !group.path && filteredGroupItems.length === 1 ? filteredGroupItems[0] : undefined;
             const resolvedGroupPath = group.path
               ? resolvePath(group.path)
-              : (filteredGroupItems.length === 1 ? resolvePath(filteredGroupItems[0].path) : undefined);
+              : (singleItem ? resolvePath(singleItem.path) : undefined);
+            const linkPermission = group.path ? group.permission : singleItem?.permission;
+            const linkLocked = isLocked(linkPermission);
 
             const isActive = resolvedGroupPath
               ? (location.pathname.startsWith(resolvedGroupPath) ||
@@ -286,16 +283,28 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
               <div key={index} className="relative group w-full">
                 {/* Main Icon Button */}
                 {resolvedGroupPath ? (
-                  <NavLink
-                    to={group.path === '/admin/dashboard' ? dashboardPath : resolvedGroupPath}
-                    title={group.label}
-                    className={`w-full h-12 flex items-center justify-center rounded-xl transition-all duration-200
-                      ${isActive
-                        ? 'bg-[#00A86B] text-white shadow-lg shadow-[#00A86B]/20'
-                        : 'text-[#94A3B8] hover:bg-white/10 hover:text-white'}`}
-                  >
-                    <Icon className="w-[22px] h-[22px]" strokeWidth={2} />
-                  </NavLink>
+                  linkLocked ? (
+                    <button
+                      type="button"
+                      title={`${group.label} — no access`}
+                      onClick={() => notifyLocked(singleItem?.name ?? group.label)}
+                      className="relative w-full h-12 flex items-center justify-center rounded-xl transition-all duration-200 text-[#94A3B8]/50 hover:bg-white/5"
+                    >
+                      <Icon className="w-[22px] h-[22px]" strokeWidth={2} />
+                      <Lock className="absolute bottom-1.5 right-2.5 w-2.5 h-2.5 text-[#94A3B8]" strokeWidth={2.5} />
+                    </button>
+                  ) : (
+                    <NavLink
+                      to={group.path === '/admin/dashboard' ? dashboardPath : resolvedGroupPath}
+                      title={group.label}
+                      className={`w-full h-12 flex items-center justify-center rounded-xl transition-all duration-200
+                        ${isActive
+                          ? 'bg-[#00A86B] text-white shadow-lg shadow-[#00A86B]/20'
+                          : 'text-[#94A3B8] hover:bg-white/10 hover:text-white'}`}
+                    >
+                      <Icon className="w-[22px] h-[22px]" strokeWidth={2} />
+                    </NavLink>
+                  )
                 ) : (
                   <div
                     className={`w-full h-12 flex items-center justify-center rounded-xl cursor-pointer transition-all duration-200
@@ -320,6 +329,21 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
                         {filteredGroupItems.map((item, i) => {
                           const resolvedItemPath = resolvePath(item.path);
                           const isSubActive = location.pathname === resolvedItemPath;
+                          if (isLocked(item.permission)) {
+                            return (
+                              <button
+                                key={i}
+                                type="button"
+                                title="You don't have access"
+                                onClick={() => notifyLocked(item.name)}
+                                className="flex items-center gap-3 px-4 py-2.5 text-left text-[#94A3B8] hover:bg-[#F8FAFC] transition-colors"
+                              >
+                                <item.icon className="w-[18px] h-[18px]" strokeWidth={2} />
+                                <span className="text-[13px] font-medium">{item.name}</span>
+                                <Lock className="ml-auto w-3 h-3 shrink-0" strokeWidth={2.5} />
+                              </button>
+                            );
+                          }
                           return (
                             <NavLink
                               key={i}
@@ -382,10 +406,13 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
                   return <div key={index} className="border-b border-[#1E293B] my-2 mx-2 opacity-50" />;
                 }
 
-                const filteredGroupItems = group.items ? filterItems(group.items, group.permission) : [];
+                const filteredGroupItems = group.items ? filterItems(group.items) : [];
+                const singleItem = !group.path && filteredGroupItems.length === 1 ? filteredGroupItems[0] : undefined;
                 const resolvedGroupPath = group.path
                   ? resolvePath(group.path)
-                  : (filteredGroupItems.length === 1 ? resolvePath(filteredGroupItems[0].path) : undefined);
+                  : (singleItem ? resolvePath(singleItem.path) : undefined);
+                const linkPermission = group.path ? group.permission : singleItem?.permission;
+                const linkLocked = isLocked(linkPermission);
 
                 const isActive = resolvedGroupPath
                   ? (location.pathname.startsWith(resolvedGroupPath) ||
@@ -396,6 +423,20 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
 
                 // Direct link (also handles single-item groups collapsed to one path)
                 if (resolvedGroupPath) {
+                  if (linkLocked) {
+                    return (
+                      <button
+                        key={index}
+                        type="button"
+                        onClick={() => { notifyLocked(singleItem?.name ?? group.label); }}
+                        className="w-full flex items-center gap-3 px-3 py-3 rounded-xl mb-1 text-[#94A3B8]/60 hover:bg-white/5 text-left"
+                      >
+                        <Icon className="w-5 h-5" strokeWidth={2} />
+                        <span className="text-[13px] font-semibold">{group.label}</span>
+                        <Lock className="w-3.5 h-3.5 ml-auto" strokeWidth={2.5} />
+                      </button>
+                    );
+                  }
                   return (
                     <NavLink
                       key={index}
@@ -433,6 +474,20 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
                         {filteredGroupItems.map((item, i) => {
                           const resolvedItemPath = resolvePath(item.path);
                           const isSubActive = location.pathname === resolvedItemPath;
+                          if (isLocked(item.permission)) {
+                            return (
+                              <button
+                                key={i}
+                                type="button"
+                                onClick={() => notifyLocked(item.name)}
+                                className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left text-[#64748B]/60 hover:bg-white/5"
+                              >
+                                <item.icon className="w-4 h-4" strokeWidth={2} />
+                                <span className="text-[12px] font-medium">{item.name}</span>
+                                <Lock className="ml-auto w-3 h-3 shrink-0" strokeWidth={2.5} />
+                              </button>
+                            );
+                          }
                           return (
                             <NavLink
                               key={i}

@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
-import { getToken, isTokenExpired, getRoleFromToken } from './utils/session';
+import { getToken, isTokenExpired, getRoleFromToken, isEmployeeToken } from './utils/session';
 import { isLandingDomain } from './utils/domainUrl';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Home } from './pages/Home';
@@ -199,6 +199,17 @@ function AuthRedirect({ children }: { children: React.ReactNode }) {
   return <Navigate to={role === 'admin' ? '/admin/dashboard' : '/user/home'} replace />;
 }
 
+// The employee login page only skips ahead when an EMPLOYEE is already signed in. An owner's
+// token (same browser storage, other tab) must not bounce them away: they are here to log in
+// as an employee.
+function EmployeeAuthRedirect({ children }: { children: React.ReactNode }) {
+  const token = getToken();
+  const isValid = token && !isTokenExpired(token);
+  if (!isValid || !isEmployeeToken(token!)) return <>{children}</>;
+  const role = getRoleFromToken(token!);
+  return <Navigate to={role === 'admin' ? '/admin/dashboard' : '/user/dashboard'} replace />;
+}
+
 const queryClient = new QueryClient();
 
 function App() {
@@ -221,7 +232,7 @@ function App() {
           <Route path="/rate-calculator" element={<RateCalculator />} />
           <Route path="/login" element={<AuthRedirect><Login /></AuthRedirect>} />
           <Route path="/register" element={<AuthRedirect><Register /></AuthRedirect>} />
-          <Route path="/employee-login" element={<AuthRedirect><EmployeeLogin /></AuthRedirect>} />
+          <Route path="/employee-login" element={<EmployeeAuthRedirect><EmployeeLogin /></EmployeeAuthRedirect>} />
           <Route path="/forgot-password" element={<AuthRedirect><ForgotPassword /></AuthRedirect>} />
 
           {/* Protected Routes — auth check + context providers */}

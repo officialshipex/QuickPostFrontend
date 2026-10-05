@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { apiClient } from '../../services/apiClient';
 import { Toast } from '../../components/ui/Toast';
 import { useToast } from '../../hooks/useToast';
+import { refreshNotifications } from '../../context/NotificationListContext';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { useAdminTab } from '../../context/AdminUserContext';
 import {
@@ -604,6 +605,7 @@ function UploadRateCardModal({ userId, planName, onClose, onSuccess }: {
     } catch (err: any) {
       showToast('error', err.response?.data?.error || err.response?.data?.message || 'Upload failed');
     } finally {
+      refreshNotifications();
       setUploading(false);
     }
   };

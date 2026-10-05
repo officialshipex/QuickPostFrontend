@@ -1,16 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { Outlet, useLocation } from 'react-router-dom';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { AdminSidebar } from './AdminSidebar';
 import { AdminHeader } from './AdminHeader';
 import { TableLoader } from '../../ui/TableLoader';
+import { AccessDeniedModal } from '../../ui/AccessDeniedModal';
 import { useAdminTab } from '../../../context/AdminUserContext';
-import { Lock } from 'lucide-react';
+import { canAccessRoute, NO_ACCESS_MESSAGE } from '../../../utils/permissions';
 import { AdminLayoutShellProvider } from './AdminLayoutContext';
 
 export function AdminShell() {
   const location = useLocation();
-  const { loadingAdminTab } = useAdminTab();
+  const navigate = useNavigate();
+  const { loadingAdminTab, isEmployee, isAdmin, adminTab, employeeAccessRights } = useAdminTab();
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [accessDeniedMsg, setAccessDeniedMsg] = useState<string | null>(null);
   const isImpersonating = !!localStorage.getItem('admin_token_backup');
@@ -22,6 +24,11 @@ export function AdminShell() {
     window.addEventListener('access-denied', handler);
     return () => window.removeEventListener('access-denied', handler);
   }, []);
+
+  // Employees may only open what their rights allow. The forbidden page is never mounted (so it
+  // never fetches), the popup explains why, and OK returns them to their own dashboard.
+  const employeeBlocked = isEmployee && !loadingAdminTab && !canAccessRoute(employeeAccessRights, location.pathname);
+  const landing = isAdmin && adminTab ? '/admin/dashboard' : '/user/dashboard';
 
   const showHeader =
     location.pathname.startsWith('/admin/') ||
@@ -59,28 +66,15 @@ export function AdminShell() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.18 }}
             >
-              <Outlet />
+              {employeeBlocked ? null : <Outlet />}
             </motion.div>
           </main>
         </div>
 
-        {accessDeniedMsg && (
-          <div className="fixed inset-0 z-[500] flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setAccessDeniedMsg(null)} />
-            <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 z-10 text-center">
-              <div className="w-14 h-14 rounded-2xl bg-red-50 flex items-center justify-center mx-auto mb-4">
-                <Lock className="w-7 h-7 text-red-500" />
-              </div>
-              <h3 className="text-sm font-bold text-[#0F172A] mb-1">Access Restricted</h3>
-              <p className="text-xs text-[#64748B] mb-5">{accessDeniedMsg}</p>
-              <button
-                onClick={() => setAccessDeniedMsg(null)}
-                className="w-full h-9 rounded-full bg-[#0F172A] text-white text-xs font-bold hover:bg-[#1E293B]"
-              >
-                OK, Got It
-              </button>
-            </div>
-          </div>
+        {employeeBlocked ? (
+          <AccessDeniedModal message={NO_ACCESS_MESSAGE} onClose={() => navigate(landing, { replace: true })} />
+        ) : (
+          accessDeniedMsg && <AccessDeniedModal message={accessDeniedMsg} onClose={() => setAccessDeniedMsg(null)} />
         )}
       </div>
     </AdminLayoutShellProvider>

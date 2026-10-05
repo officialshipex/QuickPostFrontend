@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { getToken, removeToken } from '../utils/session';
+import { getToken, removeToken, isEmployeeToken } from '../utils/session';
 
 export const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1',
@@ -24,8 +24,11 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
+      // An employee whose session ended (expired, deactivated) goes back to the employee login
+      const token = getToken();
+      const wasEmployee = !!token && isEmployeeToken(token);
       removeToken();
-      window.location.href = '/login';
+      window.location.href = wasEmployee ? '/employee-login' : '/login';
     }
     if (error.response?.status === 403) {
       window.dispatchEvent(new CustomEvent('access-denied', {
