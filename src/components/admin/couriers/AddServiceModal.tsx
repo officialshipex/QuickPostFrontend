@@ -25,10 +25,14 @@ export function AddServiceModal({ isOpen, onClose, courier, onSuccess, editData 
   const [error, setError] = useState('');
 
   const providerName: string = courier?.name || '';
-  const p = providerName.toLowerCase();
+  // the account may be named anything ("Jiffy Main"); what decides the inputs is its real provider type
+  const p = (courier?.courierProvider || providerName).toLowerCase().replace(/\s+/g, '');
 
   const isBoxd = p === 'boxdlogistics';
   const isLosung = p === 'losung360' || p === 'lousung360';
+  // Jiffy and ShipMaxx services are keyed by a code typed in by the admin (Jiffy courier code / ShipMaxx carrier id)
+  const isJiffy = p === 'jiffy';
+  const isShipMaxx = p === 'shipmaxx';
   const hasServiceDropdown = providerServices.length > 0;
 
   useEffect(() => {
@@ -95,6 +99,7 @@ export function AddServiceModal({ isOpen, onClose, courier, onSuccess, editData 
     if (!status) return 'Status is required';
     if (isLosung && !courier_id.trim()) return 'Courier ID is required';
     if (isBoxd && !courier_field.trim()) return 'Courier Service ID is required';
+    if ((isJiffy || isShipMaxx) && !courier_field.trim()) return 'Courier Code is required';
     if (hasServiceDropdown && !courier_field) return 'Please select a sub-service';
     return '';
   };
@@ -219,6 +224,22 @@ export function AddServiceModal({ isOpen, onClose, courier, onSuccess, editData 
                     <input
                       type="text"
                       placeholder="Enter courier service ID"
+                      value={courier_field}
+                      onChange={(e) => setCourierField(e.target.value)}
+                      className="w-full h-11 md:h-12 px-4 bg-white border border-[#E2E8F0] rounded-full md:rounded-[14px] text-[12px] md:text-sm font-medium text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#00A86B]/20 focus:border-[#00A86B]"
+                    />
+                  </div>
+                )}
+
+                {/* Jiffy / ShipMaxx — free text courier code */}
+                {(isJiffy || isShipMaxx) && (
+                  <div>
+                    <label className="block text-[12px] font-semibold text-[#64748B] mb-1.5 md:mb-2 md:uppercase md:tracking-wide">
+                      <Hash className="inline w-3 h-3 mr-1" />Courier Code
+                    </label>
+                    <input
+                      type="text"
+                      placeholder={isJiffy ? 'e.g. DT03' : 'e.g. 2'}
                       value={courier_field}
                       onChange={(e) => setCourierField(e.target.value)}
                       className="w-full h-11 md:h-12 px-4 bg-white border border-[#E2E8F0] rounded-full md:rounded-[14px] text-[12px] md:text-sm font-medium text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#00A86B]/20 focus:border-[#00A86B]"
