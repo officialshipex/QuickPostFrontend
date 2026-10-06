@@ -1161,12 +1161,38 @@ function KycReviewPage({
   );
 }
 
-// Backend reconnected — email and phone OTP verification are mandatory
-// again, and every KYC apiClient call below hits the real API.
-const EMAIL_VERIFICATION_MANDATORY = true;
-const PHONE_VERIFICATION_MANDATORY = true;
-const KYC_USE_MOCK_API = false;
+// ── OFFLINE MODE (UI work in progress) ─────────────────────────────────────
+// Backend disconnected while the KYC page is being redesigned:
+//   • KYC_USE_MOCK_API = true  → every KYC apiClient call below is skipped and
+//     replaced by a short mock delay (each one keeps its "Real call:" comment).
+//   • Email / phone OTP verification is NOT mandatory, so the flow can be
+//     completed without verifying them.
+// To go live again, flip all three back:
+//   EMAIL_VERIFICATION_MANDATORY = true, PHONE_VERIFICATION_MANDATORY = true,
+//   KYC_USE_MOCK_API = false.
+const EMAIL_VERIFICATION_MANDATORY = false;
+const PHONE_VERIFICATION_MANDATORY = false;
+const KYC_USE_MOCK_API = true;
 const mockDelay = (ms = 700) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/* ── KYC METHOD OPTIONS (step 0) — requirements mirror what each flow asks for ── */
+const KYC_METHODS: { id: 'EKYC' | 'MANUAL'; title: string; description: string; icon: typeof ScanLine; recommended?: boolean; requirements: string[] }[] = [
+  {
+    id: 'EKYC',
+    title: 'E-KYC',
+    description: 'Get KYC verified within a minute',
+    icon: ScanLine,
+    recommended: true,
+    requirements: ['Aadhaar number (OTP on linked mobile)', 'PAN number', 'Bank account details'],
+  },
+  {
+    id: 'MANUAL',
+    title: 'Manual KYC',
+    description: 'KYC verification might take 2-3 business days',
+    icon: FileText,
+    requirements: ['Aadhaar card (upload)', 'PAN card (upload)', 'Bank account details'],
+  },
+];
 
 /* ── MAIN COMPONENT ── */
 export function AdminKYC() {
@@ -1841,57 +1867,72 @@ export function AdminKYC() {
         <div className="mx-2 text-[#0F172A] pb-16">
           <h1 className="text-lg md:text-xl font-bold text-[#0F172A] mb-4 md:mb-6">KYC</h1>
 
-          <div className="bg-white rounded-xl md:rounded-2xl border border-[#E2E8F0] p-4 shadow-sm">
-            <h2 className="text-[15px] md:text-base font-bold text-[#0F172A]">Complete Your KYC</h2>
-            <p className="text-[12px] md:text-[13px] text-[#64748B] mt-1 mb-5">Choose your preferred method to verify your identity and unlock full access</p>
+          <div className="bg-white rounded-xl md:rounded-2xl shadow-[0_1px_2px_rgba(16,24,40,0.04),0_2px_8px_rgba(16,24,40,0.05)]">
+            <div className="px-4 md:px-6 py-4 md:py-5 border-b border-[#F1F5F9]">
+              <h2 className="text-[15px] md:text-base font-bold text-[#0F172A]">Complete Your KYC</h2>
+              <p className="text-[12px] md:text-[13px] text-[#64748B] mt-1">Choose your preferred method to verify your identity and unlock full access</p>
+            </div>
 
-            <div className="flex flex-col sm:flex-row items-start gap-3.5 md:gap-4">
-              <div className="w-full sm:w-[340px] shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setSelectedMethod('EKYC')}
-                  className={`w-full group relative flex flex-col items-start gap-1.5 text-left p-4 md:p-5 rounded-xl border-2 transition-all duration-200 ${
-                    selectedMethod === 'EKYC'
-                      ? 'border-[#00A86B] bg-[#F0FDF4]/60 shadow-md'
-                      : 'border-[#E2E8F0] bg-[#F8FAFC] hover:border-[#00A86B]/40 hover:bg-[#F0FDF4]/40 hover:shadow-md'
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5 mb-1">
-                    <span className={`w-5 h-5 rounded-full border-2 shrink-0 transition-colors flex items-center justify-center ${selectedMethod === 'EKYC' ? 'border-[#00A86B]' : 'border-[#CBD5E1] group-hover:border-[#00A86B]'}`}>
-                      {selectedMethod === 'EKYC' && <span className="w-2.5 h-2.5 rounded-full bg-[#00A86B]" />}
-                    </span>
-                    <span className="text-[14px] font-bold text-[#0F172A]">E-KYC</span>
-                  </div>
-                  <p className="text-[12.5px] text-[#64748B]">Get KYC verified within a minute</p>
-                </button>
+            <div role="radiogroup" aria-label="KYC method" className="p-4 md:p-6 grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+              {KYC_METHODS.map((m) => {
+                const isSelected = selectedMethod === m.id;
+                const Icon = m.icon;
+                return (
+                  <button
+                    key={m.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={isSelected}
+                    onClick={() => setSelectedMethod(m.id)}
+                    className={`group text-left rounded-xl border p-4 md:p-5 transition-colors ${
+                      isSelected
+                        ? 'border-[#00A86B] bg-[#F0FDF4]/50 ring-1 ring-[#00A86B]'
+                        : 'border-[#E2E8F0] bg-white hover:border-[#00A86B]/50'
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <span className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 transition-colors ${isSelected ? 'bg-[#00A86B] text-white' : 'bg-[#F1F5F9] text-[#475569]'}`}>
+                        <Icon className="w-5 h-5" />
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-[14px] font-bold text-[#0F172A]">{m.title}</span>
+                          {m.recommended && (
+                            <span className="text-[10px] font-bold uppercase tracking-wide text-[#00A86B] bg-[#E6F7F0] px-1.5 py-0.5 rounded">Recommended</span>
+                          )}
+                        </div>
+                        <p className="text-[12.5px] text-[#64748B] mt-0.5">{m.description}</p>
+                      </div>
+                      <span className={`mt-0.5 w-5 h-5 rounded-full border-2 shrink-0 flex items-center justify-center transition-colors ${isSelected ? 'border-[#00A86B]' : 'border-[#CBD5E1] group-hover:border-[#00A86B]'}`}>
+                        {isSelected && <span className="w-2.5 h-2.5 rounded-full bg-[#00A86B]" />}
+                      </span>
+                    </div>
 
-                <ShineButton
-                  type="button"
-                  onClick={() => selectedMethod && setMethod(selectedMethod)}
-                  disabled={!selectedMethod}
-                  className="mt-4 h-11 px-6 rounded-full bg-[#009D64] hover:bg-[#008856] transition-colors text-white text-[13px] font-bold shadow-sm disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-1.5"
-                >
-                  Next <ArrowRight className="w-4 h-4" />
-                </ShineButton>
-              </div>
+                    <div className="mt-4 pt-3.5 border-t border-[#EEF2F6]">
+                      <p className="text-[11px] font-semibold text-[#94A3B8] uppercase tracking-wide mb-2">You'll need</p>
+                      <ul className="space-y-1.5">
+                        {m.requirements.map((r) => (
+                          <li key={r} className="flex items-center gap-2 text-[12.5px] text-[#475569]">
+                            <Check className="w-3.5 h-3.5 text-[#00A86B] shrink-0" strokeWidth={2.75} />
+                            {r}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
 
-              <button
+            <div className="px-4 md:px-6 py-3.5 md:py-4 border-t border-[#F1F5F9] flex items-center justify-end">
+              <ShineButton
                 type="button"
-                onClick={() => setSelectedMethod('MANUAL')}
-                className={`w-full sm:w-[340px] shrink-0 group relative flex flex-col items-start gap-1.5 text-left p-4 md:p-5 rounded-xl border-2 transition-all duration-200 ${
-                  selectedMethod === 'MANUAL'
-                    ? 'border-[#00A86B] bg-[#F0FDF4]/60 shadow-md'
-                    : 'border-[#E2E8F0] bg-[#F8FAFC] hover:border-[#00A86B]/40 hover:bg-[#F0FDF4]/40 hover:shadow-md'
-                }`}
+                onClick={() => selectedMethod && setMethod(selectedMethod)}
+                disabled={!selectedMethod}
+                className="h-11 px-6 rounded-full bg-[#009D64] hover:bg-[#008856] transition-colors text-white text-[13px] font-bold shadow-sm disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-1.5"
               >
-                <div className="flex items-center gap-2.5 mb-1">
-                  <span className={`w-5 h-5 rounded-full border-2 shrink-0 transition-colors flex items-center justify-center ${selectedMethod === 'MANUAL' ? 'border-[#00A86B]' : 'border-[#CBD5E1] group-hover:border-[#00A86B]'}`}>
-                    {selectedMethod === 'MANUAL' && <span className="w-2.5 h-2.5 rounded-full bg-[#00A86B]" />}
-                  </span>
-                  <span className="text-[14px] font-bold text-[#0F172A]">Manual KYC</span>
-                </div>
-                <p className="text-[12.5px] text-[#64748B]">KYC verification might take 2-3 business days</p>
-              </button>
+                Next <ArrowRight className="w-4 h-4" />
+              </ShineButton>
             </div>
           </div>
         </div>
