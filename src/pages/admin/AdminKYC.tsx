@@ -91,20 +91,6 @@ function KycField({ label, value, wide, onCopy }: { label: string; value?: strin
   );
 }
 
-/* ── FORM PANEL: consistent white card with header ── */
-function Panel({ title, right, children, className = '' }: { title: React.ReactNode; right?: React.ReactNode; children: React.ReactNode; className?: string }) {
-  return (
-    <div className={`bg-white rounded-xl md:rounded-2xl border border-[#E2E8F0] p-4 shadow-sm ${className}`}>
-      <div className="flex items-center justify-between mb-4 gap-2">
-        <h3 className="text-[14px] md:text-[15px] font-bold text-[#0F172A]">{title}</h3>
-        {right}
-      </div>
-      {children}
-    </div>
-  );
-}
-
-
 /* ── BUSINESS TYPE SELECTOR (shared by both flows) — module-level so it keeps
    a stable component identity across renders; when this was a function
    defined inside AdminKYC's body, React saw a brand-new component type on
@@ -238,93 +224,6 @@ function GstinField({
         )}
       </div>
     </div>
-  );
-}
-
-/* ── BANK DETAILS PANEL (shared) — Account Number + IFSC verify inline,
-   matching the PAN/GSTIN pattern (no separate "Save" button, no Bank Type
-   selector — neither existed in the original flow). ── */
-function BankDetailsPanel({
-  accountNumber, setAccountNumber,
-  confirmAccountNumber, setConfirmAccountNumber,
-  accountNumbersMatch,
-  accountHolderName, setAccountHolderName,
-  ifscCode, setIfscCode,
-  bankName, setBankName,
-  branchName, setBranchName,
-  isBankVerified, isBankLoading,
-  onVerify,
-}: {
-  accountNumber: string; setAccountNumber: (v: string) => void;
-  confirmAccountNumber: string; setConfirmAccountNumber: (v: string) => void;
-  accountNumbersMatch: boolean;
-  accountHolderName: string; setAccountHolderName: (v: string) => void;
-  ifscCode: string; setIfscCode: (v: string) => void;
-  bankName: string; setBankName: (v: string) => void;
-  branchName: string; setBranchName: (v: string) => void;
-  isBankVerified: boolean; isBankLoading: boolean;
-  onVerify: () => void;
-}) {
-  const canVerify = !!accountNumber && accountNumbersMatch && ifscCode.length === 11;
-  return (
-    <Panel title="Bank Details">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <FieldLabel required>Account Number</FieldLabel>
-          <input type="text" value={accountNumber} onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, ''))} disabled={isBankVerified} placeholder="Enter account number" className={inputCls} />
-        </div>
-        <div>
-          <FieldLabel required>Confirm Acc. Number</FieldLabel>
-          <input type="text" value={confirmAccountNumber} onChange={(e) => setConfirmAccountNumber(e.target.value.replace(/\D/g, ''))} disabled={isBankVerified} placeholder="Re-enter account number" className={`${inputCls} ${confirmAccountNumber && !accountNumbersMatch ? 'border-red-300 focus:border-red-400 focus:ring-red-100' : ''}`} />
-          {confirmAccountNumber && !accountNumbersMatch && (
-            <p className="text-[10.5px] font-semibold text-red-500 mt-1">Account numbers do not match</p>
-          )}
-        </div>
-        <div className="sm:col-span-2">
-          <FieldLabel required>IFSC Code</FieldLabel>
-          <div className="relative flex items-center max-w-xs">
-            <input
-              type="text"
-              maxLength={11}
-              value={ifscCode}
-              onChange={(e) => setIfscCode(e.target.value.toUpperCase())}
-              disabled={isBankVerified}
-              placeholder="Enter IFSC code"
-              className={`${inputCls} pr-20 uppercase`}
-            />
-            {!isBankVerified ? (
-              <button
-                type="button"
-                onClick={onVerify}
-                disabled={isBankLoading || !canVerify}
-                className="absolute right-1.5 h-8 px-3.5 rounded-full bg-[#334155] hover:bg-[#1E293B] text-white text-[11px] font-bold disabled:opacity-40 disabled:pointer-events-none transition-colors flex items-center gap-1.5"
-              >
-                {isBankLoading ? <RefreshCcw className="w-3 h-3 animate-spin" /> : 'Verify'}
-              </button>
-            ) : (
-              <span className="absolute right-3 flex items-center gap-1 text-[11px] font-bold text-[#00A86B]">
-                <Check className="w-3.5 h-3.5" /> Verified
-              </span>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <AnimatePresence>
-        {isBankVerified && (
-          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
-            <div className="mt-4 pt-4 border-t border-dashed border-[#E2E8F0] grid grid-cols-2 gap-3">
-              <div className="col-span-2 flex items-center gap-1.5 text-[10px] md:text-[10.5px] font-bold text-[#00A86B] mb-0.5">
-                <BadgeCheck className="w-3.5 h-3.5 shrink-0" /> Auto-fetched from bank
-              </div>
-              <div className="col-span-2"><span className="block text-[10px] font-semibold text-[#94A3B8] mb-1">Account Holder Name</span><span className="text-[12.5px] font-bold text-[#0F172A]">{accountHolderName || '—'}</span></div>
-              <div><span className="block text-[10px] font-semibold text-[#94A3B8] mb-1">Bank Name</span><span className="text-[12.5px] font-bold text-[#0F172A]">{bankName || '—'}</span></div>
-              <div><span className="block text-[10px] font-semibold text-[#94A3B8] mb-1">Branch Name</span><span className="text-[12.5px] font-bold text-[#0F172A]">{branchName || '—'}</span></div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </Panel>
   );
 }
 
@@ -1166,18 +1065,14 @@ function KycReviewPage({
   );
 }
 
-// ── OFFLINE MODE (UI work in progress) ─────────────────────────────────────
-// Backend disconnected while the KYC page is being redesigned:
-//   • KYC_USE_MOCK_API = true  → every KYC apiClient call below is skipped and
-//     replaced by a short mock delay (each one keeps its "Real call:" comment).
-//   • Email / phone OTP verification is NOT mandatory, so the flow can be
-//     completed without verifying them.
-// To go live again, flip all three back:
-//   EMAIL_VERIFICATION_MANDATORY = true, PHONE_VERIFICATION_MANDATORY = true,
-//   KYC_USE_MOCK_API = false.
-const EMAIL_VERIFICATION_MANDATORY = false;
-const PHONE_VERIFICATION_MANDATORY = false;
-const KYC_USE_MOCK_API = true;
+// ── LIVE MODE ───────────────────────────────────────────────────────────────
+// Email and phone OTP verification are mandatory, and every KYC apiClient call
+// below hits the real API. For offline UI work, flip all three:
+//   EMAIL_VERIFICATION_MANDATORY = false, PHONE_VERIFICATION_MANDATORY = false,
+//   KYC_USE_MOCK_API = true  (each call then uses its mock branch).
+const EMAIL_VERIFICATION_MANDATORY = true;
+const PHONE_VERIFICATION_MANDATORY = true;
+const KYC_USE_MOCK_API = false;
 const mockDelay = (ms = 700) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /* ── KYC METHOD OPTIONS (step 0) — requirements mirror what each flow asks for ── */
@@ -1733,10 +1628,13 @@ export function AdminKYC() {
       // Real call (endpoint pending on backend):
       //   apiClient.post('/merchant/verfication/manual-kyc', buildManualKycFormData({ data: manualData, businessType, email, phoneNumber, billing: { address, pincode, city, state }, gstin }),
       //     { headers: { 'Content-Type': 'multipart/form-data' } })
-      await mockDelay(900);
+      // Until that endpoint exists, manual KYC behaves as before: the request is
+      // acknowledged in the UI and the verification team follows up.
+      if (KYC_USE_MOCK_API) await mockDelay(900);
       setShowManualSuccess(true);
-    } catch (err: any) {
-      showToast('error', err?.response?.data?.message || 'Could not submit your KYC. Please try again.');
+    } catch (err) {
+      const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      showToast('error', message || 'Could not submit your KYC. Please try again.');
     } finally {
       setIsManualSubmitting(false);
     }
