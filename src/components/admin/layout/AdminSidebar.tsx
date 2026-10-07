@@ -136,6 +136,7 @@ const MENU_GROUPS: MenuGroup[] = [
     icon: Settings,
     items: [
       { name: 'Users', path: '/admin/users', icon: Users, adminOnly: true, permission: 'users' },
+      { name: 'KYC Review', path: '/admin/kyc-review', icon: ShieldCheck, adminOnly: true, permission: 'users' },
       { name: 'Employees', path: '/admin/roles', icon: Users, adminOnly: true, noEmployee: true },
       { name: 'Status Map', path: '/admin/status-map', icon: Route, adminOnly: true, permission: 'statusMap' },
       { name: 'EDD Mapping', path: '/admin/edd-mapping', icon: Calendar, adminOnly: true, permission: 'eddMapping' },

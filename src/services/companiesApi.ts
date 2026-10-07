@@ -54,6 +54,8 @@ export interface CompanySummary {
   // when on, users who register under this company are saved with that contact already verified
   autoVerifyEmail?: boolean;
   autoVerifyPhone?: boolean;
+  // which KYC routes sellers of this company are offered; absent from a backend that predates the setting
+  kycMethods?: { ekyc: boolean; manual: boolean };
   createdAt: string;
 }
 

@@ -11,7 +11,10 @@ import { ShineButton } from '../../components/ui/ShineButton';
 import aadhaarLogo from '../../assets/aadhaar-logo.png';
 import { FieldLabel } from './kyc/kycUi';
 import { cardShadow, GSTIN_RE, inputCls } from './kyc/kycStyles';
-import { createManualKycData, type ManualKycData, type ManualStep } from './kyc/manualKycData';
+import {
+  buildManualKycFormData, createManualKycData, isAadhaarComplete, isBankComplete, isPanComplete,
+  type ManualKycData, type ManualStep,
+} from './kyc/manualKycData';
 import { DocumentUpload, ManualAadhaarStep, ManualBankStep, ManualPanStep, ManualReviewStep, ManualStepper } from './kyc/ManualKycSteps';
 import {
   Check,
@@ -26,6 +29,7 @@ import {
   Building,
   CheckCircle2,
   Clock,
+  XCircle,
   Copy,
   BadgeCheck,
   Landmark,
@@ -36,6 +40,7 @@ import {
   EyeOff,
   Lock,
   Info,
+  Pencil,
 } from 'lucide-react';
 
 /* ── READ-ONLY KYC DATA TYPES ── */
@@ -240,7 +245,7 @@ function PanVerificationModal({
   isPanVerified, isPanLoading,
   panData,
   onVerify,
-  onContinue,
+  onContinue, continueLabel,
 }: {
   open: boolean;
   onClose: () => void;
@@ -249,6 +254,7 @@ function PanVerificationModal({
   panData: { panType: string; name: string };
   onVerify: () => void;
   onContinue?: () => void;
+  continueLabel?: string;
 }) {
   const prefersReducedMotion = useReducedMotion();
 
@@ -422,7 +428,7 @@ function PanVerificationModal({
                     onClick={onContinue || onClose}
                     className="w-full h-12 rounded-full bg-[#00C97B] hover:bg-[#00B36D] text-[#0B1220] text-[13.5px] font-bold shadow-[0_8px_24px_-8px_rgba(0,201,123,0.6)] transition-colors"
                   >
-                    {onContinue ? 'Continue to Aadhaar Verification' : 'Done'}
+                    {onContinue ? (continueLabel || 'Continue') : 'Done'}
                   </button>
                 </motion.div>
               )}
@@ -441,7 +447,7 @@ function AadhaarVerificationModal({
   sendingAadhaarOtp, aadhaarOtpTimer,
   aadhaarData,
   onSendOtp,
-  onContinue,
+  onContinue, continueLabel,
 }: {
   open: boolean;
   onClose: () => void;
@@ -451,6 +457,7 @@ function AadhaarVerificationModal({
   aadhaarData: { name: string; guardianName: string; address: string; state: string; city: string };
   onSendOtp: () => void;
   onContinue?: () => void;
+  continueLabel?: string;
 }) {
   const prefersReducedMotion = useReducedMotion();
   const maskedAadhaar = aadhaarNumber
@@ -648,7 +655,7 @@ function AadhaarVerificationModal({
                     onClick={onContinue || onClose}
                     className="w-full h-12 rounded-full bg-[#00C97B] hover:bg-[#00B36D] text-[#0B1220] text-[13.5px] font-bold shadow-[0_8px_24px_-8px_rgba(0,201,123,0.6)] transition-colors"
                   >
-                    {onContinue ? 'Continue' : 'Done'}
+                    {onContinue ? (continueLabel || 'Continue') : 'Done'}
                   </button>
                 </motion.div>
               )}
@@ -931,10 +938,11 @@ function KycReviewPage({
   panNumber, panData,
   gstin, isGstinVerified, gstData,
   accountNumber, ifscCode, accountHolderName, bankName, branchName,
-  isSubmitting, onSubmit,
+  isSubmitting, onSubmit, onEdit,
 }: {
   open: boolean;
   onClose: () => void;
+  onEdit: (section: 'billing' | 'gst' | 'pan' | 'aadhaar' | 'bank') => void;
   businessType: 'INDIVIDUAL' | 'COMPANY' | null;
   email: string; phoneNumber: string;
   address: string; pincode: string; city: string; state: string;
@@ -956,7 +964,7 @@ function KycReviewPage({
     </div>
   );
 
-  const SectionCard = ({ icon: Icon, title, children }: { icon: React.ComponentType<{ className?: string }>; title: string; children: React.ReactNode }) => (
+  const SectionCard = ({ icon: Icon, title, children, editKey }: { icon: React.ComponentType<{ className?: string }>; title: string; children: React.ReactNode; editKey?: 'billing' | 'gst' | 'pan' | 'aadhaar' | 'bank' }) => (
     <div className="bg-white rounded-2xl p-4 md:p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_-16px_rgba(15,23,42,0.12)]">
       <div className="flex items-center gap-2.5 mb-4">
         <span className="w-9 h-9 rounded-xl bg-[#F0FDF4] flex items-center justify-center shrink-0">
@@ -966,6 +974,15 @@ function KycReviewPage({
         <span className="ml-auto flex items-center gap-1 text-[10.5px] font-bold text-[#00A86B]">
           <CheckCircle2 className="w-3.5 h-3.5" /> Verified
         </span>
+        {editKey && (
+          <button
+            type="button"
+            onClick={() => onEdit(editKey)}
+            className="inline-flex items-center gap-1 h-7 px-3 rounded-full border border-[#E2E8F0] text-[11px] font-bold text-[#475569] hover:border-[#00A86B] hover:text-[#00A86B] transition-colors"
+          >
+            <Pencil className="w-3 h-3" /> Edit
+          </button>
+        )}
       </div>
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">{children}</div>
     </div>
@@ -998,7 +1015,7 @@ function KycReviewPage({
                 <Row label="Phone Number" value={phoneNumber} />
               </SectionCard>
 
-              <SectionCard icon={MapPin} title="Billing Information">
+              <SectionCard icon={MapPin} title="Billing Information" editKey="billing">
                 <Row label="Business Type" value={businessType === 'COMPANY' ? 'Company' : 'Individual'} />
                 <Row label="Pincode" value={pincode} />
                 <Row label="City" value={city} />
@@ -1006,21 +1023,21 @@ function KycReviewPage({
                 <div className="col-span-2 md:col-span-3"><Row label="Address" value={address} /></div>
               </SectionCard>
 
-              <SectionCard icon={CreditCard} title="Aadhaar Details">
+              <SectionCard icon={CreditCard} title="Aadhaar Details" editKey="aadhaar">
                 <Row label="Aadhaar Number" value={maskedAadhaar} />
                 <Row label="Name" value={aadhaarData.name} />
                 <Row label="Guardian Name" value={aadhaarData.guardianName} />
                 <div className="col-span-2 md:col-span-3"><Row label="Address" value={[aadhaarData.address, aadhaarData.city, aadhaarData.state].filter(Boolean).join(', ')} /></div>
               </SectionCard>
 
-              <SectionCard icon={FileText} title="PAN Details">
+              <SectionCard icon={FileText} title="PAN Details" editKey="pan">
                 <Row label="PAN Number" value={panNumber} />
                 <Row label="Name" value={panData.name} />
                 <Row label="PAN Type" value={panData.panType} />
               </SectionCard>
 
               {businessType === 'COMPANY' && isGstinVerified && (
-                <SectionCard icon={ReceiptText} title="GST Details">
+                <SectionCard icon={ReceiptText} title="GST Details" editKey="gst">
                   <Row label="GSTIN" value={gstData.gstin || gstin} />
                   {gstData.nameOfBusiness && <Row label="Company Name" value={gstData.nameOfBusiness} />}
                   {gstData.pincode && <Row label="Pincode" value={gstData.pincode} />}
@@ -1030,7 +1047,7 @@ function KycReviewPage({
                 </SectionCard>
               )}
 
-              <SectionCard icon={Landmark} title="Bank Details">
+              <SectionCard icon={Landmark} title="Bank Details" editKey="bank">
                 <Row label="Account Number" value={maskedAccount} />
                 <Row label="IFSC Code" value={ifscCode} />
                 <Row label="Account Holder Name" value={accountHolderName} />
@@ -1047,7 +1064,7 @@ function KycReviewPage({
                 onClick={onClose}
                 className="px-6 h-10 border border-[#E2E8F0] text-[#64748B] hover:bg-[#F8FAFC] text-[13px] font-bold rounded-full transition-colors shrink-0"
               >
-                Close
+                Edit Details
               </button>
               <ShineButton
                 type="button"
@@ -1094,6 +1111,21 @@ const KYC_METHODS: { id: 'EKYC' | 'MANUAL'; title: string; description: string; 
   },
 ];
 
+/* What the backend says about this seller's manual KYC request (GET /getKyc/getKycStatus). */
+interface ManualKycStatus {
+  status: 'pending' | 'approved' | 'rejected';
+  submittedAt?: string;
+  rejectionReason?: string;
+  prefill?: {
+    businessType?: 'individual' | 'company';
+    billing?: { address?: string; pincode?: string; city?: string; state?: string };
+    gstNumber?: string;
+    pan?: { number?: string; name?: string; date?: string };
+    aadhaar?: { number?: string; name?: string; guardianName?: string; dob?: string; address?: string; pincode?: string; city?: string; state?: string };
+    bank?: { holderName?: string; accountNumber?: string; ifsc?: string; bankName?: string; branch?: string; accountType?: 'savings' | 'current'; proofType?: 'cheque' | 'statement' };
+  };
+}
+
 /* ── MAIN COMPONENT ── */
 export function AdminKYC() {
   const navigate = useNavigate();
@@ -1113,6 +1145,9 @@ export function AdminKYC() {
   const [fetchedBank, setFetchedBank] = useState<BankData>({});
   const [fetchedGst, setFetchedGst] = useState<GstData>({});
   const [fetchedBilling, setFetchedBilling] = useState<BillingData>({});
+  // Which KYC routes this company offers (Companies screen > KYC methods) and where a manual request stands.
+  const [kycMethods, setKycMethods] = useState({ ekyc: true, manual: false });
+  const [manualStatus, setManualStatus] = useState<ManualKycStatus | null>(null);
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -1137,8 +1172,15 @@ export function AdminKYC() {
         if (userData?.isPhoneVerified) setIsPhoneVerified(true);
 
         const isVerified: boolean = userData?.kycDone === true;
-        const companyCategory: string =
-          statusRes.status === 'fulfilled' ? (statusRes.value.data?.companyCategory || 'individual') : 'individual';
+        const statusData = statusRes.status === 'fulfilled' ? statusRes.value.data : null;
+        const companyCategory: string = statusData?.companyCategory || 'individual';
+
+        // A backend that predates the setting sends no `methods`: e-KYC only, as before.
+        const methods = { ekyc: statusData?.methods?.ekyc !== false, manual: statusData?.methods?.manual === true };
+        if (!methods.ekyc && !methods.manual) methods.ekyc = true;
+        setKycMethods(methods);
+        const manualRequest: ManualKycStatus | null = !isVerified && methods.manual ? (statusData?.manual ?? null) : null;
+        setManualStatus(manualRequest);
 
         setBusinessType(companyCategory === 'company' ? 'COMPANY' : 'INDIVIDUAL');
 
@@ -1203,6 +1245,56 @@ export function AdminKYC() {
             setIfscCode(b.ifsc);
             setIsBankVerified(true);
             setBankData({ beneficiaryName: b.nameAtBank || '', bankName: b.bank || '', branchName: b.branch || '', city: '' });
+          }
+
+          // A rejected manual request comes back with the typed answers, so the seller only fixes what was wrong
+          // (the documents themselves have to be uploaded again).
+          const pf = manualRequest?.status === 'rejected' ? manualRequest.prefill : undefined;
+          if (pf) {
+            if (!g?.gstin) setBusinessType(pf.businessType === 'company' ? 'COMPANY' : 'INDIVIDUAL');
+            if (!bill?.address && pf.billing) {
+              setAddress(pf.billing.address || '');
+              setPincode(pf.billing.pincode || '');
+              setCity((pf.billing.city || '').toUpperCase());
+              setState((pf.billing.state || '').toUpperCase());
+            }
+            if (pf.gstNumber && !g?.gstin) setGstin(pf.gstNumber);
+            setManualData((d) => ({
+              ...d,
+              pan: { ...d.pan, number: pf.pan?.number || '', name: pf.pan?.name || '', date: pf.pan?.date || '' },
+              aadhaar: {
+                ...d.aadhaar,
+                number: pf.aadhaar?.number || '', name: pf.aadhaar?.name || '', guardianName: pf.aadhaar?.guardianName || '',
+                dob: pf.aadhaar?.dob || '', address: pf.aadhaar?.address || '', pincode: pf.aadhaar?.pincode || '',
+                city: pf.aadhaar?.city || '', state: pf.aadhaar?.state || '',
+              },
+              bank: {
+                ...d.bank,
+                holderName: pf.bank?.holderName || '', accountNumber: pf.bank?.accountNumber || '',
+                confirmAccountNumber: pf.bank?.accountNumber || '', ifsc: pf.bank?.ifsc || '',
+                bankName: pf.bank?.bankName || '', branch: pf.bank?.branch || '',
+                accountType: pf.bank?.accountType || d.bank.accountType, proofType: pf.bank?.proofType || d.bank.proofType,
+              },
+            }));
+          }
+
+          // Everything is already verified and only the final submit is left (the seller left the page before
+          // submitting): reopen straight on Review & Submit. "Edit details" there goes back to the form.
+          const resumeAtReview = methods.ekyc && manualRequest?.status !== 'pending'
+            && (!EMAIL_VERIFICATION_MANDATORY || !!userData?.isEmailVerified)
+            && (!PHONE_VERIFICATION_MANDATORY || !!userData?.isPhoneVerified)
+            && !!a?.aadhaarNumber && !!p?.pan && !!(b?.accountNumber && b?.ifsc)
+            && !!(g?.gstin || bill?.address);
+          if (resumeAtReview) {
+            setSelectedMethod('EKYC');
+            setMethod('EKYC');
+            setEkycRevealedStep(4);
+            setIsReviewPageOpen(true);
+          } else if (manualRequest?.status !== 'pending' && methods.ekyc !== methods.manual) {
+            // Only one method on for this company: no choice to make, go straight into it.
+            const only = methods.manual ? 'MANUAL' : 'EKYC';
+            setSelectedMethod(only);
+            setMethod(only);
           }
         }
       } catch {
@@ -1460,6 +1552,14 @@ export function AdminKYC() {
         return;
       }
       const res = await apiClient.post('/merchant/verfication/generate-otp', { aadhaarNo: aadhaarNumber });
+      const stored = res.data?.data;
+      if (res.data?.success && stored?.aadhaarNumber && !stored?.ref_id) {
+        // Same Aadhaar the seller already verified: no new OTP needed.
+        setIsAadhaarVerified(true);
+        setAadhaarData({ name: stored.name || '', guardianName: stored.sonOf || '', address: stored.address || '', state: stored.state || '', city: stored.city || '' });
+        showToast('success', 'Aadhaar already verified');
+        return;
+      }
       if (res.data?.data?.ref_id) {
         setAadhaarRefId(res.data.data.ref_id);
         setAadhaarOtpValues(['', '', '', '', '', '']);
@@ -1585,6 +1685,43 @@ export function AdminKYC() {
     }
   };
 
+  /* ── EDIT from the Review page ── an item is cleared and re-verified (same value = the stored result comes
+     straight back, no new check); closing without finishing leaves it unverified, so Review & Submit
+     simply asks for it again. Email and phone stay as verified (they were confirmed with an OTP). */
+  const clearBank = () => {
+    setIsBankVerified(false);
+    setBankData({ beneficiaryName: '', bankName: '', branchName: '', city: '' });
+    setAccountHolderName(''); setBankName(''); setBranchName('');
+  };
+  const goToFormStep = (step: number) => {
+    setIsReviewPageOpen(false);
+    setTimeout(() => document.getElementById(`kyc-step-${step}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150);
+  };
+  const handleEditSection = (section: 'billing' | 'gst' | 'pan' | 'aadhaar' | 'bank') => {
+    if (section === 'billing') return goToFormStep(3);
+    if (section === 'gst') {
+      setIsGstinVerified(false);
+      setGstData({});
+      return goToFormStep(4);
+    }
+    setIsReviewPageOpen(false);
+    if (section === 'pan') { setIsPanVerified(false); setPanData({ panType: '', name: '' }); setIsPanModalOpen(true); }
+    if (section === 'aadhaar') { setIsAadhaarVerified(false); setAadhaarData({ name: '', guardianName: '', address: '', state: '', city: '' }); setIsAadhaarModalOpen(true); }
+    if (section === 'bank') { clearBank(); setIsBankModalOpen(true); }
+  };
+  // After PAN / Aadhaar: the next item still to verify, or straight back to Review & Submit.
+  const afterPan = () => {
+    setIsPanModalOpen(false);
+    if (!isAadhaarVerified) setIsAadhaarModalOpen(true);
+    else if (!isBankVerified) setIsBankModalOpen(true);
+    else setIsReviewPageOpen(true);
+  };
+  const afterAadhaar = () => {
+    setIsAadhaarModalOpen(false);
+    if (!isBankVerified) setIsBankModalOpen(true);
+    else setIsReviewPageOpen(true);
+  };
+
   const handleKycSubmit = async () => {
     if ((EMAIL_VERIFICATION_MANDATORY && !isEmailVerified) || (PHONE_VERIFICATION_MANDATORY && !isPhoneVerified)) return;
     if (!isAadhaarVerified || !isPanVerified || !isBankVerified) return;
@@ -1623,18 +1760,34 @@ export function AdminKYC() {
 
   const handleManualSubmit = async () => {
     if (isManualSubmitting) return;
+    if (!businessType || !isPanComplete(manualData.pan) || !isAadhaarComplete(manualData.aadhaar) || !isBankComplete(manualData.bank)) {
+      showToast('error', 'Please complete every step and upload all documents before submitting.');
+      return;
+    }
     setIsManualSubmitting(true);
     try {
-      // Real call (endpoint pending on backend):
-      //   apiClient.post('/merchant/verfication/manual-kyc', buildManualKycFormData({ data: manualData, businessType, email, phoneNumber, billing: { address, pincode, city, state }, gstin }),
-      //     { headers: { 'Content-Type': 'multipart/form-data' } })
-      // Until that endpoint exists, manual KYC behaves as before: the request is
-      // acknowledged in the UI and the verification team follows up.
-      if (KYC_USE_MOCK_API) await mockDelay(900);
+      if (KYC_USE_MOCK_API) {
+        await mockDelay(900);
+      } else {
+        const res = await apiClient.post(
+          '/merchant/verfication/manual-kyc',
+          buildManualKycFormData({ data: manualData, businessType, email, phoneNumber, billing: { address, pincode, city, state }, gstin }),
+          { headers: { 'Content-Type': 'multipart/form-data' } },
+        );
+        if (!res.data?.success) {
+          showToast('error', res.data?.message || 'Could not submit your KYC. Please try again.');
+          return;
+        }
+      }
       setShowManualSuccess(true);
     } catch (err) {
-      const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      showToast('error', message || 'Could not submit your KYC. Please try again.');
+      const e = err as { response?: { status?: number; data?: { message?: string } } };
+      // Already submitted (a double click, or another tab): show where it stands instead of an error.
+      if (e.response?.status === 409 && /under review/i.test(e.response?.data?.message || '')) {
+        setManualStatus({ status: 'pending' });
+        return;
+      }
+      showToast('error', e.response?.data?.message || 'Could not submit your KYC. Please try again.');
     } finally {
       setIsManualSubmitting(false);
     }
@@ -1810,12 +1963,50 @@ export function AdminKYC() {
     );
   }
 
+  /* ── MANUAL KYC UNDER REVIEW ── nothing to fill in until an admin decides */
+  const bothMethods = kycMethods.ekyc && kycMethods.manual;
+  if (manualStatus?.status === 'pending') {
+    return (
+      <AdminLayout>
+        <div className="max-w-xl mx-auto px-4 md:px-0 text-[#0F172A] pb-16">
+          <div className={`bg-white rounded-xl md:rounded-2xl ${cardShadow} p-6 md:p-10 text-center`}>
+            <div className="w-14 h-14 rounded-full bg-[#FFF7ED] flex items-center justify-center mx-auto mb-4">
+              <Clock className="w-7 h-7 text-[#EA580C]" />
+            </div>
+            <h2 className="text-[16px] md:text-[18px] font-bold text-[#0F172A] mb-1.5">KYC Under Review</h2>
+            <p className="text-[13px] text-[#64748B] leading-relaxed mb-1">
+              We have received your details and documents{manualStatus.submittedAt ? ` on ${new Date(manualStatus.submittedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}` : ''}.
+              Our team will verify them within 2–3 business days and notify you by email.
+            </p>
+            <p className="text-[12px] text-[#94A3B8] mb-6">You can use the dashboard in the meantime; shipping unlocks once your KYC is approved.</p>
+            <button type="button" onClick={() => navigate('/user/dashboard')} className="w-full sm:w-auto h-11 px-6 rounded-full bg-[#009D64] hover:bg-[#008856] text-white text-[13px] font-bold shadow-sm transition-colors">
+              Back to Dashboard
+            </button>
+          </div>
+        </div>
+      </AdminLayout>
+    );
+  }
+
+  const rejectedBanner = manualStatus?.status === 'rejected' ? (
+    <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 flex items-start gap-3">
+      <XCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+      <div className="min-w-0">
+        <p className="text-[13px] font-bold text-red-700">Your last manual KYC request was rejected</p>
+        {manualStatus.rejectionReason && <p className="text-[12.5px] text-red-700/90 mt-0.5 break-words">Reason: {manualStatus.rejectionReason}</p>}
+        <p className="text-[12px] text-red-700/80 mt-1">Please correct the details and submit again. Your documents need to be uploaded again.</p>
+      </div>
+    </div>
+  ) : null;
+
   /* ── STEP 0: METHOD CHOICE ── */
   if (!method) {
+    const visibleMethods = KYC_METHODS.filter((m) => (m.id === 'EKYC' ? kycMethods.ekyc : kycMethods.manual));
     return (
       <AdminLayout>
         <div className="mx-2 text-[#0F172A] pb-16">
           <h1 className="text-lg md:text-xl font-bold text-[#0F172A] mb-4 md:mb-6">KYC</h1>
+          {rejectedBanner}
 
           <div className="bg-white rounded-xl md:rounded-2xl shadow-[0_1px_2px_rgba(16,24,40,0.04),0_2px_8px_rgba(16,24,40,0.05)]">
             <div className="px-4 md:px-6 py-4 md:py-5 border-b border-[#F1F5F9]">
@@ -1824,7 +2015,7 @@ export function AdminKYC() {
             </div>
 
             <div role="radiogroup" aria-label="KYC method" className="p-4 md:p-6 grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
-              {KYC_METHODS.map((m) => {
+              {visibleMethods.map((m) => {
                 const isSelected = selectedMethod === m.id;
                 const Icon = m.icon;
                 return (
@@ -1847,7 +2038,7 @@ export function AdminKYC() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-[14px] font-bold text-[#0F172A]">{m.title}</span>
-                          {m.recommended && (
+                          {m.recommended && bothMethods && (
                             <span className="text-[10px] font-bold uppercase tracking-wide text-[#00A86B] bg-[#E6F7F0] px-1.5 py-0.5 rounded">Recommended</span>
                           )}
                         </div>
@@ -2020,9 +2211,11 @@ export function AdminKYC() {
                 <h2 className="text-[16px] md:text-[18px] font-bold text-[#0F172A]">e-KYC</h2>
                 <p className="text-[12px] md:text-[13px] text-[#64748B] mt-0.5">Get KYC verified within a minute</p>
               </div>
-              <button type="button" onClick={() => { setMethod(null); setEkycRevealedStep(1); }} className="inline-flex items-center gap-1.5 text-[12px] font-bold text-[#64748B] hover:text-[#0F172A] px-3 h-8 rounded-lg hover:bg-[#F8FAFC] transition-colors shrink-0">
-                <ArrowLeft className="w-3.5 h-3.5" /> Back
-              </button>
+              {bothMethods && (
+                <button type="button" onClick={() => { setMethod(null); setEkycRevealedStep(1); }} className="inline-flex items-center gap-1.5 text-[12px] font-bold text-[#64748B] hover:text-[#0F172A] px-3 h-8 rounded-lg hover:bg-[#F8FAFC] transition-colors shrink-0">
+                  <ArrowLeft className="w-3.5 h-3.5" /> Back
+                </button>
+              )}
             </div>
 
             {detailSections}
@@ -2060,7 +2253,13 @@ export function AdminKYC() {
               </div>
               <ShineButton
                 type="button"
-                onClick={() => {
+                onClick={async () => {
+                  // An individual's billing address is saved as soon as it is entered, so coming back later resumes where they stopped.
+                  if (businessType === 'INDIVIDUAL' && !KYC_USE_MOCK_API) {
+                    try {
+                      await apiClient.post('/merchant/verfication/billing-info', { billingInfo: { address, city, state, postalCode: pincode } });
+                    } catch { /* not fatal: it is saved again when the KYC is submitted */ }
+                  }
                   const allVerified = emailOk && phoneOk && isAadhaarVerified && isPanVerified && isBankVerified && (businessType !== 'COMPANY' || isGstinVerified);
                   if (allVerified) setIsReviewPageOpen(true);
                   else if (!isPanVerified) setIsPanModalOpen(true);
@@ -2276,7 +2475,8 @@ export function AdminKYC() {
           isPanLoading={isPanLoading}
           panData={panData}
           onVerify={handleVerifyPan}
-          onContinue={!isAadhaarVerified ? () => { setIsPanModalOpen(false); setIsAadhaarModalOpen(true); } : undefined}
+          onContinue={afterPan}
+          continueLabel={!isAadhaarVerified ? 'Continue to Aadhaar Verification' : !isBankVerified ? 'Continue to Bank Details' : 'Back to Review & Submit'}
         />
 
         <AadhaarVerificationModal
@@ -2289,7 +2489,8 @@ export function AdminKYC() {
           aadhaarOtpTimer={aadhaarOtpTimer}
           aadhaarData={aadhaarData}
           onSendOtp={sendAadhaarOtpAndOpen}
-          onContinue={!isBankVerified ? () => { setIsAadhaarModalOpen(false); setIsBankModalOpen(true); } : undefined}
+          onContinue={afterAadhaar}
+          continueLabel={!isBankVerified ? 'Continue to Bank Details' : 'Back to Review & Submit'}
         />
 
 
@@ -2339,6 +2540,7 @@ export function AdminKYC() {
           branchName={branchName}
           isSubmitting={isSubmitting}
           onSubmit={handleKycSubmit}
+          onEdit={handleEditSection}
         />
 
         <Toast toast={toast} onClose={closeToast} />
@@ -2367,6 +2569,7 @@ export function AdminKYC() {
           >
             {manualStep === 'details' && (
               <div className="max-w-5xl mx-auto">
+                {rejectedBanner}
                 <ManualStepper current="details" />
                 <div className={`bg-white rounded-xl md:rounded-2xl ${cardShadow}`}>
                   <div className="px-4 md:px-6 py-4 md:py-5 border-b border-[#F1F5F9] flex items-start justify-between gap-3">
@@ -2374,9 +2577,11 @@ export function AdminKYC() {
                       <h2 className="text-[16px] md:text-[18px] font-bold text-[#0F172A]">Manual KYC</h2>
                       <p className="text-[12px] md:text-[13px] text-[#64748B] mt-0.5">Verification might take 2-3 business days</p>
                     </div>
-                    <button type="button" onClick={leaveManual} className="inline-flex items-center gap-1.5 text-[12px] font-bold text-[#64748B] hover:text-[#0F172A] px-3 h-8 rounded-lg hover:bg-[#F8FAFC] transition-colors shrink-0">
-                      <ArrowLeft className="w-3.5 h-3.5" /> Back
-                    </button>
+                    {bothMethods && (
+                      <button type="button" onClick={leaveManual} className="inline-flex items-center gap-1.5 text-[12px] font-bold text-[#64748B] hover:text-[#0F172A] px-3 h-8 rounded-lg hover:bg-[#F8FAFC] transition-colors shrink-0">
+                        <ArrowLeft className="w-3.5 h-3.5" /> Back
+                      </button>
+                    )}
                   </div>
 
                   {detailSections}

@@ -526,6 +526,7 @@ function CompanyDetail({ tenantKey, onBack }: { tenantKey: string; onBack: () =>
           <WebhookAddressesSection tenantKey={tenantKey} refreshKey={JSON.stringify(groupStatus)} />
 
           <ContactVerificationSection company={company} onSaved={load} showToast={showToast} />
+          <KycMethodsSection company={company} onSaved={load} showToast={showToast} />
           <JobsSection company={company} onSaved={load} showToast={showToast} />
         </div>
       </div>
@@ -1123,6 +1124,73 @@ function ContactVerificationSection({ company, onSaved, showToast }: {
           onToggle={() => save('autoVerifyPhone', !(company.autoVerifyPhone === true), 'Phone')}
         />
         <p className="text-[11px] text-[#94A3B8]">Applies to users who register after the change; existing users are not changed.</p>
+      </div>
+    </SectionCard>
+  );
+}
+
+// Which KYC routes this company's sellers are offered. At least one stays on (the backend refuses to save neither).
+function KycMethodsSection({ company, onSaved, showToast }: {
+  company: CompanySummary; onSaved: () => void; showToast: (t: 'success' | 'error', m: string) => void;
+}) {
+  const [saving, setSaving] = useState(false);
+
+  // an older backend does not know this setting: show nothing rather than a switch that cannot work
+  if (!company.kycMethods) return null;
+  const { ekyc, manual } = company.kycMethods;
+
+  const save = async (next: { ekyc: boolean; manual: boolean }, what: string) => {
+    setSaving(true);
+    try {
+      await companiesApi.updateBasic(company.tenantKey, { kycMethods: next });
+      showToast('success', `${what} updated`);
+      onSaved();
+    } catch (err) {
+      const message = (err as { response?: { data?: { message?: string } } }).response?.data?.message;
+      showToast('error', message || 'Failed to update KYC methods');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const rows = [
+    {
+      key: 'ekyc' as const, label: 'e-KYC', on: ekyc,
+      desc: "Instant verification of PAN, Aadhaar, bank account and GSTIN through this company's own Cashfree account (Payments tab).",
+    },
+    {
+      key: 'manual' as const, label: 'Manual KYC', on: manual,
+      desc: "The seller uploads documents and an admin approves them (2-3 business days). Needs this company's own storage (S3) to be set up.",
+    },
+  ];
+
+  return (
+    <SectionCard title="KYC methods">
+      <div className="flex flex-col gap-3">
+        {rows.map((r) => {
+          const isLastOn = r.on && (ekyc ? 1 : 0) + (manual ? 1 : 0) === 1;
+          return (
+            <div key={r.key} className="flex items-center justify-between gap-4 rounded-[8px] border border-[#E2E8F0] p-3">
+              <div>
+                <p className="text-[13px] text-[#334155]">{r.label}</p>
+                <p className="text-[11px] text-[#94A3B8] mt-0.5">{r.desc}</p>
+                {isLastOn && <p className="text-[11px] text-[#B45309] mt-0.5">At least one method must stay on.</p>}
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={r.on}
+                aria-label={r.label}
+                disabled={saving || isLastOn}
+                onClick={() => save({ ekyc: r.key === 'ekyc' ? !r.on : ekyc, manual: r.key === 'manual' ? !r.on : manual }, r.label)}
+                className={`relative w-10 h-6 rounded-full transition-colors shrink-0 disabled:opacity-50 ${r.on ? 'bg-[#00A86B]' : 'bg-[#CBD5E1]'}`}
+              >
+                <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${r.on ? 'translate-x-4' : ''}`} />
+              </button>
+            </div>
+          );
+        })}
+        <p className="text-[11px] text-[#94A3B8]">When both are on, sellers choose; when only one is on, they go straight into it. Sellers already verified are not affected.</p>
       </div>
     </SectionCard>
   );

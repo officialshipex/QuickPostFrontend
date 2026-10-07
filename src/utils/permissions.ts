@@ -152,6 +152,7 @@ const ROUTE_MODULES: [string, string | null][] = [
   ['/vas/branded-tracking', 'brandedTracking'],
   ['/vas', null],
   ['/users', 'users'],
+  ['/kyc-review', 'users'],
   ['/status-map', 'statusMap'],
   ['/edd-mapping', 'eddMapping'],
   ['/epd-mapping', 'epdMapping'],

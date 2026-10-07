@@ -80,6 +80,7 @@ import { AdminWebhookSettings } from './pages/admin/AdminWebhookSettings';
 import { AdminLabelSettings } from './pages/admin/AdminLabelSettings';
 import { AdminChangePassword } from './pages/admin/AdminChangePassword';
 import { AdminKYC } from './pages/admin/AdminKYC';
+import { AdminKycReview } from './pages/admin/AdminKycReview';
 import { AdminAgreement } from './pages/admin/AdminAgreement';
 import { AdminAgreementSettings } from './pages/admin/AdminAgreementSettings';
 import { AdminPickupAddress } from './pages/admin/AdminPickupAddress';
@@ -284,6 +285,7 @@ function App() {
               <Route path="/admin/rate-card" element={<AdminRateCard />} />
               <Route path="/admin/order-tracking" element={<AdminOrderTracking />} />
               <Route path="/admin/kyc" element={<AdminKYC />} />
+              <Route path="/admin/kyc-review" element={<AdminKycReview />} />
               <Route path="/admin/agreement" element={<AdminAgreement />} />
               <Route path="/admin/settings/pickup-address" element={<AdminPickupAddress />} />
               <Route path="/admin/pickup-manifest/:pickupId" element={<AdminPickupManifestDetails />} />
