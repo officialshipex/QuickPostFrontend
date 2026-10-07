@@ -938,11 +938,12 @@ function KycReviewPage({
   panNumber, panData,
   gstin, isGstinVerified, gstData,
   accountNumber, ifscCode, accountHolderName, bankName, branchName,
-  isSubmitting, onSubmit, onEdit,
+  isSubmitting, onSubmit, onEdit, editsLeft,
 }: {
   open: boolean;
   onClose: () => void;
-  onEdit: (section: 'billing' | 'gst' | 'pan' | 'aadhaar' | 'bank') => void;
+  onEdit: (section: EditSection) => void;
+  editsLeft: EditsLeft;
   businessType: 'INDIVIDUAL' | 'COMPANY' | null;
   email: string; phoneNumber: string;
   address: string; pincode: string; city: string; state: string;
@@ -964,7 +965,7 @@ function KycReviewPage({
     </div>
   );
 
-  const SectionCard = ({ icon: Icon, title, children, editKey }: { icon: React.ComponentType<{ className?: string }>; title: string; children: React.ReactNode; editKey?: 'billing' | 'gst' | 'pan' | 'aadhaar' | 'bank' }) => (
+  const SectionCard = ({ icon: Icon, title, children, editKey }: { icon: React.ComponentType<{ className?: string }>; title: string; children: React.ReactNode; editKey?: EditSection }) => (
     <div className="bg-white rounded-2xl p-4 md:p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_-16px_rgba(15,23,42,0.12)]">
       <div className="flex items-center gap-2.5 mb-4">
         <span className="w-9 h-9 rounded-xl bg-[#F0FDF4] flex items-center justify-center shrink-0">
@@ -974,15 +975,28 @@ function KycReviewPage({
         <span className="ml-auto flex items-center gap-1 text-[10.5px] font-bold text-[#00A86B]">
           <CheckCircle2 className="w-3.5 h-3.5" /> Verified
         </span>
-        {editKey && (
-          <button
-            type="button"
-            onClick={() => onEdit(editKey)}
-            className="inline-flex items-center gap-1 h-7 px-3 rounded-full border border-[#E2E8F0] text-[11px] font-bold text-[#475569] hover:border-[#00A86B] hover:text-[#00A86B] transition-colors"
-          >
-            <Pencil className="w-3 h-3" /> Edit
-          </button>
-        )}
+        {editKey && (() => {
+          // Billing is free to change; the checked items (PAN, Aadhaar, bank, GSTIN) have a limited number of changes.
+          const left = editKey === 'billing' ? null : editsLeft[editKey];
+          return (
+            <>
+              {left !== null && (
+                <span className={`text-[11px] font-semibold whitespace-nowrap ${left > 0 ? 'text-[#00A86B]' : 'text-[#94A3B8]'}`}>
+                  {left > 0 ? `${left} ${left === 1 ? 'change' : 'changes'} left` : 'No changes left'}
+                </span>
+              )}
+              {left !== 0 && (
+                <button
+                  type="button"
+                  onClick={() => onEdit(editKey)}
+                  className="inline-flex items-center gap-1 h-7 px-3 rounded-full border border-[#E2E8F0] text-[11px] font-bold text-[#475569] hover:border-[#00A86B] hover:text-[#00A86B] transition-colors"
+                >
+                  <Pencil className="w-3 h-3" /> Edit
+                </button>
+              )}
+            </>
+          );
+        })()}
       </div>
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">{children}</div>
     </div>
@@ -1111,6 +1125,9 @@ const KYC_METHODS: { id: 'EKYC' | 'MANUAL'; title: string; description: string; 
   },
 ];
 
+type EditSection = 'billing' | 'gst' | 'pan' | 'aadhaar' | 'bank';
+type EditsLeft = { pan: number; aadhaar: number; bank: number; gst: number };
+
 /* What the backend says about this seller's manual KYC request (GET /getKyc/getKycStatus). */
 interface ManualKycStatus {
   status: 'pending' | 'approved' | 'rejected';
@@ -1148,6 +1165,15 @@ export function AdminKYC() {
   // Which KYC routes this company offers (Companies screen > KYC methods) and where a manual request stands.
   const [kycMethods, setKycMethods] = useState({ ekyc: true, manual: false });
   const [manualStatus, setManualStatus] = useState<ManualKycStatus | null>(null);
+  // How many more times each verified item may be replaced by a different value (every check is billed, so the
+  // backend limits it). Re-entering the same value is free and never counts.
+  const [editsLeft, setEditsLeft] = useState<EditsLeft>({ pan: 2, aadhaar: 2, bank: 2, gst: 2 });
+  const [editPrompt, setEditPrompt] = useState<Exclude<EditSection, 'billing'> | null>(null);
+  const refreshEditsLeft = () => {
+    apiClient.get('/getKyc/getKycStatus')
+      .then((res) => { if (res.data?.editsLeft) setEditsLeft(res.data.editsLeft); })
+      .catch(() => { /* the backend enforces the limit either way */ });
+  };
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -1179,6 +1205,7 @@ export function AdminKYC() {
         const methods = { ekyc: statusData?.methods?.ekyc !== false, manual: statusData?.methods?.manual === true };
         if (!methods.ekyc && !methods.manual) methods.ekyc = true;
         setKycMethods(methods);
+        if (statusData?.editsLeft) setEditsLeft(statusData.editsLeft);
         const manualRequest: ManualKycStatus | null = !isVerified && methods.manual ? (statusData?.manual ?? null) : null;
         setManualStatus(manualRequest);
 
@@ -1521,6 +1548,7 @@ export function AdminKYC() {
         setIsPanVerified(true);
         setPanData({ panType: d.panType || '', name: d.nameProvided || d.name || '' });
         showToast('success', 'PAN verified successfully!');
+        refreshEditsLeft();
       } else {
         showToast('error', res.data?.message || 'PAN verification failed');
       }
@@ -1607,6 +1635,7 @@ export function AdminKYC() {
         setIsAadhaarVerified(true);
         setAadhaarData({ name: d.name || '', guardianName: d.sonOf || '', address: d.address || '', state: d.state || '', city: d.city || '' });
         showToast('success', 'Aadhaar verified successfully!');
+        refreshEditsLeft();
         closeAadhaarOtpModal();
       } else {
         showToast('error', res.data?.message || 'OTP verification failed');
@@ -1640,6 +1669,7 @@ export function AdminKYC() {
         setIsBankVerified(true);
         setBankData({ beneficiaryName: d.nameAtBank || '', bankName: d.bank || '', branchName: d.branch || '', city: d.city || '' });
         showToast('success', 'Bank account verified successfully!');
+        refreshEditsLeft();
       } else {
         showToast('error', res.data?.message || 'Bank verification failed');
       }
@@ -1675,6 +1705,7 @@ export function AdminKYC() {
         setIsGstinVerified(true);
         setGstData(res.data.data || {});
         showToast('success', 'GST verified successfully!');
+        refreshEditsLeft();
       } else {
         showToast('error', res.data?.message || 'GST verification failed');
       }
@@ -1697,8 +1728,15 @@ export function AdminKYC() {
     setIsReviewPageOpen(false);
     setTimeout(() => document.getElementById(`kyc-step-${step}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150);
   };
-  const handleEditSection = (section: 'billing' | 'gst' | 'pan' | 'aadhaar' | 'bank') => {
+  const handleEditSection = (section: EditSection) => {
     if (section === 'billing') return goToFormStep(3);
+    const left = editsLeft[section];
+    if (left <= 0) { showToast('error', 'You have used all your changes for this item. Please contact support.'); return; }
+    // Asked in our own popup (rendered next to the Review page); applyEdit runs once the seller agrees.
+    setEditPrompt(section);
+  };
+  const applyEdit = (section: Exclude<EditSection, 'billing'>) => {
+    setEditPrompt(null);
     if (section === 'gst') {
       setIsGstinVerified(false);
       setGstData({});
@@ -2541,7 +2579,36 @@ export function AdminKYC() {
           isSubmitting={isSubmitting}
           onSubmit={handleKycSubmit}
           onEdit={handleEditSection}
+          editsLeft={editsLeft}
         />
+
+        <AnimatePresence>
+          {editPrompt && (() => {
+            const label = { gst: 'GSTIN', pan: 'PAN', aadhaar: 'Aadhaar', bank: 'bank account' }[editPrompt];
+            const left = editsLeft[editPrompt];
+            return (
+              <>
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setEditPrompt(null)} className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm z-[300]" />
+                <div className="fixed inset-0 flex items-center justify-center z-[301] p-4 pointer-events-none">
+                  <motion.div initial={{ opacity: 0, scale: 0.96, y: 12 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96, y: 12 }} transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }} role="dialog" aria-modal="true" className={`w-full max-w-[420px] bg-white rounded-2xl ${cardShadow} p-6 pointer-events-auto`}>
+                    <div className="w-12 h-12 rounded-full bg-[#FFF7ED] flex items-center justify-center mb-4">
+                      <Pencil className="w-5 h-5 text-[#EA580C]" />
+                    </div>
+                    <h2 className="text-[16px] font-bold text-[#0F172A] mb-1.5">Change your {label}?</h2>
+                    <p className="text-[13px] text-[#64748B] leading-relaxed">
+                      A verified {label} can be changed only <span className="font-bold text-[#0F172A]">{left} more time{left === 1 ? '' : 's'}</span>.
+                      A change counts only when the new {label} is verified successfully. Entering the same details again does not count.
+                    </p>
+                    <div className="flex justify-end gap-2.5 mt-6">
+                      <button type="button" onClick={() => setEditPrompt(null)} className="h-10 px-5 rounded-full border border-[#E2E8F0] text-[13px] font-bold text-[#475569] hover:bg-[#F8FAFC] transition-colors">Cancel</button>
+                      <button type="button" onClick={() => applyEdit(editPrompt)} className="h-10 px-5 rounded-full bg-[#009D64] hover:bg-[#008856] text-white text-[13px] font-bold shadow-sm transition-colors">Continue</button>
+                    </div>
+                  </motion.div>
+                </div>
+              </>
+            );
+          })()}
+        </AnimatePresence>
 
         <Toast toast={toast} onClose={closeToast} />
       </AdminLayout>
