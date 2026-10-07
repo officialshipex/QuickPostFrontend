@@ -9,6 +9,10 @@ import { useToast } from '../../hooks/useToast';
 import { Toast } from '../../components/ui/Toast';
 import { ShineButton } from '../../components/ui/ShineButton';
 import aadhaarLogo from '../../assets/aadhaar-logo.png';
+import { FieldLabel } from './kyc/kycUi';
+import { cardShadow, GSTIN_RE, inputCls } from './kyc/kycStyles';
+import { createManualKycData, type ManualKycData, type ManualStep } from './kyc/manualKycData';
+import { DocumentUpload, ManualAadhaarStep, ManualBankStep, ManualPanStep, ManualReviewStep, ManualStepper } from './kyc/ManualKycSteps';
 import {
   Check,
   X,
@@ -28,6 +32,10 @@ import {
   ReceiptText,
   ScanLine,
   User,
+  Eye,
+  EyeOff,
+  Lock,
+  Info,
 } from 'lucide-react';
 
 /* ── READ-ONLY KYC DATA TYPES ── */
@@ -83,64 +91,96 @@ function KycField({ label, value, wide, onCopy }: { label: string; value?: strin
   );
 }
 
-/* ── FORM PANEL: consistent white card with header ── */
-function Panel({ title, right, children, className = '' }: { title: React.ReactNode; right?: React.ReactNode; children: React.ReactNode; className?: string }) {
-  return (
-    <div className={`bg-white rounded-xl md:rounded-2xl border border-[#E2E8F0] p-4 shadow-sm ${className}`}>
-      <div className="flex items-center justify-between mb-4 gap-2">
-        <h3 className="text-[14px] md:text-[15px] font-bold text-[#0F172A]">{title}</h3>
-        {right}
-      </div>
-      {children}
-    </div>
-  );
-}
-
-function FieldLabel({ children, required }: { children: React.ReactNode; required?: boolean }) {
-  return (
-    <label className="block text-[12px] md:text-[13px] font-semibold text-[#0F172A] mb-1.5">
-      {children} {required && <span className="text-red-500">*</span>}
-    </label>
-  );
-}
-
-const inputCls = 'w-full h-11 px-4 rounded-full border border-[#E2E8F0] bg-white text-[13px] text-[#0F172A] font-medium focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all disabled:bg-[#F8FAFC] disabled:text-[#64748B]';
-
 /* ── BUSINESS TYPE SELECTOR (shared by both flows) — module-level so it keeps
    a stable component identity across renders; when this was a function
    defined inside AdminKYC's body, React saw a brand-new component type on
    every keystroke and remounted the whole subtree, dropping input focus. ── */
+const BUSINESS_TYPES = [
+  { id: 'INDIVIDUAL' as const, title: 'Individual', description: 'Proprietor or individual seller', icon: User },
+  { id: 'COMPANY' as const, title: 'Company', description: 'Registered business with a GSTIN', icon: Building },
+];
+
 function BusinessTypeSelector({
-  businessType, setBusinessType, disabled,
+  businessType, setBusinessType, disabled, hideLabel,
 }: {
   businessType: 'INDIVIDUAL' | 'COMPANY' | null;
   setBusinessType: (t: 'INDIVIDUAL' | 'COMPANY') => void;
   disabled?: boolean;
+  hideLabel?: boolean;
 }) {
   return (
     <div>
-      <label className="block text-[16px] font-semibold text-[#0F172A] mb-1.5">Select Business Type</label>
-      <div className="grid grid-cols-2 gap-2.5 max-w-sm">
-        {(['INDIVIDUAL', 'COMPANY'] as const).map((t) => (
-          <button
-            key={t}
-            type="button"
-            disabled={disabled}
-            onClick={() => setBusinessType(t)}
-            className={`flex items-center gap-2 h-11 px-4 rounded-full border-2 transition-all text-left ${
-              businessType === t
-                ? 'border-[#00A86B] bg-[#F0FDF4] text-[#00A86B]'
-                : 'border-[#E2E8F0] bg-[#F8FAFC] text-[#0F172A] hover:border-[#CBD5E1]'
-            } ${disabled ? 'opacity-70 cursor-default' : 'cursor-pointer'}`}
-          >
-            <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${businessType === t ? 'border-[#00A86B]' : 'border-[#CBD5E1]'}`}>
-              {businessType === t && <span className="w-2 h-2 rounded-full bg-[#00A86B]" />}
-            </span>
-            <span className="text-[13px] font-bold">{t === 'INDIVIDUAL' ? 'Individual' : 'Company'}</span>
-          </button>
-        ))}
+      {!hideLabel && <label className="block text-[16px] font-semibold text-[#0F172A] mb-1.5">Select Business Type</label>}
+      <div role="radiogroup" aria-label="Business type" className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {BUSINESS_TYPES.map(({ id, title, description, icon: Icon }) => {
+          const isSelected = businessType === id;
+          return (
+            <button
+              key={id}
+              type="button"
+              role="radio"
+              aria-checked={isSelected}
+              disabled={disabled}
+              onClick={() => setBusinessType(id)}
+              className={`group flex items-center gap-3 text-left rounded-xl border p-3.5 transition-colors ${
+                isSelected
+                  ? 'border-[#00A86B] bg-[#F0FDF4]/50 ring-1 ring-[#00A86B]'
+                  : 'border-[#E2E8F0] bg-white hover:border-[#00A86B]/50'
+              } ${disabled ? 'opacity-70 cursor-default' : 'cursor-pointer'}`}
+            >
+              <span className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 transition-colors ${isSelected ? 'bg-[#00A86B] text-white' : 'bg-[#F1F5F9] text-[#475569]'}`}>
+                <Icon className="w-[18px] h-[18px]" />
+              </span>
+              <span className="flex-1 min-w-0">
+                <span className="block text-[13.5px] font-bold text-[#0F172A]">{title}</span>
+                <span className="block text-[12px] text-[#64748B] mt-0.5">{description}</span>
+              </span>
+              <span className={`w-5 h-5 rounded-full border-2 shrink-0 flex items-center justify-center transition-colors ${isSelected ? 'border-[#00A86B]' : 'border-[#CBD5E1] group-hover:border-[#00A86B]'}`}>
+                {isSelected && <span className="w-2.5 h-2.5 rounded-full bg-[#00A86B]" />}
+              </span>
+            </button>
+          );
+        })}
       </div>
     </div>
+  );
+}
+
+/* ── E-KYC SECTION: numbered block inside the single e-KYC card ── */
+const REVEAL_EASE = [0.4, 0, 0.2, 1] as const; // Material standard curve
+
+function KycSection({ step, title, description, children, done, show = true }: { step: number; title: string; description?: string; children: React.ReactNode; done?: boolean; show?: boolean }) {
+  return (
+    <AnimatePresence initial={false}>
+      {show && (
+        <motion.section
+          id={`kyc-step-${step}`}
+          key={`kyc-step-${step}`}
+          initial={{ height: 0, opacity: 0 }}
+          animate={{ height: 'auto', opacity: 1, transition: { height: { duration: 0.32, ease: REVEAL_EASE }, opacity: { duration: 0.24, delay: 0.1, ease: 'easeOut' } } }}
+          exit={{ height: 0, opacity: 0, transition: { height: { duration: 0.22, ease: REVEAL_EASE }, opacity: { duration: 0.12 } } }}
+          className="overflow-hidden border-b border-[#F1F5F9] scroll-mt-24"
+        >
+          <motion.div
+            initial={{ y: 6 }}
+            animate={{ y: 0 }}
+            transition={{ duration: 0.32, delay: 0.06, ease: REVEAL_EASE }}
+            className="px-4 md:px-6 py-5 md:py-6"
+          >
+            <div className="flex items-start gap-3 mb-4">
+              <span className={`w-6 h-6 rounded-full text-white text-[11px] font-bold flex items-center justify-center shrink-0 mt-px transition-colors duration-300 ${done ? 'bg-[#00A86B]' : 'bg-[#0F172A]'}`}>
+                {done ? <Check className="w-3.5 h-3.5" strokeWidth={3} /> : step}
+              </span>
+              <div className="min-w-0">
+                <h3 className="text-[14px] md:text-[15px] font-bold text-[#0F172A] leading-6">{title}</h3>
+                {description && <p className="text-[12px] text-[#64748B] mt-0.5">{description}</p>}
+              </div>
+            </div>
+            <div className="md:pl-9">{children}</div>
+          </motion.div>
+        </motion.section>
+      )}
+    </AnimatePresence>
   );
 }
 
@@ -184,93 +224,6 @@ function GstinField({
         )}
       </div>
     </div>
-  );
-}
-
-/* ── BANK DETAILS PANEL (shared) — Account Number + IFSC verify inline,
-   matching the PAN/GSTIN pattern (no separate "Save" button, no Bank Type
-   selector — neither existed in the original flow). ── */
-function BankDetailsPanel({
-  accountNumber, setAccountNumber,
-  confirmAccountNumber, setConfirmAccountNumber,
-  accountNumbersMatch,
-  accountHolderName, setAccountHolderName,
-  ifscCode, setIfscCode,
-  bankName, setBankName,
-  branchName, setBranchName,
-  isBankVerified, isBankLoading,
-  onVerify,
-}: {
-  accountNumber: string; setAccountNumber: (v: string) => void;
-  confirmAccountNumber: string; setConfirmAccountNumber: (v: string) => void;
-  accountNumbersMatch: boolean;
-  accountHolderName: string; setAccountHolderName: (v: string) => void;
-  ifscCode: string; setIfscCode: (v: string) => void;
-  bankName: string; setBankName: (v: string) => void;
-  branchName: string; setBranchName: (v: string) => void;
-  isBankVerified: boolean; isBankLoading: boolean;
-  onVerify: () => void;
-}) {
-  const canVerify = !!accountNumber && accountNumbersMatch && ifscCode.length === 11;
-  return (
-    <Panel title="Bank Details">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <FieldLabel required>Account Number</FieldLabel>
-          <input type="text" value={accountNumber} onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, ''))} disabled={isBankVerified} placeholder="Enter account number" className={inputCls} />
-        </div>
-        <div>
-          <FieldLabel required>Confirm Acc. Number</FieldLabel>
-          <input type="text" value={confirmAccountNumber} onChange={(e) => setConfirmAccountNumber(e.target.value.replace(/\D/g, ''))} disabled={isBankVerified} placeholder="Re-enter account number" className={`${inputCls} ${confirmAccountNumber && !accountNumbersMatch ? 'border-red-300 focus:border-red-400 focus:ring-red-100' : ''}`} />
-          {confirmAccountNumber && !accountNumbersMatch && (
-            <p className="text-[10.5px] font-semibold text-red-500 mt-1">Account numbers do not match</p>
-          )}
-        </div>
-        <div className="sm:col-span-2">
-          <FieldLabel required>IFSC Code</FieldLabel>
-          <div className="relative flex items-center max-w-xs">
-            <input
-              type="text"
-              maxLength={11}
-              value={ifscCode}
-              onChange={(e) => setIfscCode(e.target.value.toUpperCase())}
-              disabled={isBankVerified}
-              placeholder="Enter IFSC code"
-              className={`${inputCls} pr-20 uppercase`}
-            />
-            {!isBankVerified ? (
-              <button
-                type="button"
-                onClick={onVerify}
-                disabled={isBankLoading || !canVerify}
-                className="absolute right-1.5 h-8 px-3.5 rounded-full bg-[#334155] hover:bg-[#1E293B] text-white text-[11px] font-bold disabled:opacity-40 disabled:pointer-events-none transition-colors flex items-center gap-1.5"
-              >
-                {isBankLoading ? <RefreshCcw className="w-3 h-3 animate-spin" /> : 'Verify'}
-              </button>
-            ) : (
-              <span className="absolute right-3 flex items-center gap-1 text-[11px] font-bold text-[#00A86B]">
-                <Check className="w-3.5 h-3.5" /> Verified
-              </span>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <AnimatePresence>
-        {isBankVerified && (
-          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
-            <div className="mt-4 pt-4 border-t border-dashed border-[#E2E8F0] grid grid-cols-2 gap-3">
-              <div className="col-span-2 flex items-center gap-1.5 text-[10px] md:text-[10.5px] font-bold text-[#00A86B] mb-0.5">
-                <BadgeCheck className="w-3.5 h-3.5 shrink-0" /> Auto-fetched from bank
-              </div>
-              <div className="col-span-2"><span className="block text-[10px] font-semibold text-[#94A3B8] mb-1">Account Holder Name</span><span className="text-[12.5px] font-bold text-[#0F172A]">{accountHolderName || '—'}</span></div>
-              <div><span className="block text-[10px] font-semibold text-[#94A3B8] mb-1">Bank Name</span><span className="text-[12.5px] font-bold text-[#0F172A]">{bankName || '—'}</span></div>
-              <div><span className="block text-[10px] font-semibold text-[#94A3B8] mb-1">Branch Name</span><span className="text-[12.5px] font-bold text-[#0F172A]">{branchName || '—'}</span></div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </Panel>
   );
 }
 
@@ -707,148 +660,6 @@ function AadhaarVerificationModal({
   );
 }
 
-/* ── GSTIN VERIFICATION MODAL — centered, same visual language as PAN/Aadhaar
-   modals but form-style (no flip card, GSTIN has no standardized physical
-   card look). Reuses the existing handleVerifyGstin unchanged. ── */
-function GstinVerificationModal({
-  open, onClose,
-  gstin, setGstin,
-  isGstinVerified, isGstinLoading,
-  gstData,
-  onVerify, onContinue,
-}: {
-  open: boolean;
-  onClose: () => void;
-  gstin: string; setGstin: (v: string) => void;
-  isGstinVerified: boolean; isGstinLoading: boolean;
-  gstData: { gstin?: string; nameOfBusiness?: string; legalNameOfBusiness?: string; address?: string; pincode?: string; city?: string; state?: string };
-  onVerify: () => void;
-  onContinue?: () => void;
-}) {
-  const prefersReducedMotion = useReducedMotion();
-  return (
-    <AnimatePresence>
-      {open && (
-        <>
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }} onClick={onClose} className="fixed inset-0 bg-[#0B1220]/80 backdrop-blur-md z-[230]" />
-          <div className="fixed inset-0 z-[231] flex items-center justify-center p-4 pointer-events-none overflow-y-auto">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.94, y: 24 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.94, y: 24 }}
-              transition={{ type: 'spring', stiffness: 260, damping: 24 }}
-              className="w-full max-w-[440px] bg-white rounded-[28px] shadow-[0_40px_90px_-24px_rgba(0,0,0,0.55)] relative pointer-events-auto overflow-hidden"
-            >
-              <div className="px-7 pt-7 pb-6 bg-gradient-to-b from-[#F0FDF4] to-white relative overflow-hidden">
-                <div className="absolute -top-16 -right-14 w-44 h-44 rounded-full bg-[#00A86B]/10 blur-3xl pointer-events-none" />
-                <button type="button" onClick={onClose} className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-white/80 hover:bg-white text-[#64748B] shadow-sm ring-1 ring-black/5 transition-colors cursor-pointer focus:outline-none">
-                  <X className="w-4 h-4" />
-                </button>
-                <motion.div
-                  initial={{ scale: 0.6, opacity: 0, y: -8 }}
-                  animate={{ scale: 1, opacity: 1, y: 0 }}
-                  transition={{ type: 'spring', stiffness: 260, damping: 16, delay: 0.1 }}
-                  className="relative w-16 h-16 rounded-[20px] bg-white flex items-center justify-center mx-auto mb-4 shadow-[0_12px_28px_-10px_rgba(0,168,107,0.3)] ring-1 ring-black/5"
-                >
-                  <ReceiptText className="w-8 h-8 text-[#00A86B]" />
-                </motion.div>
-                <h2 className="text-[18px] font-extrabold text-[#0F172A] mb-1 tracking-tight text-center">GST Verification</h2>
-                <p className="text-[12.5px] text-[#64748B] leading-relaxed text-center px-2">Enter your company's GSTIN to verify its registration details.</p>
-              </div>
-
-              <div className="px-7 pb-7 pt-1">
-                {!isGstinVerified ? (
-                  <div className="space-y-3">
-                    <div
-                      className="relative rounded-[16px] px-5 pt-3 pb-3 transition-shadow duration-200 focus-within:shadow-[inset_2px_2px_6px_rgba(15,23,42,0.12),inset_-2px_-2px_5px_rgba(255,255,255,0.9),0_0_0_3px_rgba(0,157,100,0.18),0_0_16px_rgba(0,157,100,0.2)]"
-                      style={{
-                        background: 'linear-gradient(155deg, #eef1f5 0%, #f7f9fb 45%, #eef1f5 100%)',
-                        boxShadow: 'inset 2px 2px 5px rgba(15,23,42,0.1), inset -2px -2px 4px rgba(255,255,255,0.85), 0 1px 0 rgba(255,255,255,0.6)',
-                        border: '1px solid rgba(15,23,42,0.06)',
-                      }}
-                    >
-                      <label htmlFor="gstin-input" className="block text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider mb-0.5">GSTIN</label>
-                      <input
-                        id="gstin-input"
-                        type="text"
-                        maxLength={15}
-                        value={gstin}
-                        onChange={(e) => setGstin(e.target.value.toUpperCase())}
-                        disabled={isGstinLoading}
-                        placeholder="22AAAAA0000A1Z5"
-                        aria-label="GSTIN"
-                        className="w-full bg-transparent border-0 p-0 tracking-[0.15em] font-bold uppercase text-[16px] text-[#0F172A] placeholder:text-[#CBD5E1] placeholder:tracking-[0.15em] placeholder:font-bold focus:outline-none disabled:opacity-50"
-                      />
-                    </div>
-                    <ShineButton
-                      type="button"
-                      onClick={onVerify}
-                      disabled={isGstinLoading || gstin.length < 15}
-                      className="relative w-full h-[52px] rounded-full bg-[#009D64] hover:bg-[#008856] disabled:opacity-40 disabled:pointer-events-none text-white text-[14px] font-extrabold shadow-[0_18px_45px_-14px_rgba(0,157,100,0.55)] transition-all overflow-hidden flex items-center justify-center gap-2"
-                    >
-                      {isGstinLoading ? (
-                        <>
-                          <ScanLine className="w-4 h-4" />
-                          Verifying
-                          {!prefersReducedMotion && (
-                            <motion.span className="absolute inset-y-0 left-0 w-1/3 bg-black/10" animate={{ x: ['-100%', '300%'] }} transition={{ duration: 1.1, repeat: Infinity, ease: 'linear' }} />
-                          )}
-                        </>
-                      ) : (
-                        'Verify GSTIN'
-                      )}
-                    </ShineButton>
-                  </div>
-                ) : (
-                  <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="space-y-4">
-                    <div className="rounded-2xl bg-[#F0FDF4] border border-[#00A86B]/20 px-4 py-3.5">
-                      <div className="flex items-center gap-3 mb-1">
-                        <span className="w-9 h-9 rounded-full bg-[#00A86B]/10 flex items-center justify-center shrink-0">
-                          <CheckCircle2 className="w-5 h-5 text-[#00A86B]" />
-                        </span>
-                        <div className="min-w-0">
-                          <p className="text-[12px] font-bold text-[#00A86B]">GSTIN Verified</p>
-                          <p className="text-[13px] font-bold text-[#0F172A] tracking-wide truncate">{gstData.gstin || gstin}</p>
-                        </div>
-                      </div>
-                      {(gstData.nameOfBusiness || gstData.legalNameOfBusiness || gstData.address || gstData.pincode || gstData.city || gstData.state) && (
-                        <div className="grid grid-cols-2 gap-3 pt-3 mt-3 border-t border-dashed border-[#00A86B]/20">
-                          {gstData.nameOfBusiness && (
-                            <div className="col-span-2"><span className="block text-[10px] font-semibold text-[#94A3B8] mb-1">Company Name</span><span className="text-[12.5px] font-bold text-[#0F172A]">{gstData.nameOfBusiness}</span></div>
-                          )}
-                          {gstData.address && (
-                            <div className="col-span-2"><span className="block text-[10px] font-semibold text-[#94A3B8] mb-1">Company Address</span><span className="text-[12.5px] font-bold text-[#0F172A]">{gstData.address}</span></div>
-                          )}
-                          {gstData.pincode && (
-                            <div><span className="block text-[10px] font-semibold text-[#94A3B8] mb-1">Pincode</span><span className="text-[12.5px] font-bold text-[#0F172A]">{gstData.pincode}</span></div>
-                          )}
-                          {gstData.city && (
-                            <div><span className="block text-[10px] font-semibold text-[#94A3B8] mb-1">City</span><span className="text-[12.5px] font-bold text-[#0F172A]">{gstData.city}</span></div>
-                          )}
-                          {gstData.state && (
-                            <div><span className="block text-[10px] font-semibold text-[#94A3B8] mb-1">State</span><span className="text-[12.5px] font-bold text-[#0F172A]">{gstData.state}</span></div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={onContinue || onClose}
-                      className="w-full h-12 rounded-full bg-[#009D64] hover:bg-[#008856] text-white text-[13.5px] font-bold shadow-[0_8px_24px_-8px_rgba(0,157,100,0.5)] transition-colors"
-                    >
-                      {onContinue ? 'Continue to Bank Details' : 'Done'}
-                    </button>
-                  </motion.div>
-                )}
-              </div>
-            </motion.div>
-          </div>
-        </>
-      )}
-    </AnimatePresence>
-  );
-}
-
 /* ── BANK VERIFICATION PAGE — full page (not a modal), styled like a
    real seller-onboarding "Add bank account" screen (Amazon Seller Central /
    Flipkart Seller Hub / Shiprocket pattern): sticky header with step context,
@@ -864,6 +675,7 @@ function BankVerificationPage({
   bankName, branchName,
   isBankVerified, isBankLoading,
   onVerify, onContinue,
+  isPanVerified, isAadhaarVerified, panName,
 }: {
   open: boolean;
   onClose: () => void;
@@ -876,133 +688,225 @@ function BankVerificationPage({
   isBankVerified: boolean; isBankLoading: boolean;
   onVerify: () => void;
   onContinue?: () => void;
+  isPanVerified?: boolean; isAadhaarVerified?: boolean; panName?: string;
 }) {
-  const canVerify = !!accountNumber && accountNumbersMatch && ifscCode.length === 11;
+  const [showAccount, setShowAccount] = useState(false);
+  const ifscValid = /^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifscCode);
+  const ifscInvalid = ifscCode.length === 11 && !ifscValid;
+  const accountLengthOk = accountNumber.length >= 9 && accountNumber.length <= 18;
+  const canVerify = accountLengthOk && accountNumbersMatch && ifscValid;
+
+  const steps = [
+    { label: 'PAN', done: !!isPanVerified, current: false },
+    { label: 'Aadhaar', done: !!isAadhaarVerified, current: false },
+    { label: 'Bank Account', done: isBankVerified, current: !isBankVerified },
+  ];
+
+  const summaryRow = (label: string, value: React.ReactNode) => (
+    <div className="flex items-start justify-between gap-4 py-3 border-b border-[#F1F5F9] last:border-b-0">
+      <span className="text-[12.5px] text-[#64748B]">{label}</span>
+      <span className="text-[13px] font-semibold text-[#0F172A] text-right min-w-0 break-words">{value}</span>
+    </div>
+  );
+
   return (
     <AnimatePresence>
       {open && (
         <motion.div
-          initial={{ opacity: 0, y: '100%' }}
+          initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: '100%' }}
-          transition={{ type: 'tween', ease: [0.22, 1, 0.36, 1], duration: 0.35 }}
+          exit={{ opacity: 0, y: 24 }}
+          transition={{ duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
           className="fixed inset-0 z-[250] bg-[#F8FAFC] flex flex-col"
         >
-          <div className="flex items-center justify-between px-4 md:px-8 h-16 border-b border-[#E2E8F0] bg-white shrink-0">
-            <div>
-              <h2 className="text-[15px] md:text-[17px] font-bold text-[#0F172A]">Bank Account Details</h2>
-              <p className="text-[11px] md:text-[12px] text-[#64748B]">Add the account where your payouts will be settled.</p>
+          {/* Header — back, title, KYC progress */}
+          <div className="bg-white border-b border-[#E2E8F0] shrink-0">
+            <div className="max-w-5xl mx-auto px-4 md:px-8 h-16 flex items-center gap-3">
+              <button type="button" onClick={onClose} aria-label="Back" className="w-9 h-9 -ml-2 flex items-center justify-center rounded-full hover:bg-[#F1F5F9] text-[#475569] shrink-0">
+                <ArrowLeft className="w-[18px] h-[18px]" />
+              </button>
+              <div className="min-w-0 flex-1">
+                <h2 className="text-[15px] md:text-[17px] font-bold text-[#0F172A] leading-tight">Bank Account Details</h2>
+                <p className="text-[11.5px] md:text-[12px] text-[#64748B] truncate">Add the account where your COD remittance and payouts will be settled</p>
+              </div>
+              <ol className="hidden md:flex items-center gap-2 shrink-0" aria-label="KYC progress">
+                {steps.map((st, i) => (
+                  <li key={st.label} className="flex items-center gap-2">
+                    <span className={`flex items-center gap-1.5 text-[12px] font-semibold ${st.done ? 'text-[#00A86B]' : st.current ? 'text-[#0F172A]' : 'text-[#94A3B8]'}`}>
+                      <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${st.done ? 'bg-[#00A86B] text-white' : st.current ? 'bg-[#0F172A] text-white' : 'bg-[#E2E8F0] text-[#64748B]'}`}>
+                        {st.done ? <Check className="w-3 h-3" strokeWidth={3} /> : i + 1}
+                      </span>
+                      {st.label}
+                    </span>
+                    {i < steps.length - 1 && <span className={`w-8 h-px ${st.done ? 'bg-[#00A86B]' : 'bg-[#E2E8F0]'}`} />}
+                  </li>
+                ))}
+              </ol>
             </div>
-            <button type="button" onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-[#F1F5F9] text-[#64748B] shrink-0">
-              <X className="w-4.5 h-4.5" />
-            </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6">
-            <div className="max-w-2xl mx-auto">
-              <div className="bg-white rounded-2xl shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_-16px_rgba(15,23,42,0.12)] overflow-hidden">
-                <div className="flex items-center gap-3 px-5 md:px-6 py-4">
-                  <span className="w-10 h-10 rounded-xl bg-[#F8FAFC] flex items-center justify-center shrink-0">
-                    <Landmark className="w-5 h-5 text-[#00A86B]" />
+          <div className="flex-1 overflow-y-auto">
+            <div className="max-w-5xl mx-auto px-4 md:px-8 py-6 md:py-8 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-5 md:gap-6 items-start">
+              {/* Main card */}
+              <div className="bg-white rounded-2xl shadow-[0_1px_2px_rgba(16,24,40,0.04),0_2px_8px_rgba(16,24,40,0.05)]">
+                <div className="flex items-center gap-3 px-5 md:px-6 py-4 border-b border-[#F1F5F9]">
+                  <span className="w-10 h-10 rounded-lg bg-[#F1F5F9] text-[#475569] flex items-center justify-center shrink-0">
+                    <Landmark className="w-5 h-5" />
                   </span>
-                  <div className="min-w-0">
-                    <p className="text-[13.5px] font-bold text-[#0F172A]">Payout Account</p>
-                    <p className="text-[11.5px] text-[#64748B]">Your business's settlement bank account</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[14px] font-bold text-[#0F172A]">Settlement Account</p>
+                    <p className="text-[12px] text-[#64748B]">{isBankVerified ? 'Verified with your bank' : 'Enter the details exactly as on your cheque book or passbook'}</p>
                   </div>
                   {isBankVerified && (
-                    <span className="ml-auto flex items-center gap-1 text-[11px] font-bold text-[#00A86B] shrink-0">
+                    <span className="inline-flex items-center gap-1 h-6 px-2 rounded-md bg-[#F0FDF4] text-[11px] font-bold text-[#00A86B] shrink-0">
                       <CheckCircle2 className="w-3.5 h-3.5" /> Verified
                     </span>
                   )}
                 </div>
 
-                <div className="px-5 md:px-6 py-5 md:py-6">
+                <AnimatePresence mode="wait" initial={false}>
                   {!isBankVerified ? (
-                    <div className="space-y-5">
+                    <motion.div key="form" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }} className="px-5 md:px-6 py-5 md:py-6 space-y-5">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                           <FieldLabel required>Account Number</FieldLabel>
-                          <input type="text" value={accountNumber} onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, ''))} disabled={isBankLoading} placeholder="Enter account number" className={inputCls} />
+                          <div className="relative flex items-center">
+                            <input
+                              type={showAccount ? 'text' : 'password'}
+                              inputMode="numeric"
+                              autoComplete="off"
+                              maxLength={18}
+                              value={accountNumber}
+                              onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, ''))}
+                              disabled={isBankLoading}
+                              placeholder="Enter account number"
+                              className={`${inputCls} pr-11 tracking-wide`}
+                            />
+                            <button type="button" onClick={() => setShowAccount((v) => !v)} aria-label={showAccount ? 'Hide account number' : 'Show account number'} className="absolute right-3 text-[#94A3B8] hover:text-[#475569]">
+                              {showAccount ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                            </button>
+                          </div>
+                          {accountNumber && !accountLengthOk && (
+                            <p className="text-[11px] text-[#94A3B8] mt-1.5">Account numbers are 9–18 digits</p>
+                          )}
                         </div>
                         <div>
                           <FieldLabel required>Confirm Account Number</FieldLabel>
-                          <input type="text" value={confirmAccountNumber} onChange={(e) => setConfirmAccountNumber(e.target.value.replace(/\D/g, ''))} disabled={isBankLoading} placeholder="Re-enter account number" className={`${inputCls} ${confirmAccountNumber && !accountNumbersMatch ? 'border-red-300 focus:border-red-400 focus:ring-red-100' : ''}`} />
+                          <div className="relative flex items-center">
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              autoComplete="off"
+                              maxLength={18}
+                              value={confirmAccountNumber}
+                              onChange={(e) => setConfirmAccountNumber(e.target.value.replace(/\D/g, ''))}
+                              onPaste={(e) => e.preventDefault()}
+                              disabled={isBankLoading}
+                              placeholder="Re-enter account number"
+                              className={`${inputCls} pr-11 tracking-wide ${confirmAccountNumber && !accountNumbersMatch ? '!border-red-300 focus:!ring-red-100' : ''}`}
+                            />
+                            {confirmAccountNumber && accountNumbersMatch && (
+                              <Check className="absolute right-3.5 w-4 h-4 text-[#00A86B]" strokeWidth={3} />
+                            )}
+                          </div>
                           {confirmAccountNumber && !accountNumbersMatch && (
-                            <p className="text-[10.5px] font-semibold text-red-500 mt-1.5 flex items-center gap-1"><X className="w-3 h-3" /> Account numbers do not match</p>
+                            <p className="text-[11px] font-medium text-red-500 mt-1.5">Account numbers do not match</p>
                           )}
                         </div>
-                        <div className="sm:col-span-2 sm:max-w-xs">
+                        <div>
                           <FieldLabel required>IFSC Code</FieldLabel>
-                          <input type="text" maxLength={11} value={ifscCode} onChange={(e) => setIfscCode(e.target.value.toUpperCase())} disabled={isBankLoading} placeholder="e.g. HDFC0001234" className={`${inputCls} uppercase`} />
+                          <input
+                            type="text"
+                            maxLength={11}
+                            autoComplete="off"
+                            value={ifscCode}
+                            onChange={(e) => setIfscCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
+                            disabled={isBankLoading}
+                            placeholder="e.g. HDFC0001234"
+                            className={`${inputCls} uppercase placeholder:normal-case tracking-wide ${ifscInvalid ? '!border-red-300 focus:!ring-red-100' : ''}`}
+                          />
+                          <p className={`text-[11px] mt-1.5 ${ifscInvalid ? 'font-medium text-red-500' : 'text-[#94A3B8]'}`}>
+                            {ifscInvalid ? 'Enter a valid 11-character IFSC (e.g. HDFC0001234)' : 'Printed on your cheque book and passbook'}
+                          </p>
                         </div>
                       </div>
 
-                      <div className="flex items-start gap-2.5 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] px-4 py-3">
-                        <ShieldCheck className="w-4 h-4 text-[#00A86B] mt-0.5 shrink-0" />
-                        <p className="text-[11.5px] text-[#64748B] leading-relaxed">Your bank details are used only for payout settlement and are encrypted end-to-end. We never share this information with third parties.</p>
-                      </div>
-
-                      <ShineButton
-                        type="button"
-                        onClick={onVerify}
-                        disabled={isBankLoading || !canVerify}
-                        className="w-full sm:w-auto sm:min-w-[220px] h-12 px-8 rounded-full bg-[#009D64] hover:bg-[#008856] disabled:opacity-40 disabled:pointer-events-none text-white text-[13.5px] font-bold shadow-sm transition-colors flex items-center justify-center gap-2"
-                      >
-                        {isBankLoading ? <><RefreshCcw className="w-4 h-4 animate-spin" /> Verifying Account...</> : 'Verify Bank Account'}
-                      </ShineButton>
-                    </div>
-                  ) : (
-                    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="space-y-5">
-                      <div className="flex items-center gap-3 rounded-xl bg-[#F0FDF4] border border-[#00A86B]/20 px-4 py-3.5">
-                        <span className="w-9 h-9 rounded-full bg-[#00A86B]/10 flex items-center justify-center shrink-0">
-                          <CheckCircle2 className="w-5 h-5 text-[#00A86B]" />
-                        </span>
-                        <p className="text-[12.5px] font-bold text-[#00A86B]">Bank account verified successfully</p>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
-                        <div className="sm:col-span-2">
-                          <span className="block text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider mb-1">Account Holder Name</span>
-                          <span className="text-[13.5px] font-bold text-[#0F172A]">{accountHolderName || '—'}</span>
-                        </div>
-                        <div>
-                          <span className="block text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider mb-1">Account Number</span>
-                          <span className="text-[13.5px] font-bold text-[#0F172A] tracking-wide">•••• •••• {accountNumber.slice(-4)}</span>
-                        </div>
-                        <div>
-                          <span className="block text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider mb-1">IFSC Code</span>
-                          <span className="text-[13.5px] font-bold text-[#0F172A] tracking-wide">{ifscCode}</span>
-                        </div>
-                        <div>
-                          <span className="block text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider mb-1">Bank Name</span>
-                          <span className="text-[13.5px] font-bold text-[#0F172A]">{bankName || '—'}</span>
-                        </div>
-                        <div>
-                          <span className="block text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider mb-1">Branch Name</span>
-                          <span className="text-[13.5px] font-bold text-[#0F172A]">{branchName || '—'}</span>
-                        </div>
+                      <div className="flex items-start gap-2.5 rounded-xl bg-[#F8FAFC] px-4 py-3">
+                        <Info className="w-4 h-4 text-[#64748B] mt-0.5 shrink-0" />
+                        <p className="text-[12px] text-[#475569] leading-relaxed">
+                          The account holder name must match the name on your PAN{panName ? <> (<span className="font-semibold text-[#0F172A]">{panName}</span>)</> : ''} or your registered business name.
+                        </p>
                       </div>
                     </motion.div>
+                  ) : (
+                    <motion.div key="verified" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.28, ease: [0.4, 0, 0.2, 1] }} className="px-5 md:px-6 py-5 md:py-6">
+                      <div className="flex items-center gap-3 rounded-xl bg-[#F8FAFC] px-4 py-3.5 mb-2">
+                        <span className="w-10 h-10 rounded-full bg-white text-[#0F172A] text-[14px] font-bold flex items-center justify-center shrink-0 shadow-[0_1px_2px_rgba(16,24,40,0.08)]">
+                          {(bankName || 'B').trim().charAt(0).toUpperCase()}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-[14px] font-bold text-[#0F172A] truncate">{bankName || 'Bank account'}</p>
+                          <p className="text-[12px] text-[#64748B] truncate">{branchName ? (/branch/i.test(branchName) ? branchName : `${branchName} branch`) : ifscCode}</p>
+                        </div>
+                        <span className="ml-auto text-[13px] font-semibold text-[#0F172A] tracking-wider shrink-0">•••• {accountNumber.slice(-4)}</span>
+                      </div>
+                      {summaryRow('Account Holder', accountHolderName || '—')}
+                      {summaryRow('Account Number', <span className="tracking-wider">•••• •••• {accountNumber.slice(-4)}</span>)}
+                      {summaryRow('IFSC Code', <span className="tracking-wide">{ifscCode}</span>)}
+                    </motion.div>
                   )}
-                </div>
+                </AnimatePresence>
               </div>
+
+              {/* Side panel — account requirements */}
+              <aside className="space-y-4">
+                <div className="bg-white rounded-2xl shadow-[0_1px_2px_rgba(16,24,40,0.04),0_2px_8px_rgba(16,24,40,0.05)] p-5">
+                  <p className="text-[13px] font-bold text-[#0F172A] mb-3">Account requirements</p>
+                  <ul className="space-y-2.5">
+                    {[
+                      'Current or savings account in your name or your business name',
+                      'Holder name must match your PAN or GST registration',
+                      'Wallets, NRE and loan accounts are not supported',
+                    ].map((t) => (
+                      <li key={t} className="flex items-start gap-2 text-[12.5px] text-[#475569] leading-snug">
+                        <Check className="w-3.5 h-3.5 text-[#00A86B] mt-0.5 shrink-0" strokeWidth={2.75} />
+                        {t}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="flex items-start gap-2.5 px-1">
+                  <Lock className="w-4 h-4 text-[#94A3B8] mt-0.5 shrink-0" />
+                  <p className="text-[11.5px] text-[#64748B] leading-relaxed">Your bank details are encrypted and used only for settling your payouts. They are never shared with buyers or third parties.</p>
+                </div>
+              </aside>
             </div>
           </div>
 
-          <div className="sticky bottom-0 bg-white border-t border-[#E2E8F0] px-4 md:px-8 py-4 shrink-0">
-            <div className="max-w-2xl mx-auto flex gap-3 justify-end">
+          {/* Sticky footer */}
+          <div className="bg-white border-t border-[#E2E8F0] shrink-0">
+            <div className="max-w-5xl mx-auto px-4 md:px-8 py-3.5 md:py-4 flex items-center justify-between gap-3">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-8 h-12 border border-[#E2E8F0] text-[#64748B] hover:bg-[#F8FAFC] text-[14px] font-bold rounded-full transition-colors shrink-0"
+                className="px-6 h-11 border border-[#E2E8F0] text-[#475569] hover:bg-[#F8FAFC] text-[13px] font-bold rounded-full transition-colors shrink-0"
               >
-                Close
+                Back
               </button>
-              {isBankVerified && (
+              {!isBankVerified ? (
+                <ShineButton
+                  type="button"
+                  onClick={onVerify}
+                  disabled={isBankLoading || !canVerify}
+                  className="min-w-[180px] h-11 px-6 rounded-full bg-[#009D64] hover:bg-[#008856] disabled:opacity-40 disabled:pointer-events-none text-white text-[13px] font-bold shadow-sm transition-colors flex items-center justify-center gap-2"
+                >
+                  {isBankLoading ? <><RefreshCcw className="w-4 h-4 animate-spin" /> Verifying…</> : 'Verify Bank Account'}
+                </ShineButton>
+              ) : (
                 <ShineButton
                   type="button"
                   onClick={onContinue || onClose}
-                  className="px-8 h-12 rounded-full bg-[#009D64] hover:bg-[#008856] transition-colors text-white text-[14px] font-bold shadow-sm flex items-center justify-center gap-2 shrink-0"
+                  className="min-w-[180px] h-11 px-6 rounded-full bg-[#009D64] hover:bg-[#008856] transition-colors text-white text-[13px] font-bold shadow-sm flex items-center justify-center gap-2"
                 >
                   {onContinue ? 'Review & Submit' : 'Done'} <ArrowRight className="w-4 h-4" />
                 </ShineButton>
@@ -1161,12 +1065,34 @@ function KycReviewPage({
   );
 }
 
-// Backend reconnected — email and phone OTP verification are mandatory
-// again, and every KYC apiClient call below hits the real API.
+// ── LIVE MODE ───────────────────────────────────────────────────────────────
+// Email and phone OTP verification are mandatory, and every KYC apiClient call
+// below hits the real API. For offline UI work, flip all three:
+//   EMAIL_VERIFICATION_MANDATORY = false, PHONE_VERIFICATION_MANDATORY = false,
+//   KYC_USE_MOCK_API = true  (each call then uses its mock branch).
 const EMAIL_VERIFICATION_MANDATORY = true;
 const PHONE_VERIFICATION_MANDATORY = true;
 const KYC_USE_MOCK_API = false;
 const mockDelay = (ms = 700) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/* ── KYC METHOD OPTIONS (step 0) — requirements mirror what each flow asks for ── */
+const KYC_METHODS: { id: 'EKYC' | 'MANUAL'; title: string; description: string; icon: typeof ScanLine; recommended?: boolean; requirements: string[] }[] = [
+  {
+    id: 'EKYC',
+    title: 'E-KYC',
+    description: 'Get KYC verified within a minute',
+    icon: ScanLine,
+    recommended: true,
+    requirements: ['Aadhaar & PAN number', 'GSTIN (if registered)', 'Bank account details'],
+  },
+  {
+    id: 'MANUAL',
+    title: 'Manual KYC',
+    description: 'KYC verification might take 2-3 business days',
+    icon: FileText,
+    requirements: ['Aadhaar & PAN card', 'GST certificate (if registered)', 'Cancelled cheque'],
+  },
+];
 
 /* ── MAIN COMPONENT ── */
 export function AdminKYC() {
@@ -1408,12 +1334,18 @@ export function AdminKYC() {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showManualSuccess, setShowManualSuccess] = useState(false);
+  const [manualStep, setManualStep] = useState<ManualStep>('details');
+  const [manualData, setManualData] = useState<ManualKycData>(createManualKycData);
+  const [isManualSubmitting, setIsManualSubmitting] = useState(false);
+  const goToManualStep = (next: ManualStep) => {
+    setManualStep(next);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
   // E-KYC page 1 shows only Business Type + Billing/GST; the rest of the flow
   // (PAN -> Aadhaar -> GST [company only] -> Bank) opens as a chain of
   // centered modals, ending in the full-page KycReviewPage below.
   const [isPanModalOpen, setIsPanModalOpen] = useState(false);
   const [isAadhaarModalOpen, setIsAadhaarModalOpen] = useState(false);
-  const [isGstinModalOpen, setIsGstinModalOpen] = useState(false);
   const [isBankModalOpen, setIsBankModalOpen] = useState(false);
   const [isReviewPageOpen, setIsReviewPageOpen] = useState(false);
 
@@ -1689,9 +1621,53 @@ export function AdminKYC() {
     }
   };
 
-  const handleManualSubmit = () => {
-    setShowManualSuccess(true);
+  const handleManualSubmit = async () => {
+    if (isManualSubmitting) return;
+    setIsManualSubmitting(true);
+    try {
+      // Real call (endpoint pending on backend):
+      //   apiClient.post('/merchant/verfication/manual-kyc', buildManualKycFormData({ data: manualData, businessType, email, phoneNumber, billing: { address, pincode, city, state }, gstin }),
+      //     { headers: { 'Content-Type': 'multipart/form-data' } })
+      // Until that endpoint exists, manual KYC behaves as before: the request is
+      // acknowledged in the UI and the verification team follows up.
+      if (KYC_USE_MOCK_API) await mockDelay(900);
+      setShowManualSuccess(true);
+    } catch (err) {
+      const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      showToast('error', message || 'Could not submit your KYC. Please try again.');
+    } finally {
+      setIsManualSubmitting(false);
+    }
   };
+
+  /* ── E-KYC PROGRESSIVE REVEAL ── sections open one at a time as the
+     previous one is completed; once opened they stay open (no jumping). */
+  const ekycStepDone = {
+    1: businessType === 'INDIVIDUAL' || businessType === 'COMPANY',
+    2: /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim())
+      && (!EMAIL_VERIFICATION_MANDATORY || isEmailVerified)
+      && phoneNumber.replace(/\D/g, '').length === 10
+      && (!PHONE_VERIFICATION_MANDATORY || isPhoneVerified),
+    3: !!(address.trim() && pincode.length === 6 && city && state),
+    4: isGstinVerified,
+  };
+  const ekycTargetStep = !ekycStepDone[1] ? 1 : !ekycStepDone[2] ? 2 : !ekycStepDone[3] ? 3 : 4;
+  const [ekycRevealedStep, setEkycRevealedStep] = useState(1);
+
+  useEffect(() => {
+    if (!method || ekycTargetStep <= ekycRevealedStep) return;
+    // Short pause so a section doesn't pop open mid-keystroke.
+    const t = setTimeout(() => {
+      const jump = ekycTargetStep - ekycRevealedStep;
+      setEkycRevealedStep(ekycTargetStep);
+      if (jump === 1) {
+        setTimeout(() => {
+          document.getElementById(`kyc-step-${ekycTargetStep}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }, 120);
+      }
+    }, 400);
+    return () => clearTimeout(t);
+  }, [method, ekycTargetStep, ekycRevealedStep]);
 
   /* ── LOADING ── */
   if (kycLoading) {
@@ -1841,57 +1817,72 @@ export function AdminKYC() {
         <div className="mx-2 text-[#0F172A] pb-16">
           <h1 className="text-lg md:text-xl font-bold text-[#0F172A] mb-4 md:mb-6">KYC</h1>
 
-          <div className="bg-white rounded-xl md:rounded-2xl border border-[#E2E8F0] p-4 shadow-sm">
-            <h2 className="text-[15px] md:text-base font-bold text-[#0F172A]">Complete Your KYC</h2>
-            <p className="text-[12px] md:text-[13px] text-[#64748B] mt-1 mb-5">Choose your preferred method to verify your identity and unlock full access</p>
+          <div className="bg-white rounded-xl md:rounded-2xl shadow-[0_1px_2px_rgba(16,24,40,0.04),0_2px_8px_rgba(16,24,40,0.05)]">
+            <div className="px-4 md:px-6 py-4 md:py-5 border-b border-[#F1F5F9]">
+              <h2 className="text-[15px] md:text-base font-bold text-[#0F172A]">Complete Your KYC</h2>
+              <p className="text-[12px] md:text-[13px] text-[#64748B] mt-1">Choose your preferred method to verify your identity and unlock full access</p>
+            </div>
 
-            <div className="flex flex-col sm:flex-row items-start gap-3.5 md:gap-4">
-              <div className="w-full sm:w-[340px] shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setSelectedMethod('EKYC')}
-                  className={`w-full group relative flex flex-col items-start gap-1.5 text-left p-4 md:p-5 rounded-xl border-2 transition-all duration-200 ${
-                    selectedMethod === 'EKYC'
-                      ? 'border-[#00A86B] bg-[#F0FDF4]/60 shadow-md'
-                      : 'border-[#E2E8F0] bg-[#F8FAFC] hover:border-[#00A86B]/40 hover:bg-[#F0FDF4]/40 hover:shadow-md'
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5 mb-1">
-                    <span className={`w-5 h-5 rounded-full border-2 shrink-0 transition-colors flex items-center justify-center ${selectedMethod === 'EKYC' ? 'border-[#00A86B]' : 'border-[#CBD5E1] group-hover:border-[#00A86B]'}`}>
-                      {selectedMethod === 'EKYC' && <span className="w-2.5 h-2.5 rounded-full bg-[#00A86B]" />}
-                    </span>
-                    <span className="text-[14px] font-bold text-[#0F172A]">E-KYC</span>
-                  </div>
-                  <p className="text-[12.5px] text-[#64748B]">Get KYC verified within a minute</p>
-                </button>
+            <div role="radiogroup" aria-label="KYC method" className="p-4 md:p-6 grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+              {KYC_METHODS.map((m) => {
+                const isSelected = selectedMethod === m.id;
+                const Icon = m.icon;
+                return (
+                  <button
+                    key={m.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={isSelected}
+                    onClick={() => setSelectedMethod(m.id)}
+                    className={`group text-left rounded-xl border p-4 md:p-5 transition-colors ${
+                      isSelected
+                        ? 'border-[#00A86B] bg-[#F0FDF4]/50 ring-1 ring-[#00A86B]'
+                        : 'border-[#E2E8F0] bg-white hover:border-[#00A86B]/50'
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <span className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 transition-colors ${isSelected ? 'bg-[#00A86B] text-white' : 'bg-[#F1F5F9] text-[#475569]'}`}>
+                        <Icon className="w-5 h-5" />
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-[14px] font-bold text-[#0F172A]">{m.title}</span>
+                          {m.recommended && (
+                            <span className="text-[10px] font-bold uppercase tracking-wide text-[#00A86B] bg-[#E6F7F0] px-1.5 py-0.5 rounded">Recommended</span>
+                          )}
+                        </div>
+                        <p className="text-[12.5px] text-[#64748B] mt-0.5">{m.description}</p>
+                      </div>
+                      <span className={`mt-0.5 w-5 h-5 rounded-full border-2 shrink-0 flex items-center justify-center transition-colors ${isSelected ? 'border-[#00A86B]' : 'border-[#CBD5E1] group-hover:border-[#00A86B]'}`}>
+                        {isSelected && <span className="w-2.5 h-2.5 rounded-full bg-[#00A86B]" />}
+                      </span>
+                    </div>
 
-                <ShineButton
-                  type="button"
-                  onClick={() => selectedMethod && setMethod(selectedMethod)}
-                  disabled={!selectedMethod}
-                  className="mt-4 h-11 px-6 rounded-full bg-[#009D64] hover:bg-[#008856] transition-colors text-white text-[13px] font-bold shadow-sm disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-1.5"
-                >
-                  Next <ArrowRight className="w-4 h-4" />
-                </ShineButton>
-              </div>
+                    <div className="mt-4 pt-3.5 border-t border-[#EEF2F6]">
+                      <p className="text-[11px] font-semibold text-[#94A3B8] uppercase tracking-wide mb-2">You'll need</p>
+                      <ul className="space-y-1.5">
+                        {m.requirements.map((r) => (
+                          <li key={r} className="flex items-center gap-2 text-[12.5px] text-[#475569]">
+                            <Check className="w-3.5 h-3.5 text-[#00A86B] shrink-0" strokeWidth={2.75} />
+                            {r}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
 
-              <button
+            <div className="px-4 md:px-6 py-3.5 md:py-4 border-t border-[#F1F5F9] flex items-center justify-end">
+              <ShineButton
                 type="button"
-                onClick={() => setSelectedMethod('MANUAL')}
-                className={`w-full sm:w-[340px] shrink-0 group relative flex flex-col items-start gap-1.5 text-left p-4 md:p-5 rounded-xl border-2 transition-all duration-200 ${
-                  selectedMethod === 'MANUAL'
-                    ? 'border-[#00A86B] bg-[#F0FDF4]/60 shadow-md'
-                    : 'border-[#E2E8F0] bg-[#F8FAFC] hover:border-[#00A86B]/40 hover:bg-[#F0FDF4]/40 hover:shadow-md'
-                }`}
+                onClick={() => selectedMethod && setMethod(selectedMethod)}
+                disabled={!selectedMethod}
+                className="h-11 px-6 rounded-full bg-[#009D64] hover:bg-[#008856] transition-colors text-white text-[13px] font-bold shadow-sm disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-1.5"
               >
-                <div className="flex items-center gap-2.5 mb-1">
-                  <span className={`w-5 h-5 rounded-full border-2 shrink-0 transition-colors flex items-center justify-center ${selectedMethod === 'MANUAL' ? 'border-[#00A86B]' : 'border-[#CBD5E1] group-hover:border-[#00A86B]'}`}>
-                    {selectedMethod === 'MANUAL' && <span className="w-2.5 h-2.5 rounded-full bg-[#00A86B]" />}
-                  </span>
-                  <span className="text-[14px] font-bold text-[#0F172A]">Manual KYC</span>
-                </div>
-                <p className="text-[12.5px] text-[#64748B]">KYC verification might take 2-3 business days</p>
-              </button>
+                Next <ArrowRight className="w-4 h-4" />
+              </ShineButton>
             </div>
           </div>
         </div>
@@ -1900,137 +1891,172 @@ export function AdminKYC() {
     );
   }
 
+  /* Sections 1–3 (business type, mandatory info, billing) — shared by e-KYC and manual KYC */
+  const detailSections = (
+    <>
+              <KycSection step={1} title="Business Type" description="Select how your business is registered" done={ekycStepDone[1]}>
+                <BusinessTypeSelector businessType={businessType} setBusinessType={setBusinessType} disabled={isGstinVerified} hideLabel />
+              </KycSection>
+
+              <KycSection step={2} title="Mandatory Information" description="Used for account alerts and KYC communication" done={ekycStepDone[2]} show={ekycRevealedStep >= 2}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <FieldLabel required>Email</FieldLabel>
+                        <div className="relative flex items-center">
+                          <input
+                            type="email"
+                            value={email}
+                            onChange={(e) => !isEmailVerified && setEmail(e.target.value)}
+                            disabled={isEmailVerified}
+                            placeholder="Enter your email"
+                            className={`${inputCls} pr-28`}
+                          />
+                          {!isEmailVerified ? (
+                            <button
+                              type="button"
+                              onClick={sendEmailOtp}
+                              disabled={loadingEmailOtp || emailOtpTimer > 0 || !email || !email.includes('@')}
+                              className="absolute right-1.5 h-8 px-3.5 rounded-full bg-[#334155] hover:bg-[#1E293B] text-white text-[11px] font-bold disabled:opacity-40 disabled:pointer-events-none transition-colors flex items-center gap-1.5"
+                            >
+                              {loadingEmailOtp ? <RefreshCcw className="w-3 h-3 animate-spin" /> : emailOtpTimer > 0 ? `Resend in ${emailOtpTimer}s` : 'Send OTP'}
+                            </button>
+                          ) : (
+                            <span className="absolute right-3 flex items-center gap-1 text-[11px] font-bold text-[#00A86B]">
+                              <Check className="w-3.5 h-3.5" /> Verified
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div>
+                        <FieldLabel required>Phone Number</FieldLabel>
+                        <div className="relative flex items-center">
+                          <span className="absolute left-4 text-[13px] font-semibold text-[#64748B] pointer-events-none">+91</span>
+                          <input
+                            type="tel"
+                            maxLength={10}
+                            value={phoneNumber}
+                            onChange={(e) => !isPhoneVerified && setPhoneNumber(e.target.value.replace(/\D/g, ''))}
+                            disabled={isPhoneVerified}
+                            placeholder="Enter 10-digit mobile number"
+                            className={`${inputCls} pl-12 pr-28`}
+                          />
+                          {!isPhoneVerified ? (
+                            <button
+                              type="button"
+                              onClick={sendPhoneOtp}
+                              disabled={loadingPhoneOtp || phoneOtpTimer > 0 || phoneNumber.replace(/\D/g, '').length !== 10}
+                              className="absolute right-1.5 h-8 px-3.5 rounded-full bg-[#334155] hover:bg-[#1E293B] text-white text-[11px] font-bold disabled:opacity-40 disabled:pointer-events-none transition-colors flex items-center gap-1.5"
+                            >
+                              {loadingPhoneOtp ? <RefreshCcw className="w-3 h-3 animate-spin" /> : phoneOtpTimer > 0 ? `Resend in ${phoneOtpTimer}s` : 'Send OTP'}
+                            </button>
+                          ) : (
+                            <span className="absolute right-3 flex items-center gap-1 text-[11px] font-bold text-[#00A86B]">
+                              <Check className="w-3.5 h-3.5" /> Verified
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                </div>
+              </KycSection>
+
+              <KycSection step={3} title="Billing Information" description="Printed on your invoices" done={ekycStepDone[3]} show={ekycRevealedStep >= 3}>
+                <div className="space-y-4">
+                  <div>
+                    <FieldLabel required>Address</FieldLabel>
+                    <textarea
+                      rows={2}
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                      placeholder="House / building, street, area"
+                      className={`${inputCls} !rounded-2xl h-auto py-3 resize-none`}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                    <div className="col-span-2 sm:col-span-1">
+                      <FieldLabel required>Pincode</FieldLabel>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={6}
+                        value={pincode}
+                        onChange={(e) => setPincode(e.target.value.replace(/\D/g, ''))}
+                        placeholder="6-digit pincode"
+                        className={inputCls}
+                      />
+                    </div>
+                    <div>
+                      <FieldLabel>City</FieldLabel>
+                      <input type="text" value={city} readOnly tabIndex={-1} placeholder="Auto-filled" className={`${inputCls} uppercase placeholder:normal-case !bg-[#F8FAFC] !text-[#475569] cursor-default`} />
+                    </div>
+                    <div>
+                      <FieldLabel>State</FieldLabel>
+                      <input type="text" value={state} readOnly tabIndex={-1} placeholder="Auto-filled" className={`${inputCls} uppercase placeholder:normal-case !bg-[#F8FAFC] !text-[#475569] cursor-default`} />
+                    </div>
+                  </div>
+                  <p className="text-[11.5px] text-[#94A3B8]">City and state are fetched from your pincode.</p>
+                </div>
+              </KycSection>
+    </>
+  );
+
   /* ── E-KYC FLOW ── */
   if (method === 'EKYC') {
     const emailOk = !EMAIL_VERIFICATION_MANDATORY || isEmailVerified;
     const phoneOk = !PHONE_VERIFICATION_MANDATORY || isPhoneVerified;
     const billingReady = (businessType === 'COMPANY' || businessType === 'INDIVIDUAL')
       && emailOk && phoneOk
-      && !!(address && pincode && city && state);
+      && !!(address && pincode && city && state)
+      && (businessType !== 'COMPANY' || isGstinVerified);
 
     return (
       <AdminLayout>
         <div className="mx-2 text-[#0F172A] pb-16">
           <h1 className="text-lg md:text-xl font-bold text-[#0F172A] mb-4 md:mb-6">KYC</h1>
 
-          <div className="max-w-2xl mx-auto space-y-5">
-            <Panel
-              title={<span className="text-[20px] font-bold">e-KYC (Get KYC verified within a minute)</span>}
-              right={
-                <button type="button" onClick={() => setMethod(null)} className="inline-flex items-center gap-1.5 text-[12px] font-bold text-[#64748B] hover:text-[#0F172A] px-3 h-8 rounded-lg hover:bg-[#F8FAFC] transition-colors">
-                  <ArrowLeft className="w-3.5 h-3.5" /> Back
-                </button>
-              }
-            >
-              <BusinessTypeSelector businessType={businessType} setBusinessType={setBusinessType} disabled={isGstinVerified} />
-            </Panel>
-
-            {(businessType === 'COMPANY' || businessType === 'INDIVIDUAL') && (
-              <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="space-y-5">
-                <Panel title="Mandatory Information">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <FieldLabel required>Email</FieldLabel>
-                      <div className="relative flex items-center">
-                        <input
-                          type="email"
-                          value={email}
-                          onChange={(e) => !isEmailVerified && setEmail(e.target.value)}
-                          disabled={isEmailVerified}
-                          placeholder="Enter your email"
-                          className={`${inputCls} pr-28`}
-                        />
-                        {!isEmailVerified ? (
-                          <button
-                            type="button"
-                            onClick={sendEmailOtp}
-                            disabled={loadingEmailOtp || emailOtpTimer > 0 || !email || !email.includes('@')}
-                            className="absolute right-1.5 h-8 px-3.5 rounded-full bg-[#334155] hover:bg-[#1E293B] text-white text-[11px] font-bold disabled:opacity-40 disabled:pointer-events-none transition-colors flex items-center gap-1.5"
-                          >
-                            {loadingEmailOtp ? <RefreshCcw className="w-3 h-3 animate-spin" /> : emailOtpTimer > 0 ? `Resend in ${emailOtpTimer}s` : 'Send OTP'}
-                          </button>
-                        ) : (
-                          <span className="absolute right-3 flex items-center gap-1 text-[11px] font-bold text-[#00A86B]">
-                            <Check className="w-3.5 h-3.5" /> Verified
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div>
-                      <FieldLabel required>Phone Number</FieldLabel>
-                      <div className="relative flex items-center">
-                        <input
-                          type="tel"
-                          maxLength={10}
-                          value={phoneNumber}
-                          onChange={(e) => !isPhoneVerified && setPhoneNumber(e.target.value.replace(/\D/g, ''))}
-                          disabled={isPhoneVerified}
-                          placeholder="Enter 10-digit mobile number"
-                          className={`${inputCls} pr-28`}
-                        />
-                        {!isPhoneVerified ? (
-                          <button
-                            type="button"
-                            onClick={sendPhoneOtp}
-                            disabled={loadingPhoneOtp || phoneOtpTimer > 0 || phoneNumber.replace(/\D/g, '').length !== 10}
-                            className="absolute right-1.5 h-8 px-3.5 rounded-full bg-[#334155] hover:bg-[#1E293B] text-white text-[11px] font-bold disabled:opacity-40 disabled:pointer-events-none transition-colors flex items-center gap-1.5"
-                          >
-                            {loadingPhoneOtp ? <RefreshCcw className="w-3 h-3 animate-spin" /> : phoneOtpTimer > 0 ? `Resend in ${phoneOtpTimer}s` : 'Send OTP'}
-                          </button>
-                        ) : (
-                          <span className="absolute right-3 flex items-center gap-1 text-[11px] font-bold text-[#00A86B]">
-                            <Check className="w-3.5 h-3.5" /> Verified
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </Panel>
-
-                <Panel title="Billing Information">
-                  <div className="space-y-4">
-                    <div>
-                      <FieldLabel required>Address</FieldLabel>
-                      <textarea
-                        rows={2}
-                        value={address}
-                        onChange={(e) => setAddress(e.target.value)}
-                        placeholder="Enter your registered billing address"
-                        className={`${inputCls} !rounded-2xl h-auto py-3 resize-none`}
-                      />
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                      <div>
-                        <FieldLabel required>Pincode</FieldLabel>
-                        <input
-                          type="text"
-                          maxLength={6}
-                          value={pincode}
-                          onChange={(e) => setPincode(e.target.value.replace(/\D/g, ''))}
-                          placeholder="Enter 6-digit pincode"
-                          className={inputCls}
-                        />
-                      </div>
-                      <div>
-                        <FieldLabel>City</FieldLabel>
-                        <input type="text" value={city} readOnly placeholder="Auto-filled" className={`${inputCls} uppercase`} />
-                      </div>
-                      <div>
-                        <FieldLabel>State</FieldLabel>
-                        <input type="text" value={state} readOnly placeholder="Auto-filled" className={`${inputCls} uppercase`} />
-                      </div>
-                    </div>
-                  </div>
-                </Panel>
-              </motion.div>
-            )}
-
-            {/* Entry point — PAN verification first (its own centered card), then
-                Aadhaar/PAN summary + Bank Details in the drawer. */}
-            <div className="bg-white rounded-xl md:rounded-2xl border border-[#E2E8F0] p-4 md:p-5 shadow-sm flex items-center justify-between gap-4">
+          <div className="max-w-3xl mx-auto bg-white rounded-xl md:rounded-2xl shadow-[0_1px_2px_rgba(16,24,40,0.04),0_2px_8px_rgba(16,24,40,0.05)]">
+            {/* Header */}
+            <div className="px-4 md:px-6 py-4 md:py-5 border-b border-[#F1F5F9] flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <h3 className="text-[13.5px] md:text-[14px] font-bold text-[#0F172A]">Identity &amp; Bank Verification</h3>
-                <p className="text-[11.5px] md:text-[12.5px] text-[#64748B] mt-0.5">Aadhaar, PAN and bank details — verified in one quick step.</p>
+                <h2 className="text-[16px] md:text-[18px] font-bold text-[#0F172A]">e-KYC</h2>
+                <p className="text-[12px] md:text-[13px] text-[#64748B] mt-0.5">Get KYC verified within a minute</p>
+              </div>
+              <button type="button" onClick={() => { setMethod(null); setEkycRevealedStep(1); }} className="inline-flex items-center gap-1.5 text-[12px] font-bold text-[#64748B] hover:text-[#0F172A] px-3 h-8 rounded-lg hover:bg-[#F8FAFC] transition-colors shrink-0">
+                <ArrowLeft className="w-3.5 h-3.5" /> Back
+              </button>
+            </div>
+
+            {detailSections}
+
+            <KycSection step={4} title="GST Details" description="Required for registered businesses" done={ekycStepDone[4]} show={businessType === 'COMPANY' && ekycRevealedStep >= 4}>
+                <div className="space-y-3">
+                  <div className="sm:max-w-[420px]">
+                    <GstinField gstin={gstin} setGstin={setGstin} isGstinVerified={isGstinVerified} isGstinLoading={isGstinLoading} onVerify={handleVerifyGstin} />
+                  </div>
+                  {isGstinVerified && (gstData.nameOfBusiness || gstData.legalNameOfBusiness || gstData.address) && (
+                    <div className="rounded-xl bg-[#F8FAFC] p-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {(gstData.nameOfBusiness || gstData.legalNameOfBusiness) && (
+                        <div className="sm:col-span-2">
+                          <span className="block text-[11px] font-semibold text-[#94A3B8] mb-0.5">Business Name</span>
+                          <span className="text-[13px] font-semibold text-[#0F172A]">{gstData.nameOfBusiness || gstData.legalNameOfBusiness}</span>
+                        </div>
+                      )}
+                      {gstData.address && (
+                        <div className="sm:col-span-2">
+                          <span className="block text-[11px] font-semibold text-[#94A3B8] mb-0.5">Registered Address</span>
+                          <span className="text-[13px] text-[#0F172A]">{[gstData.address, gstData.city, gstData.state, gstData.pincode].filter(Boolean).join(', ')}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+            </KycSection>
+
+            {/* Footer — next step + Continue (PAN → Aadhaar → Bank → Review) */}
+            <div className="px-4 md:px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold text-[#94A3B8] uppercase tracking-wide">Next step</p>
+                <p className="text-[13px] font-semibold text-[#0F172A] mt-0.5">Identity &amp; Bank Verification</p>
+                <p className="text-[12px] text-[#64748B]">Aadhaar, PAN and bank details — verified in one quick step.</p>
               </div>
               <ShineButton
                 type="button"
@@ -2039,12 +2065,11 @@ export function AdminKYC() {
                   if (allVerified) setIsReviewPageOpen(true);
                   else if (!isPanVerified) setIsPanModalOpen(true);
                   else if (!isAadhaarVerified) setIsAadhaarModalOpen(true);
-                  else if (businessType === 'COMPANY' && !isGstinVerified) setIsGstinModalOpen(true);
                   else if (!isBankVerified) setIsBankModalOpen(true);
                   else setIsReviewPageOpen(true);
                 }}
                 disabled={!billingReady}
-                className="h-11 px-5 md:px-6 rounded-full bg-[#009D64] hover:bg-[#008856] transition-colors text-white text-[12.5px] md:text-[13px] font-bold shadow-sm disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-1.5 shrink-0"
+                className="h-11 px-6 rounded-full bg-[#009D64] hover:bg-[#008856] transition-colors text-white text-[13px] font-bold shadow-sm disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-1.5 shrink-0"
               >
                 {emailOk && phoneOk && isAadhaarVerified && isPanVerified && isBankVerified && (businessType !== 'COMPANY' || isGstinVerified) ? 'Review & Submit' : 'Continue'} <ArrowRight className="w-4 h-4" />
               </ShineButton>
@@ -2264,28 +2289,9 @@ export function AdminKYC() {
           aadhaarOtpTimer={aadhaarOtpTimer}
           aadhaarData={aadhaarData}
           onSendOtp={sendAadhaarOtpAndOpen}
-          onContinue={
-            !((businessType === 'COMPANY' && isGstinVerified) || (businessType !== 'COMPANY' && isBankVerified)) || !isBankVerified
-              ? () => {
-                  setIsAadhaarModalOpen(false);
-                  if (businessType === 'COMPANY' && !isGstinVerified) setIsGstinModalOpen(true);
-                  else setIsBankModalOpen(true);
-                }
-              : undefined
-          }
+          onContinue={!isBankVerified ? () => { setIsAadhaarModalOpen(false); setIsBankModalOpen(true); } : undefined}
         />
 
-        <GstinVerificationModal
-          open={isGstinModalOpen}
-          onClose={() => setIsGstinModalOpen(false)}
-          gstin={gstin}
-          setGstin={setGstin}
-          isGstinVerified={isGstinVerified}
-          isGstinLoading={isGstinLoading}
-          gstData={gstData}
-          onVerify={handleVerifyGstin}
-          onContinue={!isBankVerified ? () => { setIsGstinModalOpen(false); setIsBankModalOpen(true); } : undefined}
-        />
 
         <BankVerificationPage
           open={isBankModalOpen}
@@ -2304,6 +2310,9 @@ export function AdminKYC() {
           isBankLoading={isBankLoading}
           onVerify={handleVerifyBank}
           onContinue={() => { setIsBankModalOpen(false); setIsReviewPageOpen(true); }}
+          isPanVerified={isPanVerified}
+          isAadhaarVerified={isAadhaarVerified}
+          panName={panData.name}
         />
 
         <KycReviewPage
@@ -2337,45 +2346,119 @@ export function AdminKYC() {
     );
   }
 
-  /* ── MANUAL KYC FLOW ── */
+  /* ── MANUAL KYC FLOW ── page-wise: Business Details → PAN → Aadhaar → Bank → Review */
+  const manualGstinInvalid = gstin.length === 15 && !GSTIN_RE.test(gstin);
+  const manualDetailsReady = ekycStepDone[1] && ekycStepDone[2] && ekycStepDone[3]
+    && (businessType !== 'COMPANY' || (GSTIN_RE.test(gstin) && !!manualData.gstCertificate));
+  const leaveManual = () => { setMethod(null); setEkycRevealedStep(1); goToManualStep('details'); };
+
   return (
     <AdminLayout>
       <div className="mx-2 text-[#0F172A] pb-16">
         <h1 className="text-lg md:text-xl font-bold text-[#0F172A] mb-4 md:mb-6">KYC</h1>
 
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-5 items-start">
-          <div className="space-y-5">
-            <Panel
-              title={<span className="text-[20px] font-bold">Manual KYC (verification might take 2-3 business days)</span>}
-              right={
-                <button type="button" onClick={() => setMethod(null)} className="inline-flex items-center gap-1.5 text-[12px] font-bold text-[#64748B] hover:text-[#0F172A] px-3 h-8 rounded-lg hover:bg-[#F8FAFC] transition-colors">
-                  <ArrowLeft className="w-3.5 h-3.5" /> Back
-                </button>
-              }
-            >
-              <BusinessTypeSelector businessType={businessType} setBusinessType={setBusinessType} />
-            </Panel>
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={manualStep}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
+          >
+            {manualStep === 'details' && (
+              <div className="max-w-5xl mx-auto">
+                <ManualStepper current="details" />
+                <div className={`bg-white rounded-xl md:rounded-2xl ${cardShadow}`}>
+                  <div className="px-4 md:px-6 py-4 md:py-5 border-b border-[#F1F5F9] flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h2 className="text-[16px] md:text-[18px] font-bold text-[#0F172A]">Manual KYC</h2>
+                      <p className="text-[12px] md:text-[13px] text-[#64748B] mt-0.5">Verification might take 2-3 business days</p>
+                    </div>
+                    <button type="button" onClick={leaveManual} className="inline-flex items-center gap-1.5 text-[12px] font-bold text-[#64748B] hover:text-[#0F172A] px-3 h-8 rounded-lg hover:bg-[#F8FAFC] transition-colors shrink-0">
+                      <ArrowLeft className="w-3.5 h-3.5" /> Back
+                    </button>
+                  </div>
 
-            {businessType === 'COMPANY' && (
-              <Panel title="GST Details">
-                <GstinField gstin={gstin} setGstin={setGstin} isGstinVerified={isGstinVerified} isGstinLoading={isGstinLoading} onVerify={handleVerifyGstin} />
-              </Panel>
+                  {detailSections}
+
+                  <KycSection step={4} title="GST Details" description="Required for registered businesses" done={GSTIN_RE.test(gstin) && !!manualData.gstCertificate} show={businessType === 'COMPANY' && ekycRevealedStep >= 4}>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <FieldLabel required>GSTIN No.</FieldLabel>
+                        <input type="text" maxLength={15} value={gstin} onChange={(e) => setGstin(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))} placeholder="15-character GSTIN" className={`${inputCls} uppercase placeholder:normal-case tracking-wide ${manualGstinInvalid ? '!border-red-300' : ''}`} />
+                        {manualGstinInvalid && <p className="text-[11px] font-medium text-red-500 mt-1.5">Enter a valid GSTIN (e.g. 27AAPFU0939F1ZV)</p>}
+                      </div>
+                      <DocumentUpload label="GST Registration Certificate" value={manualData.gstCertificate} onChange={(gstCertificate) => setManualData((d) => ({ ...d, gstCertificate }))} onError={(m) => showToast('error', m)} />
+                    </div>
+                  </KycSection>
+
+                  <div className="px-4 md:px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-semibold text-[#94A3B8] uppercase tracking-wide">Next step</p>
+                      <p className="text-[13px] font-semibold text-[#0F172A] mt-0.5">PAN, Aadhaar &amp; Bank Details</p>
+                      <p className="text-[12px] text-[#64748B]">Enter the details and upload the supporting documents.</p>
+                    </div>
+                    <ShineButton
+                      type="button"
+                      onClick={() => goToManualStep('pan')}
+                      disabled={!manualDetailsReady}
+                      className="h-11 px-6 rounded-full bg-[#009D64] hover:bg-[#008856] transition-colors text-white text-[13px] font-bold shadow-sm disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-1.5 shrink-0"
+                    >
+                      Continue <ArrowRight className="w-4 h-4" />
+                    </ShineButton>
+                  </div>
+                </div>
+              </div>
             )}
 
-            <ShineButton
-              type="button"
-              onClick={handleManualSubmit}
-              disabled={!businessType || (businessType === 'COMPANY' && !gstin)}
-              className="h-11 px-6 rounded-full bg-[#009D64] hover:bg-[#008856] text-white text-[13px] font-bold shadow-sm transition-colors disabled:opacity-50 disabled:pointer-events-none"
-            >
-              Submit
-            </ShineButton>
-          </div>
+            {manualStep === 'pan' && (
+              <ManualPanStep
+                value={manualData.pan}
+                onChange={(patch) => setManualData((d) => ({ ...d, pan: { ...d.pan, ...patch } }))}
+                businessType={businessType === 'COMPANY' ? 'COMPANY' : 'INDIVIDUAL'}
+                onBack={() => goToManualStep('details')}
+                onNext={() => goToManualStep('aadhaar')}
+                onError={(m) => showToast('error', m)}
+              />
+            )}
 
-          <div className="lg:sticky lg:top-6">
-            <BankDetailsPanel accountNumber={accountNumber} setAccountNumber={setAccountNumber} confirmAccountNumber={confirmAccountNumber} setConfirmAccountNumber={setConfirmAccountNumber} accountNumbersMatch={accountNumbersMatch} accountHolderName={accountHolderName} setAccountHolderName={setAccountHolderName} ifscCode={ifscCode} setIfscCode={setIfscCode} bankName={bankName} setBankName={setBankName} branchName={branchName} setBranchName={setBranchName} isBankVerified={isBankVerified} isBankLoading={isBankLoading} onVerify={handleVerifyBank} />
-          </div>
-        </div>
+            {manualStep === 'aadhaar' && (
+              <ManualAadhaarStep
+                value={manualData.aadhaar}
+                onChange={(patch) => setManualData((d) => ({ ...d, aadhaar: { ...d.aadhaar, ...patch } }))}
+                onBack={() => goToManualStep('pan')}
+                onNext={() => goToManualStep('bank')}
+                onError={(m) => showToast('error', m)}
+              />
+            )}
+
+            {manualStep === 'bank' && (
+              <ManualBankStep
+                value={manualData.bank}
+                onChange={(patch) => setManualData((d) => ({ ...d, bank: { ...d.bank, ...patch } }))}
+                panName={manualData.pan.name}
+                onBack={() => goToManualStep('aadhaar')}
+                onNext={() => goToManualStep('review')}
+                onError={(m) => showToast('error', m)}
+              />
+            )}
+
+            {manualStep === 'review' && (
+              <ManualReviewStep
+                data={manualData}
+                businessType={businessType === 'COMPANY' ? 'COMPANY' : 'INDIVIDUAL'}
+                email={email}
+                phoneNumber={phoneNumber}
+                billing={{ address, pincode, city, state }}
+                gstin={gstin}
+                goTo={goToManualStep}
+                onBack={() => goToManualStep('bank')}
+                onSubmit={handleManualSubmit}
+                submitting={isManualSubmitting}
+              />
+            )}
+          </motion.div>
+        </AnimatePresence>
       </div>
 
       {/* Manual KYC success popup */}
@@ -2384,19 +2467,16 @@ export function AdminKYC() {
           <>
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => { setShowManualSuccess(false); navigate('/user/dashboard'); }} className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm z-[200]" />
             <div className="fixed inset-0 flex items-center justify-center z-[201] p-4 pointer-events-none">
-              <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} transition={{ type: 'spring', duration: 0.5 }} className="w-full max-w-[380px] bg-white rounded-2xl shadow-2xl p-6 relative pointer-events-auto border border-[#E2E8F0] text-center">
-                <button type="button" onClick={() => { setShowManualSuccess(false); navigate('/user/dashboard'); }} className="absolute -top-5 left-1/2 -translate-x-1/2 w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-md hover:bg-[#F8FAFC] transition-colors border border-[#E2E8F0] cursor-pointer focus:outline-none">
-                  <X className="w-4 h-4 text-[#64748B]" />
-                </button>
-                <motion.div initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 260, damping: 16, delay: 0.1 }} className="w-16 h-16 rounded-2xl bg-[#F0FDF4] flex items-center justify-center mx-auto mt-3 mb-4">
+              <motion.div initial={{ opacity: 0, scale: 0.96, y: 12 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96, y: 12 }} transition={{ duration: 0.24, ease: [0.4, 0, 0.2, 1] }} className={`w-full max-w-[400px] bg-white rounded-2xl ${cardShadow} p-6 pointer-events-auto text-center`}>
+                <div className="w-14 h-14 rounded-full bg-[#F0FDF4] flex items-center justify-center mx-auto mb-4">
                   <CheckCircle2 className="w-7 h-7 text-[#00A86B]" />
-                </motion.div>
-                <h2 className="text-base font-bold text-[#0F172A] mb-1.5">Request Submitted Successfully</h2>
-                <p className="text-[13px] text-[#64748B] leading-relaxed mb-5">Our agent will call you soon to complete your KYC verification.</p>
+                </div>
+                <h2 className="text-[16px] font-bold text-[#0F172A] mb-1.5">KYC Submitted for Verification</h2>
+                <p className="text-[13px] text-[#64748B] leading-relaxed mb-5">Our team will review your details and documents within 2–3 business days. You'll be notified by email and SMS once your KYC is verified.</p>
                 <button
                   type="button"
                   onClick={() => { setShowManualSuccess(false); navigate('/user/dashboard'); }}
-                  className="w-full h-11 rounded-xl bg-[#00A86B] hover:bg-[#009B63] text-white text-[13px] font-bold shadow-sm transition-all cursor-pointer"
+                  className="w-full h-11 rounded-full bg-[#009D64] hover:bg-[#008856] text-white text-[13px] font-bold shadow-sm transition-colors"
                 >
                   Back to Dashboard
                 </button>
