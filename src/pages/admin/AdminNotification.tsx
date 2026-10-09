@@ -6,7 +6,7 @@ import { apiClient } from '../../services/apiClient';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Bell, MessageSquare, Smartphone, Mail, History,
-  RefreshCw, CreditCard, Edit2, X, Send, Search,
+  RefreshCw, CreditCard, X, Send, Search,
   AlertTriangle, CheckCircle, Plus, PhoneCall, Copy, Filter, Users,
 } from 'lucide-react';
 import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
@@ -26,25 +26,25 @@ interface UserResult { _id: string; fullname?: string; name?: string; email?: st
 // fieldKey maps to backend model field names (e.g. Intransit not In-transit)
 const STATUSES = [
   { key: 'PickupPending',   fieldKey: 'PickupPending',   label: 'Ready To Ship',
-    tpl: { whatsapp: 'Your order {order_id} is ready to ship. Track: {tracking_link}', sms: 'Order {order_id} ready to ship. {tracking_link}', email: 'Your order {order_id} is ready to ship from our warehouse.' },
+    tpl: { whatsapp: 'Hi {customer}, your order {order_id} from {seller} is Ready for Pickup. AWB {awb}. [Track Order button]', sms: 'Order {order_id} ready to ship. {tracking_link}', email: 'Your order {order_id} is ready to ship from our warehouse.' },
     subject: 'Your Order is Ready to Ship' },
   { key: 'In-transit',      fieldKey: 'Intransit',       label: 'In Transit',
-    tpl: { whatsapp: 'Your order {order_id} is in transit. Track: {tracking_link}', sms: 'Order {order_id} in transit. {tracking_link}', email: 'Your order is currently in transit. Track: {tracking_link}' },
+    tpl: { whatsapp: 'Hi {customer}, your order {order_id} from {seller} is now In Transit. AWB {awb}. [Track Order button]', sms: 'Order {order_id} in transit. {tracking_link}', email: 'Your order is currently in transit. Track: {tracking_link}' },
     subject: 'Your Order is In Transit' },
   { key: 'OutForDelivery',  fieldKey: 'OutForDelivery',  label: 'Out for Delivery',
-    tpl: { whatsapp: 'Your order {order_id} is out for delivery today. Track: {tracking_link}', sms: 'Order {order_id} out for delivery. {tracking_link}', email: 'Your order is out for delivery. Please be available.' },
+    tpl: { whatsapp: 'Hi {customer}, your order {order_id} from {seller} is Out for Delivery. AWB {awb}. [Track Order button]', sms: 'Order {order_id} out for delivery. {tracking_link}', email: 'Your order is out for delivery. Please be available.' },
     subject: 'Your Order is Out for Delivery' },
   { key: 'Delivered',       fieldKey: 'Delivered',       label: 'Delivered',
-    tpl: { whatsapp: 'Your order {order_id} has been delivered. Thank you!', sms: 'Order {order_id} delivered. Thanks!', email: 'Your order {order_id} has been successfully delivered.' },
+    tpl: { whatsapp: 'Hi {customer}, your order {order_id} from {seller} has been Delivered. AWB {awb}. [Track Order button]', sms: 'Order {order_id} delivered. Thanks!', email: 'Your order {order_id} has been successfully delivered.' },
     subject: 'Your Order has been Delivered' },
   { key: 'Undelivered',     fieldKey: 'Undelivered',     label: 'Undelivered',
-    tpl: { whatsapp: 'Delivery attempt for {order_id} failed. We\'ll retry soon. Track: {tracking_link}', sms: 'Delivery failed for {order_id}. Track: {tracking_link}', email: 'Delivery attempt was unsuccessful. We will retry.' },
+    tpl: { whatsapp: 'Hi {customer}, your order {order_id} from {seller} could not be delivered today. A re-attempt will follow. [Track Order button]', sms: 'Delivery failed for {order_id}. Track: {tracking_link}', email: 'Delivery attempt was unsuccessful. We will retry.' },
     subject: 'Delivery Attempt Unsuccessful' },
   { key: 'RTO',             fieldKey: 'RTO',             label: 'RTO Initiated',
-    tpl: { whatsapp: 'Your order {order_id} is being returned. Track: {tracking_link}', sms: 'RTO for {order_id}. Track: {tracking_link}', email: 'RTO has been initiated for order {order_id}.' },
+    tpl: { whatsapp: 'Hi {customer}, your order {order_id} from {seller} is being Returned to Sender. [Track Order button]', sms: 'RTO for {order_id}. Track: {tracking_link}', email: 'RTO has been initiated for order {order_id}.' },
     subject: 'RTO Initiated for Your Order' },
   { key: 'Cancelled',       fieldKey: 'Cancelled',       label: 'Cancelled',
-    tpl: { whatsapp: 'Your order {order_id} has been cancelled. Contact support for queries.', sms: 'Order {order_id} cancelled. Contact support.', email: 'Your order {order_id} has been cancelled.' },
+    tpl: { whatsapp: 'Hi {customer}, your order {order_id} from {seller} has been Cancelled.', sms: 'Order {order_id} cancelled. Contact support.', email: 'Your order {order_id} has been cancelled.' },
     subject: 'Order Cancelled' },
 ] as const;
 
@@ -82,58 +82,6 @@ function Toggle({ checked, onChange, disabled = false }: { checked: boolean; onC
       } ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
       <span className={`inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${checked ? 'translate-x-6' : 'translate-x-1'}`} />
     </button>
-  );
-}
-
-// ─── EditTemplateModal ────────────────────────────────────────────────────────
-function EditTemplateModal({ open, onClose, statusLabel, channelLabel, hasSubject, currentTemplate, currentSubject, onSave, saving }: {
-  open: boolean; onClose: () => void; statusLabel: string; channelLabel: string;
-  hasSubject: boolean; currentTemplate: string; currentSubject: string;
-  onSave: (tpl: string, subject: string) => void; saving: boolean;
-}) {
-  const [tpl, setTpl] = useState(currentTemplate);
-  const [subj, setSubj] = useState(currentSubject);
-  useEffect(() => { if (open) { setTpl(currentTemplate); setSubj(currentSubject); } }, [open, currentTemplate, currentSubject]);
-  if (!open) return null;
-  return (
-    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-        className="absolute inset-0 bg-[#0F172A]/40 backdrop-blur-sm" onClick={onClose} />
-      <motion.div initial={{ opacity: 0, scale: 0.95, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 10 }}
-        className="relative z-10 w-full max-w-lg bg-white rounded-2xl shadow-2xl overflow-hidden">
-        <div className="flex items-center justify-between p-5 border-b border-[#E2E8F0] bg-[#F8FAFC]">
-          <div>
-            <h3 className="text-base font-bold text-[#0F172A]">Edit Notification Template</h3>
-            <p className="text-xs text-[#64748B] mt-0.5">{channelLabel} · {statusLabel}</p>
-          </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center text-[#64748B] hover:bg-[#E2E8F0] transition-colors"><X className="w-4 h-4" /></button>
-        </div>
-        <div className="p-5 space-y-4">
-          {hasSubject && (
-            <div>
-              <label className="block text-xs font-bold text-[#475569] mb-1.5 uppercase tracking-wide">Email Subject</label>
-              <input value={subj} onChange={e => setSubj(e.target.value)} placeholder="Email subject line..."
-                className="w-full h-10 px-3 rounded-lg border border-[#E2E8F0] text-xs focus:outline-none focus:border-[#00A86B]" />
-            </div>
-          )}
-          <div>
-            <div className="flex justify-between items-center mb-1.5">
-              <label className="block text-xs font-bold text-[#475569] uppercase tracking-wide">Message Body</label>
-              <span className="text-[10px] text-[#94A3B8]">&#123;order_id&#125; · &#123;tracking_link&#125; · &#123;customer_name&#125;</span>
-            </div>
-            <textarea value={tpl} onChange={e => setTpl(e.target.value)} rows={5}
-              className="w-full p-3 rounded-xl border border-[#E2E8F0] text-xs focus:outline-none focus:border-[#00A86B] resize-none" />
-          </div>
-        </div>
-        <div className="flex justify-end gap-3 p-5 border-t border-[#E2E8F0] bg-[#F8FAFC]">
-          <button onClick={onClose} className="px-4 py-2 rounded-xl text-xs font-bold text-[#64748B] hover:bg-[#E2E8F0] transition-colors">Cancel</button>
-          <button onClick={() => onSave(tpl, subj)} disabled={saving}
-            className="px-4 py-2 rounded-xl bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors disabled:opacity-60">
-            {saving ? 'Saving…' : 'Save Template'}
-          </button>
-        </div>
-      </motion.div>
-    </div>
   );
 }
 
@@ -189,6 +137,51 @@ function BuyCreditsModal({ open, onClose, onSuccess, targetUserId }: {
   );
 }
 
+// ─── ImageUploadField ─────────────────────────────────────────────────────────
+// Picks a JPG/PNG, uploads it, and hands back the public URL WhatsApp will fetch.
+function ImageUploadField({ value, onChange }: { value: string; onChange: (url: string) => void }) {
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+  const handleFile = async (file?: File | null) => {
+    if (!file) return;
+    setError('');
+    if (!['image/jpeg', 'image/png'].includes(file.type)) { setError('Only JPG or PNG images are allowed'); return; }
+    if (file.size > 5 * 1024 * 1024) { setError('Image must be 5 MB or smaller'); return; }
+    setUploading(true);
+    try {
+      const form = new FormData();
+      form.append('image', file);
+      const res = await apiClient.post('/notification/uploadImage', form, { headers: { 'Content-Type': 'multipart/form-data' } });
+      onChange(res.data.imageUrl);
+    } catch (e: any) {
+      setError(e?.response?.data?.error || 'Image upload failed');
+    } finally {
+      setUploading(false);
+      if (inputRef.current) inputRef.current.value = '';
+    }
+  };
+  return (
+    <div>
+      <label className="block text-xs font-bold text-[#475569] mb-1.5 uppercase tracking-wide">Image <span className="normal-case font-medium text-[#94A3B8]">(optional · JPG or PNG, max 5 MB)</span></label>
+      {value ? (
+        <div className="flex items-center gap-3 p-2 rounded-xl border border-[#E2E8F0]">
+          <img src={value} alt="Selected" className="w-14 h-14 rounded-lg object-cover border border-[#E2E8F0]" />
+          <span className="text-xs text-[#64748B] flex-1 truncate">Image attached</span>
+          <button type="button" onClick={() => onChange('')} className="text-xs font-bold text-red-600 hover:underline">Remove</button>
+        </div>
+      ) : (
+        <button type="button" onClick={() => inputRef.current?.click()} disabled={uploading}
+          className="w-full h-10 rounded-xl border border-dashed border-[#CBD5E1] text-xs font-semibold text-[#475569] hover:border-[#00A86B] hover:text-[#00A86B] transition-colors disabled:opacity-60">
+          {uploading ? 'Uploading…' : 'Choose image to upload'}
+        </button>
+      )}
+      <input ref={inputRef} type="file" accept="image/jpeg,image/png" className="hidden" onChange={e => handleFile(e.target.files?.[0])} />
+      {error && <p className="text-xs text-red-600 mt-1.5">{error}</p>}
+    </div>
+  );
+}
+
 // ─── SendAlertModal ───────────────────────────────────────────────────────────
 function SendAlertModal({ open, onClose, targetUserId, targetUserName }: {
   open: boolean; onClose: () => void; targetUserId: string | null; targetUserName: string;
@@ -198,16 +191,18 @@ function SendAlertModal({ open, onClose, targetUserId, targetUserName }: {
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
   const [email, setEmail] = useState('');
+  const [imageUrl, setImageUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
   useEffect(() => {
-    if (open) { setRecipientType(targetUserId ? 'specific' : 'all'); setTitle(''); setMessage(''); setEmail(''); setResult(null); }
+    if (open) { setRecipientType(targetUserId ? 'specific' : 'all'); setTitle(''); setMessage(''); setEmail(''); setImageUrl(''); setResult(null); }
   }, [open, targetUserId]);
   const handleSend = async () => {
     if (!title.trim() || !message.trim()) { setResult({ ok: false, text: 'Title and message are required' }); return; }
     setLoading(true); setResult(null);
     try {
       const body: any = { channel, title, message, recipientType };
+      if (channel === 'WhatsApp' && imageUrl.trim()) body.imageUrl = imageUrl.trim();
       if (recipientType === 'specific') { if (targetUserId) body.targetUserId = targetUserId; else body.targetEmail = email; }
       const res = await apiClient.post('/notification/sendCustomAlert', body);
       setResult({ ok: true, text: res.data?.message || 'Alert sent!' });
@@ -265,6 +260,9 @@ function SendAlertModal({ open, onClose, targetUserId, targetUserName }: {
             <textarea value={message} onChange={e => setMessage(e.target.value)} rows={4} placeholder="Write your alert message here…"
               className="w-full p-3 rounded-xl border border-[#E2E8F0] text-xs focus:outline-none focus:border-[#00A86B] resize-none" />
           </div>
+          {channel === 'WhatsApp' && (
+            <ImageUploadField value={imageUrl} onChange={setImageUrl} />
+          )}
           {result && (
             <div className={`flex items-center gap-2 text-xs font-semibold p-3 rounded-xl ${result.ok ? 'bg-green-50 text-[#00A86B]' : 'bg-red-50 text-red-600'}`}>
               {result.ok ? <CheckCircle className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
@@ -308,6 +306,8 @@ function BulkNotifyModal({ open, onClose }: { open: boolean; onClose: () => void
   const [emailSubject, setEmailSubject] = useState('');
   const [emailBody, setEmailBody] = useState('');
   const [whatsappBody, setWhatsappBody] = useState('');
+  const [whatsappTitle, setWhatsappTitle] = useState('');
+  const [whatsappImageUrl, setWhatsappImageUrl] = useState('');
 
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
@@ -318,7 +318,7 @@ function BulkNotifyModal({ open, onClose }: { open: boolean; onClose: () => void
     setUserQuery(''); setUserSuggestions([]); setSelectedUsers([]);
     setPreviewCount(null); setPreviewUsers([]);
     setChannels({ email: true, whatsapp: false });
-    setEmailSubject(''); setEmailBody(''); setWhatsappBody('');
+    setEmailSubject(''); setEmailBody(''); setWhatsappBody(''); setWhatsappTitle(''); setWhatsappImageUrl('');
     setResult(null);
   }, [open]);
 
@@ -378,7 +378,11 @@ function BulkNotifyModal({ open, onClose }: { open: boolean; onClose: () => void
       if (target === 'filtered') { body.kycStatus = kycStatus || undefined; body.balanceType = balanceType || undefined; }
       if (target === 'selected') { body.userIds = selectedUsers.map(u => u._id); }
       if (channels.email) { body.emailSubject = emailSubject; body.emailBody = emailBody; }
-      if (channels.whatsapp) { body.whatsappBody = whatsappBody; }
+      if (channels.whatsapp) {
+        body.whatsappBody = whatsappBody;
+        if (whatsappTitle.trim()) body.whatsappTitle = whatsappTitle.trim();
+        if (whatsappImageUrl.trim()) body.imageUrl = whatsappImageUrl.trim();
+      }
 
       const res = await apiClient.post('/notification/bulkNotify/send', body);
       setResult({ ok: true, text: res.data?.message || 'Bulk notification started!' });
@@ -510,10 +514,18 @@ function BulkNotifyModal({ open, onClose }: { open: boolean; onClose: () => void
           )}
 
           {channels.whatsapp && (
-            <div>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-[#475569] mb-1.5 uppercase tracking-wide">WhatsApp Title</label>
+                <input value={whatsappTitle} onChange={e => setWhatsappTitle(e.target.value)} placeholder="e.g. Recharge Offer (defaults to the email subject)"
+                  className="w-full h-10 px-3 rounded-xl border border-[#E2E8F0] text-xs focus:outline-none focus:border-[#00A86B]" />
+              </div>
+              <div>
               <label className="block text-xs font-bold text-[#475569] mb-1.5 uppercase tracking-wide">WhatsApp Message</label>
               <textarea value={whatsappBody} onChange={e => setWhatsappBody(e.target.value)} rows={3} placeholder="Write the WhatsApp message…"
                 className="w-full p-3 rounded-xl border border-[#E2E8F0] text-xs focus:outline-none focus:border-[#00A86B] resize-none" />
+              </div>
+              <ImageUploadField value={whatsappImageUrl} onChange={setWhatsappImageUrl} />
             </div>
           )}
 
@@ -678,7 +690,6 @@ function ChannelTab({ channelCfg, settings, targetUserId, onUpdate }: {
 }) {
   const { label, Icon, color, masterField, adminField, togglePrefix, dataPrefix, hasSubject, paid } = channelCfg;
   const [saving, setSaving] = useState<string | null>(null);
-  const [editModal, setEditModal] = useState<typeof STATUSES[number] | null>(null);
   const [testOpen, setTestOpen] = useState(false);
   const { toast: localToast, showToast: _localShowToast, closeToast: closeLocalToast } = useToast(2500);
   const showToast = (ok: boolean, text: string) => _localShowToast(ok ? 'success' : 'error', text);
@@ -697,9 +708,8 @@ function ChannelTab({ channelCfg, settings, targetUserId, onUpdate }: {
 
   const toggleField = (key: StatusKey) => `is${togglePrefix}${key}Enable` as string;
   const isEnabled = (key: StatusKey) => !!settings[toggleField(key)];
-  const getTpl = (key: StatusKey) => settings[`${dataPrefix}${key}Template`] || (STATUSES.find(s => s.fieldKey === key)?.tpl[dataPrefix as 'whatsapp' | 'sms' | 'email'] ?? '');
-  const getSubj = (key: StatusKey) => settings[`${dataPrefix}${key}Subject`] || (STATUSES.find(s => s.fieldKey === key)?.subject ?? '');
-  const getUpdated = (key: StatusKey) => settings[`${dataPrefix}${key}UpdatedAt`] as string | undefined;
+  const getTpl = (key: StatusKey) => (STATUSES.find(s => s.fieldKey === key)?.tpl[dataPrefix as 'whatsapp' | 'sms' | 'email'] ?? '');
+  const getSubj = (key: StatusKey) => (STATUSES.find(s => s.fieldKey === key)?.subject ?? '');
 
   const handleMaster = (v: boolean) => putSetting(masterField, { value: v });
   const handleStatusToggle = (key: StatusKey) => {
@@ -707,13 +717,6 @@ function ChannelTab({ channelCfg, settings, targetUserId, onUpdate }: {
     onUpdate({ ...settings, [field]: !settings[field] });  // optimistic
     putSetting(field, { value: !settings[field] });
   };
-  const handleSaveTpl = async (tpl: string, subject: string) => {
-    if (!editModal) return;
-    const field = `${dataPrefix}${editModal.fieldKey}`;
-    await putSetting(field, { template: tpl, ...(hasSubject ? { subject } : {}) });
-    setEditModal(null);
-  };
-
   return (
     <div>
       {adminBlocked && (
@@ -758,8 +761,6 @@ function ChannelTab({ channelCfg, settings, targetUserId, onUpdate }: {
               <th className="px-4 py-3 w-44">Shipment Status</th>
               <th className="px-4 py-3 w-28">On / Off</th>
               <th className="px-4 py-3">Message Template</th>
-              <th className="px-4 py-3 w-44">Last Updated</th>
-              <th className="px-4 py-3 w-20 text-right">Edit</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#F1F5F9]">
@@ -775,13 +776,6 @@ function ChannelTab({ channelCfg, settings, targetUserId, onUpdate }: {
                 <td className="px-4 py-3 max-w-xs">
                   {hasSubject && <div className="text-[10px] font-bold text-[#0F172A] mb-0.5 truncate">Subject: {getSubj(s.fieldKey)}</div>}
                   <p className="text-[11px] text-[#64748B] line-clamp-2 leading-relaxed">"{getTpl(s.fieldKey)}"</p>
-                </td>
-                <td className="px-4 py-3 text-[11px] text-[#94A3B8]">{fmtDate(getUpdated(s.fieldKey))}</td>
-                <td className="px-4 py-3 text-right">
-                  <button onClick={() => setEditModal(s)}
-                    className="inline-flex items-center gap-1 px-3 py-1.5 text-[11px] font-bold text-[#00A86B] border border-[#DCFCE7] bg-[#F0FDF4] rounded-lg hover:bg-[#E6F5F1] transition-colors">
-                    <Edit2 className="w-3 h-3" /> Edit
-                  </button>
                 </td>
               </tr>
             ))}
@@ -801,26 +795,9 @@ function ChannelTab({ channelCfg, settings, targetUserId, onUpdate }: {
             <div className="bg-[#F8FAFC] rounded-lg p-2.5 text-[11px] text-[#64748B] leading-relaxed mb-2 border border-[#F1F5F9]">
               "{getTpl(s.fieldKey)}"
             </div>
-            <div className="flex justify-between items-center">
-              <span className="text-[10px] text-[#94A3B8]">{fmtDate(getUpdated(s.fieldKey))}</span>
-              <button onClick={() => setEditModal(s)}
-                className="inline-flex items-center gap-1 px-3 py-1 text-[11px] font-bold text-[#00A86B] border border-[#DCFCE7] bg-[#F0FDF4] rounded-lg">
-                <Edit2 className="w-3 h-3" /> Edit
-              </button>
-            </div>
           </div>
         ))}
       </div>
-
-      {/* Edit modal */}
-      <AnimatePresence>
-        {editModal && (
-          <EditTemplateModal open onClose={() => setEditModal(null)}
-            statusLabel={editModal.label} channelLabel={label} hasSubject={hasSubject}
-            currentTemplate={getTpl(editModal.fieldKey)} currentSubject={getSubj(editModal.fieldKey)}
-            onSave={handleSaveTpl} saving={saving === `${dataPrefix}${editModal.fieldKey}`} />
-        )}
-      </AnimatePresence>
 
       <Toast toast={localToast} onClose={closeLocalToast} />
 
