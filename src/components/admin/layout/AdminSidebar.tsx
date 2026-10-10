@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAdminTab } from '../../../context/AdminUserContext';
+import { useShippingMode } from '../../../context/shippingMode';
+import { isCargoAllowedPath } from '../../../config/cargo';
+import { ModeSwitch } from './ModeSwitch';
 import {
   Home,
   Wallet,
@@ -139,7 +142,6 @@ const MENU_GROUPS: MenuGroup[] = [
       { name: 'EDD Mapping', path: '/admin/edd-mapping', icon: Calendar, adminOnly: true },
       { name: 'EPD Mapping', path: '/admin/epd-mapping', icon: Calendar, adminOnly: true },
       { name: 'Agreement', path: '/admin/agreement', icon: FileText, adminOnly: true },
-      { name: 'Complete KYC', path: '/admin/kyc', icon: FileText, userOnly: true, noEmployee: true },
       { name: 'Employees', path: '/user/employees', icon: Users, userOnly: true, noEmployee: true },
       { name: 'Pickup Address', path: '/admin/settings/pickup-address', icon: MapPin },
       { name: 'Channels', path: '/user/channels', icon: ShoppingCart, userOnly: true },
@@ -195,6 +197,8 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
   const { isAdmin, adminTab, isEmployee, employeeAccessRights } = useAdminTab();
   const isAdminView = isAdmin && adminTab;
   const isImpersonating = !!localStorage.getItem('admin_token_backup');
+  const { isCargo } = useShippingMode();
+  const cargoView = isCargo && !isAdminView;
 
   // Replace /admin/ prefix with /user/ when in user mode
   const resolvePath = (path: string) => {
@@ -208,6 +212,7 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
     (items || []).filter(item => {
       if (item.adminOnly && !isAdminView) return false;
       if (item.userOnly && isAdminView) return false;
+      if (cargoView && !isCargoAllowedPath(resolvePath(item.path))) return false;
       if (isEmployee) {
         if (item.noEmployee) return false;
         // Use item's own permission if set, else fall back to the group's permission
@@ -221,6 +226,7 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
     if (group.divider) return true;
     if (group.adminOnly && !isAdminView) return false;
     if (group.userOnly && isAdminView) return false;
+    if (cargoView && group.path && !isCargoAllowedPath(group.path === '/admin/dashboard' ? '/user/dashboard' : resolvePath(group.path))) return false;
     // Employees only see what they have explicit permission for
     if (isEmployee) {
       if (group.permission) {
@@ -374,6 +380,12 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
                 <X className="w-4 h-4" />
               </button>
             </div>
+
+            {!isAdminView && (
+              <div className="px-5 pt-4">
+                <ModeSwitch variant="dark" layoutId="mode-switch-pill-drawer" />
+              </div>
+            )}
 
             {/* Mobile Navigation */}
             <nav className="flex-1 overflow-y-auto py-3 px-3">

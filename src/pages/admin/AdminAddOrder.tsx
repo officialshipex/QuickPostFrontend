@@ -837,6 +837,7 @@ export function AdminAddOrder() {
                     )}
                   </AnimatePresence>
                 </div>
+                <div className="flex items-center justify-between md:justify-start gap-2 shrink-0">
                 <div className="flex items-center gap-2 shrink-0">
                   <button
                     type="button"
@@ -857,14 +858,26 @@ export function AdminAddOrder() {
                     <Plus className="w-4 h-4" />
                   </button>
                 </div>
+                {/* Mobile — accuracy on the same line as edit / add, aligned right */}
+                {(() => {
+                  const sel = pickupAddresses.find(pa => pa._id === selectedPickupId);
+                  if (!sel) return null;
+                  return (
+                    <div className="md:hidden flex items-center gap-2">
+                      <span className="text-[11px] font-semibold text-[#94A3B8] uppercase tracking-wider">Address Accuracy</span>
+                      <AddressAccuracyGauge address={sel.pickupAddress?.address} size="sm" showLabel={false} />
+                    </div>
+                  );
+                })()}
+                </div>
               </div>
 
-              {/* Address accuracy for the currently selected pickup address */}
+              {/* Address accuracy for the currently selected pickup address (desktop) */}
               {(() => {
                 const sel = pickupAddresses.find(pa => pa._id === selectedPickupId);
                 if (!sel) return null;
                 return (
-                  <div className="mt-3 flex items-center gap-2">
+                  <div className="mt-3 hidden md:flex items-center gap-2">
                     <span className="text-[11px] font-semibold text-[#94A3B8] uppercase tracking-wider">Address Accuracy</span>
                     <AddressAccuracyGauge address={sel.pickupAddress?.address} size="sm" showLabel={false} />
                   </div>

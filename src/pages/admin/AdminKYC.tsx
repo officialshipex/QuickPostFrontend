@@ -9,6 +9,7 @@ import { useToast } from '../../hooks/useToast';
 import { Toast } from '../../components/ui/Toast';
 import { ShineButton } from '../../components/ui/ShineButton';
 import aadhaarLogo from '../../assets/aadhaar-logo.png';
+import { copyToClipboard } from '../../utils/clipboard';
 import { FieldLabel } from './kyc/kycUi';
 import { cardShadow, GSTIN_RE, inputCls } from './kyc/kycStyles';
 import { createManualKycData, type ManualKycData, type ManualStep } from './kyc/manualKycData';
@@ -47,47 +48,85 @@ interface BillingData { address?: string; city?: string; state?: string; postalC
 
 /* ── READ-ONLY HELPER COMPONENTS ── */
 function KycCard({ title, icon: Icon, verified, children }: { title: string; icon: React.ElementType; verified: boolean; children: React.ReactNode }) {
+  const badge = verified ? (
+    <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 md:px-2.5 py-0.5 md:py-1 rounded-full select-none shrink-0">
+      <CheckCircle2 className="w-3 h-3" /> Verified
+    </span>
+  ) : (
+    <span className="flex items-center gap-1 text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 md:px-2.5 py-0.5 md:py-1 rounded-full select-none shrink-0">
+      <Clock className="w-3 h-3" /> Pending
+    </span>
+  );
   return (
-    <div className="bg-white rounded-xl md:rounded-2xl border border-[#E2E8F0] p-4 shadow-sm">
-      <div className="flex items-center justify-between mb-3.5 md:mb-4 gap-2">
+    <div className="bg-white rounded-2xl md:rounded-2xl border border-[#E2E8F0] px-4 py-[18px] md:p-4 shadow-sm">
+      <div className="flex items-center justify-between mb-2 md:mb-4 gap-2">
         <div className="flex items-center gap-2 md:gap-2.5 min-w-0">
           <div className="w-7 h-7 md:w-8 md:h-8 rounded-lg bg-[#F0FDF4] flex items-center justify-center shrink-0">
             <Icon className="w-3.5 h-3.5 md:w-4 md:h-4 text-[#00A86B]" />
           </div>
           <h3 className="text-[13px] md:text-sm font-semibold md:font-bold text-[#0F172A] truncate">{title}</h3>
         </div>
-        {verified ? (
-          <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 md:px-2.5 py-0.5 md:py-1 rounded-full select-none shrink-0">
-            <CheckCircle2 className="w-3 h-3" /> Verified
-          </span>
-        ) : (
-          <span className="flex items-center gap-1 text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 md:px-2.5 py-0.5 md:py-1 rounded-full select-none shrink-0">
-            <Clock className="w-3 h-3" /> Pending
-          </span>
-        )}
+        {badge}
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3 md:gap-y-3.5">{children}</div>
+      {/* Mobile: label/value rows with hairlines (Overview style). Desktop: two-column grid. */}
+      <div className="flex flex-col md:grid md:grid-cols-2 md:gap-x-4 md:gap-y-3.5">{children}</div>
     </div>
   );
 }
 
-function KycField({ label, value, wide, onCopy }: { label: string; value?: string | null; wide?: boolean; onCopy?: (v: string) => void }) {
+const maskSensitive = (value: string) => {
+  const v = value.replace(/\s/g, '');
+  if (v.length <= 4) return v;
+  return `${'•'.repeat(4)} ${v.length > 8 ? '•••• ' : ''}${v.slice(-4)}`;
+};
+
+function KycField({ label, value, wide, onCopy, sensitive }: { label: string; value?: string | null; wide?: boolean; onCopy?: (v: string) => void; sensitive?: boolean }) {
+  const [revealed, setRevealed] = useState(false);
+  const hidden = !!value && sensitive && !revealed;
   return (
-    <div className={`group/field ${wide ? 'sm:col-span-2' : ''}`}>
-      <span className="block text-[9.5px] md:text-[10px] font-semibold md:font-bold text-[#94A3B8] uppercase tracking-wider mb-1">{label}</span>
-      <div className="flex items-center gap-1.5">
-        <span className="text-[12.5px] md:text-[13px] font-semibold text-[#0F172A] break-all">{value || '—'}</span>
-        {value && onCopy && (
-          <button
-            type="button"
-            onClick={() => onCopy(value)}
-            className="opacity-100 md:opacity-0 md:group-hover/field:opacity-100 transition-opacity shrink-0 text-[#CBD5E1] hover:text-[#00A86B] focus:outline-none"
-          >
-            <Copy className="w-3 h-3" />
-          </button>
-        )}
+    <>
+      {/* Mobile — row like the Overview fields */}
+      <div className="md:hidden flex items-center justify-between gap-3 py-2.5 border-b border-[#F1F5F9] last:border-b-0">
+        <span className="text-[12px] font-semibold text-[#94A3B8] shrink-0">{label}</span>
+        <div className="flex items-center gap-2 min-w-0">
+          <span className={`text-[12px] text-[#1E293B] text-right break-words ${sensitive ? 'tabular-nums tracking-wide' : ''}`}>
+            {!value ? '—' : hidden ? maskSensitive(value) : value}
+          </span>
+          {value && sensitive && (
+            <button
+              type="button"
+              onClick={() => setRevealed((r) => !r)}
+              aria-label={revealed ? `Hide ${label}` : `Show ${label}`}
+              className="shrink-0 text-[#94A3B8] active:text-[#0F172A]"
+            >
+              {revealed ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+            </button>
+          )}
+          {value && onCopy && (!sensitive || revealed) && (
+            <button type="button" onClick={() => onCopy(value)} aria-label={`Copy ${label}`} className="shrink-0 text-[#94A3B8] active:text-[#00A86B]">
+              <Copy className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
       </div>
-    </div>
+
+      {/* Desktop — unchanged */}
+      <div className={`hidden md:block group/field ${wide ? 'sm:col-span-2' : ''}`}>
+        <span className="block text-[9.5px] md:text-[10px] font-semibold md:font-bold text-[#94A3B8] uppercase tracking-wider mb-1">{label}</span>
+        <div className="flex items-center gap-1.5">
+          <span className="text-[12.5px] md:text-[13px] font-semibold text-[#0F172A] break-all">{value || '—'}</span>
+          {value && onCopy && (
+            <button
+              type="button"
+              onClick={() => onCopy(value)}
+              className="opacity-100 md:opacity-0 md:group-hover/field:opacity-100 transition-opacity shrink-0 text-[#CBD5E1] hover:text-[#00A86B] focus:outline-none"
+            >
+              <Copy className="w-3 h-3" />
+            </button>
+          )}
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -1095,12 +1134,15 @@ const KYC_METHODS: { id: 'EKYC' | 'MANUAL'; title: string; description: string; 
 ];
 
 /* ── MAIN COMPONENT ── */
-export function AdminKYC() {
+export function AdminKYC({ embedded = false }: { embedded?: boolean } = {}) {
   const navigate = useNavigate();
   const { toast, showToast, closeToast } = useToast();
   const [copyToast, setCopyToast] = useState(false);
-  const copyValue = (v: string) => {
-    navigator.clipboard.writeText(v);
+  const copyValue = async (v: string) => {
+    // copyToClipboard falls back to execCommand where navigator.clipboard is unavailable
+    // (plain-http / in-app mobile browsers), which made the copy icon silently fail.
+    const ok = await copyToClipboard(v);
+    if (!ok) return;
     setCopyToast(true);
     setTimeout(() => setCopyToast(false), 1500);
   };
@@ -1339,7 +1381,10 @@ export function AdminKYC() {
   const [isManualSubmitting, setIsManualSubmitting] = useState(false);
   const goToManualStep = (next: ManualStep) => {
     setManualStep(next);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // Embedded in Profile the page scrolls inside the tab panel, so scroll the flow itself into view.
+    const root = document.getElementById('kyc-manual-root');
+    if (embedded && root) root.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    else window.scrollTo({ top: 0, behavior: 'smooth' });
   };
   // E-KYC page 1 shows only Business Type + Billing/GST; the rest of the flow
   // (PAN -> Aadhaar -> GST [company only] -> Bank) opens as a chain of
@@ -1691,8 +1736,8 @@ export function AdminKYC() {
     const isVerifiedG = !!fetchedGst?.gstin;
     return (
       <AdminLayout>
-        <div className="max-w-5xl mx-auto px-4 md:px-0 pb-16">
-          <div className="mb-4 md:mb-6 bg-[#F0FDF4] border border-emerald-200 rounded-xl md:rounded-2xl p-3.5 md:p-4 flex items-center gap-3 shadow-sm">
+        <div className={`max-w-5xl mx-auto ${embedded ? 'px-0' : 'px-4'} md:px-0 pb-16`}>
+          <div className="mb-4 md:mb-6 bg-[#F0FDF4] border border-emerald-200 rounded-2xl p-3.5 md:p-4 flex items-center gap-3 shadow-sm">
             <div className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-white flex items-center justify-center shrink-0 text-[#00A86B] shadow-sm">
               <ShieldCheck className="w-4.5 h-4.5 md:w-5 md:h-5" />
             </div>
@@ -1702,17 +1747,17 @@ export function AdminKYC() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 md:gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <KycCard title="Aadhaar Details" icon={CreditCard} verified={!!fetchedAadhaar?.aadhaarNumber}>
               <KycField label="Name" value={fetchedAadhaar?.name} wide onCopy={copyValue} />
-              <KycField label="Aadhaar Number" value={fetchedAadhaar?.aadhaarNumber} onCopy={copyValue} />
+              <KycField label="Aadhaar Number" value={fetchedAadhaar?.aadhaarNumber} onCopy={copyValue} sensitive />
               <KycField label="Guardian Name" value={fetchedAadhaar?.sonOf} />
               <KycField label="State" value={fetchedAadhaar?.state} />
               <KycField label="Address" value={fetchedAadhaar?.address} wide />
             </KycCard>
 
             <KycCard title="PAN Details" icon={FileText} verified={!!fetchedPan?.pan}>
-              <KycField label="PAN Number" value={fetchedPan?.pan} onCopy={copyValue} />
+              <KycField label="PAN Number" value={fetchedPan?.pan} onCopy={copyValue} sensitive />
               <KycField label="PAN Type" value={fetchedPan?.panType} />
               <KycField label="Registered Name" value={fetchedPan?.registeredName} wide />
               <KycField label="PAN Ref ID" value={fetchedPan?.panRefId} wide />
@@ -1722,7 +1767,7 @@ export function AdminKYC() {
               <KycField label="Name at Bank" value={fetchedBank?.nameAtBank} wide />
               <KycField label="Bank" value={fetchedBank?.bank} />
               <KycField label="Branch" value={fetchedBank?.branch} />
-              <KycField label="Account Number" value={fetchedBank?.accountNumber} onCopy={copyValue} />
+              <KycField label="Account Number" value={fetchedBank?.accountNumber} onCopy={copyValue} sensitive />
               <KycField label="IFSC" value={fetchedBank?.ifsc} onCopy={copyValue} />
             </KycCard>
 
@@ -1815,7 +1860,7 @@ export function AdminKYC() {
     return (
       <AdminLayout>
         <div className="mx-2 text-[#0F172A] pb-16">
-          <h1 className="text-lg md:text-xl font-bold text-[#0F172A] mb-4 md:mb-6">KYC</h1>
+          {!embedded && <h1 className="text-lg md:text-xl font-bold text-[#0F172A] mb-4 md:mb-6">KYC</h1>}
 
           <div className="bg-white rounded-xl md:rounded-2xl shadow-[0_1px_2px_rgba(16,24,40,0.04),0_2px_8px_rgba(16,24,40,0.05)]">
             <div className="px-4 md:px-6 py-4 md:py-5 border-b border-[#F1F5F9]">
@@ -2011,7 +2056,7 @@ export function AdminKYC() {
     return (
       <AdminLayout>
         <div className="mx-2 text-[#0F172A] pb-16">
-          <h1 className="text-lg md:text-xl font-bold text-[#0F172A] mb-4 md:mb-6">KYC</h1>
+          {!embedded && <h1 className="text-lg md:text-xl font-bold text-[#0F172A] mb-4 md:mb-6">KYC</h1>}
 
           <div className="max-w-3xl mx-auto bg-white rounded-xl md:rounded-2xl shadow-[0_1px_2px_rgba(16,24,40,0.04),0_2px_8px_rgba(16,24,40,0.05)]">
             {/* Header */}
@@ -2354,8 +2399,8 @@ export function AdminKYC() {
 
   return (
     <AdminLayout>
-      <div className="mx-2 text-[#0F172A] pb-16">
-        <h1 className="text-lg md:text-xl font-bold text-[#0F172A] mb-4 md:mb-6">KYC</h1>
+      <div id="kyc-manual-root" className="mx-2 text-[#0F172A] pb-16 scroll-mt-4">
+        {!embedded && <h1 className="text-lg md:text-xl font-bold text-[#0F172A] mb-4 md:mb-6">KYC</h1>}
 
         <AnimatePresence mode="wait" initial={false}>
           <motion.div

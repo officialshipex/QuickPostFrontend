@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Outlet, useLocation } from 'react-router-dom';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { AdminSidebar } from './AdminSidebar';
 import { AdminHeader } from './AdminHeader';
@@ -7,6 +7,20 @@ import { TableLoader } from '../../ui/TableLoader';
 import { useAdminTab } from '../../../context/AdminUserContext';
 import { Lock } from 'lucide-react';
 import { AdminLayoutShellProvider } from './AdminLayoutContext';
+import { WhatsNewCard } from '../../ui/WhatsNewCard';
+import { ShippingModeProvider } from '../../../context/ShippingModeProvider';
+import { useShippingMode } from '../../../context/shippingMode';
+import { isCargoAllowedPath } from '../../../config/cargo';
+
+// In Cargo mode only the sections in config/cargo.ts are reachable; anything else lands on Home.
+function CargoRouteGuard() {
+  const { pathname } = useLocation();
+  const { isCargo } = useShippingMode();
+  if (isCargo && pathname.startsWith('/user/') && !isCargoAllowedPath(pathname)) {
+    return <Navigate to="/user/home" replace />;
+  }
+  return <Outlet />;
+}
 
 export function AdminShell() {
   const location = useLocation();
@@ -35,6 +49,7 @@ export function AdminShell() {
 
   return (
     <AdminLayoutShellProvider>
+    <ShippingModeProvider>
       <div className="admin-dashboard-layout flex min-h-screen bg-[#F8FAFC] text-[#0F172A] selection:bg-[#00A86B]/20 selection:text-[#00A86B] text-sm">
 
         {loadingAdminTab && (
@@ -59,10 +74,12 @@ export function AdminShell() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.18 }}
             >
-              <Outlet />
+              <CargoRouteGuard />
             </motion.div>
           </main>
         </div>
+
+        <WhatsNewCard />
 
         {accessDeniedMsg && (
           <div className="fixed inset-0 z-[500] flex items-center justify-center p-4">
@@ -83,6 +100,7 @@ export function AdminShell() {
           </div>
         )}
       </div>
+    </ShippingModeProvider>
     </AdminLayoutShellProvider>
   );
 }

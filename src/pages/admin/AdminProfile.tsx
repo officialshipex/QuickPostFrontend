@@ -6,6 +6,8 @@ import { Toast } from '../../components/ui/Toast';
 import { useToast } from '../../hooks/useToast';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { useAdminTab } from '../../context/AdminUserContext';
+import { AdminKYC } from './AdminKYC';
+import { copyToClipboard } from '../../utils/clipboard';
 import {
   MapPin,
   CreditCard,
@@ -30,6 +32,10 @@ import {
   Upload,
   Trash2,
   ChevronDown,
+  Eye,
+  EyeOff,
+  Copy,
+  Check,
 } from 'lucide-react';
 
 const fmtProfileDate = (iso: string | null | undefined) => {
@@ -67,6 +73,34 @@ function Field({ label, value, action }: { label: string; value: React.ReactNode
         {action}
       </div>
     </div>
+  );
+}
+
+/** Mobile: masked value with an eye toggle; copy appears once revealed. Desktop: plain value. */
+function RevealValue({ value, label }: { value?: string; label: string }) {
+  const [revealed, setRevealed] = useState(false);
+  const [copied, setCopied] = useState(false);
+  if (!value || value === '—') return <>{value || '—'}</>;
+  const v = String(value).replace(/\s/g, '');
+  const masked = v.length <= 4 ? v : `•••• ${v.length > 8 ? '•••• ' : ''}${v.slice(-4)}`;
+  const copy = async () => {
+    if (await copyToClipboard(v)) { setCopied(true); setTimeout(() => setCopied(false), 1500); }
+  };
+  return (
+    <>
+      <span className="hidden md:inline">{value}</span>
+      <span className="md:hidden inline-flex items-center gap-2">
+        <span className="tabular-nums tracking-wide">{revealed ? value : masked}</span>
+        <button type="button" onClick={() => setRevealed(r => !r)} aria-label={revealed ? `Hide ${label}` : `Show ${label}`} className="text-[#94A3B8] active:text-[#0F172A] shrink-0">
+          {revealed ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+        </button>
+        {revealed && (
+          <button type="button" onClick={copy} aria-label={`Copy ${label}`} className="text-[#94A3B8] active:text-[#00A86B] shrink-0">
+            {copied ? <Check className="w-3.5 h-3.5 text-[#00A86B]" /> : <Copy className="w-3.5 h-3.5" />}
+          </button>
+        )}
+      </span>
+    </>
   );
 }
 
@@ -843,7 +877,18 @@ export function AdminProfile() {
   const effectiveId = mongoId || currentUserId;
   const isImpersonating = !!localStorage.getItem('admin_token_backup');
 
-  const [activeTab, setActiveTab] = useState<TabId>('overview');
+  const tabFromUrl = (): TabId => {
+    const t = new URLSearchParams(location.search).get('tab');
+    return (TABS.some(x => x.id === t) ? t : 'overview') as TabId;
+  };
+  const [activeTab, setActiveTab] = useState<TabId>(tabFromUrl);
+  // Follow ?tab= deep links (e.g. /user/profile?tab=kyc from the old KYC page links).
+  const [lastSearch, setLastSearch] = useState(location.search);
+  if (location.search !== lastSearch) {
+    setLastSearch(location.search);
+    const t = new URLSearchParams(location.search).get('tab');
+    if (t && TABS.some(x => x.id === t)) setActiveTab(t as TabId);
+  }
 
   // Modal visibility
   const [showBankModal, setShowBankModal] = useState(false);
@@ -1116,24 +1161,23 @@ export function AdminProfile() {
       {showKAMModal && <KAMModal userId={effectiveId} onClose={() => setShowKAMModal(false)} onSuccess={refreshUser} />}
       {showPasswordModal && <ChangePasswordModal email={userData.email} onClose={() => setShowPasswordModal(false)} onSuccess={() => {}} />}
 
-      {/* ── Mobile hero header — distinct from desktop sidebar: gradient banner + overlapping avatar ── */}
+      {/* ── Mobile account header — banner with back, overlapping avatar, identity, wallet strip ── */}
       <div className="md:hidden -m-4 bg-white border-b border-[#E2E8F0]">
-        <div className="flex items-center justify-between px-2 pt-3 pb-2">
-          <button onClick={() => navigate(-1)} className="w-9 h-9 rounded-full border border-[#E2E8F0] flex items-center justify-center text-[#475569] bg-white active:bg-[#F8FAFC]">
+        <div className="h-[88px] bg-gradient-to-r from-[#00A86B] to-[#007A4D] relative">
+          <button
+            onClick={() => navigate(-1)}
+            aria-label="Back"
+            className="absolute top-3 left-3 w-8 h-8 rounded-full bg-white/15 text-white flex items-center justify-center active:bg-white/25"
+          >
             <ArrowLeft className="w-4 h-4" />
           </button>
-          <span className="text-[13px] font-bold text-[#0F172A]">Profile</span>
-          <div className="w-9 h-9" />
-        </div>
-
-        <div className="h-16 bg-gradient-to-r from-[#00A86B] to-[#007A4D] relative">
-          <div className="absolute -bottom-8 left-2">
+          <div className="absolute -bottom-8 left-4">
             <div className="relative">
-              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#00A86B] to-[#007A4D] flex items-center justify-center border-4 border-white shadow-md overflow-hidden">
+              <div className="w-[68px] h-[68px] rounded-full bg-gradient-to-br from-[#00A86B] to-[#007A4D] flex items-center justify-center border-[3px] border-white shadow-md overflow-hidden">
                 {logoUrl ? (
                   <img src={logoUrl} alt="Profile" className="w-full h-full object-cover" />
                 ) : (
-                  <span className="text-[20px] font-semibold text-white leading-none select-none">
+                  <span className="text-[22px] font-semibold text-white leading-none select-none">
                     {(userData.name || '?').charAt(0).toUpperCase()}
                   </span>
                 )}
@@ -1142,35 +1186,42 @@ export function AdminProfile() {
                 onClick={() => fileInputRef.current?.click()}
                 className="absolute bottom-0 right-0 w-6 h-6 bg-white border border-[#E2E8F0] rounded-full flex items-center justify-center shadow-sm active:bg-[#F8FAFC]"
                 title="Change profile image"
+                aria-label="Change profile image"
               >
                 <Camera className="w-3 h-3 text-[#64748B]" />
               </button>
             </div>
           </div>
+          {isAdminView && (
+            <div className="absolute -bottom-7 right-4 flex items-center gap-3">
+              <div className="flex flex-col items-center gap-1">
+                <span className="text-[9px] font-semibold text-[#94A3B8] uppercase tracking-wide">Active</span>
+                <Toggle on={isActive} onClick={handleToggle} />
+              </div>
+              <div className="flex flex-col items-center gap-1">
+                <span className="text-[9px] font-semibold text-[#94A3B8] uppercase tracking-wide">KYC</span>
+                <Toggle on={isKycVerified} onClick={handleKycToggle} />
+              </div>
+            </div>
+          )}
         </div>
 
-        <div className="pt-9 pb-3 px-2">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <h1 className="text-[15px] font-bold text-[#0F172A] truncate">{userData.name}</h1>
-              <p className="text-[12px] text-[#64748B] truncate">{userData.email}</p>
-            </div>
-
-            {isAdminView && (
-              <div className="flex items-center gap-3 shrink-0 pt-0.5">
-                <div className="flex flex-col items-center gap-1">
-                  <span className="text-[9px] font-semibold text-[#94A3B8] uppercase tracking-wide">Active</span>
-                  <Toggle on={isActive} onClick={handleToggle} />
-                </div>
-                <div className="flex flex-col items-center gap-1">
-                  <span className="text-[9px] font-semibold text-[#94A3B8] uppercase tracking-wide">KYC</span>
-                  <Toggle on={isKycVerified} onClick={handleKycToggle} />
-                </div>
-              </div>
+        <div className="pt-10 pb-4 px-4">
+          <h1 className="text-[17px] font-bold text-[#0F172A] leading-tight truncate">{userData.name}</h1>
+          <div className="mt-1 space-y-0.5">
+            <p className="flex items-center gap-1.5 text-[12px] text-[#64748B] min-w-0">
+              <Mail className="w-3.5 h-3.5 text-[#94A3B8] shrink-0" />
+              <span className="truncate">{userData.email}</span>
+            </p>
+            {userData.phone && (
+              <p className="flex items-center gap-1.5 text-[12px] text-[#64748B]">
+                <Phone className="w-3.5 h-3.5 text-[#94A3B8] shrink-0" />
+                <span>{userData.phone}</span>
+              </p>
             )}
           </div>
 
-          <div className="flex items-center gap-1.5 flex-wrap mt-2">
+          <div className="flex items-center gap-1.5 flex-wrap mt-2.5">
             <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${isActive ? 'text-[#00A86B] border-[#A7F3D0] bg-[#ECFDF5]' : 'text-[#EF4444] border-[#FECACA] bg-[#FEF2F2]'}`}>
               {isActive ? 'ACTIVE' : 'BLOCKED'}
             </span>
@@ -1182,15 +1233,15 @@ export function AdminProfile() {
             </span>
           </div>
 
-          {/* Wallet row */}
-          <div className="grid grid-cols-2 gap-2 mt-3">
-            <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl p-2.5">
-              <p className="text-[10px] font-semibold text-[#94A3B8]">Balance</p>
-              <p className="text-[13px] font-bold text-[#0F172A] mt-0.5 truncate">{userData.balance}</p>
+          {/* Wallet strip */}
+          <div className="mt-3.5 grid grid-cols-2 rounded-xl bg-[#F8FAFC] divide-x divide-[#E2E8F0]">
+            <div className="px-3.5 py-2.5 min-w-0">
+              <p className="text-[11px] font-medium text-[#64748B]">Wallet Balance</p>
+              <p className={`text-[15px] font-bold mt-0.5 truncate tabular-nums ${String(userData.balance).trim().startsWith('-') ? 'text-[#EF4444]' : 'text-[#0F172A]'}`}>{userData.balance}</p>
             </div>
-            <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl p-2.5">
-              <p className="text-[10px] font-semibold text-[#94A3B8]">On Hold</p>
-              <p className="text-[13px] font-bold text-[#0F172A] mt-0.5 truncate">{fmtProfileCurrency(holdAmount)}</p>
+            <div className="px-3.5 py-2.5 min-w-0">
+              <p className="text-[11px] font-medium text-[#64748B]">On Hold</p>
+              <p className="text-[15px] font-bold text-[#0F172A] mt-0.5 truncate tabular-nums">{fmtProfileCurrency(holdAmount)}</p>
             </div>
           </div>
         </div>
@@ -1424,8 +1475,11 @@ export function AdminProfile() {
               </div>
             )}
 
-            {/* ── KYC & Documents ── */}
-            {activeTab === 'kyc' && (
+            {/* ── KYC & Documents ── seller side: the full KYC flow; admin side: the seller's details */}
+            {activeTab === 'kyc' && !isAdminView && (
+              <AdminKYC embedded />
+            )}
+            {activeTab === 'kyc' && isAdminView && (
               <div className="flex flex-col gap-4">
                 <SectionCard
                   icon={IdCard}
@@ -1467,10 +1521,10 @@ export function AdminProfile() {
               >
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-0 md:gap-y-4">
                   <Field label="Bank Name" value={userData.bankName} />
-                  <Field label="Account Number" value={userData.accountNumber} />
+                  <Field label="Account Number" value={<RevealValue value={userData.accountNumber} label="Account Number" />} />
                   <Field label="Account Holder" value={userData.beneficiaryName || userData.name} />
                   <Field label="IFSC" value={userData.ifsc} />
-                  <div className="col-span-2"><Field label="Branch Name" value={userData.branchName} /></div>
+                  <div className="md:col-span-2"><Field label="Branch Name" value={userData.branchName} /></div>
                 </div>
               </SectionCard>
             )}

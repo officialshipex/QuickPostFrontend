@@ -299,7 +299,7 @@ function App() {
               <Route path="/user/weight-discrepancy/:tabSlug" element={<AdminWeightDiscrepancy />} />
               <Route path="/user/notification" element={<AdminNotification />} />
               <Route path="/user/notification/:tabSlug" element={<AdminNotification />} />
-              <Route path="/user/kyc" element={<AdminKYC />} />
+              <Route path="/user/kyc" element={<Navigate to="/user/profile?tab=kyc" replace />} />
               <Route path="/user/referral" element={<AdminReferral />} />
               <Route path="/user/support" element={<AdminSupport />} />
               <Route path="/user/support/:tabSlug" element={<AdminSupport />} />

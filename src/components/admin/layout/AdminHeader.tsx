@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Search, LogOut, Bell, User, Building2, Calendar, ChevronDown, Shield, Zap, Calculator, PackagePlus, Wallet, Check, X, Menu, Upload, Users, Package, UploadCloud, Loader2, TicketPlus } from 'lucide-react';
 import { useAuth } from '../../../hooks/useAuth';
+import { ModeSwitch } from './ModeSwitch';
 import { apiClient } from '../../../services/apiClient';
 import { getToken, setToken } from '../../../utils/session';
 import { useAdminTab } from '../../../context/AdminUserContext';
@@ -1030,6 +1031,9 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
           </AnimatePresence>
         </div>
         )}
+
+        {/* B2C ⇄ Cargo — seller side only */}
+        {!(isAdmin && adminTab) && <ModeSwitch />}
 
         {/* Wallet Balance */}
         <div

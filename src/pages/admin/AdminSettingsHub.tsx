@@ -17,7 +17,7 @@ const SETTINGS_CARDS: SettingsCard[] = [
   { title: 'Pickup Address', description: 'Manage your saved pickup addresses', icon: MapPin, path: '/user/settings/pickup-address' },
   { title: 'Channels', description: 'Connect and manage your sales channels', icon: ShoppingCart, path: '/user/channels' },
   { title: 'Courier', description: 'Choose couriers and set delivery priority', icon: Truck, path: '/user/courier-setup' },
-  { title: 'KYC', description: 'Manage KYC documents', icon: ShieldCheck, path: '/user/kyc' },
+  { title: 'KYC', description: 'Manage KYC documents', icon: ShieldCheck, path: '/user/profile?tab=kyc' },
   { title: 'Change Password', description: 'Update your credentials', icon: Lock, path: '/user/settings/change-password' },
   { title: 'Label', description: 'Customize your labels', icon: Tag, path: '/user/settings/label' },
   { title: 'Invoice', description: 'Manage invoice settings', icon: CreditCard, path: '/user/settings/invoice' },
