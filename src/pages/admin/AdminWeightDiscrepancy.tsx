@@ -346,7 +346,7 @@ export function AdminWeightDiscrepancy() {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(20);
+  const [rowsPerPage, setRowsPerPage] = useState(100);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [counts, setCounts] = useState<Record<string, number>>({});

@@ -280,14 +280,14 @@ export function AdminWallet() {
   const [courierOptions, setCourierOptions] = useState<{ label: string; value: string }[]>([]);
 
   // Pagination page states — declared early so fetch functions can reference setters
-  const [shippingItemsPerPage, setShippingItemsPerPage] = useState(20);
-  const [passbookItemsPerPage, setPassbookItemsPerPage] = useState(20);
-  const [rechargeItemsPerPage, setRechargeItemsPerPage] = useState(20);
-  const [invoiceItemsPerPage, setInvoiceItemsPerPage] = useState(20);
-  const shippingItemsPerPageRef = useRef(20);
-  const passbookItemsPerPageRef = useRef(20);
-  const rechargeItemsPerPageRef = useRef(20);
-  const invoiceItemsPerPageRef = useRef(20);
+  const [shippingItemsPerPage, setShippingItemsPerPage] = useState(100);
+  const [passbookItemsPerPage, setPassbookItemsPerPage] = useState(100);
+  const [rechargeItemsPerPage, setRechargeItemsPerPage] = useState(100);
+  const [invoiceItemsPerPage, setInvoiceItemsPerPage] = useState(100);
+  const shippingItemsPerPageRef = useRef(100);
+  const passbookItemsPerPageRef = useRef(100);
+  const rechargeItemsPerPageRef = useRef(100);
+  const invoiceItemsPerPageRef = useRef(100);
   const [shippingPage, setShippingPage] = useState(1);
   const [passbookPage, setPassbookPage] = useState(1);
   const [rechargePage, setRechargePage] = useState(1);

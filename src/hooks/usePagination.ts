@@ -83,7 +83,7 @@ export function DesktopPagination({
   startIndex,
   endIndex,
   totalItems,
-  rowsPerPageOptions = [20, 50, 100, 200],
+  rowsPerPageOptions = [100, 200, 300, 500],
 }: DesktopPaginationProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [panelPos, setPanelPos] = useState({ left: 0, bottom: 0, width: 0 });

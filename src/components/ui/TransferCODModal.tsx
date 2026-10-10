@@ -21,6 +21,7 @@ export function TransferCODModal({ userId, selectedRemittanceIds, type = 'seller
   const [creditLimit, setCreditLimit] = useState(0);
   const [utr, setUtr] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [adjustMode, setAdjustMode] = useState<'full' | 'negative_only' | null>('full');
   const [bypassHold, setBypassHold] = useState(false);
   const { toast, showToast, closeToast } = useToast();
@@ -31,18 +32,23 @@ export function TransferCODModal({ userId, selectedRemittanceIds, type = 'seller
 
   useEffect(() => {
     const fetch = async () => {
+      setFetchError(null);
       try {
-        const res = await apiClient.get(`/cod/getCODTransferData/${userId}`, {
-          params: { selectedRemittanceIds },
-        });
+        // repeated key (selectedRemittanceIds=a&selectedRemittanceIds=b), the same form the backend reads
+        const qs = new URLSearchParams();
+        selectedRemittanceIds.forEach((remId) => qs.append('selectedRemittanceIds', remId));
+        const res = await apiClient.get(`/cod/getCODTransferData/${userId}?${qs.toString()}`);
         const fetched = res.data?.data;
         setRemittance(Array.isArray(fetched) ? fetched[0] : fetched);
         setBankDetails(res.data.bankDetails || null);
         setBalance(Number(res.data.walletBalance ?? res.data.balance ?? 0));
         setHoldAmount(Number(res.data.holdAmount ?? res.data.holdamount ?? 0));
         setCreditLimit(Number(res.data.creditLimit ?? 0));
-      } catch {
-        showToast('error', 'Failed to load transfer data.');
+      } catch (err: any) {
+        // show the reason instead of leaving an empty loading box
+        const msg = err?.response?.data?.message || 'Failed to load transfer data.';
+        setFetchError(msg);
+        showToast('error', msg);
       }
     };
     if (userId && selectedRemittanceIds.length) fetch();
@@ -155,7 +161,14 @@ export function TransferCODModal({ userId, selectedRemittanceIds, type = 'seller
             <p className="text-[#64748B] text-[12px] sm:text-[14px]">Review the details and provide the UTR number to initiate the COD transfer request</p>
           </div>
 
-          {!remittance ? (
+          {fetchError ? (
+            <div className="p-8 text-center space-y-4">
+              <div className="inline-block px-4 py-3 bg-red-50 border border-red-200 text-red-600 rounded-xl text-[13px] font-semibold">{fetchError}</div>
+              <div>
+                <button onClick={onClose} className="px-5 py-2 text-[13px] font-semibold text-[#475569] bg-[#F1F5F9] rounded-xl hover:bg-[#E2E8F0] transition">Close</button>
+              </div>
+            </div>
+          ) : !remittance ? (
             <div className="p-5 sm:p-8 space-y-4 animate-pulse">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6">
                 {[1, 2, 3, 4].map(i => <div key={i} className="h-20 sm:h-24 bg-[#F1F5F9] rounded-2xl" />)}
@@ -283,6 +296,14 @@ export function TransferCODModal({ userId, selectedRemittanceIds, type = 'seller
                     <Banknote className="w-4 h-4 text-[#64748B]" />
                     {displayType === 'Courier' ? 'Courier Bank Details' : 'Seller Bank Details'}
                   </h3>
+                  {!bankDetails && (
+                    <div className="mb-3 px-3 py-2.5 border border-amber-200 rounded-xl bg-amber-50 flex items-center gap-2 text-[12px] text-amber-800">
+                      <span className="text-amber-600 font-bold text-sm">⚠️</span>
+                      <span>
+                        <strong>No bank details on file:</strong> {displayType === 'Courier' ? 'This courier has' : 'This seller has'} not added bank account details yet. Please verify bank account details {displayType === 'Courier' ? 'with the courier' : 'with the seller'}.
+                      </span>
+                    </div>
+                  )}
                   <div className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm p-4 sm:p-6 grid grid-cols-2 md:grid-cols-2 gap-x-4 sm:gap-x-8 gap-y-4 sm:gap-y-6">
                     <div className="min-w-0">
                       <p className="text-[10px] sm:text-[12px] font-semibold text-[#1E293B] uppercase tracking-wider mb-1">{displayType === 'Courier' ? 'Company Name' : 'Account Holder'}</p>

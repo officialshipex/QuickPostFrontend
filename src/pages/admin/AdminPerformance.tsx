@@ -148,7 +148,7 @@ export function AdminPerformance() {
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = (searchParams.get('tab') as 'seller' | 'courier' | 'profit') || 'seller';
   const [sellerPage, setSellerPage]   = useState(1);
-  const [sellerRowsPerPage, setSellerRowsPerPage] = useState(10);
+  const [sellerRowsPerPage, setSellerRowsPerPage] = useState(100);
 
   // Seller / user search — shared across Seller Performance and Profit & Loss tabs
   const {
@@ -189,7 +189,7 @@ export function AdminPerformance() {
   const [profitTotal, setProfitTotal]             = useState(0);
   const [profitTotalPages, setProfitTotalPages]   = useState(0);
   const [profitPage, setProfitPage]               = useState(1);
-  const [profitRowsPerPage, setProfitRowsPerPage] = useState(20);
+  const [profitRowsPerPage, setProfitRowsPerPage] = useState(100);
   const [profitSort, setProfitSort]               = useState<'profit_desc' | 'profit_asc'>('profit_desc');
   const [expandedProfitId, setExpandedProfitId]   = useState<string | null>(null);
   const [loadingProfit, setLoadingProfit]         = useState(false);

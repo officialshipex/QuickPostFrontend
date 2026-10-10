@@ -316,9 +316,9 @@ export function AdminCOD() {
   const [showMobileSellerStats, setShowMobileSellerStats] = useState(false);
   const [showMobileCourierStats, setShowMobileCourierStats] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [codRowsPerPage, setCodRowsPerPage] = useState(20);
-  const [sellerRowsPerPage, setSellerRowsPerPage] = useState(20);
-  const [courierRowsPerPage, setCourierRowsPerPage] = useState(20);
+  const [codRowsPerPage, setCodRowsPerPage] = useState(100);
+  const [sellerRowsPerPage, setSellerRowsPerPage] = useState(100);
+  const [courierRowsPerPage, setCourierRowsPerPage] = useState(100);
   const [currentPage, setCurrentPage] = useState(1);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 

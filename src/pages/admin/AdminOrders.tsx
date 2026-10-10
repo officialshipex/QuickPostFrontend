@@ -410,7 +410,7 @@ export function AdminOrders() {
   const [page, setPage]             = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
-  const [rowsPerPage, setRowsPerPageState] = useState(20);
+  const [rowsPerPage, setRowsPerPageState] = useState(100);
   // Changing page size always resets to page 1 — otherwise the current page can go out of
   // range against the new page size and the next fetch returns an empty page.
   const setRowsPerPage = useCallback((value: number | ((prev: number) => number)) => {

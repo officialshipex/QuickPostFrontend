@@ -1297,7 +1297,7 @@ function CreditHistoryTab({ targetUserId, isAdminView }: { targetUserId: string 
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(20);
+  const [rowsPerPage, setRowsPerPage] = useState(100);
   const [totalItems, setTotalItems] = useState(0);
   const [category, setCategory] = useState('');
   const [fromDate, setFromDate] = useState('');
