@@ -218,7 +218,7 @@ export function AdminNDR() {
   const [page, setPage]             = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(20);
+  const [rowsPerPage, setRowsPerPage] = useState(100);
 
   // ── Filter state ──
   const [orderId,              setOrderId]              = useState('');

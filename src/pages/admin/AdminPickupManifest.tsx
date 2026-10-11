@@ -80,7 +80,7 @@ export function AdminPickupManifest({
   const [page, setPage]                 = useState(1);
   const [totalPages, setTotalPages]     = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
-  const [rowsPerPage, setRowsPerPage]   = useState(20);
+  const [rowsPerPage, setRowsPerPage]   = useState(100);
 
   // Filters
   const [searchId,               setSearchId]               = useState('');

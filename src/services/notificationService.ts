@@ -49,7 +49,7 @@ export interface BulkShipJobDetail extends BulkShipJobSummary {
 
 export interface BulkUploadRowResult {
   row: number;
-  status: 'success' | 'failed';
+  status: 'success' | 'failed' | 'skipped';
   orderId: number | null;
   message: string | null;
 }

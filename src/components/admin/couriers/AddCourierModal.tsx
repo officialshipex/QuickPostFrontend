@@ -6,7 +6,7 @@ import { apiClient } from '../../../services/apiClient';
 const PROVIDERS = [
   'Amazon Shipping', 'Delhivery', 'DTDC', 'EcomExpress', 'Ekart',
   'ShipMaxx', 'NimbusPost', 'Proship', 'Shadowfax', 'Shiprocket',
-  'Shree Maruti', 'Smartship', 'XpressBees', 'ZipyPost', 'BoxdLogistics',
+  'Shree Maruti', 'Smartship', 'XpressBees', 'ZipyPost', 'BoxdLogistics', 'Jiffy',
 ];
 
 type CredField = { id: string; label: string; type: string; placeholder: string; icon: any };

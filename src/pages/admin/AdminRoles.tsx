@@ -7,48 +7,18 @@ import { Toast } from '../../components/ui/Toast';
 import { useToast } from '../../hooks/useToast';
 import { TableLoader } from '../../components/ui/TableLoader';
 import {
+  PERM_TYPES, modulesFor, emptyAccessRights, toFormRights, toStoredRights, hasPermission,
+  type AccessRights, type PanelType, type PermKey,
+} from '../../utils/permissions';
+import {
   Users, Plus, X, Eye, Edit2, Trash2, CheckCircle2,
   AlertCircle, RefreshCcw, ToggleLeft, ToggleRight, Shield, Lock, Copy, Check,
 } from 'lucide-react';
 
-// ─── Permission module definitions ───────────────────────────────────────────
-
-const ADMIN_MODULES = [
-  { key: 'orders',        label: 'Orders',         desc: 'View and manage all shipment orders' },
-  { key: 'ndr',           label: 'NDR',             desc: 'Non-delivery reports and follow-ups' },
-  { key: 'finance',       label: 'Finance',         desc: 'Wallet management and COD remittance' },
-  { key: 'reports',       label: 'Reports',         desc: 'View and download reports' },
-  { key: 'support',       label: 'Support',         desc: 'Manage support tickets' },
-  { key: 'tools',         label: 'Tools',           desc: 'Weight discrepancy and notifications' },
-  { key: 'setupAndManage',label: 'Setup & Manage',  desc: 'User management and configuration' },
-  { key: 'courier',       label: 'Courier',         desc: 'Courier partners and rate cards' },
-];
-
-const USER_MODULES = [
-  { key: 'orders',        label: 'Orders',          desc: 'View and manage orders' },
-  { key: 'ndr',           label: 'NDR',             desc: 'Non-delivery reports' },
-  { key: 'finance',       label: 'Finance',         desc: 'Wallet & COD' },
-  { key: 'reports',       label: 'Reports',         desc: 'View reports' },
-  { key: 'support',       label: 'Support',         desc: 'Support tickets' },
-  { key: 'tools',         label: 'Tools',           desc: 'Weight discrepancy' },
-  { key: 'setupAndManage',label: 'Settings',        desc: 'Account settings and pickup address' },
-];
-
-type PermKey = 'view' | 'edit' | 'delete';
-const PERM_TYPES: { key: PermKey; label: string }[] = [
-  { key: 'view',   label: 'View'   },
-  { key: 'edit',   label: 'Edit'   },
-  { key: 'delete', label: 'Delete' },
-];
-
-type AccessRights = Record<string, Record<PermKey, boolean>>;
-
-function emptyAccessRights(isAdminView: boolean): AccessRights {
-  const modules = isAdminView ? ADMIN_MODULES : USER_MODULES;
-  const rights: AccessRights = {};
-  modules.forEach(m => { rights[m.key] = { view: false, edit: false, delete: false }; });
-  return rights;
-}
+// Permission modules (one per sidebar item) live in utils/permissions.ts, shared with the sidebar
+// and the route guard.
+const MIN_PASSWORD_LENGTH = 8;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -72,11 +42,11 @@ interface Employee {
 interface PermissionMatrixProps {
   accessRights: AccessRights;
   onChange: (rights: AccessRights) => void;
-  isAdminView: boolean;
+  panel: PanelType;
 }
 
-function PermissionMatrix({ accessRights, onChange, isAdminView }: PermissionMatrixProps) {
-  const modules = isAdminView ? ADMIN_MODULES : USER_MODULES;
+function PermissionMatrix({ accessRights, onChange, panel }: PermissionMatrixProps) {
+  const modules = modulesFor(panel);
 
   const toggle = (moduleKey: string, perm: PermKey) => {
     const current = accessRights[moduleKey] || { view: false, edit: false, delete: false };
@@ -108,9 +78,15 @@ function PermissionMatrix({ accessRights, onChange, isAdminView }: PermissionMat
       {/* Rows */}
       {modules.map((mod, i) => {
         const rights = accessRights[mod.key] || { view: false, edit: false, delete: false };
+        const startsSection = i === 0 || modules[i - 1].section !== mod.section;
         return (
+          <React.Fragment key={mod.key}>
+          {startsSection && (
+            <div className="px-4 py-1.5 bg-[#E6F9F2] text-[10px] font-bold text-[#00A86B] uppercase tracking-wider border-b border-[#F1F5F9]">
+              {mod.section}
+            </div>
+          )}
           <div
-            key={mod.key}
             className={`grid grid-cols-[1fr_auto_auto_auto] items-center border-b border-[#F1F5F9] last:border-0 ${i % 2 === 0 ? 'bg-white' : 'bg-[#F8FAFC]/50'}`}
           >
             <div className="px-4 py-3">
@@ -140,6 +116,7 @@ function PermissionMatrix({ accessRights, onChange, isAdminView }: PermissionMat
               );
             })}
           </div>
+          </React.Fragment>
         );
       })}
     </div>
@@ -152,10 +129,11 @@ interface EmployeeModalProps {
   employee?: Employee | null;
   onClose: () => void;
   onSaved: (emp: Employee) => void;
-  isAdminView: boolean;
+  panel: PanelType;
 }
 
-function EmployeeModal({ employee, onClose, onSaved, isAdminView }: EmployeeModalProps) {
+function EmployeeModal({ employee, onClose, onSaved, panel }: EmployeeModalProps) {
+  const isAdminView = panel === 'admin';
   const isEdit = !!employee;
 
   const [fullName, setFullName]     = useState(employee?.fullName || '');
@@ -163,23 +141,10 @@ function EmployeeModal({ employee, onClose, onSaved, isAdminView }: EmployeeModa
   const [contactNumber, setContact] = useState(employee?.contactNumber || '');
   const [role, setRole]             = useState(employee?.role || '');
   const [password, setPassword]     = useState('');
-  const [accessRights, setAccessRights] = useState<AccessRights>(() => {
-    if (employee?.accessRights) {
-      // Normalize to our AccessRights shape
-      const modules = isAdminView ? ADMIN_MODULES : USER_MODULES;
-      const rights: AccessRights = {};
-      modules.forEach(m => {
-        const existing = employee.accessRights[m.key] || {};
-        rights[m.key] = {
-          view:   existing.view   === true,
-          edit:   existing.edit   === true,
-          delete: existing.delete === true,
-        };
-      });
-      return rights;
-    }
-    return emptyAccessRights(isAdminView);
-  });
+  // Stored rights -> catalog shape (an employee saved before the per-item keys keeps what they had)
+  const [accessRights, setAccessRights] = useState<AccessRights>(() =>
+    employee?.accessRights ? toFormRights(employee.accessRights, panel) : emptyAccessRights(panel)
+  );
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -193,25 +158,37 @@ function EmployeeModal({ employee, onClose, onSaved, isAdminView }: EmployeeModa
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!fullName || !email || !contactNumber || !role) {
+    if (!fullName.trim() || !email.trim() || !contactNumber.trim() || !role.trim()) {
       setError('Name, email, phone and role are required.');
+      return;
+    }
+    if (!EMAIL_PATTERN.test(email.trim())) {
+      setError('Enter a valid email address.');
       return;
     }
     if (!isEdit && !password) {
       setError('Password is required for new employees.');
       return;
     }
+    if (password && password.length < MIN_PASSWORD_LENGTH) {
+      setError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
+      return;
+    }
     setSubmitting(true);
     setError('');
+    // Item rights + the coarse group rights the server's write guard reads
+    const storedRights = toStoredRights(accessRights, panel);
     try {
       if (isEdit) {
-        const body: any = { fullName, contactNumber, role, accessRights };
+        const body: any = { fullName: fullName.trim(), contactNumber: contactNumber.trim(), role: role.trim(), accessRights: storedRights, mode: panel };
         if (password) body.password = password;
         const res = await apiClient.put(`/staffRole/updateRole/${employee!._id}`, body);
         onSaved(res.data.updatedRole);
       } else {
+        // `mode` tells the server which panel's employee this is (an admin works in both panels)
         const res = await apiClient.post('/staffRole/createRole', {
-          fullName, email, contactNumber, password, role, accessRights,
+          fullName: fullName.trim(), email: email.trim(), contactNumber: contactNumber.trim(),
+          password, role: role.trim(), accessRights: storedRights, mode: panel,
         });
         onSaved(res.data.data.user as any);
         // Refetch to get full employee doc
@@ -290,7 +267,10 @@ function EmployeeModal({ employee, onClose, onSaved, isAdminView }: EmployeeModa
               <Lock className="w-3.5 h-3.5 text-[#64748B]" />
               <span className="text-[11px] font-bold text-[#475569] uppercase tracking-wide">Module Permissions</span>
             </div>
-            <PermissionMatrix accessRights={accessRights} onChange={setAccessRights} isAdminView={isAdminView} />
+            <p className="text-[10px] text-[#94A3B8] mb-2">
+              The employee sees every menu item; items without View access are locked and show a "no access" message when clicked.
+            </p>
+            <PermissionMatrix accessRights={accessRights} onChange={setAccessRights} panel={panel} />
           </div>
 
           <div className="flex gap-3 pt-1">
@@ -324,11 +304,11 @@ function formatDate(iso: string) {
 }
 
 export function AdminRoles() {
-  const { isAdmin, adminTab, isEmployee } = useAdminTab();
-  const isAdminView = isAdmin && adminTab;
+  const { isEmployee } = useAdminTab();
   const location = useLocation();
-  // URL path is the authoritative signal — isAdminView comes from async state and can lag
+  // URL path is the authoritative signal — the admin/adminTab flags come from async state and can lag
   const isUserPanel = location.pathname.startsWith('/user/');
+  const panel: PanelType = isUserPanel ? 'user' : 'admin';
 
   const [employees, setEmployees]         = useState<Employee[]>([]);
   const [loading, setLoading]             = useState(true);
@@ -415,8 +395,8 @@ export function AdminRoles() {
   });
 
   const permissionSummary = (emp: Employee) => {
-    const modules = isAdminView ? ADMIN_MODULES : USER_MODULES;
-    const count = modules.filter(m => emp.accessRights?.[m.key]?.view === true).length;
+    const modules = modulesFor(panel);
+    const count = modules.filter(m => hasPermission(emp.accessRights, m.key, 'view')).length;
     return `${count}/${modules.length} modules`;
   };
 
@@ -585,7 +565,7 @@ export function AdminRoles() {
           employee={editEmployee}
           onClose={() => { setShowModal(false); setEditEmployee(null); }}
           onSaved={handleSaved}
-          isAdminView={isAdminView}
+          panel={panel}
         />
       )}
 

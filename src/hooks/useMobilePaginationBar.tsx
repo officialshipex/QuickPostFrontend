@@ -26,7 +26,7 @@ export function MobilePaginationBar({
   startIndex,
   endIndex,
   totalItems,
-  rowsPerPageOptions = [20, 50, 100, 200],
+  rowsPerPageOptions = [100, 200, 300, 500],
   inline = false,
 }: MobilePaginationBarProps) {
   const [isOpen, setIsOpen] = useState(false);

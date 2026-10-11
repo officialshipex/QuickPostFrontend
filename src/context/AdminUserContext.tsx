@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import { apiClient } from '../services/apiClient';
-import { getToken, getRoleFromToken, isEmployeeToken, getEmployeeFromToken } from '../utils/session';
+import { getToken, removeToken, getRoleFromToken, isEmployeeToken, getEmployeeFromToken } from '../utils/session';
 
 export interface EmployeeAccessRights {
   view?: boolean;
@@ -23,6 +23,8 @@ interface AdminTabContextType {
   isEmployee: boolean;
   employeeId: string;
   employeeAccessRights: Record<string, EmployeeAccessRights>;
+  /** false until the employee's live rights have been fetched (rights are never read from the token) */
+  employeeRightsLoaded: boolean;
   parentEmail: string;
   showOnboarding: boolean;
   setShowOnboarding: (value: boolean) => void;
@@ -45,6 +47,7 @@ const AdminTabContext = createContext<AdminTabContextType>({
   isEmployee: false,
   employeeId: '',
   employeeAccessRights: {},
+  employeeRightsLoaded: false,
   parentEmail: '',
   showOnboarding: false,
   setShowOnboarding: () => {},
@@ -70,6 +73,7 @@ export function AdminUserProvider({ children }: { children: ReactNode }) {
   const [isEmployee, setIsEmployee] = useState(false);
   const [employeeId, setEmployeeId] = useState('');
   const [employeeAccessRights, setEmployeeAccessRights] = useState<Record<string, EmployeeAccessRights>>({});
+  const [employeeRightsLoaded, setEmployeeRightsLoaded] = useState(false);
   const [parentEmail, setParentEmail] = useState('');
   const [showOnboarding, setShowOnboarding] = useState(false);
 
@@ -99,9 +103,17 @@ export function AdminUserProvider({ children }: { children: ReactNode }) {
           setWalletBalance(parentUser?.Wallet?.balance || 0);
           setWalletHold(parentUser?.Wallet?.holdAmount || 0);
           setCreditLimit(parentUser?.Wallet?.creditLimit || 0);
+          setEmployeeRightsLoaded(true);
         }
-      } catch (e) {
+      } catch (e: any) {
         console.error('[AdminUserContext] Employee verify failed:', e);
+        // Deactivated / deleted employee (or removed owner): the session is no longer valid.
+        // (A 401 is already handled by the api client.)
+        const status = e?.response?.status;
+        if (status === 404) {
+          removeToken();
+          window.location.href = '/employee-login';
+        }
       } finally {
         setLoadingAdminTab(false);
       }
@@ -147,7 +159,7 @@ export function AdminUserProvider({ children }: { children: ReactNode }) {
     <AdminTabContext.Provider value={{
       isAdmin, adminTab, loadingAdminTab, currentUserId,
       userName, userEmail, businessName, profileImage, walletBalance, walletHold, creditLimit,
-      isEmployee, employeeId, employeeAccessRights, parentEmail,
+      isEmployee, employeeId, employeeAccessRights, employeeRightsLoaded, parentEmail,
       showOnboarding, setShowOnboarding,
       toggleAdminTab,
       refetchUser: fetchAdminTab,

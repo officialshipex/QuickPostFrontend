@@ -293,8 +293,8 @@ export function CRMShipmentListing() {
   const pageRef = useRef(1);
   const page = pageState;
 
-  const [rowsPerPageState, setRowsPerPageState] = useState(20);
-  const rowsPerPageRef = useRef(20);
+  const [rowsPerPageState, setRowsPerPageState] = useState(100);
+  const rowsPerPageRef = useRef(100);
   const rowsPerPage = rowsPerPageState;
 
   const startIndex = orders.length > 0 ? (page - 1) * rowsPerPage + 1 : 0;

@@ -238,7 +238,7 @@ export function AdminReferral() {
 
   // Server-side pagination — same shape as other admin list pages (DesktopPagination hook)
   const [page, setPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(20);
+  const [rowsPerPage, setRowsPerPage] = useState(100);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
 

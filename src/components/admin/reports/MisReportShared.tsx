@@ -561,7 +561,7 @@ export function MisReportTable({ userId, isAdminView, fillHeight }: {
   const [reports, setReports] = useState<MisReport[]>([]);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(20);
+  const [rowsPerPage, setRowsPerPage] = useState(100);
   const [totalReports, setTotalReports] = useState(0);
   const totalPages = Math.ceil(totalReports / rowsPerPage);
 
