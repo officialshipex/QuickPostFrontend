@@ -1,10 +1,16 @@
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Package, Truck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useShippingMode, type ShippingMode } from '../../../context/shippingMode';
+import { cargoTabUrl } from '../../../utils/shippingMode';
+import { ModeTransition } from './ModeTransition';
 
 /* Segmented B2C | Cargo switch. `light` for the white navbar, `dark` for the mobile drawer.
-   Switching lands on Home so the seller never sits on a page the other mode doesn't have. */
+   - B2C → Cargo: opens Cargo in a new tab straight from the click (so popup blockers allow it);
+     the new tab plays the branded switch animation, then shows Cargo. This tab stays B2C.
+     If the browser blocks the tab, the animation plays here and this tab switches instead.
+   - Cargo → B2C: plays the animation here, then switches this tab back to B2C Home. */
 
 const OPTIONS: { mode: ShippingMode; label: string; icon: typeof Package }[] = [
   { mode: 'b2c', label: 'B2C', icon: Package },
@@ -16,13 +22,31 @@ export function ModeSwitch({ variant = 'light', layoutId = 'mode-switch-pill' }:
   const navigate = useNavigate();
   const dark = variant === 'dark';
 
+  const [pending, setPending] = useState<ShippingMode | null>(null);
+
   const choose = (next: ShippingMode) => {
-    if (next === mode) return;
-    setMode(next);
-    navigate('/user/home');
+    if (next === mode || pending) return;
+    if (next === 'cargo') {
+      const tab = window.open(cargoTabUrl(), '_blank');
+      if (tab) { tab.opener = null; return; }
+    }
+    setPending(next);
   };
 
+  const finish = () => {
+    if (!pending) return;
+    setMode(pending);
+    navigate('/user/home');
+    window.scrollTo({ top: 0 });
+    // Let the new page paint under the overlay before fading it out.
+    setTimeout(() => setPending(null), 150);
+  };
+
+  const transition = <ModeTransition from={mode} to={pending} onDone={finish} />;
+
   return (
+    <>
+    {transition}
     <div
       role="radiogroup"
       aria-label="Shipping mode"
@@ -57,5 +81,6 @@ export function ModeSwitch({ variant = 'light', layoutId = 'mode-switch-pill' }:
         );
       })}
     </div>
+    </>
   );
 }

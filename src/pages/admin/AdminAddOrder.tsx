@@ -1,3 +1,4 @@
+import { PillSelect } from '../../components/admin/orders/PillSelect';
 import React, { useState, useEffect, useRef } from 'react';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import {
@@ -1158,26 +1159,28 @@ export function AdminAddOrder() {
               <div className="flex flex-wrap gap-3 md:gap-4">
                 <div className="w-[calc(50%-6px)] md:w-[160px]">
                   <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Package Type:</label>
-                  <div className="relative">
-                    <select value={orderType} onChange={e => setOrderType(e.target.value)}
-                      className="w-full h-11 pl-4 pr-10 border border-[#E2E8F0] rounded-full text-[12px] md:text-[13px] text-[#475569] font-medium appearance-none focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]">
-                      <option value="B2C">B2C</option>
-                      {/* <option value="B2B">B2B</option> */}
-                    </select>
-                    <ChevronDown className="w-4 h-4 text-[#94A3B8] absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                  </div>
+                  <PillSelect
+                    ariaLabel="Package type"
+                    value={orderType}
+                    onChange={setOrderType}
+                    options={[
+                      { value: 'B2C', label: 'B2C', hint: 'Single parcel to a customer' },
+                      { value: 'B2B', label: 'B2B', hint: 'Multiple boxes or bulk shipment' },
+                    ]}
+                  />
                 </div>
                 {orderType === 'B2B' && (
                   <div className="w-[calc(50%-6px)] md:w-[200px]">
                     <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">ROV Type:</label>
-                    <div className="relative">
-                      <select value={rovType} onChange={e => setRovType(e.target.value)}
-                        className="w-full h-11 pl-4 pr-10 border border-[#E2E8F0] rounded-full text-[12px] md:text-[13px] text-[#475569] font-medium appearance-none focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]">
-                        <option value="ROV Owner">ROV Owner</option>
-                        <option value="ROV Carrier">ROV Carrier</option>
-                      </select>
-                      <ChevronDown className="w-4 h-4 text-[#94A3B8] absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                    </div>
+                    <PillSelect
+                      ariaLabel="ROV type"
+                      value={rovType}
+                      onChange={setRovType}
+                      options={[
+                        { value: 'ROV Owner', label: 'ROV Owner', hint: 'Transit risk stays with you (owner)' },
+                        { value: 'ROV Carrier', label: 'ROV Carrier', hint: 'Transit risk is covered by the carrier' },
+                      ]}
+                    />
                   </div>
                 )}
               </div>
@@ -1227,64 +1230,63 @@ export function AdminAddOrder() {
               {orderType === 'B2B' && (
                 <>
                   {errors.b2bPackages && <p className="text-[12px] md:text-[11px] text-red-500">{errors.b2bPackages}</p>}
-                  <div className="space-y-3">
+                  <div className="space-y-6 pt-3">
                     {b2bPackages.map((pkg, index) => (
-                      <div key={pkg.id} className="grid grid-cols-2 md:grid-cols-5 gap-3 items-end">
-                        {index === 0 && (
-                          <>
-                            <label className="md:hidden" />
-                          </>
+                      <div key={pkg.id} className="relative border border-dashed border-[#00A86B]/50 rounded-2xl px-3 md:px-5 pt-7 pb-4 md:pb-5">
+                        {/* Package number — sits on the top border */}
+                        <span className="absolute -top-4 left-1/2 -translate-x-1/2 w-8 h-8 rounded-full bg-[#00A86B] text-white text-[12px] font-bold flex items-center justify-center shadow-sm ring-4 ring-white">
+                          {index + 1}
+                        </span>
+                        {b2bPackages.length > 1 && (
+                          <button type="button" onClick={() => removeB2bPackage(pkg.id)} aria-label={`Remove package ${index + 1}`}
+                            className="absolute -top-4 right-3 md:right-5 w-8 h-8 rounded-full bg-[#FEF2F2] text-[#EF4444] flex items-center justify-center ring-4 ring-white hover:bg-red-100 transition-colors">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
                         )}
-                        {[
-                          { key: 'noOfBox', label: 'No. of Box', placeholder: 'Box Count' },
-                          { key: 'weightPerBox', label: 'Weight/Box (kg)', placeholder: 'Weight' },
-                          { key: 'length', label: 'Length (cm)', placeholder: 'Length' },
-                          { key: 'width', label: 'Width (cm)', placeholder: 'Width' },
-                          { key: 'height', label: 'Height (cm)', placeholder: 'Height' },
-                        ].map(({ key, label, placeholder }) => (
-                          <div key={key}>
-                            {index === 0 && <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">{label} <span className="text-red-500">*</span></label>}
-                            <input
-                              type="number"
-                              value={(pkg as any)[key]}
-                              onChange={e => updateB2bPackage(pkg.id, key as keyof B2BPackage, e.target.value.replace(/[^0-9.]/g, ''))}
-                              placeholder={placeholder}
-                              min={0}
-                              className="w-full h-11 px-4 border border-[#E2E8F0] rounded-full text-[12px] md:text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]"
-                            />
-                          </div>
-                        ))}
-                        <button type="button" onClick={() => removeB2bPackage(pkg.id)} disabled={b2bPackages.length === 1}
-                          className="h-11 w-11 flex items-center justify-center rounded-lg text-[#EF4444] bg-[#FEF2F2] border border-[#FEE2E2] hover:bg-red-100 disabled:opacity-30 disabled:cursor-not-allowed">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-3">
+                          {[
+                            { key: 'noOfBox', label: 'No. of Box', placeholder: 'Box Count' },
+                            { key: 'weightPerBox', label: 'Weight Per Box (kg)', placeholder: 'Weight' },
+                            { key: 'length', label: 'Length (cm)', placeholder: 'Length' },
+                            { key: 'width', label: 'Width (cm)', placeholder: 'Width' },
+                            { key: 'height', label: 'Height (cm)', placeholder: 'Height' },
+                          ].map(({ key, label, placeholder }) => (
+                            <div key={key} className={key === 'noOfBox' ? 'col-span-2 md:col-span-1' : ''}>
+                              <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">{label} <span className="text-red-500">*</span></label>
+                              <input
+                                type="number"
+                                value={(pkg as any)[key]}
+                                onChange={e => updateB2bPackage(pkg.id, key as keyof B2BPackage, e.target.value.replace(/[^0-9.]/g, ''))}
+                                placeholder={placeholder}
+                                min={0}
+                                className="w-full h-11 px-4 border border-[#E2E8F0] rounded-full text-[12px] md:text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]"
+                              />
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     ))}
-                    <button type="button" onClick={addB2bPackage}
-                      className="flex items-center gap-1.5 text-[12px] font-bold text-[#00A86B] hover:text-[#009B63] px-3 py-1.5 rounded-full border border-[#00A86B] transition-colors">
-                      <Plus className="w-3.5 h-3.5" /> Add Package
-                    </button>
+                    <div className="flex justify-center">
+                      <button type="button" onClick={addB2bPackage} aria-label="Add package"
+                        className="w-9 h-9 rounded-full bg-[#00A86B] hover:bg-[#009B63] text-white flex items-center justify-center shadow-sm transition-colors">
+                        <Plus className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
-                  <div className="bg-[#F8FAFC] rounded-xl p-5 space-y-3">
-                    <div className="flex justify-between items-center">
-                      <span className="text-[12px] md:text-[13px] font-semibold text-[#0F172A]">Applicable Weight</span>
-                      <span className="font-semibold text-[#0F172A] text-[12px] md:text-[13px]">{b2bApplicable.toFixed(2)} kg</span>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="rounded-xl bg-[#00A86B]/[0.06] border border-[#00A86B]/20 px-4 md:px-5 py-4">
+                      <div className="text-[12px] md:text-[13px] font-semibold text-[#0F172A]">Applicable Weight</div>
+                      <div className="text-[13px] font-semibold text-[#00A86B] mt-0.5">{b2bApplicable.toFixed(2)} Kg</div>
                     </div>
-                    <div className="h-px bg-[#E2E8F0] w-full" />
-                    <div className="flex justify-between items-center py-1">
-                      <span className="text-[12px] md:text-[13px] font-semibold text-[#0F172A]">Total Dead Weight</span>
-                      <span className="font-semibold text-[#0F172A] text-[12px] md:text-[13px]">{b2bTotalDead.toFixed(2)} Kg</span>
+                    <div className="rounded-xl bg-[#00A86B]/[0.06] border border-[#00A86B]/20 px-4 md:px-5 py-4 flex items-center justify-between gap-3">
+                      <span className="text-[12px] md:text-[13px] font-semibold text-[#0F172A]">Volumetric Weight</span>
+                      <span className="text-[13px] font-semibold text-[#00A86B]">{b2bTotalVol.toFixed(2)} Kg</span>
                     </div>
-                    <div className="h-px bg-[#E2E8F0] w-full" />
-                    <div className="flex justify-between items-center py-1">
-                      <span className="text-[12px] md:text-[13px] font-semibold text-[#0F172A]">Total Volumetric Weight</span>
-                      <span className="font-semibold text-[#0F172A] text-[12px] md:text-[13px]">{b2bTotalVol.toFixed(2)} Kg</span>
-                    </div>
-                    <div className="h-px bg-[#E2E8F0] w-full" />
-                    <div className="flex justify-between items-center py-1">
-                      <span className="text-[14px] font-semibold text-[#0F172A]">Total Order Value</span>
-                      <span className="font-semibold text-[#0F172A] text-[14px]">₹{totalOrderValue.toFixed(2)}</span>
-                    </div>
+                  </div>
+                  <div className="h-px bg-[#E2E8F0] w-full" />
+                  <div className="rounded-xl bg-[#00A86B]/[0.06] border border-[#00A86B]/20 px-4 md:px-5 py-3 flex items-center justify-between gap-3">
+                    <span className="text-[13px] md:text-[14px] font-semibold text-[#0F172A]">Total Order Value</span>
+                    <span className="text-[13px] md:text-[14px] font-semibold text-[#00A86B]">₹{totalOrderValue.toFixed(2)}</span>
                   </div>
                 </>
               )}

@@ -1,6 +1,8 @@
 import { createContext, useContext } from 'react';
 
-export type ShippingMode = 'b2c' | 'cargo';
+import type { ShippingMode } from '../utils/shippingMode';
+
+export type { ShippingMode };
 
 export interface ShippingModeValue {
   mode: ShippingMode;

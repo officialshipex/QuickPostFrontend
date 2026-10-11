@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { Fragment, useState, useEffect, useRef } from 'react';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
-import { Truck, Plane, Loader2, ChevronDown, Info, Sparkles } from 'lucide-react';
+import { Truck, Plane, Loader2, Info, Sparkles, ArrowRight, MapPin } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../../services/apiClient';
 import { ParcelPreview } from '../../components/ui/ParcelPreview';
@@ -95,7 +95,6 @@ const IMPORTANT_TERMS = [
 export function AdminRateCalculator() {
   const navigate = useNavigate();
   const resultRef = useRef<HTMLDivElement>(null);
-  const paymentDropdownRef = useRef<HTMLDivElement>(null);
 
   const [form, setForm] = useState({
     shipmentType: 'Forward',
@@ -109,7 +108,6 @@ export function AdminRateCalculator() {
     height: '',
   });
 
-  const [paymentOpen, setPaymentOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<CourierResult[]>([]);
   const [hasFetched, setHasFetched] = useState(false);
@@ -146,17 +144,6 @@ export function AdminRateCalculator() {
       })
       .catch(() => {});
   }, [form.deliveryPincode]);
-
-  // Close payment dropdown on outside click
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (paymentDropdownRef.current && !paymentDropdownRef.current.contains(e.target as Node)) {
-        setPaymentOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
 
   // Close B2B popup on outside click
   useEffect(() => {
@@ -288,6 +275,10 @@ export function AdminRateCalculator() {
     });
   };
 
+  const labelCls = 'block text-[12px] font-semibold text-[#475569] mb-1.5';
+  const inputCls = 'w-full h-10 px-4 bg-white border border-[#E2E8F0] rounded-full text-[13px] font-medium text-[#0F172A] placeholder:text-[#94A3B8] placeholder:font-normal focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B] transition-colors';
+  const suffixCls = 'absolute right-4 top-1/2 -translate-y-1/2 text-[12px] font-medium text-[#94A3B8] pointer-events-none';
+
   const isModeAir = (item: CourierResult) =>
     item.orderType === 'B2C'
       ? item.courierType?.toLowerCase().includes('air')
@@ -311,139 +302,136 @@ export function AdminRateCalculator() {
               </div>
             )}
 
-            {/* Row 1: Shipment Type + Payment Type */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div>
-                <label className="block text-[13px] font-bold text-[#0F172A] mb-3">Shipment Type</label>
-                <div className="flex gap-5">
-                  {['Forward', 'Return'].map(opt => (
-                    <label key={opt} className="flex items-center gap-2 cursor-pointer">
-                      <div
-                        onClick={() => setField('shipmentType', opt)}
-                        className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors ${form.shipmentType === opt ? 'border-[#00A86B]' : 'border-[#CBD5E1]'}`}
-                      >
-                        {form.shipmentType === opt && <div className="w-2 h-2 rounded-full bg-[#00A86B]" />}
-                      </div>
-                      <span className="text-[13px] font-medium text-[#475569]">{opt}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              {/* Payment Type custom dropdown */}
-              <div>
-                <label className="block text-[13px] font-bold text-[#0F172A] mb-3">Payment Type <span className="text-red-500">*</span></label>
-                <div className="relative" ref={paymentDropdownRef}>
-                  <div
-                    onClick={() => setPaymentOpen(o => !o)}
-                    className="flex justify-between items-center w-full h-11 border border-[#E2E8F0] rounded-full px-4 text-[13px] font-semibold text-[#0F172A] cursor-pointer hover:border-[#00A86B] transition-colors"
-                  >
-                    {form.paymentType}
-                    <ChevronDown className={`w-4 h-4 text-[#94A3B8] transition-transform ${paymentOpen ? 'rotate-180' : ''}`} />
-                  </div>
-                  {paymentOpen && (
-                    <div className="absolute z-20 left-0 right-0 mt-1 bg-white border border-[#E2E8F0] rounded-xl shadow-lg overflow-hidden">
-                      {['Prepaid', 'COD'].map(opt => (
-                        <div
+            {/* Row 1: Shipment Type + Payment Type — segmented toggles */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {([
+                { label: 'Shipment Type', key: 'shipmentType', opts: ['Forward', 'Return'] },
+                { label: 'Payment Type', key: 'paymentType', opts: ['Prepaid', 'COD'] },
+              ] as const).map(g => (
+                <div key={g.key}>
+                  <label className={labelCls}>{g.label} <span className="text-red-500">*</span></label>
+                  <div role="radiogroup" aria-label={g.label} className="grid grid-cols-2 p-1 h-10 rounded-full bg-[#F1F5F9] border border-[#E2E8F0]">
+                    {g.opts.map(opt => {
+                      const active = form[g.key] === opt;
+                      return (
+                        <button
                           key={opt}
-                          onClick={() => { setField('paymentType', opt); setPaymentOpen(false); }}
-                          className={`px-4 py-2.5 text-[13px] font-semibold cursor-pointer transition-colors ${form.paymentType === opt ? 'bg-[#F0FDF4] text-[#00A86B]' : 'text-[#475569] hover:bg-[#F8FAFC]'}`}
+                          type="button"
+                          role="radio"
+                          aria-checked={active}
+                          onClick={() => setField(g.key, opt)}
+                          className={`rounded-full text-[12.5px] font-semibold transition-all ${active ? 'bg-white text-[#00A86B] shadow-[0_1px_2px_rgba(16,24,40,0.08),0_1px_6px_rgba(16,24,40,0.06)]' : 'text-[#64748B] hover:text-[#0F172A]'}`}
                         >
                           {opt}
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
+              ))}
             </div>
 
-            {/* Row 2: Pincodes */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div>
-                <label className="block text-[13px] font-bold text-[#64748B] mb-2">Pickup Pincode <span className="text-red-500">*</span></label>
-                <input
-                  type="text"
-                  value={form.pickUpPincode}
-                  onChange={e => setField('pickUpPincode', e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  placeholder="6 digit pickup pincode"
-                  className="w-full h-11 px-4 border border-[#E2E8F0] rounded-full text-[13px] font-medium focus:outline-none focus:border-[#00A86B]"
-                />
-              </div>
-              <div>
-                <label className="block text-[13px] font-bold text-[#64748B] mb-2">Delivery Pincode <span className="text-red-500">*</span></label>
-                <input
-                  type="text"
-                  value={form.deliveryPincode}
-                  onChange={e => setField('deliveryPincode', e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  placeholder="6 digit delivery pincode"
-                  className="w-full h-11 px-4 border border-[#E2E8F0] rounded-full text-[13px] font-medium focus:outline-none focus:border-[#00A86B]"
-                />
-              </div>
+            {/* Row 2: Route — pickup → delivery, with city/state resolved under each pincode */}
+            <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr] gap-x-3 gap-y-4 sm:items-start">
+              {([
+                { key: 'pickUpPincode', label: 'Pickup Pincode', placeholder: 'Enter pickup pincode', loc: pickupLocation, dot: 'bg-[#2563EB]' },
+                null,
+                { key: 'deliveryPincode', label: 'Delivery Pincode', placeholder: 'Enter delivery pincode', loc: deliveryLocation, dot: 'bg-[#00A86B]' },
+              ] as const).map((f, i) => f === null ? (
+                <div key="arrow" className="hidden sm:flex items-center justify-center h-10 mt-[22px]">
+                  <span className="w-7 h-7 rounded-full bg-[#F0FDF4] border border-[#DCFCE7] flex items-center justify-center">
+                    <ArrowRight className="w-3.5 h-3.5 text-[#00A86B]" />
+                  </span>
+                </div>
+              ) : (
+                <div key={i} className="min-w-0">
+                  <label className={labelCls}>{f.label} <span className="text-red-500">*</span></label>
+                  <div className="relative">
+                    <span className={`absolute left-4 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full ${f.dot}`} />
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={form[f.key]}
+                      onChange={e => setField(f.key, e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      placeholder={f.placeholder}
+                      className={`${inputCls} pl-9 tracking-wide`}
+                    />
+                  </div>
+                  <p className={`flex items-center gap-1 text-[11.5px] mt-1.5 pl-1 min-h-[16px] ${f.loc.city ? 'text-[#00A86B] font-medium' : 'text-[#94A3B8]'}`}>
+                    {f.loc.city ? <><MapPin className="w-3 h-3 shrink-0" /><span className="truncate">{f.loc.city}{f.loc.state ? `, ${f.loc.state}` : ''}</span></> : '6-digit pincode'}
+                  </p>
+                </div>
+              ))}
             </div>
 
             {/* Row 3: Weight + Declared Value */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-[13px] font-bold text-[#64748B] mb-2">Approximate Weight (kg) <span className="text-red-500">*</span></label>
-                <div className="flex h-11">
+                <label className={labelCls}>Dead Weight <span className="text-red-500">*</span></label>
+                <div className="relative">
                   <input
                     type="text"
+                    inputMode="decimal"
                     value={form.weight}
                     onChange={e => {
                       const v = e.target.value;
                       if (/^\d*\.?\d*$/.test(v)) setField('weight', v);
                     }}
-                    placeholder="E.g. 1"
-                    className="flex-1 px-4 border border-r-0 border-[#E2E8F0] rounded-l-full text-[13px] font-medium focus:outline-none focus:border-[#00A86B] min-w-0"
+                    placeholder="0.50"
+                    className={`${inputCls} pr-12`}
                   />
-                  <span className="w-12 flex items-center justify-center bg-[#00A86B] text-white text-[12px] font-bold border border-[#00A86B] rounded-r-full shrink-0">kg</span>
+                  <span className={suffixCls}>kg</span>
                 </div>
+                <p className="text-[11.5px] text-[#94A3B8] mt-1.5 pl-1">Min. chargeable weight is 0.5 kg</p>
               </div>
               <div>
-                <label className="block text-[13px] font-bold text-[#64748B] mb-2">Declared Value (INR) <span className="text-red-500">*</span></label>
-                <div className="flex h-11">
+                <label className={labelCls}>Shipment Value <span className="text-red-500">*</span></label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[13px] font-semibold text-[#64748B] pointer-events-none">₹</span>
                   <input
                     type="text"
+                    inputMode="numeric"
                     value={form.declaredValue}
                     onChange={e => setField('declaredValue', e.target.value.replace(/\D/g, ''))}
                     placeholder="Declared value"
-                    className="flex-1 px-4 border border-r-0 border-[#E2E8F0] rounded-l-full text-[13px] font-medium focus:outline-none focus:border-[#00A86B] min-w-0"
+                    className={`${inputCls} pl-8`}
                   />
-                  <span className="w-12 flex items-center justify-center bg-[#00A86B] text-white text-[13px] font-bold border border-[#00A86B] rounded-r-full shrink-0">₹</span>
                 </div>
               </div>
             </div>
 
-            {/* Row 4: Dimensions */}
+            {/* Row 4: Dimensions — L × W × H in one row */}
             <div>
-              <label className="block text-[13px] font-bold text-[#64748B] mb-2">Dimensions (cm) <span className="text-red-500">*</span></label>
-              <div className="grid grid-cols-3 gap-3">
-                {[['length', 'Length'], ['breadth', 'Width'], ['height', 'Height']].map(([key, label]) => (
-                  <input
-                    key={key}
-                    type="number"
-                    value={form[key as keyof typeof form]}
-                    onChange={e => setField(key, e.target.value)}
-                    placeholder={label}
-                    min="0"
-                    className="w-full h-11 px-4 border border-[#E2E8F0] rounded-full text-[13px] font-medium focus:outline-none focus:border-[#00A86B]"
-                  />
+              <label className={labelCls}>Dimensions <span className="text-red-500">*</span></label>
+              <div className="grid grid-cols-[1fr_auto_1fr_auto_1fr] items-center gap-2">
+                {([['length', 'Length'], ['breadth', 'Width'], ['height', 'Height']] as const).map(([key, label], i) => (
+                  <Fragment key={key}>
+                    {i > 0 && <span className="text-[12px] font-semibold text-[#94A3B8]">×</span>}
+                    <div className="relative">
+                      <input
+                        type="number"
+                        value={form[key]}
+                        onChange={e => setField(key, e.target.value)}
+                        placeholder={label}
+                        min="0"
+                        className={`${inputCls} pr-10`}
+                      />
+                      <span className={suffixCls}>cm</span>
+                    </div>
+                  </Fragment>
                 ))}
               </div>
             </div>
 
-            {/* Live weight display */}
-            <div className="flex flex-wrap gap-3">
-              <div className="flex items-center gap-2 px-4 py-2.5 bg-[#F0FDF4] border border-[#DCFCE7] rounded-xl">
-                <span className="text-[13px] font-semibold text-[#0F172A]">
-                  Volumetric Weight: {volumetricWeight.toFixed(2)} kg
-                </span>
+            {/* Live weights */}
+            <div className="grid grid-cols-2 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] divide-x divide-[#E2E8F0]">
+              <div className="px-4 py-2.5">
+                <div className="text-[11.5px] text-[#64748B]">Volumetric Weight</div>
+                <div className="text-[14px] font-bold text-[#0F172A] tabular-nums">{volumetricWeight.toFixed(2)} kg</div>
               </div>
-              <div className="flex items-center gap-2 px-4 py-2.5 bg-[#F0FDF4] border border-[#DCFCE7] rounded-xl">
-                <span className="text-[13px] font-semibold text-[#0F172A]">
-                  Applicable Weight: {applicableWeight.toFixed(2)} kg
-                </span>
+              <div className="px-4 py-2.5">
+                <div className="text-[11.5px] text-[#64748B]">Applicable Weight</div>
+                <div className="text-[14px] font-bold text-[#00A86B] tabular-nums">{applicableWeight.toFixed(2)} kg</div>
               </div>
             </div>
 
@@ -451,14 +439,14 @@ export function AdminRateCalculator() {
               <ShineButton
                 type="submit"
                 disabled={loading}
-                className="px-8 h-11 bg-[#00A86B] hover:bg-[#009B63] text-white text-[13px] font-bold rounded-full transition-colors shadow-sm flex items-center justify-center gap-2 min-w-[120px] disabled:opacity-60"
+                className="px-7 h-10 bg-[#00A86B] hover:bg-[#009B63] text-white text-[13px] font-bold rounded-full transition-colors shadow-sm flex items-center justify-center gap-2 min-w-[140px] disabled:opacity-60"
               >
-                {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> Calculating…</> : 'Calculate'}
+                {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> Calculating…</> : 'Calculate Rates'}
               </ShineButton>
               <button
                 type="button"
                 onClick={handleReset}
-                className="px-8 h-11 bg-white border border-[#00A86B] text-[#475569] text-[13px] font-bold rounded-full hover:bg-[#F8FAFC] transition-colors"
+                className="px-7 h-10 bg-white border border-[#E2E8F0] text-[#475569] text-[13px] font-bold rounded-full hover:bg-[#F8FAFC] hover:border-[#CBD5E1] transition-colors"
               >
                 Reset
               </button>

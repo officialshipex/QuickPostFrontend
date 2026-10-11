@@ -1,32 +1,24 @@
 import { useState, type ReactNode } from 'react';
-import { getToken } from '../utils/session';
+import { clearIntro, getShippingMode, hasPendingIntro, saveShippingMode } from '../utils/shippingMode';
+import { ModeTransition } from '../components/admin/layout/ModeTransition';
 import { ShippingModeContext, type ShippingMode } from './shippingMode';
 
-/* B2C ⇄ Cargo mode for the seller side.
-   Persisted in localStorage but bound to the current login token, so it survives
-   refreshes/new tabs, and every fresh login starts in B2C (the default). */
-
-const KEY = 'qp_shipping_mode';
-const tokenTag = () => (getToken() || '').slice(-16);
-
-function readMode(): ShippingMode {
-  try {
-    const v = JSON.parse(localStorage.getItem(KEY) || 'null');
-    return v?.t && v.t === tokenTag() && v.mode === 'cargo' ? 'cargo' : 'b2c';
-  } catch { return 'b2c'; }
-}
+/* B2C ⇄ Cargo mode for the seller side — per tab, bound to the login token (see utils/shippingMode).
+   A Cargo tab opened from the switch plays the branded switch animation once on load. */
 
 export function ShippingModeProvider({ children }: { children: ReactNode }) {
-  const [mode, setModeState] = useState<ShippingMode>(readMode);
+  const [mode, setModeState] = useState<ShippingMode>(getShippingMode);
+  const [intro, setIntro] = useState(hasPendingIntro);
 
   const setMode = (next: ShippingMode) => {
-    try { localStorage.setItem(KEY, JSON.stringify({ t: tokenTag(), mode: next })); } catch { /* storage blocked */ }
+    saveShippingMode(next);
     setModeState(next);
   };
 
   return (
     <ShippingModeContext.Provider value={{ mode, isCargo: mode === 'cargo', setMode }}>
       {children}
+      <ModeTransition from="b2c" to={intro ? mode : null} onDone={() => { clearIntro(); setIntro(false); }} />
     </ShippingModeContext.Provider>
   );
 }

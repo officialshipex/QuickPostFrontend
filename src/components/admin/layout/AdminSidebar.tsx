@@ -371,7 +371,12 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
                 <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
                   <img src={LOGO_URL} alt="QP" className="w-5 object-contain" />
                 </div>
-                <span className="text-white text-[15px] font-bold tracking-wide">QuickPost</span>
+                <div className="flex flex-col leading-none">
+                  <span className="text-white text-[15px] font-bold tracking-wide">QuickPost</span>
+                  {cargoView && (
+                    <span className="mt-1 text-[9.5px] font-extrabold tracking-[0.24em] text-[#34D399] uppercase">Cargo</span>
+                  )}
+                </div>
               </div>
               <button
                 onClick={handleMobileNavClick}
@@ -381,7 +386,7 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
               </button>
             </div>
 
-            {!isAdminView && (
+            {!isAdminView && location.pathname === '/user/home' && (
               <div className="px-5 pt-4">
                 <ModeSwitch variant="dark" layoutId="mode-switch-pill-drawer" />
               </div>

@@ -62,6 +62,11 @@ import { AdminAddOrder } from './pages/admin/AdminAddOrder';
 import { AdminTracking } from './pages/admin/AdminTracking';
 import { AdminProfile } from './pages/admin/AdminProfile';
 import { AdminOrderTracking } from './pages/admin/AdminOrderTracking';
+import { ModeRoute } from './pages/cargo/ModeRoute';
+import { CargoDashboard } from './pages/cargo/CargoDashboard';
+import { CargoOrders } from './pages/cargo/CargoOrders';
+import { CargoNDR } from './pages/cargo/CargoNDR';
+import { CargoWeightDiscrepancy } from './pages/cargo/CargoWeightDiscrepancy';
 import { AdminSettingsHub } from './pages/admin/AdminSettingsHub';
 import { AdminChannels } from './pages/admin/AdminChannels';
 import { AdminEarlyCodRemittance } from './pages/admin/AdminSellerRemittance';
@@ -287,16 +292,16 @@ function App() {
             {/* ── User-only routes (/user/*) ── */}
             <Route element={<ProtectedRoute allowedRoles={['user']} />}>
               <Route path="/user/home" element={<UserHome />} />
-              <Route path="/user/dashboard" element={<AdminDashboard />} />
-              <Route path="/user/orders" element={<AdminOrders />} />
-              <Route path="/user/orders/:tabSlug" element={<AdminOrders />} />
-              <Route path="/user/ndr" element={<AdminNDR />} />
-              <Route path="/user/ndr/:tabSlug" element={<AdminNDR />} />
+              <Route path="/user/dashboard" element={<ModeRoute b2c={<AdminDashboard />} cargo={<CargoDashboard />} />} />
+              <Route path="/user/orders" element={<ModeRoute b2c={<AdminOrders />} cargo={<CargoOrders />} />} />
+              <Route path="/user/orders/:tabSlug" element={<ModeRoute b2c={<AdminOrders />} cargo={<CargoOrders />} />} />
+              <Route path="/user/ndr" element={<ModeRoute b2c={<AdminNDR />} cargo={<CargoNDR />} />} />
+              <Route path="/user/ndr/:tabSlug" element={<ModeRoute b2c={<AdminNDR />} cargo={<CargoNDR />} />} />
               <Route path="/user/wallet" element={<AdminWallet />} />
               <Route path="/user/cod" element={<AdminCOD />} />
               <Route path="/user/reports" element={<AdminReportsHub />} />
-              <Route path="/user/weight-discrepancy" element={<AdminWeightDiscrepancy />} />
-              <Route path="/user/weight-discrepancy/:tabSlug" element={<AdminWeightDiscrepancy />} />
+              <Route path="/user/weight-discrepancy" element={<ModeRoute b2c={<AdminWeightDiscrepancy />} cargo={<CargoWeightDiscrepancy />} />} />
+              <Route path="/user/weight-discrepancy/:tabSlug" element={<ModeRoute b2c={<AdminWeightDiscrepancy />} cargo={<CargoWeightDiscrepancy />} />} />
               <Route path="/user/notification" element={<AdminNotification />} />
               <Route path="/user/notification/:tabSlug" element={<AdminNotification />} />
               <Route path="/user/kyc" element={<Navigate to="/user/profile?tab=kyc" replace />} />
