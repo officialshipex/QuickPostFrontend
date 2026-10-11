@@ -56,7 +56,7 @@ export function PillSelect({ value, onChange, options, ariaLabel }: {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -6, scale: 0.98 }}
             transition={{ duration: 0.15, ease: 'easeOut' }}
-            className="absolute left-0 top-[calc(100%+6px)] z-30 min-w-full w-max max-w-[260px] bg-white border border-[#E2E8F0] rounded-2xl shadow-[0_12px_32px_-12px_rgba(15,23,42,0.2)] p-1.5 origin-top"
+            className="absolute left-0 top-[calc(100%+6px)] z-30 min-w-full w-max max-w-[260px] max-h-64 overflow-y-auto bg-white border border-[#E2E8F0] rounded-2xl shadow-[0_12px_32px_-12px_rgba(15,23,42,0.2)] p-1.5 origin-top"
           >
             {options.map(o => {
               const active = o.value === value;

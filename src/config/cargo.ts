@@ -11,6 +11,7 @@ export const CARGO_ALLOWED_PATHS: string[] = [
   '/user/orders',
   '/user/ndr',
   '/user/weight-discrepancy',
+  '/user/rate-calculator',
   // Pages reached from Orders (details, create/edit/clone, pickup manifest)
   '/user/order-tracking',
   '/user/add-order',

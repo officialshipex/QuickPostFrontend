@@ -11,10 +11,12 @@ interface Props {
   onClose: () => void;
   walletBalance: number;
   onSuccess?: (addedAmount: number) => void;
+  /** Amount pre-filled when the modal opens (e.g. ₹1000 from the navbar wallet). */
+  defaultAmount?: number;
 }
 
-export function RechargeWalletModal({ open, onClose, walletBalance, onSuccess }: Props) {
-  const [rechargeAmount, setRechargeAmount] = useState(0);
+export function RechargeWalletModal({ open, onClose, walletBalance, onSuccess, defaultAmount = 0 }: Props) {
+  const [rechargeAmount, setRechargeAmount] = useState(defaultAmount);
   const [rechargeMode, setRechargeMode] = useState<'Payment' | 'COD'>('Payment');
   const [availableCodBalance, setAvailableCodBalance] = useState(0);
   const [showBillSummary, setShowBillSummary] = useState(true);
@@ -33,12 +35,12 @@ export function RechargeWalletModal({ open, onClose, walletBalance, onSuccess }:
   // Reset state when modal opens
   useEffect(() => {
     if (open) {
-      setRechargeAmount(0);
+      setRechargeAmount(defaultAmount);
       setRechargeMode('Payment');
       closeToast();
       setLoading(false);
     }
-  }, [open]);
+  }, [open, defaultAmount]);
 
   // Fetch COD balance when modal opens
   useEffect(() => {
@@ -183,7 +185,7 @@ export function RechargeWalletModal({ open, onClose, walletBalance, onSuccess }:
                               const val = e.target.value.replace(/\D/g, '');
                               setRechargeAmount(val ? parseInt(val) : 0);
                             }}
-                            style={{ width: `${Math.max(1.5, rechargeAmount ? rechargeAmount.toString().length : 1.5) * 16}px`, minWidth: '26px' }}
+                            style={{ width: `${Math.max(1, rechargeAmount ? rechargeAmount.toString().length : 1) + 0.4}ch` }}
                             className="text-center bg-transparent focus:outline-none font-extrabold border-none p-0 select-all"
                             placeholder="0"
                           />
@@ -327,7 +329,7 @@ export function RechargeWalletModal({ open, onClose, walletBalance, onSuccess }:
                               const val = e.target.value.replace(/\D/g, '');
                               setRechargeAmount(val ? parseInt(val) : 0);
                             }}
-                            style={{ width: `${Math.max(1.5, rechargeAmount ? rechargeAmount.toString().length : 1.5) * 16}px`, minWidth: '26px' }}
+                            style={{ width: `${Math.max(1, rechargeAmount ? rechargeAmount.toString().length : 1) + 0.4}ch` }}
                             className="text-center bg-transparent focus:outline-none font-extrabold border-none p-0 select-all"
                             placeholder="0"
                           />
@@ -377,7 +379,7 @@ export function RechargeWalletModal({ open, onClose, walletBalance, onSuccess }:
                       </button>
                       <button
                         type="button"
-                        onClick={() => { setRechargeMode('Payment'); setRechargeAmount(0); }}
+                        onClick={() => { setRechargeMode('Payment'); setRechargeAmount(defaultAmount); }}
                         className="w-full py-2 sm:py-2.5 bg-white border border-slate-200 text-slate-500 hover:text-slate-700 hover:border-slate-300 text-[11px] sm:text-xs font-bold rounded-full transition-all flex items-center justify-center gap-1.5 focus:outline-none cursor-pointer"
                       >
                         <ArrowLeft className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> Back to Online Payment

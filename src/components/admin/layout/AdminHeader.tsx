@@ -1419,6 +1419,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
         open={showRechargeModal}
         onClose={() => setShowRechargeModal(false)}
         walletBalance={walletBalance}
+        defaultAmount={1000}
         onSuccess={(amount) => setWalletBalance(prev => prev + amount)}
       />
       </header>
