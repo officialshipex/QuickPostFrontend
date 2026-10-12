@@ -13,6 +13,7 @@ import {
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
 import { useDateRangeFilter } from '../../hooks/filters/useDateRangeFilter';
+import { useFilterApplyState } from '../../hooks/filters/useFilterApplyState';
 import { TruncatedText } from '../../components/ui/TruncatedText';
 import { TableLoader } from '../../components/ui/TableLoader';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -712,6 +713,7 @@ export function AdminCOD() {
     setRefreshTrigger(t => t + 1);
   };
   const hasCodOrderFilters = !!(codOrderId || codAwb || selectedStatuses.length || selectedCouriers.length || (dateStart && dateEnd && !(dateStart === defStart && dateEnd === defEnd)) || (isAdminView && codUserMongoId));
+  const hasCodOrderFiltersUi = useFilterApplyState(JSON.stringify([codOrderId, codAwb, selectedStatuses, selectedCouriers, dateStart, dateEnd, codUserMongoId]), !!hasCodOrderFilters);
 
   const clearSellerRemittanceFilters = () => {
     setSellerRemittanceId(''); setSelectedCodStatuses([]); setCodDateStart(defStart); setCodDateEnd(defEnd);
@@ -720,6 +722,7 @@ export function AdminCOD() {
     setRefreshTrigger(t => t + 1);
   };
   const hasSellerRemittanceFilters = !!(sellerRemittanceId || selectedCodStatuses.length || (codDateStart && codDateEnd && !(codDateStart === defStart && codDateEnd === defEnd)) || (isAdminView && sellerUserMongoId));
+  const hasSellerRemittanceFiltersUi = useFilterApplyState(JSON.stringify([sellerRemittanceId, selectedCodStatuses, codDateStart, codDateEnd, sellerUserMongoId]), !!hasSellerRemittanceFilters);
 
   const clearCourierRemittanceFilters = () => {
     setCourierOrderId(''); setCourierAwb(''); setSelectedCourierCodStatuses([]); setSelectedCourierCouriers([]);
@@ -729,6 +732,7 @@ export function AdminCOD() {
     setRefreshTrigger(t => t + 1);
   };
   const hasCourierRemittanceFilters = !!(courierOrderId || courierAwb || selectedCourierCodStatuses.length || selectedCourierCouriers.length || (courierCodDateStart && courierCodDateEnd && !(courierCodDateStart === defStart && courierCodDateEnd === defEnd)) || (isAdminView && courierUserMongoId));
+  const hasCourierRemittanceFiltersUi = useFilterApplyState(JSON.stringify([courierOrderId, courierAwb, selectedCourierCodStatuses, selectedCourierCouriers, courierCodDateStart, courierCodDateEnd, courierUserMongoId]), !!hasCourierRemittanceFilters);
 
 
 
@@ -1197,9 +1201,12 @@ export function AdminCOD() {
               <GlassDropdown label="Status" options={STATUS_OPTIONS} selected={selectedStatuses} onChange={setSelectedStatuses} placeholder="Status..." icon={<CheckCircle2 className="w-3.5 h-3.5" />} />
               <GlassDropdown label="Courier" options={codCourierOptions} selected={selectedCouriers} onChange={setSelectedCouriers} placeholder="Courier..." icon={<Truck className="w-3.5 h-3.5" />} />
               <GlassDateFilter startDate={dateStart} endDate={dateEnd} onDateChange={onDateChange} defaultStart={defStart} defaultEnd={defEnd} />
-              <button onClick={() => { setCurrentPage(1); fetchCodOrders(1); }}
-                className="py-2 px-4 shrink-0 rounded-[32px] bg-[#009D64] border border-[#009D64] text-white text-xs font-medium leading-[18px] hover:bg-[#008a57] transition-colors cursor-pointer">Apply Filters</button>
-              {hasCodOrderFilters && (
+              {/* Seller side: "Apply Filters" while changes are pending, then "Clear All" once applied */}
+              {(isAdminView || hasCodOrderFiltersUi.showApply) && (
+                <button onClick={() => { (() => { setCurrentPage(1); fetchCodOrders(1); })(); hasCodOrderFiltersUi.markApplied(); }}
+                  className="py-2 px-4 shrink-0 rounded-[32px] bg-[#009D64] border border-[#009D64] text-white text-xs font-medium leading-[18px] hover:bg-[#008a57] transition-colors cursor-pointer">Apply Filters</button>
+              )}
+              {(isAdminView ? hasCodOrderFilters : hasCodOrderFiltersUi.showClear) && (
                 <button onClick={clearCodOrderFilters}
                   className="py-2 px-4 shrink-0 rounded-[32px] border border-red-200 text-red-500 text-xs font-medium leading-[18px] hover:bg-red-50 transition-colors cursor-pointer">
                   Clear All
@@ -1401,9 +1408,12 @@ export function AdminCOD() {
                 className="glass-search-input w-[140px] shrink-0" />
               <GlassDropdown label="Status" options={STATUS_OPTIONS} selected={selectedCodStatuses} onChange={setSelectedCodStatuses} placeholder="Status..." icon={<CheckCircle2 className="w-3.5 h-3.5" />} />
               <GlassDateFilter startDate={codDateStart} endDate={codDateEnd} onDateChange={onCodDateChange} defaultStart={defStart} defaultEnd={defEnd} />
-              <button onClick={() => { setSellerPage(1); fetchSellerRemittance(1); }}
-                className="py-2 px-4 shrink-0 rounded-[32px] bg-[#009D64] border border-[#009D64] text-white text-xs font-medium leading-[18px] hover:bg-[#008a57] transition-colors cursor-pointer">Apply Filters</button>
-              {hasSellerRemittanceFilters && (
+              {/* Seller side: "Apply Filters" while changes are pending, then "Clear All" once applied */}
+              {(isAdminView || hasSellerRemittanceFiltersUi.showApply) && (
+                <button onClick={() => { (() => { setSellerPage(1); fetchSellerRemittance(1); })(); hasSellerRemittanceFiltersUi.markApplied(); }}
+                  className="py-2 px-4 shrink-0 rounded-[32px] bg-[#009D64] border border-[#009D64] text-white text-xs font-medium leading-[18px] hover:bg-[#008a57] transition-colors cursor-pointer">Apply Filters</button>
+              )}
+              {(isAdminView ? hasSellerRemittanceFilters : hasSellerRemittanceFiltersUi.showClear) && (
                 <button onClick={clearSellerRemittanceFilters}
                   className="py-2 px-4 shrink-0 rounded-[32px] border border-red-200 text-red-500 text-xs font-medium leading-[18px] hover:bg-red-50 transition-colors cursor-pointer">
                   Clear All
@@ -1654,9 +1664,12 @@ export function AdminCOD() {
               <GlassDropdown label="Status" options={STATUS_OPTIONS} selected={selectedCourierCodStatuses} onChange={setSelectedCourierCodStatuses} placeholder="Status..." icon={<CheckCircle2 className="w-3.5 h-3.5" />} />
               <GlassDropdown label="Courier" options={courierCourierOptions} selected={selectedCourierCouriers} onChange={setSelectedCourierCouriers} placeholder="Courier..." icon={<Truck className="w-3.5 h-3.5" />} />
               <GlassDateFilter startDate={courierCodDateStart} endDate={courierCodDateEnd} onDateChange={onCourierCodDateChange} defaultStart={defStart} defaultEnd={defEnd} />
-              <button onClick={() => { setCourierPage(1); fetchCourierRemittance(1); }}
-                className="py-2 px-4 shrink-0 rounded-[32px] bg-[#009D64] border border-[#009D64] text-white text-xs font-medium leading-[18px] hover:bg-[#008a57] transition-colors cursor-pointer">Apply Filters</button>
-              {hasCourierRemittanceFilters && (
+              {/* Seller side: "Apply Filters" while changes are pending, then "Clear All" once applied */}
+              {(isAdminView || hasCourierRemittanceFiltersUi.showApply) && (
+                <button onClick={() => { (() => { setCourierPage(1); fetchCourierRemittance(1); })(); hasCourierRemittanceFiltersUi.markApplied(); }}
+                  className="py-2 px-4 shrink-0 rounded-[32px] bg-[#009D64] border border-[#009D64] text-white text-xs font-medium leading-[18px] hover:bg-[#008a57] transition-colors cursor-pointer">Apply Filters</button>
+              )}
+              {(isAdminView ? hasCourierRemittanceFilters : hasCourierRemittanceFiltersUi.showClear) && (
                 <button onClick={clearCourierRemittanceFilters}
                   className="py-2 px-4 shrink-0 rounded-[32px] border border-red-200 text-red-500 text-xs font-medium leading-[18px] hover:bg-red-50 transition-colors cursor-pointer">
                   Clear All

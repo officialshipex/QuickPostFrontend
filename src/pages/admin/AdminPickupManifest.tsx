@@ -12,6 +12,7 @@ import {
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
 import { getLast7DaysStr } from '../../hooks/filters/useDateRangeFilter';
+import { useFilterApplyState } from '../../hooks/filters/useFilterApplyState';
 import { usePagination, DesktopPagination } from '../../hooks/usePagination';
 import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
 import { TableLoader } from '../../components/ui/TableLoader';
@@ -231,6 +232,7 @@ export function AdminPickupManifest({
   };
 
   const hasActiveFilters = searchId || awbNumber || selectedCouriers.length > 0 || selectedPickupAddresses.length > 0 || (dateStart && dateEnd && !(dateStart === defStart && dateEnd === defEnd)) || (isAdminView && userMongoId);
+  const hasActiveFiltersUi = useFilterApplyState(JSON.stringify([searchId, awbNumber, selectedCouriers, selectedPickupAddresses, dateStart, dateEnd, userMongoId]), !!hasActiveFilters);
 
   // ── Download helpers (native fetch, no auth interceptor redirect) ──
   const downloadManifestForIds = async (orderIds: string[]) => {
@@ -439,10 +441,13 @@ export function AdminPickupManifest({
           defaultEnd={defEnd}
         />
 
-        <button onClick={handleApply} className="py-2 px-4 shrink-0 rounded-[32px] bg-[#009D64] border border-[#009D64] text-white text-xs font-medium leading-[18px] hover:bg-[#008a57] transition-colors cursor-pointer">
-          Apply Filters
-        </button>
-        {hasActiveFilters && (
+        {/* Seller side: "Apply Filters" while changes are pending, then "Clear All" once applied */}
+        {(isAdminView || hasActiveFiltersUi.showApply) && (
+          <button onClick={() => { (handleApply)(); hasActiveFiltersUi.markApplied(); }} className="py-2 px-4 shrink-0 rounded-[32px] bg-[#009D64] border border-[#009D64] text-white text-xs font-medium leading-[18px] hover:bg-[#008a57] transition-colors cursor-pointer">
+            Apply Filters
+          </button>
+        )}
+        {(isAdminView ? hasActiveFilters : hasActiveFiltersUi.showClear) && (
           <button onClick={handleClear} className="py-2 px-4 shrink-0 rounded-[32px] border border-red-200 text-red-500 text-xs font-medium leading-[18px] hover:bg-red-50 transition-colors cursor-pointer">
             Clear All
           </button>

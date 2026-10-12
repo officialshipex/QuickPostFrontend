@@ -16,6 +16,7 @@ import {
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
 import { useDateRangeFilter } from '../../hooks/filters/useDateRangeFilter';
+import { useFilterApplyState } from '../../hooks/filters/useFilterApplyState';
 import { TableLoader } from '../../components/ui/TableLoader';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { TruncatedText } from '../../components/ui/TruncatedText';
@@ -632,6 +633,7 @@ export function AdminWeightDiscrepancy() {
     setPage(1);
   };
   const hasFilters = !!(searchInput || selectedCouriers.length || (dateStart && dateStart !== defStart) || (dateEnd && dateEnd !== defEnd) || userMongoId);
+  const hasFiltersUi = useFilterApplyState(JSON.stringify([searchInput, selectedCouriers, dateStart, dateEnd, userMongoId]), !!hasFilters);
 
   // ── Courier options for GlassDropdown
   const courierDropOptions = courierOptions.map(c => ({ label: c, value: c }));
@@ -930,12 +932,15 @@ export function AdminWeightDiscrepancy() {
               defaultEnd={defEnd}
             />
 
-            <button onClick={() => { setPage(1); fetchDiscrepancy(); }}
-              className="py-2 px-4 shrink-0 rounded-[32px] bg-[#009D64] border border-[#009D64] text-white text-xs font-medium leading-[18px] hover:bg-[#008a57] transition-colors cursor-pointer">
-              Apply Filters
-            </button>
+            {/* Seller side: "Apply Filters" while changes are pending, then "Clear All" once applied */}
+            {(isAdminView || hasFiltersUi.showApply) && (
+              <button onClick={() => { (() => { setPage(1); fetchDiscrepancy(); })(); hasFiltersUi.markApplied(); }}
+                className="py-2 px-4 shrink-0 rounded-[32px] bg-[#009D64] border border-[#009D64] text-white text-xs font-medium leading-[18px] hover:bg-[#008a57] transition-colors cursor-pointer">
+                Apply Filters
+              </button>
+            )}
 
-            {hasFilters && (
+            {(isAdminView ? hasFilters : hasFiltersUi.showClear) && (
               <button onClick={clearFilters}
                 className="py-2 px-4 shrink-0 rounded-[32px] border border-red-200 text-red-500 text-xs font-medium leading-[18px] hover:bg-red-50 transition-colors cursor-pointer">
                 Clear All

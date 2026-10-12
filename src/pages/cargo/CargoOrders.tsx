@@ -23,7 +23,8 @@ import {
 import { usePagination, DesktopPagination } from '../../hooks/usePagination';
 import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
 import { useUserSearchFilter } from '../../hooks/filters/useUserSearchFilter';
-import { useDateRangeFilter } from '../../hooks/filters/useDateRangeFilter';
+import { getSharedOrDefaultRange, useDateRangeFilter } from '../../hooks/filters/useDateRangeFilter';
+import { useFilterApplyState } from '../../hooks/filters/useFilterApplyState';
 import { TableLoader } from '../../components/ui/TableLoader';
 import { ShineButton } from '../../components/ui/ShineButton';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -43,7 +44,7 @@ import { CourierLogo } from '../../components/ui/CourierLogo';
 import { calculateRtoRisk, fetchBatchRtoRisk } from '../../services/rtoRisk';
 import type { RtoRiskResult } from '../../services/rtoRisk';
 import { RtoRiskBadge } from '../../components/ui/RtoRiskBadge';
-import flatRateAdImg from '../../assets/flat-rate-ad.png';
+import cargoBannerImg from '../../assets/cargo-orders-banner.png';
 import { ProtectedAdImage } from '../../components/ui/ProtectedAdImage';
 
 // ─── Tabs ─────────────────────────────────────────────────────────────────────
@@ -1003,7 +1004,7 @@ export function CargoOrders() {
     setPmMobileSearch('');
     setIsMobileFiltersOpen(false);
     setOrderId(''); setAwbNumber(''); setSelectedPaymentTypes([]); setSelectedPickupAddresses([]);
-    setSelectedCouriers([]); setDateStart(defStart); setDateEnd(defEnd);
+    setSelectedCouriers([]); { const [s, e] = getSharedOrDefaultRange(); setDateStart(s); setDateEnd(e); }
     setUserQuery(''); setUserSuggestions([]); setUserMongoId('');
     setSelectedChannels([]); setSelectedOrderQtys([]);
     setSelectedOrderWeights([]); setSkuSearch(''); setAutoCancelledOption('');
@@ -1070,6 +1071,7 @@ export function CargoOrders() {
   };
 
   const hasActiveFilters = orderId || awbNumber || selectedPaymentTypes.length > 0 || selectedPickupAddresses.length > 0 || selectedCouriers.length > 0 || (dateStart && dateEnd && !(dateStart === defStart && dateEnd === defEnd)) || (isAdminView && userMongoId) || hasMoreFiltersActive;
+  const hasActiveFiltersUi = useFilterApplyState(JSON.stringify([orderId, awbNumber, selectedPaymentTypes, selectedPickupAddresses, selectedCouriers, dateStart, dateEnd, userMongoId, selectedChannels, selectedOrderQtys, selectedOrderWeights, skuSearch, autoCancelledOption]), !!hasActiveFilters);
 
   const handleClearAllFilters = () => {
     setOrderId(''); setAwbNumber(''); setSelectedPaymentTypes([]); setSelectedPickupAddresses([]);
@@ -1485,7 +1487,7 @@ export function CargoOrders() {
                 >
                   <div className="px-4 md:px-6 pt-3">
                     <div className="relative rounded-xl overflow-hidden border border-[#E2E8F0] shadow-sm">
-                      <ProtectedAdImage src={flatRateAdImg} />
+                      <ProtectedAdImage src={cargoBannerImg} aspect={4.5} position="center 58%" />
                       <button
                         onClick={dismissFlatRateAd}
                         aria-label="Dismiss ad"
@@ -1615,10 +1617,13 @@ export function CargoOrders() {
               {hasMoreFiltersActive && <span className="w-1.5 h-1.5 rounded-full bg-[#00A86B]" />}
             </button>
 
-            <button onClick={handleApplyFilters} className="py-2 px-4 shrink-0 rounded-[32px] bg-[#009D64] border border-[#009D64] text-white text-xs font-medium leading-[18px] hover:bg-[#008a57] transition-colors cursor-pointer">
-              Apply Filters
-            </button>
-            {hasActiveFilters && (
+            {/* Seller side: "Apply Filters" while changes are pending, then "Clear All" once applied */}
+            {(isAdminView || hasActiveFiltersUi.showApply) && (
+              <button onClick={() => { (handleApplyFilters)(); hasActiveFiltersUi.markApplied(); }} className="py-2 px-4 shrink-0 rounded-[32px] bg-[#009D64] border border-[#009D64] text-white text-xs font-medium leading-[18px] hover:bg-[#008a57] transition-colors cursor-pointer">
+                Apply Filters
+              </button>
+            )}
+            {(isAdminView ? hasActiveFilters : hasActiveFiltersUi.showClear) && (
               <button onClick={handleClearAllFilters} className="py-2 px-4 shrink-0 rounded-[32px] border border-red-200 text-red-500 text-xs font-medium leading-[18px] hover:bg-red-50 transition-colors cursor-pointer">
                 Clear All
               </button>

@@ -14,6 +14,7 @@ import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassSingleSelect } from '../../components/ui/GlassSingleSelect';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
 import { useDateRangeFilter } from '../../hooks/filters/useDateRangeFilter';
+import { useFilterApplyState } from '../../hooks/filters/useFilterApplyState';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { TableLoader } from '../../components/ui/TableLoader';
 import { TruncatedText } from '../../components/ui/TruncatedText';
@@ -369,8 +370,8 @@ export function AdminSupport() {
   const [selectedSubcategories, setSelectedSubcategories] = useState<string[]>(persisted?.selectedSubcategories || []);
   const [selectedStatuses, setSelectedStatuses]           = useState<string[]>(persisted?.selectedStatuses || []);
   const [selectedSort, setSelectedSort]                   = useState<string[]>(persisted?.selectedSort || ['Most Recently Created']);
-  const [dateStart, setDateStart]                         = useState(persisted?.dateStart || defStart);
-  const [dateEnd, setDateEnd]                             = useState(persisted?.dateEnd || defEnd);
+  const [dateStart, setDateStart]                         = useState(persisted?.dateStart || draftDateStart || defStart);
+  const [dateEnd, setDateEnd]                             = useState(persisted?.dateEnd || draftDateEnd || defEnd);
 
   const [globalSearchQuery, setGlobalSearchQuery] = useState(
     ((window as any).__adminSearchQuery || '').toLowerCase()
@@ -379,6 +380,7 @@ export function AdminSupport() {
   const hasDraftFilters = draftSubcategories.length > 0 || draftStatuses.length > 0
     || (!!draftDateStart && draftDateStart !== defStart) || (!!draftDateEnd && draftDateEnd !== defEnd)
     || (draftSort[0] && draftSort[0] !== 'Most Recently Created');
+  const hasDraftFiltersUi = useFilterApplyState(JSON.stringify([draftSubcategories, draftStatuses, draftDateStart, draftDateEnd, draftSort]), !!hasDraftFilters);
 
   const handleApplyFilters = () => {
     setSelectedSubcategories(draftSubcategories);
@@ -674,10 +676,13 @@ export function AdminSupport() {
                 icon={<ArrowUpDown className="w-3.5 h-3.5" />}
               />
 
-              <button onClick={handleApplyFilters} className="h-9 px-4 shrink-0 rounded-full bg-[#009D64] border border-[#009D64] text-white text-xs font-medium hover:bg-[#008a57] transition-colors cursor-pointer">
-                Apply Filters
-              </button>
-              {hasDraftFilters && (
+              {/* Seller side: "Apply Filters" while changes are pending, then "Clear All" once applied */}
+              {(isAdminView || hasDraftFiltersUi.showApply) && (
+                <button onClick={() => { (handleApplyFilters)(); hasDraftFiltersUi.markApplied(); }} className="h-9 px-4 shrink-0 rounded-full bg-[#009D64] border border-[#009D64] text-white text-xs font-medium hover:bg-[#008a57] transition-colors cursor-pointer">
+                  Apply Filters
+                </button>
+              )}
+              {(isAdminView ? hasDraftFilters : hasDraftFiltersUi.showClear) && (
                 <button onClick={handleClearAllFilters} className="h-9 px-4 shrink-0 rounded-full border border-red-200 text-red-500 text-xs font-medium hover:bg-red-50 transition-colors cursor-pointer">
                   Clear All
                 </button>

@@ -14,6 +14,7 @@ import { Search, ChevronDown, RefreshCcw, Calendar, Check, Package, User, Truck,
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
 import { useDateRangeFilter } from '../../hooks/filters/useDateRangeFilter';
+import { useFilterApplyState } from '../../hooks/filters/useFilterApplyState';
 import { GlassSingleSelect } from '../../components/ui/GlassSingleSelect';
 import { useTableLoader } from '../../hooks/useTableLoader';
 import { TableLoader } from '../../components/ui/TableLoader';
@@ -844,7 +845,8 @@ export function AdminWallet() {
     setShippingPage(1);
     setRefreshTrigger(t => t + 1);
   };
-  const hasShippingFilters = !!(searchTerm || selectedSearchTypes.length || searchTypeId || selectedCouriers.length || selectedStatuses.length || (shippingDateStart && shippingDateEnd) || (isAdminView && shipUserMongoId));
+  const hasShippingFilters = !!(searchTerm || selectedSearchTypes.length || searchTypeId || selectedCouriers.length || selectedStatuses.length || (shippingDateStart && shippingDateEnd && !(shippingDateStart === defStart && shippingDateEnd === defEnd)) || (isAdminView && shipUserMongoId));
+  const hasShippingFiltersUi = useFilterApplyState(JSON.stringify([searchTerm, selectedSearchTypes, searchTypeId, selectedCouriers, selectedStatuses, shippingDateStart, shippingDateEnd, shipUserMongoId]), !!hasShippingFilters);
 
   const clearPassbookFilters = () => {
     setPassbookSearchTerm(''); setPassbookOrderId(''); setPassbookAwb('');
@@ -854,7 +856,8 @@ export function AdminWallet() {
     setPassbookPage(1);
     setRefreshTrigger(t => t + 1);
   };
-  const hasPassbookFilters = !!(passbookSearchTerm || passbookOrderId || passbookAwb || selectedCategories.length || selectedDescriptions.length || (passbookDateStart && passbookDateEnd) || (isAdminView && pbUserMongoId));
+  const hasPassbookFilters = !!(passbookSearchTerm || passbookOrderId || passbookAwb || selectedCategories.length || selectedDescriptions.length || (passbookDateStart && passbookDateEnd && !(passbookDateStart === defStart && passbookDateEnd === defEnd)) || (isAdminView && pbUserMongoId));
+  const hasPassbookFiltersUi = useFilterApplyState(JSON.stringify([passbookSearchTerm, passbookOrderId, passbookAwb, selectedCategories, selectedDescriptions, passbookDateStart, passbookDateEnd, pbUserMongoId]), !!hasPassbookFilters);
 
   const clearRechargeFilters = () => {
     setRechargeSearchTerm(''); setRechargeTxnId('');
@@ -864,7 +867,8 @@ export function AdminWallet() {
     setRechargePage(1);
     setRefreshTrigger(t => t + 1);
   };
-  const hasRechargeFilters = !!(rechargeSearchTerm || rechargeTxnId || selectedPaymentMethods.length || selectedRechargeStatuses.length || (rechargeDateStart && rechargeDateEnd) || (isAdminView && rcUserMongoId));
+  const hasRechargeFilters = !!(rechargeSearchTerm || rechargeTxnId || selectedPaymentMethods.length || selectedRechargeStatuses.length || (rechargeDateStart && rechargeDateEnd && !(rechargeDateStart === defStart && rechargeDateEnd === defEnd)) || (isAdminView && rcUserMongoId));
+  const hasRechargeFiltersUi = useFilterApplyState(JSON.stringify([rechargeSearchTerm, rechargeTxnId, selectedPaymentMethods, selectedRechargeStatuses, rechargeDateStart, rechargeDateEnd, rcUserMongoId]), !!hasRechargeFilters);
 
   const clearInvoiceFilters = () => {
     setInvoiceSearchTerm(''); setSelectedMonths([]); setSelectedYears([]);
@@ -873,7 +877,8 @@ export function AdminWallet() {
     setInvoicePage(1);
     setRefreshTrigger(t => t + 1);
   };
-  const hasInvoiceFilters = !!(invoiceSearchTerm || selectedMonths.length || selectedYears.length || (invoiceDateStart && invoiceDateEnd) || (isAdminView && invUserMongoId));
+  const hasInvoiceFilters = !!(invoiceSearchTerm || selectedMonths.length || selectedYears.length || (invoiceDateStart && invoiceDateEnd && !(invoiceDateStart === defStart && invoiceDateEnd === defEnd)) || (isAdminView && invUserMongoId));
+  const hasInvoiceFiltersUi = useFilterApplyState(JSON.stringify([invoiceSearchTerm, selectedMonths, selectedYears, invoiceDateStart, invoiceDateEnd, invUserMongoId]), !!hasInvoiceFilters);
 
 
   // Update Passbook modal - user search
@@ -1386,14 +1391,17 @@ export function AdminWallet() {
                   defaultEnd={defEnd}
                 />
 
-                <button
-                  onClick={() => { setShippingPage(1); fetchShippingData(1); showToast('success', 'Shipping filters applied successfully!'); }}
-                  className="py-2 px-4 shrink-0 rounded-[32px] bg-[#009D64] border border-[#009D64] text-white text-xs font-medium leading-[18px] hover:bg-[#008a57] transition-colors cursor-pointer"
-                >
-                  Apply Filters
-                </button>
+                {/* Seller side: "Apply Filters" while changes are pending, then "Clear All" once applied */}
+                {(isAdminView || hasShippingFiltersUi.showApply) && (
+                  <button
+                    onClick={() => { (() => { setShippingPage(1); fetchShippingData(1); showToast('success', 'Shipping filters applied successfully!'); })(); hasShippingFiltersUi.markApplied(); }}
+                    className="py-2 px-4 shrink-0 rounded-[32px] bg-[#009D64] border border-[#009D64] text-white text-xs font-medium leading-[18px] hover:bg-[#008a57] transition-colors cursor-pointer"
+                  >
+                    Apply Filters
+                  </button>
+                )}
 
-                {hasShippingFilters && (
+                {(isAdminView ? hasShippingFilters : hasShippingFiltersUi.showClear) && (
                   <button onClick={clearShippingFilters}
                     className="py-2 px-4 shrink-0 rounded-[32px] border border-red-200 text-red-500 text-xs font-medium leading-[18px] hover:bg-red-50 transition-colors cursor-pointer">
                     Clear All
@@ -1559,14 +1567,17 @@ export function AdminWallet() {
                   defaultEnd={defEnd}
                 />
 
-                <button
-                  onClick={() => { setPassbookPage(1); fetchPassbookData(1); showToast('success', 'Passbook filters applied successfully!'); }}
-                  className="py-2 px-4 shrink-0 rounded-[32px] bg-[#009D64] border border-[#009D64] text-white text-xs font-medium leading-[18px] hover:bg-[#008a57] transition-colors cursor-pointer"
-                >
-                  Apply Filters
-                </button>
+                {/* Seller side: "Apply Filters" while changes are pending, then "Clear All" once applied */}
+                {(isAdminView || hasPassbookFiltersUi.showApply) && (
+                  <button
+                    onClick={() => { (() => { setPassbookPage(1); fetchPassbookData(1); showToast('success', 'Passbook filters applied successfully!'); })(); hasPassbookFiltersUi.markApplied(); }}
+                    className="py-2 px-4 shrink-0 rounded-[32px] bg-[#009D64] border border-[#009D64] text-white text-xs font-medium leading-[18px] hover:bg-[#008a57] transition-colors cursor-pointer"
+                  >
+                    Apply Filters
+                  </button>
+                )}
 
-                {hasPassbookFilters && (
+                {(isAdminView ? hasPassbookFilters : hasPassbookFiltersUi.showClear) && (
                   <button onClick={clearPassbookFilters}
                     className="py-2 px-4 shrink-0 rounded-[32px] border border-red-200 text-red-500 text-xs font-medium leading-[18px] hover:bg-red-50 transition-colors cursor-pointer">
                     Clear All
@@ -1680,14 +1691,17 @@ export function AdminWallet() {
                   defaultEnd={defEnd}
                 />
 
-                <button
-                  onClick={() => { setRechargePage(1); fetchRechargeData(1); showToast('success', 'Wallet Recharge filters applied successfully!'); }}
-                  className="py-2 px-4 shrink-0 rounded-[32px] bg-[#009D64] border border-[#009D64] text-white text-xs font-medium leading-[18px] hover:bg-[#008a57] transition-colors cursor-pointer"
-                >
-                  Apply Filters
-                </button>
+                {/* Seller side: "Apply Filters" while changes are pending, then "Clear All" once applied */}
+                {(isAdminView || hasRechargeFiltersUi.showApply) && (
+                  <button
+                    onClick={() => { (() => { setRechargePage(1); fetchRechargeData(1); showToast('success', 'Wallet Recharge filters applied successfully!'); })(); hasRechargeFiltersUi.markApplied(); }}
+                    className="py-2 px-4 shrink-0 rounded-[32px] bg-[#009D64] border border-[#009D64] text-white text-xs font-medium leading-[18px] hover:bg-[#008a57] transition-colors cursor-pointer"
+                  >
+                    Apply Filters
+                  </button>
+                )}
 
-                {hasRechargeFilters && (
+                {(isAdminView ? hasRechargeFilters : hasRechargeFiltersUi.showClear) && (
                   <button onClick={clearRechargeFilters}
                     className="py-2 px-4 shrink-0 rounded-[32px] border border-red-200 text-red-500 text-xs font-medium leading-[18px] hover:bg-red-50 transition-colors cursor-pointer">
                     Clear All
@@ -1794,14 +1808,17 @@ export function AdminWallet() {
                   defaultEnd={defEnd}
                 />
 
-                <button
-                  onClick={() => { setInvoicePage(1); fetchInvoiceData(1); showToast('success', 'Invoice filters applied successfully!'); }}
-                  className="py-2 px-4 shrink-0 rounded-[32px] bg-[#009D64] border border-[#009D64] text-white text-xs font-medium leading-[18px] hover:bg-[#008a57] transition-colors cursor-pointer"
-                >
-                  Apply Filters
-                </button>
+                {/* Seller side: "Apply Filters" while changes are pending, then "Clear All" once applied */}
+                {(isAdminView || hasInvoiceFiltersUi.showApply) && (
+                  <button
+                    onClick={() => { (() => { setInvoicePage(1); fetchInvoiceData(1); showToast('success', 'Invoice filters applied successfully!'); })(); hasInvoiceFiltersUi.markApplied(); }}
+                    className="py-2 px-4 shrink-0 rounded-[32px] bg-[#009D64] border border-[#009D64] text-white text-xs font-medium leading-[18px] hover:bg-[#008a57] transition-colors cursor-pointer"
+                  >
+                    Apply Filters
+                  </button>
+                )}
 
-                {hasInvoiceFilters && (
+                {(isAdminView ? hasInvoiceFilters : hasInvoiceFiltersUi.showClear) && (
                   <button onClick={clearInvoiceFilters}
                     className="py-2 px-4 shrink-0 rounded-[32px] border border-red-200 text-red-500 text-xs font-medium leading-[18px] hover:bg-red-50 transition-colors cursor-pointer">
                     Clear All
