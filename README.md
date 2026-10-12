@@ -4,7 +4,7 @@
 
 **Ship anything, anywhere in India — parcels with QuickPost B2C, pallets and multi-box loads with QuickPost Cargo.**
 
-React 19 · TypeScript · Vite · Tailwind CSS v4 · Framer Motion
+React 19  TypeScript · Vite · Tailwind CSS v4 · Framer Motion
 
 </div>
 
