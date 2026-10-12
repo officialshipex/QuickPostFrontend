@@ -5,6 +5,7 @@ import { Truck, Plane, Info, X, Loader2, Send, Star, MapPin, Building2, Chevrons
 import { apiClient } from '../../../services/apiClient';
 import { TableLoader } from '../../ui/TableLoader';
 import { NetworkError } from '../../ui/NetworkError';
+import noCourierImg from '../../../assets/no-courier.jpg';
 
 const TXT = {
   label: 'text-[12px] font-semibold',
@@ -84,6 +85,25 @@ interface ShipOrderModalProps {
 type TabKey = 'Recommended' | 'Surface' | 'Air' | 'All';
 const TABS: TabKey[] = ['Recommended', 'Surface', 'Air', 'All'];
 const MOBILE_TABS: TabKey[] = ['All', 'Surface', 'Air'];
+
+/** Empty courier list — no courier serves the route at all, or the selected tab (Air / Surface) has none. */
+function NoCourierState({ compact = false, tab }: { compact?: boolean; tab?: string }) {
+  const title = tab ? `No ${tab.toLowerCase()} couriers available` : 'No courier service available';
+  const body = tab ? '' : 'None of our courier partners serve this pickup and delivery pincode right now. Try a different pickup address, or check the delivery pincode.';
+  return (
+    <div className={`flex flex-col items-center justify-center text-center ${compact ? 'py-8 px-4' : 'py-8 px-6'}`}>
+      <img
+        src={noCourierImg}
+        alt=""
+        aria-hidden="true"
+        draggable={false}
+        className={`${compact ? 'w-[240px]' : 'w-[300px]'} h-auto select-none mix-blend-multiply`}
+      />
+      <h3 className="mt-4 text-[15px] font-bold text-[#0F172A]">{title}</h3>
+      {body && <p className="mt-1.5 text-[12.5px] leading-relaxed text-[#64748B] max-w-[340px]">{body}</p>}
+    </div>
+  );
+}
 
 export function ShipOrderModal({ order, onClose, onShipped }: ShipOrderModalProps) {
   const [loading, setLoading] = useState(true);
@@ -418,12 +438,7 @@ export function ShipOrderModal({ order, onClose, onShipped }: ShipOrderModalProp
                     <TableLoader />
                   </div>
                 ) : tabFilteredRates.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-full gap-2 py-16">
-                    <Truck className="w-8 h-8 text-[#CBD5E1]" />
-                    <p className={`${TXT.value} text-[#94A3B8]`}>
-                      {rates.length === 0 ? 'No courier options available for this pincode.' : `No ${activeTab.toLowerCase()} couriers available.`}
-                    </p>
-                  </div>
+                  <NoCourierState tab={rates.length === 0 ? undefined : activeTab} />
                 ) : (
                   <AnimatePresence initial={false}>
                     {tabFilteredRates.map((item, i) => {
@@ -631,15 +646,7 @@ export function ShipOrderModal({ order, onClose, onShipped }: ShipOrderModalProp
                   </div>
                 ))
               ) : tabFilteredRates.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-14 gap-2 text-center">
-                  <span className="w-12 h-12 rounded-full bg-white flex items-center justify-center shadow-[0_1px_2px_rgba(16,24,40,0.06)]">
-                    <Truck className="w-5 h-5 text-[#94A3B8]" />
-                  </span>
-                  <p className="text-[13px] font-semibold text-[#0F172A] mt-1">No couriers here</p>
-                  <p className={`${TXT.value} text-[#94A3B8] max-w-[240px]`}>
-                    {rates.length === 0 ? 'No courier options available for this pincode.' : `No ${activeTab.toLowerCase()} couriers available.`}
-                  </p>
-                </div>
+                <NoCourierState compact tab={rates.length === 0 ? undefined : activeTab} />
               ) : (
                 mobileRates.map((item) => {
                   const logo = getLogoForCourier(item.courierServiceName);
