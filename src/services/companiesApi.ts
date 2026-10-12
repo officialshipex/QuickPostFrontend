@@ -56,6 +56,8 @@ export interface CompanySummary {
   autoVerifyPhone?: boolean;
   // which KYC routes sellers of this company are offered; absent from a backend that predates the setting
   kycMethods?: { ekyc: boolean; manual: boolean };
+  // which shipping-label design this company's sellers download; absent from a backend that predates the setting
+  labelTemplate?: 'classic' | 'modern';
   createdAt: string;
 }
 

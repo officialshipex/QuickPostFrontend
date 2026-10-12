@@ -6,6 +6,7 @@ import { Toast } from '../../../components/ui/Toast';
 import { useToast } from '../../../hooks/useToast';
 import { ColorField } from '../../../components/admin/companies/ColorField';
 import { ImageDimensionUpload } from '../../../components/admin/companies/ImageDimensionUpload';
+import { ClassicLabelPreview, ModernLabelPreview, type LabelTemplate } from '../../../components/admin/companies/LabelTemplatePreviews';
 import {
   companiesApi, type CompanySummary, type ConfigGroups, type ConfigFieldHint, type GroupStatusMap, type WebhookAddress,
 } from '../../../services/companiesApi';
@@ -418,7 +419,9 @@ function CompanyDetail({ tenantKey, onBack }: { tenantKey: string; onBack: () =>
 
   useEffect(() => { load(); }, [load]);
 
-  if (loading || !company || !groups) {
+  // The full-page loader is for the first load and for switching company only. A reload after a save keeps the
+  // page mounted (showing the previous data until the fresh data lands), so the scroll position is not lost.
+  if (!company || !groups || (loading && company.tenantKey !== tenantKey)) {
     return (
       <div className="flex flex-col h-[calc(100vh-72px)] -m-4 md:-m-6 bg-white relative">
         <TableLoader />
@@ -527,6 +530,7 @@ function CompanyDetail({ tenantKey, onBack }: { tenantKey: string; onBack: () =>
 
           <ContactVerificationSection company={company} onSaved={load} showToast={showToast} />
           <KycMethodsSection company={company} onSaved={load} showToast={showToast} />
+          <LabelTemplateSection company={company} onSaved={load} showToast={showToast} />
           <JobsSection company={company} onSaved={load} showToast={showToast} />
         </div>
       </div>
@@ -1192,6 +1196,68 @@ function KycMethodsSection({ company, onSaved, showToast }: {
         })}
         <p className="text-[11px] text-[#94A3B8]">When both are on, sellers choose; when only one is on, they go straight into it. Sellers already verified are not affected.</p>
       </div>
+    </SectionCard>
+  );
+}
+
+// Which shipping-label design this company's sellers download (and see in their Label Customization preview).
+function LabelTemplateSection({ company, onSaved, showToast }: {
+  company: CompanySummary; onSaved: () => void; showToast: (t: 'success' | 'error', m: string) => void;
+}) {
+  const [saving, setSaving] = useState(false);
+
+  // an older backend does not know this setting: show nothing rather than a chooser that cannot work
+  if (!company.labelTemplate) return null;
+  const current = company.labelTemplate;
+
+  const choose = async (next: LabelTemplate) => {
+    if (next === current) return;
+    setSaving(true);
+    try {
+      await companiesApi.updateBasic(company.tenantKey, { labelTemplate: next });
+      showToast('success', 'Label design updated');
+      onSaved();
+    } catch (err) {
+      const message = (err as { response?: { data?: { message?: string } } }).response?.data?.message;
+      showToast('error', message || 'Failed to update label design');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const options: { key: LabelTemplate; label: string; desc: string; preview: React.ReactNode }[] = [
+    { key: 'classic', label: 'Original label', desc: 'The standard label, as it has always been.', preview: <ClassicLabelPreview /> },
+    { key: 'modern', label: 'New label', desc: 'Brand header, large AWB barcode and a ship-to / payment panel.', preview: <ModernLabelPreview /> },
+  ];
+
+  return (
+    <SectionCard title="Label design">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {options.map((o) => {
+          const selected = current === o.key;
+          return (
+            <button
+              key={o.key}
+              type="button"
+              disabled={saving}
+              onClick={() => choose(o.key)}
+              className={`text-left rounded-[10px] border-2 p-3 transition-colors disabled:opacity-60 ${selected ? 'border-[#00A86B] bg-[#F0FDF4]' : 'border-[#E2E8F0] hover:border-[#CBD5E1]'}`}
+            >
+              <div className="flex items-start gap-2.5 mb-3">
+                <span className={`mt-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${selected ? 'border-[#00A86B]' : 'border-[#CBD5E1]'}`}>
+                  {selected && <span className="w-2 h-2 rounded-full bg-[#00A86B]" />}
+                </span>
+                <div>
+                  <p className={`text-[13px] font-semibold ${selected ? 'text-[#00A86B]' : 'text-[#334155]'}`}>{o.label}{selected && ' (selected)'}</p>
+                  <p className="text-[11px] text-[#94A3B8] mt-0.5">{o.desc}</p>
+                </div>
+              </div>
+              {o.preview}
+            </button>
+          );
+        })}
+      </div>
+      <p className="text-[11px] text-[#94A3B8] mt-3">Applies to every label this company's sellers download from now on; their hide / show options and logo work the same on both designs.</p>
     </SectionCard>
   );
 }
