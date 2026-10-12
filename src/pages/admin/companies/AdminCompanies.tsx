@@ -12,6 +12,8 @@ import {
 } from '../../../services/companiesApi';
 import {
   Plus, ArrowLeft, Building2, Globe, CheckCircle2, Clock, Pencil, X, ChevronRight, Copy, ExternalLink,
+  Activity, ListChecks, CalendarDays, KeyRound, Database, Palette, ShieldCheck, Truck, CreditCard, Bell,
+  HardDrive, Webhook, BadgeCheck, IdCard, CalendarClock, Receipt, Settings2, Search, Layers, AlertCircle, Check, type LucideIcon,
 } from 'lucide-react';
 
 type View = 'list' | 'create' | 'detail';
@@ -33,6 +35,27 @@ const STATUS_BADGE: Record<string, string> = {
   suspended: 'bg-red-50 text-red-700 border-red-200',
   disabled: 'bg-slate-50 text-slate-700 border-slate-200',
 };
+
+const STATUS_DOT: Record<string, string> = {
+  onboarding: 'bg-amber-500', active: 'bg-emerald-500', suspended: 'bg-red-500', disabled: 'bg-slate-400',
+};
+const softCard = 'bg-white rounded-2xl border border-[#EEF2F6] shadow-[0_1px_2px_rgba(16,24,40,0.04),0_2px_8px_rgba(16,24,40,0.05)]';
+const sectionId = (title: string) => 'sec-' + title.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+
+function StatusPill({ status }: { status: string }) {
+  return (
+    <span className={`${STATUS_BADGE[status] || STATUS_BADGE.disabled} inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[10.5px] font-semibold capitalize`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[status] || STATUS_DOT.disabled}`} />{status}
+    </span>
+  );
+}
+
+function CompanyAvatar({ name, logoUrl, size = 'md' }: { name: string; logoUrl?: string; size?: 'md' | 'lg' }) {
+  const box = size === 'lg' ? 'w-14 h-14 rounded-2xl text-[20px]' : 'w-9 h-9 rounded-xl text-[13px]';
+  if (logoUrl) return <img src={logoUrl} alt="" className={`${box} object-contain bg-white border border-[#E2E8F0] p-1 shrink-0`} />;
+  const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?';
+  return <div className={`${box} bg-gradient-to-br from-[#00A86B] to-[#00875A] text-white font-bold flex items-center justify-center shrink-0`}>{initials}</div>;
+}
 
 function slugify(input: string) {
   return input.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
@@ -64,6 +87,8 @@ function CompaniesList({ onCreate, onOpen }: { onCreate: () => void; onOpen: (ke
   const [companies, setCompanies] = useState<CompanySummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [query, setQuery] = useState('');
+  const [tab, setTab] = useState<'all' | CompanySummary['status']>('all');
 
   const fetchCompanies = useCallback(async () => {
     setLoading(true);
@@ -80,83 +105,157 @@ function CompaniesList({ onCreate, onOpen }: { onCreate: () => void; onOpen: (ke
 
   useEffect(() => { fetchCompanies(); }, [fetchCompanies]);
 
-  return (
-    <div className="flex flex-col h-[calc(100vh-72px)] -m-4 md:-m-6 bg-white">
-      <div className="flex items-center justify-between px-4 md:px-6 py-4 border-b border-[#E2E8F0] shrink-0">
-        <div>
-          <h1 className="text-[16px] font-semibold text-[#0F172A] flex items-center gap-2">
-            <Building2 className="w-4 h-4 text-[#00A86B]" /> Companies
-          </h1>
-          <p className="text-[12px] text-[#64748B] mt-0.5">White-label companies onboarded onto the shared platform</p>
-        </div>
-        <button
-          onClick={onCreate}
-          className="flex items-center gap-1.5 bg-[#00A86B] hover:bg-[#008F5C] text-white text-[12px] font-semibold px-4 py-2.5 rounded-[8px] transition-colors"
-        >
-          <Plus className="w-4 h-4" /> Add Company
-        </button>
-      </div>
+  const count = (st: CompanySummary['status']) => companies.filter(c => c.status === st).length;
+  const stats: { label: string; value: number; icon: LucideIcon; tone: string }[] = [
+    { label: 'Total Companies', value: companies.length, icon: Layers, tone: 'bg-[#F1F5F9] text-[#475569]' },
+    { label: 'Active', value: count('active'), icon: CheckCircle2, tone: 'bg-emerald-50 text-emerald-600' },
+    { label: 'Onboarding', value: count('onboarding'), icon: Clock, tone: 'bg-amber-50 text-amber-600' },
+    { label: 'Setup Pending', value: companies.filter(c => !c.requiredSetupComplete).length, icon: AlertCircle, tone: 'bg-red-50 text-red-500' },
+  ];
+  const tabs: { key: 'all' | CompanySummary['status']; label: string }[] = [
+    { key: 'all', label: 'All' }, { key: 'active', label: 'Active' }, { key: 'onboarding', label: 'Onboarding' },
+    { key: 'suspended', label: 'Suspended' }, { key: 'disabled', label: 'Disabled' },
+  ];
+  const q = query.trim().toLowerCase();
+  const visible = companies.filter(c =>
+    (tab === 'all' || c.status === tab) &&
+    (!q || c.displayName.toLowerCase().includes(q) || c.tenantKey.toLowerCase().includes(q) || c.domains.some(d => d.hostname.toLowerCase().includes(q))));
 
-      <div className="flex-1 overflow-auto relative">
-        {loading && <TableLoader />}
-        {error ? (
-          <p className="p-6 text-[12px] text-red-500">{error}</p>
-        ) : (
-          <table className="w-full text-left border-collapse">
-            <thead className="sticky top-0 z-10 bg-[#E6F9F2] shadow-sm">
-              <tr className="text-xs font-medium text-[#64748B] uppercase tracking-wider">
-                <th className="py-2.5 px-4">Company</th>
-                <th className="py-2.5 px-4">Domain</th>
-                <th className="py-2.5 px-4">Status</th>
-                <th className="py-2.5 px-4">Setup</th>
-                <th className="py-2.5 px-4">Created</th>
-                <th className="py-2.5 px-4 text-right">&nbsp;</th>
-              </tr>
-            </thead>
-            <tbody className="text-[12px] text-[#475569]">
-              {companies.length === 0 && !loading ? (
-                <tr><td colSpan={6} className="py-10 text-center text-[#94A3B8]">No companies onboarded yet.</td></tr>
-              ) : companies.map((c, idx) => {
-                const primaryDomain = c.domains.find(d => d.isPrimary)?.hostname || c.domains[0]?.hostname || '—';
+  return (
+    <div className="flex flex-col h-[calc(100vh-72px)] -m-4 md:-m-6 bg-[#F8FAFC] overflow-y-auto">
+      <div className="px-4 md:px-6 pt-5 pb-6 flex flex-col gap-5">
+        {/* Title */}
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="w-10 h-10 rounded-xl bg-[#F0FDF4] text-[#00A86B] flex items-center justify-center shrink-0"><Building2 className="w-5 h-5" /></span>
+            <div className="min-w-0">
+              <h1 className="text-[18px] font-bold text-[#0F172A]">Companies</h1>
+              <p className="text-[12.5px] text-[#64748B] truncate">White-label companies onboarded onto the shared platform</p>
+            </div>
+          </div>
+          <button
+            onClick={onCreate}
+            className="flex items-center gap-1.5 h-10 px-5 rounded-full bg-[#00A86B] hover:bg-[#009B63] text-white text-[13px] font-semibold shadow-sm transition-colors shrink-0"
+          >
+            <Plus className="w-4 h-4" /> Add Company
+          </button>
+        </div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+          {stats.map(st => (
+            <div key={st.label} className={`${softCard} px-4 py-3.5 flex items-center justify-between gap-3`}>
+              <div className="min-w-0">
+                <div className="text-[12px] font-medium text-[#64748B] truncate">{st.label}</div>
+                <div className="text-[22px] font-bold text-[#0F172A] tabular-nums leading-tight mt-0.5">{loading ? '—' : st.value}</div>
+              </div>
+              <span className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${st.tone}`}><st.icon className="w-5 h-5" /></span>
+            </div>
+          ))}
+        </div>
+
+        {/* Table card */}
+        <div className={`${softCard} overflow-hidden`}>
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 px-4 py-3 border-b border-[#F1F5F9]">
+            <div className="flex items-center gap-1 overflow-x-auto">
+              {tabs.map(t => {
+                const n = t.key === 'all' ? companies.length : count(t.key);
+                const active = tab === t.key;
                 return (
-                  <tr
-                    key={c.tenantKey}
-                    onClick={() => onOpen(c.tenantKey)}
-                    className={`border-b border-[#E2E8F0] cursor-pointer hover:bg-[#F0FDF4] transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]/20'}`}
-                  >
-                    <td className="py-2.5 px-4">
-                      <div className="flex items-center gap-2.5">
-                        {c.branding?.logoUrl ? (
-                          <img src={c.branding.logoUrl} alt="" className="w-7 h-7 rounded-[6px] object-cover border border-[#E2E8F0]" />
-                        ) : (
-                          <div className="w-7 h-7 rounded-[6px] bg-[#F0FDF4] flex items-center justify-center"><Building2 className="w-3.5 h-3.5 text-[#00A86B]" /></div>
-                        )}
-                        <div>
-                          <p className="font-semibold text-[#0F172A]">{c.displayName}</p>
-                          <p className="text-[10px] text-[#94A3B8]">{c.tenantKey}{c.isDefaultTenant ? ' · default' : ''}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-2.5 px-4"><span className="flex items-center gap-1.5"><Globe className="w-3 h-3 text-[#94A3B8]" />{primaryDomain}</span></td>
-                    <td className="py-2.5 px-4">
-                      <span className={`${STATUS_BADGE[c.status] || STATUS_BADGE.disabled} px-2 py-0.5 rounded-full border text-[10px] font-semibold uppercase tracking-wider`}>{c.status}</span>
-                      {c.jobsEnabled && <span className="ml-1.5 px-2 py-0.5 rounded-full border border-sky-200 bg-sky-50 text-sky-700 text-[10px] font-semibold uppercase tracking-wider">Jobs on</span>}
-                    </td>
-                    <td className="py-2.5 px-4">
-                      {c.requiredSetupComplete ? (
-                        <span className="flex items-center gap-1 text-[#00A86B]"><CheckCircle2 className="w-3.5 h-3.5" /> Complete</span>
-                      ) : (
-                        <span className="flex items-center gap-1 text-amber-600"><Clock className="w-3.5 h-3.5" /> Incomplete</span>
-                      )}
-                    </td>
-                    <td className="py-2.5 px-4 text-[#94A3B8]">{new Date(c.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
-                    <td className="py-2.5 px-4 text-right"><ChevronRight className="w-4 h-4 text-[#94A3B8] inline-block" /></td>
-                  </tr>
+                  <button key={t.key} type="button" onClick={() => setTab(t.key)}
+                    className={`h-8 px-3 rounded-full text-[12.5px] font-semibold whitespace-nowrap inline-flex items-center gap-1.5 transition-colors ${active ? 'bg-[#F0FDF4] text-[#00A86B]' : 'text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A]'}`}>
+                    {t.label}
+                    <span className={`min-w-[18px] h-[18px] px-1 rounded-full text-[10.5px] flex items-center justify-center ${active ? 'bg-[#00A86B] text-white' : 'bg-[#F1F5F9] text-[#64748B]'}`}>{n}</span>
+                  </button>
                 );
               })}
-            </tbody>
-          </table>
-        )}
+            </div>
+            <div className="relative md:w-[280px]">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8] pointer-events-none" />
+              <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search name, key or domain"
+                className="w-full h-9 pl-10 pr-4 rounded-full border border-[#E2E8F0] bg-white text-[12.5px] text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B] transition-colors" />
+            </div>
+          </div>
+
+          <div className="relative overflow-x-auto min-h-[220px]">
+            {loading && <TableLoader />}
+            {error ? (
+              <p className="p-6 text-[12px] text-red-500">{error}</p>
+            ) : (
+              <table className="w-full text-left border-collapse">
+                <thead className="bg-[#E6F9F2]">
+                  <tr className="text-xs font-medium text-[#64748B] uppercase tracking-wider">
+                    {([
+                      ['Company', Building2], ['Domain', Globe], ['Status', Activity], ['Setup', ListChecks], ['Created', CalendarDays],
+                    ] as [string, LucideIcon][]).map(([label, Icon]) => (
+                      <th key={label} className="py-2.5 px-4 whitespace-nowrap">
+                        <div className="flex items-center gap-1.5"><Icon className="w-3.5 h-3.5 shrink-0" /><span>{label}</span></div>
+                      </th>
+                    ))}
+                    <th className="py-2.5 px-4 text-right">&nbsp;</th>
+                  </tr>
+                </thead>
+                <tbody className="text-[12.5px] text-[#475569]">
+                  {visible.length === 0 && !loading ? (
+                    <tr><td colSpan={6} className="py-14 text-center">
+                      <div className="flex flex-col items-center gap-2">
+                        <span className="w-12 h-12 rounded-2xl bg-[#F1F5F9] flex items-center justify-center"><Building2 className="w-6 h-6 text-[#94A3B8]" /></span>
+                        <p className="text-[13px] font-semibold text-[#0F172A]">{companies.length === 0 ? 'No companies onboarded yet' : 'No companies match'}</p>
+                        <p className="text-[12px] text-[#94A3B8]">{companies.length === 0 ? 'Add your first white-label company to get started.' : 'Try a different search or status.'}</p>
+                      </div>
+                    </td></tr>
+                  ) : visible.map(c => {
+                    const primaryDomain = c.domains.find(d => d.isPrimary)?.hostname || c.domains[0]?.hostname || '—';
+                    return (
+                      <tr
+                        key={c.tenantKey}
+                        onClick={() => onOpen(c.tenantKey)}
+                        className="group border-b border-[#F1F5F9] last:border-b-0 cursor-pointer hover:bg-[#F8FFFB] transition-colors"
+                      >
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-3">
+                            <CompanyAvatar name={c.displayName} logoUrl={c.branding?.logoUrl} />
+                            <div className="min-w-0">
+                              <p className="font-semibold text-[13px] text-[#0F172A] group-hover:text-[#00A86B] transition-colors flex items-center gap-1.5">
+                                {c.displayName}
+                                {c.isDefaultTenant && <span className="px-1.5 py-px rounded-md bg-[#F1F5F9] text-[#64748B] text-[9.5px] font-bold uppercase tracking-wider">Default</span>}
+                              </p>
+                              <p className="text-[11px] text-[#94A3B8] font-mono">{c.tenantKey}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 h-7 rounded-full bg-[#F8FAFC] border border-[#EEF2F6] text-[#334155]">
+                            <Globe className="w-3 h-3 text-[#94A3B8]" />{primaryDomain}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-1.5">
+                            <StatusPill status={c.status} />
+                            {c.jobsEnabled && <span className="px-2 py-0.5 rounded-full border border-sky-200 bg-sky-50 text-sky-700 text-[10.5px] font-semibold">Jobs on</span>}
+                          </div>
+                        </td>
+                        <td className="py-3 px-4">
+                          {c.requiredSetupComplete ? (
+                            <span className="inline-flex items-center gap-1 text-[12px] font-medium text-[#00A86B]"><CheckCircle2 className="w-3.5 h-3.5" /> Complete</span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[12px] font-medium text-amber-600"><Clock className="w-3.5 h-3.5" /> Incomplete</span>
+                          )}
+                        </td>
+                        <td className="py-3 px-4 text-[#64748B] whitespace-nowrap">{new Date(c.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
+                        <td className="py-3 px-4 text-right">
+                          <span className="inline-flex items-center gap-1 h-8 px-3 rounded-full text-[12px] font-semibold text-[#64748B] group-hover:text-[#00A86B] group-hover:bg-[#F0FDF4] transition-colors">
+                            Manage <ChevronRight className="w-3.5 h-3.5" />
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -232,103 +331,214 @@ function CompanyCreateForm({ onBack, onCreated }: { onBack: () => void; onCreate
     }
   };
 
-  const labelCls = 'text-[12px] font-semibold text-[#64748B]';
+  const labelCls = 'block text-[12px] font-semibold text-[#475569] mb-1.5';
+  const hintCls = 'font-normal text-[#94A3B8]';
   const inputCls = (hasError?: boolean) =>
-    `w-full border rounded-[8px] px-3 py-2.5 text-[13px] text-[#1E293B] focus:outline-none focus:ring-2 transition-colors ${hasError ? 'border-red-300 focus:ring-red-100' : 'border-[#E2E8F0] focus:ring-[#00A86B]/40 focus:border-[#00A86B]'}`;
-  const errCls = 'text-[11px] text-red-500 mt-1';
+    `w-full h-10 pl-10 pr-4 bg-white border rounded-full text-[13px] font-medium text-[#0F172A] placeholder:text-[#94A3B8] placeholder:font-normal focus:outline-none focus:ring-1 transition-colors ${hasError ? 'border-red-300 focus:border-red-400 focus:ring-red-200' : 'border-[#E2E8F0] focus:border-[#00A86B] focus:ring-[#00A86B]'}`;
+  const iconCls = 'absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8] pointer-events-none';
+  const errCls = 'text-[11.5px] text-red-500 mt-1.5 pl-1';
+  const cardCls = 'bg-white rounded-2xl border border-[#EEF2F6] shadow-[0_1px_2px_rgba(16,24,40,0.04),0_2px_8px_rgba(16,24,40,0.05)]';
+
+  const FormSection = ({ icon: Icon, title, subtitle, children }: { icon: LucideIcon; title: string; subtitle: string; children: React.ReactNode }) => (
+    <section className={cardCls}>
+      <div className="flex items-start gap-3 px-5 py-4 border-b border-[#F1F5F9]">
+        <span className="w-9 h-9 rounded-xl bg-[#F0FDF4] text-[#00A86B] flex items-center justify-center shrink-0"><Icon className="w-[18px] h-[18px]" /></span>
+        <div className="min-w-0">
+          <h2 className="text-[14px] font-semibold text-[#0F172A]">{title}</h2>
+          <p className="text-[12px] text-[#64748B] mt-0.5">{subtitle}</p>
+        </div>
+      </div>
+      <div className="p-5 flex flex-col gap-4">{children}</div>
+    </section>
+  );
 
   return (
-    <div className="flex flex-col h-[calc(100vh-72px)] -m-4 md:-m-6 bg-white">
+    <div className="flex flex-col h-[calc(100vh-72px)] -m-4 md:-m-6 bg-[#F8FAFC]">
       <Toast toast={toast} onClose={() => {}} />
-      <div className="flex items-center gap-3 px-4 md:px-6 py-4 border-b border-[#E2E8F0] shrink-0">
-        <button onClick={onBack} className="w-8 h-8 rounded-[8px] border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC]"><ArrowLeft className="w-4 h-4" /></button>
-        <div>
+      <div className="flex items-center gap-3 px-4 md:px-6 py-4 bg-white border-b border-[#E2E8F0] shrink-0">
+        <button onClick={onBack} aria-label="Back to companies" className="w-9 h-9 rounded-full border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors"><ArrowLeft className="w-4 h-4" /></button>
+        <div className="min-w-0">
           <h1 className="text-[16px] font-semibold text-[#0F172A]">Add Company</h1>
-          <p className="text-[12px] text-[#64748B]">Only what's needed to stand this company up. Everything else can be filled in afterwards, one field at a time.</p>
+          <p className="text-[12px] text-[#64748B] truncate">Only what's needed to stand this company up. Everything else can be filled in afterwards, one field at a time.</p>
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto">
-      <div className="max-w-2xl w-full mx-auto px-4 md:px-6 py-6 flex flex-col gap-4">
-        <div>
-          <label className={labelCls}>Company Name <span className="text-red-500">*</span></label>
-          <input value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder="Acme Logistics" name="company-display-name" autoComplete="off" className={inputCls(!!errors.displayName)} />
-          {errors.displayName && <p className={errCls}>{errors.displayName}</p>}
+        <div className="max-w-6xl w-full mx-auto px-4 md:px-6 py-6 grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-5 items-start">
+        <div className="flex flex-col gap-5 min-w-0">
+          {/* Identity */}
+          {FormSection({
+            icon: Building2, title: 'Company identity', subtitle: 'How this company is named and where its app lives.',
+            children: (
+              <>
+                <div>
+                  <label className={labelCls}>Company Name <span className="text-red-500">*</span></label>
+                  <div className="relative">
+                    <Building2 className={iconCls} />
+                    <input value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder="Acme Logistics" name="company-display-name" autoComplete="off" className={inputCls(!!errors.displayName)} />
+                  </div>
+                  {errors.displayName && <p className={errCls}>{errors.displayName}</p>}
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className={labelCls}>Company Key <span className="text-red-500">*</span> <span className={hintCls}>· can't be changed later</span></label>
+                    <div className="relative">
+                      <KeyRound className={iconCls} />
+                      <input
+                        value={tenantKey}
+                        onChange={e => { setTenantKey(e.target.value); setKeyEdited(true); }}
+                        placeholder="acme-logistics"
+                        name="company-tenant-key"
+                        autoComplete="off"
+                        className={`${inputCls(!!errors.tenantKey)} font-mono`}
+                      />
+                    </div>
+                    {errors.tenantKey ? <p className={errCls}>{errors.tenantKey}</p> : <p className="text-[11.5px] text-[#94A3B8] mt-1.5 pl-1">Used internally. Auto-filled from the name.</p>}
+                  </div>
+                  <div>
+                    <label className={labelCls}>Domain <span className="text-red-500">*</span></label>
+                    <div className="relative">
+                      <Globe className={iconCls} />
+                      <input value={domain} onChange={e => setDomain(e.target.value)} placeholder="app.acmelogistics.com" name="company-domain" autoComplete="off" className={inputCls(!!errors.domain)} />
+                    </div>
+                    {errors.domain ? <p className={errCls}>{errors.domain}</p> : <p className="text-[11.5px] text-[#94A3B8] mt-1.5 pl-1">Where this company's app will be reachable.</p>}
+                  </div>
+                </div>
+              </>
+            ),
+          })}
+
+          {/* Database */}
+          {FormSection({
+            icon: Database, title: 'Database', subtitle: "This company's own, isolated database.",
+            children: (
+              <div>
+                <label className={labelCls}>MongoDB Connection URI <span className="text-red-500">*</span></label>
+                <div className="relative">
+                  <Database className={iconCls} />
+                  <input
+                    value={mongoUri}
+                    onChange={e => setMongoUri(e.target.value)}
+                    placeholder="mongodb+srv://user:pass@cluster.mongodb.net/dbname"
+                    type="password"
+                    name="company-mongo-uri"
+                    autoComplete="new-password"
+                    className={inputCls(!!errors.mongoUri)}
+                  />
+                </div>
+                {errors.mongoUri ? <p className={errCls}>{errors.mongoUri}</p> : <p className="text-[11.5px] text-[#94A3B8] mt-1.5 pl-1">We'll check this is reachable before creating the company.</p>}
+              </div>
+            ),
+          })}
+
+          {/* Branding */}
+          {FormSection({
+            icon: Palette, title: 'Branding', subtitle: 'Logo, favicon and brand colours shown across the company app.',
+            children: (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <ImageDimensionUpload
+                    label="Logo"
+                    {...LOGO_SHAPE}
+                    value={logoPreview}
+                    required
+                    onFileValidated={(file, preview) => { setLogoFile(file); setLogoPreview(preview); }}
+                    onClear={() => { setLogoFile(null); setLogoPreview(null); }}
+                  />
+                  <ImageDimensionUpload
+                    label="Favicon"
+                    {...FAVICON_SHAPE}
+                    value={faviconPreview}
+                    onFileValidated={(file, preview) => { setFaviconFile(file); setFaviconPreview(preview); }}
+                    onClear={() => { setFaviconFile(null); setFaviconPreview(null); }}
+                  />
+                </div>
+                {errors.logo && <p className={errCls}>{errors.logo}</p>}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <ColorField label="Primary Color" value={primaryColor} onChange={setPrimaryColor} required />
+                  <ColorField label="Secondary Color" value={secondaryColor} onChange={setSecondaryColor} />
+                </div>
+                {errors.primaryColor && <p className={errCls}>{errors.primaryColor}</p>}
+              </>
+            ),
+          })}
+
+          {/* Verification */}
+          {FormSection({
+            icon: ShieldCheck, title: 'Sign-up verification', subtitle: 'Choose whether new users must verify their email and phone.',
+            children: (
+              <div className="flex flex-col gap-3">
+                <VerificationSwitch label="Email verification" autoVerified={autoVerifyEmail} onToggle={() => setAutoVerifyEmail((v) => !v)} />
+                <VerificationSwitch label="Phone verification" autoVerified={autoVerifyPhone} onToggle={() => setAutoVerifyPhone((v) => !v)} />
+              </div>
+            ),
+          })}
         </div>
 
-        <div>
-          <label className={labelCls}>Company Key <span className="text-red-500">*</span> <span className="font-normal text-[#94A3B8]">(used internally, cannot be changed later)</span></label>
-          <input
-            value={tenantKey}
-            onChange={e => { setTenantKey(e.target.value); setKeyEdited(true); }}
-            placeholder="acme-logistics"
-            name="company-tenant-key"
-            autoComplete="off"
-            className={inputCls(!!errors.tenantKey)}
-          />
-          {errors.tenantKey && <p className={errCls}>{errors.tenantKey}</p>}
-        </div>
+        {/* Live preview + checklist */}
+        <aside className="lg:sticky lg:top-6 flex flex-col gap-4">
+          <div className={`${cardCls} overflow-hidden`}>
+            <div className="px-4 py-3 border-b border-[#F1F5F9] text-[12px] font-semibold text-[#64748B] uppercase tracking-wider">Brand preview</div>
+            <div className="p-4">
+              <div className="rounded-xl border border-[#E2E8F0] overflow-hidden">
+                <div className="h-11 px-3 flex items-center gap-2 bg-white border-b border-[#F1F5F9]">
+                  {logoPreview
+                    ? <img src={logoPreview} alt="" className="h-6 max-w-[110px] object-contain" />
+                    : <span className="text-[13px] font-bold truncate" style={{ color: primaryColor }}>{displayName || 'Your company'}</span>}
+                  <span className="ml-auto w-16 h-5 rounded-full" style={{ backgroundColor: primaryColor }} />
+                </div>
+                <div className="p-3 bg-[#F8FAFC] space-y-2">
+                  <div className="h-2 w-3/4 rounded-full bg-[#E2E8F0]" />
+                  <div className="h-2 w-1/2 rounded-full bg-[#E2E8F0]" />
+                  <div className="flex gap-2 pt-1">
+                    <span className="h-7 px-3 rounded-full text-white text-[11px] font-semibold flex items-center" style={{ backgroundColor: primaryColor }}>Primary</span>
+                    <span className="h-7 px-3 rounded-full text-[11px] font-semibold flex items-center border" style={{ borderColor: secondaryColor || '#CBD5E1', color: secondaryColor || '#64748B' }}>Secondary</span>
+                  </div>
+                </div>
+              </div>
+              <p className="mt-3 text-[12px] text-[#64748B] truncate">
+                <Globe className="w-3.5 h-3.5 inline -mt-0.5 mr-1 text-[#94A3B8]" />{domain || 'app.yourcompany.com'}
+              </p>
+            </div>
+          </div>
 
-        <div>
-          <label className={labelCls}>Domain <span className="text-red-500">*</span> <span className="font-normal text-[#94A3B8]">(where this company's app will be reachable)</span></label>
-          <input value={domain} onChange={e => setDomain(e.target.value)} placeholder="app.acmelogistics.com" name="company-domain" autoComplete="off" className={inputCls(!!errors.domain)} />
-          {errors.domain && <p className={errCls}>{errors.domain}</p>}
-        </div>
-
-        <div>
-          <label className={labelCls}>MongoDB Connection URI <span className="text-red-500">*</span> <span className="font-normal text-[#94A3B8]">(this company's own, isolated database)</span></label>
-          <input
-            value={mongoUri}
-            onChange={e => setMongoUri(e.target.value)}
-            placeholder="mongodb+srv://user:pass@cluster.mongodb.net/dbname"
-            type="password"
-            name="company-mongo-uri"
-            autoComplete="new-password"
-            className={inputCls(!!errors.mongoUri)}
-          />
-          {errors.mongoUri && <p className={errCls}>{errors.mongoUri}</p>}
-          <p className="text-[11px] text-[#94A3B8] mt-1">We'll check this is reachable before creating the company.</p>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <ImageDimensionUpload
-            label="Logo"
-            {...LOGO_SHAPE}
-            value={logoPreview}
-            required
-            onFileValidated={(file, preview) => { setLogoFile(file); setLogoPreview(preview); }}
-            onClear={() => { setLogoFile(null); setLogoPreview(null); }}
-          />
-          <ImageDimensionUpload
-            label="Favicon"
-            {...FAVICON_SHAPE}
-            value={faviconPreview}
-            onFileValidated={(file, preview) => { setFaviconFile(file); setFaviconPreview(preview); }}
-            onClear={() => { setFaviconFile(null); setFaviconPreview(null); }}
-          />
-        </div>
-        {errors.logo && <p className={errCls}>{errors.logo}</p>}
-
-        <div className="grid grid-cols-2 gap-4">
-          <ColorField label="Primary Color" value={primaryColor} onChange={setPrimaryColor} required />
-          <ColorField label="Secondary Color" value={secondaryColor} onChange={setSecondaryColor} />
-        </div>
-        {errors.primaryColor && <p className={errCls}>{errors.primaryColor}</p>}
-
-        <VerificationSwitch label="Email verification" autoVerified={autoVerifyEmail} onToggle={() => setAutoVerifyEmail((v) => !v)} />
-        <VerificationSwitch label="Phone verification" autoVerified={autoVerifyPhone} onToggle={() => setAutoVerifyPhone((v) => !v)} />
-
-        <div className="flex justify-end gap-3 pt-2">
-          <button onClick={onBack} className="text-[12px] font-semibold text-[#64748B] px-4 py-2.5 rounded-[8px] border border-[#E2E8F0] hover:bg-[#F8FAFC]">Cancel</button>
-          <button
-            onClick={handleSubmit}
-            disabled={submitting}
-            className="text-[12px] font-semibold text-white px-5 py-2.5 rounded-[8px] bg-[#00A86B] hover:bg-[#008F5C] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {submitting ? 'Creating…' : 'Create Company'}
-          </button>
+          <div className={`${cardCls} p-4`}>
+            <div className="text-[12px] font-semibold text-[#64748B] uppercase tracking-wider mb-3">Required to create</div>
+            <ul className="space-y-2.5">
+              {[
+                ['Company name', !!displayName.trim()],
+                ['Company key', !!slugify(tenantKey)],
+                ['Domain', !!domain.trim()],
+                ['MongoDB URI', !!mongoUri.trim()],
+                ['Logo', !!logoFile],
+                ['Primary colour', /^#[0-9a-fA-F]{6}$/.test(primaryColor)],
+              ].map(([label, done]) => (
+                <li key={label as string} className="flex items-center gap-2.5 text-[12.5px]">
+                  <span className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${done ? 'bg-[#00A86B] text-white' : 'border border-[#CBD5E1] text-transparent'}`}><Check className="w-3 h-3" strokeWidth={3} /></span>
+                  <span className={done ? 'text-[#0F172A] font-medium' : 'text-[#64748B]'}>{label as string}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </aside>
         </div>
       </div>
+
+      {/* Sticky actions */}
+      <div className="shrink-0 bg-white border-t border-[#E2E8F0] py-3">
+        <div className="max-w-6xl mx-auto px-4 md:px-6 flex items-center justify-between gap-3">
+          <p className="hidden sm:block text-[12px] text-[#94A3B8]"><span className="text-red-500">*</span> Required fields</p>
+          <div className="flex gap-3 ml-auto">
+            <button onClick={onBack} className="h-10 px-5 rounded-full border border-[#E2E8F0] text-[13px] font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:border-[#CBD5E1] transition-colors">Cancel</button>
+            <button
+              onClick={handleSubmit}
+              disabled={submitting}
+              className="h-10 px-6 rounded-full bg-[#00A86B] hover:bg-[#009B63] text-white text-[13px] font-semibold shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {submitting ? 'Creating…' : 'Create Company'}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -440,47 +650,83 @@ function CompanyDetail({ tenantKey, onBack }: { tenantKey: string; onBack: () =>
   const primaryDomain = company.domains.find(d => d.isPrimary)?.hostname || company.domains[0]?.hostname || '';
 
   return (
-    <div className="flex flex-col h-[calc(100vh-72px)] -m-4 md:-m-6 bg-white">
+    <div className="flex flex-col h-[calc(100vh-72px)] -m-4 md:-m-6 bg-[#F8FAFC]">
       <Toast toast={toast} onClose={() => {}} />
-      <div className="flex items-center gap-3 px-4 md:px-6 py-4 border-b border-[#E2E8F0] shrink-0">
-        <button onClick={onBack} className="w-8 h-8 rounded-[8px] border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC]"><ArrowLeft className="w-4 h-4" /></button>
-        {company.branding?.logoUrl ? (
-          <img src={company.branding.logoUrl} alt="" className="w-9 h-9 rounded-[8px] object-cover border border-[#E2E8F0]" />
-        ) : (
-          <div className="w-9 h-9 rounded-[8px] bg-[#F0FDF4] flex items-center justify-center"><Building2 className="w-4 h-4 text-[#00A86B]" /></div>
-        )}
-        <div className="flex-1">
-          <div className="flex items-center gap-1.5">
-            <h1 className="text-[16px] font-semibold text-[#0F172A]">{company.displayName}</h1>
-            <button onClick={() => setEditingDetails(true)} className="p-1 rounded-[6px] text-[#94A3B8] hover:text-[#00A86B] hover:bg-[#ECFDF5] transition-colors">
-              <Pencil className="w-3.5 h-3.5" />
-            </button>
-          </div>
-          <p className="text-[12px] text-[#64748B]">
-            {company.tenantKey}
-            {primaryDomain && (
-              <> · <a href={`https://${primaryDomain}`} target="_blank" rel="noopener noreferrer" className="hover:text-[#00A86B] hover:underline">{primaryDomain}</a></>
-            )}
-          </p>
-        </div>
-        {primaryDomain && (
-          <a
-            href={`https://${primaryDomain}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            title={`Open ${primaryDomain} in a new tab`}
-            className="flex items-center gap-1.5 px-3 h-8 rounded-[8px] border border-[#E2E8F0] text-[12px] font-semibold text-[#64748B] hover:text-[#00A86B] hover:bg-[#ECFDF5] transition-colors shrink-0"
-          >
-            <ExternalLink className="w-3.5 h-3.5" /> Visit site
-          </a>
-        )}
-      </div>
       {editingDetails && (
         <CompanyDetailsModal company={company} onClose={() => setEditingDetails(false)} onSaved={load} showToast={showToast} />
       )}
 
-      <div className="flex-1 overflow-y-auto">
-        <div className="max-w-3xl w-full mx-auto px-4 md:px-6 py-6 flex flex-col gap-4">
+      <div className="flex-1 overflow-y-auto" id="company-detail-scroll">
+        <div className="max-w-6xl w-full mx-auto px-4 md:px-6 py-5 flex flex-col gap-5">
+          {/* Hero */}
+          <div className={`${softCard} p-5`}>
+            <div className="flex items-start gap-4">
+              <button onClick={onBack} aria-label="Back to companies" className="w-9 h-9 rounded-full border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors shrink-0"><ArrowLeft className="w-4 h-4" /></button>
+              <CompanyAvatar name={company.displayName} logoUrl={company.branding?.logoUrl} size="lg" />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h1 className="text-[20px] font-bold text-[#0F172A] truncate">{company.displayName}</h1>
+                  <StatusPill status={company.status} />
+                  {company.isDefaultTenant && <span className="px-2 py-0.5 rounded-full border border-[#E2E8F0] bg-[#F8FAFC] text-[#475569] text-[10.5px] font-semibold">Default</span>}
+                  <button onClick={() => setEditingDetails(true)} aria-label="Edit company details" className="p-1.5 rounded-full text-[#94A3B8] hover:text-[#00A86B] hover:bg-[#F0FDF4] transition-colors">
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+                <div className="mt-1 flex items-center gap-2 flex-wrap text-[12.5px] text-[#64748B]">
+                  <span className="font-mono px-2 py-0.5 rounded-md bg-[#F1F5F9] text-[#475569] text-[11.5px]">{company.tenantKey}</span>
+                  {primaryDomain && (
+                    <a href={`https://${primaryDomain}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 hover:text-[#00A86B] hover:underline">
+                      <Globe className="w-3.5 h-3.5" />{primaryDomain}
+                    </a>
+                  )}
+                </div>
+              </div>
+              {primaryDomain && (
+                <a
+                  href={`https://${primaryDomain}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={`Open ${primaryDomain} in a new tab`}
+                  className="hidden sm:flex items-center gap-1.5 px-4 h-9 rounded-full bg-[#00A86B] hover:bg-[#009B63] text-white text-[12.5px] font-semibold shadow-sm transition-colors shrink-0"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" /> Visit site
+                </a>
+              )}
+            </div>
+            <div className="mt-5 grid grid-cols-2 md:grid-cols-4 gap-3">
+              {[
+                { label: 'Setup', value: company.requiredSetupComplete ? 'Complete' : 'Incomplete', tone: company.requiredSetupComplete ? 'text-[#00A86B]' : 'text-amber-600', icon: ListChecks },
+                { label: 'Domains', value: String(company.domains.length), tone: 'text-[#0F172A]', icon: Globe },
+                { label: 'Couriers enabled', value: company.enabledCouriers ? String(company.enabledCouriers.length) : 'All', tone: 'text-[#0F172A]', icon: Truck },
+                { label: 'Created', value: new Date(company.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }), tone: 'text-[#0F172A]', icon: CalendarDays },
+              ].map(f => (
+                <div key={f.label} className="rounded-xl bg-[#F8FAFC] border border-[#EEF2F6] px-3.5 py-2.5 flex items-center gap-3">
+                  <span className="w-8 h-8 rounded-lg bg-white border border-[#EEF2F6] flex items-center justify-center shrink-0"><f.icon className="w-4 h-4 text-[#64748B]" /></span>
+                  <div className="min-w-0">
+                    <div className="text-[11px] text-[#64748B]">{f.label}</div>
+                    <div className={`text-[13px] font-semibold truncate ${f.tone}`}>{f.value}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-5 items-start">
+          {/* Section nav */}
+          <nav className="hidden lg:block sticky top-5 bg-white rounded-2xl border border-[#EEF2F6] shadow-[0_1px_2px_rgba(16,24,40,0.04)] p-2">
+            {['Status', 'Branding', 'Invoice Billing & Tax Details', 'Domains', ...groupSections.map(g => g.label), 'Webhook addresses', 'Email & phone verification', 'KYC methods', 'Scheduled jobs'].map(title => {
+              const Icon = SECTION_ICONS[title] || Settings2;
+              return (
+                <button key={title} type="button"
+                  onClick={() => document.getElementById(sectionId(title))?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left text-[12.5px] font-medium text-[#475569] hover:bg-[#F0FDF4] hover:text-[#00A86B] transition-colors">
+                  <Icon className="w-4 h-4 shrink-0" /><span className="truncate">{title}</span>
+                </button>
+              );
+            })}
+          </nav>
+
+          <div className="flex flex-col gap-5 min-w-0">
           <StatusSection company={company} onSaved={load} showToast={showToast} />
           <BrandingSection company={company} onSaved={load} showToast={showToast} />
           <BillingDetailsSection company={company} onSaved={load} showToast={showToast} />
@@ -505,8 +751,8 @@ function CompanyDetail({ tenantKey, onBack }: { tenantKey: string; onBack: () =>
                       ? (status as any)?.jwtSecret === 'set'
                       : status === 'set';
                     return (
-                      <div key={key} className="flex items-center justify-between py-2.5">
-                        <span className="text-[13px] text-[#334155]">{GROUP_LABELS[key] || key}</span>
+                      <div key={key} className="flex items-center justify-between py-3">
+                        <span className="text-[13px] font-medium text-[#334155]">{GROUP_LABELS[key] || key}</span>
                         <div className="flex items-center gap-2">
                           <span className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full border ${isSet ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-50 text-slate-500 border-slate-200'}`}>
                             {isSet ? 'Configured' : 'Not configured'}
@@ -532,6 +778,8 @@ function CompanyDetail({ tenantKey, onBack }: { tenantKey: string; onBack: () =>
           <KycMethodsSection company={company} onSaved={load} showToast={showToast} />
           <LabelTemplateSection company={company} onSaved={load} showToast={showToast} />
           <JobsSection company={company} onSaved={load} showToast={showToast} />
+          </div>
+          </div>
         </div>
       </div>
 
@@ -682,12 +930,32 @@ function WebhookAddressesSection({ tenantKey, refreshKey }: { tenantKey: string;
   );
 }
 
+const SECTION_ICONS: Record<string, LucideIcon> = {
+  'Status': Activity,
+  'Branding': Palette,
+  'Invoice Billing & Tax Details': Receipt,
+  'Domains': Globe,
+  'Core / Security': ShieldCheck,
+  'Courier Credentials': Truck,
+  'Payment Gateways': CreditCard,
+  'Notifications': Bell,
+  'File Storage': HardDrive,
+  'Webhook addresses': Webhook,
+  'Email & phone verification': BadgeCheck,
+  'KYC methods': IdCard,
+  'Scheduled jobs': CalendarClock,
+};
+
 function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
+  const Icon = SECTION_ICONS[title] || Settings2;
   return (
-    <div className="w-full bg-white border border-[#E2E8F0] rounded-[12px] p-5">
-      <h3 className="text-[14px] font-semibold text-[#0F172A] mb-3">{title}</h3>
-      {children}
-    </div>
+    <section id={sectionId(title)} className="w-full bg-white rounded-2xl border border-[#EEF2F6] shadow-[0_1px_2px_rgba(16,24,40,0.04),0_2px_8px_rgba(16,24,40,0.05)] scroll-mt-5">
+      <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-[#F1F5F9]">
+        <span className="w-8 h-8 rounded-lg bg-[#F0FDF4] text-[#00A86B] flex items-center justify-center shrink-0"><Icon className="w-4 h-4" /></span>
+        <h3 className="text-[14px] font-semibold text-[#0F172A]">{title}</h3>
+      </div>
+      <div className="px-5 py-4">{children}</div>
+    </section>
   );
 }
 

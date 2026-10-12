@@ -169,11 +169,11 @@ export function UserOnboarding({ status }: { status: OnboardingStatus }) {
         />
         <StepCard
           icon={IdCard} title="Complete KYC" subtitle="Verify your identity documents"
-          to="/user/kyc" cta="Verify KYC" done={status.kycDone}
+          to="/user/profile?tab=kyc" cta="Verify KYC" done={status.kycDone}
         />
         <StepCard
           icon={Landmark} title="Bank" subtitle="To receive COD remittance"
-          to="/user/kyc" cta="Add Details" done={status.bankDone}
+          to="/user/profile?tab=kyc" cta="Add Details" done={status.bankDone}
         />
         <StepCard
           icon={PenTool} title="Contract Acceptance" subtitle="Contract agreement signed"

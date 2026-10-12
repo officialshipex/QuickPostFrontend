@@ -3,12 +3,11 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import {
-  ArrowLeft, Plus, ShoppingBag, ChevronDown, Check,
+  ArrowLeft, Plus, ShoppingBag, BookOpen, Layers, CheckCircle2, PauseCircle, ChevronDown, Check,
   Trash2, Pencil, RefreshCw, Loader2, AlertTriangle, Download, ChevronRight, X, Copy,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { apiClient } from '../../services/apiClient';
-import { useSearchNoResults } from '../../hooks/useSearchNoResults';
 import { getToken } from '../../utils/session';
 import { ShineButton } from '../../components/ui/ShineButton';
 import wooCommerceLogo from '../../assets/woo-commerce-logo.png';
@@ -191,7 +190,6 @@ export function AdminChannels() {
   const editId = searchParams.get('id') || '';
   const isEditing = !!editId;
   const isWoo = view === 'woocommerce';
-  const { NoResultsIllustration } = useSearchNoResults();
 
   // ── Promo banner — shown once per login session, dismissible
   const [showPromoBanner, setShowPromoBanner] = useState(false);
@@ -214,6 +212,14 @@ export function AdminChannels() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [deletingId, setDeletingId]       = useState<string | null>(null);
   const [syncingId, setSyncingId]         = useState<string | null>(null);
+  // Mobile: the built-in Manual channel is dated from account creation.
+  const [manualSince, setManualSince]     = useState<string | null>(null);
+  const [manualOpen, setManualOpen]       = useState(false);
+  useEffect(() => {
+    apiClient.get('/user/getUserDetails')
+      .then(res => { const d = res.data?.user?.createdAt; if (d) setManualSince(d); })
+      .catch(() => {});
+  }, []);
 
   // ── Form state
   const [form, setForm]                   = useState(emptyForm);
@@ -391,17 +397,98 @@ export function AdminChannels() {
             </div>
           )}
 
+          {/* Summary — always counts the built-in Manual channel */}
+          {!loading && (
+            <div className="grid grid-cols-3 gap-2.5 md:gap-4 mb-4 md:mb-5">
+              {[
+                { label: 'Showing', value: channels.length + 1, cls: 'text-[#0F172A]', icon: Layers, tile: 'bg-[#F1F5F9] text-[#475569]' },
+                { label: 'Active', value: channels.length + 1, cls: 'text-[#00A86B]', icon: CheckCircle2, tile: 'bg-[#00A86B]/10 text-[#00A86B]' },
+                { label: 'Paused', value: 0, cls: 'text-amber-500', icon: PauseCircle, tile: 'bg-amber-50 text-amber-500' },
+              ].map(st => (
+                <div key={st.label} className="bg-white rounded-2xl shadow-[0_1px_2px_rgba(16,24,40,0.04),0_2px_8px_rgba(16,24,40,0.05)] px-3.5 py-3 md:px-5 md:py-4 md:flex md:items-center md:justify-between">
+                  <div>
+                    <div className="text-[12px] md:text-[13px] text-[#64748B] md:font-medium">{st.label}</div>
+                    <div className={`text-[20px] md:text-[24px] font-bold tabular-nums leading-tight mt-1 ${st.cls}`}>{st.value}</div>
+                  </div>
+                  <div className={`hidden md:flex w-10 h-10 rounded-xl items-center justify-center ${st.tile}`}>
+                    <st.icon className="w-5 h-5" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
           {loading ? (
             <div className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm py-24 flex items-center justify-center gap-2 text-[#94A3B8]">
               <Loader2 className="w-5 h-5 animate-spin" />
               <span className="text-[14px] font-medium">Loading channels…</span>
             </div>
-          ) : channels.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm py-24 flex items-center justify-center">
-              <NoResultsIllustration />
-            </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-start">
+              {/* Built-in Manual channel — always first, always active */}
+              <div className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm p-4 md:p-5">
+                <div className="flex items-start justify-between gap-3 pb-3.5 border-b border-[#F1F5F9]">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-11 h-11 rounded-full bg-[#00A86B]/10 ring-2 ring-white shadow-sm flex items-center justify-center shrink-0">
+                      <span className="w-9 h-9 rounded-full bg-[#00A86B] flex items-center justify-center">
+                        <BookOpen className="w-[18px] h-[18px] text-white" />
+                      </span>
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-[14px] font-bold text-[#0F172A]">Manual</div>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-[12px] text-[#64748B]">manual</span>
+                        <span className="text-[11px] font-semibold text-[#475569] bg-[#F1F5F9] px-2 py-0.5 rounded-full">Default</span>
+                      </div>
+                    </div>
+                  </div>
+                  {/* Default channel can't be paused — toggle is shown on and locked */}
+                  <span role="switch" aria-checked="true" aria-disabled="true" aria-label="Manual channel is always active" title="Default channel — always active"
+                    className="w-10 h-6 rounded-full bg-[#00A86B]/80 relative shrink-0 mt-0.5 cursor-not-allowed">
+                    <span className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-white shadow-sm" />
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-2 pt-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11.5px] font-semibold text-sky-700 bg-sky-50 px-2.5 py-0.5 rounded-full">Manual</span>
+                    <span className="text-[11.5px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full">Active</span>
+                  </div>
+                  {manualSince && (
+                    <span className="text-[12px] text-[#64748B]">
+                      {new Date(manualSince).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                    </span>
+                  )}
+                </div>
+                <AnimatePresence initial={false}>
+                  {manualOpen && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.2 }} className="overflow-hidden"
+                    >
+                      <div className="mt-3 rounded-xl bg-[#F8FAFC] px-3.5 py-2 text-[12.5px]">
+                        {[
+                          ['Channel', 'Manual'],
+                          ['Type', 'Default'],
+                          ['Status', 'Active'],
+                          ['Orders', 'Created on QuickPost'],
+                        ].map(([k, v]) => (
+                          <div key={k} className="flex items-center justify-between py-1.5">
+                            <span className="text-[#64748B]">{k}</span>
+                            <span className="font-semibold text-[#0F172A]">{v}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                <button
+                  type="button"
+                  onClick={() => setManualOpen(o => !o)}
+                  className="mt-3 w-full h-10 rounded-xl border border-[#E2E8F0] text-[13px] font-medium text-[#334155] active:bg-[#F8FAFC] md:hover:bg-[#F8FAFC] md:hover:border-[#CBD5E1] transition-colors"
+                >
+                  {manualOpen ? 'Hide details' : 'View details'}
+                </button>
+              </div>
               {channels.map(ch => (
                 <div key={ch._id} className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm p-5">
                   <div className="flex items-start justify-between gap-2 mb-3">
@@ -517,7 +604,33 @@ export function AdminChannels() {
             <h1 className="text-[18px] font-bold text-[#0F172A]">Add Channel</h1>
           </div>
 
-          <div className="flex flex-wrap gap-4">
+          {/* Mobile — compact platform list */}
+          <div className="md:hidden">
+            <div className="bg-white rounded-2xl shadow-[0_1px_2px_rgba(16,24,40,0.04),0_2px_8px_rgba(16,24,40,0.05)] divide-y divide-[#F1F5F9]">
+              {[
+                { name: 'WooCommerce', logo: wooCommerceLogo, tint: 'bg-[#7F54B3]/10', view: 'woocommerce' as const },
+                { name: 'Shopify', logo: shopifyLogo, tint: 'bg-[#95BF47]/10', view: 'shopify' as const },
+              ].map(pl => (
+                <button
+                  key={pl.name}
+                  type="button"
+                  onClick={() => { resetForm(); goToView(pl.view); }}
+                  className="w-full flex items-center gap-3 px-4 py-3.5 text-left active:bg-[#F8FAFC] first:rounded-t-2xl last:rounded-b-2xl"
+                >
+                  <div className={`w-10 h-10 rounded-xl ${pl.tint} flex items-center justify-center shrink-0 p-1`}>
+                    <img src={pl.logo} alt={pl.name} className="w-full h-full object-contain" />
+                  </div>
+                  <div className="min-w-0 flex-1 text-[14px] font-semibold text-[#0F172A]">{pl.name}</div>
+                  <span className="h-8 px-3.5 rounded-full border border-[#00A86B] text-[#00A86B] text-[12px] font-semibold inline-flex items-center gap-1 shrink-0">
+                    <Plus className="w-3.5 h-3.5" /> Add
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Desktop — unchanged */}
+          <div className="hidden md:flex flex-wrap gap-4">
             <div className="w-[280px] bg-white rounded-2xl border border-[#E2E8F0] shadow-sm p-6 flex flex-col items-center text-center">
               <div className="w-20 h-20 rounded-xl bg-[#7F54B3]/10 flex items-center justify-center mb-4 p-1">
                 <img src={wooCommerceLogo} alt="WooCommerce" className="w-full h-full object-contain" />

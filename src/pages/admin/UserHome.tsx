@@ -167,8 +167,31 @@ function Card({ className = '', children }: { className?: string; children: Reac
 }
 
 function SummaryTile({ title, icon: Icon, today, yesterday, loading }: any) {
+  const skeleton = (w: string, h: string) => <span className={`inline-block ${w} ${h} bg-slate-200/70 rounded animate-pulse`} />;
   return (
-    <div className="flex-1 min-w-0 rounded-xl bg-[#F8FAFC] p-4 md:p-5 flex gap-4">
+    <>
+      {/* Mobile — wide, low tile: title row, then Today | Yesterday on one line */}
+      <div className="md:hidden min-w-0 rounded-xl bg-[#F8FAFC] px-3 py-2.5">
+        <div className="flex items-center gap-1.5">
+          <span className="w-6 h-6 rounded-full bg-[#E6F7F0] text-[#00A86B] flex items-center justify-center shrink-0">
+            <Icon className="w-3 h-3" />
+          </span>
+          <span className="text-[12.5px] font-semibold text-[#0F172A] truncate">{title}</span>
+        </div>
+        <div className="mt-1.5 flex items-end justify-between gap-2">
+          <div className="min-w-0">
+            <div className="text-[10.5px] text-[#64748B] leading-none">Today</div>
+            <div className="text-[18px] font-bold text-[#0F172A] leading-tight truncate mt-0.5">{loading ? skeleton('w-10', 'h-5') : today}</div>
+          </div>
+          <div className="min-w-0 text-right">
+            <div className="text-[10.5px] text-[#64748B] leading-none">Yesterday</div>
+            <div className="text-[12.5px] font-semibold text-[#475569] leading-tight truncate mt-1">{loading ? skeleton('w-6', 'h-3') : yesterday}</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Desktop */}
+    <div className="hidden md:flex flex-1 min-w-0 rounded-xl bg-[#F8FAFC] p-4 md:p-5 gap-4">
       <div className="w-11 h-11 md:w-12 md:h-12 rounded-full bg-[#E6F7F0] text-[#00A86B] flex items-center justify-center shrink-0">
         <Icon className="w-5 h-5" />
       </div>
@@ -190,6 +213,7 @@ function SummaryTile({ title, icon: Icon, today, yesterday, loading }: any) {
         </div>
       </div>
     </div>
+    </>
   );
 }
 
@@ -235,6 +259,15 @@ export function UserHome() {
   const [expandedAnnouncement, setExpandedAnnouncement] = useState<string | null>(null);
   const [showAllOffers, setShowAllOffers] = useState(false);
   const offersScrollRef = useRef<HTMLDivElement>(null);
+  const [activeOffer, setActiveOffer] = useState(0);
+  // Mobile pager dots — index of the offer card currently snapped into view.
+  const handleOffersScroll = () => {
+    const el = offersScrollRef.current;
+    const first = el?.firstElementChild as HTMLElement | null;
+    if (!el || !first) return;
+    const step = first.offsetWidth + parseFloat(getComputedStyle(el).columnGap || '0');
+    setActiveOffer(Math.round(el.scrollLeft / step));
+  };
 
   // One backend call feeds Summary, Actions and Upcoming Pickups (scoped to the logged-in seller)
   const fetchHome = useCallback(async () => {
@@ -250,7 +283,7 @@ export function UserHome() {
       });
       setHasAnyOrder(s.hasAnyOrder !== false);
       setActions([
-        { key: 'kyc', label: 'Complete your KYC', desc: 'Verify your business to unlock shipping and COD remittance', count: a.kycPending && !isEmployee ? 1 : 0, to: '/user/kyc', icon: FileCheck2, tone: 'bg-blue-50 text-blue-600' },
+        { key: 'kyc', label: 'Complete your KYC', desc: 'Verify your business to unlock shipping and COD remittance', count: a.kycPending && !isEmployee ? 1 : 0, to: '/user/profile?tab=kyc', icon: FileCheck2, tone: 'bg-blue-50 text-blue-600' },
         { key: 'ndr', label: 'NDR Action Required', desc: 'Shipments awaiting your reattempt or RTO decision', count: a.ndrActionRequired || 0, to: '/user/ndr/action-required', icon: RotateCcw, tone: 'bg-indigo-50 text-indigo-600' },
         { key: 'pickup', label: 'Pickup Delays', desc: 'Orders not yet picked up by the courier', count: a.pickupDelays || 0, to: `/user/orders/ready-to-ship${delayRange()}`, icon: Clock, tone: 'bg-amber-50 text-amber-600' },
         { key: 'delivery', label: 'Delayed Deliveries', desc: 'In-transit shipments past their expected delivery date', count: a.delayedDeliveries || 0, to: `/user/orders/in-transit${delayRange()}`, icon: AlertTriangle, tone: 'bg-rose-50 text-rose-600' },
@@ -441,8 +474,8 @@ export function UserHome() {
 
             {/* Summary */}
             <Card>
-              <h2 className="text-[18px] font-bold mb-4">Summary</h2>
-              <div className="flex flex-col sm:flex-row gap-4 md:gap-6">
+              <h2 className="text-[16px] md:text-[18px] font-bold mb-3 md:mb-4">Summary</h2>
+              <div className="grid grid-cols-2 gap-2 md:flex md:flex-row md:gap-6">
                 <SummaryTile title="Orders" icon={Package} loading={summaryLoading}
                   today={summary.ordersToday.toLocaleString('en-IN')} yesterday={summary.ordersYesterday.toLocaleString('en-IN')} />
                 <SummaryTile title="Revenue" icon={IndianRupee} loading={summaryLoading}
@@ -452,7 +485,7 @@ export function UserHome() {
 
             {/* Actions Needing Your Attention */}
             <Card>
-              <h2 className="text-[18px] font-bold mb-4">Actions Needing Your Attention</h2>
+              <h2 className="text-[16px] md:text-[18px] font-bold mb-3 md:mb-4">Actions Needing Your Attention</h2>
               {actionsLoading ? (
                 <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-[#00A86B]" /></div>
               ) : actions.length === 0 ? (
@@ -483,26 +516,26 @@ export function UserHome() {
 
             {/* Upcoming Pickups */}
             <Card>
-              <h2 className="text-[18px] font-bold mb-4">Upcoming Pickups</h2>
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <div className="inline-flex self-start p-1 rounded-md border border-[#E2E8F0]">
+              <h2 className="text-[16px] md:text-[18px] font-bold mb-3 md:mb-4">Upcoming Pickups</h2>
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2.5 md:gap-3">
+                <div className="flex w-full md:inline-flex md:w-auto md:self-start p-0.5 md:p-1 rounded-md border border-[#E2E8F0]">
                   {(['today', 'tomorrow'] as const).map(t => (
                     <button key={t} onClick={() => { setPickupTab(t); setDownloadError(''); }}
-                      className={`h-8 min-w-[112px] px-4 rounded text-[13px] transition-colors ${
+                      className={`flex-1 md:flex-none h-7 md:h-8 md:min-w-[112px] px-3 md:px-4 rounded text-[12px] md:text-[13px] transition-colors ${
                         pickupTab === t ? 'bg-[#E6F7F0] text-[#00A86B] font-semibold' : 'text-[#0F172A] hover:bg-[#F8FAFC]'
                       }`}>
                       {t === 'today' ? 'Today' : 'Tomorrow'}
-                      {pickups[t].length > 0 && <span className="ml-1.5 text-[11px]">({pickups[t].length})</span>}
+                      {pickups[t].length > 0 && <span className="ml-1 md:ml-1.5 text-[10px] md:text-[11px]">({pickups[t].length})</span>}
                     </button>
                   ))}
                 </div>
-                <div className="flex self-start sm:self-auto rounded-md border border-[#E2E8F0] overflow-hidden">
+                <div className="grid grid-cols-3 w-full md:flex md:w-auto md:self-auto rounded-md border border-[#E2E8F0] overflow-hidden">
                   {(['labels', 'manifests', 'invoices'] as const).map((k, i) => (
                     <button key={k} onClick={() => handleDownload(k)} disabled={docsDisabled}
-                      className={`h-9 px-3 md:px-4 flex items-center gap-1.5 text-[12px] md:text-[13px] capitalize transition-colors ${i > 0 ? 'border-l border-[#E2E8F0]' : ''} ${
+                      className={`h-7 md:h-9 px-1.5 md:px-4 flex items-center justify-center md:justify-start gap-1 md:gap-1.5 text-[11px] md:text-[13px] capitalize transition-colors ${i > 0 ? 'border-l border-[#E2E8F0]' : ''} ${
                         docsDisabled ? 'bg-[#F8FAFC] text-[#94A3B8] cursor-not-allowed' : 'bg-white text-[#334155] hover:bg-[#F0FDF4] hover:text-[#00A86B]'
                       }`}>
-                      {downloading === k ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+                      {downloading === k ? <Loader2 className="w-3 h-3 md:w-3.5 md:h-3.5 animate-spin" /> : <Download className="w-3 h-3 md:w-3.5 md:h-3.5" />}
                       {k}
                     </button>
                   ))}
@@ -513,22 +546,22 @@ export function UserHome() {
               {pickupsLoading ? (
                 <div className="flex justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-[#00A86B]" /></div>
               ) : activePickups.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16 md:py-24">
-                  <img src={noUpcomingPickupsImg} alt="" className="w-[180px] md:w-[210px] h-auto select-none pointer-events-none" draggable={false} />
-                  <p className="text-[14px] md:text-[15px] text-[#475569] mt-2">No upcoming pickups</p>
+                <div className="flex flex-col items-center justify-center py-8 md:py-24">
+                  <img src={noUpcomingPickupsImg} alt="" className="w-[140px] md:w-[210px] h-auto select-none pointer-events-none" draggable={false} />
+                  <p className="text-[13px] md:text-[15px] text-[#475569] mt-2">No upcoming pickups</p>
                 </div>
               ) : (
-                <div className="mt-5 flex flex-col gap-3">
+                <div className="mt-4 md:mt-5 flex flex-col gap-2.5 md:gap-3">
                   {activePickups.map(m => {
                     const count = (m.orderIds || []).length;
                     return (
                       <button key={m._id} onClick={() => navigate(`/user/pickup-manifest/${m.pickupId}`)}
-                        className="text-left flex items-center gap-4 p-4 rounded-xl bg-[#F8FAFC] hover:bg-[#F0FDF4] transition-colors">
-                        <div className="w-10 h-10 rounded-full bg-[#E6F7F0] text-[#00A86B] flex items-center justify-center shrink-0">
-                          <MapPin className="w-5 h-5" />
+                        className="text-left flex items-center gap-3 md:gap-4 p-3 md:p-4 rounded-xl bg-[#F8FAFC] hover:bg-[#F0FDF4] transition-colors">
+                        <div className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-[#E6F7F0] text-[#00A86B] flex items-center justify-center shrink-0">
+                          <MapPin className="w-4 h-4 md:w-5 md:h-5" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="text-[14px] font-semibold text-[#0F172A] truncate">{m.pickupAddress?.contactName || 'Pickup location'}</div>
+                          <div className="text-[13px] md:text-[14px] font-semibold text-[#0F172A] truncate">{m.pickupAddress?.contactName || 'Pickup location'}</div>
                           <div className="text-[12px] text-[#64748B] truncate">
                             {[m.pickupAddress?.city, m.pickupAddress?.pinCode || m.pickupAddress?.pincode].filter(Boolean).join(' – ') || '—'}
                             {' · '}<span className="text-[#00A86B] font-medium">{m.pickupId}</span>
@@ -550,8 +583,8 @@ export function UserHome() {
           {/* ── Right column ─────────────────────────────────────── */}
           <div className="flex flex-col gap-5 md:gap-7 min-w-0">
 
-            {/* Calculate Your Shipping Rates */}
-            <Card>
+            {/* Calculate Your Shipping Rates — desktop only */}
+            <Card className="hidden md:block">
               <h2 className="text-[18px] font-bold mb-6">Calculate Your Shipping Rates</h2>
               <form onSubmit={handleCalculate} noValidate>
                 <div className="grid grid-cols-2 gap-x-0 relative">
@@ -664,8 +697,8 @@ export function UserHome() {
 
             {/* Offers & Updates */}
             <Card>
-              <div className="flex items-center justify-between mb-4 gap-2">
-                <h2 className="text-[18px] font-bold">Offers &amp; Updates</h2>
+              <div className="flex items-center justify-between mb-3 md:mb-4 gap-2">
+                <h2 className="text-[16px] md:text-[18px] font-bold">Offers &amp; Updates</h2>
                 <div className="flex items-center gap-2 shrink-0">
                   <button onClick={() => scrollOffers(-1)} aria-label="Previous"
                     className="hidden md:flex w-7 h-7 rounded-full border border-[#E2E8F0] items-center justify-center text-[#64748B] hover:text-[#00A86B] hover:border-[#00A86B]">
@@ -675,16 +708,23 @@ export function UserHome() {
                     className="hidden md:flex w-7 h-7 rounded-full border border-[#E2E8F0] items-center justify-center text-[#64748B] hover:text-[#00A86B] hover:border-[#00A86B]">
                     <ChevronRight className="w-4 h-4" />
                   </button>
-                  <button onClick={() => setShowAllOffers(true)} className="text-[14px] md:text-[15px] font-medium text-[#00A86B] hover:underline ml-1">View All</button>
+                  <button onClick={() => setShowAllOffers(true)} className="text-[13px] md:text-[15px] font-semibold md:font-medium text-[#00A86B] hover:underline ml-1">View All</button>
                 </div>
               </div>
-              <div ref={offersScrollRef} className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-1 -mr-5 md:-mr-7 pr-5 md:pr-7 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <div ref={offersScrollRef} onScroll={handleOffersScroll} className="flex gap-2.5 md:gap-4 overflow-x-auto snap-x snap-mandatory pb-1 -mr-5 md:-mr-7 pr-5 md:pr-7 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {offers.map(o => <OfferTile key={o.id} offer={o} />)}
               </div>
+              {offers.length > 1 && (
+                <div className="md:hidden flex justify-center gap-1.5 mt-2.5" aria-hidden>
+                  {offers.map((o, i) => (
+                    <span key={o.id} className={`h-1.5 rounded-full transition-all duration-300 ${i === activeOffer ? 'w-4 bg-[#00A86B]' : 'w-1.5 bg-[#CBD5E1]'}`} />
+                  ))}
+                </div>
+              )}
 
               {/* Updates & Alerts */}
-              <div className="mt-8 rounded-xl bg-[#F8FAFC] overflow-hidden">
-                <div className="px-4 md:px-5 py-3.5 border-b border-[#EEF2F6] flex items-center justify-between gap-3">
+              <div className="mt-5 md:mt-8 rounded-xl bg-[#F8FAFC] overflow-hidden">
+                <div className="px-3.5 md:px-5 py-3 md:py-3.5 border-b border-[#EEF2F6] flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2.5 min-w-0">
                     <div className="relative w-9 h-9 rounded-full bg-[#E6F7F0] text-[#00A86B] flex items-center justify-center shrink-0">
                       <BellRing className="w-4 h-4" />
@@ -695,7 +735,7 @@ export function UserHome() {
                       )}
                     </div>
                     <div className="min-w-0">
-                      <h3 className="text-[15px] md:text-[16px] font-semibold leading-tight">Updates &amp; Alerts</h3>
+                      <h3 className="text-[14px] md:text-[16px] font-semibold leading-tight">Updates &amp; Alerts</h3>
                       <p className="text-[12px] text-[#64748B] truncate">Stay informed. Never miss a critical update.</p>
                     </div>
                   </div>
@@ -761,23 +801,23 @@ export function UserHome() {
         </div>
 
         {/* Community banner */}
-        <div className="relative mt-8 md:mt-10 -mx-4 md:-mx-6 px-6 md:px-12 pt-8 pb-6 md:pt-10 md:pb-8 bg-gradient-to-b from-transparent via-[#F0FDF4]/70 to-[#FEFCE8]/80 overflow-hidden">
-          <div className="max-w-[1400px] mx-auto flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8">
+        <div className="relative mt-6 md:mt-10 -mx-4 md:-mx-6 px-5 md:px-12 pt-6 pb-6 md:pt-10 md:pb-8 bg-gradient-to-b from-transparent via-[#F0FDF4]/70 to-[#FEFCE8]/80 overflow-hidden">
+          <div className="max-w-[1400px] mx-auto flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5 md:gap-8">
             <div>
-              <h2 className="text-[22px] md:text-[28px] font-bold leading-snug">
+              <h2 className="text-[19px] md:text-[28px] font-bold leading-snug">
                 Now you're part of <span className="text-[#2563EB]">India's</span><br />
                 <span className="text-[#16A34A]">Leading</span> seller community
               </h2>
-              <p className="text-[15px] md:text-[18px] text-[#475569] mt-3">A network built to help your business grow.</p>
+              <p className="text-[13px] md:text-[18px] text-[#475569] mt-1.5 md:mt-3">A network built to help your business grow.</p>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 md:gap-12">
+            <div className="grid grid-cols-4 gap-2 md:gap-12 rounded-2xl md:rounded-none bg-white/70 md:bg-transparent py-3.5 md:py-0 px-1 md:px-0">
               {COMMUNITY_STATS.map(s => (
                 <div key={s.label} className="flex flex-col items-center text-center">
-                  <div className={`w-11 h-11 md:w-12 md:h-12 rounded-full bg-white border ${s.ring} flex items-center justify-center mb-3`}>
-                    <s.icon className={`w-5 h-5 ${s.color}`} />
+                  <div className={`w-9 h-9 md:w-12 md:h-12 rounded-full bg-white border ${s.ring} flex items-center justify-center mb-2 md:mb-3`}>
+                    <s.icon className={`w-4 h-4 md:w-5 md:h-5 ${s.color}`} />
                   </div>
-                  <div className="text-[18px] md:text-[20px] font-bold">{s.value}</div>
-                  <div className="text-[13px] md:text-[14px] text-[#334155] mt-0.5">{s.label}</div>
+                  <div className="text-[14px] md:text-[20px] font-bold leading-tight">{s.value}</div>
+                  <div className="text-[10.5px] md:text-[14px] text-[#334155] mt-0.5 leading-tight">{s.label}</div>
                 </div>
               ))}
             </div>
@@ -816,7 +856,7 @@ export function UserHome() {
 /* ─── offer tile ──────────────────────────────────────────────────── */
 function OfferTile({ offer, fluid = false, onNavigate }: { offer: OfferCard; fluid?: boolean; onNavigate?: () => void }) {
   const Icon = offer.icon;
-  const sizeCls = fluid ? 'w-full' : 'w-[240px] shrink-0 snap-start';
+  const sizeCls = fluid ? 'w-full' : 'w-[82%] md:w-[240px] shrink-0 snap-start';
   if (offer.image) {
     return (
       <Link to={offer.to} onClick={onNavigate} title={offer.subtitle}

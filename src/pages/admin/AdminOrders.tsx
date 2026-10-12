@@ -13,12 +13,13 @@ import {
   IndianRupee, Package, User, Settings, MapPin, X, Truck, CreditCard,
   CheckCircle2, Clock, AlertTriangle, Flame, History, Layers, RefreshCw, Mail,
   Filter, Copy, PackagePlus, FileText, Download, MoreVertical, Loader2,
-  UserCheck, Eye, EyeOff, Store
+  UserCheck, Eye, EyeOff, Store, Phone
 } from 'lucide-react';
 import { usePagination, DesktopPagination } from '../../hooks/usePagination';
 import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
 import { useUserSearchFilter } from '../../hooks/filters/useUserSearchFilter';
-import { useDateRangeFilter } from '../../hooks/filters/useDateRangeFilter';
+import { getSharedOrDefaultRange, useDateRangeFilter } from '../../hooks/filters/useDateRangeFilter';
+import { useFilterApplyState } from '../../hooks/filters/useFilterApplyState';
 import { TableLoader } from '../../components/ui/TableLoader';
 import { ShineButton } from '../../components/ui/ShineButton';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -157,6 +158,13 @@ const renderAgeing = (dateStr: string) => {
 const asEmail = (v: any): string => (typeof v === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim())) ? v.trim() : '';
 
 /** Masks all but the last 2 digits of a phone number, e.g. "9876543210" -> "xxxxxxxx10". */
+/** Buyer phone → `+91XXXXXXXXXX` for a tel: link, or null if it isn't a valid Indian mobile. */
+const toDialableNumber = (phone?: string): string | null => {
+  const digits = (phone || '').replace(/\D/g, '');
+  const local = digits.length === 12 && digits.startsWith('91') ? digits.slice(2) : digits.length === 11 && digits.startsWith('0') ? digits.slice(1) : digits;
+  return /^[6-9]\d{9}$/.test(local) ? `+91${local}` : null;
+};
+
 const maskPhone = (phone: string): string => {
   const digits = phone.replace(/\D/g, '');
   if (digits.length <= 2) return phone;
@@ -498,7 +506,8 @@ export function AdminOrders() {
   const [drawerOrder,      setDrawerOrder]       = useState<any | null>(null);
   const [shipOrder,        setShipOrder]         = useState<any | null>(null);
   // dropdownPos renders the row-action dropdown via portal (fixed position) so overflow-auto doesn't clip it
-  const [dropdownPos,      setDropdownPos]       = useState<{ id: string; top: number; left: number } | null>(null);
+  // `fromMobileCard` marks menus opened from the mobile order cards (enables Call Buyer).
+  const [dropdownPos,      setDropdownPos]       = useState<{ id: string; top: number; left: number; fromMobileCard?: boolean } | null>(null);
   // productHoverPos renders the Product-column line-item breakdown via portal, same reason as dropdownPos
   const { productHoverPos, openProductTooltip, hoverOpenProductTooltip, closeProductTooltip } = useProductTooltip();
   const [showAgeingLegend, setShowAgeingLegend] = useState(false);
@@ -988,7 +997,7 @@ export function AdminOrders() {
     setPmMobileSearch('');
     setIsMobileFiltersOpen(false);
     setOrderId(''); setAwbNumber(''); setSelectedPaymentTypes([]); setSelectedPickupAddresses([]);
-    setSelectedCouriers([]); setDateStart(defStart); setDateEnd(defEnd);
+    setSelectedCouriers([]); { const [s, e] = getSharedOrDefaultRange(); setDateStart(s); setDateEnd(e); }
     setUserQuery(''); setUserSuggestions([]); setUserMongoId('');
     setSelectedChannels([]); setSelectedOrderQtys([]);
     setSelectedOrderWeights([]); setSkuSearch(''); setAutoCancelledOption('');
@@ -1055,6 +1064,7 @@ export function AdminOrders() {
   };
 
   const hasActiveFilters = orderId || awbNumber || selectedPaymentTypes.length > 0 || selectedPickupAddresses.length > 0 || selectedCouriers.length > 0 || (dateStart && dateEnd && !(dateStart === defStart && dateEnd === defEnd)) || (isAdminView && userMongoId) || hasMoreFiltersActive;
+  const hasActiveFiltersUi = useFilterApplyState(JSON.stringify([orderId, awbNumber, selectedPaymentTypes, selectedPickupAddresses, selectedCouriers, dateStart, dateEnd, userMongoId, selectedChannels, selectedOrderQtys, selectedOrderWeights, skuSearch, autoCancelledOption]), !!hasActiveFilters);
 
   const handleClearAllFilters = () => {
     setOrderId(''); setAwbNumber(''); setSelectedPaymentTypes([]); setSelectedPickupAddresses([]);
@@ -1600,10 +1610,13 @@ export function AdminOrders() {
               {hasMoreFiltersActive && <span className="w-1.5 h-1.5 rounded-full bg-[#00A86B]" />}
             </button>
 
-            <button onClick={handleApplyFilters} className="py-2 px-4 shrink-0 rounded-[32px] bg-[#009D64] border border-[#009D64] text-white text-xs font-medium leading-[18px] hover:bg-[#008a57] transition-colors cursor-pointer">
-              Apply Filters
-            </button>
-            {hasActiveFilters && (
+            {/* Seller side: "Apply Filters" while changes are pending, then "Clear All" once applied */}
+            {(isAdminView || hasActiveFiltersUi.showApply) && (
+              <button onClick={() => { (handleApplyFilters)(); hasActiveFiltersUi.markApplied(); }} className="py-2 px-4 shrink-0 rounded-[32px] bg-[#009D64] border border-[#009D64] text-white text-xs font-medium leading-[18px] hover:bg-[#008a57] transition-colors cursor-pointer">
+                Apply Filters
+              </button>
+            )}
+            {(isAdminView ? hasActiveFilters : hasActiveFiltersUi.showClear) && (
               <button onClick={handleClearAllFilters} className="py-2 px-4 shrink-0 rounded-[32px] border border-red-200 text-red-500 text-xs font-medium leading-[18px] hover:bg-red-50 transition-colors cursor-pointer">
                 Clear All
               </button>
@@ -2048,6 +2061,7 @@ export function AdminOrders() {
                       label={isNewTab ? 'New' : (order.status || activeTab)}
                       color={accent}
                       textClassName={isNewTab ? 'text-[11px] font-bold tracking-wide leading-[13px]' : undefined}
+                      fitContent
                     />
 
                     {/* Checkbox — top-right, sits on its own white chip above the ribbon so long labels never overlap it */}
@@ -2192,7 +2206,7 @@ export function AdminOrders() {
                             e.stopPropagation();
                             if (dropdownPos?.id === order._id) { setDropdownPos(null); return; }
                             const rect = e.currentTarget.getBoundingClientRect();
-                            setDropdownPos({ id: order._id, top: rect.bottom + 4, left: rect.right - 176 });
+                            setDropdownPos({ id: order._id, top: rect.bottom + 4, left: rect.right - 176, fromMobileCard: true });
                           }}
                           disabled={cancellingIds.has(order._id)}
                           className={`flex-1 h-9 bg-transparent text-[12.5px] font-bold flex items-center justify-center gap-1.5 transition-colors ${cancellingIds.has(order._id) ? 'text-rose-400 cursor-not-allowed' : dropdownPos?.id === order._id ? 'text-[#0F172A] bg-[#F8FAFC]' : 'text-[#475569] active:bg-[#F8FAFC]'}`}
@@ -2917,7 +2931,28 @@ export function AdminOrders() {
             }}
             onMouseDown={(e) => e.stopPropagation()}
           >
-            {renderRowActions(orders.find(o => o._id === dropdownPos.id), 0)}
+            {(() => {
+              const rowOrder = orders.find(o => o._id === dropdownPos.id);
+              const dialable = dropdownPos.fromMobileCard && !isAdminView ? toDialableNumber(rowOrder?.customerPhone) : null;
+              return (
+                <>
+                  {dialable && (
+                    <>
+                      {/* Mobile-only: hands off to the phone's dialer */}
+                      <a
+                        href={`tel:${dialable}`}
+                        onClick={() => setDropdownPos(null)}
+                        className="md:hidden w-full flex items-center gap-2 px-4 py-2.5 text-[13px] font-semibold text-[#00A86B] active:bg-[#F0FDF4]"
+                      >
+                        <Phone className="w-3.5 h-3.5" /> Call Buyer
+                      </a>
+                      <div className="md:hidden h-px bg-[#F1F5F9] my-1" />
+                    </>
+                  )}
+                  {renderRowActions(rowOrder, 0)}
+                </>
+              );
+            })()}
           </div>
         </>,
         document.body

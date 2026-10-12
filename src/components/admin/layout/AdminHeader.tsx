@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Search, LogOut, Bell, User, Building2, Calendar, ChevronDown, Shield, Zap, Calculator, PackagePlus, Wallet, Check, X, Menu, Upload, Users, Package, UploadCloud, Loader2, TicketPlus } from 'lucide-react';
 import { useAuth } from '../../../hooks/useAuth';
+import { ModeSwitch } from './ModeSwitch';
+import { useShippingMode } from '../../../context/shippingMode';
 import { apiClient } from '../../../services/apiClient';
 import { getToken, setToken } from '../../../utils/session';
 import { useAdminTab } from '../../../context/AdminUserContext';
@@ -23,6 +25,7 @@ interface AdminHeaderProps {
 
 export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
   const { logout } = useAuth();
+  const { isCargo } = useShippingMode();
   const { isAdmin, adminTab, toggleAdminTab, userName, userEmail, businessName, profileImage, walletBalance: ctxWalletBalance, walletHold, creditLimit, isEmployee, parentEmail, currentUserId, showOnboarding } = useAdminTab();
   const { filters, updateFilter } = useDashboardFilters();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -226,6 +229,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
     '/admin/kyc', '/user/kyc',
     '/admin/settings', '/user/settings',
     '/admin/referral', '/user/referral',
+    '/admin/companies',
     '/user/seller-remittance',
     '/user/vas',
     '/internal-crm',
@@ -802,12 +806,19 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
       
       {/* Left Section - Logo & Portal Name */}
       <div className="flex items-center shrink-0">
-        <Link to="/admin/dashboard" className="flex items-center group">
+        <Link to="/admin/dashboard" className="relative flex items-center group">
           <img 
             src="/logo-color.png" 
             alt="QuickPost" 
             className="h-16 w-auto object-contain transition-opacity group-hover:opacity-80 scale-[1.5] origin-left ml-2"
           />
+          {/* Cargo product mark — sits under the wordmark, right-aligned like a sub-brand */}
+          {isCargo && !(isAdmin && adminTab) && (
+            <span className="absolute left-[11px] top-[45px] w-[89px] flex items-center justify-end gap-1 pointer-events-none select-none">
+              <span className="h-px flex-1 bg-gradient-to-r from-transparent to-[#00A86B]/50" />
+              <span className="text-[9.5px] leading-none font-extrabold tracking-[0.24em] text-[#00A86B] uppercase">Cargo</span>
+            </span>
+          )}
         </Link>
       </div>
 
@@ -1030,6 +1041,9 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
           </AnimatePresence>
         </div>
         )}
+
+        {/* B2C ⇄ Cargo — seller side, Home page only */}
+        {!(isAdmin && adminTab) && location.pathname === '/user/home' && <ModeSwitch />}
 
         {/* Wallet Balance */}
         <div
@@ -1406,6 +1420,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
         open={showRechargeModal}
         onClose={() => setShowRechargeModal(false)}
         walletBalance={walletBalance}
+        defaultAmount={1000}
         onSuccess={(amount) => setWalletBalance(prev => prev + amount)}
       />
       </header>

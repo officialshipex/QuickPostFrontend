@@ -14,6 +14,7 @@ import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassSingleSelect } from '../../components/ui/GlassSingleSelect';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
 import { useDateRangeFilter } from '../../hooks/filters/useDateRangeFilter';
+import { useFilterApplyState } from '../../hooks/filters/useFilterApplyState';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { TableLoader } from '../../components/ui/TableLoader';
 import { TruncatedText } from '../../components/ui/TruncatedText';
@@ -102,15 +103,20 @@ const SUBCATEGORIES: Record<string, string[]> = {
 
 // ─── Create Ticket Modal ──────────────────────────────────────────────────────
 
+export interface TicketPrefill { awb?: string; orderId?: string }
+
 interface CreateTicketModalProps {
   onClose: () => void;
   onCreated: (ticket: Ticket) => void;
+  prefill?: TicketPrefill | null;
 }
 
-function CreateTicketModal({ onClose, onCreated }: CreateTicketModalProps) {
+function CreateTicketModal({ onClose, onCreated, prefill }: CreateTicketModalProps) {
   const [category, setCategory]       = useState('');
   const [subcategory, setSubcategory] = useState('');
-  const [awbNumbers, setAwbNumbers]   = useState('');
+  const [awbNumbers, setAwbNumbers]   = useState(prefill?.awb || '');
+  // Orders without an AWB are referenced by order ID (sent as part of the message).
+  const [orderRef, setOrderRef]       = useState(!prefill?.awb && prefill?.orderId ? prefill.orderId : '');
   const [message, setMessage]         = useState('');
   const [submitting, setSubmitting]   = useState(false);
   const [error, setError]             = useState('');
@@ -174,7 +180,11 @@ function CreateTicketModal({ onClose, onCreated }: CreateTicketModalProps) {
     setSubmitting(true);
     setError('');
     try {
-      const ticket = await createTicket({ ...userInfo, category, subcategory, awbNumbers, message });
+      const ref = orderRef.trim().replace(/^#/, '');
+      const fullMessage = ref ? `Order ID: #${ref}
+
+${message}` : message;
+      const ticket = await createTicket({ ...userInfo, category, subcategory, awbNumbers, message: fullMessage });
       onCreated(ticket);
       onClose();
     } catch (err: any) {
@@ -231,6 +241,19 @@ function CreateTicketModal({ onClose, onCreated }: CreateTicketModalProps) {
               className={!category ? 'opacity-50 pointer-events-none' : ''}
             />
           </div>
+
+          {/* Order ID — shown when ticket was raised from an order without an AWB */}
+          {!!prefill?.orderId && !prefill?.awb && (
+            <div>
+              <label className="block text-[12px] font-semibold text-[#475569] mb-1.5">Order ID</label>
+              <input
+                value={orderRef}
+                onChange={e => setOrderRef(e.target.value)}
+                placeholder="Order ID"
+                className="w-full h-10 px-3.5 rounded-xl border border-[#E2E8F0] text-[12px] font-medium focus:outline-none focus:ring-2 focus:ring-[#00A86B]/15 focus:border-[#00A86B] transition-colors"
+              />
+            </div>
+          )}
 
           {/* AWB */}
           <div>
@@ -312,6 +335,10 @@ export function AdminSupport() {
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   // Opened directly when arriving from the navbar's "Create a Ticket" quick action.
   const [showCreateModal, setShowCreateModal] = useState(() => !!(location.state as { openCreateTicket?: boolean } | null)?.openCreateTicket);
+  // Prefill handed over from Order Details → Get Help (AWB, else order ID).
+  const [ticketPrefill, setTicketPrefill] = useState<TicketPrefill | null>(() => (location.state as { ticketPrefill?: TicketPrefill } | null)?.ticketPrefill || null);
+  // Thin top progress bar on arrival from Get Help — purely visual, never delays the form.
+  const [showArrivalProgress, setShowArrivalProgress] = useState(() => !!(location.state as { showProgress?: boolean } | null)?.showProgress);
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
 
   // Consume the one-shot flag so a refresh or back-navigation doesn't reopen the modal.
@@ -343,8 +370,8 @@ export function AdminSupport() {
   const [selectedSubcategories, setSelectedSubcategories] = useState<string[]>(persisted?.selectedSubcategories || []);
   const [selectedStatuses, setSelectedStatuses]           = useState<string[]>(persisted?.selectedStatuses || []);
   const [selectedSort, setSelectedSort]                   = useState<string[]>(persisted?.selectedSort || ['Most Recently Created']);
-  const [dateStart, setDateStart]                         = useState(persisted?.dateStart || defStart);
-  const [dateEnd, setDateEnd]                             = useState(persisted?.dateEnd || defEnd);
+  const [dateStart, setDateStart]                         = useState(persisted?.dateStart || draftDateStart || defStart);
+  const [dateEnd, setDateEnd]                             = useState(persisted?.dateEnd || draftDateEnd || defEnd);
 
   const [globalSearchQuery, setGlobalSearchQuery] = useState(
     ((window as any).__adminSearchQuery || '').toLowerCase()
@@ -353,6 +380,7 @@ export function AdminSupport() {
   const hasDraftFilters = draftSubcategories.length > 0 || draftStatuses.length > 0
     || (!!draftDateStart && draftDateStart !== defStart) || (!!draftDateEnd && draftDateEnd !== defEnd)
     || (draftSort[0] && draftSort[0] !== 'Most Recently Created');
+  const hasDraftFiltersUi = useFilterApplyState(JSON.stringify([draftSubcategories, draftStatuses, draftDateStart, draftDateEnd, draftSort]), !!hasDraftFilters);
 
   const handleApplyFilters = () => {
     setSelectedSubcategories(draftSubcategories);
@@ -648,10 +676,13 @@ export function AdminSupport() {
                 icon={<ArrowUpDown className="w-3.5 h-3.5" />}
               />
 
-              <button onClick={handleApplyFilters} className="h-9 px-4 shrink-0 rounded-full bg-[#009D64] border border-[#009D64] text-white text-xs font-medium hover:bg-[#008a57] transition-colors cursor-pointer">
-                Apply Filters
-              </button>
-              {hasDraftFilters && (
+              {/* Seller side: "Apply Filters" while changes are pending, then "Clear All" once applied */}
+              {(isAdminView || hasDraftFiltersUi.showApply) && (
+                <button onClick={() => { (handleApplyFilters)(); hasDraftFiltersUi.markApplied(); }} className="h-9 px-4 shrink-0 rounded-full bg-[#009D64] border border-[#009D64] text-white text-xs font-medium hover:bg-[#008a57] transition-colors cursor-pointer">
+                  Apply Filters
+                </button>
+              )}
+              {(isAdminView ? hasDraftFilters : hasDraftFiltersUi.showClear) && (
                 <button onClick={handleClearAllFilters} className="h-9 px-4 shrink-0 rounded-full border border-red-200 text-red-500 text-xs font-medium hover:bg-red-50 transition-colors cursor-pointer">
                   Clear All
                 </button>
@@ -1073,12 +1104,31 @@ export function AdminSupport() {
         </div>
       )}
 
+      <AnimatePresence>
+        {showArrivalProgress && (
+          <motion.div
+            className="fixed top-0 inset-x-0 z-[400] h-[3px] pointer-events-none"
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25 }}
+          >
+            <motion.div
+              className="h-full bg-[#00A86B] shadow-[0_0_8px_rgba(0,168,107,0.6)] rounded-r-full"
+              initial={{ width: '0%' }}
+              animate={{ width: ['0%', '65%', '88%', '100%'] }}
+              transition={{ duration: 1.2, times: [0, 0.35, 0.8, 1], ease: 'easeOut' }}
+              onAnimationComplete={() => setShowArrivalProgress(false)}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* ── Create Ticket Modal ── */}
       <AnimatePresence>
         {showCreateModal && (
           <CreateTicketModal
-            onClose={() => setShowCreateModal(false)}
+            onClose={() => { setShowCreateModal(false); setTicketPrefill(null); }}
             onCreated={ticket => setTickets(prev => [ticket, ...prev])}
+            prefill={ticketPrefill}
           />
         )}
       </AnimatePresence>

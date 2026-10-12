@@ -11,6 +11,7 @@ import { TruncatedText } from '../../components/ui/TruncatedText';
 import { ProtectedAdImage } from '../../components/ui/ProtectedAdImage';
 import { useUserSearchFilter } from '../../hooks/filters/useUserSearchFilter';
 import { UserOnboarding } from '../../components/admin/dashboard/UserOnboarding';
+import { MobileDateFilter } from '../../components/admin/dashboard/MobileDateFilter';
 import {
   RefreshCcw, Package, IndianRupee, Users, CreditCard, Search, X,
   ShoppingCart, Clock, AlertTriangle, CheckCircle2, RotateCcw,
@@ -81,7 +82,7 @@ function StatCardWithTrend({ title, value, trend, isUp, isPrimary = false, icon:
   );
 }
 
-function MiniStatCard({ title, value, icon: Icon, iconColor, iconBg, to }: any) {
+function MiniStatCard({ title, value, icon: Icon, iconColor, iconBg, to, className = '' }: any) {
   const inner = (
     <div className={`min-w-0 bg-white rounded-xl border border-[#E2E8F0] p-2.5 md:p-4 shadow-sm flex items-start justify-between gap-1.5 group ${to ? 'cursor-pointer hover:border-[#00A86B]/60 hover:shadow-md transition-all duration-150' : ''}`}>
       <div className="min-w-0 flex-1">
@@ -96,15 +97,50 @@ function MiniStatCard({ title, value, icon: Icon, iconColor, iconBg, to }: any) 
       )}
     </div>
   );
-  if (to) return <Link to={to} className="block">{inner}</Link>;
-  return inner;
+  if (to) return <Link to={to} className={`block ${className}`}>{inner}</Link>;
+  return className ? <div className={className}>{inner}</div> : inner;
+}
+
+/** Mobile donut: total in the centre, legend with value + share beside it. */
+function MobileDonut({ data, centerLabel }: { data: { name: string; value: number; color: string }[]; centerLabel: string }) {
+  const total = data.reduce((sum, d) => sum + (Number(d.value) || 0), 0);
+  return (
+    <div className="flex items-center gap-4">
+      <div className="relative w-[124px] h-[124px] shrink-0">
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie data={data} cx="50%" cy="50%" innerRadius={44} outerRadius={60} paddingAngle={data.length > 1 ? 2 : 0} dataKey="value" stroke="none" startAngle={90} endAngle={-270}>
+              {data.map((d, i) => <Cell key={i} fill={d.color} />)}
+            </Pie>
+          </PieChart>
+        </ResponsiveContainer>
+        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+          <span className="text-[17px] font-bold text-[#0F172A] leading-tight tabular-nums">{total.toLocaleString('en-IN')}</span>
+          <span className="text-[10px] font-medium text-[#94A3B8]">{centerLabel}</span>
+        </div>
+      </div>
+      <ul className="flex-1 min-w-0 divide-y divide-[#F1F5F9]">
+        {data.map((d, i) => {
+          const pct = total > 0 ? Math.round(((Number(d.value) || 0) / total) * 100) : 0;
+          return (
+            <li key={i} className="flex items-center gap-2 py-1.5 first:pt-0 last:pb-0">
+              <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: d.color }} />
+              <span className="flex-1 min-w-0 text-[12px] font-medium text-[#334155] truncate">{d.name}</span>
+              <span className="text-[12px] font-bold text-[#0F172A] tabular-nums">{Number(d.value || 0).toLocaleString('en-IN')}</span>
+              <span className="w-9 text-right text-[11px] text-[#94A3B8] tabular-nums">{pct}%</span>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
 }
 
 function SectionHeading({ title, rightText }: any) {
   return (
     <div className="flex justify-between items-center mt-6 mb-3">
       <h3 className="text-[13px] font-bold text-[#0F172A]">{title}</h3>
-      {rightText && <span className="text-[11px] font-medium text-[#94A3B8]">{rightText}</span>}
+      {rightText && <span className="hidden md:inline text-[11px] font-medium text-[#94A3B8]">{rightText}</span>}
     </div>
   );
 }
@@ -349,9 +385,34 @@ export function AdminDashboard() {
 
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-3 mb-4">
-          <div className="flex items-center gap-2 text-[11px] font-medium text-[#64748B]">
-            {isUserRoute ? 'My Dashboard' : userMongoId ? `${userQuery.split(' (')[0]}'s Dashboard` : 'Platform Dashboard'}
-            {' — '}{filters.dateRange.label} ({fd(filters.dateRange.start)} – {fd(filters.dateRange.end)})
+          <div className="flex items-center justify-between gap-3 lg:contents">
+            {/* Mobile — short title with the active range */}
+            <div className="lg:hidden min-w-0">
+              <p className="text-[15px] font-bold text-[#0F172A] leading-5">My Dashboard</p>
+              <p className="text-[11px] font-medium text-[#94A3B8] leading-4 truncate">{fd(filters.dateRange.start)} – {fd(filters.dateRange.end)}</p>
+            </div>
+            {/* Dashboard name + range label — desktop only */}
+            <div className="hidden lg:flex items-center gap-2 text-[11px] font-medium text-[#64748B] min-w-0">
+              {isUserRoute ? 'My Dashboard' : userMongoId ? `${userQuery.split(' (')[0]}'s Dashboard` : 'Platform Dashboard'}
+              {' — '}{filters.dateRange.label} ({fd(filters.dateRange.start)} – {fd(filters.dateRange.end)})
+            </div>
+
+            {/* Below lg the navbar has no date filter — show it here with refresh on the right */}
+            {!isAdminView && (
+              <div className="lg:hidden flex items-center h-9 rounded-full border border-[#E2E8F0] bg-white shrink-0">
+                <MobileDateFilter bare />
+                <span className="w-px h-4 bg-[#E2E8F0]" aria-hidden />
+                <button
+                  type="button"
+                  onClick={fetchAll}
+                  title="Refresh"
+                  aria-label="Refresh dashboard"
+                  className="h-9 w-9 rounded-r-full flex items-center justify-center text-[#64748B] active:bg-[#F8FAFC]"
+                >
+                  <RefreshCcw className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
           </div>
 
           {isAdminView && (
@@ -404,7 +465,7 @@ export function AdminDashboard() {
 
           {!isAdminView && (
             <RefreshCcw
-              className="w-3 h-3 cursor-pointer hover:text-[#0F172A] transition-colors text-[#64748B]"
+              className="hidden lg:block w-3 h-3 cursor-pointer hover:text-[#0F172A] transition-colors text-[#64748B]"
               onClick={fetchAll}
             />
           )}
@@ -425,7 +486,7 @@ export function AdminDashboard() {
               </div>
             </div>
             <Link
-              to={isUserRoute ? '/user/kyc' : '/admin/kyc'}
+              to={isUserRoute ? '/user/profile?tab=kyc' : '/admin/kyc'}
               className="shrink-0 h-9 px-4 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-bold flex items-center gap-1.5 shadow-sm transition-colors"
             >
               Complete KYC Now <ArrowRight className="w-3.5 h-3.5" />
@@ -513,7 +574,7 @@ export function AdminDashboard() {
         {/* ── Row 3: Shipments Details ───────────────────────────────── */}
         <SectionHeading title="Shipments Details" />
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
-          <MiniStatCard title="Total Shipments"   value={fmtN(ship.total)}           icon={Package}       iconColor="text-blue-500"    iconBg="bg-blue-50"    to={`${navBase}/orders/all${rangeQ}`} />
+          <MiniStatCard title="Total Shipments"   value={fmtN(ship.total)}           icon={Package}       iconColor="text-blue-500"    iconBg="bg-blue-50"    to={`${navBase}/orders/all${rangeQ}`} className="hidden md:block" />
           <MiniStatCard title="Pending Pickups"   value={fmtN(ship.readyToShip)}     icon={ShoppingCart}  iconColor="text-purple-500"  iconBg="bg-purple-50"  to={`${navBase}/orders/ready-to-ship${rangeQ}`} />
           <MiniStatCard title="In-Transit"        value={fmtN(ship.inTransit)}       icon={RefreshCcw}    iconColor="text-amber-500"   iconBg="bg-amber-50"   to={`${navBase}/orders/in-transit${rangeQ}`} />
           <MiniStatCard title="Out For Delivery"  value={fmtN(ship.outForDelivery)}  icon={Truck}         iconColor="text-emerald-500" iconBg="bg-emerald-50" to={`${navBase}/orders/out-for-delivery${rangeQ}`} />
@@ -543,7 +604,7 @@ export function AdminDashboard() {
 
         {/* ── Row 6: COD Status ─────────────────────────────────────── */}
         <SectionHeading title="COD Status" rightText="Last 30 days" />
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <MiniStatCard title="Total COD"          value={fmt(overview?.codTotal)}        icon={FileText}   iconColor="text-purple-500"  iconBg="bg-purple-50"  to={isAdminView ? `${navBase}/cod/all-cod-orders` : `${navBase}/cod`} />
           <MiniStatCard title="Last COD Remitted"  value={fmt(overview?.lastCODRemitted)} icon={RefreshCcw} iconColor="text-emerald-500" iconBg="bg-emerald-50" to={isAdminView ? `${navBase}/cod/seller-cod-remittance` : `${navBase}/cod`} />
           <MiniStatCard title="COD Initiated"      value={fmt(overview?.codAvailable)}    icon={FileText}   iconColor="text-sky-500"     iconBg="bg-sky-50"     to={isAdminView ? `${navBase}/cod/all-cod-orders` : `${navBase}/cod`} />
@@ -555,7 +616,7 @@ export function AdminDashboard() {
 
           {/* Couriers Split */}
           <div className="bg-white rounded-xl border border-[#E2E8F0] p-4 shadow-sm">
-            <h4 className="text-[12px] font-bold mb-4">Couriers Split</h4>
+            <h4 className="text-[13px] md:text-[12px] font-bold mb-3 md:mb-4">Couriers Split</h4>
             {courierChartData.length > 0 ? (
               <div className="flex flex-col gap-3">
                 {courierChartData.map((d: any, i: number) => (
@@ -569,9 +630,12 @@ export function AdminDashboard() {
 
           {/* Payment Mode */}
           <div className="bg-white rounded-xl border border-[#E2E8F0] p-4 shadow-sm flex flex-col">
-            <h4 className="text-[12px] font-bold mb-4">Payment Mode</h4>
+            <h4 className="text-[13px] md:text-[12px] font-bold mb-3 md:mb-4">Payment Mode</h4>
+            {paymentChartData.length > 0 && (
+              <div className="md:hidden"><MobileDonut data={paymentChartData} centerLabel="Orders" /></div>
+            )}
             {paymentChartData.length > 0 ? (
-              <div className="flex-1 flex items-center justify-center gap-8 min-w-0">
+              <div className="hidden md:flex flex-1 items-center justify-center gap-8 min-w-0">
                 <div className="w-32 h-32 shrink-0">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>

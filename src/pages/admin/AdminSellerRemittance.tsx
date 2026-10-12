@@ -320,7 +320,7 @@ function BankDetailsPanel() {
   }
 
   const kycCta = (
-    <Link to="/user/kyc" className="inline-flex items-center h-10 px-5 rounded-full bg-[#00A86B] hover:bg-[#009B63] text-white text-[13px] font-bold shadow-sm transition-colors shrink-0">
+    <Link to="/user/profile?tab=kyc" className="inline-flex items-center h-10 px-5 rounded-full bg-[#00A86B] hover:bg-[#009B63] text-white text-[13px] font-bold shadow-sm transition-colors shrink-0">
       Complete KYC
     </Link>
   );

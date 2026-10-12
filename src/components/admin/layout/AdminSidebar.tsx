@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAdminTab } from '../../../context/AdminUserContext';
+import { useShippingMode } from '../../../context/shippingMode';
+import { isCargoAllowedPath } from '../../../config/cargo';
+import { ModeSwitch } from './ModeSwitch';
 import { hasPermission, showAccessDenied } from '../../../utils/permissions';
 import {
   Home,
@@ -197,6 +200,8 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
   const { isAdmin, adminTab, isEmployee, employeeAccessRights } = useAdminTab();
   const isAdminView = isAdmin && adminTab;
   const isImpersonating = !!localStorage.getItem('admin_token_backup');
+  const { isCargo } = useShippingMode();
+  const cargoView = isCargo && !isAdminView;
 
   // Replace /admin/ prefix with /user/ when in user mode
   const resolvePath = (path: string) => {
@@ -217,6 +222,7 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
     (items || []).filter(item => {
       if (item.adminOnly && !isAdminView) return false;
       if (item.userOnly && isAdminView) return false;
+      if (cargoView && !isCargoAllowedPath(resolvePath(item.path))) return false;
       if (isEmployee && item.noEmployee) return false;
       return true;
     });
@@ -225,6 +231,7 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
     if (group.divider) return true;
     if (group.adminOnly && !isAdminView) return false;
     if (group.userOnly && isAdminView) return false;
+    if (cargoView && group.path && !isCargoAllowedPath(group.path === '/admin/dashboard' ? '/user/dashboard' : resolvePath(group.path))) return false;
     if (group.items) return filterItems(group.items).length > 0;
     return true;
   };
@@ -390,7 +397,12 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
                 <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
                   <img src={LOGO_URL} alt="QP" className="w-5 object-contain" />
                 </div>
-                <span className="text-white text-[15px] font-bold tracking-wide">QuickPost</span>
+                <div className="flex flex-col leading-none">
+                  <span className="text-white text-[15px] font-bold tracking-wide">QuickPost</span>
+                  {cargoView && (
+                    <span className="mt-1 text-[9.5px] font-extrabold tracking-[0.24em] text-[#34D399] uppercase">Cargo</span>
+                  )}
+                </div>
               </div>
               <button
                 onClick={handleMobileNavClick}
@@ -399,6 +411,12 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
                 <X className="w-4 h-4" />
               </button>
             </div>
+
+            {!isAdminView && location.pathname === '/user/home' && (
+              <div className="px-5 pt-4">
+                <ModeSwitch variant="dark" layoutId="mode-switch-pill-drawer" />
+              </div>
+            )}
 
             {/* Mobile Navigation */}
             <nav className="flex-1 overflow-y-auto py-3 px-3">

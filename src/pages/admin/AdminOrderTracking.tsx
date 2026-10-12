@@ -4,6 +4,7 @@ import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { apiClient } from '../../services/apiClient';
 import { getToken } from '../../utils/session';
 import { ShipOrderModal } from '../../components/admin/orders/ShipOrderModal';
+import { OrderDetailsMobile } from '../../components/admin/orders/OrderDetailsMobile';
 import {
   ArrowLeft, AlertTriangle, Copy, Check, Truck, ClipboardList, MapPin, Navigation,
   Package, Receipt, Map, History, X, Phone, Clock, Home, Info, FileText, Loader2,
@@ -21,14 +22,14 @@ const MILESTONE_ICONS: Record<string, React.ComponentType<{ className?: string }
 
 // ── API Types ──────────────────────────────────────────────────────────────────
 
-interface TrackingEntry {
+export interface TrackingEntry {
   status?: string;
   StatusLocation?: string;
   StatusDateTime?: string;
   Instructions?: string;
 }
 
-interface OrderData {
+export interface OrderData {
   _id: string;
   orderId?: number | string;
   userId?: string;
@@ -101,7 +102,7 @@ interface OrderData {
   tracking?: TrackingEntry[];
 }
 
-interface DiscrepancyData {
+export interface DiscrepancyData {
   _id?: string;
   enteredWeight?: {
     applicableWeight?: number | string;
@@ -646,7 +647,32 @@ export function AdminOrderTracking() {
         .thin-scrollbar { scrollbar-width: thin; scrollbar-color: #E2E8F0 transparent; }
       `}</style>
 
-      <div ref={containerRef} className="bg-[#F8FAFC] text-[#0F172A] min-h-screen pb-10 -m-4 md:-m-6" style={{ fontFamily: 'Roboto, sans-serif' }}>
+      {/* ── MOBILE LAYOUT ── (desktop layout below is hidden under md) */}
+      <OrderDetailsMobile
+        order={order}
+        discrepancy={discrepancy}
+        displayOrderId={displayOrderId}
+        displayStatus={displayStatus}
+        statusBadgeClass={statusBadgeClass}
+        milestones={milestones}
+        courierName={courierName}
+        awbNumber={awbNumber}
+        primaryText={primaryText}
+        primaryAction={primaryAction}
+        actions={dropdownOptions}
+        cancelling={cancelling}
+        formatDate={formatDate}
+        formatTrackingDate={formatTrackingDate}
+        courierLogo={(name) => (name && name !== '—' ? <CourierLogo name={name} size="md" /> : null)}
+        onToast={(type, msg) => showToastMsg(type, msg)}
+        onShowNdrHistory={() => setShowNdrHistory(true)}
+        onNdrReattempt={() => setToastMessage(`Re-attempt instruction submitted to ${courierName}!`)}
+        onNdrRto={() => setToastMessage(`RTO instruction submitted to ${courierName}!`)}
+        onNdrUpdateInfo={() => { setNewPhoneNumber(order?.receiverAddress?.phoneNumber || ''); setShowUpdateInfoModal(true); }}
+        onRaiseDispute={() => setShowRaiseDisputeModal(true)}
+      />
+
+      <div ref={containerRef} className="hidden md:block bg-[#F8FAFC] text-[#0F172A] min-h-screen pb-10 -m-4 md:-m-6" style={{ fontFamily: 'Roboto, sans-serif' }}>
 
         {/* ── PAGE HEADER ─────────────────────────────────────────────────────── */}
         <div className="w-full bg-white border-b border-[#E2E8F0] px-3 md:px-6 py-3 md:py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 md:gap-4">
