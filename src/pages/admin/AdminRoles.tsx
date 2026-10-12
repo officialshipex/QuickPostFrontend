@@ -11,8 +11,10 @@ import {
   type AccessRights, type PanelType, type PermKey,
 } from '../../utils/permissions';
 import {
-  Users, Plus, X, Eye, Edit2, Trash2, CheckCircle2,
-  AlertCircle, RefreshCcw, ToggleLeft, ToggleRight, Shield, Lock, Copy, Check,
+  Users, Plus, X, Edit2, Trash2,
+  AlertCircle, RefreshCcw, Shield, Lock, Copy, Check,
+  Search, User, Mail, Phone, Briefcase, KeyRound, EyeOff, Eye, Activity, CalendarDays, Settings2, Hash,
+  UserCheck, UserX, Link2, type LucideIcon,
 } from 'lucide-react';
 
 // Permission modules (one per sidebar item) live in utils/permissions.ts, shared with the sidebar
@@ -66,12 +68,12 @@ function PermissionMatrix({ accessRights, onChange, panel }: PermissionMatrixPro
   };
 
   return (
-    <div className="border border-[#E2E8F0] rounded-xl overflow-hidden">
+    <div className="border border-[#E2E8F0] rounded-2xl overflow-hidden">
       {/* Header */}
       <div className="grid grid-cols-[1fr_auto_auto_auto] bg-[#F8FAFC] border-b border-[#E2E8F0]">
-        <div className="px-4 py-2.5 text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Module</div>
+        <div className="px-4 py-2.5 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider">Module</div>
         {PERM_TYPES.map(p => (
-          <div key={p.key} className="w-16 text-center px-2 py-2.5 text-[10px] font-bold text-[#64748B] uppercase tracking-wider">{p.label}</div>
+          <div key={p.key} className="w-[72px] text-center px-2 py-2.5 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider">{p.label}</div>
         ))}
       </div>
 
@@ -82,35 +84,36 @@ function PermissionMatrix({ accessRights, onChange, panel }: PermissionMatrixPro
         return (
           <React.Fragment key={mod.key}>
           {startsSection && (
-            <div className="px-4 py-1.5 bg-[#E6F9F2] text-[10px] font-bold text-[#00A86B] uppercase tracking-wider border-b border-[#F1F5F9]">
+            <div className="px-4 py-2 bg-[#F0FDF4] text-[11px] font-bold text-[#00A86B] uppercase tracking-wider border-b border-[#E2E8F0]/70">
               {mod.section}
             </div>
           )}
-          <div
-            className={`grid grid-cols-[1fr_auto_auto_auto] items-center border-b border-[#F1F5F9] last:border-0 ${i % 2 === 0 ? 'bg-white' : 'bg-[#F8FAFC]/50'}`}
-          >
-            <div className="px-4 py-3">
-              <div className="text-xs font-semibold text-[#0F172A]">{mod.label}</div>
-              <div className="text-[10px] text-[#94A3B8] mt-0.5">{mod.desc}</div>
+          <div className="grid grid-cols-[1fr_auto_auto_auto] items-center border-b border-[#F1F5F9] last:border-0 bg-white hover:bg-[#FAFCFB] transition-colors">
+            <div className="px-4 py-3 min-w-0">
+              <div className="text-[13px] font-semibold text-[#0F172A]">{mod.label}</div>
+              <div className="text-[11.5px] text-[#94A3B8] mt-0.5">{mod.desc}</div>
             </div>
             {PERM_TYPES.map(p => {
               const checked = rights[p.key] === true;
               const disabled = (p.key === 'edit' || p.key === 'delete') && !rights.view;
               return (
-                <div key={p.key} className="w-16 flex justify-center items-center py-3">
+                <div key={p.key} className="w-[72px] flex justify-center items-center py-3">
                   <button
                     type="button"
+                    role="checkbox"
+                    aria-checked={checked}
+                    aria-label={`${mod.label} — ${p.label}`}
                     onClick={() => !disabled && toggle(mod.key, p.key)}
                     disabled={disabled}
-                    className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                    className={`w-[22px] h-[22px] rounded-md border-2 flex items-center justify-center transition-all ${
                       checked
-                        ? 'bg-[#00A86B] border-[#00A86B]'
+                        ? 'bg-[#00A86B] border-[#00A86B] shadow-[0_1px_4px_rgba(0,168,107,0.35)]'
                         : disabled
-                        ? 'bg-[#F1F5F9] border-[#E2E8F0] cursor-not-allowed opacity-40'
+                        ? 'bg-[#F1F5F9] border-[#E2E8F0] cursor-not-allowed opacity-50'
                         : 'bg-white border-[#CBD5E1] hover:border-[#00A86B]'
                     }`}
                   >
-                    {checked && <CheckCircle2 className="w-3 h-3 text-white" strokeWidth={3} />}
+                    {checked && <Check className="w-3.5 h-3.5 text-white" strokeWidth={3} />}
                   </button>
                 </div>
               );
@@ -148,6 +151,7 @@ function EmployeeModal({ employee, onClose, onSaved, panel }: EmployeeModalProps
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   // Lock body scroll while modal is open
   useEffect(() => {
@@ -201,85 +205,112 @@ function EmployeeModal({ employee, onClose, onSaved, panel }: EmployeeModalProps
     }
   };
 
+  const granted = modulesFor(panel).filter(m => accessRights[m.key]?.view).length;
+  const total = modulesFor(panel).length;
+  const fieldCls = 'w-full h-10 pl-10 pr-4 bg-white border border-[#E2E8F0] rounded-full text-[13px] font-medium text-[#0F172A] placeholder:text-[#94A3B8] placeholder:font-normal focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B] transition-colors disabled:bg-[#F8FAFC] disabled:text-[#94A3B8]';
+  const iconCls = 'absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8] pointer-events-none';
+  const labelCls = 'block text-[12px] font-semibold text-[#475569] mb-1.5';
+  const field = (label: string, icon: LucideIcon, input: React.ReactNode, hint?: string, full?: boolean) => {
+    const Icon = icon;
+    return (
+      <div className={full ? 'sm:col-span-2' : ''}>
+        <label className={labelCls}>{label}</label>
+        <div className="relative">
+          <Icon className={iconCls} />
+          {input}
+        </div>
+        {hint && <p className="text-[11.5px] text-[#94A3B8] mt-1.5 pl-1">{hint}</p>}
+      </div>
+    );
+  };
+
   return (
     <div className="fixed inset-0 z-[200] overflow-y-auto">
-      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="flex min-h-full items-start justify-center p-4 pt-12">
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl z-10 mb-8">
+      <div className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="flex min-h-full items-start justify-center p-4 pt-10">
+      <div className="relative bg-white rounded-2xl shadow-[0_24px_64px_-16px_rgba(15,23,42,0.35)] w-full max-w-3xl z-10 mb-8 flex flex-col max-h-[calc(100vh-5rem)]">
         {/* Header */}
-        <div className="sticky top-0 bg-white z-10 px-6 py-4 border-b border-[#E2E8F0] flex items-center justify-between rounded-t-2xl">
-          <div className="flex items-center gap-2">
-            <Shield className="w-4 h-4 text-[#00A86B]" />
-            <h2 className="text-sm font-bold text-[#0F172A]">
-              {isEdit ? 'Edit Employee' : 'Add Employee'}
-            </h2>
-            <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${isAdminView ? 'bg-blue-50 text-blue-600' : 'bg-amber-50 text-amber-600'}`}>
-              {isAdminView ? 'Admin Panel' : 'User Panel'}
+        <div className="px-6 py-4 border-b border-[#F1F5F9] flex items-center justify-between gap-3 shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="w-10 h-10 rounded-xl bg-[#F0FDF4] text-[#00A86B] flex items-center justify-center shrink-0">
+              {isEdit ? <Edit2 className="w-[18px] h-[18px]" /> : <Users className="w-[18px] h-[18px]" />}
             </span>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <h2 className="text-[16px] font-bold text-[#0F172A]">{isEdit ? 'Edit Employee' : 'Add Employee'}</h2>
+                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${isAdminView ? 'bg-blue-50 text-blue-600' : 'bg-amber-50 text-amber-700'}`}>
+                  {isAdminView ? 'Admin Panel' : 'User Panel'}
+                </span>
+              </div>
+              <p className="text-[12px] text-[#64748B] truncate">{isEdit ? `Update ${employee?.fullName || 'this employee'}'s details and access.` : 'Invite a team member and choose exactly what they can access.'}</p>
+            </div>
           </div>
-          <button onClick={onClose} className="w-7 h-7 rounded-lg border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC]">
+          <button onClick={onClose} aria-label="Close" className="w-9 h-9 rounded-full flex items-center justify-center text-[#64748B] hover:bg-[#F1F5F9] hover:text-[#0F172A] transition-colors shrink-0">
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
-          {error && (
-            <div className="flex items-start gap-2 p-3 bg-red-50 text-red-600 rounded-lg text-[11px] font-semibold">
-              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" /> {error}
-            </div>
-          )}
+        <form onSubmit={handleSubmit} className="flex flex-col min-h-0 flex-1">
+          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
+            {error && (
+              <div className="flex items-start gap-2 px-3.5 py-2.5 bg-red-50 border border-red-100 text-red-600 rounded-xl text-[12.5px] font-medium">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" /> {error}
+              </div>
+            )}
 
-          {/* Basic info */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-[11px] font-bold text-[#475569] mb-1">Full Name *</label>
-              <input value={fullName} onChange={e => setFullName(e.target.value)} placeholder="John Doe"
-                className="w-full h-9 px-3 rounded-lg border border-[#E2E8F0] text-xs focus:outline-none focus:border-[#00A86B]" />
-            </div>
-            <div>
-              <label className="block text-[11px] font-bold text-[#475569] mb-1">Email *</label>
-              <input value={email} onChange={e => setEmail(e.target.value)} type="email" placeholder="john@company.com"
-                disabled={isEdit}
-                className="w-full h-9 px-3 rounded-lg border border-[#E2E8F0] text-xs focus:outline-none focus:border-[#00A86B] disabled:bg-slate-50 disabled:text-slate-400" />
-            </div>
-            <div>
-              <label className="block text-[11px] font-bold text-[#475569] mb-1">Phone *</label>
-              <input value={contactNumber} onChange={e => setContact(e.target.value)} placeholder="9876543210"
-                className="w-full h-9 px-3 rounded-lg border border-[#E2E8F0] text-xs focus:outline-none focus:border-[#00A86B]" />
-            </div>
-            <div>
-              <label className="block text-[11px] font-bold text-[#475569] mb-1">Role / Designation *</label>
-              <input value={role} onChange={e => setRole(e.target.value)} placeholder="e.g. Support Executive"
-                className="w-full h-9 px-3 rounded-lg border border-[#E2E8F0] text-xs focus:outline-none focus:border-[#00A86B]" />
-            </div>
-            <div className="col-span-2">
-              <label className="block text-[11px] font-bold text-[#475569] mb-1">
-                Password {isEdit ? <span className="font-normal text-slate-400">(leave blank to keep current)</span> : '*'}
-              </label>
-              <input value={password} onChange={e => setPassword(e.target.value)} type="password" placeholder="Min. 8 characters"
-                className="w-full h-9 px-3 rounded-lg border border-[#E2E8F0] text-xs focus:outline-none focus:border-[#00A86B]" />
-            </div>
+            {/* Basic info */}
+            <section>
+              <div className="flex items-center gap-2 mb-3">
+                <User className="w-4 h-4 text-[#00A86B]" />
+                <h3 className="text-[13px] font-bold text-[#0F172A]">Employee details</h3>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {field('Full Name *', User,
+                  <input value={fullName} onChange={e => setFullName(e.target.value)} placeholder="John Doe" className={fieldCls} />)}
+                {field('Email *', Mail,
+                  <input value={email} onChange={e => setEmail(e.target.value)} type="email" placeholder="john@company.com" disabled={isEdit} className={fieldCls} />,
+                  isEdit ? "Email can't be changed." : 'Used to sign in to the employee portal.')}
+                {field('Phone *', Phone,
+                  <input value={contactNumber} onChange={e => setContact(e.target.value)} placeholder="9876543210" inputMode="tel" className={fieldCls} />)}
+                {field('Role / Designation *', Briefcase,
+                  <input value={role} onChange={e => setRole(e.target.value)} placeholder="e.g. Support Executive" className={fieldCls} />)}
+                {field(isEdit ? 'Password' : 'Password *', KeyRound,
+                  <>
+                    <input value={password} onChange={e => setPassword(e.target.value)} type={showPassword ? 'text' : 'password'} placeholder="Min. 8 characters"
+                      autoComplete="new-password" className={`${fieldCls} pr-11`} />
+                    <button type="button" onClick={() => setShowPassword(v => !v)} aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full flex items-center justify-center text-[#94A3B8] hover:text-[#0F172A] hover:bg-[#F1F5F9]">
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </>,
+                  isEdit ? 'Leave blank to keep the current password.' : `At least ${MIN_PASSWORD_LENGTH} characters.`, true)}
+              </div>
+            </section>
+
+            {/* Permission Matrix */}
+            <section>
+              <div className="flex items-center justify-between gap-3 mb-2">
+                <div className="flex items-center gap-2">
+                  <Lock className="w-4 h-4 text-[#00A86B]" />
+                  <h3 className="text-[13px] font-bold text-[#0F172A]">Module permissions</h3>
+                </div>
+                <span className="text-[11.5px] font-semibold text-[#00A86B] bg-[#F0FDF4] border border-[#DCFCE7] px-2.5 py-0.5 rounded-full tabular-nums">{granted}/{total} modules</span>
+              </div>
+              <p className="text-[12px] text-[#64748B] mb-3">
+                The employee sees every menu item; items without View access are locked and show a "no access" message when clicked.
+              </p>
+              <PermissionMatrix accessRights={accessRights} onChange={setAccessRights} panel={panel} />
+            </section>
           </div>
 
-          {/* Permission Matrix */}
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              <Lock className="w-3.5 h-3.5 text-[#64748B]" />
-              <span className="text-[11px] font-bold text-[#475569] uppercase tracking-wide">Module Permissions</span>
-            </div>
-            <p className="text-[10px] text-[#94A3B8] mb-2">
-              The employee sees every menu item; items without View access are locked and show a "no access" message when clicked.
-            </p>
-            <PermissionMatrix accessRights={accessRights} onChange={setAccessRights} panel={panel} />
-          </div>
-
-          <div className="flex gap-3 pt-1">
+          {/* Footer */}
+          <div className="shrink-0 px-6 py-3.5 border-t border-[#F1F5F9] flex items-center justify-end gap-3 bg-white rounded-b-2xl">
             <button type="button" onClick={onClose}
-              className="flex-1 h-9 rounded-full border border-[#E2E8F0] text-[#475569] text-xs font-semibold hover:bg-[#F8FAFC]">
+              className="h-10 px-5 rounded-full border border-[#E2E8F0] text-[#475569] text-[13px] font-semibold hover:bg-[#F8FAFC] hover:border-[#CBD5E1] transition-colors">
               Cancel
             </button>
             <button type="submit" disabled={submitting}
-              className="flex-1 h-9 rounded-full bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] disabled:opacity-50 flex items-center justify-center gap-2">
+              className="h-10 px-6 rounded-full bg-[#00A86B] text-white text-[13px] font-semibold shadow-sm hover:bg-[#009B63] disabled:opacity-50 flex items-center justify-center gap-2 transition-colors">
               {submitting && (
                 <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -394,11 +425,18 @@ export function AdminRoles() {
     return e.fullName.toLowerCase().includes(q) || e.email.toLowerCase().includes(q) || e.role.toLowerCase().includes(q) || e.employeeId.toLowerCase().includes(q);
   });
 
-  const permissionSummary = (emp: Employee) => {
-    const modules = modulesFor(panel);
-    const count = modules.filter(m => hasPermission(emp.accessRights, m.key, 'view')).length;
-    return `${count}/${modules.length} modules`;
-  };
+  const moduleCount = modulesFor(panel).length;
+  const permittedCount = (emp: Employee) =>
+    modulesFor(panel).filter(m => hasPermission(emp.accessRights, m.key, 'view')).length;
+  const activeCount = employees.filter(e => e.isEmpActive).length;
+  const stats: { label: string; value: number; icon: LucideIcon; tone: string }[] = [
+    { label: 'Total Employees', value: employees.length, icon: Users, tone: 'bg-[#F1F5F9] text-[#475569]' },
+    { label: 'Active', value: activeCount, icon: UserCheck, tone: 'bg-emerald-50 text-emerald-600' },
+    { label: 'Inactive', value: employees.length - activeCount, icon: UserX, tone: 'bg-red-50 text-red-500' },
+    { label: 'Roles', value: new Set(employees.map(e => e.role.trim().toLowerCase()).filter(Boolean)).size, icon: Briefcase, tone: 'bg-sky-50 text-sky-600' },
+  ];
+  const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?';
+  const softCard = 'bg-white rounded-2xl border border-[#EEF2F6] shadow-[0_1px_2px_rgba(16,24,40,0.04),0_2px_8px_rgba(16,24,40,0.05)]';
 
   // Employees themselves cannot manage employees
   if (isEmployee) {
@@ -417,145 +455,202 @@ export function AdminRoles() {
     <AdminLayout>
       <Toast toast={toast} onClose={closeToast} />
 
-      <div className="flex flex-col h-[calc(100vh-72px)] -m-4 md:-m-6 bg-white">
-        <div className="bg-white relative z-50 shrink-0">
-
-          {/* Employee Login URL banner */}
-          <div className="px-6 pt-4 pb-3 border-b border-[#E2E8F0] bg-[#F0FDF4]">
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-1.5 text-[11px] text-[#475569] font-medium">
-                <Shield className="w-3.5 h-3.5 text-[#00A86B]" />
-                Employee login URL — share this with your employees:
+      <div className="flex flex-col h-[calc(100vh-72px)] -m-4 md:-m-6 bg-[#F8FAFC] overflow-y-auto">
+        <div className="px-4 md:px-6 pt-5 pb-6 flex flex-col gap-5">
+          {/* Title */}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <span className="w-10 h-10 rounded-xl bg-[#F0FDF4] text-[#00A86B] flex items-center justify-center shrink-0"><Users className="w-5 h-5" /></span>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <h1 className="text-[18px] font-bold text-[#0F172A]">Employees</h1>
+                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${isUserPanel ? 'bg-amber-50 text-amber-700' : 'bg-blue-50 text-blue-600'}`}>
+                    {isUserPanel ? 'Your Panel Employees' : 'Admin Panel Employees'}
+                  </span>
+                </div>
+                <p className="text-[12.5px] text-[#64748B]">Give your team access with role-based permissions.</p>
               </div>
-              <div className="flex items-center gap-2 bg-white border border-[#E2E8F0] rounded-lg px-3 py-1.5 flex-1 min-w-[200px] max-w-sm">
-                <span className="text-[11px] text-[#0F172A] font-mono truncate flex-1">{employeeLoginUrl}</span>
+            </div>
+            <button
+              onClick={() => { setEditEmployee(null); setShowModal(true); }}
+              className="h-10 px-5 rounded-full bg-[#00A86B] text-white text-[13px] font-semibold shadow-sm hover:bg-[#009B63] flex items-center gap-1.5 transition-colors"
+            >
+              <Plus className="w-4 h-4" /> Add Employee
+            </button>
+          </div>
+
+          {/* Stats */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+            {stats.map(st => (
+              <div key={st.label} className={`${softCard} px-4 py-3.5 flex items-center justify-between gap-3`}>
+                <div className="min-w-0">
+                  <div className="text-[12px] font-medium text-[#64748B] truncate">{st.label}</div>
+                  <div className="text-[22px] font-bold text-[#0F172A] tabular-nums leading-tight mt-0.5">{loading ? '—' : st.value}</div>
+                </div>
+                <span className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${st.tone}`}><st.icon className="w-5 h-5" /></span>
+              </div>
+            ))}
+          </div>
+
+          {/* Employee login link */}
+          <div className={`${softCard} px-4 py-3.5 flex flex-col md:flex-row md:items-center gap-3`}>
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <span className="w-9 h-9 rounded-xl bg-[#F0FDF4] text-[#00A86B] flex items-center justify-center shrink-0"><Link2 className="w-[18px] h-[18px]" /></span>
+              <div className="min-w-0">
+                <div className="text-[13px] font-semibold text-[#0F172A]">Employee login link</div>
+                <div className="text-[12px] text-[#64748B]">Share this link with your employees to sign in.</div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 md:w-[440px] max-w-full">
+              <span className="flex-1 min-w-0 h-10 px-4 rounded-full bg-[#F8FAFC] border border-[#E2E8F0] flex items-center text-[12.5px] text-[#0F172A] font-mono truncate">{employeeLoginUrl}</span>
+              <button
+                onClick={copyLoginUrl}
+                className={`shrink-0 h-10 px-4 rounded-full text-[12.5px] font-semibold inline-flex items-center gap-1.5 transition-colors ${copied ? 'bg-[#F0FDF4] text-[#00A86B] border border-[#BBF7D0]' : 'border border-[#00A86B] text-[#00A86B] hover:bg-[#F0FDF4]'}`}
+              >
+                {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                {copied ? 'Copied' : 'Copy link'}
+              </button>
+            </div>
+          </div>
+
+          {/* Table card */}
+          <div className={`${softCard} overflow-hidden`}>
+            <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-[#F1F5F9]">
+              <div className="text-[13px] font-semibold text-[#0F172A]">
+                All employees <span className="text-[#94A3B8] font-medium tabular-nums">({filtered.length})</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="relative w-[240px] max-w-[60vw]">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8] pointer-events-none" />
+                  <input
+                    type="text"
+                    placeholder="Search name, email, role or ID"
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                    className="w-full h-9 pl-10 pr-4 rounded-full border border-[#E2E8F0] bg-white text-[12.5px] text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B] transition-colors"
+                  />
+                </div>
                 <button
-                  onClick={copyLoginUrl}
-                  className="shrink-0 flex items-center gap-1 text-[10px] font-bold text-[#00A86B] hover:text-[#009B63]"
+                  onClick={fetchEmployees}
+                  aria-label="Refresh"
+                  title="Refresh"
+                  className="w-9 h-9 rounded-full border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#00A86B] transition-colors"
                 >
-                  {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                  {copied ? 'Copied!' : 'Copy'}
+                  <RefreshCcw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
                 </button>
               </div>
             </div>
-          </div>
 
-          {/* Header */}
-          <div className="px-6 py-4 border-b border-[#E2E8F0] flex flex-wrap justify-between items-center gap-3">
-            <div className="flex items-center gap-3">
-              <h1 className="text-[22px] font-bold text-[#0F172A]">Employees</h1>
-              <span className={`text-[9px] font-bold px-2 py-1 rounded-full ${isUserPanel ? 'bg-amber-50 text-amber-600' : 'bg-blue-50 text-blue-600'}`}>
-                {isUserPanel ? 'Your Panel Employees' : 'Admin Panel Employees'}
-              </span>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Search employees..."
-                  value={searchTerm}
-                  onChange={e => setSearchTerm(e.target.value)}
-                  className="glass-search-input w-[200px]"
-                  style={{ paddingLeft: '2rem' }}
-                />
-                <Users className="w-3.5 h-3.5 text-[#94A3B8] absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-              </div>
-              <button
-                onClick={fetchEmployees}
-                className="w-8 h-8 rounded-full border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC]"
-              >
-                <RefreshCcw className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => { setEditEmployee(null); setShowModal(true); }}
-                className="h-9 px-5 rounded-full bg-[#00A86B] text-white text-[11px] font-bold hover:bg-[#009B63] flex items-center gap-1.5"
-              >
-                <Plus className="w-3.5 h-3.5" /> Add Employee
-              </button>
+            <div className="relative overflow-x-auto min-h-[220px]">
+              {loading && <TableLoader />}
+              {!loading && filtered.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-14 gap-2 text-center px-4">
+                  <span className="w-12 h-12 rounded-2xl bg-[#F1F5F9] flex items-center justify-center"><Users className="w-6 h-6 text-[#94A3B8]" /></span>
+                  <p className="text-[13px] font-semibold text-[#0F172A]">{searchTerm ? 'No employees match your search' : 'No employees yet'}</p>
+                  <p className="text-[12px] text-[#94A3B8]">{searchTerm ? 'Try a different name, email or role.' : 'Add your first employee to share the workload.'}</p>
+                  {!searchTerm && (
+                    <button onClick={() => { setEditEmployee(null); setShowModal(true); }}
+                      className="mt-2 h-9 px-4 rounded-full border border-[#00A86B] text-[#00A86B] text-[12.5px] font-semibold inline-flex items-center gap-1.5 hover:bg-[#F0FDF4]">
+                      <Plus className="w-4 h-4" /> Add Employee
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <table className="w-full text-left border-collapse min-w-[900px]">
+                  <thead>
+                    <tr className="bg-[#E6F9F2] text-xs font-medium text-[#64748B] uppercase tracking-wider">
+                      {([
+                        ['No.', Hash], ['Employee', User], ['Role', Briefcase], ['Permissions', Shield], ['Status', Activity], ['Created', CalendarDays],
+                      ] as [string, LucideIcon][]).map(([label, Icon]) => (
+                        <th key={label} className="py-2.5 px-4 whitespace-nowrap">
+                          <div className="flex items-center gap-1.5"><Icon className="w-3.5 h-3.5 shrink-0" /><span>{label}</span></div>
+                        </th>
+                      ))}
+                      <th className="py-2.5 px-4 whitespace-nowrap text-right">
+                        <div className="flex items-center justify-end gap-1.5"><Settings2 className="w-3.5 h-3.5 shrink-0" /><span>Actions</span></div>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-[12.5px] text-[#475569]">
+                    {filtered.map((emp, i) => {
+                      const granted = permittedCount(emp);
+                      const pct = moduleCount ? Math.round((granted / moduleCount) * 100) : 0;
+                      return (
+                        <tr key={emp._id} className="border-b border-[#F1F5F9] last:border-b-0 hover:bg-[#F8FFFB] transition-colors">
+                          <td className="py-3 px-4 text-[#94A3B8] font-medium tabular-nums">{i + 1}</td>
+                          <td className="py-3 px-4">
+                            <div className="flex items-center gap-3">
+                              <span className={`w-9 h-9 rounded-full flex items-center justify-center text-[12px] font-bold shrink-0 ${emp.isEmpActive ? 'bg-gradient-to-br from-[#00A86B] to-[#00875A] text-white' : 'bg-[#E2E8F0] text-[#64748B]'}`}>
+                                {initials(emp.fullName)}
+                              </span>
+                              <div className="min-w-0">
+                                <div className="font-semibold text-[13px] text-[#0F172A] truncate">{emp.fullName}</div>
+                                <div className="text-[11.5px] text-[#94A3B8] truncate">{emp.email}</div>
+                                <span className="inline-block mt-1 px-1.5 py-px rounded-md bg-[#F1F5F9] text-[#64748B] text-[10.5px] font-mono">ID {emp.employeeId}</span>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 h-7 bg-[#F8FAFC] border border-[#EEF2F6] rounded-full text-[12px] font-medium text-[#334155]">
+                              <Briefcase className="w-3 h-3 text-[#94A3B8]" />{emp.role}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="w-[140px]">
+                              <div className="flex items-center justify-between text-[11.5px]">
+                                <span className="font-semibold text-[#0F172A] tabular-nums">{granted}/{moduleCount}</span>
+                                <span className="text-[#94A3B8]">modules</span>
+                              </div>
+                              <div className="mt-1 h-1.5 rounded-full bg-[#F1F5F9] overflow-hidden">
+                                <div className="h-full rounded-full bg-[#00A86B]" style={{ width: `${pct}%` }} />
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-3 px-4">
+                            <button
+                              onClick={() => handleToggleStatus(emp)}
+                              disabled={togglingId === emp._id}
+                              role="switch"
+                              aria-checked={emp.isEmpActive}
+                              className="inline-flex items-center gap-2 disabled:opacity-60"
+                              title={emp.isEmpActive ? 'Click to deactivate' : 'Click to activate'}
+                            >
+                              <span className={`relative w-9 h-5 rounded-full transition-colors ${emp.isEmpActive ? 'bg-[#00A86B]' : 'bg-[#CBD5E1]'}`}>
+                                <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-all ${emp.isEmpActive ? 'left-[18px]' : 'left-0.5'}`} />
+                              </span>
+                              <span className={`text-[12px] font-semibold ${emp.isEmpActive ? 'text-[#00A86B]' : 'text-[#94A3B8]'}`}>
+                                {togglingId === emp._id ? 'Updating…' : emp.isEmpActive ? 'Active' : 'Inactive'}
+                              </span>
+                            </button>
+                          </td>
+                          <td className="py-3 px-4 text-[#64748B] whitespace-nowrap">{formatDate(emp.createdAt)}</td>
+                          <td className="py-3 px-4 text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                onClick={() => { setEditEmployee(emp); setShowModal(true); }}
+                                className="h-8 px-3 rounded-full border border-[#E2E8F0] inline-flex items-center gap-1.5 text-[12px] font-semibold text-[#475569] hover:bg-[#F0FDF4] hover:text-[#00A86B] hover:border-[#00A86B]/40 transition-colors"
+                                title="Edit"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" /> Edit
+                              </button>
+                              <button
+                                onClick={() => setDeleteTarget(emp)}
+                                aria-label={`Delete ${emp.fullName}`}
+                                className="w-8 h-8 rounded-full border border-[#E2E8F0] flex items-center justify-center text-[#94A3B8] hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition-colors"
+                                title="Delete"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
             </div>
           </div>
-        </div>
-
-        {/* Table */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden bg-white relative">
-          {loading && <TableLoader />}
-          {!loading && filtered.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-52 gap-3 text-[#64748B]">
-              <Users className="w-10 h-10 text-[#E2E8F0]" />
-              <p className="text-sm font-medium">{searchTerm ? 'No employees match your search' : 'No employees yet. Add your first employee.'}</p>
-            </div>
-          ) : (
-            <table className="w-full text-left border-collapse min-w-full">
-              <thead>
-                <tr className="bg-[#E6F9F2] text-xs font-medium text-[#64748B] uppercase tracking-wider">
-                  <th className="py-2 px-4 rounded-l-lg">#</th>
-                  <th className="py-2 px-4"><Users className="w-3.5 h-3.5 inline mr-1" />Employee</th>
-                  <th className="py-2 px-4">Role</th>
-                  <th className="py-2 px-4"><Shield className="w-3.5 h-3.5 inline mr-1" />Permissions</th>
-                  <th className="py-2 px-4">Status</th>
-                  <th className="py-2 px-4">Created</th>
-                  <th className="py-2 px-4 text-right rounded-r-lg">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="text-[11px] text-[#475569]">
-                {filtered.map((emp, i) => (
-                  <tr key={emp._id} className={`border-b border-[#E2E8F0] ${i % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]/20'}`}>
-                    <td className="p-4 text-[#94A3B8] font-medium">{i + 1}</td>
-                    <td className="p-4">
-                      <div className="font-bold text-[#0F172A] text-xs">{emp.fullName}</div>
-                      <div className="text-[10px] text-[#94A3B8]">{emp.email}</div>
-                      <div className="text-[10px] text-[#64748B] mt-0.5">ID: {emp.employeeId}</div>
-                    </td>
-                    <td className="p-4">
-                      <span className="px-2 py-1 bg-slate-50 border border-slate-200 rounded-full text-[10px] font-semibold text-[#475569]">
-                        {emp.role}
-                      </span>
-                    </td>
-                    <td className="p-4">
-                      <div className="flex items-center gap-1.5">
-                        <Eye className="w-3 h-3 text-[#00A86B]" />
-                        <span className="text-[10px] font-semibold text-[#00A86B]">{permissionSummary(emp)}</span>
-                      </div>
-                    </td>
-                    <td className="p-4">
-                      <button
-                        onClick={() => handleToggleStatus(emp)}
-                        disabled={togglingId === emp._id}
-                        className="flex items-center gap-1.5 group"
-                        title={emp.isEmpActive ? 'Click to deactivate' : 'Click to activate'}
-                      >
-                        {emp.isEmpActive
-                          ? <ToggleRight className="w-5 h-5 text-[#00A86B]" />
-                          : <ToggleLeft className="w-5 h-5 text-[#94A3B8]" />}
-                        <span className={`text-[10px] font-bold ${emp.isEmpActive ? 'text-[#00A86B]' : 'text-[#94A3B8]'}`}>
-                          {togglingId === emp._id ? '…' : emp.isEmpActive ? 'Active' : 'Inactive'}
-                        </span>
-                      </button>
-                    </td>
-                    <td className="p-4 text-[10px] text-[#94A3B8]">{formatDate(emp.createdAt)}</td>
-                    <td className="p-4 text-right pr-6">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => { setEditEmployee(emp); setShowModal(true); }}
-                          className="w-7 h-7 rounded-lg border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#00A86B]"
-                          title="Edit"
-                        >
-                          <Edit2 className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => setDeleteTarget(emp)}
-                          className="w-7 h-7 rounded-lg border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:bg-red-50 hover:text-red-500 hover:border-red-200"
-                          title="Delete"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
         </div>
       </div>
 
@@ -572,7 +667,7 @@ export function AdminRoles() {
       {/* Delete Confirmation */}
       {deleteTarget && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setDeleteTarget(null)} />
+          <div className="absolute inset-0 bg-[#0F172A]/40 backdrop-blur-sm" onClick={() => setDeleteTarget(null)} />
           <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 z-10">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center">
@@ -588,13 +683,13 @@ export function AdminRoles() {
             </p>
             <div className="flex gap-3">
               <button onClick={() => setDeleteTarget(null)}
-                className="flex-1 h-9 rounded-full border border-[#E2E8F0] text-[#475569] text-xs font-semibold hover:bg-[#F8FAFC]">
+                className="flex-1 h-10 rounded-full border border-[#E2E8F0] text-[#475569] text-[13px] font-semibold hover:bg-[#F8FAFC]">
                 Cancel
               </button>
               <button
                 onClick={handleDelete}
                 disabled={!!deletingId}
-                className="flex-1 h-9 rounded-full bg-red-500 text-white text-xs font-bold hover:bg-red-600 disabled:opacity-50"
+                className="flex-1 h-10 rounded-full bg-red-500 text-white text-[13px] font-semibold hover:bg-red-600 disabled:opacity-50"
               >
                 {deletingId ? 'Deleting…' : 'Delete'}
               </button>
