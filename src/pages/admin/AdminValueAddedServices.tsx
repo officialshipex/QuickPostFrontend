@@ -1,20 +1,25 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { useToast } from '../../hooks/useToast';
 import { Toast } from '../../components/ui/Toast';
-import { useTableLoader } from '../../hooks/useTableLoader';
 import { TableLoader } from '../../components/ui/TableLoader';
 import { ShineButton } from '../../components/ui/ShineButton';
 import {
   Gauge, ShieldCheck, Rocket, BellRing, PackageCheck,
   ChevronDown, CheckCircle2, Clock, Users, BadgeCheck, Wallet2, PlayCircle,
-  ArrowRight, AlertTriangle, ShieldOff,
+  ArrowRight, AlertTriangle, ShieldOff, Lock, Loader2,
 } from 'lucide-react';
 import autoSecureHowItWorks from '../../assets/auto-secure-how-it-works.png';
 import rtoScoreHowItWorks from '../../assets/rto-score-how-it-works.png';
 import comingSoonIllustration from '../../assets/coming-soon.webp';
+import { PlanModal } from './vas/PlanModal';
+import { invalidateRtoScoreAccess } from '../../services/rtoScoreAccess';
+import { SellerSecure } from './vas/secure/SellerSecure';
+import { secureApi, type SecureRules, type SecureServiceInfo } from './vas/secure/secureApi';
+import { useVasServices } from './vas/useVasServices';
+import { apiCode, apiMessage, fmtDate, fmtMoney, planLabel, vasApi, type VasAccess, type VasPlan } from './vas/vasApi';
 
 /* ── Left sub-nav — mirrors the sidebar's Value Added Services group ── */
 const VAS_NAV = [
@@ -83,16 +88,17 @@ interface SecureTerm {
 
 interface SecurePlan {
   id: string;
+  /** Backend service key (see /vas on the server). */
+  key: string;
   title: string;
   terms: SecureTerm[];
-  activated: boolean;
 }
 
 const INITIAL_PLANS: SecurePlan[] = [
   {
     id: 'above-2500',
+    key: 'auto-secure-above-2500',
     title: 'Auto Secure Shipments above ₹2500',
-    activated: true,
     terms: [
       { text: 'Secured lost or damaged shipments, eligible for max ₹4,75,000 refund.' },
       { text: 'The shipment must not be second-hand/refurbished, falling under dangerous/ restricted items as mentioned in the agreement, and a counterfeit or fraudulent product.' },
@@ -101,8 +107,8 @@ const INITIAL_PLANS: SecurePlan[] = [
   },
   {
     id: 'india-post',
+    key: 'auto-secure-india-post',
     title: 'Auto Secure India Post Shipment',
-    activated: true,
     terms: [
       { text: 'The shipment must not be second-hand/refurbished, falling under dangerous/ restricted items as mentioned in the agreement, and a counterfeit or fraudulent product.' },
       { text: 'Adherence to packaging guidelines is required, with images for damaged shipments.', hasLink: true },
@@ -122,44 +128,82 @@ const STATS = [
   { icon: Wallet2, value: '200+ Crore', label: 'Monthly secured order value' },
 ];
 
-interface DeactivationRecord {
-  id: string;
-  planTitle: string;
-  deactivatedOn: string;
+const SECURE_KEYS = INITIAL_PLANS.map((p) => p.key);
+
+/** The first terms of each plan come from the rules the admin set, so what the seller reads is what is applied. */
+function ruleTerms(key: string, r: SecureRules): SecureTerm[] {
+  const covered = key === 'auto-secure-india-post'
+    ? `Covers lost or damaged India Post shipments, up to ${fmtMoney(r.maxCover)} per shipment.`
+    : `Covers lost or damaged shipments worth above ${fmtMoney(r.threshold)}, up to ${fmtMoney(r.maxCover)} per shipment.`;
+  return [
+    { text: covered },
+    { text: `Premium: ${r.premiumPercent}% of the shipment value (minimum ${fmtMoney(r.minPremium)}), taken from your wallet when a shipment is booked. If your wallet is too low at that moment, the shipment is not covered.` },
+    { text: `File a claim within ${r.claimWindowDays} days. Lost-shipment claims open once the courier marks the shipment Lost; damage claims need photos. Approved claims are paid to your wallet.` },
+  ];
 }
 
 function AutoSecurePanel() {
   const { toast, showToast, closeToast } = useToast();
-  const { isLoading } = useTableLoader(700);
-  const [plans, setPlans] = useState<SecurePlan[]>(INITIAL_PLANS);
+  const { services, loading, error, put } = useVasServices(SECURE_KEYS);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
-  const [history, setHistory] = useState<DeactivationRecord[]>([]);
   const [confirmingDeactivate, setConfirmingDeactivate] = useState<SecurePlan | null>(null);
+  const [planFor, setPlanFor] = useState<SecurePlan | null>(null);
+  const [busyKey, setBusyKey] = useState<string | null>(null);
+  const plans = INITIAL_PLANS;
+  const [info, setInfo] = useState<Record<string, SecureServiceInfo>>({});
+  useEffect(() => {
+    secureApi.info().then((r) => setInfo(Object.fromEntries(r.services.map((x) => [x.key, x])))).catch(() => { /* static terms stay */ });
+  }, []);
+  const termsFor = (plan: SecurePlan): SecureTerm[] => {
+    const rules = info[plan.key]?.rules;
+    if (!rules) return plan.terms;
+    // The static refund line of the first plan is replaced by the live rules; the eligibility lines stay.
+    return [...ruleTerms(plan.key, rules), ...(plan.key === 'auto-secure-above-2500' ? plan.terms.slice(1) : plan.terms)];
+  };
 
-  const handleDeactivate = () => {
+  const runActivate = async (plan: SecurePlan, months?: number) => {
+    setBusyKey(plan.key);
+    try {
+      put(await vasApi.activate(plan.key, months));
+      setPlanFor(null);
+      showToast('success', `${plan.title} activated successfully!`);
+    } catch (err) {
+      if (apiCode(err) === 'PLAN_REQUIRED') setPlanFor(plan);
+      else showToast('error', apiMessage(err));
+    } finally {
+      setBusyKey(null);
+    }
+  };
+
+  const handleActivate = (plan: SecurePlan) => {
+    const a = services[plan.key];
+    if (a?.charged && !a.entitled) { setPlanFor(plan); return; }
+    runActivate(plan);
+  };
+
+  const handleDeactivate = async () => {
     const plan = confirmingDeactivate;
     if (!plan) return;
     setConfirmingDeactivate(null);
-    // Backend integration pending — simulates the opt-out API call.
-    setPlans((prev) => prev.map((p) => (p.id === plan.id ? { ...p, activated: false } : p)));
-    setHistory((prev) => [
-      {
-        id: `${plan.id}-${Date.now()}`,
-        planTitle: plan.title,
-        deactivatedOn: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
-      },
-      ...prev,
-    ]);
-    showToast('info', `${plan.title} has been deactivated.`);
+    setBusyKey(plan.key);
+    try {
+      put(await vasApi.deactivate(plan.key));
+      showToast('info', `${plan.title} has been deactivated.`);
+    } catch (err) {
+      showToast('error', apiMessage(err));
+    } finally {
+      setBusyKey(null);
+    }
   };
 
-  const handleActivate = (planId: string) => {
-    setPlans((prev) => prev.map((p) => (p.id === planId ? { ...p, activated: true } : p)));
-    const plan = plans.find((p) => p.id === planId);
-    showToast('success', `${plan?.title || 'Plan'} activated successfully!`);
-  };
+  // Everything the seller did with these plans, newest first.
+  const history = plans
+    .flatMap((plan) => (services[plan.key]?.history || []).map((h) => ({ ...h, planTitle: plan.title })))
+    .filter((h) => ['activated', 'deactivated', 'expired'].includes(h.action))
+    .sort((a, b) => +new Date(b.at) - +new Date(a.at));
+  const HISTORY_VERB: Record<string, string> = { activated: 'Activated', deactivated: 'Deactivated', expired: 'Expired' };
 
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4">
         <div className="relative w-20 h-20">
@@ -168,6 +212,10 @@ function AutoSecurePanel() {
         <p className="text-[13px] font-semibold text-[#94A3B8]">Loading Auto Secure…</p>
       </div>
     );
+  }
+
+  if (error) {
+    return <div className="bg-white rounded-2xl border border-[#E2E8F0] p-8 text-center text-[13px] text-red-600 font-semibold">{error}</div>;
   }
 
   return (
@@ -183,10 +231,14 @@ function AutoSecurePanel() {
         {plans.map((plan) => (
           <div key={plan.id} className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm p-5 flex flex-col">
             <div className="flex items-center justify-between gap-3 pb-3.5 mb-4 border-b border-[#F1F5F9]">
-              <h3 className="text-[14.5px] font-bold text-[#0F172A]">{plan.title}</h3>
-              {plan.activated ? (
+              <h3 className="text-[14.5px] font-bold text-[#0F172A]">{plan.key === 'auto-secure-above-2500' && info[plan.key] ? `Auto Secure Shipments above ${fmtMoney(info[plan.key].rules.threshold)}` : plan.title}</h3>
+              {services[plan.key]?.status === 'active' ? (
                 <span className="flex items-center gap-1 text-[11px] font-bold text-[#16A34A] shrink-0">
                   <CheckCircle2 className="w-3.5 h-3.5" /> Activated
+                </span>
+              ) : services[plan.key]?.status === 'expired' ? (
+                <span className="flex items-center gap-1 text-[11px] font-bold text-red-500 shrink-0">
+                  <Clock className="w-3.5 h-3.5" /> Expired
                 </span>
               ) : (
                 <span className="flex items-center gap-1 text-[11px] font-bold text-[#94A3B8] shrink-0">
@@ -196,7 +248,7 @@ function AutoSecurePanel() {
             </div>
 
             <ul className="space-y-3 flex-1">
-              {plan.terms.map((term, i) => (
+              {termsFor(plan).map((term, i) => (
                 <li key={i} className="flex items-start gap-2.5">
                   <span className="w-4 h-4 rounded-full bg-[#F0FDF4] border border-[#00A86B]/30 flex items-center justify-center shrink-0 mt-0.5">
                     <CheckCircle2 className="w-2.5 h-2.5 text-[#00A86B]" />
@@ -212,27 +264,43 @@ function AutoSecurePanel() {
             </ul>
 
             <div className="mt-5 pt-1">
-              {plan.activated ? (
+              {services[plan.key]?.charged && (
+                <p className="text-[12px] text-[#64748B] mb-3">
+                  {services[plan.key].status === 'active' && services[plan.key].entitledUntil
+                    ? `Plan valid until ${fmtDate(services[plan.key].entitledUntil)}`
+                    : `Plans from ${fmtMoney(Math.min(...services[plan.key].plans.map((p) => p.price)))}`}
+                </p>
+              )}
+              {services[plan.key] && !services[plan.key].enabled ? (
+                <p className="flex items-center gap-1.5 text-[12.5px] font-semibold text-[#64748B]">
+                  <Lock className="w-3.5 h-3.5" /> Not available for your account. Please contact support.
+                </p>
+              ) : services[plan.key]?.status === 'active' ? (
                 <button
                   type="button"
                   onClick={() => setConfirmingDeactivate(plan)}
-                  className="text-[12.5px] font-bold text-red-600 hover:text-red-700 underline underline-offset-2"
+                  disabled={busyKey === plan.key}
+                  className="text-[12.5px] font-bold text-red-600 hover:text-red-700 underline underline-offset-2 disabled:opacity-60"
                 >
                   Deactivate
                 </button>
               ) : (
                 <ShineButton
                   type="button"
-                  onClick={() => handleActivate(plan.id)}
-                  className="h-10 px-6 rounded-full bg-[#00A86B] hover:bg-[#009B63] text-white text-[13px] font-bold shadow-sm transition-colors"
+                  onClick={() => handleActivate(plan)}
+                  disabled={busyKey === plan.key}
+                  className="h-10 px-6 rounded-full bg-[#00A86B] hover:bg-[#009B63] text-white text-[13px] font-bold shadow-sm transition-colors disabled:opacity-60 inline-flex items-center gap-2"
                 >
-                  Activate
+                  {busyKey === plan.key && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {services[plan.key]?.status === 'expired' ? 'Renew' : 'Activate'}
                 </ShineButton>
               )}
             </div>
           </div>
         ))}
       </div>
+
+      <SellerSecure notify={showToast} />
 
       {/* How it works */}
       <div className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm p-6">
@@ -270,11 +338,11 @@ function AutoSecurePanel() {
                   </div>
                 ) : (
                   <div className="divide-y divide-[#F1F5F9]">
-                    {history.map((row) => (
-                      <div key={row.id} className="flex items-center justify-between px-5 py-3.5">
+                    {history.map((row, i) => (
+                      <div key={`${row.planTitle}-${row.at}-${i}`} className="flex items-center justify-between px-5 py-3.5">
                         <p className="text-[13px] font-bold text-[#0F172A]">{row.planTitle}</p>
                         <span className="flex items-center gap-1 text-[11px] font-bold text-[#94A3B8]">
-                          Deactivated on {row.deactivatedOn}
+                          {HISTORY_VERB[row.action]} on {fmtDate(row.at)}
                         </span>
                       </div>
                     ))}
@@ -325,6 +393,16 @@ function AutoSecurePanel() {
           </>
         )}
       </AnimatePresence>
+
+      <PlanModal
+        open={!!planFor}
+        title={planFor ? `Choose a plan — ${planFor.title}` : 'Choose a plan'}
+        confirmLabel="It is activated right after payment."
+        plans={planFor ? services[planFor.key]?.plans || [] : []}
+        busy={!!busyKey}
+        onClose={() => setPlanFor(null)}
+        onConfirm={(p: VasPlan) => planFor && runActivate(planFor, p.months)}
+      />
 
       <Toast toast={toast} onClose={closeToast} />
     </div>
@@ -377,23 +455,50 @@ const RTO_FAQS: { q: string; a: string }[] = [
 
 function RtoScorePanel() {
   const { toast, showToast, closeToast } = useToast();
-  const { isLoading } = useTableLoader(700);
-  const [isTrialActive, setIsTrialActive] = useState(false);
+  const { services, loading, error, put } = useVasServices(['rto-score']);
   const [isActivating, setIsActivating] = useState(false);
+  const [planOpen, setPlanOpen] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const rto: VasAccess | undefined = services['rto-score'];
+  const isActive = rto?.status === 'active';
+  const [confirmOff, setConfirmOff] = useState(false);
 
-  const handleActivateTrial = () => {
-    if (isActivating || isTrialActive) return;
+  const runDeactivate = async () => {
+    setConfirmOff(false);
     setIsActivating(true);
-    // Backend integration pending — simulates enabling RTO Score for the seller's account.
-    setTimeout(() => {
-      setIsTrialActive(true);
+    try {
+      put(await vasApi.deactivate('rto-score'));
+      invalidateRtoScoreAccess();
+      showToast('info', 'RTO Score has been deactivated. RTO risk is no longer shown on your orders.');
+    } catch (err) {
+      showToast('error', apiMessage(err));
+    } finally {
       setIsActivating(false);
-      showToast('success', 'RTO Score free trial activated! It is now live on your shipments.');
-    }, 900);
+    }
   };
 
-  if (isLoading) {
+  const runActivate = async (months?: number) => {
+    if (isActivating) return;
+    setIsActivating(true);
+    try {
+      put(await vasApi.activate('rto-score', months));
+      invalidateRtoScoreAccess();
+      setPlanOpen(false);
+      showToast('success', 'RTO Score activated! It is now live on your shipments.');
+    } catch (err) {
+      if (apiCode(err) === 'PLAN_REQUIRED') setPlanOpen(true);
+      else showToast('error', apiMessage(err));
+    } finally {
+      setIsActivating(false);
+    }
+  };
+
+  const handleActivate = () => {
+    if (rto?.charged && !rto.entitled) { setPlanOpen(true); return; }
+    runActivate();
+  };
+
+  if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4">
         <div className="relative w-20 h-20">
@@ -402,6 +507,10 @@ function RtoScorePanel() {
         <p className="text-[13px] font-semibold text-[#94A3B8]">Loading RTO Score…</p>
       </div>
     );
+  }
+
+  if (error) {
+    return <div className="bg-white rounded-2xl border border-[#E2E8F0] p-8 text-center text-[13px] text-red-600 font-semibold">{error}</div>;
   }
 
   return (
@@ -445,26 +554,41 @@ function RtoScorePanel() {
 
           {/* Trial CTA */}
           <div className="lg:w-[300px]">
-            {!isTrialActive && (
-              <p className="text-[13px] font-semibold text-[#0F172A] mb-3 text-center lg:text-left">Congrats! You are eligible for a free trial.</p>
+            {!isActive && rto && !rto.charged && rto.enabled && (
+              <p className="text-[13px] font-semibold text-[#0F172A] mb-3 text-center lg:text-left">Congrats! RTO Score is free to activate for you.</p>
             )}
             <div className="bg-[#F0FDF4] border border-[#DCFCE7] rounded-2xl p-4">
-              {isTrialActive ? (
-                <div className="flex items-center justify-center gap-2 h-11 rounded-full bg-white border border-[#16A34A]/30 text-[#16A34A] text-[13px] font-bold mb-3">
-                  <CheckCircle2 className="w-4 h-4" /> RTO Score Active
+              {rto && !rto.enabled ? (
+                <div className="flex items-center justify-center gap-2 min-h-11 rounded-full bg-white border border-[#E2E8F0] text-[#64748B] text-[12.5px] font-bold mb-3 px-3 text-center">
+                  <Lock className="w-4 h-4 shrink-0" /> Not available for your account
                 </div>
+              ) : isActive ? (
+                <>
+                  <div className="flex items-center justify-center gap-2 h-11 rounded-full bg-white border border-[#16A34A]/30 text-[#16A34A] text-[13px] font-bold mb-2">
+                    <CheckCircle2 className="w-4 h-4" /> RTO Score Active
+                  </div>
+                  <button type="button" onClick={() => setConfirmOff(true)} disabled={isActivating} className="block mx-auto mb-3 text-[12.5px] font-bold text-red-600 hover:text-red-700 underline underline-offset-2 disabled:opacity-60">
+                    Deactivate
+                  </button>
+                </>
               ) : (
                 <ShineButton
                   type="button"
-                  onClick={handleActivateTrial}
+                  onClick={handleActivate}
                   disabled={isActivating}
                   className="w-full h-11 rounded-full bg-gradient-to-r from-[#818CF8] to-[#6366F1] text-white text-[13px] font-bold shadow-sm transition-opacity disabled:opacity-70 flex items-center justify-center gap-2 mb-3"
                 >
-                  {isActivating ? 'Activating…' : 'Activate Free Trial'}
+                  {isActivating ? 'Activating…' : rto?.status === 'expired' ? 'Renew RTO Score' : 'Activate RTO Score'}
                 </ShineButton>
               )}
               <ul className="space-y-1.5">
-                <li className="text-[11.5px] text-[#475569] leading-relaxed">• 30 days free trial</li>
+                {rto?.charged ? (
+                  <li className="text-[11.5px] text-[#475569] leading-relaxed">
+                    • {isActive && rto.entitledUntil ? `Plan valid until ${fmtDate(rto.entitledUntil)}` : `Plans: ${rto.plans.map((p) => `${planLabel(p)} ${fmtMoney(p.price)}`).join(' · ')}`}
+                  </li>
+                ) : (
+                  <li className="text-[11.5px] text-[#475569] leading-relaxed">• No activation fee</li>
+                )}
                 <li className="text-[11.5px] text-[#475569] leading-relaxed">• Rs 3.49 + GST per order - Charges will be automatically deducted from Wallet</li>
                 <li className="text-[11.5px] text-[#475569] leading-relaxed">• Charges deducted for High and Low prediction for COD orders only</li>
               </ul>
@@ -558,6 +682,36 @@ function RtoScorePanel() {
           </div>
         </div>
       </div>
+
+      <AnimatePresence>
+        {confirmOff && (
+          <>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setConfirmOff(false)} className="fixed inset-0 bg-[#0F172A]/50 backdrop-blur-sm z-[200]" />
+            <div className="fixed inset-0 flex items-center justify-center z-[201] p-4 pointer-events-none">
+              <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} transition={{ type: 'spring', duration: 0.4 }} className="w-full max-w-[400px] bg-white rounded-2xl shadow-2xl p-6 pointer-events-auto border border-[#E2E8F0]">
+                <h2 className="text-[15px] font-bold text-[#0F172A] mb-1.5">Deactivate RTO Score?</h2>
+                <p className="text-[13px] text-[#64748B] leading-relaxed mb-5">
+                  RTO risk will no longer be shown on your orders.{rto?.charged ? ' Any plan you have paid for is not refunded.' : ''} You can activate it again anytime.
+                </p>
+                <div className="flex gap-3">
+                  <button type="button" onClick={() => setConfirmOff(false)} className="flex-1 h-10 rounded-full border border-[#E2E8F0] text-[#64748B] hover:text-[#334155] hover:bg-[#F8FAFC] text-[13px] font-bold transition-all">Keep Active</button>
+                  <button type="button" onClick={runDeactivate} className="flex-1 h-10 rounded-full bg-red-600 hover:bg-red-700 text-white text-[13px] font-bold shadow-sm transition-all">Deactivate</button>
+                </div>
+              </motion.div>
+            </div>
+          </>
+        )}
+      </AnimatePresence>
+
+      <PlanModal
+        open={planOpen}
+        title="Choose a plan — RTO Score"
+        confirmLabel="It is activated right after payment."
+        plans={rto?.plans || []}
+        busy={isActivating}
+        onClose={() => setPlanOpen(false)}
+        onConfirm={(p: VasPlan) => runActivate(p.months)}
+      />
 
       <Toast toast={toast} onClose={closeToast} />
     </div>

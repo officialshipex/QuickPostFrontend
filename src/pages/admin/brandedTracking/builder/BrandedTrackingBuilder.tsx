@@ -2,11 +2,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
-  ArrowLeft, Check, CheckCircle2, ChevronRight, Copy, ExternalLink, Eye, Globe, Info, LayoutList, Loader2,
+  AlertTriangle, ArrowLeft, Check, CheckCircle2, ChevronRight, Copy, ExternalLink, Eye, Globe, Info, LayoutList, Loader2, Lock,
   Palette, PanelBottom, PanelTop, PackageSearch, Pencil, Rocket, Sparkles, X,
 } from 'lucide-react';
 import { AdminLayout } from '../../../../components/admin/layout/AdminLayout';
 import { useAdminTab } from '../../../../context/AdminUserContext';
+import { PlanModal } from '../../vas/PlanModal';
+import { apiCode, apiMessage, fmtDate, fmtMoney, vasApi, type VasAccess, type VasPlan } from '../../vas/vasApi';
 import { useToast } from '../../../../hooks/useToast';
 import { Toast } from '../../../../components/ui/Toast';
 import { TableLoader } from '../../../../components/ui/TableLoader';
@@ -57,7 +59,7 @@ function useViewportHeight() {
 
 export function BrandedTrackingBuilder() {
   const navigate = useNavigate();
-  const { currentUserId, loadingAdminTab } = useAdminTab();
+  const { loadingAdminTab } = useAdminTab();
   const { toast, showToast, closeToast } = useToast(3500);
   const viewportHeight = useViewportHeight();
 
@@ -75,25 +77,29 @@ export function BrandedTrackingBuilder() {
   const [publishing, setPublishing] = useState(false);
   const [confirmUnpublish, setConfirmUnpublish] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [access, setAccess] = useState<VasAccess | null>(null);
+  const [planModalOpen, setPlanModalOpen] = useState(false);
+  const [paying, setPaying] = useState(false);
 
   /* ── Load ── */
   useEffect(() => {
     if (loadingAdminTab) return;
     let cancelled = false;
     brandedTrackingService
-      .load(currentUserId, '')
-      .then(({ draft, published: pub }) => {
+      .load('')
+      .then(({ draft, published: pub, access: acc }) => {
         if (cancelled) return;
         setConfig(draft);
         setSaved(draft);
         setPublished(pub);
+        setAccess(acc);
       })
       .catch(() => {
         if (!cancelled) showToast('error', 'Could not load your tracking page settings. Please refresh and try again.');
       })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [loadingAdminTab, currentUserId, showToast]);
+  }, [loadingAdminTab, showToast]);
 
   /* ── Dirty tracking ── */
   const currentPrint = useMemo(() => fingerprint(config), [config]);
@@ -135,7 +141,7 @@ export function BrandedTrackingBuilder() {
     if (c.store.supportPhone.trim() && (phone.length < 10 || phone.length > 13)) return 'Please enter a valid support phone number.';
     const wa = c.store.whatsappNumber.replace(/\D/g, '');
     if (c.store.whatsappNumber.trim() && (wa.length < 10 || wa.length > 13)) return 'Please enter a valid WhatsApp number.';
-    if (!(await brandedTrackingService.isSlugAvailable(currentUserId, c.store.slug))) return 'This tracking page URL is already taken. Please choose another.';
+    if (!(await brandedTrackingService.isSlugAvailable(c.store.slug))) return 'This tracking page URL is already taken. Please choose another.';
     return null;
   };
 
@@ -155,43 +161,84 @@ export function BrandedTrackingBuilder() {
     setSaving(true);
     try {
       if (!(await runValidation(config))) return;
-      const next = await brandedTrackingService.saveDraft(currentUserId, { ...config, status: isPublished ? 'published' : 'draft' });
+      const next = await brandedTrackingService.saveDraft({ ...config, status: isPublished ? 'published' : 'draft' });
       setConfig(next);
       setSaved(next);
       showToast('success', isPublished ? 'Changes saved. Publish to make them live for customers.' : 'Changes saved as draft.');
     } catch (err) {
-      showToast('error', err instanceof Error ? err.message : 'Failed to save changes. Please try again.');
+      showToast('error', apiMessage(err, 'Failed to save changes. Please try again.'));
     } finally {
       setSaving(false);
     }
   };
 
-  const handlePublish = async () => {
-    if (!config || publishing) return;
+  const refreshAccess = async () => {
+    try { setAccess(await vasApi.mine('branded-tracking')); } catch { /* keep what we have */ }
+  };
+
+  const doPublish = async (c: TrackingPageConfig) => {
     setPublishing(true);
     try {
-      if (!(await runValidation(config))) return;
-      const result = await brandedTrackingService.publish(currentUserId, config);
+      const result = await brandedTrackingService.publish(c);
       setConfig(result.draft);
       setSaved(result.draft);
       setPublished(result.published);
+      await refreshAccess();
       showToast('success', isPublished ? 'Changes published. Customers now see the updated page.' : 'Your branded tracking page is live!');
     } catch (err) {
-      showToast('error', err instanceof Error ? err.message : 'Failed to publish. Please try again.');
+      if (apiCode(err) === 'PLAN_REQUIRED') {
+        await refreshAccess();
+        setPlanModalOpen(true);
+      } else {
+        showToast('error', apiMessage(err, 'Failed to publish. Please try again.'));
+      }
     } finally {
       setPublishing(false);
     }
+  };
+
+  const handlePublish = async () => {
+    if (!config || publishing || paying) return;
+    try {
+      if (!(await runValidation(config))) return;
+    } catch (err) {
+      showToast('error', apiMessage(err, 'Could not check your page details. Please try again.'));
+      return;
+    }
+    // Charges are on and the seller has no running plan: pick one first, then publish.
+    if (access?.charged && !access.entitled) {
+      setPlanModalOpen(true);
+      return;
+    }
+    await doPublish(config);
+  };
+
+  const handleBuyPlanAndPublish = async (plan: VasPlan) => {
+    if (!config) return;
+    setPaying(true);
+    try {
+      setAccess(await vasApi.purchase('branded-tracking', plan.months));
+      setPlanModalOpen(false);
+      showToast('success', `Plan activated for ${plan.months} month${plan.months > 1 ? 's' : ''}.`);
+    } catch (err) {
+      showToast('error', apiMessage(err, 'Payment failed. Please try again.'));
+      setPaying(false);
+      return;
+    }
+    setPaying(false);
+    await doPublish(config);
   };
 
   const handleUnpublish = async () => {
     setConfirmUnpublish(false);
     setPublishing(true);
     try {
-      const result = await brandedTrackingService.unpublish(currentUserId);
+      const result = await brandedTrackingService.unpublish();
       // Keep any unsaved edits in the editor; only the publish state changes.
       setConfig((c) => (c ? { ...c, status: 'draft', publishedAt: undefined } : result.draft));
-      setSaved(result.draft);
+      if (result.draft) setSaved(result.draft);
       setPublished(null);
+      await refreshAccess();
       showToast('info', 'Branded page unpublished. Customers will see the standard QuickPost tracking page.');
     } catch {
       showToast('error', 'Failed to unpublish. Please try again.');
@@ -220,6 +267,20 @@ export function BrandedTrackingBuilder() {
         <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4">
           <div className="relative w-20 h-20"><TableLoader /></div>
           <p className="text-[13px] font-semibold text-[#94A3B8]">Loading Branded Tracking Page…</p>
+        </div>
+      </AdminLayout>
+    );
+  }
+
+  if (access && !access.enabled) {
+    return (
+      <AdminLayout>
+        <div className="max-w-[560px] mx-auto py-16 text-center">
+          <div className="w-14 h-14 rounded-2xl bg-[#F1F5F9] flex items-center justify-center mx-auto mb-4"><Lock className="w-6 h-6 text-[#64748B]" /></div>
+          <h1 className="text-[18px] font-bold text-[#0F172A] mb-2">Branded Tracking Page is not available</h1>
+          <p className="text-[13px] text-[#64748B] leading-relaxed">
+            This service is currently switched off for your account. Your customers see the standard QuickPost tracking page. Please contact support if you need it enabled.
+          </p>
         </div>
       </AdminLayout>
     );
@@ -294,6 +355,30 @@ export function BrandedTrackingBuilder() {
             </ShineButton>
           </div>
         </div>
+
+        {/* Plan banner — only when an admin has switched charges on for this seller */}
+        {access?.charged && (
+          access.status === 'expired' || (!access.entitled && access.entitledUntil) ? (
+            <div className="mb-4 flex items-start gap-2.5 px-4 py-3 rounded-xl bg-[#FEF2F2] border border-[#FECACA]">
+              <AlertTriangle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+              <p className="text-[12.5px] text-red-800">
+                Your plan ended on <span className="font-semibold">{fmtDate(access.entitledUntil)}</span>, so your branded page was taken down. Your design is saved — publish again and choose a plan to bring it back.
+              </p>
+            </div>
+          ) : access.entitled && access.entitledUntil ? (
+            <div className="mb-4 flex items-start gap-2.5 px-4 py-3 rounded-xl bg-[#EFF6FF] border border-[#BFDBFE]">
+              <Info className="w-4 h-4 text-[#2563EB] shrink-0 mt-0.5" />
+              <p className="text-[12.5px] text-[#1E3A8A]">Your plan is active until <span className="font-semibold">{fmtDate(access.entitledUntil)}</span>.</p>
+            </div>
+          ) : !access.entitled && access.plans.length ? (
+            <div className="mb-4 flex items-start gap-2.5 px-4 py-3 rounded-xl bg-[#FFFBEB] border border-[#FDE68A]">
+              <Info className="w-4 h-4 text-[#B45309] shrink-0 mt-0.5" />
+              <p className="text-[12.5px] text-[#78350F]">
+                Publishing needs a plan — from {fmtMoney(Math.min(...access.plans.map((p) => p.price)))}. Customising and saving drafts stays free.
+              </p>
+            </div>
+          ) : null
+        )}
 
         {/* Live status banner */}
         {isPublished ? (
@@ -448,6 +533,16 @@ export function BrandedTrackingBuilder() {
           </>
         )}
       </AnimatePresence>
+
+      <PlanModal
+        open={planModalOpen}
+        title="Choose a plan to publish"
+        confirmLabel="Your page goes live right after payment."
+        plans={access?.plans || []}
+        busy={paying}
+        onClose={() => setPlanModalOpen(false)}
+        onConfirm={handleBuyPlanAndPublish}
+      />
 
       <Toast toast={toast} onClose={closeToast} />
     </AdminLayout>

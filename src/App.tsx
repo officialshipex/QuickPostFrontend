@@ -49,6 +49,7 @@ import { AdminCompanies } from './pages/admin/companies/AdminCompanies';
 import { AdminAuditLogs } from './pages/admin/AdminAuditLogs';
 import { AdminWeightDiscrepancy } from './pages/admin/AdminWeightDiscrepancy';
 import { AdminAnnouncements } from './pages/admin/AdminAnnouncements';
+import { AdminManageVas } from './pages/admin/AdminManageVas';
 import { AdminNotification } from './pages/admin/AdminNotification';
 import { AdminRoles } from './pages/admin/AdminRoles';
 import { AdminAllocateSellers } from './pages/admin/AdminAllocateSellers';
@@ -283,6 +284,7 @@ function App() {
               <Route path="/admin/weight-discrepancy" element={<AdminWeightDiscrepancy />} />
               <Route path="/admin/weight-discrepancy/:tabSlug" element={<AdminWeightDiscrepancy />} />
               <Route path="/admin/announcement" element={<AdminAnnouncements />} />
+              <Route path="/admin/vas" element={<AdminManageVas />} />
               <Route path="/admin/notification" element={<AdminNotification />} />
               <Route path="/admin/notification/:tabSlug" element={<AdminNotification />} />
               <Route path="/admin/rate-calculator" element={<AdminRateCalculator />} />

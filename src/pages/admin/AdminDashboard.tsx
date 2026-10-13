@@ -230,7 +230,7 @@ export function AdminDashboard() {
         apiClient.get(`/dashboard/getWeightDisputeData${plainParams}`),
         apiClient.get(`/dashboard/getCourierComparison${dateParams}`),
         apiClient.get(`/dashboard/getAdminActionCards${plainParams}`),
-        apiClient.get('/dashboard/topSellersData'),
+        apiClient.get(`/dashboard/topSellersData?startDate=${startISO}&endDate=${endISO}`),
         apiClient.get(`/user/getUserDetails${plainParams}`),
         apiClient.get('/agreement/user/list'),
         apiClient.get('/getKyc/getBankAccount'),

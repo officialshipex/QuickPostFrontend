@@ -13,7 +13,7 @@ import {
 import {
   Plus, ArrowLeft, Building2, Globe, CheckCircle2, Clock, Pencil, X, ChevronRight, Copy, ExternalLink,
   Activity, ListChecks, CalendarDays, KeyRound, Database, Palette, ShieldCheck, Truck, CreditCard, Bell,
-  HardDrive, Webhook, BadgeCheck, IdCard, CalendarClock, Receipt, Settings2, Search, Layers, AlertCircle, Check, type LucideIcon,
+  HardDrive, Webhook, BadgeCheck, IdCard, Tag, CalendarClock, Receipt, Settings2, Search, Layers, AlertCircle, Check, type LucideIcon,
 } from 'lucide-react';
 
 type View = 'list' | 'create' | 'detail';
@@ -714,7 +714,7 @@ function CompanyDetail({ tenantKey, onBack }: { tenantKey: string; onBack: () =>
           <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-5 items-start">
           {/* Section nav */}
           <nav className="hidden lg:block sticky top-5 bg-white rounded-2xl border border-[#EEF2F6] shadow-[0_1px_2px_rgba(16,24,40,0.04)] p-2">
-            {['Status', 'Branding', 'Invoice Billing & Tax Details', 'Domains', ...groupSections.map(g => g.label), 'Webhook addresses', 'Email & phone verification', 'KYC methods', 'Scheduled jobs'].map(title => {
+            {['Status', 'Branding', 'Invoice Billing & Tax Details', 'Domains', ...groupSections.map(g => g.label), 'Webhook addresses', 'Email & phone verification', 'KYC methods', 'Label design', 'Scheduled jobs'].map(title => {
               const Icon = SECTION_ICONS[title] || Settings2;
               return (
                 <button key={title} type="button"
@@ -943,6 +943,7 @@ const SECTION_ICONS: Record<string, LucideIcon> = {
   'Webhook addresses': Webhook,
   'Email & phone verification': BadgeCheck,
   'KYC methods': IdCard,
+  'Label design': Tag,
   'Scheduled jobs': CalendarClock,
 };
 

@@ -1,29 +1,32 @@
 import { apiClient } from '../../../services/apiClient';
 import { getCourierLogo } from '../../../utils/courierLogo';
 import { createDefaultConfig } from './defaultConfig';
+import type { VasAccess } from '../vas/vasApi';
 import type { BrandedTrackingData, MilestoneKey, TrackingEvent, TrackingPageConfig } from './types';
 
 /* ═════════════════════════════════════════════════════════════════════════
-   1. CONFIG PERSISTENCE
-   The builder only talks to `brandedTrackingService`. Two adapters implement
-   the same contract:
-     • apiRepository   — backend endpoints (enable with VITE_BRANDED_TRACKING_API=true)
-     • localRepository — browser storage, used until the backend ships
-   Draft and published configs are stored separately: "Save" writes the draft,
-   "Publish" snapshots the draft so customers never see half-finished edits.
+   1. CONFIG PERSISTENCE (backend)
+   The builder only talks to `brandedTrackingService`, which calls the
+   /branded-tracking endpoints. Draft and published configs are stored
+   separately: "Save" writes the draft, "Publish" snapshots the draft so
+   customers never see half-finished edits. Only publishing makes the seller a
+   branded-tracking user in the admin's Value Added Services screen.
    ═════════════════════════════════════════════════════════════════════════ */
 
 export interface BrandedTrackingState {
   draft: TrackingPageConfig;
   published: TrackingPageConfig | null;
+  /** The seller's access to the service: enabled by admin?, charged?, plan end date. */
+  access: VasAccess | null;
+  views: number;
 }
 
 export interface BrandedTrackingRepository {
-  load(ownerId: string, storeName: string): Promise<BrandedTrackingState>;
-  saveDraft(ownerId: string, config: TrackingPageConfig): Promise<TrackingPageConfig>;
-  publish(ownerId: string, config: TrackingPageConfig): Promise<BrandedTrackingState>;
-  unpublish(ownerId: string): Promise<BrandedTrackingState>;
-  isSlugAvailable(ownerId: string, slug: string): Promise<boolean>;
+  load(storeName: string): Promise<BrandedTrackingState>;
+  saveDraft(config: TrackingPageConfig): Promise<TrackingPageConfig>;
+  publish(config: TrackingPageConfig): Promise<{ draft: TrackingPageConfig; published: TrackingPageConfig }>;
+  unpublish(): Promise<{ draft: TrackingPageConfig | null }>;
+  isSlugAvailable(slug: string): Promise<boolean>;
   getPublishedBySlug(slug: string): Promise<TrackingPageConfig | null>;
   uploadAsset(file: File): Promise<string>;
 }
@@ -49,29 +52,29 @@ function withDefaults(stored: Partial<TrackingPageConfig>, storeName: string): T
   };
 }
 
-/* ── Backend adapter ─────────────────────────────────────────────────── */
-
-const apiRepository: BrandedTrackingRepository = {
-  async load(_ownerId, storeName) {
+export const brandedTrackingService: BrandedTrackingRepository = {
+  async load(storeName) {
     const { data } = await apiClient.get('/branded-tracking');
     return {
       draft: data?.draft ? withDefaults(data.draft, storeName) : createDefaultConfig(storeName),
       published: data?.published ? withDefaults(data.published, storeName) : null,
+      access: data?.access ?? null,
+      views: data?.views ?? 0,
     };
   },
-  async saveDraft(_ownerId, config) {
+  async saveDraft(config) {
     const { data } = await apiClient.put('/branded-tracking/draft', config);
-    return data.draft;
+    return withDefaults(data.draft, config.store.name);
   },
-  async publish(_ownerId, config) {
+  async publish(config) {
     const { data } = await apiClient.post('/branded-tracking/publish', config);
-    return { draft: data.draft, published: data.published };
+    return { draft: withDefaults(data.draft, config.store.name), published: withDefaults(data.published, config.store.name) };
   },
   async unpublish() {
     const { data } = await apiClient.post('/branded-tracking/unpublish');
-    return { draft: data.draft, published: null };
+    return { draft: data.draft ? withDefaults(data.draft, data.draft.store?.name || '') : null };
   },
-  async isSlugAvailable(_ownerId, slug) {
+  async isSlugAvailable(slug) {
     const { data } = await apiClient.get(`/branded-tracking/slug-available/${encodeURIComponent(slug)}`);
     return data?.available === true;
   },
@@ -92,97 +95,6 @@ const apiRepository: BrandedTrackingRepository = {
     return data.url;
   },
 };
-
-/* ── Browser-storage adapter ─────────────────────────────────────────── */
-
-const LS_PREFIX = 'qp_branded_tracking';
-const draftKey = (ownerId: string) => `${LS_PREFIX}:draft:${ownerId || 'self'}`;
-const publishedKey = (ownerId: string) => `${LS_PREFIX}:published:${ownerId || 'self'}`;
-const SLUG_INDEX_KEY = `${LS_PREFIX}:slugs`;
-
-function readJson<T>(key: string): T | null {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as T) : null;
-  } catch {
-    return null;
-  }
-}
-
-function writeJson(key: string, value: unknown) {
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-  } catch (err) {
-    if (err instanceof DOMException && err.name === 'QuotaExceededError') {
-      throw new Error('Uploaded images are too large to save. Please use smaller images (under 500 KB each).', { cause: err });
-    }
-    throw err;
-  }
-}
-
-const readSlugIndex = () => readJson<Record<string, string>>(SLUG_INDEX_KEY) || {};
-
-function readFileAsDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = () => reject(new Error('Could not read the selected file.'));
-    reader.readAsDataURL(file);
-  });
-}
-
-const localRepository: BrandedTrackingRepository = {
-  async load(ownerId, storeName) {
-    const draft = readJson<TrackingPageConfig>(draftKey(ownerId));
-    const published = readJson<TrackingPageConfig>(publishedKey(ownerId));
-    return {
-      draft: draft ? withDefaults(draft, storeName) : createDefaultConfig(storeName),
-      published: published ? withDefaults(published, storeName) : null,
-    };
-  },
-  async saveDraft(ownerId, config) {
-    const saved = { ...config, updatedAt: new Date().toISOString() };
-    writeJson(draftKey(ownerId), saved);
-    return saved;
-  },
-  async publish(ownerId, config) {
-    const now = new Date().toISOString();
-    const published: TrackingPageConfig = { ...config, status: 'published', publishedAt: now, updatedAt: now };
-    writeJson(publishedKey(ownerId), published);
-    writeJson(draftKey(ownerId), published);
-    const index = readSlugIndex();
-    Object.keys(index).forEach((s) => { if (index[s] === ownerId) delete index[s]; });
-    index[published.store.slug] = ownerId;
-    writeJson(SLUG_INDEX_KEY, index);
-    return { draft: published, published };
-  },
-  async unpublish(ownerId) {
-    localStorage.removeItem(publishedKey(ownerId));
-    const index = readSlugIndex();
-    Object.keys(index).forEach((s) => { if (index[s] === ownerId) delete index[s]; });
-    writeJson(SLUG_INDEX_KEY, index);
-    const draft = readJson<TrackingPageConfig>(draftKey(ownerId));
-    const next = { ...(draft || createDefaultConfig()), status: 'draft' as const, publishedAt: undefined };
-    writeJson(draftKey(ownerId), next);
-    return { draft: next, published: null };
-  },
-  async isSlugAvailable(ownerId, slug) {
-    const owner = readSlugIndex()[slug];
-    return !owner || owner === ownerId;
-  },
-  async getPublishedBySlug(slug) {
-    const owner = readSlugIndex()[slug];
-    if (!owner) return null;
-    const published = readJson<TrackingPageConfig>(publishedKey(owner));
-    return published ? withDefaults(published, published.store?.name || '') : null;
-  },
-  async uploadAsset(file) {
-    return readFileAsDataUrl(file);
-  },
-};
-
-export const brandedTrackingService: BrandedTrackingRepository =
-  import.meta.env.VITE_BRANDED_TRACKING_API === 'true' ? apiRepository : localRepository;
 
 /** Public URL customers open. Matches the `/track/:storeSlug` route. */
 export const getPublicTrackingUrl = (slug: string) => `${window.location.origin}/track/${slug}`;
@@ -299,13 +211,19 @@ export type TrackingSearchMode = 'awb' | 'order';
 
 export class TrackingNotFoundError extends Error {}
 
-export async function fetchShipmentTracking(query: string, mode: TrackingSearchMode): Promise<BrandedTrackingData> {
+/**
+ * With `storeSlug` (a branded page) only that seller's own shipments can be found; another seller's AWB gets the
+ * same "not found" as a number that does not exist. Without it (preview, standard page) the open lookup is used.
+ */
+export async function fetchShipmentTracking(query: string, mode: TrackingSearchMode, storeSlug?: string): Promise<BrandedTrackingData> {
   const value = query.trim();
-  const endpoint = mode === 'order'
-    ? `/orders/GetTrackingByOrderId/${encodeURIComponent(value)}`
-    : `/orders/GetTrackingByAwb/${encodeURIComponent(value)}`;
+  const endpoint = storeSlug
+    ? `/branded-tracking/public/${encodeURIComponent(storeSlug)}/track`
+    : mode === 'order'
+      ? `/orders/GetTrackingByOrderId/${encodeURIComponent(value)}`
+      : `/orders/GetTrackingByAwb/${encodeURIComponent(value)}`;
   try {
-    const res = await apiClient.get(endpoint);
+    const res = await apiClient.get(endpoint, storeSlug ? { params: { [mode]: value } } : undefined);
     return mapTrackingResponse(res.data, value);
   } catch (err: unknown) {
     const status = (err as { response?: { status?: number } })?.response?.status;

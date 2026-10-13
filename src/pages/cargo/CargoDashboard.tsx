@@ -234,7 +234,7 @@ export function CargoDashboard() {
         apiClient.get(`/dashboard/getWeightDisputeData${plainParams}`),
         apiClient.get(`/dashboard/getCourierComparison${dateParams}`),
         apiClient.get(`/dashboard/getAdminActionCards${plainParams}`),
-        apiClient.get('/dashboard/topSellersData'),
+        apiClient.get(`/dashboard/topSellersData?startDate=${startISO}&endDate=${endISO}`),
         accountApi.get(`/user/getUserDetails${plainParams}`),
         accountApi.get('/agreement/user/list'),
         accountApi.get('/getKyc/getBankAccount'),

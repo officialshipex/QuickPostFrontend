@@ -66,7 +66,7 @@ export function BrandedTrackingPublicPage() {
     setError('');
     setLoading(true);
     try {
-      const result = await fetchShipmentTracking(value, searchMode);
+      const result = await fetchShipmentTracking(value, searchMode, storeSlug.toLowerCase());
       setData(result);
       setParams({ [searchMode]: value.trim() }, { replace: true });
     } catch (err) {
@@ -75,7 +75,7 @@ export function BrandedTrackingPublicPage() {
     } finally {
       setLoading(false);
     }
-  }, [setParams]);
+  }, [setParams, storeSlug]);
 
   useEffect(() => {
     if (!config || autoSearched.current || !query) return;

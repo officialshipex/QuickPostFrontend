@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search,
@@ -391,6 +392,7 @@ function RoutePreview({ pickup, destination }: { pickup: string; destination: st
 }
 
 export function Track() {
+  const navigate = useNavigate();
   const [searchMode, setSearchMode] = useState<'order' | 'awb'>('awb');
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
@@ -410,6 +412,14 @@ export function Track() {
     setResult(null);
     setShowAllEvents(false);
     try {
+      // A shipment of a seller with a live branded tracking page is shown on that seller's page instead.
+      try {
+        const { data: found } = await apiClient.get('/branded-tracking/lookup', { params: { [searchMode]: value.trim() } });
+        if (found?.slug) {
+          navigate(`/track/${found.slug}?${searchMode}=${encodeURIComponent(value.trim())}`, { replace: true });
+          return;
+        }
+      } catch { /* lookup is best-effort: fall through to the standard result */ }
       const endpoint = searchMode === 'order'
         ? `/orders/GetTrackingByOrderId/${encodeURIComponent(value.trim())}`
         : `/orders/GetTrackingByAwb/${encodeURIComponent(value.trim())}`;

@@ -121,6 +121,7 @@ const MENU_GROUPS: MenuGroup[] = [
       { name: 'Weight Discrepancy', path: '/admin/weight-discrepancy', icon: Scale, permission: 'weightDiscrepancy' },
       { name: 'Notification', path: '/admin/notification', icon: Bell, permission: 'notification' },
       { name: 'Announcements', path: '/admin/announcement', icon: AlertCircle, adminOnly: true, permission: 'announcement' },
+      { name: 'Manage VAS', path: '/admin/vas', icon: Zap, adminOnly: true, noEmployee: true },
       { name: 'Rate Calculator', path: '/user/rate-calculator', icon: Wrench, userOnly: true, permission: 'rateCalculator' },
     ]
   },

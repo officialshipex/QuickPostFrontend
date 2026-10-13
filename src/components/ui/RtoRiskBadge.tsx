@@ -1,7 +1,11 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
-import { ArrowDown, ArrowUp } from 'lucide-react';
+import { ArrowDown, ArrowUp, Lock } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useAdminTab } from '../../context/AdminUserContext';
+import { canViewRtoScore, getRtoScoreAccess } from '../../services/rtoScoreAccess';
+import type { VasAccess } from '../../pages/admin/vas/vasApi';
 import type { RtoRiskResult } from '../../services/rtoRisk';
 
 /** How long the page-top progress bar runs before the risk is shown. */
@@ -22,7 +26,36 @@ const RTO_RISK_CHIP: Record<string, string> = {
  * The click never bubbles, so it can sit inside clickable rows and cards.
  */
 export function RtoRiskBadge({ risk, className = '' }: { risk: RtoRiskResult; className?: string }) {
-  const [stage, setStage] = useState<'idle' | 'checking' | 'revealed'>('idle');
+  const [stage, setStage] = useState<'idle' | 'checking' | 'revealed' | 'locked'>('idle');
+  const [access, setAccess] = useState<VasAccess | null>(null);
+  const { isAdmin, adminTab } = useAdminTab();
+  const navigate = useNavigate();
+  const adminView = isAdmin && adminTab; // the platform admin sees every seller's risk
+
+  // The score is only shown to sellers who activated RTO Score. Everyone else gets a prompt instead.
+  const onView = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (adminView) { setStage('checking'); return; }
+    const a = await getRtoScoreAccess();
+    setAccess(a);
+    setStage(canViewRtoScore(a) ? 'checking' : 'locked');
+  };
+
+  if (stage === 'locked') {
+    return (
+      <div className={`text-[11px] leading-[16px] ${className}`} onClick={(e) => e.stopPropagation()}>
+        <span className="inline-flex items-center gap-1 text-[#64748B] font-semibold">
+          <Lock className="w-3 h-3" />
+          {access && !access.enabled ? 'RTO Score is not available for your account' : access?.status === 'expired' ? 'RTO Score plan expired' : 'Activate RTO Score to view risk'}
+        </span>
+        {(!access || access.enabled) && (
+          <button type="button" onClick={() => navigate('/user/vas/rto-score')} className="ml-1.5 font-bold text-[#4F46E5] underline underline-offset-2 hover:text-[#4338CA]">
+            {access?.status === 'expired' ? 'Renew' : 'Activate'}
+          </button>
+        )}
+      </div>
+    );
+  }
 
   if (stage !== 'revealed') {
     const checking = stage === 'checking';
@@ -32,7 +65,7 @@ export function RtoRiskBadge({ risk, className = '' }: { risk: RtoRiskResult; cl
           type="button"
           disabled={checking}
           aria-busy={checking}
-          onClick={(e) => { e.stopPropagation(); setStage('checking'); }}
+          onClick={onView}
           className={`font-semibold text-[#4F46E5] underline underline-offset-2 decoration-[#4F46E5]/40 hover:decoration-[#4F46E5] hover:text-[#4338CA] transition-colors ${checking ? 'opacity-50 cursor-progress' : ''}`}
         >
           View RTO Risk
