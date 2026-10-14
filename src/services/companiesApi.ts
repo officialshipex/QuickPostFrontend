@@ -51,6 +51,9 @@ export interface CompanySummary {
   requiredSetupComplete: boolean;
   // whether the scheduled jobs also run for this company; absent from a backend that predates the setting
   jobsEnabled?: boolean;
+  // only meaningful while suspended / disabled: "login_only" = people kept out, jobs + webhooks keep running;
+  // "full" = complete shutdown. Absent from a backend that predates the setting (behaves as "full").
+  disableMode?: 'login_only' | 'full';
   // when on, users who register under this company are saved with that contact already verified
   autoVerifyEmail?: boolean;
   autoVerifyPhone?: boolean;

@@ -1117,6 +1117,11 @@ function DomainsSection({ company, onSaved, showToast }: {
   );
 }
 
+const DISABLE_BLURB: Record<string, string> = {
+  login_only: 'Login blocked: its panel, login and API calls are refused, but its scheduled jobs and webhooks (courier tracking, Shopify / WooCommerce, Razorpay) keep running, so its data stays up to date.',
+  full: 'Complete shutdown: its panel, login, API, webhooks and scheduled jobs are all stopped.',
+};
+
 const STATUS_INFO: Record<string, { label: string; tone: string; blurb: string }> = {
   onboarding: { label: 'Onboarding', tone: 'bg-amber-50 text-amber-700 border-amber-200', blurb: 'Already serving real traffic on its registered domain(s) — this just means setup isn’t marked complete yet.' },
   active: { label: 'Active', tone: 'bg-emerald-50 text-emerald-700 border-emerald-200', blurb: 'Serving real traffic normally.' },
@@ -1128,15 +1133,23 @@ function StatusSection({ company, onSaved, showToast }: {
   company: CompanySummary; onSaved: () => void; showToast: (t: 'success' | 'error', m: string) => void;
 }) {
   const [confirmingDisable, setConfirmingDisable] = useState(false);
+  const [disableMode, setDisableMode] = useState<'login_only' | 'full'>('login_only');
+  const [shutdownConfirmed, setShutdownConfirmed] = useState(false);
   const [saving, setSaving] = useState(false);
   const info = STATUS_INFO[company.status] || STATUS_INFO.disabled;
+  const isOff = company.status === 'suspended' || company.status === 'disabled';
+  const blurb = isOff ? DISABLE_BLURB[company.disableMode === 'login_only' ? 'login_only' : 'full'] : info.blurb;
 
   const setStatus = async (status: string) => {
     setSaving(true);
     try {
-      await companiesApi.updateBasic(company.tenantKey, { status });
+      await companiesApi.updateBasic(company.tenantKey, status === 'active' ? { status } : { status, disableMode });
       setConfirmingDisable(false);
-      showToast('success', status === 'active' ? 'Company enabled' : 'Company disabled');
+      setShutdownConfirmed(false);
+      showToast(
+        'success',
+        status === 'active' ? 'Company enabled' : disableMode === 'login_only' ? 'Login blocked (jobs and webhooks keep running)' : 'Company completely shut down'
+      );
       onSaved();
     } catch (err: any) {
       showToast('error', err.response?.data?.message || 'Failed to update status');
@@ -1150,13 +1163,18 @@ function StatusSection({ company, onSaved, showToast }: {
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <span className={`text-[11px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full border ${info.tone}`}>{info.label}</span>
-          <p className="text-[11px] text-[#94A3B8] mt-1.5 max-w-md">{info.blurb}</p>
+          {isOff && (
+            <span className={`ml-2 text-[11px] font-semibold px-2.5 py-1 rounded-full border ${company.disableMode === 'login_only' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
+              {company.disableMode === 'login_only' ? 'Login blocked only' : 'Complete shutdown'}
+            </span>
+          )}
+          <p className="text-[11px] text-[#94A3B8] mt-1.5 max-w-md">{blurb}</p>
         </div>
         {company.isDefaultTenant ? (
           <p className="text-[11px] text-[#94A3B8]">The platform's own company can't be disabled from here.</p>
         ) : company.status === 'active' || company.status === 'onboarding' ? (
           <button
-            onClick={() => setConfirmingDisable(true)}
+            onClick={() => { setDisableMode('login_only'); setShutdownConfirmed(false); setConfirmingDisable(true); }}
             disabled={saving}
             className="text-[12px] font-semibold text-red-600 px-3 py-1.5 rounded-[8px] border border-red-200 hover:bg-red-50 disabled:opacity-50 shrink-0"
           >
@@ -1173,11 +1191,50 @@ function StatusSection({ company, onSaved, showToast }: {
         )}
       </div>
       {confirmingDisable && (
-        <div className="mt-3 rounded-[8px] border border-red-200 bg-red-50 p-3">
-          <p className="text-[12px] font-semibold text-red-800">Disable {company.displayName}?</p>
-          <p className="text-[11px] text-red-800 mt-1">Its domain(s), API domain and webhook addresses will all start refusing requests immediately — nothing falls back to another company's data.</p>
+        <div className="mt-3 rounded-[8px] border border-[#E2E8F0] bg-[#F8FAFC] p-3">
+          <p className="text-[12px] font-semibold text-[#0F172A]">How do you want to disable {company.displayName}?</p>
+
+          <label className={`mt-2.5 flex items-start gap-2.5 rounded-[8px] border p-2.5 cursor-pointer ${disableMode === 'login_only' ? 'border-amber-300 bg-amber-50' : 'border-[#E2E8F0] bg-white'}`}>
+            <input type="radio" name="disableMode" className="mt-0.5 accent-amber-600" checked={disableMode === 'login_only'} onChange={() => { setDisableMode('login_only'); setShutdownConfirmed(false); }} />
+            <span>
+              <span className="block text-[12px] font-semibold text-[#0F172A]">Block login only (recommended)</span>
+              <span className="block text-[11px] text-[#475569] mt-0.5">Its users can't log in or use the panel / API. Scheduled jobs (tracking, NDR, COD, invoices) and webhooks (courier tracking, Shopify / WooCommerce, Razorpay) keep running, so nothing is missed and its data is up to date when you enable it again.</span>
+            </span>
+          </label>
+
+          <label className={`mt-2 flex items-start gap-2.5 rounded-[8px] border p-2.5 cursor-pointer ${disableMode === 'full' ? 'border-red-300 bg-red-50' : 'border-[#E2E8F0] bg-white'}`}>
+            <input type="radio" name="disableMode" className="mt-0.5 accent-red-600" checked={disableMode === 'full'} onChange={() => setDisableMode('full')} />
+            <span>
+              <span className="block text-[12px] font-semibold text-[#0F172A]">Complete shutdown</span>
+              <span className="block text-[11px] text-[#475569] mt-0.5">Everything stops: login, panel, API, webhooks and scheduled jobs.</span>
+            </span>
+          </label>
+
+          {disableMode === 'full' && (
+            <div className="mt-2.5 rounded-[8px] border border-red-300 bg-red-50 p-2.5">
+              <p className="text-[12px] font-bold text-red-700">⚠️ Warning: complete shutdown</p>
+              <ul className="list-disc pl-4 mt-1 space-y-0.5 text-[11px] text-red-800">
+                <li>Its users can't log in; its domain(s) and API domain refuse every request.</li>
+                <li>Courier tracking updates are refused — shipment statuses stop updating and those scans are lost.</li>
+                <li>Shopify / WooCommerce orders are not received, and Razorpay payments / recharges are not credited.</li>
+                <li>Scheduled jobs stop: tracking sync, NDR actions, COD remittance, invoices, RTO and weight-discrepancy checks.</li>
+                <li>When you enable it again, what came in meanwhile is not replayed — only the next tracking sync brings shipment statuses back up to date. Orders and payments sent during the shutdown must be checked by hand.</li>
+              </ul>
+              <label className="mt-2 flex items-center gap-2 text-[11px] font-semibold text-red-800 cursor-pointer">
+                <input type="checkbox" className="accent-red-600" checked={shutdownConfirmed} onChange={(e) => setShutdownConfirmed(e.target.checked)} />
+                I understand that everything for this company will stop.
+              </label>
+            </div>
+          )}
+
           <div className="flex gap-2 mt-2.5">
-            <button onClick={() => setStatus('disabled')} disabled={saving} className="px-3 py-1.5 rounded-[8px] bg-red-600 text-white text-[12px] font-semibold disabled:opacity-50">{saving ? 'Disabling…' : 'Disable'}</button>
+            <button
+              onClick={() => setStatus('disabled')}
+              disabled={saving || (disableMode === 'full' && !shutdownConfirmed)}
+              className={`px-3 py-1.5 rounded-[8px] text-white text-[12px] font-semibold disabled:opacity-50 ${disableMode === 'full' ? 'bg-red-600' : 'bg-amber-600'}`}
+            >
+              {saving ? 'Disabling…' : disableMode === 'full' ? 'Shut down completely' : 'Block login'}
+            </button>
             <button onClick={() => setConfirmingDisable(false)} disabled={saving} className="px-3 py-1.5 rounded-[8px] border border-[#E2E8F0] text-[12px] text-[#475569] bg-white">Cancel</button>
           </div>
         </div>
@@ -1579,8 +1636,8 @@ function JobsSection({ company, onSaved, showToast }: {
             </button>
           </div>
 
-          {company.status !== 'active' && (
-            <p className="text-[11px] text-amber-700 mt-3">Jobs only run for companies whose status is Active (this one is {company.status}).</p>
+          {company.status !== 'active' && !((company.status === 'suspended' || company.status === 'disabled') && company.disableMode === 'login_only') && (
+            <p className="text-[11px] text-amber-700 mt-3">Jobs only run for companies that are Active or have only their login blocked (this one is {company.status}{company.status === 'disabled' || company.status === 'suspended' ? ', complete shutdown' : ''}).</p>
           )}
 
           {confirming && (
