@@ -1,3 +1,4 @@
+import { appPathname } from '../../utils/shippingMode';
 import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
@@ -477,13 +478,13 @@ export function AdminOrderTracking() {
 
   const handleClone = () => {
     if (!order?._id) return;
-    const base = window.location.pathname.startsWith('/user/') ? '/user' : '/admin';
+    const base = appPathname().startsWith('/user/') ? '/user' : '/admin';
     navigate(`${base}/add-order?cloneId=${order._id}`);
   };
 
   const handleUpdate = () => {
     if (!order?._id) return;
-    const base = window.location.pathname.startsWith('/user/') ? '/user' : '/admin';
+    const base = appPathname().startsWith('/user/') ? '/user' : '/admin';
     navigate(`${base}/add-order?updateId=${order._id}`);
   };
 

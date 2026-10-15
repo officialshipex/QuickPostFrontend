@@ -1,3 +1,4 @@
+import { appPathname } from '../../../utils/shippingMode';
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
@@ -107,7 +108,7 @@ export function OrderDetailsMobile(p: OrderDetailsMobileProps) {
   const { order } = p;
   const [sheet, setSheet] = useState<null | 'pickup' | 'tracking' | 'actions' | 'price'>(null);
   const [copied, setCopied] = useState<string | null>(null);
-  const isUserSide = window.location.pathname.startsWith('/user/');
+  const isUserSide = appPathname().startsWith('/user/');
   // Get Help: open Create Ticket straight away (Support shows a top progress bar), prefilled with the AWB (or the order ID).
   const goToHelp = () => {
     if (!isUserSide) { navigate('/admin/support'); return; }

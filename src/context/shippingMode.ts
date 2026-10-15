@@ -7,7 +7,8 @@ export type { ShippingMode };
 export interface ShippingModeValue {
   mode: ShippingMode;
   isCargo: boolean;
-  setMode: (mode: ShippingMode) => void;
+  /** Full navigation to `path` (an app path) in the other mode; defaults to that panel's home. */
+  setMode: (mode: ShippingMode, path?: string) => void;
 }
 
 export const ShippingModeContext = createContext<ShippingModeValue>({

@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom';
 import { Search, LogOut, Bell, User, Building2, Calendar, ChevronDown, Shield, Zap, Calculator, PackagePlus, Wallet, Check, X, Menu, Upload, Users, Package, UploadCloud, Loader2, TicketPlus } from 'lucide-react';
 import { useAuth } from '../../../hooks/useAuth';
 import { ModeSwitch } from './ModeSwitch';
+import { AdminCargoSwitch } from './AdminCargoSwitch';
+import { isAdminPanelPath } from '../../../config/cargo';
 import { useShippingMode } from '../../../context/shippingMode';
 import { apiClient } from '../../../services/apiClient';
 import { getToken, setToken } from '../../../utils/session';
@@ -40,6 +42,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
   const [showOrderSearchResults, setShowOrderSearchResults] = useState(false);
   const orderSearchRef = useRef<HTMLDivElement>(null);
   const mobileSearchRef = useRef<HTMLDivElement>(null);
+  const dateFilterRef = useRef<HTMLDivElement>(null);
   const [showDateDropdown, setShowDateDropdown] = useState(false);
   const { toast, showToast: _showToast, closeToast } = useToast();
   const [isCustomMode, setIsCustomMode] = useState(false);
@@ -315,6 +318,20 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
     document.addEventListener('mousedown', handleOutside);
     return () => document.removeEventListener('mousedown', handleOutside);
   }, []);
+
+  // Close the navbar date menu on any click outside it (the header's backdrop blur confines
+  // fixed overlays to the header itself, so an overlay can't catch clicks on the page).
+  useEffect(() => {
+    if (!showDateDropdown) return;
+    const handleOutside = (e: MouseEvent) => {
+      if (!dateFilterRef.current?.contains(e.target as Node)) {
+        setShowDateDropdown(false);
+        setIsCustomMode(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
+  }, [showDateDropdown]);
 
   const goToOrder = (order: any) => {
     setShowOrderSearchResults(false);
@@ -813,7 +830,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
             className="h-16 w-auto object-contain transition-opacity group-hover:opacity-80 scale-[1.5] origin-left ml-2"
           />
           {/* Cargo product mark — sits under the wordmark, right-aligned like a sub-brand */}
-          {isCargo && !(isAdmin && adminTab) && (
+          {isCargo && (
             <span className="absolute left-[11px] top-[45px] w-[89px] flex items-center justify-end gap-1 pointer-events-none select-none">
               <span className="h-px flex-1 bg-gradient-to-r from-transparent to-[#00A86B]/50" />
               <span className="text-[9.5px] leading-none font-extrabold tracking-[0.24em] text-[#00A86B] uppercase">Cargo</span>
@@ -920,9 +937,12 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
       {/* Right Section - Actions */}
       <div className="flex items-center gap-3 shrink-0">
         
+        {/* B2C ⇄ Cargo — admin panel (sits before the date filter) */}
+        {isAdminPanelPath(location.pathname) && <AdminCargoSwitch />}
+
         {/* Date Filter — also hidden while the user-side account setup / onboarding screen is showing */}
         {!isDateFilterHiddenPage && !showOnboarding && (
-          <div className="relative">
+          <div ref={dateFilterRef} className="relative">
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
@@ -935,16 +955,6 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
               <Calendar className="w-4 h-4 text-[#94A3B8]" /> {filters.dateRange.label} <ChevronDown className="w-3.5 h-3.5 text-[#94A3B8]" />
             </motion.button>
             
-            {showDateDropdown && (
-              <div 
-                className="fixed inset-0 z-[105] bg-transparent" 
-                onClick={() => {
-                  setShowDateDropdown(false);
-                  setIsCustomMode(false);
-                }}
-              />
-            )}
-
             <AnimatePresence>
               {showDateDropdown && (
                 <motion.div 

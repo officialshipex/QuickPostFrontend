@@ -1,0 +1,856 @@
+/* QuickPost Cargo — Pickup & Manifest tab. Same UI as pages/admin/AdminPickupManifest.tsx, with Cargo data
+   (cargoApiClient, wired later) and the Cargo empty state. */
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
+import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { cargoApiClient as apiClient, CARGO_API_BASE } from '../../services/cargoApiClient';
+import { getToken } from '../../utils/session';
+import { useAdminTab } from '../../context/AdminUserContext';
+import {
+  Search, ChevronDown, MapPin, Truck, X, Download, Filter,
+  User, Hash, Calendar, Package, Clock, CheckCircle2, Settings, PackagePlus, MoreVertical,
+} from 'lucide-react';
+import { GlassDropdown } from '../../components/ui/GlassDropdown';
+import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
+import { getLast7DaysStr } from '../../hooks/filters/useDateRangeFilter';
+import { useFilterApplyState } from '../../hooks/filters/useFilterApplyState';
+import { usePagination, DesktopPagination } from '../../hooks/usePagination';
+import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
+import { TableLoader } from '../../components/ui/TableLoader';
+import { TruncatedText } from '../../components/ui/TruncatedText';
+import { CargoEmptyState } from './CargoEmptyState';
+import { StatusRibbon } from '../../components/ui/StatusRibbon';
+
+const BACKEND_BASE = CARGO_API_BASE;
+
+const fmt = (d: string) =>
+  d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+
+const fmtTime = (d: string) =>
+  d ? new Date(d).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
+
+const calcAgeingDays = (dateStr: string) => {
+  const start = new Date(dateStr); start.setHours(0, 0, 0, 0);
+  const end   = new Date();        end.setHours(0, 0, 0, 0);
+  let count = 0; const cur = new Date(start);
+  while (cur < end) { if (cur.getDay() !== 0) count++; cur.setDate(cur.getDate() + 1); }
+  return count;
+};
+
+const renderManifestAgeing = (dateStr: string) => {
+  const days = calcAgeingDays(dateStr);
+  if (days <= 1) return <div className="flex items-center gap-1 text-emerald-600 text-xs"><CheckCircle2 className="w-3.5 h-3.5" /><span>On schedule</span></div>;
+  if (days <= 3) return <div className="flex items-center gap-1 text-amber-600 text-xs"><Clock className="w-3.5 h-3.5" /><span>{days}d pending</span></div>;
+  return <div className="flex items-center gap-1 text-rose-600 text-xs font-bold"><Clock className="w-3.5 h-3.5" /><span>{days}d overdue</span></div>;
+};
+
+interface Props {
+  isAdminView: boolean;
+  /** When true, the component's own mobile search+filter+action row is hidden —
+   *  the caller (AdminOrders) renders an equivalent row above its shared tab bar instead,
+   *  wired to `mobileSearchOverride`/`onMobileSearchOverrideChange`. */
+  hideMobileSearchBar?: boolean;
+  /** Controlled search value from a search bar rendered outside this component. */
+  mobileSearchOverride?: string;
+  onMobileSearchOverrideChange?: (value: string) => void;
+  /** Controlled mobile filter sheet, driven by a Filter button rendered outside this component. */
+  mobileFiltersOpen?: boolean;
+  onMobileFiltersOpenChange?: (open: boolean) => void;
+  /** Reports current bulk-selection count to the caller, so an Action button rendered
+   *  outside this component can show the same badge/disabled state. */
+  onSelectedCountChange?: (count: number) => void;
+  /** Lets the caller trigger the bulk "Download Manifests" action from an Action button
+   *  rendered outside this component. */
+  onBulkActionRequest?: (trigger: (() => void)) => void;
+}
+
+export function CargoPickupManifest({
+  isAdminView,
+  hideMobileSearchBar = false,
+  mobileSearchOverride,
+  onMobileSearchOverrideChange,
+  mobileFiltersOpen,
+  onMobileFiltersOpenChange,
+  onSelectedCountChange,
+  onBulkActionRequest,
+}: Props) {
+  const navigate = useNavigate();
+  const { currentUserId, loadingAdminTab } = useAdminTab();
+
+  const [manifests, setManifests]       = useState<any[]>([]);
+  const [loading, setLoading]           = useState(false);
+  const [page, setPage]                 = useState(1);
+  const [totalPages, setTotalPages]     = useState(1);
+  const [totalRecords, setTotalRecords] = useState(0);
+  const [rowsPerPage, setRowsPerPage]   = useState(100);
+
+  // Filters
+  const [searchId,               setSearchId]               = useState('');
+  // When a search bar rendered outside this component (AdminOrders' shared mobile
+  // search row) is controlling search, keep our internal searchId in sync with it.
+  useEffect(() => {
+    if (mobileSearchOverride !== undefined) setSearchId(mobileSearchOverride);
+  }, [mobileSearchOverride]);
+  const [awbNumber,              setAwbNumber]              = useState('');
+  const [selectedCouriers,       setSelectedCouriers]       = useState<string[]>([]);
+  const [selectedPickupAddresses,setSelectedPickupAddresses] = useState<string[]>([]);
+  const [dateStart,              setDateStart]              = useState(() => getLast7DaysStr()[0]);
+  const [dateEnd,                setDateEnd]                = useState(() => getLast7DaysStr()[1]);
+  const [defStart, defEnd] = getLast7DaysStr();
+
+  const [courierOptions, setCourierOptions] = useState<{ label: string; value: string }[]>([]);
+  const [pickupOptions,  setPickupOptions]  = useState<{ label: string; value: string }[]>([]);
+
+  // Admin user search (only active when isAdminView)
+  const [userQuery,       setUserQuery]       = useState('');
+  const [userSuggestions, setUserSuggestions] = useState<any[]>([]);
+  const [userMongoId,     setUserMongoId]     = useState('');
+
+  // Selection
+  const [selectedManifests, setSelectedManifests] = useState<string[]>([]);
+  const [showActionMenu,    setShowActionMenu]     = useState(false);
+  const actionMenuRef = useRef<HTMLDivElement>(null);
+  const [mobileActionMenuPos, setMobileActionMenuPos] = useState<{ top: number; right: number } | null>(null);
+
+  // Tooltip
+  const [hoveredAddressId, setHoveredAddressId] = useState<string | null>(null);
+  // Mobile pickup-address tooltip — fixed + rect-positioned so it stays within the viewport
+  // regardless of where the narrow middle column of the card strip sits.
+  const [mobileHoveredAddress, setMobileHoveredAddress] = useState<{ id: string; rect: DOMRect } | null>(null);
+
+  // Mobile view state — controlled externally when mobileFiltersOpen is provided
+  // (AdminOrders drives this from a Filter button rendered above the shared tab bar).
+  const [internalMobileFiltersOpen, setInternalMobileFiltersOpen] = useState(false);
+  const isMobileFiltersOpen = mobileFiltersOpen ?? internalMobileFiltersOpen;
+  const setIsMobileFiltersOpen = onMobileFiltersOpenChange ?? setInternalMobileFiltersOpen;
+
+  // Refresh trigger (clear uses this)
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  // ── Fetch manifests ──
+  const fetchManifests = useCallback(async (pg = page) => {
+    setLoading(true);
+    try {
+      const params: Record<string, any> = {
+        page:  pg,
+        limit: rowsPerPage,
+      };
+      if (searchId)                          params.orderId              = searchId;
+      if (awbNumber)                         params.awbNumber            = awbNumber;
+      if (selectedCouriers.length > 0)       params.courierServiceName   = selectedCouriers.join(',');
+      if (selectedPickupAddresses.length > 0) params.pickupContactName   = selectedPickupAddresses.join(',');
+      if (dateStart)                         params.startDate            = dateStart;
+      if (dateEnd)                           params.endDate              = dateEnd;
+      if (isAdminView && userMongoId)        params.userId               = userMongoId;
+      else if (!isAdminView && currentUserId) params.userId              = currentUserId;
+
+      const res = await apiClient.get('/admin/filterPickupManifests', { params });
+      setManifests(res.data?.manifests || []);
+      setTotalPages(res.data?.totalPages || 1);
+      setTotalRecords(res.data?.total || res.data?.manifests?.length || 0);
+      if (res.data?.courierServices) setCourierOptions(res.data.courierServices.map((s: any) => {
+        const v = typeof s === 'string' ? s : String(s?.name || s?.courierServiceName || '');
+        return { label: v, value: v };
+      }));
+      if (res.data?.pickupLocations) setPickupOptions(res.data.pickupLocations.map((p: any) => {
+        const v = typeof p === 'string' ? p : String(p?.name || p?.contactName || '');
+        return { label: v, value: v };
+      }));
+    } catch (err) {
+      console.error('Failed to fetch manifests', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [page, searchId, awbNumber, selectedCouriers, selectedPickupAddresses, dateStart, dateEnd, userMongoId, isAdminView, currentUserId, rowsPerPage]);
+
+  // Guard with loadingAdminTab: without this, on refresh currentUserId is '' and all data is returned.
+  useEffect(() => {
+    if (loadingAdminTab) return;
+    setSelectedManifests([]);
+    fetchManifests(page);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, refreshTrigger, isAdminView, currentUserId, loadingAdminTab]);
+
+  useEffect(() => {
+    setPage(1);
+    setRefreshTrigger(t => t + 1);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rowsPerPage]);
+
+  // ── Global search (header bar) — filters the already-fetched page client-side ──
+  const [globalSearchQuery, setGlobalSearchQuery] = useState((window as any).__adminSearchQuery?.toLowerCase() || '');
+  useEffect(() => {
+    const handler = (e: Event) => setGlobalSearchQuery(((e as CustomEvent).detail || '').toLowerCase());
+    window.addEventListener('admin-search', handler);
+    return () => window.removeEventListener('admin-search', handler);
+  }, []);
+  const filteredManifests = !globalSearchQuery ? manifests : manifests.filter((m) => {
+    const q = globalSearchQuery;
+    return (m.pickupId || '').toLowerCase().includes(q) ||
+      (m.userId?.fullname || '').toLowerCase().includes(q) ||
+      (m.userId?.email || '').toLowerCase().includes(q) ||
+      (m.pickupAddress?.contactName || '').toLowerCase().includes(q);
+  });
+
+  // Client-side re-slice of the already server-fetched page — same usePagination + TableLoader
+  // wiring as AdminWallet.tsx / AdminOrders.tsx.
+  const { paginatedData: paginatedManifests } = usePagination({ data: filteredManifests, perPage: rowsPerPage });
+
+  // User search debounce — only when in admin view
+  useEffect(() => {
+    if (!isAdminView || userQuery.trim().length < 2) { setUserSuggestions([]); return; }
+    const t = setTimeout(async () => {
+      try {
+        const res = await apiClient.get(`/admin/searchUser?query=${encodeURIComponent(userQuery)}`);
+        setUserSuggestions(res.data.users || []);
+      } catch { setUserSuggestions([]); }
+    }, 300);
+    return () => clearTimeout(t);
+  }, [userQuery, isAdminView]);
+
+  // Close action menu on outside click
+  useEffect(() => {
+    const h = (e: MouseEvent) => {
+      if (actionMenuRef.current && !actionMenuRef.current.contains(e.target as Node)) setShowActionMenu(false);
+    };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
+
+  // Clear user filter state when switching out of admin view
+  useEffect(() => {
+    if (!isAdminView) {
+      setUserQuery(''); setUserSuggestions([]); setUserMongoId('');
+    }
+  }, [isAdminView]);
+
+  const handleApply = () => { setPage(1); setRefreshTrigger(t => t + 1); };
+  const handleClear = () => {
+    setSearchId(''); setAwbNumber(''); setSelectedCouriers([]); setSelectedPickupAddresses([]);
+    setDateStart(defStart); setDateEnd(defEnd);
+    if (isAdminView) { setUserQuery(''); setUserSuggestions([]); setUserMongoId(''); }
+    setPage(1); setRefreshTrigger(t => t + 1);
+  };
+
+  const hasActiveFilters = searchId || awbNumber || selectedCouriers.length > 0 || selectedPickupAddresses.length > 0 || (dateStart && dateEnd && !(dateStart === defStart && dateEnd === defEnd)) || (isAdminView && userMongoId);
+  const hasActiveFiltersUi = useFilterApplyState(JSON.stringify([searchId, awbNumber, selectedCouriers, selectedPickupAddresses, dateStart, dateEnd, userMongoId]), !!hasActiveFilters);
+
+  // ── Download helpers (native fetch, no auth interceptor redirect) ──
+  const downloadManifestForIds = async (orderIds: string[]) => {
+    if (!orderIds.length) return;
+    try {
+      const token = getToken();
+      const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+      const res = await fetch(`${BACKEND_BASE}/manifest/generate-pdf?orderIds=${orderIds.join(',')}`, { headers });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = 'manifest.pdf';
+      document.body.appendChild(a); a.click(); a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (e) { console.error('Manifest download failed', e); }
+  };
+
+  const handleDownloadManifest = (m: any) => {
+    const ids = (m.orderIds || []).map((o: any) => o._id || o);
+    downloadManifestForIds(ids);
+  };
+
+  const handleBulkManifest = () => {
+    const ids = manifests
+      .filter(m => selectedManifests.includes(m._id))
+      .flatMap(m => (m.orderIds || []).map((o: any) => o._id || o));
+    downloadManifestForIds(ids);
+    setShowActionMenu(false);
+  };
+
+  // Report selection count + hand the bulk-download trigger up, so an Action button
+  // rendered outside this component (AdminOrders' shared mobile row) can drive it.
+  useEffect(() => {
+    onSelectedCountChange?.(selectedManifests.length);
+  }, [selectedManifests, onSelectedCountChange]);
+
+  useEffect(() => {
+    onBulkActionRequest?.(handleBulkManifest);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onBulkActionRequest, manifests, selectedManifests]);
+
+  // Selection
+  const toggleAll = () =>
+    setSelectedManifests(selectedManifests.length === filteredManifests.length && filteredManifests.length > 0 ? [] : filteredManifests.map(m => m._id));
+  const toggleOne = (id: string) =>
+    setSelectedManifests(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+
+  const colSpan = isAdminView ? 10 : 9;
+
+  return (
+    <div className="flex flex-col h-full">
+
+      {/* ── Mobile Search + Filter + Action + Add Order Row (matches Wallet page) ──
+          Hidden entirely when hideMobileSearchBar is set — AdminOrders renders the
+          equivalent row above its shared tab bar instead, controlling this component
+          via mobileSearchOverride / mobileFiltersOpen / onSelectedCountChange / onBulkActionRequest. */}
+      {!hideMobileSearchBar && (
+      <div className="md:hidden px-3 py-2.5 border-b border-[#E2E8F0] flex items-center gap-2 bg-white shrink-0">
+        <div className="relative flex-1">
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
+          <input
+            type="text"
+            placeholder="Pickup ID tracking"
+            value={searchId}
+            onChange={(e) => { setSearchId(e.target.value); onMobileSearchOverrideChange?.(e.target.value); }}
+            className="w-full h-9 pl-9 pr-3 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] text-sm text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/10 transition-all"
+          />
+        </div>
+        {/* Filter icon */}
+        <button
+          onClick={() => setIsMobileFiltersOpen(true)}
+          className="w-9 h-9 rounded-xl border border-[#E2E8F0] flex items-center justify-center text-[#475569] bg-white shrink-0"
+        >
+          <Filter className="w-4 h-4" />
+        </button>
+        {/* Action icon */}
+        <div className="relative shrink-0" ref={actionMenuRef}>
+          <button
+            onClick={(e) => {
+              if (selectedManifests.length === 0) return;
+              if (!showActionMenu) {
+                const rect = e.currentTarget.getBoundingClientRect();
+                setMobileActionMenuPos({ top: rect.bottom + 8, right: window.innerWidth - rect.right });
+              }
+              setShowActionMenu(v => !v);
+            }}
+            disabled={selectedManifests.length === 0}
+            className="w-9 h-9 rounded-xl border border-[#E2E8F0] flex items-center justify-center text-[#475569] bg-white relative disabled:opacity-50"
+          >
+            <MoreVertical className="w-4 h-4" />
+            {selectedManifests.length > 0 && (
+              <span className="absolute -top-1 -right-1 min-w-[16px] h-4 rounded-full bg-[#00A86B] text-white text-[9px] font-bold flex items-center justify-center px-0.5">
+                {selectedManifests.length}
+              </span>
+            )}
+          </button>
+          {showActionMenu && mobileActionMenuPos && createPortal(
+            <>
+              <div className="fixed inset-0 z-[998]" onClick={() => setShowActionMenu(false)} />
+              <AnimatePresence>
+                <motion.div
+                  initial={{ opacity: 0, y: -6, scale: 0.97 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -6, scale: 0.97 }}
+                  transition={{ duration: 0.16, ease: 'easeOut' }}
+                  style={{ top: mobileActionMenuPos.top, right: mobileActionMenuPos.right }}
+                  className="fixed w-[200px] bg-white rounded-xl shadow-[0_8px_28px_-6px_rgba(0,0,0,0.15)] border border-[#E2E8F0] py-1.5 z-[999] origin-top-right"
+                  onMouseDown={(e) => e.stopPropagation()}
+                >
+                  <button onClick={handleBulkManifest} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors">Download Manifests</button>
+                </motion.div>
+              </AnimatePresence>
+            </>,
+            document.body
+          )}
+        </div>
+        {/* Add Order icon */}
+        {!isAdminView && (
+          <button
+            onClick={() => navigate('/user/add-order')}
+            aria-label="Add Order"
+            className="w-9 h-9 rounded-xl bg-[#00A86B] flex items-center justify-center text-white shadow-sm active:bg-[#009B63] transition-colors shrink-0"
+          >
+            <PackagePlus className="w-4 h-4" />
+          </button>
+        )}
+      </div>
+      )}
+
+      {/* ── Filter Row — desktop only ── */}
+      <div className="hidden md:flex py-3 px-6 border-b border-[#CBD5F5] flex-wrap items-center gap-3 bg-[#F8FAFC]/50 shrink-0">
+
+        {/* User search — admin view only */}
+        {isAdminView && (
+          <div className="relative shrink-0">
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search user..."
+                value={userQuery}
+                onChange={(e) => {
+                  setUserQuery(e.target.value);
+                  if (!e.target.value.trim()) { setUserMongoId(''); setUserSuggestions([]); }
+                }}
+                className="glass-search-input w-[160px]"
+                style={{ paddingLeft: '2rem', paddingRight: '2rem' }}
+              />
+              <Search className="w-3.5 h-3.5 text-[#94A3B8] absolute left-2.5 top-1/2 -translate-y-1/2" />
+              {userMongoId && (
+                <button onClick={() => { setUserQuery(''); setUserMongoId(''); setUserSuggestions([]); }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-[#94A3B8] hover:text-red-500">
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+            {userSuggestions.length > 0 && !userMongoId && (
+              <div className="absolute left-0 top-full mt-1 bg-white border border-[#E2E8F0] rounded-xl shadow-xl z-50 w-64 max-h-52 overflow-y-auto py-1">
+                {userSuggestions.map((u: any) => (
+                  <button key={u._id} type="button"
+                    onClick={() => { setUserMongoId(u._id); setUserQuery(`${u.fullname} (${u.email})`); setUserSuggestions([]); }}
+                    className="w-full text-left px-3 py-2 hover:bg-[#F0FDF4] flex items-start gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[11px] font-bold text-slate-800 truncate">{u.fullname}</div>
+                      <div className="text-[10px] text-slate-400 truncate">{u.email} · {u.phoneNumber}</div>
+                    </div>
+                    <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded shrink-0">{u.userId}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        <input
+          type="text"
+          placeholder="Search by pickup ID..."
+          value={searchId}
+          onChange={(e) => setSearchId(e.target.value)}
+          className="glass-search-input w-[170px] shrink-0"
+        />
+
+        <GlassDropdown
+          label="Pickup Address"
+          options={pickupOptions}
+          selected={selectedPickupAddresses}
+          onChange={setSelectedPickupAddresses}
+          placeholder="Search pickup address..."
+          icon={<MapPin className="w-3.5 h-3.5" />}
+        />
+
+        <GlassDropdown
+          label="Courier Service"
+          options={courierOptions}
+          selected={selectedCouriers}
+          onChange={setSelectedCouriers}
+          placeholder="Search courier..."
+          icon={<Truck className="w-3.5 h-3.5" />}
+        />
+
+        <GlassDateFilter
+          align="right"
+          startDate={dateStart}
+          endDate={dateEnd}
+          onDateChange={(s, e) => { setDateStart(s); setDateEnd(e); }}
+          defaultStart={defStart}
+          defaultEnd={defEnd}
+        />
+
+        {/* Seller side: "Apply Filters" while changes are pending, then "Clear All" once applied */}
+        {(isAdminView || hasActiveFiltersUi.showApply) && (
+          <button onClick={() => { (handleApply)(); hasActiveFiltersUi.markApplied(); }} className="py-2 px-4 shrink-0 rounded-[32px] bg-[#009D64] border border-[#009D64] text-white text-xs font-medium leading-[18px] hover:bg-[#008a57] transition-colors cursor-pointer">
+            Apply Filters
+          </button>
+        )}
+        {(isAdminView ? hasActiveFilters : hasActiveFiltersUi.showClear) && (
+          <button onClick={handleClear} className="py-2 px-4 shrink-0 rounded-[32px] border border-red-200 text-red-500 text-xs font-medium leading-[18px] hover:bg-red-50 transition-colors cursor-pointer">
+            Clear All
+          </button>
+        )}
+
+        <div className="ml-auto relative shrink-0" ref={actionMenuRef}>
+          <button
+            onClick={() => selectedManifests.length > 0 && setShowActionMenu(v => !v)}
+            disabled={selectedManifests.length === 0}
+            className={`py-2 pl-4 pr-8 rounded-[32px] border text-xs leading-[18px] flex items-center font-medium relative transition-colors ${selectedManifests.length === 0 ? 'border-[#E2E8F0] bg-[#F8FAFC] text-[#CBD5E1] cursor-not-allowed' : 'border-[#03C27D] bg-white text-[#64748B] hover:bg-[#F0FDF9] cursor-pointer'}`}
+          >
+            Action
+            <ChevronDown className="w-3.5 h-3.5 absolute right-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
+          </button>
+          {showActionMenu && (
+            <div className="absolute right-0 top-full mt-2 w-[180px] bg-white rounded-xl shadow-lg border border-[#E2E8F0] py-2 z-50">
+              <button onClick={handleBulkManifest} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC]">Download Manifests</button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Table — desktop only ── */}
+      <div className="hidden md:block flex-1 overflow-y-auto overflow-x-hidden min-h-0 relative">
+        {loading && <TableLoader />}
+          <table className="w-full text-left border-collapse">
+            <thead className="sticky top-0 z-40 bg-[#E6F9F2] shadow-sm">
+              <tr className="text-xs font-medium text-[#64748B] uppercase tracking-wider">
+                <th className="py-2 px-3 w-10 rounded-l-lg">
+                  <input type="checkbox" checked={selectedManifests.length === filteredManifests.length && filteredManifests.length > 0} onChange={toggleAll} className="rounded border-[#00A86B] accent-[#00A86B] w-3.5 h-3.5" />
+                </th>
+                {isAdminView && <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1"><User className="w-3.5 h-3.5 shrink-0"/><span>User</span></div></th>}
+                <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1"><Hash className="w-3.5 h-3.5 shrink-0"/><span>Pickup ID</span></div></th>
+                <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5 shrink-0"/><span>Pickup Address</span></div></th>
+                <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5 shrink-0"/><span>Pickup Date</span></div></th>
+                <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1"><Package className="w-3.5 h-3.5 shrink-0"/><span>Total/Picked</span></div></th>
+                <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1"><Clock className="w-3.5 h-3.5 shrink-0"/><span>Ageing</span></div></th>
+                <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1"><Truck className="w-3.5 h-3.5 shrink-0"/><span>Shipments</span></div></th>
+                <th className="py-2 px-3 whitespace-nowrap"><div className="flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5 shrink-0"/><span>Status</span></div></th>
+                <th className="py-2 px-3 whitespace-nowrap rounded-r-lg"><div className="flex items-center gap-1"><Settings className="w-3.5 h-3.5 shrink-0"/><span>Actions</span></div></th>
+              </tr>
+            </thead>
+            <tbody className="text-[11px] text-[#475569]">
+              {paginatedManifests.length === 0 ? (
+                <tr>
+                  <td colSpan={colSpan} className="text-center">
+                    <CargoEmptyState />
+                  </td>
+                </tr>
+              ) : paginatedManifests.map((m, idx) => (
+                <tr key={m._id} className={`border-b border-[#E2E8F0] transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-[#E6EDF7]/20'}`}>
+                  <td className="p-3">
+                    <input type="checkbox" checked={selectedManifests.includes(m._id)} onChange={() => toggleOne(m._id)} className="rounded border-gray-300 accent-[#00A86B] w-3.5 h-3.5" />
+                  </td>
+
+                  {/* User column — admin view only */}
+                  {isAdminView && (
+                    <td className="p-3">
+                      <div className="text-xs font-semibold text-[#00A86B]">{m.userId?.userId || '—'}</div>
+                      <TruncatedText text={m.userId?.fullname || ''} maxLength={20} className="text-sm font-semibold text-[#0F172A] mt-0.5 max-w-[140px]" />
+                      <TruncatedText text={m.userId?.email || ''} maxLength={25} className="text-xs font-normal text-[#94A3B8] max-w-[140px]" />
+                    </td>
+                  )}
+
+                  <td className="p-3">
+                    <div
+                      className="text-xs font-semibold text-[#00A86B] underline decoration-dotted cursor-pointer hover:text-[#009B63] inline-block"
+                      onClick={() => navigate(`${isAdminView ? '/admin' : '/user'}/pickup-manifest/${m.pickupId}`)}
+                    >
+                      {m.pickupId}
+                    </div>
+                    <div className="text-xs font-normal text-[#94A3B8] mt-0.5">{fmtTime(m.createdAt)}</div>
+                  </td>
+
+                  <td className="p-3 relative">
+                    <div
+                      className="text-xs font-normal text-[#64748B] underline decoration-dotted underline-offset-2 hover:text-[#0F172A] cursor-help inline-block truncate max-w-[130px]"
+                      onMouseEnter={() => setHoveredAddressId(m._id)}
+                      onMouseLeave={() => setHoveredAddressId(null)}
+                    >
+                      {m.pickupAddress?.contactName || '—'}
+                    </div>
+                    {hoveredAddressId === m._id && (
+                      <div className="absolute z-[200] left-0 mt-1 p-3 bg-[#0F172A] text-white rounded-xl shadow-xl text-xs font-normal min-w-[200px] pointer-events-none">
+                        <div className="font-bold mb-1 flex items-center gap-1.5"><MapPin className="w-3 h-3 text-[#00A86B]" />{m.pickupAddress?.contactName}</div>
+                        <div className="text-slate-300">{m.pickupAddress?.address}</div>
+                        <div className="text-slate-400">{m.pickupAddress?.city}, {m.pickupAddress?.state} – {m.pickupAddress?.pinCode || m.pickupAddress?.pincode}</div>
+                        {m.pickupAddress?.phoneNumber && <div className="text-slate-400 mt-1">{m.pickupAddress?.phoneNumber}</div>}
+                      </div>
+                    )}
+                  </td>
+
+                  <td className="p-3 text-xs font-normal text-[#64748B]">{fmt(m.pickupDate)}</td>
+
+                  <td className="p-3">
+                    {(() => {
+                      const orders = m.orderIds || [];
+                      const total  = orders.length;
+                      const NOT_PICKED = ['new', 'Ready To Ship', 'Cancelled'];
+                      const picked = orders.filter((o: any) => !NOT_PICKED.includes(o.status)).length;
+                      return (
+                        <>
+                          <div className="text-xs font-bold text-[#0F172A]">{total} / {picked}</div>
+                          <div className="text-[9px] text-[#94A3B8] uppercase font-semibold">total / picked</div>
+                        </>
+                      );
+                    })()}
+                  </td>
+
+                  <td className="p-3">
+                    {m.createdAt ? renderManifestAgeing(m.createdAt) : <span className="text-[#CBD5E1] text-xs">—</span>}
+                  </td>
+
+                  <td className="p-3">
+                    <div className="text-xs font-bold text-[#0F172A]">{(m.orderIds || []).length}</div>
+                    <div className="text-[9px] text-[#94A3B8] uppercase font-semibold">shipments</div>
+                  </td>
+
+                  <td className="p-3">
+                    <span className="px-2.5 py-0.5 rounded-full border border-violet-200 bg-violet-50 text-violet-700 text-[10px] font-semibold uppercase tracking-wider">
+                      {(m.status || '').replace(/_/g, ' ')}
+                    </span>
+                  </td>
+
+                  <td className="p-3">
+                    <button
+                      onClick={() => handleDownloadManifest(m)}
+                      className="h-7 px-3 rounded-lg bg-[#00A86B] text-white text-[10px] font-bold hover:bg-[#009B63] shadow-sm flex items-center gap-1.5"
+                    >
+                      <Download className="w-3 h-3" /> Manifest
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+      </div>
+
+      {/* ── Pagination — desktop only ── */}
+      {totalRecords > 0 && (
+        <DesktopPagination
+          page={page}
+          setPage={setPage}
+          totalPages={totalPages}
+          rowsPerPage={rowsPerPage}
+          setRowsPerPage={setRowsPerPage}
+          startIndex={Math.min((page - 1) * rowsPerPage + 1, totalRecords)}
+          endIndex={Math.min(page * rowsPerPage, totalRecords)}
+          totalItems={totalRecords}
+        />
+      )}
+
+      {/* ── Mobile Card Layout ── */}
+      <div className="md:hidden flex-1 min-h-0 flex flex-col bg-[#F8FAFC]">
+      <div className="flex-1 overflow-y-auto relative">
+        {loading && <TableLoader />}
+        {paginatedManifests.length === 0 ? (
+          <div className="flex items-center justify-center min-h-[60vh]">
+            <CargoEmptyState compact />
+          </div>
+        ) : (
+          <div className="p-2 space-y-2">
+            {paginatedManifests.map((m) => (
+              <div key={m._id} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm">
+                {/* Ribbon Tag */}
+                <StatusRibbon label={(m.status || 'Pickup Scheduled').replace(/_/g, ' ')} color="#F59E0B" />
+
+                {/* Checkbox — top-right, parallel to the status ribbon */}
+                <input type="checkbox" checked={selectedManifests.includes(m._id)} onChange={() => toggleOne(m._id)}
+                  className="absolute top-2 right-2.5 rounded border-gray-300 accent-[#00A86B] w-4 h-4 shrink-0 z-10" />
+
+                <div className="pt-7 px-2 pb-2">
+                  {/* User Details Row — name/user-id hidden on the user side; admin still sees who the manifest belongs to.
+                       On the user side, Pickup ID moves up here instead of a separate row below. */}
+                  <div className="flex items-center justify-between mb-1 gap-2">
+                    {isAdminView ? (
+                      <>
+                        <span className="text-[#64748B] font-medium text-[12px] shrink-0">User Details</span>
+                        <span className="text-[12px] inline-flex items-baseline gap-1 min-w-0 justify-end text-right">
+                          <TruncatedText text={m.userId?.fullname || m.pickupAddress?.contactName || '—'} maxLength={16} className="font-semibold text-[#0F172A] text-[12px]" />
+                          <span className="text-[#00A86B] font-semibold shrink-0">({m.userId?.userId || m.pickupId})</span>
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <span
+                          className="text-[13px] font-bold text-[#00A86B] underline decoration-dotted cursor-pointer hover:text-[#009B63] shrink-0"
+                          onClick={() => navigate(`/user/pickup-manifest/${m.pickupId}`)}
+                        >{m.pickupId}</span>
+                        <span className="text-[12px] font-medium text-[#94A3B8] shrink-0">{(m.orderIds || []).length} shipments</span>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Pickup ID & Shipment Count Row — admin view only; user view already shows both above */}
+                  {isAdminView && (
+                    <div className="flex items-center justify-between mb-1 px-1">
+                      <span
+                        className="text-[13px] font-bold text-[#00A86B] underline decoration-dotted cursor-pointer hover:text-[#009B63]"
+                        onClick={() => navigate(`/admin/pickup-manifest/${m.pickupId}`)}
+                      >{m.pickupId}</span>
+                      <span className="text-[12px] font-medium text-[#94A3B8]">{(m.orderIds || []).length} shipments</span>
+                    </div>
+                  )}
+
+                  {/* Pickup Req. Date / Pickup Address / Pickup Date strip */}
+                  <div className="flex items-start justify-between bg-white border border-[#E2E8F0] rounded-xl px-2.5 py-1.5 mb-1.5 gap-2">
+                    <div className="min-w-0">
+                      <div className="text-[10px] font-normal text-[#94A3B8]">Pickup Req. Date</div>
+                      <div className="text-[12px] font-normal text-[#0F172A] mt-0.5 whitespace-nowrap">{fmt(m.createdAt)}</div>
+                    </div>
+                    <div
+                      className="min-w-0 text-center cursor-help"
+                      onMouseEnter={(e) => setMobileHoveredAddress({ id: m._id, rect: e.currentTarget.getBoundingClientRect() })}
+                      onMouseLeave={() => setMobileHoveredAddress(null)}
+                      onClick={(e) => {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setMobileHoveredAddress(prev => (prev?.id === m._id ? null : { id: m._id, rect }));
+                      }}
+                    >
+                      <div className="text-[10px] font-normal text-[#94A3B8]">Pickup Address</div>
+                      <TruncatedText text={m.pickupAddress?.contactName || '—'} maxLength={16} className="text-[12px] font-normal text-[#0F172A] mt-0.5 underline decoration-dotted underline-offset-2" />
+                    </div>
+                    <div className="min-w-0 text-right">
+                      <div className="text-[10px] font-normal text-[#94A3B8]">Pickup Date</div>
+                      <div className="text-[12px] font-normal text-[#0F172A] mt-0.5 whitespace-nowrap">{fmt(m.pickupDate)}</div>
+                    </div>
+                  </div>
+
+                  {/* Actions Row */}
+                  <button
+                    onClick={() => handleDownloadManifest(m)}
+                    className="w-full h-9 rounded-full border border-[#E2E8F0] text-[#475569] bg-white text-[12.5px] font-bold flex items-center justify-center gap-1.5 hover:border-[#00A86B]/40 hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors"
+                  >
+                    <Download className="w-3.5 h-3.5 text-[#00A86B]" /> Download Manifest
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+        {/* Mobile Pagination — sibling of the scroll area, not inside it, so it stays pinned */}
+        {<MobilePaginationBar {...({
+          page,
+          setPage,
+          totalPages,
+          rowsPerPage,
+          setRowsPerPage,
+          startIndex: Math.min((page - 1) * rowsPerPage + 1, totalRecords),
+          endIndex: Math.min(page * rowsPerPage, totalRecords),
+          totalItems: totalRecords,
+        })} />}
+      </div>
+
+      {/* ── Mobile Pickup Address Tooltip — fixed + viewport-clamped ── */}
+      {mobileHoveredAddress && (() => {
+        const m = paginatedManifests.find(x => x._id === mobileHoveredAddress.id);
+        if (!m) return null;
+        const rect = mobileHoveredAddress.rect;
+        const showBelow = rect.top < 220;
+        return (
+          <div
+            className="md:hidden fixed z-[200] p-3 bg-[#0F172A] text-white rounded-xl shadow-xl text-xs font-normal w-60 pointer-events-none text-left"
+            style={{
+              top: showBelow ? rect.bottom + 8 : rect.top - 8,
+              left: Math.min(Math.max(rect.left + rect.width / 2, 128), window.innerWidth - 128),
+              transform: showBelow ? 'translate(-50%, 0)' : 'translate(-50%, -100%)',
+            }}
+          >
+            <div className="font-bold mb-1 flex items-center gap-1.5"><MapPin className="w-3 h-3 text-[#00A86B] shrink-0" />{m.pickupAddress?.contactName}</div>
+            <div className="text-slate-300 break-words whitespace-normal">{m.pickupAddress?.address}</div>
+            <div className="text-slate-400 mt-0.5">{m.pickupAddress?.city}, {m.pickupAddress?.state} – {m.pickupAddress?.pinCode || m.pickupAddress?.pincode}</div>
+            {m.pickupAddress?.phoneNumber && <div className="text-slate-400 mt-1">{m.pickupAddress?.phoneNumber}</div>}
+          </div>
+        );
+      })()}
+
+      {/* ── Mobile Filters Bottom Sheet ── */}
+      <AnimatePresence>
+        {isMobileFiltersOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[140] md:hidden flex items-end justify-center"
+            onClick={() => setIsMobileFiltersOpen(false)}
+          >
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="bg-white rounded-t-3xl border-t border-[#E2E8F0] shadow-2xl w-full max-h-[80vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="px-6 py-4 border-b border-[#E2E8F0] flex items-center justify-between sticky top-0 bg-white z-10">
+                <h3 className="font-bold text-slate-800 text-base flex items-center gap-2">
+                  <Filter className="w-5 h-5 text-[#00A86B]" /> Filters
+                </h3>
+                <button onClick={() => setIsMobileFiltersOpen(false)} className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4">
+                {isAdminView && (
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Search User</label>
+                    <input
+                      type="text"
+                      placeholder="Search user..."
+                      value={userQuery}
+                      onChange={(e) => setUserQuery(e.target.value)}
+                      className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
+                    />
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Pickup ID</label>
+                  <input
+                    type="text"
+                    placeholder="Search by pickup ID..."
+                    value={searchId}
+                    onChange={(e) => setSearchId(e.target.value)}
+                    className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">AWB Number</label>
+                  <input
+                    type="text"
+                    placeholder="Search by AWB..."
+                    value={awbNumber}
+                    onChange={(e) => setAwbNumber(e.target.value)}
+                    className="w-full h-11 px-4 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Pickup Address</label>
+                  <select
+                    value={selectedPickupAddresses[0] || ''}
+                    onChange={(e) => setSelectedPickupAddresses(e.target.value ? [e.target.value] : [])}
+                    className="w-full h-11 px-3 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
+                  >
+                    <option value="">All Pickup Addresses</option>
+                    {pickupOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Courier Service</label>
+                  <select
+                    value={selectedCouriers[0] || ''}
+                    onChange={(e) => setSelectedCouriers(e.target.value ? [e.target.value] : [])}
+                    className="w-full h-11 px-3 rounded-full border border-slate-200 text-slate-800 text-sm focus:outline-none focus:border-[#00A86B] bg-white"
+                  >
+                    <option value="">All Couriers</option>
+                    {courierOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Date Range</label>
+                  <GlassDateFilter
+                    className="w-full [&_.glass-dropdown-trigger]:!w-full [&_.glass-dropdown-trigger]:!h-11 [&_.glass-dropdown-trigger]:!min-w-0 [&_.glass-dropdown-trigger]:!rounded-full"
+                    startDate={dateStart}
+                    endDate={dateEnd}
+                    onDateChange={(s, e) => { setDateStart(s); setDateEnd(e); }}
+                    defaultStart={defStart}
+                    defaultEnd={defEnd}
+                  />
+                </div>
+              </div>
+
+              <div className="px-6 py-4 border-t border-[#E2E8F0] flex items-center gap-3 sticky bottom-0 bg-white">
+                <button
+                  onClick={() => { handleClear(); setIsMobileFiltersOpen(false); }}
+                  className="flex-1 h-11 rounded-full border border-[#E2E8F0] text-[#475569] text-sm font-bold hover:bg-[#F8FAFC] transition-colors"
+                >
+                  Reset All
+                </button>
+                <button
+                  onClick={() => { handleApply(); setIsMobileFiltersOpen(false); }}
+                  className="flex-1 h-11 rounded-full bg-[#009D64] text-white text-sm font-bold hover:bg-[#009B63] transition-colors shadow-sm"
+                >
+                  Apply Filters
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}

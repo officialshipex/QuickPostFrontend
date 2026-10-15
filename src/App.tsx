@@ -63,9 +63,20 @@ import { AdminAddOrder } from './pages/admin/AdminAddOrder';
 import { AdminTracking } from './pages/admin/AdminTracking';
 import { AdminProfile } from './pages/admin/AdminProfile';
 import { AdminOrderTracking } from './pages/admin/AdminOrderTracking';
+import { CARGO_BASE, appPathname, isCargoUrl } from './utils/shippingMode';
 import { ModeRoute } from './pages/cargo/ModeRoute';
 import { CargoHome } from './pages/cargo/CargoHome';
 import { CargoRateCalculator } from './pages/cargo/CargoRateCalculator';
+import { CargoAnnouncements } from './pages/cargo/CargoAnnouncements';
+import { CargoCRMBusinessMetrics } from './pages/cargo/CargoCRMBusinessMetrics';
+import { CargoCRMCourierPartners } from './pages/cargo/CargoCRMCourierPartners';
+import { CargoCRMEscalations } from './pages/cargo/CargoCRMEscalations';
+import { CargoCRMLeads } from './pages/cargo/CargoCRMLeads';
+import { CargoCRMSellerAccounts } from './pages/cargo/CargoCRMSellerAccounts';
+import { CargoCRMShipmentListing } from './pages/cargo/CargoCRMShipmentListing';
+import { CargoCouriers } from './pages/cargo/CargoCouriers';
+import { CargoPickupAddress } from './pages/cargo/CargoPickupAddress';
+import { CargoRateCard } from './pages/cargo/CargoRateCard';
 import { CargoDashboard } from './pages/cargo/CargoDashboard';
 import { CargoOrders } from './pages/cargo/CargoOrders';
 import { CargoNDR } from './pages/cargo/CargoNDR';
@@ -168,7 +179,7 @@ function GlobalOrderClickInterceptor() {
 
       event.preventDefault();
       event.stopPropagation();
-      const panel = window.location.pathname.startsWith('/user/') ? '/user' : '/admin';
+      const panel = appPathname().startsWith('/user/') ? '/user' : '/admin';
       if (isAwb) {
         navigate(`${panel}/tracking?awb=${cleanText}`);
       } else {
@@ -225,7 +236,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <OfflineOverlay />
-      <Router>
+      <Router basename={isCargoUrl() ? CARGO_BASE : undefined}>
         <GlobalOrderClickInterceptor />
         <Routes>
           {/* Dev-only: preview every transactional email template with sample data.
@@ -253,7 +264,7 @@ function App() {
             {/* ── Admin-only routes (/admin/*, /internal-crm/*) ── */}
             <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
               <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
-              <Route path="/admin/dashboard" element={<AdminDashboard />} />
+              <Route path="/admin/dashboard" element={<ModeRoute b2c={<AdminDashboard />} cargo={<CargoDashboard />} />} />
               <Route path="/admin/users" element={<AdminUsers />} />
               <Route path="/admin/roles" element={<AdminRoles />} />
               <Route path="/admin/allocate-sellers" element={<AdminAllocateSellers />} />
@@ -261,13 +272,13 @@ function App() {
               <Route path="/admin/edd-mapping" element={<AdminEDDMapping />} />
               <Route path="/admin/epd-mapping" element={<AdminEPDMapping />} />
               <Route path="/admin/vendors" element={<AdminVendors />} />
-              <Route path="/admin/couriers" element={<AdminCouriers />} />
-              <Route path="/admin/couriers/:tabSlug" element={<AdminCouriers />} />
-              <Route path="/admin/orders" element={<AdminOrders />} />
-              <Route path="/admin/orders/:tabSlug" element={<AdminOrders />} />
+              <Route path="/admin/couriers" element={<ModeRoute b2c={<AdminCouriers />} cargo={<CargoCouriers />} />} />
+              <Route path="/admin/couriers/:tabSlug" element={<ModeRoute b2c={<AdminCouriers />} cargo={<CargoCouriers />} />} />
+              <Route path="/admin/orders" element={<ModeRoute b2c={<AdminOrders />} cargo={<CargoOrders />} />} />
+              <Route path="/admin/orders/:tabSlug" element={<ModeRoute b2c={<AdminOrders />} cargo={<CargoOrders />} />} />
               <Route path="/admin/shipments" element={<AdminShipments />} />
-              <Route path="/admin/ndr" element={<AdminNDR />} />
-              <Route path="/admin/ndr/:tabSlug" element={<AdminNDR />} />
+              <Route path="/admin/ndr" element={<ModeRoute b2c={<AdminNDR />} cargo={<CargoNDR />} />} />
+              <Route path="/admin/ndr/:tabSlug" element={<ModeRoute b2c={<AdminNDR />} cargo={<CargoNDR />} />} />
               <Route path="/admin/cod" element={<AdminCOD />} />
               <Route path="/admin/cod/:tabSlug" element={<AdminCOD />} />
               <Route path="/admin/wallet" element={<AdminWallet />} />
@@ -281,9 +292,9 @@ function App() {
               <Route path="/admin/audit" element={<AdminAuditLogs />} />
               <Route path="/admin/profile" element={<AdminProfile />} />
               <Route path="/admin/company" element={<AdminSettings />} />
-              <Route path="/admin/weight-discrepancy" element={<AdminWeightDiscrepancy />} />
-              <Route path="/admin/weight-discrepancy/:tabSlug" element={<AdminWeightDiscrepancy />} />
-              <Route path="/admin/announcement" element={<AdminAnnouncements />} />
+              <Route path="/admin/weight-discrepancy" element={<ModeRoute b2c={<AdminWeightDiscrepancy />} cargo={<CargoWeightDiscrepancy />} />} />
+              <Route path="/admin/weight-discrepancy/:tabSlug" element={<ModeRoute b2c={<AdminWeightDiscrepancy />} cargo={<CargoWeightDiscrepancy />} />} />
+              <Route path="/admin/announcement" element={<ModeRoute b2c={<AdminAnnouncements />} cargo={<CargoAnnouncements />} />} />
               <Route path="/admin/vas" element={<AdminManageVas />} />
               <Route path="/admin/notification" element={<AdminNotification />} />
               <Route path="/admin/notification/:tabSlug" element={<AdminNotification />} />
@@ -291,19 +302,19 @@ function App() {
               <Route path="/admin/add-order" element={<AdminAddOrder />} />
               <Route path="/admin/tracking" element={<AdminTracking />} />
               <Route path="/admin/referral" element={<AdminReferral />} />
-              <Route path="/admin/rate-card" element={<AdminRateCard />} />
+              <Route path="/admin/rate-card" element={<ModeRoute b2c={<AdminRateCard />} cargo={<CargoRateCard />} />} />
               <Route path="/admin/order-tracking" element={<AdminOrderTracking />} />
               <Route path="/admin/kyc" element={<AdminKYC />} />
               <Route path="/admin/kyc-review" element={<AdminKycReview />} />
               <Route path="/admin/agreement" element={<AdminAgreement />} />
-              <Route path="/admin/settings/pickup-address" element={<AdminPickupAddress />} />
+              <Route path="/admin/settings/pickup-address" element={<ModeRoute b2c={<AdminPickupAddress />} cargo={<CargoPickupAddress />} />} />
               <Route path="/admin/pickup-manifest/:pickupId" element={<AdminPickupManifestDetails />} />
-              <Route path="/internal-crm/shipments" element={<CRMShipmentListing />} />
-              <Route path="/internal-crm/sellers" element={<CRMSellerAccounts />} />
-              <Route path="/internal-crm/leads" element={<CRMLeads />} />
-              <Route path="/internal-crm/couriers" element={<CRMCourierPartners />} />
-              <Route path="/internal-crm/escalations" element={<CRMEscalations />} />
-              <Route path="/internal-crm/metrics" element={<CRMBusinessMetrics />} />
+              <Route path="/internal-crm/shipments" element={<ModeRoute b2c={<CRMShipmentListing />} cargo={<CargoCRMShipmentListing />} />} />
+              <Route path="/internal-crm/sellers" element={<ModeRoute b2c={<CRMSellerAccounts />} cargo={<CargoCRMSellerAccounts />} />} />
+              <Route path="/internal-crm/leads" element={<ModeRoute b2c={<CRMLeads />} cargo={<CargoCRMLeads />} />} />
+              <Route path="/internal-crm/couriers" element={<ModeRoute b2c={<CRMCourierPartners />} cargo={<CargoCRMCourierPartners />} />} />
+              <Route path="/internal-crm/escalations" element={<ModeRoute b2c={<CRMEscalations />} cargo={<CargoCRMEscalations />} />} />
+              <Route path="/internal-crm/metrics" element={<ModeRoute b2c={<CRMBusinessMetrics />} cargo={<CargoCRMBusinessMetrics />} />} />
             </Route>
 
             {/* ── User-only routes (/user/*) ── */}

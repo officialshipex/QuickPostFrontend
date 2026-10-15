@@ -344,7 +344,13 @@ export function AdminChannels() {
       <AdminLayout>
         <div className="max-w-[1400px] mx-auto pb-10">
           <div className="flex items-center justify-between mb-5">
-            <h1 className="text-[20px] font-bold text-[#0F172A]">Channels</h1>
+            <div>
+              <h1 className="text-[20px] font-bold text-[#0F172A]">Channels</h1>
+              {/* Desktop-only subtitle */}
+              <p className="hidden md:block text-[13px] text-[#64748B] mt-0.5">
+                Connect your online stores once — orders sync into QuickPost automatically, and tracking updates flow back to your store.
+              </p>
+            </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={fetchChannels}
@@ -397,6 +403,23 @@ export function AdminChannels() {
             </div>
           )}
 
+          {/* How it works — desktop only */}
+          <div className="hidden md:grid grid-cols-3 gap-4 mb-5">
+            {[
+              { n: 1, title: 'Connect your store', body: 'Add your Shopify or WooCommerce store with its API credentials — it takes about two minutes.' },
+              { n: 2, title: 'Orders sync automatically', body: 'New orders appear in QuickPost on your chosen schedule, ready to ship. No CSV uploads.' },
+              { n: 3, title: 'Customers stay updated', body: 'Shipping status and tracking links are pushed back to your store as the parcel moves.' },
+            ].map(st => (
+              <div key={st.n} className="bg-white rounded-2xl border border-[#EEF2F6] shadow-[0_1px_2px_rgba(16,24,40,0.04),0_2px_8px_rgba(16,24,40,0.05)] p-4 flex items-start gap-3">
+                <span className="w-8 h-8 rounded-full bg-[#F0FDF4] text-[#00A86B] text-[13px] font-bold flex items-center justify-center shrink-0">{st.n}</span>
+                <div className="min-w-0">
+                  <div className="text-[13.5px] font-semibold text-[#0F172A]">{st.title}</div>
+                  <p className="text-[12.5px] text-[#64748B] leading-relaxed mt-0.5">{st.body}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
           {/* Summary — always counts the built-in Manual channel */}
           {!loading && (
             <div className="grid grid-cols-3 gap-2.5 md:gap-4 mb-4 md:mb-5">
@@ -424,6 +447,13 @@ export function AdminChannels() {
               <span className="text-[14px] font-medium">Loading channels…</span>
             </div>
           ) : (
+            <>
+            <div className="hidden md:flex items-end justify-between mb-3">
+              <div>
+                <h2 className="text-[15px] font-bold text-[#0F172A]">Your channels</h2>
+                <p className="text-[12.5px] text-[#64748B]">Manual orders are always on. Add a store to bring its orders in automatically.</p>
+              </div>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-start">
               {/* Built-in Manual channel — always first, always active */}
               <div className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm p-4 md:p-5">
@@ -542,6 +572,13 @@ export function AdminChannels() {
                 </div>
               ))}
             </div>
+            <p className="hidden md:flex items-center gap-1.5 mt-5 text-[12.5px] text-[#64748B]">
+              Need help connecting a store?{' '}
+              <button type="button" onClick={() => { resetForm(); goToView('add'); }} className="font-semibold text-[#00A86B] hover:underline">See setup steps</button>
+              <span className="text-[#CBD5E1]">·</span>
+              More marketplaces are on the way.
+            </p>
+            </>
           )}
         </div>
 

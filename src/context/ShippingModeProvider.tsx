@@ -1,18 +1,20 @@
 import { useState, type ReactNode } from 'react';
-import { clearIntro, getShippingMode, hasPendingIntro, saveShippingMode } from '../utils/shippingMode';
+import { clearIntro, getShippingMode, hasPendingIntro, modeUrl } from '../utils/shippingMode';
 import { ModeTransition } from '../components/admin/layout/ModeTransition';
 import { ShippingModeContext, type ShippingMode } from './shippingMode';
 
-/* B2C ⇄ Cargo mode for the seller side — per tab, bound to the login token (see utils/shippingMode).
+/* B2C ⇄ Cargo mode for the seller and admin side — read from the URL (`/cargo/...` = Cargo).
+   Switching modes is a full navigation to the other mode's URL.
    A Cargo tab opened from the switch plays the branded switch animation once on load. */
 
 export function ShippingModeProvider({ children }: { children: ReactNode }) {
-  const [mode, setModeState] = useState<ShippingMode>(getShippingMode);
+  const [mode] = useState<ShippingMode>(getShippingMode);
   const [intro, setIntro] = useState(hasPendingIntro);
 
-  const setMode = (next: ShippingMode) => {
-    saveShippingMode(next);
-    setModeState(next);
+  const setMode = (next: ShippingMode, path?: string) => {
+    if (next === mode) return;
+    const home = path || (window.location.pathname.includes('/admin/') || window.location.pathname.includes('/internal-crm') ? '/admin/dashboard' : '/user/home');
+    window.location.assign(modeUrl(next, home));
   };
 
   return (

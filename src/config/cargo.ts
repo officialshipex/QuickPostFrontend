@@ -22,5 +22,29 @@ export const CARGO_ALLOWED_PATHS: string[] = [
   '/user/settings',
 ];
 
+/* Cargo admin (/admin/*, /internal-crm/*) — Dashboard, CRM, Orders, NDR, Weight Discrepancy,
+   Courier (Couriers, Rate Card), Tools → Announcements, Setup & Manage → Pickup Address.
+   Dashboard / Orders / NDR / Weight Discrepancy reuse the Cargo pages above (they handle the admin view);
+   the rest are separate Cargo admin pages in pages/cargo/*. */
+export const CARGO_ADMIN_ALLOWED_PATHS: string[] = [
+  '/admin/dashboard',
+  '/internal-crm',
+  '/admin/orders',
+  '/admin/ndr',
+  '/admin/weight-discrepancy',
+  '/admin/couriers',
+  '/admin/rate-card',
+  '/admin/announcement',
+  '/admin/settings/pickup-address',
+  // Pages reached from Orders, and the admin's own profile
+  '/admin/order-tracking',
+  '/admin/add-order',
+  '/admin/pickup-manifest',
+  '/admin/profile',
+];
+
 export const isCargoAllowedPath = (path: string) =>
-  CARGO_ALLOWED_PATHS.some(p => path === p || path.startsWith(p + '/'));
+  [...CARGO_ALLOWED_PATHS, ...CARGO_ADMIN_ALLOWED_PATHS].some(p => path === p || path.startsWith(p + '/'));
+
+/** True for routes that belong to the admin panel (Cargo admin redirects to its dashboard). */
+export const isAdminPanelPath = (path: string) => path.startsWith('/admin/') || path.startsWith('/internal-crm');

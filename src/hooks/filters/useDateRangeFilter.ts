@@ -1,3 +1,4 @@
+import { appPathname } from '../../utils/shippingMode';
 import { useEffect, useRef, useState } from 'react';
 import { getToken } from '../../utils/session';
 
@@ -14,7 +15,7 @@ export function getLast7DaysStr(): [string, string] {
    on logout / a new login, and is cleared when the seller goes back to the default
    (last 7 days) or clears the filter. Admin pages keep their own per-page range. */
 const SHARED_KEY = 'qp_date_range';
-const isSellerSide = () => typeof window !== 'undefined' && window.location.pathname.startsWith('/user/');
+const isSellerSide = () => typeof window !== 'undefined' && appPathname().startsWith('/user/');
 const tokenTag = () => (getToken() || '').slice(-16);
 
 function readSharedRange(): [string, string] | null {

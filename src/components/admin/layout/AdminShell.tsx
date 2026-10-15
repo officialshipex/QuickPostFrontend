@@ -11,7 +11,7 @@ import { AdminLayoutShellProvider } from './AdminLayoutContext';
 import { WhatsNewCard } from '../../ui/WhatsNewCard';
 import { ShippingModeProvider } from '../../../context/ShippingModeProvider';
 import { useShippingMode } from '../../../context/shippingMode';
-import { isCargoAllowedPath } from '../../../config/cargo';
+import { isAdminPanelPath, isCargoAllowedPath } from '../../../config/cargo';
 
 // In Cargo mode only the sections in config/cargo.ts are reachable; anything else lands on Home.
 function CargoRouteGuard() {
@@ -19,6 +19,9 @@ function CargoRouteGuard() {
   const { isCargo } = useShippingMode();
   if (isCargo && pathname.startsWith('/user/') && !isCargoAllowedPath(pathname)) {
     return <Navigate to="/user/home" replace />;
+  }
+  if (isCargo && isAdminPanelPath(pathname) && !isCargoAllowedPath(pathname)) {
+    return <Navigate to="/admin/dashboard" replace />;
   }
   return <Outlet />;
 }

@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAdminTab } from '../../../context/AdminUserContext';
 import { useShippingMode } from '../../../context/shippingMode';
-import { isCargoAllowedPath } from '../../../config/cargo';
+import { isAdminPanelPath, isCargoAllowedPath } from '../../../config/cargo';
 import { ModeSwitch } from './ModeSwitch';
+import { AdminCargoSwitch } from './AdminCargoSwitch';
 import { hasPermission, showAccessDenied } from '../../../utils/permissions';
 import {
   Home,
@@ -202,7 +203,7 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
   const isAdminView = isAdmin && adminTab;
   const isImpersonating = !!localStorage.getItem('admin_token_backup');
   const { isCargo } = useShippingMode();
-  const cargoView = isCargo && !isAdminView;
+  const cargoView = isCargo;
 
   // Replace /admin/ prefix with /user/ when in user mode
   const resolvePath = (path: string) => {
@@ -232,7 +233,7 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
     if (group.divider) return true;
     if (group.adminOnly && !isAdminView) return false;
     if (group.userOnly && isAdminView) return false;
-    if (cargoView && group.path && !isCargoAllowedPath(group.path === '/admin/dashboard' ? '/user/dashboard' : resolvePath(group.path))) return false;
+    if (cargoView && group.path && !isCargoAllowedPath(group.path === '/admin/dashboard' ? (isAdminView ? '/admin/dashboard' : '/user/dashboard') : resolvePath(group.path))) return false;
     if (group.items) return filterItems(group.items).length > 0;
     return true;
   };
@@ -416,6 +417,11 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
             {!isAdminView && location.pathname === '/user/home' && (
               <div className="px-5 pt-4">
                 <ModeSwitch variant="dark" layoutId="mode-switch-pill-drawer" />
+              </div>
+            )}
+            {isAdminPanelPath(location.pathname) && (
+              <div className="px-5 pt-4">
+                <AdminCargoSwitch variant="dark" />
               </div>
             )}
 

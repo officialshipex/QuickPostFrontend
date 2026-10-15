@@ -1,3 +1,4 @@
+import { appPathname } from '../../utils/shippingMode';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
@@ -839,7 +840,7 @@ const SERVICE_LABELS: Record<string, string> = {
 
 function AICallingTab({ settings, targetUserId, onUpdate }: { settings: NotifSettings; targetUserId: string | null; onUpdate: (s: NotifSettings) => void }) {
   const navigate = useNavigate();
-  const isAdminView = window.location.pathname.startsWith('/admin');
+  const isAdminView = appPathname().startsWith('/admin');
   const [saving, setSaving] = useState<string | null>(null);
   const { toast, showToast: _aiShowToast, closeToast: closeAiToast } = useToast(2500);
 

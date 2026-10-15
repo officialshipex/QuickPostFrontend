@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Package, Truck } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 import { useShippingMode, type ShippingMode } from '../../../context/shippingMode';
 import { cargoTabUrl } from '../../../utils/shippingMode';
 import { ModeTransition } from './ModeTransition';
@@ -19,7 +18,6 @@ const OPTIONS: { mode: ShippingMode; label: string; icon: typeof Package }[] = [
 
 export function ModeSwitch({ variant = 'light', layoutId = 'mode-switch-pill' }: { variant?: 'light' | 'dark'; layoutId?: string }) {
   const { mode, setMode } = useShippingMode();
-  const navigate = useNavigate();
   const dark = variant === 'dark';
 
   const [pending, setPending] = useState<ShippingMode | null>(null);
@@ -35,11 +33,8 @@ export function ModeSwitch({ variant = 'light', layoutId = 'mode-switch-pill' }:
 
   const finish = () => {
     if (!pending) return;
-    setMode(pending);
-    navigate('/user/home');
-    window.scrollTo({ top: 0 });
-    // Let the new page paint under the overlay before fading it out.
-    setTimeout(() => setPending(null), 150);
+    // Full navigation to the other mode's URL (/cargo/... or the plain B2C path).
+    setMode(pending, '/user/home');
   };
 
   const transition = <ModeTransition from={mode} to={pending} onDone={finish} />;

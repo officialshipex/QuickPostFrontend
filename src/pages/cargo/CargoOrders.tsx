@@ -27,13 +27,12 @@ import { getSharedOrDefaultRange, useDateRangeFilter } from '../../hooks/filters
 import { useFilterApplyState } from '../../hooks/filters/useFilterApplyState';
 import { TableLoader } from '../../components/ui/TableLoader';
 import { ShineButton } from '../../components/ui/ShineButton';
-import { EmptyState } from '../../components/ui/EmptyState';
 import { CargoEmptyState } from './CargoEmptyState';
 import { TruncatedText } from '../../components/ui/TruncatedText';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
 import { StatusRibbon } from '../../components/ui/StatusRibbon';
-import { AdminPickupManifest } from '../admin/AdminPickupManifest';
+import { CargoPickupManifest } from './CargoPickupManifest';
 import { useAdminTab } from '../../context/AdminUserContext';
 import { ShipOrderModal } from '../../components/admin/orders/ShipOrderModal';
 import { BulkShipModal } from '../../components/admin/orders/BulkShipModal';
@@ -1302,15 +1301,6 @@ export function CargoOrders() {
   };
 
   // ── Table column count (for empty-state colSpan) ──
-  const colCount = () => {
-    let n = 2; // checkbox + (User col if admin or just order)
-    if (isAdminView) n++; // separate User col
-    if (isPMTab) n += 5; // Pickup ID, Pickup, Pickup Date, Total/Picked, Ageing
-    else { n += 4; if (showShipmentCol) n++; } // Order, Product, Package, Payment, Customer, Pickup, [Shipment]
-    n += 2; // Status + Actions
-    if (showLastUpdateCol) n++;
-    return n;
-  };
 
   return (
     <AdminLayout>
@@ -1692,7 +1682,7 @@ export function CargoOrders() {
         {/* ── Pickup & Manifest tab — separate component with its own API + UI ── */}
         {isPMTab && (
           <div className="flex-1 min-h-0 overflow-hidden border-t border-[#E2E8F0]">
-            <AdminPickupManifest
+            <CargoPickupManifest
               isAdminView={isAdminView}
               hideMobileSearchBar
               mobileSearchOverride={pmMobileSearch}
@@ -1768,8 +1758,9 @@ export function CargoOrders() {
                 <tbody className="text-[11px] text-[#475569]">
                   {paginatedOrders.length === 0 ? (
                     <tr>
-                      <td colSpan={colCount()} className="text-center">
-                        {isNewTab ? <CargoEmptyState /> : <EmptyState title="No orders found" subtitle="Try changing filters" />}
+                      {/* colSpan wider than the table — the browser clamps it to the real column count, so the empty state spans the full width */}
+                      <td colSpan={100} className="text-center">
+                        <CargoEmptyState />
                       </td>
                     </tr>
                   ) : paginatedOrders.map((order, _idx) => (
@@ -2045,7 +2036,7 @@ export function CargoOrders() {
             {loading && <TableLoader />}
             {paginatedOrders.length === 0 ? (
               <div className="flex items-center justify-center min-h-[60vh]">
-                {isNewTab ? <CargoEmptyState compact /> : <EmptyState title="No orders found" subtitle="Try changing filters" />}
+                <CargoEmptyState compact />
               </div>
             ) : (
               <div className="p-2 space-y-2">
