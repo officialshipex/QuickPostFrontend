@@ -4,6 +4,7 @@ import { apiClient } from '../../services/apiClient';
 import { Toast } from './Toast';
 import { useToast } from '../../hooks/useToast';
 import { Wallet, Lock, Building2, UserCircle, FileText, Banknote, Scale, Archive } from 'lucide-react';
+import { CodAdjustmentBadge } from './CodAdjustments';
 
 interface Props {
   userId: string;
@@ -400,8 +401,13 @@ export function TransferCODModal({ userId, selectedRemittanceIds, type = 'seller
 
                           return (
                             <tr key={idStr} className="text-[13px] text-[#0F172A] hover:bg-[#F8FAFC] transition-colors">
-                              <td className="py-4 px-5 font-bold text-[#00A86B]">{row.remittanceId}</td>
-                              <td className="py-4 px-5 font-medium">{fmt(Number(row.codAvailable || 0) + Number(row.amountCreditedToWallet || 0) + Number(row.earlyCodCharges || 0))}</td>
+                              <td className="py-4 px-5 font-bold text-[#00A86B]">
+                                <div className="flex flex-col items-start">
+                                  {row.remittanceId}
+                                  <CodAdjustmentBadge adjustments={row.adjustments} remittanceId={row.remittanceId} />
+                                </div>
+                              </td>
+                              <td className="py-4 px-5 font-medium">{fmt(Number(row.codAvailable || 0) + Number(row.amountCreditedToWallet || 0) + Number(row.earlyCodCharges || 0) + Number(row.recoveredAmount || 0))}</td>
                               <td className="py-4 px-5 font-medium">{fmt(Number(row.amountCreditedToWallet || 0))}</td>
                               <td className="py-4 px-5 font-medium">{fmt(Number(row.earlyCodCharges || 0))}</td>
                               <td className="py-4 px-5 font-bold text-[#00A86B]">{fmt(row.remittanceAmount)}</td>
@@ -447,6 +453,7 @@ export function TransferCODModal({ userId, selectedRemittanceIds, type = 'seller
                       <div key={idStr} className="bg-white border border-[#E2E8F0] rounded-2xl p-3 shadow-sm">
                         <div className="flex items-center justify-between mb-2 gap-2">
                           <span className="text-[12px] font-bold text-[#00A86B] truncate">{row.remittanceId}</span>
+                          <CodAdjustmentBadge adjustments={row.adjustments} remittanceId={row.remittanceId} />
                           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold text-[#F59E0B] border border-[#F59E0B]/30 bg-[#FFFBEB] shrink-0">
                             <span className="w-1.5 h-1.5 rounded-full bg-[#F59E0B] mr-1"></span>
                             {row.status || 'Pending'}
@@ -455,7 +462,7 @@ export function TransferCODModal({ userId, selectedRemittanceIds, type = 'seller
                         <div className="grid grid-cols-2 gap-x-3 gap-y-2 bg-[#F8FAFC] rounded-xl px-3 py-2.5 mb-2">
                           <div>
                             <div className="text-[9px] font-semibold text-[#94A3B8] uppercase tracking-wide">Total COD</div>
-                            <div className="text-[12px] font-normal text-[#0F172A] mt-0.5">{fmt(Number(row.codAvailable || 0) + Number(row.amountCreditedToWallet || 0) + Number(row.earlyCodCharges || 0))}</div>
+                            <div className="text-[12px] font-normal text-[#0F172A] mt-0.5">{fmt(Number(row.codAvailable || 0) + Number(row.amountCreditedToWallet || 0) + Number(row.earlyCodCharges || 0) + Number(row.recoveredAmount || 0))}</div>
                           </div>
                           <div>
                             <div className="text-[9px] font-semibold text-[#94A3B8] uppercase tracking-wide">Credited to Wallet</div>

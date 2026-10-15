@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
-  AlertTriangle, ArrowLeft, Check, CheckCircle2, ChevronRight, Copy, ExternalLink, Eye, Globe, Info, LayoutList, Loader2, Lock,
+  AlertTriangle, Check, CheckCircle2, Copy, ExternalLink, Eye, Globe, Info, LayoutList, Loader2, Lock,
   Palette, PanelBottom, PanelTop, PackageSearch, Pencil, Rocket, Sparkles, X,
 } from 'lucide-react';
 import { AdminLayout } from '../../../../components/admin/layout/AdminLayout';
@@ -58,7 +57,6 @@ function useViewportHeight() {
 }
 
 export function BrandedTrackingBuilder() {
-  const navigate = useNavigate();
   const { loadingAdminTab } = useAdminTab();
   const { toast, showToast, closeToast } = useToast(3500);
   const viewportHeight = useViewportHeight();
@@ -302,15 +300,6 @@ export function BrandedTrackingBuilder() {
   return (
     <AdminLayout>
       <div className="max-w-[1400px] mx-auto pb-10">
-        {/* Breadcrumb */}
-        <nav className="flex items-center gap-1.5 text-[12px] font-semibold text-[#94A3B8] mb-3" aria-label="Breadcrumb">
-          <button type="button" onClick={() => navigate('/user/vas/auto-secure')} className="inline-flex items-center gap-1 hover:text-[#00A86B] transition-colors">
-            <ArrowLeft className="w-3.5 h-3.5" /> Value Added Services
-          </button>
-          <ChevronRight className="w-3.5 h-3.5" />
-          <span className="text-[#475569]">Branded Tracking Page</span>
-        </nav>
-
         {/* Page header */}
         <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-4 mb-4">
           <div className="min-w-0">

@@ -1,4 +1,4 @@
-import { Mail, Phone } from 'lucide-react';
+import { Mail, MapPin, Phone } from 'lucide-react';
 import type { TrackingPageConfig } from '../types';
 import { mailUrl, safeUrl, telUrl, whatsappUrl, type ThemeTokens } from '../theme';
 import { WhatsappIcon } from './BrandIcons';
@@ -20,6 +20,8 @@ export function TrackingFooter({ config, t }: { config: TrackingPageConfig; t: T
     f.showPhone && s.supportPhone && { key: 'phone', icon: Phone, value: s.supportPhone, href: telUrl(s.supportPhone) },
     f.showEmail && s.supportEmail && { key: 'email', icon: Mail, value: s.supportEmail, href: mailUrl(s.supportEmail) },
     f.showWhatsapp && s.whatsappNumber && { key: 'wa', icon: WhatsappIcon, value: s.whatsappNumber, href: whatsappUrl(s.whatsappNumber) },
+    // Older saved pages have no showAddress yet: the address shows unless it was switched off.
+    f.showAddress !== false && s.address?.trim() && { key: 'address', icon: MapPin, value: s.address.trim(), href: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.address.trim())}` },
   ].filter(Boolean) as { key: string; icon: React.ElementType; value: string; href?: string }[];
 
   const linkClass = 'text-[13px] hover:underline underline-offset-4 transition-opacity hover:opacity-100 opacity-85';
@@ -61,8 +63,8 @@ export function TrackingFooter({ config, t }: { config: TrackingPageConfig; t: T
               <ul className="space-y-2.5">
                 {contacts.map((c) => (
                   <li key={c.key}>
-                    <a href={c.href} target={c.key === 'wa' ? '_blank' : undefined} rel="noopener noreferrer" className={`${linkClass} inline-flex items-center gap-2 break-all`}>
-                      <c.icon className="w-4 h-4 shrink-0" /> {c.value}
+                    <a href={c.href} target={c.key === 'wa' || c.key === 'address' ? '_blank' : undefined} rel="noopener noreferrer" className={`${linkClass} inline-flex ${c.key === 'address' ? 'items-start' : 'items-center'} gap-2 break-words max-w-[300px]`}>
+                      <c.icon className={`w-4 h-4 shrink-0 ${c.key === 'address' ? 'mt-0.5' : ''}`} /> <span className="whitespace-pre-line">{c.value}</span>
                     </a>
                   </li>
                 ))}

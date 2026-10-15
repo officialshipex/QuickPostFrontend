@@ -209,7 +209,7 @@ export function ContentBlock({ section, config, t, isPreview }: BlockProps & { s
           <div className="flex-1 min-w-0 space-y-4">
             <SectionHeading title={d.heading} body={d.body} t={t} />
             <div className="grid grid-cols-1 @2xl:grid-cols-3 gap-3 text-[13px]">
-              {store.address && <p className="flex items-start gap-2" style={{ color: t.muted }}><MapPin className="w-4 h-4 shrink-0 mt-0.5" style={{ color: t.primary }} />{store.address}</p>}
+              {store.address && <p className="flex items-start gap-2" style={{ color: t.muted }}><MapPin className="w-4 h-4 shrink-0 mt-0.5" style={{ color: t.primary }} /><span className="whitespace-pre-line">{store.address}</span></p>}
               {store.supportHours && <p className="flex items-start gap-2" style={{ color: t.muted }}><Clock className="w-4 h-4 shrink-0 mt-0.5" style={{ color: t.primary }} />{store.supportHours}</p>}
               {store.websiteUrl && (
                 <a href={safeUrl(store.websiteUrl)} target="_blank" rel="noopener noreferrer" className="flex items-start gap-2 font-semibold hover:underline" style={{ color: t.primary }}>
@@ -278,7 +278,7 @@ export function ContentBlock({ section, config, t, isPreview }: BlockProps & { s
                   <span className="w-9 h-9 flex items-center justify-center shrink-0" style={{ background: `color-mix(in srgb, ${t.primary} 12%, transparent)`, color: t.primary, borderRadius: t.radiusSm }}><c.icon className="w-4 h-4" /></span>
                   <span className="min-w-0">
                     <span className="block text-[12px] font-semibold" style={{ color: t.muted }}>{c.label}</span>
-                    <span className="block text-[13.5px] font-semibold break-words" style={{ color: t.text }}>{c.value}</span>
+                    <span className="block text-[13.5px] font-semibold break-words whitespace-pre-line" style={{ color: t.text }}>{c.value}</span>
                   </span>
                 </a>
               ))}
