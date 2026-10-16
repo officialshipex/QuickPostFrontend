@@ -25,6 +25,8 @@ interface AdminTabContextType {
   employeeAccessRights: Record<string, EmployeeAccessRights>;
   /** false until the employee's live rights have been fetched (rights are never read from the token) */
   employeeRightsLoaded: boolean;
+  /** Admin-panel employee on the Sales team — works from the Sales Dashboard, not the main dashboard. */
+  isSalesEmployee: boolean;
   parentEmail: string;
   showOnboarding: boolean;
   setShowOnboarding: (value: boolean) => void;
@@ -48,6 +50,7 @@ const AdminTabContext = createContext<AdminTabContextType>({
   employeeId: '',
   employeeAccessRights: {},
   employeeRightsLoaded: false,
+  isSalesEmployee: false,
   parentEmail: '',
   showOnboarding: false,
   setShowOnboarding: () => {},
@@ -74,6 +77,7 @@ export function AdminUserProvider({ children }: { children: ReactNode }) {
   const [employeeId, setEmployeeId] = useState('');
   const [employeeAccessRights, setEmployeeAccessRights] = useState<Record<string, EmployeeAccessRights>>({});
   const [employeeRightsLoaded, setEmployeeRightsLoaded] = useState(false);
+  const [employeeTeam, setEmployeeTeam] = useState('');
   const [parentEmail, setParentEmail] = useState('');
   const [showOnboarding, setShowOnboarding] = useState(false);
 
@@ -94,6 +98,7 @@ export function AdminUserProvider({ children }: { children: ReactNode }) {
         const parentUser = res.data?.user;
         if (employee) {
           setEmployeeAccessRights(employee.accessRights || {});
+          setEmployeeTeam(employee.team || '');
           setUserName(employee.fullName || '');
           setUserEmail(employee.email || '');
           setParentEmail(parentUser?.email || '');
@@ -160,6 +165,10 @@ export function AdminUserProvider({ children }: { children: ReactNode }) {
       isAdmin, adminTab, loadingAdminTab, currentUserId,
       userName, userEmail, businessName, profileImage, walletBalance, walletHold, creditLimit,
       isEmployee, employeeId, employeeAccessRights, employeeRightsLoaded, parentEmail,
+      // Sales team = team 'sales' from the backend; until the backend returns `team`, an admin-panel
+      // employee holding the Sales Dashboard permission counts as Sales.
+      isSalesEmployee: isEmployee && (employeeTeam === 'sales'
+        || (!employeeTeam && isAdmin && employeeAccessRights?.sales?.view === true)),
       showOnboarding, setShowOnboarding,
       toggleAdminTab,
       refetchUser: fetchAdminTab,

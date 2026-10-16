@@ -25,6 +25,8 @@ import {
   Calendar,
   Mail,
   Building2,
+  Target,
+  ListChecks,
   RotateCcw,
   X,
   ChevronRight,
@@ -84,6 +86,20 @@ const MENU_GROUPS: MenuGroup[] = [
     isBeta: true,
     adminOnly: true,
     permission: 'internalCrm',
+  },
+  {
+    label: 'Sales',
+    icon: Target,
+    path: '/admin/sales',
+    adminOnly: true,
+    permission: 'sales',
+  },
+  {
+    label: 'Tasks',
+    icon: ListChecks,
+    path: '/admin/tasks',
+    adminOnly: true,
+    permission: 'sales',
   },
   {
     label: 'Orders',
@@ -199,7 +215,7 @@ interface AdminSidebarProps {
 export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSidebarProps) {
   const location = useLocation();
   const [mobileExpandedGroup, setMobileExpandedGroup] = useState<string | null>(null);
-  const { isAdmin, adminTab, isEmployee, employeeAccessRights } = useAdminTab();
+  const { isAdmin, adminTab, isEmployee, employeeAccessRights, isSalesEmployee } = useAdminTab();
   const isAdminView = isAdmin && adminTab;
   const isImpersonating = !!localStorage.getItem('admin_token_backup');
   const { isCargo } = useShippingMode();
@@ -217,6 +233,9 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
   const isLocked = (permission?: string) =>
     isEmployee && !!permission && !hasPermission(employeeAccessRights, permission, 'view');
 
+  // Admin-panel employees only see the modules they were given View access to (no locked items).
+  const hideLocked = isEmployee && isAdminView;
+
   const notifyLocked = (label?: string) =>
     showAccessDenied(`You don't have access to ${label ? `"${label}"` : 'this page'}. Please contact your administrator.`);
 
@@ -226,14 +245,20 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
       if (item.userOnly && isAdminView) return false;
       if (cargoView && !isCargoAllowedPath(resolvePath(item.path))) return false;
       if (isEmployee && item.noEmployee) return false;
+      if (hideLocked && isLocked(item.permission)) return false;
       return true;
     });
 
   const shouldShowGroup = (group: MenuGroup) => {
     if (group.divider) return true;
+    // Sales employees work from the Sales Dashboard — the main dashboard is hidden for them.
+    if (isSalesEmployee && group.path === '/admin/dashboard') return false;
+    // Main dashboard: admin-panel employees only see it when given the Dashboard permission.
+    if (hideLocked && group.path === '/admin/dashboard' && !hasPermission(employeeAccessRights, 'dashboard', 'view')) return false;
     if (group.adminOnly && !isAdminView) return false;
     if (group.userOnly && isAdminView) return false;
     if (cargoView && group.path && !isCargoAllowedPath(group.path === '/admin/dashboard' ? (isAdminView ? '/admin/dashboard' : '/user/dashboard') : resolvePath(group.path))) return false;
+    if (hideLocked && group.path && isLocked(group.permission)) return false;
     if (group.items) return filterItems(group.items).length > 0;
     return true;
   };
@@ -401,8 +426,8 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
                 </div>
                 <div className="flex flex-col leading-none">
                   <span className="text-white text-[15px] font-bold tracking-wide">QuickPost</span>
-                  {cargoView && (
-                    <span className="mt-1 text-[9.5px] font-extrabold tracking-[0.24em] text-[#34D399] uppercase">Cargo</span>
+                  {(isSalesEmployee || cargoView) && (
+                    <span className="mt-1 text-[9.5px] font-extrabold tracking-[0.24em] text-[#34D399] uppercase">{isSalesEmployee ? 'Sales' : 'Cargo'}</span>
                   )}
                 </div>
               </div>
@@ -419,7 +444,7 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
                 <ModeSwitch variant="dark" layoutId="mode-switch-pill-drawer" />
               </div>
             )}
-            {isAdminPanelPath(location.pathname) && (
+            {isAdminPanelPath(location.pathname) && !isSalesEmployee && (
               <div className="px-5 pt-4">
                 <AdminCargoSwitch variant="dark" />
               </div>

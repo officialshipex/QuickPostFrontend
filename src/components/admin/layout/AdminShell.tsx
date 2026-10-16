@@ -6,7 +6,7 @@ import { AdminHeader } from './AdminHeader';
 import { TableLoader } from '../../ui/TableLoader';
 import { AccessDeniedModal } from '../../ui/AccessDeniedModal';
 import { useAdminTab } from '../../../context/AdminUserContext';
-import { canAccessRoute, NO_ACCESS_MESSAGE } from '../../../utils/permissions';
+import { adminEmployeeLanding, canAccessRoute, hasPermission, NO_ACCESS_MESSAGE } from '../../../utils/permissions';
 import { AdminLayoutShellProvider } from './AdminLayoutContext';
 import { WhatsNewCard } from '../../ui/WhatsNewCard';
 import { ShippingModeProvider } from '../../../context/ShippingModeProvider';
@@ -17,6 +17,16 @@ import { isAdminPanelPath, isCargoAllowedPath } from '../../../config/cargo';
 function CargoRouteGuard() {
   const { pathname } = useLocation();
   const { isCargo } = useShippingMode();
+  const { isSalesEmployee, isEmployee, isAdmin, adminTab, employeeAccessRights, employeeRightsLoaded } = useAdminTab();
+  // Sales employees land on (and are kept on) the Sales Dashboard instead of the main dashboard.
+  if (isSalesEmployee && pathname === '/admin/dashboard') {
+    return <Navigate to="/admin/sales" replace />;
+  }
+  // Admin-panel employees without the Dashboard permission go to their first permitted page instead.
+  if (isEmployee && isAdmin && adminTab && employeeRightsLoaded && pathname === '/admin/dashboard'
+      && !hasPermission(employeeAccessRights, 'dashboard', 'view')) {
+    return <Navigate to={adminEmployeeLanding(employeeAccessRights)} replace />;
+  }
   if (isCargo && pathname.startsWith('/user/') && !isCargoAllowedPath(pathname)) {
     return <Navigate to="/user/home" replace />;
   }

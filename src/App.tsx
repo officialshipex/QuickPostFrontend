@@ -65,6 +65,8 @@ import { AdminProfile } from './pages/admin/AdminProfile';
 import { AdminOrderTracking } from './pages/admin/AdminOrderTracking';
 import { CARGO_BASE, appPathname, isCargoUrl } from './utils/shippingMode';
 import { BookSession } from './pages/BookSession';
+import { SalesDashboard } from './pages/admin/sales/SalesDashboard';
+import { SalesTasks } from './pages/admin/sales/SalesTasks';
 import { ModeRoute } from './pages/cargo/ModeRoute';
 import { CargoHome } from './pages/cargo/CargoHome';
 import { CargoRateCalculator } from './pages/cargo/CargoRateCalculator';
@@ -293,6 +295,8 @@ function App() {
               {/* <Route path="/admin/settings" element={<AdminSettings />} /> */}
               <Route path="/admin/accounts" element={<AdminAccounts />} />
               <Route path="/admin/companies" element={<AdminCompanies />} />
+              <Route path="/admin/sales" element={<SalesDashboard />} />
+              <Route path="/admin/tasks" element={<SalesTasks />} />
               <Route path="/admin/audit" element={<AdminAuditLogs />} />
               <Route path="/admin/profile" element={<AdminProfile />} />
               <Route path="/admin/company" element={<AdminSettings />} />

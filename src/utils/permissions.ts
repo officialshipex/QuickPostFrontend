@@ -33,9 +33,11 @@ export interface PermModule {
 }
 
 export const ADMIN_MODULES: PermModule[] = [
+  { key: 'dashboard', label: 'Dashboard', desc: 'Main admin dashboard and business overview', section: 'Overview' },
   { key: 'orders', label: 'Orders', desc: 'View and manage all shipment orders', section: 'Operations' },
   { key: 'ndr', label: 'NDR', desc: 'Non-delivery reports and follow-ups', section: 'Operations' },
   { key: 'internalCrm', label: 'Internal CRM', desc: 'Shipments, sellers, leads and escalations (beta)', section: 'Operations' },
+  { key: 'sales', label: 'Sales Dashboard', desc: 'Calls, referred sellers, follow-ups and targets', section: 'Sales' },
   { key: 'wallet', label: 'Wallet', desc: 'Seller wallets and transactions', section: 'Finance', group: 'finance' },
   { key: 'cod', label: 'COD', desc: 'COD remittance', section: 'Finance', group: 'finance' },
   { key: 'reportsHub', label: 'Reports', desc: 'View and download reports', section: 'Reports', group: 'reports' },
@@ -167,6 +169,8 @@ const ROUTE_MODULES: [string, string | null][] = [
   ['/support', 'support'],
   ['/referral', 'referral'],
   ['/internal-crm', 'internalCrm'],
+  ['/sales', 'sales'],
+  ['/tasks', 'sales'],
   // Owner-managed: employees never open these (the backend is the real boundary for /companies)
   ['/kyc', null],
   ['/employees', null],
@@ -195,6 +199,18 @@ export function canAccessRoute(accessRights: Record<string, any> | undefined | n
   if (!rule.restricted) return true;
   if (rule.module === null) return false;
   return hasPermission(accessRights, rule.module, 'view');
+}
+
+/** Landing page for an admin-panel employee: the first module they may view (main dashboard only if permitted). */
+const ADMIN_LANDING: [string, string][] = [
+  ['dashboard', '/admin/dashboard'], ['sales', '/admin/sales'], ['orders', '/admin/orders'], ['ndr', '/admin/ndr'],
+  ['internalCrm', '/internal-crm/shipments'], ['wallet', '/admin/wallet'], ['cod', '/admin/cod'], ['reportsHub', '/admin/reports'],
+  ['weightDiscrepancy', '/admin/weight-discrepancy'], ['users', '/admin/users'], ['couriers', '/admin/couriers'],
+  ['rateCard', '/admin/rate-card'], ['support', '/admin/support'],
+];
+export function adminEmployeeLanding(accessRights: Record<string, any> | undefined | null): string { // eslint-disable-line @typescript-eslint/no-explicit-any
+  const hit = ADMIN_LANDING.find(([key]) => hasPermission(accessRights, key, 'view'));
+  return hit ? hit[1] : '/admin/profile';
 }
 
 export const NO_ACCESS_MESSAGE = "You don't have access to this page. Please contact your administrator.";

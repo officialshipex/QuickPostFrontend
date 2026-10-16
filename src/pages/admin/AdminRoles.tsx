@@ -37,6 +37,8 @@ interface Employee {
   parentType: 'admin' | 'user';
   accessRights: Record<string, any>;
   createdAt: string;
+  /** Admin-panel employees: 'sales' gets the Sales Dashboard */
+  team?: 'operations' | 'sales';
 }
 
 // ─── Permission Matrix ────────────────────────────────────────────────────────
@@ -143,6 +145,7 @@ function EmployeeModal({ employee, onClose, onSaved, panel }: EmployeeModalProps
   const [email, setEmail]           = useState(employee?.email || '');
   const [contactNumber, setContact] = useState(employee?.contactNumber || '');
   const [role, setRole]             = useState(employee?.role || '');
+  const [team, setTeam]             = useState<'operations' | 'sales'>(employee?.team || 'operations');
   const [password, setPassword]     = useState('');
   // Stored rights -> catalog shape (an employee saved before the per-item keys keeps what they had)
   const [accessRights, setAccessRights] = useState<AccessRights>(() =>
@@ -184,7 +187,7 @@ function EmployeeModal({ employee, onClose, onSaved, panel }: EmployeeModalProps
     const storedRights = toStoredRights(accessRights, panel);
     try {
       if (isEdit) {
-        const body: any = { fullName: fullName.trim(), contactNumber: contactNumber.trim(), role: role.trim(), accessRights: storedRights, mode: panel };
+        const body: any = { fullName: fullName.trim(), contactNumber: contactNumber.trim(), role: role.trim(), accessRights: storedRights, mode: panel, ...(isAdminView ? { team } : {}) };
         if (password) body.password = password;
         const res = await apiClient.put(`/staffRole/updateRole/${employee!._id}`, body);
         onSaved(res.data.updatedRole);
@@ -192,7 +195,7 @@ function EmployeeModal({ employee, onClose, onSaved, panel }: EmployeeModalProps
         // `mode` tells the server which panel's employee this is (an admin works in both panels)
         const res = await apiClient.post('/staffRole/createRole', {
           fullName: fullName.trim(), email: email.trim(), contactNumber: contactNumber.trim(),
-          password, role: role.trim(), accessRights: storedRights, mode: panel,
+          password, role: role.trim(), accessRights: storedRights, mode: panel, ...(isAdminView ? { team } : {}),
         });
         onSaved(res.data.data.user as any);
         // Refetch to get full employee doc
@@ -284,6 +287,31 @@ function EmployeeModal({ employee, onClose, onSaved, panel }: EmployeeModalProps
                     </button>
                   </>,
                   isEdit ? 'Leave blank to keep the current password.' : `At least ${MIN_PASSWORD_LENGTH} characters.`, true)}
+                {isAdminView && (
+                  <div className="sm:col-span-2">
+                    <label className={labelCls}>Team</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {([
+                        { key: 'operations', title: 'Operations', hint: 'Orders, NDR, finance, support…' },
+                        { key: 'sales', title: 'Sales', hint: 'Gets the Sales Dashboard — calls, referred sellers, targets' },
+                      ] as const).map(t => {
+                        const on = team === t.key;
+                        return (
+                          <button key={t.key} type="button" role="radio" aria-checked={on}
+                            onClick={() => {
+                              setTeam(t.key);
+                              // Sales employees always get the Sales Dashboard; other modules stay as chosen.
+                              if (t.key === 'sales') setAccessRights(r => ({ ...r, sales: { ...(r.sales || { edit: false, delete: false }), view: true } }));
+                            }}
+                            className={`text-left rounded-xl border px-3.5 py-2.5 transition-colors ${on ? 'border-[#00A86B] bg-[#F0FDF4]' : 'border-[#E2E8F0] hover:border-[#CBD5E1]'}`}>
+                            <div className={`text-[13px] font-semibold ${on ? 'text-[#00A86B]' : 'text-[#0F172A]'}`}>{t.title}</div>
+                            <div className="text-[11.5px] text-[#64748B] mt-0.5">{t.hint}</div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             </section>
 
@@ -297,7 +325,9 @@ function EmployeeModal({ employee, onClose, onSaved, panel }: EmployeeModalProps
                 <span className="text-[11.5px] font-semibold text-[#00A86B] bg-[#F0FDF4] border border-[#DCFCE7] px-2.5 py-0.5 rounded-full tabular-nums">{granted}/{total} modules</span>
               </div>
               <p className="text-[12px] text-[#64748B] mb-3">
-                The employee sees every menu item; items without View access are locked and show a "no access" message when clicked.
+                {isAdminView
+                  ? 'The employee only sees the modules you give View access to — everything else is hidden from their sidebar.'
+                  : 'The employee sees every menu item; items without View access are locked and show a "no access" message when clicked.'}
               </p>
               <PermissionMatrix accessRights={accessRights} onChange={setAccessRights} panel={panel} />
             </section>
@@ -593,6 +623,7 @@ export function AdminRoles() {
                           <td className="py-3 px-4">
                             <span className="inline-flex items-center gap-1.5 px-2.5 h-7 bg-[#F8FAFC] border border-[#EEF2F6] rounded-full text-[12px] font-medium text-[#334155]">
                               <Briefcase className="w-3 h-3 text-[#94A3B8]" />{emp.role}
+                              {emp.team === 'sales' && <span className="ml-1 px-1.5 py-px rounded-md bg-[#F0FDF4] text-[#00A86B] text-[10px] font-bold uppercase tracking-wider">Sales</span>}
                             </span>
                           </td>
                           <td className="py-3 px-4">

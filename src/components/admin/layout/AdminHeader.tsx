@@ -4,6 +4,7 @@ import { Search, LogOut, Bell, User, Building2, Calendar, ChevronDown, Shield, Z
 import { useAuth } from '../../../hooks/useAuth';
 import { ModeSwitch } from './ModeSwitch';
 import { AdminCargoSwitch } from './AdminCargoSwitch';
+import { SalesNotificationBell } from './SalesNotificationBell';
 import { isAdminPanelPath } from '../../../config/cargo';
 import { useShippingMode } from '../../../context/shippingMode';
 import { apiClient } from '../../../services/apiClient';
@@ -29,7 +30,7 @@ interface AdminHeaderProps {
 export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
   const { logout } = useAuth();
   const { isCargo } = useShippingMode();
-  const { isAdmin, adminTab, toggleAdminTab, userName, userEmail, businessName, profileImage, walletBalance: ctxWalletBalance, walletHold, creditLimit, isEmployee, parentEmail, currentUserId, showOnboarding } = useAdminTab();
+  const { isAdmin, adminTab, toggleAdminTab, userName, userEmail, businessName, profileImage, walletBalance: ctxWalletBalance, walletHold, creditLimit, isEmployee, parentEmail, currentUserId, showOnboarding, isSalesEmployee } = useAdminTab();
   const { filters, updateFilter } = useDashboardFilters();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -850,11 +851,11 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
             alt="QuickPost" 
             className="h-16 w-auto object-contain transition-opacity group-hover:opacity-80 scale-[1.5] origin-left ml-2"
           />
-          {/* Cargo product mark — sits under the wordmark, right-aligned like a sub-brand */}
-          {isCargo && (
+          {/* Product mark — sits under the wordmark, right-aligned like a sub-brand (QuickPost Cargo / QuickPost Sales) */}
+          {(isSalesEmployee || isCargo) && (
             <span className="absolute left-[11px] top-[45px] w-[89px] flex items-center justify-end gap-1 pointer-events-none select-none">
               <span className="h-px flex-1 bg-gradient-to-r from-transparent to-[#00A86B]/50" />
-              <span className="text-[9.5px] leading-none font-extrabold tracking-[0.24em] text-[#00A86B] uppercase">Cargo</span>
+              <span className="text-[9.5px] leading-none font-extrabold tracking-[0.24em] text-[#00A86B] uppercase">{isSalesEmployee ? 'Sales' : 'Cargo'}</span>
             </span>
           )}
         </Link>
@@ -959,7 +960,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
       <div className="flex items-center gap-3 shrink-0">
         
         {/* B2C ⇄ Cargo — admin panel (sits before the date filter) */}
-        {isAdminPanelPath(location.pathname) && <AdminCargoSwitch />}
+        {isAdminPanelPath(location.pathname) && !isSalesEmployee && <AdminCargoSwitch />}
 
         {/* Date Filter — also hidden while the user-side account setup / onboarding screen is showing */}
         {!isDateFilterHiddenPage && !showOnboarding && (
@@ -1236,6 +1237,9 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
             </AnimatePresence>
           </div>
         )}
+
+        {/* Sales notifications — overdue / due tasks and follow-ups (Sales team) */}
+        {isSalesEmployee && <SalesNotificationBell />}
 
         {/* Notifications — users only (including admin in user mode) */}
         {!(isAdmin && adminTab) && (
