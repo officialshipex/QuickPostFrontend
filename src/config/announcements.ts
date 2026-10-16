@@ -1,7 +1,7 @@
 /* "What's New" announcements shown to sellers after login (see components/ui/WhatsNewCard).
    To announce something: add an entry with a NEW unique `id`. Ids a seller has already
    dismissed never show again; a new id brings the card back with only the new items.
-   The card shows up to 3 unseen entries for the current page. */
+   The card shows up to 4 unseen entries for the current page and rotates through them automatically. */
 
 export interface Announcement {
   id: string;
@@ -19,20 +19,28 @@ export interface Announcement {
 
 export const ANNOUNCEMENTS: Announcement[] = [
   {
+    id: '2026-10-cargo-launch',
+    tag: 'NEW',
+    title: 'QuickPost Cargo is here',
+    body: 'Ship multi-box and heavy B2B loads with box-wise weights, appointment delivery and To-Pay. Switch to Cargo from your Home page.',
+    cta: 'Explore Cargo',
+    href: '/user/home',
+  },
+  {
+    id: '2026-10-shared-date-filters',
+    tag: 'IMPROVED',
+    title: 'Filters that remember you',
+    body: 'Pick a date range once — Orders, NDR, Weight Discrepancy and Wallet all follow it until you clear it or log out.',
+    cta: 'View Orders',
+    href: '/user/orders',
+  },
+  {
     id: '2026-10-rto-risk',
     tag: 'NEW',
     title: 'RTO Risk on every order',
     body: 'See the return risk on each order before you ship. Catch risky COD orders early and cut return losses.',
     cta: 'View Orders',
     href: '/user/orders',
-  },
-  {
-    id: '2026-10-branded-tracking',
-    tag: 'NEW',
-    title: 'Your own tracking page',
-    body: "Give buyers a tracking page with your logo, colours and offers, not a courier's page.",
-    cta: 'Set it up',
-    href: '/user/vas/branded-tracking',
   },
   {
     id: '2026-10-order-get-help',
@@ -78,6 +86,9 @@ export const ANNOUNCEMENTS: Announcement[] = [
 export const ANNOUNCEMENT_PAGES = ['/user/home', '/user/dashboard', '/user/orders'];
 
 export const ANNOUNCEMENT_DELAY_MS = 2500;
+
+/** How long each announcement stays before the card moves to the next (paused while hovered). */
+export const ANNOUNCEMENT_ROTATE_MS = 5000;
 
 /** true → the card returns on every login (✕ only hides it for the current session).
     Set to false to remember dismissals per seller, so each item is shown only once. */

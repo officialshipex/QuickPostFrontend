@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown, ListOrdered, Loader2, MapPin, X } from 'lucide-react';
 import { apiClient } from '../../../services/apiClient';
+import { cargoApiClient } from '../../../services/cargoApiClient';
+import { useShippingMode } from '../../../context/shippingMode';
 
 // Bulk Ship popup: optionally pick the pickup address for the selected orders and rank the couriers to
 // try first (the same "Courier Priority" as Courier Setup, so it also becomes the account's standing
@@ -105,6 +107,8 @@ function SearchSelect({ options, selected, placeholder, onSelect }: {
 }
 
 export function BulkShipModal({ open, onClose, selectedOrders, userId, onShip }: Props) {
+  // Cargo has its own pickup addresses.
+  const { isCargo } = useShippingMode();
   const [pickupList, setPickupList] = useState<any[]>([]);
   const [pickup, setPickup] = useState<any | null>(null);
   const [services, setServices] = useState<Ranked[]>([]);
@@ -118,7 +122,7 @@ export function BulkShipModal({ open, onClose, selectedOrders, userId, onShip }:
   useEffect(() => {
     if (!open) return;
     setPickup(null); setRanked([]); setError(''); setBusy(false); savedKeys.current = '';
-    apiClient.get('/order/pickupAddress', { params: { limit: 100, ...scope } })
+    (isCargo ? cargoApiClient : apiClient).get('/order/pickupAddress', { params: { limit: 100, ...scope } })
       .then(res => setPickupList(res.data?.data || []))
       .catch(() => setPickupList([]));
     // Courier priority is secondary: a failure here must never block shipping.

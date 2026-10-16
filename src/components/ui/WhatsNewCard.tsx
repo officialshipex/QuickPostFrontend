@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X } from 'lucide-react';
-import { ANNOUNCEMENTS, ANNOUNCEMENT_DELAY_MS, ANNOUNCEMENT_EVERY_LOGIN, ANNOUNCEMENT_PAGES } from '../../config/announcements';
+import { ANNOUNCEMENTS, ANNOUNCEMENT_DELAY_MS, ANNOUNCEMENT_EVERY_LOGIN, ANNOUNCEMENT_PAGES, ANNOUNCEMENT_ROTATE_MS } from '../../config/announcements';
 import { getRoleFromToken, getToken, getUserFromToken } from '../../utils/session';
 import { useShippingMode } from '../../context/shippingMode';
 
@@ -54,7 +54,7 @@ export function WhatsNewCard() {
     return ANNOUNCEMENTS
       .filter(a => onPage(a.pages || ANNOUNCEMENT_PAGES, path))
       .filter(a => !seen.includes(a.id) && !hidden.includes(a.id))
-      .slice(0, 3);
+      .slice(0, 4);
   }, [eligible, inForm, uid, path, hidden]);
 
   // Re-arm the delay and reset the dots whenever the set of items changes (e.g. Home → Channels).
@@ -64,6 +64,9 @@ export function WhatsNewCard() {
   const index = pos.key === groupKey ? pos.i : 0;
   const setIndex = (i: number) => setPos({ key: groupKey, i });
 
+  // Auto-rotate through the announcements; pauses while the card is hovered or focused.
+  const [paused, setPaused] = useState(false);
+
   useEffect(() => {
     if (!groupKey || openKey === groupKey) return;
     const t = setTimeout(() => setOpenKey(groupKey), ANNOUNCEMENT_DELAY_MS);
@@ -71,6 +74,12 @@ export function WhatsNewCard() {
   }, [groupKey, openKey]);
 
   const visible = !!groupKey && openKey === groupKey;
+
+  useEffect(() => {
+    if (!visible || paused || items.length < 2) return;
+    const t = setTimeout(() => setPos({ key: groupKey, i: (index + 1) % items.length }), ANNOUNCEMENT_ROTATE_MS);
+    return () => clearTimeout(t);
+  }, [visible, paused, index, items.length, groupKey]);
   const item = items[Math.min(index, items.length - 1)];
   const heading = item?.heading || "What's new in QuickPost";
 
@@ -105,6 +114,10 @@ export function WhatsNewCard() {
           dragConstraints={{ top: 0, bottom: 0 }}
           dragElastic={{ top: 0, bottom: 0.6 }}
           onDragEnd={(_, info) => { if (info.offset.y > 60) later(); }}
+          onMouseEnter={() => setPaused(true)}
+          onMouseLeave={() => setPaused(false)}
+          onFocus={() => setPaused(true)}
+          onBlur={() => setPaused(false)}
           className="fixed z-[150] bottom-3 inset-x-3 md:inset-x-auto md:right-6 md:bottom-6 md:w-[360px] bg-white rounded-2xl border border-[#E2E8F0] shadow-[0_12px_40px_-12px_rgba(15,23,42,0.25),0_2px_8px_rgba(16,24,40,0.06)] p-4 touch-pan-x md:touch-auto"
         >
           <div className="md:hidden w-9 h-1 rounded-full bg-[#E2E8F0] mx-auto -mt-1.5 mb-2.5" />

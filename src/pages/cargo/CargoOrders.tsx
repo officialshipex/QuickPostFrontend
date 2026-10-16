@@ -527,6 +527,8 @@ export function CargoOrders() {
   // indicator again, or clicking outside, closes it.
   const [repeatCustomerPopover, setRepeatCustomerPopover] = useState<{ rect: DOMRect; key: string } | null>(null);
   const [revealedPhones, setRevealedPhones] = useState<Set<string>>(new Set());
+  // Phones being revealed (1s "fetching" pause before the number shows)
+  const [revealingPhones, setRevealingPhones] = useState<Set<string>>(new Set());
 
   // ── AI Order Verification (Ready to Ship tab) ──
   const [aiVerifyEnabled, setAiVerifyEnabled] = useState(false);
@@ -1046,12 +1048,14 @@ export function CargoOrders() {
     { label: '3', value: '3' },
     { label: '4 and above', value: '4+' },
   ];
+  // Cargo shipments are heavy, multi-box loads (min. chargeable 20 kg) — weight bands in kg
   const ORDER_WEIGHT_OPTIONS = [
-    { label: 'Less than 500 gm', value: 'lt500g' },
-    { label: '500gm - 1 Kg', value: '500g-1kg' },
-    { label: '1 Kg - 2 Kg', value: '1kg-2kg' },
-    { label: '2 Kg - 3 Kg', value: '2kg-3kg' },
-    { label: 'More than 3 Kg', value: 'gt3kg' },
+    { label: 'Up to 20 Kg', value: 'lte20kg' },
+    { label: '20 Kg - 50 Kg', value: '20kg-50kg' },
+    { label: '50 Kg - 100 Kg', value: '50kg-100kg' },
+    { label: '100 Kg - 250 Kg', value: '100kg-250kg' },
+    { label: '250 Kg - 500 Kg', value: '250kg-500kg' },
+    { label: 'More than 500 Kg', value: 'gt500kg' },
   ];
 
   const hasMoreFiltersActive = selectedChannels.length > 0 || selectedOrderQtys.length > 0 || selectedOrderWeights.length > 0 || skuSearch || autoCancelledOption;
@@ -1891,10 +1895,22 @@ export function CargoOrders() {
                                 })()}
                               </div>
                               <div className="flex items-center gap-1.5">
-                                <div className="text-[12px] leading-[18px] font-normal text-[#64748B]">
-                                  {!isAdminView && order.customerPhone && order.customerPhone !== '—' && !revealedPhones.has(order._id)
-                                    ? maskPhone(order.customerPhone)
-                                    : order.customerPhone}
+                                <div className="text-[12px] leading-[18px] font-normal text-[#64748B] tabular-nums">
+                                  {/* Masked ⇄ revealed number cross-fades with a soft blur instead of snapping */}
+                                  <AnimatePresence mode="wait" initial={false}>
+                                    <motion.span
+                                      key={revealedPhones.has(order._id) ? 'shown' : 'masked'}
+                                      className="inline-block"
+                                      initial={{ opacity: 0, filter: 'blur(4px)', y: 2 }}
+                                      animate={{ opacity: 1, filter: 'blur(0px)', y: 0 }}
+                                      exit={{ opacity: 0, filter: 'blur(4px)', y: -2 }}
+                                      transition={{ duration: 0.18, ease: 'easeOut' }}
+                                    >
+                                      {!isAdminView && order.customerPhone && order.customerPhone !== '—' && !revealedPhones.has(order._id)
+                                        ? maskPhone(order.customerPhone)
+                                        : order.customerPhone}
+                                    </motion.span>
+                                  </AnimatePresence>
                                 </div>
                                 {!isAdminView && order.customerPhone && order.customerPhone !== '—' && (
                                   <button
@@ -1902,12 +1918,17 @@ export function CargoOrders() {
                                     title={revealedPhones.has(order._id) ? 'Hide mobile number' : 'Show mobile number'}
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      setRevealedPhones(prev => {
-                                        const next = new Set(prev);
-                                        if (next.has(order._id)) next.delete(order._id);
-                                        else next.add(order._id);
-                                        return next;
-                                      });
+                                      const id = order._id;
+                                      if (revealingPhones.has(id)) return;
+                                      if (revealedPhones.has(id)) {
+                                        setRevealedPhones(prev => { const next = new Set(prev); next.delete(id); return next; });
+                                        return;
+                                      }
+                                      setRevealingPhones(prev => new Set(prev).add(id));
+                                      setTimeout(() => {
+                                        setRevealingPhones(prev => { const next = new Set(prev); next.delete(id); return next; });
+                                        setRevealedPhones(prev => new Set(prev).add(id));
+                                      }, 1000);
                                     }}
                                     className="shrink-0 text-[#94A3B8] hover:text-[#0F172A] cursor-pointer transition-colors"
                                   >

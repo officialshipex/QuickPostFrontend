@@ -797,6 +797,24 @@ export function UserHome() {
                 )}
               </div>
             </Card>
+
+            {/* Quick Help & Learning — book a training session (opens the booking page in a new tab) */}
+            <Card>
+              <h2 className="text-[15px] md:text-[16px] font-bold mb-3">Quick Help &amp; Learning</h2>
+              <div className="rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <h3 className="text-[13.5px] font-semibold text-[#0F172A]">Book Training Session</h3>
+                  <p className="text-[12px] text-[#64748B] mt-0.5 leading-snug">Get a guided demo to understand QuickPost tools and start shipping with ease.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => window.open('/user/book-session', '_blank', 'noopener')}
+                  className="h-8 px-4 rounded-lg border border-[#00A86B] text-[#00A86B] text-[12px] font-semibold bg-white hover:bg-[#F0FDF4] transition-colors shrink-0"
+                >
+                  Schedule Now
+                </button>
+              </div>
+            </Card>
           </div>
         </div>
 

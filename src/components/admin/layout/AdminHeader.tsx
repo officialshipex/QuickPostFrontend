@@ -7,6 +7,7 @@ import { AdminCargoSwitch } from './AdminCargoSwitch';
 import { isAdminPanelPath } from '../../../config/cargo';
 import { useShippingMode } from '../../../context/shippingMode';
 import { apiClient } from '../../../services/apiClient';
+import { cargoApiClient } from '../../../services/cargoApiClient';
 import { getToken, setToken } from '../../../utils/session';
 import { useAdminTab } from '../../../context/AdminUserContext';
 import { useDashboardFilters } from '../../../context/DashboardFilterContext';
@@ -187,6 +188,13 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
 
   const location = useLocation();
   const navigate = useNavigate();
+  // Quick action "Create a Ticket": short top progress bar, then open Support with the form ready.
+  const [ticketNav, setTicketNav] = useState(false);
+  const startCreateTicket = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setShowQuickActions(false);
+    setTicketNav(true);
+  };
 
   const isSetupPage = [
     '/admin/users',
@@ -291,7 +299,8 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
         const isAdminView = isAdmin && adminTab && !isEmployee;
         const params: Record<string, any> = { page: 1, limit: 8, searchQuery: searchQuery.trim() };
         if (!isAdminView && currentUserId) params.userId = currentUserId;
-        const res = await apiClient.get('/admin/filterEmployeeOrders', { params });
+        // Cargo searches Cargo orders only — never B2C ones.
+        const res = await (isCargo ? cargoApiClient : apiClient).get('/admin/filterEmployeeOrders', { params });
         setOrderSearchResults(res.data?.orders || []);
       } catch {
         setOrderSearchResults([]);
@@ -300,7 +309,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
       }
     }, 350);
     return () => clearTimeout(timer);
-  }, [searchQuery, isAdmin, adminTab, isEmployee, currentUserId]);
+  }, [searchQuery, isAdmin, adminTab, isEmployee, currentUserId, isCargo]);
 
   // Close the results dropdown on outside click. Checks both the desktop search box
   // and the mobile search bar/results container — without the mobile ref, any tap on
@@ -348,6 +357,18 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
 
   return (
     <>
+      {ticketNav && createPortal(
+        <div className="fixed top-0 inset-x-0 z-[600] h-[3px] pointer-events-none" role="status" aria-label="Opening support">
+          <motion.div
+            className="h-full bg-[#00A86B] shadow-[0_0_8px_rgba(0,168,107,0.6)] rounded-r-full"
+            initial={{ width: '0%' }}
+            animate={{ width: ['0%', '55%', '85%', '100%'] }}
+            transition={{ duration: 2.5, times: [0, 0.35, 0.75, 1], ease: 'easeInOut' }}
+            onAnimationComplete={() => { setTicketNav(false); navigate('/user/support', { state: { openCreateTicket: true } }); }}
+          />
+        </div>,
+        document.body,
+      )}
       {/* Impersonation Banner */}
       {isImpersonating && (
         <div className="fixed top-0 left-0 right-0 z-[1000] bg-gradient-to-r from-orange-600 to-orange-500 text-white h-8 px-4 shadow-md flex items-center justify-center gap-3">
@@ -583,7 +604,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                               <Link to="/user/rate-calculator" className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A]" onClick={() => setShowQuickActions(false)}>
                                 <Calculator className="w-3.5 h-3.5" /> Calculate Rate
                               </Link>
-                              <Link to="/user/support" state={{ openCreateTicket: true }} className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A]" onClick={() => setShowQuickActions(false)}>
+                              <Link to="/user/support" state={{ openCreateTicket: true }} className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A]" onClick={startCreateTicket}>
                                 <TicketPlus className="w-3.5 h-3.5" /> Create a Ticket
                               </Link>
                             </>
@@ -1200,7 +1221,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                           to="/user/support"
                           state={{ openCreateTicket: true }}
                           className="flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-[#F8FAFC] transition-colors group text-center"
-                          onClick={() => setShowQuickActions(false)}
+                          onClick={startCreateTicket}
                         >
                           <div className="w-10 h-10 rounded-full bg-[#FDF2F8] flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
                             <TicketPlus className="w-5 h-5 text-[#DB2777]" />

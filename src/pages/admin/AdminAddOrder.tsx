@@ -8,6 +8,8 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { apiClient } from '../../services/apiClient';
+import { cargoApiClient } from '../../services/cargoApiClient';
+import { useShippingMode } from '../../context/shippingMode';
 import { useAdminTab } from '../../context/AdminUserContext';
 import { BulkUploadModal } from '../../components/ui/BulkUploadModal';
 import { TableLoader } from '../../components/ui/TableLoader';
@@ -52,6 +54,9 @@ interface B2BPackage {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export function AdminAddOrder() {
+  // Cargo has its own pickup addresses — never list or save B2C ones in Cargo mode.
+  const { isCargo } = useShippingMode();
+  const addressApi = isCargo ? cargoApiClient : apiClient;
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { isAdmin, adminTab } = useAdminTab();
@@ -181,7 +186,7 @@ export function AdminAddOrder() {
     if (needsOwner && !orderOwnerId) return;
 
     const qs = isAdminView && orderOwnerId ? `?userId=${orderOwnerId}&limit=1000` : '';
-    apiClient
+    addressApi
       .get(`/order/pickupAddress${qs}`)
       .then(res => {
         const list: PickupAddress[] =
@@ -552,7 +557,7 @@ export function AdminAddOrder() {
     }
 
     try {
-      const res = await apiClient.post('/order/pickupAddress', pickupForm);
+      const res = await addressApi.post('/order/pickupAddress', pickupForm);
       // The list-fetch effect only auto-selects when nothing was previously
       // selected (list.length > 0 && !selectedPickupId) — so without this,
       // adding a new address while one was already selected (the common

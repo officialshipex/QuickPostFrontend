@@ -64,6 +64,7 @@ import { AdminTracking } from './pages/admin/AdminTracking';
 import { AdminProfile } from './pages/admin/AdminProfile';
 import { AdminOrderTracking } from './pages/admin/AdminOrderTracking';
 import { CARGO_BASE, appPathname, isCargoUrl } from './utils/shippingMode';
+import { BookSession } from './pages/BookSession';
 import { ModeRoute } from './pages/cargo/ModeRoute';
 import { CargoHome } from './pages/cargo/CargoHome';
 import { CargoRateCalculator } from './pages/cargo/CargoRateCalculator';
@@ -258,6 +259,9 @@ function App() {
           {/* Protected Routes — auth check + context providers */}
           <Route element={<AdminUserProvider><DashboardFilterProvider><NotificationListProvider><ProtectedRoute /></NotificationListProvider></DashboardFilterProvider></AdminUserProvider>}>
 
+            {/* Standalone (no sidebar/header) — opens in its own tab from Home */}
+            <Route path="/user/book-session" element={<BookSession />} />
+
             {/* Persistent shell — sidebar + header mount once, only content area animates */}
             <Route element={<AdminShell />}>
 
@@ -347,7 +351,7 @@ function App() {
               <Route path="/user/settings/invoice" element={<AdminSettingsPlaceholder title="Invoice" description="Manage your invoice preferences and billing settings." />} />
               <Route path="/user/settings/webhook" element={<AdminWebhookSettings />} />
               <Route path="/user/settings/agreement" element={<AdminAgreementSettings />} />
-              <Route path="/user/settings/pickup-address" element={<AdminPickupAddress />} />
+              <Route path="/user/settings/pickup-address" element={<ModeRoute b2c={<AdminPickupAddress />} cargo={<CargoPickupAddress />} />} />
               <Route path="/user/pickup-manifest/:pickupId" element={<AdminPickupManifestDetails />} />
               <Route path="/user/employees" element={<AdminRoles />} />
               <Route path="/user/channels" element={<AdminChannels />} />

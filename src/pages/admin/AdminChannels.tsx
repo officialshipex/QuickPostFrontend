@@ -403,23 +403,6 @@ export function AdminChannels() {
             </div>
           )}
 
-          {/* How it works — desktop only */}
-          <div className="hidden md:grid grid-cols-3 gap-4 mb-5">
-            {[
-              { n: 1, title: 'Connect your store', body: 'Add your Shopify or WooCommerce store with its API credentials — it takes about two minutes.' },
-              { n: 2, title: 'Orders sync automatically', body: 'New orders appear in QuickPost on your chosen schedule, ready to ship. No CSV uploads.' },
-              { n: 3, title: 'Customers stay updated', body: 'Shipping status and tracking links are pushed back to your store as the parcel moves.' },
-            ].map(st => (
-              <div key={st.n} className="bg-white rounded-2xl border border-[#EEF2F6] shadow-[0_1px_2px_rgba(16,24,40,0.04),0_2px_8px_rgba(16,24,40,0.05)] p-4 flex items-start gap-3">
-                <span className="w-8 h-8 rounded-full bg-[#F0FDF4] text-[#00A86B] text-[13px] font-bold flex items-center justify-center shrink-0">{st.n}</span>
-                <div className="min-w-0">
-                  <div className="text-[13.5px] font-semibold text-[#0F172A]">{st.title}</div>
-                  <p className="text-[12.5px] text-[#64748B] leading-relaxed mt-0.5">{st.body}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-
           {/* Summary — always counts the built-in Manual channel */}
           {!loading && (
             <div className="grid grid-cols-3 gap-2.5 md:gap-4 mb-4 md:mb-5">
@@ -441,6 +424,9 @@ export function AdminChannels() {
             </div>
           )}
 
+          {/* Desktop: content on the left, "How channel sync works" guide on the right */}
+          <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-6 lg:items-start">
+          <div className="min-w-0">
           {loading ? (
             <div className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm py-24 flex items-center justify-center gap-2 text-[#94A3B8]">
               <Loader2 className="w-5 h-5 animate-spin" />
@@ -580,6 +566,38 @@ export function AdminChannels() {
             </p>
             </>
           )}
+          </div>
+
+          {/* How channel sync works — desktop only */}
+          <aside className="hidden lg:block sticky top-6 bg-white rounded-2xl border border-[#EEF2F6] shadow-[0_1px_2px_rgba(16,24,40,0.04),0_2px_8px_rgba(16,24,40,0.05)] overflow-hidden">
+            <div className="px-5 py-4 border-b border-[#F1F5F9]">
+              <div className="text-[14px] font-bold text-[#0F172A]">How channel sync works</div>
+              <p className="text-[12px] text-[#64748B] mt-0.5">Set up once, ship every order from QuickPost.</p>
+            </div>
+            <ol className="px-5 py-4">
+              {[
+                { title: 'Connect your store', body: 'Add your Shopify or WooCommerce store with its API credentials — about two minutes.' },
+                { title: 'Orders sync automatically', body: 'New orders appear in QuickPost on your chosen schedule, ready to ship. No CSV uploads.' },
+                { title: 'Customers stay updated', body: 'Shipping status and tracking links are pushed back to your store as the parcel moves.' },
+              ].map((st, i, arr) => (
+                <li key={st.title} className="relative flex gap-3 pb-5 last:pb-0">
+                  {i < arr.length - 1 && <span className="absolute left-[13px] top-7 bottom-1 w-px bg-[#DCFCE7]" />}
+                  <span className="relative w-7 h-7 rounded-full bg-[#00A86B] text-white text-[12px] font-bold flex items-center justify-center shrink-0 ring-4 ring-[#F0FDF4]">{i + 1}</span>
+                  <div className="min-w-0 pt-0.5">
+                    <div className="text-[13px] font-semibold text-[#0F172A]">{st.title}</div>
+                    <p className="text-[12px] text-[#64748B] leading-relaxed mt-0.5">{st.body}</p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+            <div className="px-5 py-4 bg-[#F8FAFC] border-t border-[#F1F5F9]">
+              <button type="button" onClick={() => { resetForm(); goToView('add'); }}
+                className="w-full h-10 rounded-full bg-[#00A86B] hover:bg-[#009B63] text-white text-[13px] font-semibold inline-flex items-center justify-center gap-1.5 shadow-sm transition-colors">
+                <Plus className="w-4 h-4" /> Connect a store
+              </button>
+            </div>
+          </aside>
+          </div>
         </div>
 
         {/* Delete confirmation modal */}
