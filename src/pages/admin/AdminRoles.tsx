@@ -98,6 +98,9 @@ function PermissionMatrix({ accessRights, onChange, panel }: PermissionMatrixPro
             {PERM_TYPES.map(p => {
               const checked = rights[p.key] === true;
               const disabled = (p.key === 'edit' || p.key === 'delete') && !rights.view;
+              if (mod.viewOnly && p.key !== 'view') {
+                return <div key={p.key} className="w-[72px] flex justify-center items-center py-3 text-[13px] text-[#CBD5E1]" aria-label="Not applicable">—</div>;
+              }
               return (
                 <div key={p.key} className="w-[72px] flex justify-center items-center py-3">
                   <button

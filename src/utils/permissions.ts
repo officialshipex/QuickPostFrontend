@@ -30,10 +30,12 @@ export interface PermModule {
   section: string;
   /** legacy coarse key this module inherits from when it has no rights of its own */
   group?: string;
+  /** only View applies (e.g. a dashboard) — Edit/Delete are not offered */
+  viewOnly?: boolean;
 }
 
 export const ADMIN_MODULES: PermModule[] = [
-  { key: 'dashboard', label: 'Dashboard', desc: 'Main admin dashboard and business overview', section: 'Overview' },
+  { key: 'dashboard', label: 'Dashboard', desc: 'View the main admin dashboard and business overview', section: 'Overview', viewOnly: true },
   { key: 'orders', label: 'Orders', desc: 'View and manage all shipment orders', section: 'Operations' },
   { key: 'ndr', label: 'NDR', desc: 'Non-delivery reports and follow-ups', section: 'Operations' },
   { key: 'internalCrm', label: 'Internal CRM', desc: 'Shipments, sellers, leads and escalations (beta)', section: 'Operations' },
