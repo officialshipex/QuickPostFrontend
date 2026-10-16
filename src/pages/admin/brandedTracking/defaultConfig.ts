@@ -218,6 +218,7 @@ export function createDefaultConfig(storeName = ''): TrackingPageConfig {
       showWhatsapp: true,
       showEmail: true,
       showPhone: true,
+      showAddress: true,
       showPoweredByQuickPost: true,
       backgroundColor: THEME_PRESETS.light.footerBg,
       textColor: THEME_PRESETS.light.footerText,

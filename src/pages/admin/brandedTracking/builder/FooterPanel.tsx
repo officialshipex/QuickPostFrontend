@@ -46,6 +46,7 @@ export function FooterPanel({ config, update }: PanelProps) {
             <ToggleRow label="Phone Number" description={missing(s.supportPhone, 'a support phone')} checked={f.showPhone} onChange={(showPhone) => set({ showPhone })} />
             <ToggleRow label="Email" description={missing(s.supportEmail, 'a support email')} checked={f.showEmail} onChange={(showEmail) => set({ showEmail })} />
             <ToggleRow label="WhatsApp" description={missing(s.whatsappNumber, 'a WhatsApp number')} checked={f.showWhatsapp} onChange={(showWhatsapp) => set({ showWhatsapp })} />
+            <ToggleRow label="Store Address" description={missing(s.address, 'a store address')} checked={f.showAddress} onChange={(showAddress) => set({ showAddress })} />
             <ToggleRow label="Social Media Links" description={Object.values(s.social).some((v) => v.trim()) ? undefined : 'Add social links in Branding → Social Links.'} checked={f.showSocialLinks} onChange={(showSocialLinks) => set({ showSocialLinks })} />
           </Group>
 

@@ -26,6 +26,7 @@ import { useTableLoader } from '../../hooks/useTableLoader';
 import { usePagination, DesktopPagination } from '../../hooks/usePagination';
 import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
 import { copyToClipboard } from '../../utils/clipboard';
+import { CodAdjustmentBadge, CodAdjustmentNotes, CodRecoveryBanner, CodReversalsModal } from '../../components/ui/CodAdjustments';
 
 const ADMIN_TABS = [
   { name: 'All COD Orders' },
@@ -89,6 +90,9 @@ const mapSellerRemittance = (item: any) => ({
   earlyCodCharges: item.earlyCodCharges || 0,
   remittanceAmount: item.remittanceInitiated || 0,
   status: item.status || 'Pending',
+  // why the amounts changed: orders the courier returned after delivery
+  adjustments: Array.isArray(item.adjustments) ? item.adjustments : [],
+  recoveredAmount: Number(item.recoveredAmount) || 0,
 });
 
 const mapCourierRemittance = (item: any) => ({
@@ -263,8 +267,10 @@ export function AdminCOD() {
   const [sellerRemittanceList, setSellerRemittanceList] = useState<any[]>([]);
   const [sellerRemittanceTotal, setSellerRemittanceTotal] = useState(0);
   const [sellerSummary, setSellerSummary] = useState({
-    CODToBeRemitted: 0, LastCodRemmited: 0, TotalCODRemitted: 0, TotalDeductionfromCOD: 0, RemittanceInitiated: 0
+    CODToBeRemitted: 0, LastCodRemmited: 0, TotalCODRemitted: 0, TotalDeductionfromCOD: 0, RemittanceInitiated: 0, codRecoveryDue: 0
   });
+  // COD orders returned after delivery (their COD was adjusted automatically)
+  const [showCodReversals, setShowCodReversals] = useState(false);
   const [sellerPage, setSellerPage] = useState(1);
   const [sellerRemittanceId, setSellerRemittanceId] = useState('');
 
@@ -437,6 +443,7 @@ export function AdminCOD() {
           TotalCODRemitted: res.data.summary.TotalCODRemitted || 0,
           TotalDeductionfromCOD: res.data.summary.TotalDeductionfromCOD || 0,
           RemittanceInitiated: res.data.summary.RemittanceInitiated || 0,
+          codRecoveryDue: res.data.summary.codRecoveryDue || 0,
         });
       }
     } catch {
@@ -917,8 +924,7 @@ export function AdminCOD() {
                 {isAdminView && <button onClick={() => { handleExportBankTemplate(); setShowMobileSellerActionMenu(false); }} disabled={bankExportLoading} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] flex items-center gap-2 disabled:opacity-60"><FileText className="w-4 h-4 text-blue-500" />{bankExportLoading ? 'Generating…' : 'Export Bank Template'}</button>}
                 {isAdminView && <button onClick={() => { handleOpenBankResponseUpload(); setShowMobileSellerActionMenu(false); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] flex items-center gap-2"><Upload className="w-4 h-4 text-orange-500" />Upload Bank Response</button>}
                 <div className="border-t border-[#E2E8F0] my-1" />
-                {isAdminView && <button onClick={() => { setShowMobileSellerActionMenu(false); handleTransferCOD('seller'); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#00A86B] hover:bg-[#F0FDF4] flex items-center gap-2"><Send className="w-4 h-4" />Transfer COD</button>}
-              </div>
+                {isAdminView && <button onClick={() => { setShowMobileSellerActionMenu(false); handleTransferCOD('seller'); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#00A86B] hover:bg-[#F0FDF4] flex items-center gap-2"><Send className="w-4 h-4" />Transfer COD</button>}              </div>
             )}
             {/* Courier action menu */}
             {activeTab === 'Courier COD Remittance' && showMobileCourierActionMenu && (
@@ -1042,6 +1048,13 @@ export function AdminCOD() {
                   )}
                 </AnimatePresence>
               </div>
+
+              {/* COD paid for orders returned after delivery, still to be recovered */}
+              {Number(sellerSummary.codRecoveryDue) > 0 && (
+                <div className="px-4 py-2 border-b border-[#E2E8F0]">
+                  <CodRecoveryBanner amount={sellerSummary.codRecoveryDue} onView={() => setShowCodReversals(true)} />
+                </div>
+              )}
             </>
           )}
           {activeTab === 'Courier COD Remittance' && (
@@ -1517,7 +1530,10 @@ export function AdminCOD() {
                       <td className="p-3 font-normal text-xs text-red-700">{fmtCurrency(order.earlyCodCharges)}</td>
                       <td className="p-3 font-normal text-xs text-[#00A86B]">{fmtCurrency(order.remittanceAmount)}</td>
                       <td className="p-4">
-                        <span className={getStatusBadgeClass(order.status)}>{order.status}</span>
+                        <div className="flex flex-col items-start">
+                          <span className={getStatusBadgeClass(order.status)}>{order.status}</span>
+                          <CodAdjustmentBadge adjustments={order.adjustments} remittanceId={order.awb} />
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -1576,6 +1592,11 @@ export function AdminCOD() {
                                 </button>
                               )}
                             </div>
+                            {order.adjustments?.length > 0 && (
+                              <div className="-mt-1 mb-2">
+                                <CodAdjustmentBadge adjustments={order.adjustments} remittanceId={order.awb} />
+                              </div>
+                            )}
 
                             {/* UTR / Total COD / Wallet Credit / Adj. Amt / Early COD / Net Remittance */}
                             <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 bg-[#F8FAFC] rounded-xl px-2.5 py-2">
@@ -1934,6 +1955,11 @@ export function AdminCOD() {
                         {remittanceDetail.status || 'Pending'}
                       </span>
                     </div>
+                    {Array.isArray(remittanceDetail.adjustments) && remittanceDetail.adjustments.length > 0 && (
+                      <div className="mb-4">
+                        <CodAdjustmentNotes adjustments={remittanceDetail.adjustments} />
+                      </div>
+                    )}
                     <table className="w-full text-left border-collapse min-w-[600px] text-[12px]">
                       <thead className="bg-[#E6F9F2] sticky top-0 z-10">
                         <tr>
@@ -2383,6 +2409,14 @@ export function AdminCOD() {
           }}
         />
       )}
+
+      {/* ── COD orders returned after delivery ── */}
+      <CodReversalsModal
+        open={showCodReversals}
+        onClose={() => setShowCodReversals(false)}
+        userId={isAdminView ? (sellerUserMongoId || undefined) : undefined}
+        isAdmin={isAdminView}
+      />
 
       <Toast toast={toast} onClose={closeToast} />
     </AdminLayout>

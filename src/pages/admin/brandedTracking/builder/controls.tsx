@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { ChevronDown, ImagePlus, Loader2, X as XIcon } from 'lucide-react';
+import { apiMessage } from '../../vas/vasApi';
 import { brandedTrackingService } from '../trackingService';
 import { inputClass, TXT } from './styles';
 
@@ -174,7 +175,7 @@ export function ImageUpload({ label, hint, value, onChange, maxKb = 500, aspect 
     try {
       onChange(await brandedTrackingService.uploadAsset(file));
     } catch (err) {
-      onError(err instanceof Error ? err.message : 'Upload failed. Please try again.');
+      onError(apiMessage(err, 'Upload failed. Please try again.'));
     } finally {
       setUploading(false);
       if (inputRef.current) inputRef.current.value = '';

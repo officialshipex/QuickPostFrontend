@@ -231,6 +231,7 @@ export interface FooterConfig {
   showWhatsapp: boolean;
   showEmail: boolean;
   showPhone: boolean;
+  showAddress: boolean;
   showPoweredByQuickPost: boolean;
   backgroundColor: string;
   textColor: string;
