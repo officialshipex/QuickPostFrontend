@@ -1,12 +1,16 @@
 /* QuickPost Cargo (admin) — CRM · Shipments. Same UI as the B2C page (pages/admin/CRMShipmentListing.tsx), kept as a
-   separate file so Cargo can diverge. Data comes from cargoApiClient (Cargo backend, wired later),
-   never from the B2C backend. */
+   separate file so Cargo can diverge. Reads the CRM shipments API pinned to B2B orders
+   (orderType=B2B), so Cargo never lists B2C shipments. */
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { DesktopPagination } from '../../hooks/usePagination';
-import { cargoApiClient as apiClient } from '../../services/cargoApiClient';
+import { apiClient } from '../../services/apiClient';
+
+// Every CRM shipments call (list, clear, export) is pinned to B2B orders.
+const crmShipments = (params: Record<string, string>, config: Record<string, unknown> = {}) =>
+  apiClient.get('/crm/shipments', { ...config, params: { ...params, orderType: 'B2B' } });
 import {
   Search, Download, RefreshCw, ChevronLeft, ChevronRight, ChevronDown,
   Filter, Truck, RotateCcw, CheckCircle2, AlertTriangle, Clock, Package, MoreHorizontal, MoreVertical, MapPin, Check, History, User, Settings, X, Loader2, Zap, IndianRupee, Calendar, Mail, FileText, Copy
@@ -338,7 +342,7 @@ export function CargoCRMShipmentListing() {
       }
       if (forwardAwb) params.awb = forwardAwb;
 
-      const res = await apiClient.get('/crm/shipments', { params });
+      const res = await crmShipments(params);
       const mapped = (res.data.orders || []).map(mapOrder);
       setOrders(mapped);
       setTotalCount(res.data.totalCount || 0);
@@ -383,10 +387,10 @@ export function CargoCRMShipmentListing() {
   // Initial load
   useEffect(() => { fetchRef.current(1, rowsPerPageRef.current); }, []);
 
-  // Fetch courier names dynamically from /courierServices/couriers
+  // Courier filter options — the B2B courier services (Cargo shipments are booked on these)
   useEffect(() => {
-    apiClient.get('/courierServices/couriers')
-      .then(res => setCourierOptions((res.data || []).map((c: any) => c.name).filter(Boolean)))
+    apiClient.get('/b2b/courierServices/getAllCourierServices')
+      .then(res => setCourierOptions((Array.isArray(res.data) ? res.data : []).map((c: any) => c.name).filter(Boolean)))
       .catch(() => {});
   }, []);
 
@@ -427,7 +431,7 @@ export function CargoCRMShipmentListing() {
     pageRef.current = 1; setPageState(1);
     // Fetch with empty params — don't use stale closure
     setLoading(true);
-    apiClient.get('/crm/shipments', { params: { page: '1', limit: String(rowsPerPageRef.current) } })
+    crmShipments({ page: '1', limit: String(rowsPerPageRef.current) })
       .then(res => {
         const mapped = (res.data.orders || []).map(mapOrder);
         setOrders(mapped);
@@ -480,7 +484,7 @@ export function CargoCRMShipmentListing() {
       if (userMongoId) params.userId = userMongoId;
       if (orderId) params.orderId = orderId;
       if (forwardAwb) params.awb = forwardAwb;
-      const res = await apiClient.get('/crm/shipments', { params, responseType: 'blob' });
+      const res = await crmShipments(params, { responseType: 'blob' });
       const url = URL.createObjectURL(res.data);
       const a = document.createElement('a');
       a.href = url; a.download = `crm_shipments_${Date.now()}.xlsx`; a.click();

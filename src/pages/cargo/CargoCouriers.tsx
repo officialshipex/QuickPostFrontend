@@ -1,6 +1,8 @@
 /* QuickPost Cargo (admin) — Couriers. Same UI as the B2C page (pages/admin/AdminCouriers.tsx), kept as a
-   separate file so Cargo can diverge. Data comes from cargoApiClient (Cargo backend, wired later),
-   never from the B2C backend. */
+   separate file so Cargo can diverge. Cargo couriers are the B2B ones: courier accounts from
+   /b2b/couriers (own credential store), courier services from /b2b/courierServices — the same endpoints
+   ShipexFrontend's Setup > B2B Courier / Courier Services screens use. B2B services are grouped by the
+   account's provider type (courierProvider), which is what a B2B service's `provider` holds. */
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
@@ -16,7 +18,7 @@ import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { TableLoader } from '../../components/ui/TableLoader';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { StatusRibbon } from '../../components/ui/StatusRibbon';
-import { cargoApiClient as apiClient } from '../../services/cargoApiClient';
+import { apiClient } from '../../services/apiClient';
 
 const STATUS_OPTIONS = [
   { label: 'Active', value: 'Active' },
@@ -53,6 +55,12 @@ const maskValue = (value?: string) => {
   if (value.length <= 4) return '****';
   return `${'*'.repeat(value.length - 4)}${value.slice(-4)}`;
 };
+
+// B2B accounts log in with a username (Delhivery, BigShip) or a client id (Shiprocket Cargo)
+const accountLabel = (p: any): string =>
+  p.username || (p.clientId ? `Client ID ${p.clientId}` : '') || p.email || maskValue(p.apiKey);
+const hasAccount = (p: any) => !!(p.username || p.clientId || p.email || p.apiKey);
+const logoFor = (p: any, name: string) => LOGO_MAP[p.courierProvider] || LOGO_MAP[name] || '';
 
 const TAB_SLUG_MAP: Record<'couriers' | 'services', string> = {
   couriers: 'couriers',
@@ -154,16 +162,16 @@ export function CargoCouriers() {
     setLoading(true);
     try {
       const [providersRes, servicesRes] = await Promise.allSettled([
-        apiClient.get('/allCourier/couriers'),
-        apiClient.get('/courierServices/couriers'),
+        apiClient.get('/b2b/couriers/getAllCouriers'),
+        apiClient.get('/b2b/courierServices/getAllCourierServices'),
       ]);
 
       if (providersRes.status === 'fulfilled') {
-        setProviders(providersRes.value.data || []);
+        setProviders(Array.isArray(providersRes.value.data) ? providersRes.value.data : []);
       }
 
       if (servicesRes.status === 'fulfilled') {
-        const services: any[] = servicesRes.value.data || [];
+        const services: any[] = Array.isArray(servicesRes.value.data) ? servicesRes.value.data : [];
         const grouped: Record<string, any[]> = {};
         services.forEach(s => {
           if (!grouped[s.provider]) grouped[s.provider] = [];
@@ -179,7 +187,8 @@ export function CargoCouriers() {
   const toggleProviderStatus = async (provider: any) => {
     const newStatus = provider.status === 'Enable' ? 'Disable' : 'Enable';
     try {
-      await apiClient.post('/allCourier/updateStatus', { id: provider._id, status: newStatus });
+      // B2B accounts are one per provider, so the status is set by provider type
+      await apiClient.post('/b2b/couriers/updateCourierStatus', { provider: provider.courierProvider, status: newStatus });
       setProviders(prev => prev.map(p => p._id === provider._id ? { ...p, status: newStatus } : p));
     } catch {}
   };
@@ -187,7 +196,7 @@ export function CargoCouriers() {
   const toggleServiceStatus = async (svc: any) => {
     const newStatus = svc.status === 'Enable' ? 'Disable' : 'Enable';
     try {
-      await apiClient.put(`/courierServices/updateStatus/${svc._id}`, { status: newStatus });
+      await apiClient.put(`/b2b/courierServices/updateCourierServicesStatus/${svc._id}`, { status: newStatus });
       setServicesMap(prev => {
         const updated = { ...prev };
         if (updated[svc.provider]) {
@@ -206,12 +215,12 @@ export function CargoCouriers() {
 
   const handleDeleteProvider = async (provider: any) => {
     const name = provider.courierName || provider.courierProvider || provider.name || '';
-    const logo = LOGO_MAP[name] || '';
+    const logo = logoFor(provider, name);
     const courierObj = { ...provider, name, logo };
 
     try {
       setLoading(true);
-      const res = await apiClient.get(`/allCourier/checkDelete/${provider._id}`);
+      const res = await apiClient.get(`/b2b/couriers/checkDelete/${provider._id}`);
       setLoading(false);
 
       if (res.data?.canDelete === false || (res.data?.serviceCount && res.data.serviceCount > 0)) {
@@ -224,7 +233,7 @@ export function CargoCouriers() {
       }
     } catch (err: any) {
       setLoading(false);
-      const localServices = servicesMap[name] || [];
+      const localServices = servicesMap[provider.courierProvider] || [];
       if (localServices.length > 0) {
         setRejectionModalData({
           courier: courierObj,
@@ -240,7 +249,7 @@ export function CargoCouriers() {
     if (!courierToDelete) return;
     setDeletingCourier(true);
     try {
-      await apiClient.delete(`/allCourier/deleteCourier/${courierToDelete._id}`);
+      await apiClient.delete(`/b2b/couriers/deleteCourier/${courierToDelete._id}`);
       setProviders(prev => prev.filter(p => p._id !== courierToDelete._id));
       setCourierToDelete(null);
     } catch (err: any) {
@@ -281,11 +290,19 @@ export function CargoCouriers() {
 
   const handleConfigureSave = async (data: Record<string, string>): Promise<void> => {
     if (!selectedCourier) return;
+    // Only the settings this B2B account actually has; a blank password keeps the saved one
+    // (same payload rules as ShipexFrontend's EditB2BCourierModal).
+    const payload: Record<string, unknown> = {};
+    ['CODDays', 'username', 'password', 'apiKey', 'clientId', 'refreshToken', 'authToken'].forEach(key => {
+      if (!(key in selectedCourier)) return;
+      if (key === 'password') { if ((data.password || '').trim()) payload.password = data.password.trim(); return; }
+      if (key === 'CODDays') { payload.CODDays = data.CODDays !== '' && data.CODDays != null ? Number(data.CODDays) : 0; return; }
+      payload[key] = data[key] ?? '';
+    });
     try {
-      await apiClient.put(`/allCourier/updateCourier/${selectedCourier._id}`, data);
-      setProviders(prev =>
-        prev.map(p => p._id === selectedCourier._id ? { ...p, ...data } : p)
-      );
+      const res = await apiClient.put(`/b2b/couriers/updateCourier/${selectedCourier._id}`, payload);
+      const updated = res.data?.courier || { ...selectedCourier, ...payload };
+      setProviders(prev => prev.map(p => (p._id === selectedCourier._id ? { ...p, ...updated } : p)));
     } catch {}
     setSelectedCourier(null);
   };
@@ -459,9 +476,9 @@ export function CargoCouriers() {
               {loading ? null : filteredProviders.length > 0 ? (
                 filteredProviders.map((provider, index) => {
                   const name = provider.courierName || provider.courierProvider || '';
-                  const logo = LOGO_MAP[name] || '';
+                  const logo = logoFor(provider, name);
                   const isEnabled = provider.status === 'Enable';
-                  const services = servicesMap[name] || [];
+                  const services = servicesMap[provider.courierProvider] || [];
                   const isExpanded = expandedProviderId === provider._id;
 
                   return (
@@ -497,7 +514,7 @@ export function CargoCouriers() {
                               <div className="text-[15px] font-extrabold text-[#0F172A]">{name}</div>
                               <div className="text-xs text-[#94A3B8] mt-0.5">
                                 {activeTab === 'couriers'
-                                  ? (provider.apiKey || provider.email ? '1 account configured' : 'No account configured')
+                                  ? (hasAccount(provider) ? `${provider.courierProvider} · 1 account configured` : 'No account configured')
                                   : `${services.length} service${services.length !== 1 ? 's' : ''}`}
                               </div>
                             </div>
@@ -578,17 +595,17 @@ export function CargoCouriers() {
                                   <div className="py-6 px-12">
                                     {activeTab === 'couriers' ? (
                                       <div className="bg-white rounded-xl border border-[#E2E8F0] overflow-hidden shadow-[0_2px_12px_rgba(0,0,0,0.02)]">
-                                        {provider.apiKey || provider.email ? (
+                                        {hasAccount(provider) ? (
                                           <div className="flex items-center justify-between py-5 px-8">
                                             <div className="w-1/3">
                                               <div className="text-[15px] font-medium text-[#1E293B] mb-1 leading-none">
-                                                {provider.email || maskValue(provider.apiKey)}
+                                                {accountLabel(provider)}
                                               </div>
                                               <div className="text-[13px] text-[#94A3B8] leading-none">Configured Account</div>
                                             </div>
                                             <div className="w-1/3 flex justify-center">
                                               <span className="px-4 py-1.5 bg-[#F1F5F9] text-[#1E293B] rounded-full text-[13px] font-medium">
-                                                {provider.CODDays != null ? `${provider.CODDays} day delivery` : 'No ETA set'}
+                                                {provider.CODDays != null ? `${provider.CODDays} days COD contract` : 'No COD contract set'}
                                               </span>
                                             </div>
                                             <div className="w-1/3 flex justify-end items-center gap-3 pr-8">
@@ -629,8 +646,10 @@ export function CargoCouriers() {
                                                   />
                                                   <div>
                                                     <div className="text-[15px] font-medium text-[#1E293B] mb-1 leading-none">{svc.name}</div>
-                                                    {svc.courier_id && (
-                                                      <div className="text-[13px] text-[#94A3B8] leading-none">ID: {svc.courier_id}</div>
+                                                    {(svc.courier || svc.weight != null) && (
+                                                      <div className="text-[13px] text-[#94A3B8] leading-none">
+                                                        {[svc.courier, svc.weight != null ? `Min ${svc.weight} kg` : ''].filter(Boolean).join(' · ')}
+                                                      </div>
                                                     )}
                                                   </div>
                                                 </div>
@@ -702,9 +721,9 @@ export function CargoCouriers() {
           {loading ? null : filteredProviders.length > 0 ? (
             filteredProviders.map((provider) => {
               const name = provider.courierName || provider.courierProvider || '';
-              const logo = LOGO_MAP[name] || '';
+              const logo = logoFor(provider, name);
               const isEnabled = provider.status === 'Enable';
-              const services = servicesMap[name] || [];
+              const services = servicesMap[provider.courierProvider] || [];
               const isExpanded = expandedProviderId === provider._id;
 
               return (
@@ -798,16 +817,16 @@ export function CargoCouriers() {
                       >
                         <div className="p-4">
                           {activeTab === 'couriers' ? (
-                            provider.apiKey || provider.email ? (
+                            hasAccount(provider) ? (
                               <div className="bg-white rounded-xl border border-[#E2E8F0] p-3.5">
                                 <div className="flex items-start justify-between gap-2">
                                   <div className="min-w-0">
                                     <div className="text-[13px] font-semibold text-[#0F172A] truncate">
-                                      {provider.email || maskValue(provider.apiKey)}
+                                      {accountLabel(provider)}
                                     </div>
-                                    <div className="text-[11px] text-[#94A3B8] mt-0.5">Configured Account</div>
+                                    <div className="text-[11px] text-[#94A3B8] mt-0.5">Configured Account · {provider.courierProvider}</div>
                                     <span className="inline-block mt-1.5 px-2 py-0.5 bg-[#F1F5F9] text-[#1E293B] rounded-full text-[10px] font-medium">
-                                      {provider.CODDays != null ? `${provider.CODDays} day delivery` : 'No ETA set'}
+                                      {provider.CODDays != null ? `${provider.CODDays} days COD contract` : 'No COD contract set'}
                                     </span>
                                   </div>
                                   <div className="flex items-center gap-2 shrink-0">
@@ -844,8 +863,10 @@ export function CargoCouriers() {
                                         />
                                         <div>
                                           <div className="text-[13px] font-semibold text-[#0F172A] truncate">{svc.name}</div>
-                                          {svc.courier_id && (
-                                            <div className="text-[11px] text-[#94A3B8] mt-0.5">ID: {svc.courier_id}</div>
+                                          {(svc.courier || svc.weight != null) && (
+                                            <div className="text-[11px] text-[#94A3B8] mt-0.5">
+                                              {[svc.courier, svc.weight != null ? `Min ${svc.weight} kg` : ''].filter(Boolean).join(' · ')}
+                                            </div>
                                           )}
                                           <span className="inline-block mt-1.5 px-2 py-0.5 bg-[#F1F5F9] text-[#1E293B] rounded-full text-[10px] font-medium">
                                             {svc.courierType === 'Domestic (Air)' ? 'Air' : 'Surface'}
@@ -982,6 +1003,7 @@ export function CargoCouriers() {
       </AnimatePresence>
 
       <ConfigureCourierModal
+        cargo
         isOpen={!!selectedCourier}
         onClose={() => setSelectedCourier(null)}
         courier={selectedCourier}
@@ -989,6 +1011,7 @@ export function CargoCouriers() {
       />
 
       <AddServiceModal
+        cargo
         isOpen={!!serviceCourier}
         onClose={() => setServiceCourier(null)}
         courier={serviceCourier}
@@ -996,6 +1019,7 @@ export function CargoCouriers() {
       />
 
       <AddServiceModal
+        cargo
         isOpen={!!editServiceData}
         onClose={() => setEditServiceData(null)}
         courier={editServiceData?.providerCourier || null}
@@ -1004,6 +1028,8 @@ export function CargoCouriers() {
       />
 
       <AddCourierModal
+        cargo
+        existingProviders={providers.map(p => p.courierProvider).filter(Boolean)}
         isOpen={showAddCourier}
         onClose={() => setShowAddCourier(false)}
         onSuccess={() => { fetchAll(); setShowAddCourier(false); }}
@@ -1030,6 +1056,7 @@ export function CargoCouriers() {
       )}
 
       <DeleteServiceModal
+        cargo
         isOpen={isDeleteServiceModalOpen}
         onClose={() => {
           setIsDeleteServiceModalOpen(false);

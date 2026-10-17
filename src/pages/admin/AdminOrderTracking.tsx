@@ -78,6 +78,16 @@ export interface OrderData {
     method?: string;
     amount?: number;
   };
+  // B2B (Cargo) orders
+  orderType?: 'B2C' | 'B2B';
+  rovType?: string;
+  B2BPackageDetails?: {
+    applicableWeight?: number | string;
+    volumetricWeight?: number | string;
+    packages?: Array<{ noOfBox?: number; weightPerBox?: number; length?: number; width?: number; height?: number }>;
+  };
+  rateBreakup?: { freight?: number; cod_charges?: number; gst?: number; grand_total?: number; [k: string]: unknown };
+  totalFreightCharges?: number;
   codProcessed?: boolean;
   priceBreakup?: {
     freight?: number;
@@ -460,7 +470,11 @@ export function AdminOrderTracking() {
 
   const handleLabel = async () => {
     if (!order?._id) return;
-    try { await downloadFile(`/printlabel/generate-pdf/${order._id}`, `Label-${displayOrderId}.pdf`); }
+    // B2B orders print the box labels (one per box); B2C the single-parcel label
+    try {
+      if (order.orderType === 'B2B') await downloadFile(`/b2b/generate-label/${order._id}`, `B2B-Label-${displayOrderId}.pdf`);
+      else await downloadFile(`/printlabel/generate-pdf/${order._id}`, `Label-${displayOrderId}.pdf`);
+    }
     catch { setToastMessage('Failed to download label. Please try again.'); }
   };
 
@@ -494,17 +508,35 @@ export function AdminOrderTracking() {
     const isBooked = ['Ready To Ship'].includes(order.status || '');
     const endpoint = isBooked ? '/order/cancelOrdersAtBooked' : '/order/cancelOrdersAtNotShipped';
     try {
-      await apiClient.post(endpoint, { orderId: order._id });
+      // A booked B2B order is cancelled through the B2B cancel (carrier cancel + wallet refund)
+      if (isBooked && order.orderType === 'B2B') await apiClient.post(`/b2b/cancelOrder/${order._id}`);
+      else await apiClient.post(endpoint, { orderId: order._id });
       setToastMessage('Order cancelled successfully.');
       apiClient.get(`/order/getOrderById/${orderId}`).then(res => setOrder(res.data?.order || res.data?.data || res.data));
-    } catch {
-      setToastMessage('Failed to cancel order. Please try again.');
+    } catch (e: any) {
+      setToastMessage(order.orderType === 'B2B' && e?.response?.data?.message
+        ? e.response.data.message
+        : 'Failed to cancel order. Please try again.');
     } finally {
       setCancelling(false);
     }
   };
 
   // ── Derived values ───────────────────────────────────────────────────────────
+  // B2B (Cargo) orders: boxes live in B2BPackageDetails, charges in rateBreakup (the B2B rate engine's working)
+  const isB2BOrder = order?.orderType === 'B2B';
+  const b2bRows = Array.isArray(order?.B2BPackageDetails?.packages) ? order!.B2BPackageDetails!.packages! : [];
+  const b2bBoxes = b2bRows.reduce((s, p) => s + (Number(p.noOfBox) || 0), 0);
+  const b2bDead = b2bRows.reduce((s, p) => s + (Number(p.noOfBox) || 0) * (Number(p.weightPerBox) || 0), 0);
+  const b2bVol = Number(order?.B2BPackageDetails?.volumetricWeight) || b2bRows.reduce((s, p) =>
+    s + (Number(p.noOfBox) || 0) * ((Number(p.length) || 0) * (Number(p.width) || 0) * (Number(p.height) || 0)) / 5000, 0);
+  const b2bApplicable = Number(order?.B2BPackageDetails?.applicableWeight) || Math.max(b2bDead, b2bVol);
+  const b2bTotal = Number(order?.rateBreakup?.grand_total ?? order?.totalFreightCharges);
+  const b2bFreight = Number(order?.rateBreakup?.freight);
+  const b2bCod = Number(order?.rateBreakup?.cod_charges);
+  const b2bGst = Number(order?.rateBreakup?.gst);
+  const b2bOther = b2bTotal - (b2bFreight || 0) - (b2bCod || 0) - (b2bGst || 0);
+  const money = (v: number) => (Number.isFinite(v) ? `₹${v.toFixed(2)}` : '—');
   const orderStatus = mapApiStatus(order?.status);
   const milestones = getMilestonesFromStatus(order?.status || 'new', order || undefined);
   const courierName = order?.courierName || order?.courierServiceName || '—';
@@ -993,6 +1025,35 @@ export function AdminOrderTracking() {
                   </div>
                   <h3 className="text-[14px] leading-[20px] font-semibold text-[#0F172A]">Package Details</h3>
                 </div>
+                {isB2BOrder ? (
+                  <div className="space-y-3 md:space-y-4">
+                    <div className="grid grid-cols-2 gap-3 md:gap-4">
+                      {[
+                        ['Order Type', 'B2B'],
+                        ['ROV Type', order?.rovType || 'ROV Owner'],
+                        ['Total Boxes', String(b2bBoxes)],
+                        ['Dead Weight', `${b2bDead.toFixed(2)} KG`],
+                        ['Volumetric Weight', `${b2bVol.toFixed(2)} KG`],
+                        ['Applicable Weight', `${b2bApplicable.toFixed(2)} KG`],
+                      ].map(([label, value]) => (
+                        <div key={label}>
+                          <label className="block text-[12px] leading-[18px] font-medium text-[#94A3B8] uppercase tracking-wider">{label}</label>
+                          <div className="text-[12px] leading-[18px] font-normal text-[#0F172A] mt-0.5">{value}</div>
+                        </div>
+                      ))}
+                    </div>
+                    {b2bRows.length > 0 && (
+                      <div className="border-t border-[#F5F5F5] pt-2.5 md:pt-3 space-y-1.5">
+                        {b2bRows.map((p, i) => (
+                          <div key={i} className="flex items-center justify-between gap-3 text-[12px] leading-[18px]">
+                            <span className="text-[#64748B]">{Number(p.noOfBox) || 0} × {Number(p.weightPerBox) || 0} KG</span>
+                            <span className="text-[#0F172A]">{p.length ?? '—'} × {p.width ?? '—'} × {p.height ?? '—'} cm</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : (
                 <div className="space-y-3 md:space-y-4">
                   <div className="grid grid-cols-2 gap-3 md:gap-4">
                     <div>
@@ -1053,6 +1114,7 @@ export function AdminOrderTracking() {
                     </div>
                   </div>
                 </div>
+                )}
               </div>
 
               {/* SECTION 5: PRODUCT DETAILS */}
@@ -1117,8 +1179,29 @@ export function AdminOrderTracking() {
                 </button>
               </div>
 
+              {/* Billed Charges tab — B2B orders (rateBreakup from the B2B rate engine) */}
+              {chargesTab === 'billed' && isB2BOrder && (
+                <div className="space-y-0.5">
+                  {[
+                    ['Base Freight Charge', money(b2bFreight)],
+                    ['COD Charge', money(b2bCod)],
+                    ['Pickup, Docket, FSC, ROV & Other Charges', Number.isFinite(b2bOther) ? money(b2bOther) : '—'],
+                    ['GST', money(b2bGst)],
+                  ].map(([label, value]) => (
+                    <div key={label} className="flex justify-between items-center py-2.5 border-b border-[#F8FAFC]">
+                      <span className="text-[12px] leading-[18px] font-medium text-[#64748B]">{label}</span>
+                      <span className="text-[12px] leading-[18px] font-normal text-[#0F172A]">{value}</span>
+                    </div>
+                  ))}
+                  <div className="border-t border-dashed border-[#E2E8F0] pt-3 mt-3 flex justify-between items-center">
+                    <span className="text-[14px] leading-[20px] font-bold text-[#0F172A]">Total Billed</span>
+                    <span className="text-[14px] leading-[20px] font-bold text-[#00A86B]">{money(b2bTotal)}</span>
+                  </div>
+                </div>
+              )}
+
               {/* Billed Charges tab */}
-              {chargesTab === 'billed' && (
+              {chargesTab === 'billed' && !isB2BOrder && (
                 <div className="space-y-0.5">
                   <div className="flex justify-between items-center py-2.5 border-b border-[#F8FAFC]">
                     <span className="text-[12px] leading-[18px] font-medium text-[#64748B]">Base Freight Charge</span>
@@ -1614,6 +1697,7 @@ export function AdminOrderTracking() {
       {shipOrder && (
         <ShipOrderModal
           order={shipOrder}
+          cargo={shipOrder?.orderType === 'B2B'}
           onClose={() => setShipOrder(null)}
           onShipped={() => {
             setShipOrder(null);

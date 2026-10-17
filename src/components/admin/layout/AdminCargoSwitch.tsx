@@ -3,6 +3,7 @@ import { ArrowUpRight, Package, Truck } from 'lucide-react';
 import { ShineButton } from '../../ui/ShineButton';
 import { useShippingMode, type ShippingMode } from '../../../context/shippingMode';
 import { cargoTabUrl } from '../../../utils/shippingMode';
+import { employeePanelMode, getToken } from '../../../utils/session';
 import { ModeTransition } from './ModeTransition';
 
 /* Admin navbar pill: "Cargo ↗" in B2C admin, "B2C ↗" in Cargo admin.
@@ -31,6 +32,9 @@ export function AdminCargoSwitch({ variant = 'light' }: { variant?: 'light' | 'd
     // Full navigation to the other mode's URL (/cargo/admin/... or the plain B2C path).
     setMode(pending, ADMIN_HOME);
   };
+
+  // Employees work only in the panel they were created in — no switching
+  if (employeePanelMode(getToken())) return null;
 
   const Icon = target === 'cargo' ? Truck : Package;
   const label = target === 'cargo' ? 'Cargo' : 'B2C';

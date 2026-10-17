@@ -1,11 +1,11 @@
 /* QuickPost Cargo (admin) — CRM · Leads. Same UI as the B2C page (pages/admin/CRMLeads.tsx), kept as a
-   separate file so Cargo can diverge. Data comes from cargoApiClient (Cargo backend, wired later),
-   never from the B2C backend. */
+   separate file so Cargo can diverge. Leads are account-level data shared by B2C and B2B,
+   so this reads and writes the main API. */
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { Search, UserPlus, Phone, TrendingUp, Clock, CheckCircle2, XCircle, Loader2, X, MapPin, Building2, Tag, Radio, IndianRupee, UserCog, History, CalendarClock, FileText, Filter } from 'lucide-react';
-import { cargoApiClient as apiClient } from '../../services/cargoApiClient';
+import { apiClient } from '../../services/apiClient';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
 import { getLast7DaysStr } from '../../hooks/filters/useDateRangeFilter';

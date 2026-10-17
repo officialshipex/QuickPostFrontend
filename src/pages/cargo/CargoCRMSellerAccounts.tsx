@@ -1,11 +1,11 @@
 /* QuickPost Cargo (admin) — CRM · Seller Accounts. Same UI as the B2C page (pages/admin/CRMSellerAccounts.tsx), kept as a
-   separate file so Cargo can diverge. Data comes from cargoApiClient (Cargo backend, wired later),
-   never from the B2C backend. */
+   separate file so Cargo can diverge. Seller accounts are account-level data shared by B2C and B2B,
+   so this reads the main API. */
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { Search, Download, Building2, CheckCircle2, AlertCircle, Clock, TrendingUp, Eye, MapPin, Phone, Tag, ShieldCheck, Wallet, UserCog, Calendar, Settings, Filter, X } from 'lucide-react';
-import { cargoApiClient as apiClient } from '../../services/cargoApiClient';
+import { apiClient } from '../../services/apiClient';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
 import { getLast7DaysStr } from '../../hooks/filters/useDateRangeFilter';

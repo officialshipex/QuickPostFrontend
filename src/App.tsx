@@ -84,6 +84,7 @@ import { CargoDashboard } from './pages/cargo/CargoDashboard';
 import { CargoOrders } from './pages/cargo/CargoOrders';
 import { CargoNDR } from './pages/cargo/CargoNDR';
 import { CargoWeightDiscrepancy } from './pages/cargo/CargoWeightDiscrepancy';
+import { CargoLabelSettings } from './pages/cargo/CargoLabelSettings';
 import { AdminSettingsHub } from './pages/admin/AdminSettingsHub';
 import { AdminChannels } from './pages/admin/AdminChannels';
 import { AdminEarlyCodRemittance } from './pages/admin/AdminSellerRemittance';
@@ -351,7 +352,7 @@ function App() {
               <Route path="/user/order-tracking" element={<AdminOrderTracking />} />
               <Route path="/user/settings" element={<AdminSettingsHub />} />
               <Route path="/user/settings/change-password" element={<AdminChangePassword />} />
-              <Route path="/user/settings/label" element={<AdminLabelSettings />} />
+              <Route path="/user/settings/label" element={<ModeRoute b2c={<AdminLabelSettings />} cargo={<CargoLabelSettings />} />} />
               <Route path="/user/settings/invoice" element={<AdminSettingsPlaceholder title="Invoice" description="Manage your invoice preferences and billing settings." />} />
               <Route path="/user/settings/webhook" element={<AdminWebhookSettings />} />
               <Route path="/user/settings/agreement" element={<AdminAgreementSettings />} />

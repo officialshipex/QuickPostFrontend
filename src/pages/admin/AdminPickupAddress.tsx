@@ -23,7 +23,10 @@ const BACKEND_BASE = (import.meta.env.VITE_API_URL as string) || 'http://localho
 
 interface PickupDoc {
   _id: string;
+  /** Primary for B2C orders */
   isPrimary: boolean;
+  /** Primary for Cargo (B2B) orders */
+  isPrimaryCargo?: boolean;
   userId?: { _id: string; fullname: string; company: string; email: string; userId: number };
   pickupAddress: {
     contactName: string;
@@ -37,6 +40,28 @@ interface PickupDoc {
 }
 
 const EMPTY_FORM = { contactName: '', email: '', phoneNumber: '', address: '', pinCode: '', city: '', state: '' };
+
+type PrimaryTarget = 'b2c' | 'cargo' | 'both';
+const PRIMARY_OPTIONS: { value: PrimaryTarget; label: string; hint: string }[] = [
+  { value: 'b2c', label: 'B2C', hint: 'Used for B2C orders' },
+  { value: 'cargo', label: 'Cargo', hint: 'Used for Cargo (B2B) orders' },
+  { value: 'both', label: 'B2C & Cargo', hint: 'Used for both' },
+];
+
+/** "B2C" / "Cargo" primary badges of an address (nothing when it is primary for neither). */
+function PrimaryBadges({ doc, compact = false }: { doc: PickupDoc; compact?: boolean }) {
+  const badges = [doc.isPrimary && 'B2C', doc.isPrimaryCargo && 'Cargo'].filter(Boolean) as string[];
+  if (!badges.length) return null;
+  return (
+    <span className="inline-flex flex-wrap items-center gap-1">
+      {badges.map(b => (
+        <span key={b} className={`inline-flex items-center gap-1 rounded-full bg-[#D1FAE5] text-[#059669] font-bold whitespace-nowrap ${compact ? 'px-2 py-0.5 text-[10px]' : 'px-2.5 py-1 text-[11px]'}`}>
+          <Star className="w-3 h-3 fill-[#059669]" /> {b} Primary
+        </span>
+      ))}
+    </span>
+  );
+}
 
 const inputCls = (err?: string) =>
   `w-full h-11 px-4 border rounded-lg text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B] transition-colors ${err ? 'border-red-400' : 'border-[#E2E8F0]'}`;
@@ -215,16 +240,28 @@ export function AdminPickupAddress() {
   };
 
   // ── set primary ──────────────────────────────────────────────────────────
-  const handleSetPrimary = async (id: string) => {
+  // One address list serves both panels: an address can be the primary for B2C orders, for Cargo (B2B)
+  // orders, or both. Setting one moves only that primary off the seller's other addresses.
+  const [primaryMenu, setPrimaryMenu] = useState<{ id: string; top: number; left: number } | null>(null);
+  const handleSetPrimary = async (id: string, target: PrimaryTarget) => {
+    setPrimaryMenu(null);
     setPrimaryLoading(id);
     try {
-      await apiClient.patch(`/order/pickupAddress/setPrimary/${id}`);
-      setAddresses(prev => prev.map(a => ({ ...a, isPrimary: a._id === id })));
+      await apiClient.patch(`/order/pickupAddress/setPrimary/${id}`, { for: target });
+      setAddresses(prev => prev.map(a => ({
+        ...a,
+        ...(target !== 'cargo' ? { isPrimary: a._id === id } : {}),
+        ...(target !== 'b2c' ? { isPrimaryCargo: a._id === id } : {}),
+      })));
     } catch {
       // silent fail
     } finally {
       setPrimaryLoading(null);
     }
+  };
+  const openPrimaryMenu = (id: string, el: HTMLElement) => {
+    const r = el.getBoundingClientRect();
+    setPrimaryMenu(prev => (prev?.id === id ? null : { id, top: r.bottom + 6, left: Math.min(r.left, window.innerWidth - 196) }));
   };
 
   // ── delete ───────────────────────────────────────────────────────────────
@@ -570,8 +607,9 @@ export function AdminPickupAddress() {
                     <th className="py-2 px-4 whitespace-nowrap"><div className="flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5 shrink-0" /><span>Accuracy</span></div></th>
                     <th className="py-2 px-4 whitespace-nowrap"><div className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5 shrink-0" /><span>City / State</span></div></th>
                     <th className="py-2 px-4 whitespace-nowrap"><div className="flex items-center gap-1"><Hash className="w-3.5 h-3.5 shrink-0" /><span>Pincode</span></div></th>
-                    <th className="py-2 px-4 text-center whitespace-nowrap"><div className="flex items-center justify-center gap-1"><CheckCircle2 className="w-3.5 h-3.5 shrink-0" /><span>Status</span></div></th>
-                    {!isAdminView && <th className="py-2 px-4 text-center whitespace-nowrap"><div className="flex items-center justify-center gap-1"><Settings className="w-3.5 h-3.5 shrink-0" /><span>Actions</span></div></th>}
+                    {/* Status + Actions stay pinned to the right edge so they never scroll out of view */}
+                    <th className={`py-2 px-4 text-center whitespace-nowrap sticky bg-[#E6F9F2] min-w-[180px] ${isAdminView ? 'right-0' : 'right-[104px]'}`}><div className="flex items-center justify-center gap-1"><CheckCircle2 className="w-3.5 h-3.5 shrink-0" /><span>Status</span></div></th>
+                    {!isAdminView && <th className="py-2 px-4 text-center whitespace-nowrap sticky right-0 bg-[#E6F9F2] w-[104px] min-w-[104px]"><div className="flex items-center justify-center gap-1"><Settings className="w-3.5 h-3.5 shrink-0" /><span>Actions</span></div></th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -604,26 +642,26 @@ export function AdminPickupAddress() {
                         </td>
                         <td className="p-3 text-[12px] font-normal text-[#475569]">{a.city}, {a.state}</td>
                         <td className="p-3 text-[12px] font-normal text-[#475569]">{a.pinCode}</td>
-                        <td className="p-3 text-center">
-                          {doc.isPrimary ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#D1FAE5] text-[#059669] text-[11px] font-bold">
-                              <Star className="w-3 h-3 fill-[#059669]" /> Primary
-                            </span>
-                          ) : !isAdminView ? (
-                            <button
-                              onClick={() => handleSetPrimary(doc._id)}
-                              disabled={!!primaryLoading}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border border-[#E2E8F0] text-[11px] font-semibold text-[#64748B] hover:border-[#00A86B] hover:text-[#00A86B] transition-colors disabled:opacity-50"
-                            >
-                              {primaryLoading === doc._id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Star className="w-3 h-3" />}
-                              Set Primary
-                            </button>
-                          ) : (
-                            <span className="text-[12px] text-[#94A3B8]">—</span>
-                          )}
+                        <td className={`p-3 text-center sticky ${i % 2 === 0 ? 'bg-white' : 'bg-[#FAFBFD]'} ${isAdminView ? 'right-0' : 'right-[104px]'}`}>
+                          <div className="flex flex-col items-center gap-1.5">
+                            <PrimaryBadges doc={doc} />
+                            {!isAdminView && !(doc.isPrimary && doc.isPrimaryCargo) && (
+                              <button
+                                onClick={(e) => openPrimaryMenu(doc._id, e.currentTarget)}
+                                disabled={!!primaryLoading}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border border-[#E2E8F0] text-[11px] font-semibold text-[#64748B] hover:border-[#00A86B] hover:text-[#00A86B] transition-colors disabled:opacity-50"
+                              >
+                                {primaryLoading === doc._id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Star className="w-3 h-3" />}
+                                Set Primary <ChevronDown className="w-3 h-3" />
+                              </button>
+                            )}
+                            {isAdminView && !doc.isPrimary && !doc.isPrimaryCargo && (
+                              <span className="text-[12px] text-[#94A3B8]">—</span>
+                            )}
+                          </div>
                         </td>
                         {!isAdminView && (
-                          <td className="p-3">
+                          <td className={`p-3 sticky right-0 w-[104px] min-w-[104px] ${i % 2 === 0 ? 'bg-white' : 'bg-[#FAFBFD]'}`}>
                             <div className="flex items-center justify-center gap-2">
                               <button
                                 onClick={() => openEdit(doc)}
@@ -661,11 +699,12 @@ export function AdminPickupAddress() {
                 <div className="p-2 space-y-2">
                   {paginatedAddresses.map(doc => {
                     const a = doc.pickupAddress;
-                    const accent = doc.isPrimary ? '#00A86B' : '#94A3B8';
+                    const anyPrimary = doc.isPrimary || doc.isPrimaryCargo;
+                    const accent = anyPrimary ? '#00A86B' : '#94A3B8';
                     return (
                       <div key={doc._id} className="relative bg-white rounded-2xl border border-[#E2E8F0] shadow-sm">
                         {/* Ribbon Tag */}
-                        <StatusRibbon label={doc.isPrimary ? 'Primary' : 'Address'} color={accent} />
+                        <StatusRibbon label={anyPrimary ? 'Primary' : 'Address'} color={accent} />
 
                         <div className="pt-7 px-2.5 pb-2.5">
                           {/* Admin: user info row */}
@@ -737,15 +776,17 @@ export function AdminPickupAddress() {
                             </div>
                           </div>
 
-                          {/* Set primary — user only */}
-                          {!isAdminView && !doc.isPrimary && (
+                          {anyPrimary && <div className="mb-2"><PrimaryBadges doc={doc} compact /></div>}
+
+                          {/* Set primary (B2C / Cargo / both) — user only */}
+                          {!isAdminView && !(doc.isPrimary && doc.isPrimaryCargo) && (
                             <button
-                              onClick={() => handleSetPrimary(doc._id)}
+                              onClick={(e) => openPrimaryMenu(doc._id, e.currentTarget)}
                               disabled={!!primaryLoading}
                               className="w-full flex items-center justify-center gap-1.5 h-8 rounded-xl border border-[#E2E8F0] text-[12px] font-semibold text-[#64748B] hover:border-[#00A86B] hover:text-[#00A86B] transition-colors disabled:opacity-50"
                             >
                               {primaryLoading === doc._id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Star className="w-3.5 h-3.5" />}
-                              Set as Primary
+                              Set as Primary <ChevronDown className="w-3.5 h-3.5" />
                             </button>
                           )}
                         </div>
@@ -771,6 +812,33 @@ export function AdminPickupAddress() {
         document.body
       )}
       <AddressTooltip hover={hoveredAddress} />
+
+      {/* Set Primary chooser — B2C orders, Cargo (B2B) orders, or both */}
+      {primaryMenu && (() => {
+        const doc = addresses.find(a => a._id === primaryMenu.id);
+        if (!doc) return null;
+        const options = PRIMARY_OPTIONS.filter(o =>
+          (o.value === 'b2c' && !doc.isPrimary) ||
+          (o.value === 'cargo' && !doc.isPrimaryCargo) ||
+          (o.value === 'both' && !(doc.isPrimary && doc.isPrimaryCargo)));
+        return createPortal(
+          <>
+            <div className="fixed inset-0 z-[998]" onClick={() => setPrimaryMenu(null)} />
+            <div className="fixed z-[999] w-48 bg-white rounded-xl border border-[#E2E8F0] shadow-[0_8px_28px_-6px_rgba(0,0,0,0.15)] py-1.5"
+              style={{ top: primaryMenu.top, left: Math.max(8, primaryMenu.left) }}>
+              <p className="px-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-[#94A3B8]">Set as primary for</p>
+              {options.map(o => (
+                <button key={o.value} type="button" onClick={() => handleSetPrimary(doc._id, o.value)}
+                  className="w-full text-left px-3 py-2 hover:bg-[#F0FDF4]">
+                  <div className="text-[12.5px] font-semibold text-[#0F172A]">{o.label}</div>
+                  <div className="text-[11px] text-[#94A3B8]">{o.hint}</div>
+                </button>
+              ))}
+            </div>
+          </>,
+          document.body
+        );
+      })()}
 
       {/* ── Mobile Filters Bottom Sheet (admin only — user search) ── */}
       <AnimatePresence>

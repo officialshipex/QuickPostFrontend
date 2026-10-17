@@ -54,13 +54,46 @@ const getCredFields = (provider: string): CredField[] => {
   ];
 };
 
+// Cargo (B2B) couriers have their own credential store (B2BallCourier) and save routes — only providers
+// with a real B2B integration, same configs as ShipexFrontend's B2B "Add Courier" (CourierAdd isB2B).
+const B2B_COURIER_CONFIGS: Record<string, { endpoint: string; fields: CredField[] }> = {
+  Shiprocket: {
+    endpoint: '/b2b/shiprocket/getToken',
+    fields: [
+      { id: 'clientId', label: 'Client ID', type: 'text', placeholder: 'Shiprocket Cargo Client ID', icon: Hash },
+      { id: 'refreshToken', label: 'Refresh Token', type: 'password', placeholder: 'Refresh Token', icon: Key },
+      { id: 'authToken', label: 'Auth Token', type: 'password', placeholder: 'Auth Token', icon: Key },
+    ],
+  },
+  Delhivery: {
+    endpoint: '/b2b/delhivery/getToken',
+    fields: [
+      { id: 'username', label: 'User', type: 'text', placeholder: 'B2B Username', icon: User },
+      { id: 'password', label: 'Password', type: 'password', placeholder: 'Password', icon: ShieldCheck },
+    ],
+  },
+  BigShip: {
+    endpoint: '/b2b/bigship/getToken',
+    fields: [
+      { id: 'username', label: 'User / Email', type: 'text', placeholder: 'API Username', icon: User },
+      { id: 'password', label: 'Password', type: 'password', placeholder: 'Password', icon: ShieldCheck },
+      { id: 'accessKey', label: 'Access Key', type: 'text', placeholder: 'API Access Key', icon: Key },
+    ],
+  },
+};
+
 interface AddCourierModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  /** Cargo (B2B) courier — B2B providers, credentials and save routes. */
+  cargo?: boolean;
+  /** Cargo: providers already added (one account per B2B provider). */
+  existingProviders?: string[];
 }
 
-export function AddCourierModal({ isOpen, onClose, onSuccess }: AddCourierModalProps) {
+export function AddCourierModal({ isOpen, onClose, onSuccess, cargo = false, existingProviders = [] }: AddCourierModalProps) {
+  const [b2bProviders, setB2bProviders] = useState<string[]>([]);
   const [provider, setProvider] = useState('');
   const [courierName, setCourierName] = useState('');
   const [codDays, setCodDays] = useState('');
@@ -83,13 +116,52 @@ export function AddCourierModal({ isOpen, onClose, onSuccess }: AddCourierModalP
     setCreds({});
   }, [provider]);
 
-  const credFields = provider ? getCredFields(provider) : [];
+  // Cargo: the B2B providers enabled for this company (same list ShipexFrontend's B2B screen offers)
+  useEffect(() => {
+    if (!cargo || !isOpen) return;
+    apiClient.get('/allCourier/enabled-providers', { params: { type: 'b2b' } })
+      .then(res => {
+        const opts: { value: string }[] = res.data?.options || res.data?.b2b || [];
+        setB2bProviders(opts.map(o => o.value).filter(Boolean));
+      })
+      .catch(() => setB2bProviders([]));
+  }, [cargo, isOpen]);
+
+  const providerOptions = cargo
+    ? b2bProviders.filter(p => !existingProviders.includes(p))
+    : PROVIDERS;
+  const b2bConfig = cargo ? B2B_COURIER_CONFIGS[provider] : undefined;
+  const credFields = !provider ? [] : cargo ? (b2bConfig?.fields || []) : getCredFields(provider);
 
   const handleSubmit = async () => {
     setError('');
     if (!provider) { setError('Select a provider'); return; }
     if (!courierName.trim()) { setError('Courier name is required'); return; }
     if (!status) { setError('Status is required'); return; }
+    if (cargo) {
+      if (!b2bConfig) { setError(`${provider} does not have a B2B integration yet`); return; }
+      if (!codDays) { setError('COD days is required'); return; }
+      const missing = b2bConfig.fields.find(f => !(creds[f.id] || '').trim());
+      if (missing) { setError(`Please enter ${missing.label}`); return; }
+      setSaving(true);
+      try {
+        // Same body ShipexFrontend's B2B "Add Courier" posts to the provider's B2B save route
+        await apiClient.post(b2bConfig.endpoint, {
+          courierName: courierName.trim(),
+          courierProvider: provider,
+          CODDays: codDays,
+          status,
+          credentials: Object.fromEntries(Object.entries(creds).map(([k, v]) => [k, String(v).trim()])),
+        });
+        onSuccess();
+        onClose();
+      } catch (err: any) {
+        setError(err?.response?.data?.message || 'Failed to add courier');
+      } finally {
+        setSaving(false);
+      }
+      return;
+    }
     if (provider === 'ShipMaxx' && !/^d+$/.test((creds.channelId || '').trim())) {
       setError('Channel ID is required (numeric)'); return;
     }
@@ -146,8 +218,8 @@ export function AddCourierModal({ isOpen, onClose, onSuccess }: AddCourierModalP
               {/* Header */}
               <div className="px-4 md:px-7 py-4 md:py-6 border-b border-[#E2E8F0] flex items-center justify-between bg-white/40 shrink-0">
                 <div className="min-w-0">
-                  <h3 className="text-[14px] md:text-xl font-bold text-[#0F172A]">Add Courier</h3>
-                  <p className="hidden md:block text-xs text-[#94A3B8] mt-0.5">Register a new courier provider</p>
+                  <h3 className="text-[14px] md:text-xl font-bold text-[#0F172A]">{cargo ? 'Add B2B Courier' : 'Add Courier'}</h3>
+                  <p className="hidden md:block text-xs text-[#94A3B8] mt-0.5">{cargo ? 'Register a cargo (B2B) courier account' : 'Register a new courier provider'}</p>
                 </div>
                 <button onClick={onClose}
                   className="w-8 h-8 rounded-full flex items-center justify-center text-[#64748B] hover:text-[#0F172A] hover:bg-[#F1F5F9] transition-colors shrink-0">
@@ -167,8 +239,15 @@ export function AddCourierModal({ isOpen, onClose, onSuccess }: AddCourierModalP
                     className="w-full h-11 md:h-12 px-4 bg-white border border-[#E2E8F0] rounded-full md:rounded-[14px] text-[12px] md:text-sm font-medium text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#00A86B]/20 focus:border-[#00A86B] appearance-none"
                   >
                     <option value="">Select provider</option>
-                    {PROVIDERS.map(p => <option key={p} value={p}>{p}</option>)}
+                    {providerOptions.map(p => <option key={p} value={p}>{p}</option>)}
                   </select>
+                  {cargo && providerOptions.length === 0 && (
+                    <p className="text-[12px] text-[#64748B] mt-1.5 ml-1">
+                      {b2bProviders.length === 0
+                        ? 'No B2B couriers are enabled for your company yet.'
+                        : 'All enabled B2B couriers have already been added.'}
+                    </p>
+                  )}
                 </div>
 
                 {/* Courier Name */}
@@ -210,8 +289,8 @@ export function AddCourierModal({ isOpen, onClose, onSuccess }: AddCourierModalP
                   </div>
                 </div>
 
-                {/* Liability Amount + Percent row */}
-                <div className="grid grid-cols-2 gap-3 md:gap-4">
+                {/* Liability Amount + Percent row — B2C only (a B2B courier record has no liability) */}
+                {!cargo && <div className="grid grid-cols-2 gap-3 md:gap-4">
                   <div>
                     <label className="block text-[12px] font-semibold text-[#64748B] mb-1.5 md:mb-2 md:uppercase md:tracking-wide">
                       Liability ₹
@@ -236,7 +315,7 @@ export function AddCourierModal({ isOpen, onClose, onSuccess }: AddCourierModalP
                       className="w-full h-11 md:h-12 px-4 bg-white border border-[#E2E8F0] rounded-full md:rounded-[14px] text-[12px] md:text-sm font-medium text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#00A86B]/20 focus:border-[#00A86B]"
                     />
                   </div>
-                </div>
+                </div>}
 
                 {/* Dynamic credential fields */}
                 {credFields.map((field) => {

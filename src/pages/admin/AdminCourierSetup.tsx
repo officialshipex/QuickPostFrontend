@@ -8,6 +8,7 @@ import { Toast } from '../../components/ui/Toast';
 import { useToast } from '../../hooks/useToast';
 import { apiClient } from '../../services/apiClient';
 import { useSearchNoResults } from '../../hooks/useSearchNoResults';
+import { useShippingMode } from '../../context/shippingMode';
 
 type SetupTab = 'selection' | 'priority';
 type PriorityMode = 'Fastest' | 'Cheapest' | 'Custom';
@@ -49,6 +50,8 @@ const PRIORITY_OPTIONS: { key: PriorityMode; label: string; icon: any }[] = [
 ];
 
 export function AdminCourierSetup() {
+  // Cargo: Courier Selection lists the seller's B2B services (B2B booking has no courier priority)
+  const { isCargo } = useShippingMode();
   const [activeTab, setActiveTab] = useState<SetupTab>('selection');
   const [couriers, setCouriers] = useState<CourierServiceRow[]>([]);
   const [search, setSearch] = useState('');
@@ -261,12 +264,12 @@ export function AdminCourierSetup() {
             >
               Courier Selection
             </button>
-            <button
+            {!isCargo && <button
               onClick={() => setActiveTab('priority')}
               className={`relative px-4 py-2 text-[14px] md:text-[13px] font-semibold md:font-bold transition-colors whitespace-nowrap rounded-full cursor-pointer ${activeTab === 'priority' ? 'text-[#00A86B] underline underline-offset-4 decoration-2' : 'text-[#64748B] hover:text-[#0F172A]'}`}
             >
               Courier Priority
-            </button>
+            </button>}
           </div>
 
           {activeTab === 'selection' && (
@@ -400,7 +403,7 @@ export function AdminCourierSetup() {
           </>
         )}
 
-        {activeTab === 'priority' && (
+        {activeTab === 'priority' && !isCargo && (
           <div className="flex-1 min-h-0 overflow-y-auto px-4 md:px-6 py-4">
             <div className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm p-6 max-w-[900px]">
               <h2 className="text-[15px] font-bold text-[#0F172A]">Courier Priority</h2>

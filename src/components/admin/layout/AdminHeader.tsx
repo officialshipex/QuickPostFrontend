@@ -7,8 +7,8 @@ import { AdminCargoSwitch } from './AdminCargoSwitch';
 import { SalesNotificationBell } from './SalesNotificationBell';
 import { isAdminPanelPath } from '../../../config/cargo';
 import { useShippingMode } from '../../../context/shippingMode';
+import { modeUrl } from '../../../utils/shippingMode';
 import { apiClient } from '../../../services/apiClient';
-import { cargoApiClient } from '../../../services/cargoApiClient';
 import { getToken, setToken } from '../../../utils/session';
 import { useAdminTab } from '../../../context/AdminUserContext';
 import { useDashboardFilters } from '../../../context/DashboardFilterContext';
@@ -123,7 +123,8 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
         const currentToken = getToken();
         if (currentToken) localStorage.setItem('admin_token_backup', currentToken);
         setToken(res.data.token);
-        window.location.href = '/user/dashboard';
+        // stay in the panel the admin is in (Cargo URLs carry the /cargo prefix)
+        window.location.href = modeUrl(isCargo ? 'cargo' : 'b2c', '/user/dashboard');
       }
     } catch (e) {
       console.error('adminLoginAsUser error:', e);
@@ -183,7 +184,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
     if (backup) {
       setToken(backup);
       localStorage.removeItem('admin_token_backup');
-      window.location.href = '/admin/dashboard';
+      window.location.href = modeUrl(isCargo ? 'cargo' : 'b2c', '/admin/dashboard');
     }
   };
 
@@ -298,10 +299,31 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
     const timer = setTimeout(async () => {
       try {
         const isAdminView = isAdmin && adminTab && !isEmployee;
-        const params: Record<string, any> = { page: 1, limit: 8, searchQuery: searchQuery.trim() };
+        const q = searchQuery.trim();
+        if (isCargo) {
+          // Cargo searches B2B orders only — never B2C ones. The B2B lists match a numeric order id
+          // (orderId), an AWB (awbNumber) and seller / buyer name-email-phone (searchQuery) separately,
+          // so ask for each that fits and merge.
+          const endpoint = isAdmin && adminTab ? '/b2b/getb2badminorder' : '/b2b/getb2buserorder';
+          const lookups: Record<string, string>[] = [{ searchQuery: q }];
+          if (/^\d+$/.test(q)) lookups.push({ orderId: q });
+          else if (!/\s/.test(q)) lookups.push({ awbNumber: q });
+          const results = await Promise.allSettled(lookups.map(extra =>
+            apiClient.get(endpoint, { params: { page: 1, limit: 8, ...extra } })));
+          const seen = new Set<string>();
+          const merged: any[] = [];
+          results.forEach(r => {
+            if (r.status !== 'fulfilled') return;
+            (r.value.data?.orders || []).forEach((o: any) => {
+              if (!seen.has(o._id)) { seen.add(o._id); merged.push(o); }
+            });
+          });
+          setOrderSearchResults(merged.slice(0, 8));
+          return;
+        }
+        const params: Record<string, any> = { page: 1, limit: 8, searchQuery: q };
         if (!isAdminView && currentUserId) params.userId = currentUserId;
-        // Cargo searches Cargo orders only — never B2C ones.
-        const res = await (isCargo ? cargoApiClient : apiClient).get('/admin/filterEmployeeOrders', { params });
+        const res = await apiClient.get('/admin/filterEmployeeOrders', { params });
         setOrderSearchResults(res.data?.orders || []);
       } catch {
         setOrderSearchResults([]);

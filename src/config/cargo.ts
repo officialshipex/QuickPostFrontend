@@ -20,10 +20,18 @@ export const CARGO_ALLOWED_PATHS: string[] = [
   '/user/profile',
   '/user/support',
   '/user/settings',
+  // Kept separate per panel on the backend (x-shipping-mode): Cargo shows only its own
+  '/user/reports',
+  '/user/notification',
+  '/user/channels',
+  '/user/employees',
+  // Courier Selection only (the seller's B2B services); Courier Priority is B2C-only
+  '/user/courier-setup',
 ];
 
-/* Cargo admin (/admin/*, /internal-crm/*) — Dashboard, CRM, Orders, NDR, Weight Discrepancy,
-   Courier (Couriers, Rate Card), Tools → Announcements, Setup & Manage → Pickup Address.
+/* Cargo admin (/admin/*, /internal-crm/*) — Dashboard, CRM, Orders, NDR, Weight Discrepancy, Finance → Wallet,
+   Reports, Courier (Couriers, Rate Card), Tools → Announcements / Notification, Setup & Manage → Pickup Address /
+   Employees, Support.
    Dashboard / Orders / NDR / Weight Discrepancy reuse the Cargo pages above (they handle the admin view);
    the rest are separate Cargo admin pages in pages/cargo/*. */
 export const CARGO_ADMIN_ALLOWED_PATHS: string[] = [
@@ -41,6 +49,13 @@ export const CARGO_ADMIN_ALLOWED_PATHS: string[] = [
   '/admin/add-order',
   '/admin/pickup-manifest',
   '/admin/profile',
+  // Kept separate per panel on the backend (x-shipping-mode). COD stays B2C-only: its remittance covers
+  // both order types together, so it is shown once, in the B2C panel.
+  '/admin/wallet',
+  '/admin/reports',
+  '/admin/notification',
+  '/admin/roles',
+  '/admin/support',
 ];
 
 export const isCargoAllowedPath = (path: string) =>

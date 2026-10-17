@@ -8,7 +8,6 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { apiClient } from '../../services/apiClient';
-import { cargoApiClient } from '../../services/cargoApiClient';
 import { useShippingMode } from '../../context/shippingMode';
 import { useAdminTab } from '../../context/AdminUserContext';
 import { BulkUploadModal } from '../../components/ui/BulkUploadModal';
@@ -32,6 +31,8 @@ interface Product {
 
 interface PickupAddress {
   _id: string;
+  isPrimary?: boolean;
+  isPrimaryCargo?: boolean;
   pickupAddress: {
     contactName: string;
     email?: string;
@@ -54,9 +55,9 @@ interface B2BPackage {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export function AdminAddOrder() {
-  // Cargo has its own pickup addresses — never list or save B2C ones in Cargo mode.
+  // Cargo = B2B orders (multi-box). Pickup addresses are the account's one shared list, same as ShipexFrontend.
   const { isCargo } = useShippingMode();
-  const addressApi = isCargo ? cargoApiClient : apiClient;
+  const addressApi = apiClient;
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { isAdmin, adminTab } = useAdminTab();
@@ -118,7 +119,7 @@ export function AdminAddOrder() {
   const [showOptionalFields, setShowOptionalFields] = useState(false);
 
   // ── Package ──
-  const [orderType, setOrderType] = useState('B2C');
+  const [orderType, setOrderType] = useState(isCargo ? 'B2B' : 'B2C');
   const [rovType, setRovType] = useState('ROV Owner');
   // B2C
   const [deadWeight, setDeadWeight] = useState<number | string>('');
@@ -192,7 +193,11 @@ export function AdminAddOrder() {
         const list: PickupAddress[] =
           res.data?.data || res.data?.addresses || (Array.isArray(res.data) ? res.data : []);
         setPickupAddresses(list);
-        if (list.length > 0 && !selectedPickupId) setSelectedPickupId(list[0]._id);
+        // default: this panel's primary address (Cargo's own primary, falling back to the B2C one), else the newest
+        if (list.length > 0 && !selectedPickupId) {
+          const primary = (isCargo && list.find(p => p.isPrimaryCargo)) || list.find(p => p.isPrimary) || list[0];
+          setSelectedPickupId(primary._id);
+        }
       })
       .catch(() => {});
   }, [pickupRefresh, orderOwnerId]);
@@ -236,7 +241,9 @@ export function AdminAddOrder() {
           );
         }
 
-        setOrderType(order.orderType || 'B2C');
+        // Each panel creates only its own order type (a clone becomes the panel's type); an update keeps
+        // the order's real type.
+        setOrderType(isUpdate ? (order.orderType || 'B2C') : (isCargo ? 'B2B' : 'B2C'));
         setRovType(order.rovType || 'ROV Owner');
         setDeadWeight(order.packageDetails?.deadWeight ?? '');
         setLength(order.packageDetails?.volumetricWeight?.length ?? '');
@@ -636,21 +643,31 @@ export function AdminAddOrder() {
     } else {
       return {
         ...base,
+        // The backend rejects an order without packageDetails, B2B included (ShipexFrontend always sends it).
+        // For B2B it carries the box totals, so screens that read packageDetails still show the real weight.
+        packageDetails: {
+          deadWeight: Number(b2bTotalDead.toFixed(2)),
+          applicableWeight: Number(b2bApplicable.toFixed(2)),
+          volumetricWeight: {},
+        },
         rovType,
         B2BPackageDetails: {
           applicableWeight: b2bApplicable,
           volumetricWeight: b2bTotalVol,
-          packages: b2bPackages.map(pkg => ({
-            noOfBox: pkg.noOfBox,
-            weightPerBox: pkg.weightPerBox,
-            length: pkg.length,
-            width: pkg.width,
-            height: pkg.height,
-          })),
+          packages: b2bPayloadPackages(),
         },
       };
     }
   };
+
+  const b2bPayloadPackages = () => b2bPackages.map((pkg, i) => ({
+    id: i + 1,
+    noOfBox: Number(pkg.noOfBox),
+    weightPerBox: Number(pkg.weightPerBox),
+    length: Number(pkg.length),
+    width: Number(pkg.width),
+    height: Number(pkg.height),
+  }));
 
   // ── Submit ──
   const handleSaveOrder = async () => {
@@ -660,6 +677,11 @@ export function AdminAddOrder() {
       const payload = buildPayload();
       if (isUpdate) {
         await apiClient.put(`/order/updateOrder/${updateId}`, payload);
+        // updateOrder only covers the B2C package fields — B2B boxes are saved through the B2B packages
+        // endpoint (it recomputes dead / volumetric / applicable weight), same as ShipexFrontend's order view.
+        if (orderType === 'B2B') {
+          await apiClient.put(`/b2b/orders/${updateId}/b2b-packages`, { packages: b2bPayloadPackages() });
+        }
       } else {
         await apiClient.post('/order/neworder', payload);
       }
@@ -1160,21 +1182,10 @@ export function AdminAddOrder() {
 
             <div className="p-3 md:p-6 space-y-3 md:space-y-6">
 
-              {/* Type + ROV row */}
+              {/* No package-type picker: the B2C panel creates B2C orders, the Cargo panel B2B orders.
+                  B2B orders also choose who carries transit risk (ROV). */}
+              {orderType === 'B2B' && (
               <div className="flex flex-wrap gap-3 md:gap-4">
-                <div className="w-[calc(50%-6px)] md:w-[160px]">
-                  <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Package Type:</label>
-                  <PillSelect
-                    ariaLabel="Package type"
-                    value={orderType}
-                    onChange={setOrderType}
-                    options={[
-                      { value: 'B2C', label: 'B2C', hint: 'Single parcel to a customer' },
-                      { value: 'B2B', label: 'B2B', hint: 'Multiple boxes or bulk shipment' },
-                    ]}
-                  />
-                </div>
-                {orderType === 'B2B' && (
                   <div className="w-[calc(50%-6px)] md:w-[200px]">
                     <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">ROV Type:</label>
                     <PillSelect
@@ -1187,8 +1198,8 @@ export function AdminAddOrder() {
                       ]}
                     />
                   </div>
-                )}
               </div>
+              )}
 
               {/* B2C fields */}
               {orderType === 'B2C' && (

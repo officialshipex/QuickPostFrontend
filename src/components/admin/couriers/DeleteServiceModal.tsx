@@ -8,6 +8,8 @@ interface DeleteServiceModalProps {
   onClose: () => void;
   servicesToDelete: any[];
   onSuccess: () => void;
+  /** Cargo (B2B) services — preview and delete through the /b2b service routes (they cascade B2B rate cards). */
+  cargo?: boolean;
 }
 
 export function DeleteServiceModal({
@@ -15,7 +17,9 @@ export function DeleteServiceModal({
   onClose,
   servicesToDelete,
   onSuccess,
+  cargo = false,
 }: DeleteServiceModalProps) {
+  const base = cargo ? '/b2b/courierServices' : '/courierServices';
   const [stats, setStats] = useState<any | null>(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -34,7 +38,7 @@ export function DeleteServiceModal({
     setLoadingPreview(true);
     setError(null);
     try {
-      const res = await apiClient.post('/courierServices/previewDelete', {
+      const res = await apiClient.post(`${base}/previewDelete`, {
         serviceIds: servicesToDelete.map((s) => s._id),
       });
       if (res.data?.success) {
@@ -54,9 +58,9 @@ export function DeleteServiceModal({
     setDeleting(true);
     try {
       if (servicesToDelete.length === 1) {
-        await apiClient.delete(`/courierServices/couriers/${servicesToDelete[0]._id}`);
+        await apiClient.delete(`${base}/couriers/${servicesToDelete[0]._id}`);
       } else {
-        await apiClient.post('/courierServices/bulkDelete', {
+        await apiClient.post(`${base}/bulkDelete`, {
           serviceIds: servicesToDelete.map((s) => s._id),
         });
       }

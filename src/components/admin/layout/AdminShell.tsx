@@ -12,12 +12,22 @@ import { WhatsNewCard } from '../../ui/WhatsNewCard';
 import { ShippingModeProvider } from '../../../context/ShippingModeProvider';
 import { useShippingMode } from '../../../context/shippingMode';
 import { isAdminPanelPath, isCargoAllowedPath } from '../../../config/cargo';
+import { employeePanelMode, getToken } from '../../../utils/session';
+import { modeUrl } from '../../../utils/shippingMode';
 
 // In Cargo mode only the sections in config/cargo.ts are reachable; anything else lands on Home.
 function CargoRouteGuard() {
   const { pathname } = useLocation();
   const { isCargo } = useShippingMode();
+  // An employee works only in the panel they were created in — another panel's URL (typed, bookmarked or
+  // an old link) moves them back to the same page in their own panel. Different URL space: full navigation.
+  const employeeMode = employeePanelMode(getToken());
+  const wrongPanel = !!employeeMode && employeeMode !== (isCargo ? 'cargo' : 'b2c');
+  useEffect(() => {
+    if (wrongPanel) window.location.replace(modeUrl(employeeMode!, pathname));
+  }, [wrongPanel, employeeMode, pathname]);
   const { isSalesEmployee, isEmployee, isAdmin, adminTab, employeeAccessRights, employeeRightsLoaded } = useAdminTab();
+  if (wrongPanel) return null;
   // Sales employees land on (and are kept on) the Sales Dashboard instead of the main dashboard.
   if (isSalesEmployee && pathname === '/admin/dashboard') {
     return <Navigate to="/admin/sales" replace />;

@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { getToken, removeToken, isEmployeeToken } from '../utils/session';
+import { isCargoUrl } from '../utils/shippingMode';
 
 export const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1',
@@ -13,6 +14,9 @@ apiClient.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  // Which panel this tab is in — the backend keeps announcements, tickets, reports, employees, channels,
+  // wallet history and notifications separate per panel (backend utils/shippingMode.js).
+  config.headers['x-shipping-mode'] = isCargoUrl() ? 'cargo' : 'b2c';
   const devTenant = localStorage.getItem('dev_tenant_key') || localStorage.getItem('dev_tenant');
   if (devTenant && !config.url?.startsWith('/platform-admin')) {
     config.headers['x-tenant-key'] = devTenant;

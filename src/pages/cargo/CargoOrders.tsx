@@ -1,14 +1,15 @@
 /* QuickPost Cargo — Orders. Same UI as the B2C page (pages/admin/AdminOrders.tsx), kept as a separate
-   file so Cargo can diverge. All data comes from cargoApiClient (Cargo backend, wired later),
-   never from the B2C backend. */
+   file so Cargo can diverge. Cargo = the B2B flow: orders come from the backend's /b2b namespace
+   (getb2buserorder / getb2badminorder), shipping goes through /b2b/shipNow + /b2b/{provider}/createShipment
+   and booked orders are cancelled with /b2b/cancelOrder — same endpoints ShipexFrontend's B2B pages use. */
 import { CargoPackageInfo } from './CargoPackageInfo';
-import { toCargoPackage, boxesLabel, kg } from './cargoPackage';
+import { orderCargoPackage, boxesLabel, kg } from './cargoPackage';
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useParams, useLocation, useSearchParams } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
-import { cargoApiClient as apiClient, CARGO_API_BASE } from '../../services/cargoApiClient';
+import { apiClient } from '../../services/apiClient';
 import { refreshNotifications } from '../../context/NotificationListContext';
 import { getToken } from '../../utils/session';
 import { PDFDocument } from 'pdf-lib';
@@ -47,14 +48,15 @@ import cargoBannerImg from '../../assets/cargo-orders-banner.png';
 import { ProtectedAdImage } from '../../components/ui/ProtectedAdImage';
 
 // ─── Tabs ─────────────────────────────────────────────────────────────────────
-const MAIN_TABS = ['New', 'Ready to Ship', 'Pickup & Manifest', 'In Transit', 'Delivered'];
+// No "Pickup & Manifest" tab: B2B bookings never create pickup manifests (same as ShipexFrontend's B2B
+// order tabs, where that tab is switched off).
+const MAIN_TABS = ['New', 'Ready to Ship', 'In Transit', 'Delivered'];
 const MORE_TABS = ['Out for Delivery', 'Cancelled', 'Lost', 'Damaged', 'RTO Initiated', 'RTO In Transit', 'RTO Delivered', 'RTO Lost', 'RTO Damaged', 'All'];
 
 // Each tab gets its own URL sub-route (/admin/orders/:tabSlug) so refresh, back/forward and deep links work per-status.
 const TAB_SLUG_MAP: Record<string, string> = {
   'New': 'new',
   'Ready to Ship': 'ready-to-ship',
-  'Pickup & Manifest': 'pickup-manifest',
   'In Transit': 'in-transit',
   'Delivered': 'delivered',
   'Out for Delivery': 'out-for-delivery',
@@ -209,8 +211,8 @@ const mapOrder = (o: any) => {
         total: Number(p.total ?? p.lineTotal ?? (price * qty)),
       };
     }),
-    pkg:            toCargoPackage(o.packageDetails, o),
-    weight:         `${o.packageDetails?.applicableWeight || 0} KG`,
+    pkg:            orderCargoPackage(o),
+    weight:         `${o.orderType === 'B2B' ? (o.B2BPackageDetails?.applicableWeight || 0) : (o.packageDetails?.applicableWeight || 0)} KG`,
     dimensions:     `${l}×${w}×${h}`,
     volWeight:      `${((l * w * h) / 5000).toFixed(2)} KG`,
     payment:        o.paymentDetails?.amount ?? 0,
@@ -291,7 +293,7 @@ const RtoRiskLine = ({ order, historyMaps, riskResult, className = '' }: { order
 );
 
 // ─── File download helper ──────────────────────────────────────────────────────
-const BACKEND_BASE = CARGO_API_BASE;
+const BACKEND_BASE = (import.meta.env.VITE_API_URL as string) || 'http://localhost:5000/v1';
 
 const downloadBlob = async (path: string, filename: string) => {
   const token = getToken();
@@ -389,12 +391,16 @@ export function CargoOrders() {
 
   // Deep-link support for the global navbar search: ?orderId=<id> opens that order's drawer directly.
   const [searchParams, setSearchParams] = useSearchParams();
+  // B2B order lists: a seller (or the seller's employee — the backend resolves them to their merchant) reads
+  // its own orders, the admin panel reads every seller's. Both answer { orders, totalPages, totalCount,
+  // courierServices: string[], pickupLocations: { contactName, ... }[] }.
+  const ordersEndpoint = isAdminView ? '/b2b/getb2badminorder' : '/b2b/getb2buserorder';
   useEffect(() => {
     const deepLinkOrderId = searchParams.get('orderId');
-    if (!deepLinkOrderId) return;
+    if (!deepLinkOrderId || loadingAdminTab) return;
     (async () => {
       try {
-        const res = await apiClient.get('/admin/filterEmployeeOrders', {
+        const res = await apiClient.get(ordersEndpoint, {
           params: { page: 1, limit: 1, orderId: deepLinkOrderId },
         });
         const raw = res.data?.orders || [];
@@ -409,7 +415,7 @@ export function CargoOrders() {
         }, { replace: true });
       }
     })();
-  }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [searchParams, loadingAdminTab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [showMore, setShowMore]     = useState(false);
   const moreRef                     = useRef<HTMLDivElement>(null);
@@ -535,23 +541,33 @@ export function CargoOrders() {
   const [verifyingOrders, setVerifyingOrders] = useState(false);
 
   // ── Update Package Details modal ──
+  // B2B weights live in B2BPackageDetails, so this replaces each selected order's box list with one box type
+  // through the B2B packages endpoint (it recomputes dead / volumetric / applicable weight on the backend).
   const [showPackageModal,  setShowPackageModal]  = useState(false);
-  const [packageForm,       setPackageForm]        = useState({ weight: '', length: '', width: '', height: '' });
+  const [packageForm,       setPackageForm]        = useState({ boxes: '', weight: '', length: '', width: '', height: '' });
   const [packageSaving,     setPackageSaving]      = useState(false);
 
   const handleUpdatePackageDetails = async () => {
-    const { weight, length, width, height } = packageForm;
-    if (!weight || !length || !width || !height) return;
+    const { boxes, weight, length, width, height } = packageForm;
+    if (!boxes || !weight || !length || !width || !height) return;
     setPackageSaving(true);
     try {
-      await apiClient.post('/order/updatePackageDetails', {
-        details: { weight: parseFloat(weight), length: parseFloat(length), width: parseFloat(width), height: parseFloat(height) },
-        selectedOrders,
-      });
+      const packages = [{
+        noOfBox: parseInt(boxes, 10),
+        weightPerBox: parseFloat(weight),
+        length: parseFloat(length),
+        width: parseFloat(width),
+        height: parseFloat(height),
+      }];
+      const results = await Promise.allSettled(
+        selectedOrders.map(id => apiClient.put(`/b2b/orders/${id}/b2b-packages`, { packages }))
+      );
+      const failed = results.filter(r => r.status === 'rejected').length;
       setShowPackageModal(false);
-      setPackageForm({ weight: '', length: '', width: '', height: '' });
+      setPackageForm({ boxes: '', weight: '', length: '', width: '', height: '' });
       fetchOrders(page);
-      showToast('success', 'Package details updated successfully');
+      if (failed === 0) showToast('success', 'Package details updated successfully');
+      else showToast('error', `Updated ${results.length - failed} order(s), ${failed} failed`);
     } catch (e) {
       console.error('Update package details failed', e);
       showToast('error', 'Failed to update package details');
@@ -641,24 +657,6 @@ export function CargoOrders() {
     }
   };
 
-  // ── Fetch AI verify setting on mount (same gate as ShipexFrontend's BookedOrders.jsx) ──
-  useEffect(() => {
-    const fetchAiSettings = async () => {
-      try {
-        const res = await apiClient.get('/ai-calling/settings');
-        if (res.data?.success) {
-          setAiVerifyEnabled(
-            res.data.isAiOrderVerifyEnable === true &&
-            res.data.isAdminAiOrderVerifyEnable !== false
-          );
-        }
-      } catch (e) {
-        console.error('AI settings fetch failed:', e);
-      }
-    };
-    fetchAiSettings();
-  }, []);
-
   // ── Global search (header bar) ──
   const [globalSearchQuery, setGlobalSearchQuery] = useState((window as any).__adminSearchQuery?.toLowerCase() || '');
   useEffect(() => {
@@ -692,16 +690,19 @@ export function CargoOrders() {
       page:  pg,
       limit,
     };
-    if (statuses.length > 0)          params.status               = statuses;
+    // Both B2B lists split comma-separated statuses / couriers / pickup names.
+    if (statuses.length > 0)          params.status               = statuses.join(',');
     if (orderId)                       params.orderId              = orderId;
     if (awbNumber)                     params.awbNumber            = awbNumber;
-    if (selectedCouriers.length > 0)   params.courierServiceName   = selectedCouriers.join(',');
-    if (selectedPaymentTypes.length > 0) params.paymentType        = selectedPaymentTypes.join(',');
+    // The admin list filters couriers by `courier`, the seller list by `courierServiceName`.
+    if (selectedCouriers.length > 0)   params[isAdminView ? 'courier' : 'courierServiceName'] = selectedCouriers.join(',');
+    // Both lists match one payment method exactly — both methods selected is the same as no filter.
+    if (selectedPaymentTypes.length === 1) params.paymentType      = selectedPaymentTypes[0];
     if (selectedPickupAddresses.length > 0) params.pickupContactName = selectedPickupAddresses.join(',');
     if (dateStart)                     params.startDate            = dateStart;
     if (dateEnd)                       params.endDate              = dateEnd;
-    if (isAdminView && userMongoId) { params.userId = userMongoId; params.selectedUserId = userMongoId; params.userSearch = userMongoId; }
-    else if (!isAdminView && currentUserId) params.userId = currentUserId;
+    // The seller list always scopes to the logged-in seller on the backend; only the admin list takes a seller.
+    if (isAdminView && userMongoId)    params.userId               = userMongoId;
     if (globalSearchQuery)             params.searchQuery          = globalSearchQuery;
     return params;
   }, [activeTab, orderId, awbNumber, selectedCouriers, selectedPaymentTypes, selectedPickupAddresses, dateStart, dateEnd, userMongoId, globalSearchQuery, isAdmin, isAdminView, currentUserId]);
@@ -711,20 +712,21 @@ export function CargoOrders() {
     setLoading(true);
     try {
       const params = buildOrderParams(pg, rowsPerPage);
-      const res = await apiClient.get('/admin/filterEmployeeOrders', { params });
+      const res = await apiClient.get(ordersEndpoint, { params });
       const raw = res.data?.orders || [];
       const mapped = raw.map(mapOrder);
       setOrders(mapped);
       setTotalPages(res.data?.totalPages || 1);
-      setTotalRecords(res.data?.totalOrders || res.data?.totalRecords || raw.length);
+      setTotalRecords(res.data?.totalCount ?? raw.length);
+      // Unbooked orders have no courier yet, so the lists can hold null entries — drop them.
       if (res.data?.courierServices) setCourierOptions(res.data.courierServices.map((s: any) => {
         const v = typeof s === 'string' ? s : String(s?.name || s?.courierServiceName || '');
         return { label: v, value: v };
-      }));
+      }).filter((o: { value: string }) => o.value));
       if (res.data?.pickupLocations) setPickupOptions(res.data.pickupLocations.map((p: any) => {
         const v = typeof p === 'string' ? p : String(p?.name || p?.contactName || '');
         return { label: v, value: v };
-      }));
+      }).filter((o: { value: string }) => o.value));
       // Fire-and-forget backend risk computation — updates the badge once results arrive
       if (mapped.length > 0) {
         const ids = mapped.map((o: any) => o._id).filter(Boolean);
@@ -750,9 +752,8 @@ export function CargoOrders() {
     (async () => {
       try {
         const params: Record<string, any> = { page: 1, limit: 1000 };
-        if (isAdminView) { params.userId = scopeUserId; params.selectedUserId = scopeUserId; params.userSearch = scopeUserId; }
-        else { params.userId = scopeUserId; }
-        const res = await apiClient.get('/admin/filterEmployeeOrders', { params });
+        if (isAdminView) params.userId = scopeUserId;
+        const res = await apiClient.get(ordersEndpoint, { params });
         if (cancelled) return;
         const raw: any[] = res.data?.orders || [];
 
@@ -840,12 +841,12 @@ export function CargoOrders() {
         exportOrdersToExcel(orders, `Orders-${activeTab}-Page${page}.xlsx`);
       } else {
         const PAGE_SIZE = 500;
-        const first = await apiClient.get('/admin/filterEmployeeOrders', { params: buildOrderParams(1, PAGE_SIZE) });
+        const first = await apiClient.get(ordersEndpoint, { params: buildOrderParams(1, PAGE_SIZE) });
         let allRaw: any[] = first.data?.orders || [];
-        const total = first.data?.totalOrders || first.data?.totalRecords || allRaw.length;
+        const total = first.data?.totalCount ?? allRaw.length;
         const pagesNeeded = Math.max(1, Math.ceil(total / PAGE_SIZE));
         for (let p = 2; p <= pagesNeeded; p++) {
-          const res = await apiClient.get('/admin/filterEmployeeOrders', { params: buildOrderParams(p, PAGE_SIZE) });
+          const res = await apiClient.get(ordersEndpoint, { params: buildOrderParams(p, PAGE_SIZE) });
           allRaw = allRaw.concat(res.data?.orders || []);
         }
         exportOrdersToExcel(allRaw.map(mapOrder), `Orders-${activeTab}-All.xlsx`);
@@ -859,8 +860,10 @@ export function CargoOrders() {
   };
 
   // ── Per-order action handlers ──
+  // B2B box labels: one label per box (master + child AWBs, LRN), four to an A4 page, with the seller's
+  // Cargo label options (Settings → Label in Cargo).
   const handleLabel = async (id: string) => {
-    try { await downloadBlob(`/printlabel/generate-pdf/${id}`, `Label-${id}.pdf`); }
+    try { await downloadBlob(`/b2b/generate-label/${id}`, `B2B-Label-${id}.pdf`); }
     catch (e) { console.error('Label download failed', e); }
   };
 
@@ -875,17 +878,19 @@ export function CargoOrders() {
   };
 
   const handleCancelOrder = async (order: any) => {
-    const isBooked = ['Ready To Ship'].includes(order.status);
-    const endpoint = isBooked ? '/order/cancelOrdersAtBooked' : '/order/cancelOrdersAtNotShipped';
+    // Never booked ("new") → the order is deleted, same as ShipexFrontend's "Delete Order".
+    // Booked → the B2B cancel cancels the shipment with the carrier and refunds the freight to the wallet.
+    const isNew = order.status === 'new';
     setCancellingIds(prev => new Set(prev).add(order._id));
     setDropdownPos(null); // close any open per-row dropdown immediately
     try {
-      await apiClient.post(endpoint, { orderId: order._id });
-      showToast('success', 'Order cancelled successfully');
+      if (isNew) await apiClient.post('/order/cancelOrdersAtNotShipped', { orderId: order._id });
+      else await apiClient.post(`/b2b/cancelOrder/${order._id}`);
+      showToast('success', isNew ? 'Order deleted successfully' : 'Order cancelled successfully');
       fetchOrders(page);
     } catch (e: any) {
       console.error('Cancel failed', e);
-      showToast('error', e?.response?.data?.error || 'Failed to cancel order');
+      showToast('error', e?.response?.data?.message || e?.response?.data?.error || 'Failed to cancel order');
     } finally {
       setCancellingIds(prev => { const s = new Set(prev); s.delete(order._id); return s; });
     }
@@ -894,33 +899,19 @@ export function CargoOrders() {
   const handleBulkLabel = async (ids: string[]) => {
     if (!ids.length) return;
     try {
+      // B2B label PDFs are already laid out (four box labels per A4 page) — append their pages as they are
       const mergedPdf = await PDFDocument.create();
-      const pageW = 595, pageH = 842;
-      const labelW = pageW / 2, labelH = pageH / 2;
-      let labelCount = 0;
-      let currentPage: ReturnType<typeof mergedPdf.addPage> | null = null;
       const token = getToken();
       const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
 
       for (const id of ids) {
         try {
-          const res = await fetch(`${BACKEND_BASE}/printlabel/generate-pdf/${id}`, { headers });
+          const res = await fetch(`${BACKEND_BASE}/b2b/generate-label/${id}`, { headers });
           if (!res.ok) continue;
           const pdfBytes = await (await res.blob()).arrayBuffer();
           const srcPdf = await PDFDocument.load(pdfBytes);
           const copied = await mergedPdf.copyPages(srcPdf, srcPdf.getPageIndices());
-          for (const pg of copied) {
-            if (ids.length <= 2) {
-              const p = mergedPdf.addPage([pageW, pageH]);
-              p.drawPage(await mergedPdf.embedPage(pg), { x: 0, y: 0, width: pageW, height: pageH });
-            } else {
-              if (labelCount % 4 === 0) currentPage = mergedPdf.addPage([pageW, pageH]);
-              const x = (labelCount % 2) * labelW;
-              const y = pageH - ((Math.floor(labelCount / 2) % 2) + 1) * labelH;
-              currentPage!.drawPage(await mergedPdf.embedPage(pg), { x, y, width: labelW, height: labelH });
-              labelCount++;
-            }
-          }
+          copied.forEach(p => mergedPdf.addPage(p));
         } catch (e) { console.error(`Label fetch failed for ${id}`, e); }
       }
 
@@ -1122,21 +1113,22 @@ export function CargoOrders() {
     }
   };
 
-  // Ready to Ship tab's "Bulk Cancel" — these orders already have a courier
-  // booking (AWB), so this cancels the SHIPMENT with that courier and marks
-  // the order Cancelled; the order record itself is kept. Same dedicated
-  // endpoint old ShipexFrontend's BookedOrders/ReadyToShipOrders "Bulk Cancel"
-  // uses — the backend handles per-courier cancel calls, wallet refunds, and
-  // skipping non-cancellable statuses in the background, one call not N.
+  // Ready to Ship tab's "Bulk Cancel" — the B2C bulk cancel only knows B2C couriers, so each booked B2B
+  // order goes through the B2B cancel (carrier cancel + wallet refund), one call per order.
   const handleBulkCancel = async () => {
     if (selectedOrders.length === 0) return;
+    const ids = [...selectedOrders];
+    setCancellingIds(prev => { const s = new Set(prev); ids.forEach(id => s.add(id)); return s; });
     try {
-      const res = await apiClient.post('/order/bulkCancelOrder', { selectedOrders });
-      showToast('success', res.data?.message || `Bulk cancellation started for ${selectedOrders.length} order(s).`);
+      const results = await Promise.allSettled(ids.map(id => apiClient.post(`/b2b/cancelOrder/${id}`)));
+      const failed = results.filter(r => r.status === 'rejected') as PromiseRejectedResult[];
+      const succeeded = results.length - failed.length;
+      if (failed.length === 0) showToast('success', `Cancelled ${succeeded} order(s).`);
+      else showToast('error', `Cancelled ${succeeded} order(s), ${failed.length} failed${failed[0]?.reason?.response?.data?.message ? ` — ${failed[0].reason.response.data.message}` : ''}.`);
       setSelectedOrders([]);
       fetchOrders(page);
-    } catch (error: any) {
-      showToast('error', error?.response?.data?.message || 'Failed to cancel orders.');
+    } finally {
+      setCancellingIds(prev => { const s = new Set(prev); ids.forEach(id => s.delete(id)); return s; });
     }
   };
 
@@ -1215,7 +1207,6 @@ export function CargoOrders() {
     if (isNewTab) return (
       <>
         {selectAllItem}
-        <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { handleBulkShipClick(); closeMenu(); }}>Bulk Ship</button>
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { setShowPackageModal(true); closeMenu(); }}>Update Package Details</button>
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { openPickupModal(); closeMenu(); }}>Update Pickup Address</button>
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { setShowExportModal(true); closeMenu(); }}>Export Excel</button>
@@ -1230,15 +1221,6 @@ export function CargoOrders() {
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { handleBulkLabel(selectedOrders); closeMenu(); }}>Download Labels</button>
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { handleBulkInvoice(selectedOrders); closeMenu(); }}>Download Invoices</button>
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { handleBulkManifest(selectedOrders); closeMenu(); }}>Download Manifests</button>
-        {!isAdminView && (
-          <button
-            className={`w-full text-left px-4 py-2.5 text-[13px] font-medium cursor-pointer ${aiVerifyEnabled ? 'text-[#0CBB7D] hover:bg-green-50' : 'text-gray-400 cursor-not-allowed'}`}
-            title={aiVerifyEnabled ? '' : 'Enable AI Calling in Settings first'}
-            onClick={() => { if (aiVerifyEnabled) { handleBulkVerifyOrders(); closeMenu(); } }}
-          >
-            {verifyingOrders ? 'Verifying...' : 'Verify Orders'}
-          </button>
-        )}
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#EF4444] hover:bg-red-50 mt-1 cursor-pointer" onClick={() => { handleBulkCancel(); closeMenu(); }}>Bulk Cancel</button>
       </>
     );
@@ -1268,21 +1250,6 @@ export function CargoOrders() {
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { handleInvoice(rowOrder._id); close(); }}>Download Invoice</button>
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { handleManifest(rowOrder._id); close(); }}>Download Manifest</button>
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { navigate(`${isAdminView ? '/admin' : '/user'}/add-order?cloneId=${rowOrder._id}`); close(); }}>Clone Order</button>
-        {!isAdminView && ['Ready To Ship'].includes(rowOrder.status) && (
-          <button
-            className={`w-full text-left px-4 py-2.5 text-[13px] font-medium cursor-pointer ${aiVerifyEnabled ? 'text-[#0CBB7D] hover:bg-green-50' : 'text-gray-400 cursor-not-allowed'}`}
-            title={aiVerifyEnabled ? '' : 'Enable AI Calling in Settings first'}
-            onClick={() => {
-              if (!aiVerifyEnabled) return;
-              apiClient.post('/ai-calling/initiate', { orderId: rowOrder._id, serviceType: 'order_verification' })
-                .then(res => showToast(res.data?.success ? 'success' : 'error', res.data?.message || (res.data?.success ? 'AI verification call initiated.' : 'Failed to initiate call.')))
-                .catch((err: any) => showToast('error', err?.response?.data?.message || 'Failed to initiate call.'));
-              close();
-            }}
-          >
-            Verify Order
-          </button>
-        )}
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#EF4444] hover:bg-red-50 mt-1 cursor-pointer" onClick={() => { handleCancelOrder(rowOrder); close(); }}>Cancel Order</button>
       </>
     );
@@ -1655,23 +1622,12 @@ export function CargoOrders() {
           {!isPMTab && selectedOrders.length > 0 && (
             <div className="hidden md:flex px-4 py-2 bg-blue-50 border-b border-blue-100 items-center gap-3">
               <span className="text-xs font-bold text-blue-700">{selectedOrders.length} selected</span>
-              {isNewTab && <button onClick={handleBulkShipClick} className="h-8 px-3 rounded-md bg-white border border-blue-200 text-xs font-bold text-blue-700 shadow-sm hover:bg-blue-50 cursor-pointer">Bulk Ship</button>}
               {isNewTab && <button onClick={() => setShowPackageModal(true)} className="h-8 px-3 rounded-md bg-white border border-blue-200 text-xs font-bold text-blue-700 shadow-sm hover:bg-blue-50 cursor-pointer">Update Package Details</button>}
               {isNewTab && <button onClick={() => openPickupModal()} className="h-8 px-3 rounded-md bg-white border border-blue-200 text-xs font-bold text-blue-700 shadow-sm hover:bg-blue-50 cursor-pointer">Update Pickup Address</button>}
               <button onClick={() => setShowExportModal(true)} className="h-8 px-3 rounded-md bg-white border border-blue-200 text-xs font-bold text-blue-700 shadow-sm hover:bg-blue-50 cursor-pointer">Export Excel</button>
               <button onClick={() => handleBulkInvoice(selectedOrders)} className="h-8 px-3 rounded-md bg-white border border-blue-200 text-xs font-bold text-blue-700 shadow-sm hover:bg-blue-50 cursor-pointer">Download Invoices</button>
               {activeTab === 'Ready to Ship' && (
                 <button onClick={() => handleBulkManifest(selectedOrders)} className="h-8 px-3 rounded-md bg-white border border-blue-200 text-xs font-bold text-blue-700 shadow-sm hover:bg-blue-50 cursor-pointer">Download Manifests</button>
-              )}
-              {activeTab === 'Ready to Ship' && !isAdminView && (
-                <button
-                  onClick={handleBulkVerifyOrders}
-                  disabled={!aiVerifyEnabled}
-                  title={aiVerifyEnabled ? '' : 'Enable AI Calling in Settings first'}
-                  className={`h-8 px-3 rounded-md border text-xs font-bold shadow-sm ${aiVerifyEnabled ? 'bg-white border-green-200 text-green-700 hover:bg-green-50 cursor-pointer' : 'bg-slate-50 border-slate-200 text-slate-400 cursor-not-allowed'}`}
-                >
-                  {verifyingOrders ? 'Verifying...' : 'Verify Orders'}
-                </button>
               )}
               {isNewTab && (
                 <button onClick={handleBulkDelete} className="h-8 px-3 rounded-md bg-white border border-red-200 text-xs font-bold text-red-600 shadow-sm ml-auto hover:bg-red-50 cursor-pointer">Bulk Delete</button>
@@ -2643,11 +2599,17 @@ export function CargoOrders() {
                 <h3 className="text-[15px] font-bold text-[#0F172A]">Update Package Details</h3>
                 <button onClick={() => !packageSaving && setShowPackageModal(false)} className="w-7 h-7 rounded-full flex items-center justify-center text-[#94A3B8] hover:bg-[#F8FAFC]"><X className="w-4 h-4" /></button>
               </div>
-              <p className="text-[12px] text-[#64748B] mb-4">{selectedOrders.length} order(s) selected — new dimensions will apply to all.</p>
+              <p className="text-[12px] text-[#64748B] mb-4">{selectedOrders.length} order(s) selected — this box type replaces the boxes of all of them.</p>
               <div className="space-y-3">
-                <div>
-                  <label className="block text-[11px] font-bold text-[#64748B] uppercase tracking-wider mb-1">Dead Weight (kg)</label>
-                  <input type="number" min="0" step="0.01" placeholder="e.g. 0.5" value={packageForm.weight} onChange={e => setPackageForm(f => ({ ...f, weight: e.target.value }))} className="w-full h-10 px-3 rounded-xl border border-[#E2E8F0] text-sm text-[#0F172A] focus:outline-none focus:border-[#00A86B]" />
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[11px] font-bold text-[#64748B] uppercase tracking-wider mb-1">No. of Boxes</label>
+                    <input type="number" min="1" step="1" placeholder="e.g. 4" value={packageForm.boxes} onChange={e => setPackageForm(f => ({ ...f, boxes: e.target.value.replace(/\D/g, '') }))} className="w-full h-10 px-3 rounded-xl border border-[#E2E8F0] text-sm text-[#0F172A] focus:outline-none focus:border-[#00A86B]" />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-[#64748B] uppercase tracking-wider mb-1">Weight / Box (kg)</label>
+                    <input type="number" min="0" step="0.01" placeholder="e.g. 10" value={packageForm.weight} onChange={e => setPackageForm(f => ({ ...f, weight: e.target.value }))} className="w-full h-10 px-3 rounded-xl border border-[#E2E8F0] text-sm text-[#0F172A] focus:outline-none focus:border-[#00A86B]" />
+                  </div>
                 </div>
                 <div className="grid grid-cols-3 gap-2">
                   {(['length', 'width', 'height'] as const).map(dim => (
@@ -2660,7 +2622,7 @@ export function CargoOrders() {
               </div>
               <div className="flex gap-3 mt-6">
                 <button onClick={() => setShowPackageModal(false)} className="flex-1 h-10 rounded-xl border border-[#E2E8F0] text-[#475569] text-sm font-semibold hover:bg-[#F8FAFC]">Cancel</button>
-                <button onClick={handleUpdatePackageDetails} disabled={packageSaving || !packageForm.weight || !packageForm.length || !packageForm.width || !packageForm.height}
+                <button onClick={handleUpdatePackageDetails} disabled={packageSaving || !packageForm.boxes || !packageForm.weight || !packageForm.length || !packageForm.width || !packageForm.height}
                   className="flex-1 h-10 rounded-xl bg-[#00A86B] text-white text-sm font-bold hover:bg-[#009B63] disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
                   {packageSaving ? 'Saving…' : 'Update'}
                 </button>
@@ -2783,6 +2745,7 @@ export function CargoOrders() {
         {shipOrder && (
           <ShipOrderModal
             order={shipOrder}
+            cargo
             onClose={() => setShipOrder(null)}
             onShipped={() => { showToast('success', 'Shipment created successfully'); handleTabChange('Ready to Ship'); }}
           />

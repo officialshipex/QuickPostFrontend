@@ -74,12 +74,77 @@ interface RateItem {
   isRecommended: boolean;
   forward: { charges: number; gst: number; finalCharges: number };
   cod: number;
+  // Cargo (B2B) only — the rate engine's full working, sent back as-is when booking
+  working?: B2BWorking;
+  serviceId?: string | number | null;
+  modeId?: string | number | null;
 }
+
+/** One B2B rate's computation, as returned by GET /b2b/shipNow/:id (rates[].working). */
+interface B2BWorking {
+  zone?: string;
+  billable_weight?: number;
+  rate?: number;
+  freight?: number;
+  docket_charges?: number;
+  pickup_charge?: number;
+  handling_charge?: number;
+  appointment_charge?: number;
+  cod_charges?: number;
+  rov?: number;
+  fsc?: number;
+  fsc_percent?: number;
+  oda?: number;
+  green_tax?: number;
+  gst?: number;
+  grand_total?: number;
+}
+
+/** Price breakup rows of a B2B rate (same rows as ShipexFrontend's B2B courier selection). */
+const b2bBreakupRows = (w: B2BWorking = {}): [string, string][] => [
+  ['Zone', w.zone || '—'],
+  ['Chargeable Weight', `${w.billable_weight || 0} kg`],
+  ['Freight / Kg', `₹${Number(w.rate ?? 0).toFixed(2)}`],
+  ['Freight Charges', `₹${Number(w.freight || 0).toFixed(2)}`],
+  ['Docket Charges', `₹${Number(w.docket_charges || 0).toFixed(2)}`],
+  ['Pickup Charges', `₹${Number(w.pickup_charge || 0).toFixed(2)}`],
+  ['Handling Charges', `₹${Number(w.handling_charge || 0).toFixed(2)}`],
+  ['Appointment Charges', `₹${Number(w.appointment_charge || 0).toFixed(2)}`],
+  ['COD Charges', `₹${Number(w.cod_charges || 0).toFixed(2)}`],
+  ['ROV', `₹${Number(w.rov || 0).toFixed(2)}`],
+  [w.fsc_percent != null ? `FSC (${w.fsc_percent}%)` : 'FSC', `₹${Number(w.fsc || 0).toFixed(2)}`],
+  ['ODA', `₹${Number(w.oda || 0).toFixed(2)}`],
+  ['Green Tax', `₹${Number(w.green_tax || 0).toFixed(2)}`],
+  ['GST', `₹${Number(w.gst || 0).toFixed(2)}`],
+];
+
+/** GET /b2b/shipNow/:id rate → the row shape this modal renders. */
+const fromB2BRate = (r: any): RateItem => ({
+  _id: r.courierServiceName,
+  courierServiceName: r.courierServiceName,
+  courierType: r.mode_name === 'air' ? 'Domestic (Air)' : 'Domestic (Surface)',
+  provider: r.provider || '',
+  courier: r.courier || '',
+  pickupDate: null,
+  estimatedDeliveryDate: r.estimatedDeliveryDate || null,
+  isRecommended: false,
+  forward: {
+    charges: Number(r.working?.freight || 0),
+    gst: Number(r.working?.gst || 0),
+    finalCharges: Number(r.working?.grand_total || 0),
+  },
+  cod: Number(r.working?.cod_charges || 0),
+  working: r.working || {},
+  serviceId: r.serviceId ?? null,
+  modeId: r.modeId ?? null,
+});
 
 interface ShipOrderModalProps {
   order: any;
   onClose: () => void;
   onShipped?: () => void;
+  /** Cargo (B2B) order — rates and booking go through the backend's /b2b namespace. */
+  cargo?: boolean;
 }
 
 type TabKey = 'Recommended' | 'Surface' | 'Air' | 'All';
@@ -105,7 +170,7 @@ function NoCourierState({ compact = false, tab }: { compact?: boolean; tab?: str
   );
 }
 
-export function ShipOrderModal({ order, onClose, onShipped }: ShipOrderModalProps) {
+export function ShipOrderModal({ order, onClose, onShipped, cargo = false }: ShipOrderModalProps) {
   const [loading, setLoading] = useState(true);
   const [rates, setRates] = useState<RateItem[]>([]);
   const [orderDetails, setOrderDetails] = useState<any>(null);
@@ -136,20 +201,31 @@ export function ShipOrderModal({ order, onClose, onShipped }: ShipOrderModalProp
     const fetchRates = async () => {
       setLoading(true); setError('');
       try {
-        const res = await apiClient.get(`/order/ship/${orderId}`);
-        if (!cancelled) {
-          setOrderDetails(res.data?.order || null);
-          setRates(res.data?.updatedRates || []);
+        if (cargo) {
+          // B2B: rates from the seller's active B2B rate cards, already checked for serviceability
+          const res = await apiClient.get(`/b2b/shipNow/${orderId}`);
+          if (!cancelled) {
+            setOrderDetails(res.data?.order || null);
+            setRates((res.data?.rates || []).map(fromB2BRate));
+          }
+        } else {
+          const res = await apiClient.get(`/order/ship/${orderId}`);
+          if (!cancelled) {
+            setOrderDetails(res.data?.order || null);
+            setRates(res.data?.updatedRates || []);
+          }
         }
-      } catch {
-        if (!cancelled) setError('Failed to load courier options. Please try again.');
+      } catch (err: any) {
+        if (!cancelled) setError(cargo && (err?.response?.data?.error || err?.response?.data?.message)
+          ? `Failed to load courier options: ${err.response.data.error || err.response.data.message}`
+          : 'Failed to load courier options. Please try again.');
       } finally {
         if (!cancelled) setLoading(false);
       }
     };
     if (orderId) fetchRates();
     return () => { cancelled = true; };
-  }, [orderId]);
+  }, [orderId, cargo]);
 
   const handleShip = async (item: RateItem) => {
     const { provider, forward, courierServiceName, courier, estimatedDeliveryDate } = item;
@@ -161,23 +237,47 @@ export function ShipOrderModal({ order, onClose, onShipped }: ShipOrderModalProp
     }
     setShippingId(item.courierServiceName); setError(''); setCourierNetworkError(false);
     try {
-      await apiClient.post(`/${safeProvider}/createShipment`, {
-        id: orderId,
-        provider,
-        finalCharges: forward.finalCharges,
-        courierServiceName,
-        courier,
-        estimatedDeliveryDate,
-        priceBreakup: { freight: forward.charges, cod: item.cod, gst: forward.gst, total: forward.finalCharges },
-      });
+      if (cargo) {
+        // Same body ShipexFrontend's B2B courier selection posts; the backend re-prices the order and
+        // checks the wallet before booking, so the rate shown here is never trusted blindly.
+        const res = await apiClient.post(`/b2b/${safeProvider}/createShipment`, {
+          id: orderId,
+          provider,
+          courierServiceName,
+          courier,
+          estimatedDeliveryDate,
+          finalCharges: item.working?.grand_total,
+          rateBreakup: item.working,
+          serviceId: item.serviceId,
+          modeId: item.modeId,
+        });
+        if (res.data?.error) throw { response: { status: 400, data: { message: res.data.error } } };
+      } else {
+        await apiClient.post(`/${safeProvider}/createShipment`, {
+          id: orderId,
+          provider,
+          finalCharges: forward.finalCharges,
+          courierServiceName,
+          courier,
+          estimatedDeliveryDate,
+          priceBreakup: { freight: forward.charges, cod: item.cod, gst: forward.gst, total: forward.finalCharges },
+        });
+      }
       onShipped?.();
       onClose();
     } catch (err: any) {
+      const status = err?.response?.status;
+      // A B2B provider without a booking route answers 404 — say so instead of a generic failure.
+      if (cargo && status === 404) {
+        setError(`Booking through ${provider} is not available for Cargo yet. Please choose another courier.`);
+        return;
+      }
       // No response (network drop) or a 5xx from the courier's own API — not a validation
       // problem on our end, so show the friendly "courier network issue" panel instead of
-      // the raw error trace.
-      const status = err?.response?.status;
-      if (!err?.response || (status && status >= 500)) {
+      // the raw error trace. The B2B booking routes answer every failure (insufficient wallet
+      // balance, missing e-way bill, …) as a 500 with a readable message, so Cargo shows that message.
+      const cargoReason = cargo ? err?.response?.data?.message : '';
+      if (!err?.response || (status && status >= 500 && !cargoReason)) {
         setCourierNetworkError(true);
       } else {
         setError(
@@ -197,6 +297,13 @@ export function ShipOrderModal({ order, onClose, onShipped }: ShipOrderModalProp
   const pickup  = orderDetails?.pickupAddress;
   const delivery = orderDetails?.receiverAddress;
   const pkg     = orderDetails?.packageDetails;
+  // Cargo (B2B) weights: boxes × weight per box, volumetric per box (L×W×H / 5000) × boxes
+  const b2bPkg  = orderDetails?.B2BPackageDetails;
+  const b2bRows: any[] = Array.isArray(b2bPkg?.packages) ? b2bPkg.packages : [];
+  const b2bBoxes = b2bRows.reduce((s, p) => s + (Number(p.noOfBox) || 0), 0);
+  const b2bDead  = b2bRows.reduce((s, p) => s + (Number(p.noOfBox) || 0) * (Number(p.weightPerBox) || 0), 0);
+  const b2bVol   = Number(b2bPkg?.volumetricWeight) || b2bRows.reduce((s, p) =>
+    s + (Number(p.noOfBox) || 0) * ((Number(p.length) || 0) * (Number(p.width) || 0) * (Number(p.height) || 0)) / 5000, 0);
 
   const pickupCity    = pickup?.city    || order?.pickupCity    || '—';
   const pickupState   = pickup?.state   || order?.pickupState   || '';
@@ -206,7 +313,14 @@ export function ShipOrderModal({ order, onClose, onShipped }: ShipOrderModalProp
   const deliveryPin   = delivery?.pinCode || order?.customerPinCode || '—';
   const orderValue    = orderDetails?.paymentDetails?.amount ?? order?.payment ?? order?.orderValue ?? 0;
   const paymentMethod = orderDetails?.paymentDetails?.method || order?.paymentType || '';
-  const applicableWeight = Number(pkg?.applicableWeight ?? order?.weight ?? 0);
+  const applicableWeight = cargo
+    ? Number(Number(b2bPkg?.applicableWeight ?? order?.pkg?.total ?? 0).toFixed(2))
+    : Number(pkg?.applicableWeight ?? order?.weight ?? 0);
+
+  // B2B: the rate engine's own chargeable weight; B2C: the service's weight slab or the applicable weight
+  const chargeableFor = (item: RateItem) => cargo
+    ? `${Number(item.working?.billable_weight ?? applicableWeight)} kg`
+    : getChargeableWeight(item.courierServiceName, applicableWeight);
 
   const volW = pkg?.volumetricWeight;
   const volWeightKg = volW
@@ -444,7 +558,7 @@ export function ShipOrderModal({ order, onClose, onShipped }: ShipOrderModalProp
                     {tabFilteredRates.map((item, i) => {
                       const logo = getLogoForCourier(item.courierServiceName);
                       const isAir = item.courierType === 'Domestic (Air)';
-                      const chargeableWeight = getChargeableWeight(item.courierServiceName, applicableWeight);
+                      const chargeableWeight = chargeableFor(item);
                       const isCheapest = item.courierServiceName === cheapestServiceName;
                       return (
                         <motion.div
@@ -536,30 +650,35 @@ export function ShipOrderModal({ order, onClose, onShipped }: ShipOrderModalProp
               const item = tabFilteredRates[Number(hoveredInfo.id)];
               if (!item) return null;
               const rect = hoveredInfo.rect;
-              const TIP_H = 140;
+              const TIP_H = cargo ? 380 : 140;
+              const TIP_W = cargo ? 240 : 208;
               const showBelow = rect.top < TIP_H + 16;
+              const rows: [string, string][] = cargo
+                ? b2bBreakupRows(item.working)
+                : [
+                    ['Freight', `₹${Number(item.forward?.charges || 0).toFixed(2)}`],
+                    ['COD', `₹${Number(item.cod || 0).toFixed(2)}`],
+                    ['GST', `₹${Number(item.forward?.gst || 0).toFixed(2)}`],
+                  ];
               return createPortal(
                 <motion.div
                   initial={{ opacity: 0, y: 4, scale: 0.96 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 4, scale: 0.96 }}
                   transition={{ duration: 0.12 }}
-                  className="fixed z-[300] w-52 bg-[#0F172A] text-white rounded-[10px] p-3 shadow-xl pointer-events-none"
+                  className="fixed z-[300] bg-[#0F172A] text-white rounded-[10px] p-3 shadow-xl pointer-events-none"
                   style={{
+                    width: TIP_W,
                     top: showBelow ? rect.bottom + 8 : undefined,
                     bottom: showBelow ? undefined : window.innerHeight - rect.top + 8,
-                    left: Math.min(Math.max(rect.right - 208, 8), window.innerWidth - 216),
+                    left: Math.min(Math.max(rect.right - TIP_W, 8), window.innerWidth - TIP_W - 8),
                   }}
                 >
                   <p className={`${TXT.label} text-slate-300 mb-1.5 border-b border-slate-700 pb-1.5`}>Price Breakup</p>
-                  {[
-                    { label: 'Freight', val: item.forward?.charges },
-                    { label: 'COD',     val: item.cod },
-                    { label: 'GST',     val: item.forward?.gst },
-                  ].map((b) => (
-                    <div key={b.label} className="flex justify-between items-center py-0.5">
-                      <span className={`${TXT.value} text-slate-400`}>{b.label}</span>
-                      <span className={`${TXT.value} text-white`}>₹{Number(b.val || 0).toFixed(2)}</span>
+                  {rows.map(([label, val]) => (
+                    <div key={label} className="flex justify-between items-center py-0.5">
+                      <span className={`${TXT.value} text-slate-400`}>{label}</span>
+                      <span className={`${TXT.value} text-white`}>{val}</span>
                     </div>
                   ))}
                   <div className="flex justify-between items-center border-t border-slate-700 mt-1 pt-1">
@@ -579,6 +698,29 @@ export function ShipOrderModal({ order, onClose, onShipped }: ShipOrderModalProp
               const WIDTH = 256;
               const left = Math.min(rect.right + 12, window.innerWidth - WIDTH - 12);
               const style = { top: rect.top + rect.height / 2, left, transform: 'translateY(-50%)' } as const;
+
+              if (hoveredSidebar.id === 'weight' && cargo) {
+                if (!b2bPkg) return null;
+                return createPortal(
+                  <motion.div
+                    initial={{ opacity: 0, x: -4, scale: 0.96 }}
+                    animate={{ opacity: 1, x: 0, scale: 1 }}
+                    exit={{ opacity: 0, x: -4, scale: 0.96 }}
+                    transition={{ duration: 0.12 }}
+                    className="fixed z-[300] w-56 bg-white text-[#475569] text-[10px] p-3 rounded-lg border border-[#E2E8F0] shadow-2xl whitespace-normal leading-relaxed pointer-events-none"
+                    style={style}
+                  >
+                    <p className="font-semibold text-[#0F172A] mb-1.5 border-b border-[#F1F5F9] pb-1">Weight Details</p>
+                    <div className="space-y-1">
+                      <div className="flex justify-between"><span className="text-[#94A3B8]">Boxes:</span><span className="font-semibold">{b2bBoxes}</span></div>
+                      <div className="flex justify-between"><span className="text-[#94A3B8]">Dead Weight:</span><span className="font-semibold">{b2bDead.toFixed(2)} kg</span></div>
+                      <div className="flex justify-between"><span className="text-[#94A3B8]">Volumetric:</span><span className="font-semibold">{b2bVol.toFixed(2)} kg</span></div>
+                      <div className="flex justify-between border-t border-[#F1F5F9] pt-1"><span className="text-[#0F172A] font-semibold">Applicable:</span><span className="font-semibold text-[#00A86B]">{applicableWeight} kg</span></div>
+                    </div>
+                  </motion.div>,
+                  document.body
+                );
+              }
 
               if (hoveredSidebar.id === 'weight') {
                 if (!pkg) return null;
@@ -651,7 +793,7 @@ export function ShipOrderModal({ order, onClose, onShipped }: ShipOrderModalProp
                 mobileRates.map((item) => {
                   const logo = getLogoForCourier(item.courierServiceName);
                   const isAir = item.courierType === 'Domestic (Air)';
-                  const chargeableWeight = getChargeableWeight(item.courierServiceName, applicableWeight);
+                  const chargeableWeight = chargeableFor(item);
                   const isSelected = selectedCourier?.courierServiceName === item.courierServiceName;
                   const isCheapest = item.courierServiceName === cheapestServiceName;
                   return (
@@ -789,26 +931,32 @@ export function ShipOrderModal({ order, onClose, onShipped }: ShipOrderModalProp
 
                     {mobileSheet.type === 'weight' && (
                       <div className="rounded-xl bg-[#F8FAFC] px-3.5 py-0.5 text-[12px]">
-                        {[
-                          ['Dead Weight', `${pkg?.weight || pkg?.applicableWeight || applicableWeight} kg`],
-                          ...(volW ? [['L × W × H', `${volW.length}×${volW.width}×${volW.height} cm`], ['Volumetric Weight', `${volWeightKg} kg`]] : []),
-                        ].map(([k, v]) => (
+                        {(cargo
+                          ? [['Boxes', String(b2bBoxes)], ['Dead Weight', `${b2bDead.toFixed(2)} kg`], ['Volumetric Weight', `${b2bVol.toFixed(2)} kg`]]
+                          : [
+                              ['Dead Weight', `${pkg?.weight || pkg?.applicableWeight || applicableWeight} kg`],
+                              ...(volW ? [['L × W × H', `${volW.length}×${volW.width}×${volW.height} cm`], ['Volumetric Weight', `${volWeightKg} kg`]] : []),
+                            ]
+                        ).map(([k, v]) => (
                           <div key={k} className="flex justify-between py-1.5 border-b border-[#EEF2F6]"><span className="text-[#64748B]">{k}</span><span className="font-semibold text-[#0F172A]">{v}</span></div>
                         ))}
-                        <div className="flex justify-between py-1.5"><span className="font-semibold text-[#0F172A]">Applicable Weight</span><span className="font-bold text-[#00A86B]">{pkg?.applicableWeight ?? applicableWeight} kg</span></div>
+                        <div className="flex justify-between py-1.5"><span className="font-semibold text-[#0F172A]">Applicable Weight</span><span className="font-bold text-[#00A86B]">{cargo ? applicableWeight : (pkg?.applicableWeight ?? applicableWeight)} kg</span></div>
                       </div>
                     )}
 
                     {mobileSheet.type === 'price' && mobileSheet.item && (
                       <>
                         <p className="text-[11.5px] text-[#64748B] mb-2">{mobileSheet.item.courierServiceName}</p>
-                        <div className="rounded-xl bg-[#F8FAFC] px-3.5 py-0.5 text-[12px]">
-                          {[
-                            ['Freight', mobileSheet.item.forward?.charges],
-                            ['COD', mobileSheet.item.cod],
-                            ['GST', mobileSheet.item.forward?.gst],
-                          ].map(([k, v]) => (
-                            <div key={String(k)} className="flex justify-between py-1.5 border-b border-[#EEF2F6]"><span className="text-[#64748B]">{k}</span><span className="font-semibold text-[#0F172A] tabular-nums">₹{Number(v || 0).toFixed(2)}</span></div>
+                        <div className="rounded-xl bg-[#F8FAFC] px-3.5 py-0.5 text-[12px] max-h-[50vh] overflow-y-auto">
+                          {(cargo
+                            ? b2bBreakupRows(mobileSheet.item.working)
+                            : [
+                                ['Freight', `₹${Number(mobileSheet.item.forward?.charges || 0).toFixed(2)}`],
+                                ['COD', `₹${Number(mobileSheet.item.cod || 0).toFixed(2)}`],
+                                ['GST', `₹${Number(mobileSheet.item.forward?.gst || 0).toFixed(2)}`],
+                              ]
+                          ).map(([k, v]) => (
+                            <div key={String(k)} className="flex justify-between py-1.5 border-b border-[#EEF2F6]"><span className="text-[#64748B]">{k}</span><span className="font-semibold text-[#0F172A] tabular-nums">{v}</span></div>
                           ))}
                           <div className="flex justify-between py-1.5"><span className="font-semibold text-[#0F172A]">Total</span><span className="font-bold text-[#00A86B] tabular-nums">₹{Number(mobileSheet.item.forward?.finalCharges || 0).toFixed(2)}</span></div>
                         </div>

@@ -3,12 +3,13 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowRight, Loader2, MapPin, Plus, Trash2, Truck } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
-import { cargoApiClient } from '../../services/cargoApiClient';
+import { apiClient } from '../../services/apiClient';
 
 /* QuickPost Cargo — Shipment Rate Calculator (B2B / multi-box), single column.
    Pincodes resolve city/state underneath; service options are compact toggles; box rows carry
    per-unit weight and dimensions; a weights strip shows actual / volumetric / chargeable.
-   Rates come from the Cargo backend via cargoApiClient (wired later). */
+   Rates come from the seller's active B2B rate cards (POST /b2b/rateCalculator/calculateB2BRateWithoutOrder,
+   the same call ShipexFrontend's B2B cost estimation makes). */
 
 const MIN_CHARGEABLE_KG = 20;
 const VOL_DIVISOR_CM = 5000;          // L×W×H (cm) / 5000 → kg
@@ -17,27 +18,33 @@ const INCH_TO_CM = 2.54;
 type Unit = 'cm' | 'inch';
 interface BoxRow { id: string; count: string; weight: string; length: string; width: string; height: string }
 interface Place { city: string; state: string }
-interface CargoQuote { courierName?: string; mode?: string; tat?: string | number; totalCharges?: number; [k: string]: unknown }
+/** One rate from the B2B rate calculator. */
+interface CargoQuote {
+  courierServiceName: string;
+  provider?: string;
+  mode_name?: string;
+  tat?: number;
+  working?: { billable_weight?: number; freight?: number; gst?: number; grand_total?: number; [k: string]: unknown };
+}
 
 const newBox = (): BoxRow => ({ id: Math.random().toString(36).slice(2), count: '', weight: '', length: '', width: '', height: '' });
 const num = (v: string) => Number(v) || 0;
 
+// Secure Shipment = carrier-risk ROV ("ROV Carrier"); without it the owner carries the risk ("ROV Owner").
 const SERVICES = [
   { key: 'secure', label: 'Secure Shipment' },
-  { key: 'appointment', label: 'Appointment Delivery' },
-  { key: 'toPay', label: 'To-Pay' },
   { key: 'cod', label: 'Cash on Delivery' },
 ] as const;
 type ServiceKey = typeof SERVICES[number]['key'];
-const NO_SERVICES: Record<ServiceKey, boolean> = { secure: false, appointment: false, toPay: false, cod: false };
+const NO_SERVICES: Record<ServiceKey, boolean> = { secure: false, cod: false };
 
 const IMPORTANT_TERMS = [
   'All rates shown are inclusive of GST.',
   'Additional charges such as address correction, shipment destruction, demurrage, mall delivery and time-bound or appointment delivery are billed extra when the service is opted for or applicable.',
   'Handling charges, where applicable, are billed at actuals as levied by the carrier partner.',
-  `Chargeable weight is the higher of actual and volumetric weight, subject to a minimum of ${MIN_CHARGEABLE_KG} kg per shipment.`,
+  `Chargeable weight is the higher of actual and volumetric weight, subject to the minimum weight of the courier service (shown here as ${MIN_CHARGEABLE_KG} kg).`,
   `Volumetric weight is calculated per box as L × W × H (in cm) ÷ ${VOL_DIVISOR_CM}, multiplied by the number of boxes. Dimensions entered in inches are converted to centimetres.`,
-  'Secure Shipment and COD charges are calculated on the declared invoice value.',
+  'Secure Shipment (carrier risk) / owner risk and COD charges are calculated on the declared invoice value.',
   'Rates are indicative and may change with fuel surcharge revisions and carrier base-rate updates.',
 ];
 
@@ -118,7 +125,8 @@ export function CargoRateCalculator() {
     const e: Record<string, string> = {};
     if (fromPin.length !== 6) e.fromPin = 'Enter a valid 6-digit pincode';
     if (toPin.length !== 6) e.toPin = 'Enter a valid 6-digit pincode';
-    if ((services.cod || services.secure) && !(num(invoiceValue) > 0)) e.invoiceValue = 'Required for COD / Secure Shipment';
+    // ROV (owner or carrier risk) is always charged on the invoice value, so it is always needed
+    if (!(num(invoiceValue) > 0)) e.invoiceValue = 'Enter the invoice value';
     if (boxes.some(b => !(num(b.count) > 0) || !(num(b.weight) > 0) || !(num(b.length) > 0) || !(num(b.width) > 0) || !(num(b.height) > 0)))
       e.boxes = 'Fill in boxes, weight and all dimensions for every row';
     setErrors(e);
@@ -131,23 +139,28 @@ export function CargoRateCalculator() {
     setLoading(true);
     touch();
     try {
-      const res = await cargoApiClient.post('/ratecalculate', {
-        from: { pincode: fromPin, ...from },
-        to: { pincode: toPin, ...to },
-        invoiceValue: num(invoiceValue),
-        isSecure: services.secure, isAppointment: services.appointment, isToPay: services.toPay, isCod: services.cod,
-        dimensionUnit: unit,
-        boxes: boxes.map(b => ({ count: num(b.count), weightPerUnit: num(b.weight), length: num(b.length), width: num(b.width), height: num(b.height) })),
-        totalBoxes: totals.count,
-        actualWeight: Number(totals.actual.toFixed(2)),
-        volumetricWeight: Number(totals.vol.toFixed(2)),
-        chargeableWeight: Number(totals.chargeable.toFixed(2)),
+      // The rate engine works in cm — inch dimensions are converted before sending
+      const f = unit === 'inch' ? INCH_TO_CM : 1;
+      const res = await apiClient.post('/b2b/rateCalculator/calculateB2BRateWithoutOrder', {
+        pickupPincode: fromPin,
+        deliveryPincode: toPin,
+        paymentType: services.cod ? 'COD' : 'Prepaid',
+        paymentValue: num(invoiceValue),
+        rovType: services.secure ? 'ROV Carrier' : 'ROV Owner',
+        packages: boxes.map(b => ({
+          noOfBox: num(b.count),
+          weightPerBox: num(b.weight),
+          length: Number((num(b.length) * f).toFixed(2)),
+          width: Number((num(b.width) * f).toFixed(2)),
+          height: Number((num(b.height) * f).toFixed(2)),
+        })),
       });
-      const list: CargoQuote[] = Array.isArray(res.data) ? res.data : (res.data?.data || []);
+      const list: CargoQuote[] = res.data?.rates || [];
       setQuotes(list);
-      if (list.length === 0) setApiError('No carrier is serviceable for this route.');
+      if (list.length === 0) setApiError('No carrier is serviceable for this route on your rate card.');
     } catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
-      setApiError(err?.response?.data?.message || 'Failed to calculate rates. Please try again.');
+      // e.g. "Plan not found" (no B2B rate card assigned yet) or "Invalid pickup pincode: …"
+      setApiError(err?.response?.data?.error || err?.response?.data?.message || 'Failed to calculate rates. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -202,7 +215,7 @@ export function CargoRateCalculator() {
           <section className="py-5">
             <div className="space-y-4">
               <div className="max-w-[260px]">
-                <label className={labelCls}>Invoice Value</label>
+                <label className={labelCls}>Invoice Value <span className="text-red-500">*</span></label>
                 <div className="relative">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[13px] font-semibold text-[#64748B] pointer-events-none">₹</span>
                   <input inputMode="numeric" value={invoiceValue} placeholder="Enter value"
@@ -338,11 +351,17 @@ export function CargoRateCalculator() {
                       <div className="flex items-center gap-3 min-w-0">
                         <span className="w-9 h-9 rounded-lg bg-[#F1F5F9] flex items-center justify-center shrink-0"><Truck className="w-4 h-4 text-[#475569]" /></span>
                         <div className="min-w-0">
-                          <div className="text-[13px] font-semibold text-[#0F172A] truncate">{q.courierName || 'Carrier'}</div>
-                          {q.tat != null && <div className="text-[11.5px] text-[#64748B]">{q.tat} days{q.mode ? ` · ${q.mode}` : ''}</div>}
+                          <div className="text-[13px] font-semibold text-[#0F172A] truncate">{q.courierServiceName || 'Carrier'}</div>
+                          <div className="text-[11.5px] text-[#64748B]">
+                            {q.mode_name === 'air' ? 'Air' : 'Surface'}
+                            {q.working?.billable_weight != null ? ` · Chargeable ${q.working.billable_weight} kg` : ''}
+                          </div>
                         </div>
                       </div>
-                      <div className="text-[15px] font-bold text-[#0F172A] tabular-nums">₹{Number(q.totalCharges || 0).toLocaleString('en-IN')}</div>
+                      <div className="text-right">
+                        <div className="text-[15px] font-bold text-[#0F172A] tabular-nums">₹{Number(q.working?.grand_total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                        <div className="text-[11px] text-[#94A3B8] tabular-nums">Freight ₹{Number(q.working?.freight || 0).toFixed(2)} · GST ₹{Number(q.working?.gst || 0).toFixed(2)}</div>
+                      </div>
                     </div>
                   ))}
                 </div>

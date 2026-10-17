@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Package, Truck } from 'lucide-react';
 import { useShippingMode, type ShippingMode } from '../../../context/shippingMode';
 import { cargoTabUrl } from '../../../utils/shippingMode';
+import { employeePanelMode, getToken } from '../../../utils/session';
 import { ModeTransition } from './ModeTransition';
 
 /* Segmented B2C | Cargo switch. `light` for the white navbar, `dark` for the mobile drawer.
@@ -21,6 +22,8 @@ export function ModeSwitch({ variant = 'light', layoutId = 'mode-switch-pill' }:
   const dark = variant === 'dark';
 
   const [pending, setPending] = useState<ShippingMode | null>(null);
+  // Employees work only in the panel they were created in — no switching
+  const isPanelEmployee = !!employeePanelMode(getToken());
 
   const choose = (next: ShippingMode) => {
     if (next === mode || pending) return;
@@ -38,6 +41,7 @@ export function ModeSwitch({ variant = 'light', layoutId = 'mode-switch-pill' }:
   };
 
   const transition = <ModeTransition from={mode} to={pending} onDone={finish} />;
+  if (isPanelEmployee) return null;
 
   return (
     <>

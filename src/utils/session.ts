@@ -49,3 +49,12 @@ export function getEmployeeFromToken(token: string): any {
   const decoded = decodePayload(token);
   return decoded?.employee ?? null;
 }
+
+/** The panel an employee token belongs to ('b2c' | 'cargo'), or null for an owner's / admin's own token.
+    Employees work only in the panel they were created in; tokens issued before the split are B2C. */
+export function employeePanelMode(token: string | null): 'b2c' | 'cargo' | null {
+  if (!token) return null;
+  const employee = decodePayload(token)?.employee;
+  if (!employee?.isEmployee) return null;
+  return employee.mode === 'cargo' ? 'cargo' : 'b2c';
+}

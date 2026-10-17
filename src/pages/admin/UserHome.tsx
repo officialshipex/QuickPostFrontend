@@ -304,7 +304,8 @@ export function UserHome() {
   // restricted endpoint fails silently instead of raising the access-denied modal.
   const fetchAnnouncements = useCallback(async () => {
     try {
-      const res = await fetch(`${BACKEND_BASE}/announcement/all`, { headers: authHeaders() });
+      // B2C panel: B2C announcements only
+      const res = await fetch(`${BACKEND_BASE}/announcement/all`, { headers: { ...authHeaders(), 'x-shipping-mode': 'b2c' } });
       if (!res.ok) return;
       const data = await res.json();
       const list: any[] = data?.announcements || [];

@@ -1,7 +1,8 @@
 /* QuickPost Cargo — Home (desktop + mobile). Same UI as the B2C Home (pages/admin/UserHome.tsx),
-   kept as a separate file so Cargo can diverge. Shipment data (summary, pickups, rates, label/
-   manifest/invoice PDFs) comes from the Cargo backend via cargoApiClient; account-level items
-   (offers & announcements, pending agreement, bulk-job notifications) stay on the main API. */
+   kept as a separate file so Cargo can diverge. The quick rate check uses the seller's B2B rate cards
+   (/b2b/rateCalculator); account-level items (offers & announcements, pending agreement, bulk-job
+   notifications) use the main API. The home summary is /dashboard/getHomeSummary with x-shipping-mode:
+   cargo, so it counts B2B orders only (pickup manifests and weight disputes are B2C flows: empty here). */
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { PDFDocument } from 'pdf-lib';
@@ -13,7 +14,7 @@ import {
 } from 'lucide-react';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { apiClient as accountApi } from '../../services/apiClient';
-import { cargoApiClient as apiClient, CARGO_API_BASE } from '../../services/cargoApiClient';
+import { isCargoAllowedPath } from '../../config/cargo';
 import { getToken } from '../../utils/session';
 import { useAdminTab } from '../../context/AdminUserContext';
 import { useNotificationList } from '../../context/NotificationListContext';
@@ -26,7 +27,7 @@ import noUpcomingPickupsImg from '../../assets/no-upcoming-pickups.png';
 
 // Account-level endpoints (offers/announcements) stay on the main API; shipment data uses Cargo.
 const ACCOUNT_BASE = (import.meta.env.VITE_API_URL as string) || 'http://localhost:5000/v1';
-const BACKEND_BASE = CARGO_API_BASE;
+const BACKEND_BASE = ACCOUNT_BASE;
 
 /* ─── helpers ─────────────────────────────────────────────────────── */
 // Local yyyy-mm-dd (toISOString would shift the day for IST users before 5:30 AM)
@@ -257,7 +258,8 @@ export function CargoHome() {
   const [downloadError, setDownloadError] = useState('');
 
   /* ── Offers ────────────────────────────────────────────────────── */
-  const offers = STATIC_OFFERS;
+  // Referral and Secure are B2C-only pages — Cargo would bounce them back to Home
+  const offers = STATIC_OFFERS.filter(o => !o.to || isCargoAllowedPath(o.to.split('?')[0]));
 
   /* ── Updates & notifications feed ──────────────────────────────── */
   const { notifications: activeNotifications } = useNotificationList();
@@ -283,7 +285,8 @@ export function CargoHome() {
   const fetchHome = useCallback(async () => {
     setSummaryLoading(true); setActionsLoading(true); setPickupsLoading(true);
     try {
-      const res = await apiClient.get('/dashboard/getHomeSummary');
+      // x-shipping-mode: cargo → the backend counts B2B orders only
+      const res = await accountApi.get('/dashboard/getHomeSummary');
       const d = res.data?.data || {};
       const s = d.summary || {};
       const a = d.actions || {};
@@ -314,7 +317,8 @@ export function CargoHome() {
   // restricted endpoint fails silently instead of raising the access-denied modal.
   const fetchAnnouncements = useCallback(async () => {
     try {
-      const res = await fetch(`${ACCOUNT_BASE}/announcement/all`, { headers: authHeaders() });
+      // Cargo panel: Cargo announcements only
+      const res = await fetch(`${ACCOUNT_BASE}/announcement/all`, { headers: { ...authHeaders(), 'x-shipping-mode': 'cargo' } });
       if (!res.ok) return;
       const data = await res.json();
       const list: any[] = data?.announcements || [];
@@ -362,7 +366,7 @@ export function CargoHome() {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         saveBlob(await res.blob(), `manifest-${suffix}.pdf`);
       } else if (kind === 'labels') {
-        await mergePdfs(activeOrderIds.map(id => `${BACKEND_BASE}/printlabel/generate-pdf/${id}`), `labels-${suffix}.pdf`);
+        await mergePdfs(activeOrderIds.map(id => `${BACKEND_BASE}/b2b/generate-label/${id}`), `labels-${suffix}.pdf`);
       } else {
         await mergePdfs(activeOrderIds.map(id => `${BACKEND_BASE}/printinvoice/download-invoice/${id}`), `invoices-${suffix}.pdf`);
       }
@@ -405,26 +409,36 @@ export function CargoHome() {
     setRateErrors(errs);
     if (Object.keys(errs).length) return;
 
-    const weight = Math.max(parseFloat(rate.weight), CARGO_MIN_CHARGEABLE_KG);
     setRateLoading(true);
     setRateError('');
     setRateResults(null);
     setShowAllRates(false);
     try {
-      const res = await apiClient.post('/ratecalculate/Rate', {
-        shipmentType: 'Forward',
-        pickUpPincode: rate.pickup,
+      // Quick estimate on the seller's B2B rate cards: one box type carrying the total weight, with nominal
+      // dimensions so dead weight decides (the service's own minimum chargeable weight still applies).
+      const boxes = Number(rate.boxes);
+      const res = await accountApi.post('/b2b/rateCalculator/calculateB2BRateWithoutOrder', {
+        pickupPincode: rate.pickup,
         deliveryPincode: rate.delivery,
-        weight: String(weight),
-        noOfBoxes: Number(rate.boxes),
         paymentType: 'Prepaid',
-        applicableWeight: weight,
+        paymentValue: 0,
+        rovType: 'ROV Owner',
+        packages: [{
+          noOfBox: boxes,
+          weightPerBox: Number((parseFloat(rate.weight) / boxes).toFixed(3)),
+          length: 1, width: 1, height: 1,
+        }],
       });
-      const data: RateQuote[] = (res.data || []).filter((c: RateQuote) => c.forward?.finalCharges != null);
-      if (data.length === 0) setRateError('No courier is serviceable for this route.');
+      const data: RateQuote[] = (res.data?.rates || []).map((r: any) => ({ // eslint-disable-line @typescript-eslint/no-explicit-any
+        _id: r.courierServiceName,
+        courierServiceName: r.courierServiceName,
+        estimatedDeliveryDate: null,
+        forward: { finalCharges: r.working?.grand_total ?? null },
+      })).filter((c: RateQuote) => c.forward?.finalCharges != null);
+      if (data.length === 0) setRateError(res.data?.message || 'No courier is serviceable for this route.');
       setRateResults(data.sort((a, b) => (a.forward.finalCharges ?? 0) - (b.forward.finalCharges ?? 0)));
     } catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
-      setRateError(err?.response?.data?.message || 'Failed to calculate rates. Please try again.');
+      setRateError(err?.response?.data?.error || err?.response?.data?.message || 'Failed to calculate rates. Please try again.');
     } finally {
       setRateLoading(false);
     }

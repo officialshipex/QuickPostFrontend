@@ -1,4 +1,4 @@
-import { appPathname } from '../../utils/shippingMode';
+import { appPathname, isCargoUrl } from '../../utils/shippingMode';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
@@ -1549,13 +1549,14 @@ export function AdminNotification() {
   const [loadingBal, setLoadingBal] = useState(false);
 
   // UI — tab driven by URL slug
-  const [activeTab, setActiveTab] = useState<TabKey>(
-    () => (tabSlug && NOTIF_VALID_SLUGS.has(tabSlug) ? tabSlug as TabKey : 'whatsapp')
-  );
+  // Cargo has no AI Calling tab — a direct /notification/ai link there opens WhatsApp
+  const validTab = (slug?: string): TabKey =>
+    slug && NOTIF_VALID_SLUGS.has(slug) && !(slug === 'ai' && isCargoUrl()) ? slug as TabKey : 'whatsapp';
+  const [activeTab, setActiveTab] = useState<TabKey>(() => validTab(tabSlug));
 
   // Sync tab from URL on back/forward/refresh/direct link
   useEffect(() => {
-    const tabFromUrl = (tabSlug && NOTIF_VALID_SLUGS.has(tabSlug) ? tabSlug as TabKey : 'whatsapp');
+    const tabFromUrl = validTab(tabSlug);
     setActiveTab(prev => (prev === tabFromUrl ? prev : tabFromUrl));
   }, [tabSlug]);
   const [buyOpen, setBuyOpen] = useState(false);
@@ -1629,7 +1630,8 @@ export function AdminNotification() {
     { key: 'whatsapp', label: 'WhatsApp',       Icon: MessageSquare },
     { key: 'sms',      label: 'SMS',            Icon: Smartphone    },
     { key: 'email',    label: 'Email',          Icon: Mail          },
-    { key: 'ai',       label: 'AI Calling',     Icon: PhoneCall     },
+    // AI calling (order verification / NDR follow-up) runs on B2C shipments only
+    ...(isCargoUrl() ? [] : [{ key: 'ai' as TabKey, label: 'AI Calling', Icon: PhoneCall }]),
     { key: 'history',  label: 'Credit History', Icon: History       },
     { key: 'alerts',   label: 'Alert Logs',     Icon: Send, adminOnly: true },
   ];

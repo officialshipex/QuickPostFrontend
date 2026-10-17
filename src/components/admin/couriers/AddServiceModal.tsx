@@ -9,22 +9,29 @@ interface AddServiceModalProps {
   courier: any;
   onSuccess: () => void;
   editData?: any;
+  /** Cargo (B2B) service — B2B sub-service lists, a minimum chargeable weight, and the /b2b service routes. */
+  cargo?: boolean;
 }
 
 const DTDC_SERVICES = ['B2C SMART EXPRESS', 'B2C PRIORITY', 'B2C GROUND ECONOMY'];
+const DELHIVERY_B2B_SERVICES = ['Delhivery-surface', 'Delhivery-air'];
 
-export function AddServiceModal({ isOpen, onClose, courier, onSuccess, editData }: AddServiceModalProps) {
+export function AddServiceModal({ isOpen, onClose, courier, onSuccess, editData, cargo = false }: AddServiceModalProps) {
   const [courier_field, setCourierField] = useState('');
   const [courier_id, setCourierId] = useState('');
   const [courierType, setCourierType] = useState('Domestic (Surface)');
   const [name, setName] = useState('');
   const [status, setStatus] = useState('Enable');
+  // Cargo: minimum chargeable weight (kg) of the service — the B2B rate engine bills at least this much
+  const [weight, setWeight] = useState('');
   const [providerServices, setProviderServices] = useState<{ service: string; courier_id?: string | number }[]>([]);
   const [loadingServices, setLoadingServices] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  const providerName: string = courier?.name || '';
+  // B2C services are grouped by the courier account's name; B2B services by the provider type
+  // (ShipexFrontend's B2B service form picks from the accounts' courierProvider values).
+  const providerName: string = cargo ? (courier?.courierProvider || courier?.name || '') : (courier?.name || '');
   // the account may be named anything ("Jiffy Main"); what decides the inputs is its real provider type
   const p = (courier?.courierProvider || providerName).toLowerCase().replace(/\s+/g, '');
 
@@ -44,9 +51,10 @@ export function AddServiceModal({ isOpen, onClose, courier, onSuccess, editData 
       setCourierType(editData.courierType || 'Domestic (Surface)');
       setName(editData.name || '');
       setStatus(editData.status || 'Enable');
+      setWeight(editData.weight != null ? String(editData.weight) : '');
     } else {
       setCourierField(''); setCourierId(''); setCourierType('Domestic (Surface)');
-      setName(''); setStatus('Enable');
+      setName(''); setStatus('Enable'); setWeight('');
     }
     setError('');
     setProviderServices([]);
@@ -57,6 +65,20 @@ export function AddServiceModal({ isOpen, onClose, courier, onSuccess, editData 
     if (!providerName) return;
     setLoadingServices(true);
     try {
+      if (cargo) {
+        // B2B: Shiprocket Cargo / BigShip have no "list my services" API — the backend asks their live
+        // serviceability for a reference route and returns { data: [{ service: [key] }] }.
+        if (p === 'shiprocket' || p === 'bigship') {
+          const res = await apiClient.get(p === 'shiprocket'
+            ? '/b2b/couriers/getShiprocketCourierServices'
+            : '/b2b/couriers/getBigShipCourierServices');
+          const keys: string[] = (res.data?.data || []).flatMap((i: any) => i.service || []);
+          setProviderServices([...new Set(keys)].map(s => ({ service: s })));
+        } else if (p === 'delhivery') {
+          setProviderServices(DELHIVERY_B2B_SERVICES.map(s => ({ service: s })));
+        }
+        return;
+      }
       if (p === 'shiprocket') {
         const res = await apiClient.get('/Shiprocket/getAllActiveCourierServices');
         setProviderServices(res.data || []);
@@ -87,7 +109,7 @@ export function AddServiceModal({ isOpen, onClose, courier, onSuccess, editData 
   const handleCourierSelect = (value: string) => {
     setCourierField(value);
     // For Shiprocket and Xpressbees, auto-fill courier_id from the fetched service list
-    if (p === 'shiprocket' || p === 'xpressbees') {
+    if (!cargo && (p === 'shiprocket' || p === 'xpressbees')) {
       const found = providerServices.find(s => s.service === value);
       setCourierId(found?.courier_id != null ? String(found.courier_id) : '');
     }
@@ -97,6 +119,12 @@ export function AddServiceModal({ isOpen, onClose, courier, onSuccess, editData 
     if (!name.trim()) return 'Service name is required';
     if (!courierType) return 'Mode is required';
     if (!status) return 'Status is required';
+    if (cargo) {
+      // The sub-service is what Ship Now matches against the carrier's live serviceability
+      if (!courier_field) return hasServiceDropdown ? 'Please select a sub-service' : `No ${providerName} B2B services could be loaded — try again`;
+      if (weight && !(Number(weight) > 0)) return 'Weight must be a positive number';
+      return '';
+    }
     if (isLosung && !courier_id.trim()) return 'Courier ID is required';
     if (isBoxd && !courier_field.trim()) return 'Courier Service ID is required';
     if ((isJiffy || isShipMaxx) && !courier_field.trim()) return 'Courier Code is required';
@@ -109,6 +137,31 @@ export function AddServiceModal({ isOpen, onClose, courier, onSuccess, editData 
     if (validationError) { setError(validationError); return; }
     setError('');
     setSaving(true);
+    if (cargo) {
+      try {
+        // Same fields ShipexFrontend's B2B courier-service form saves
+        const payload = {
+          provider: providerName,
+          courier: courier_field,
+          courierType,
+          name: name.trim(),
+          weight: weight ? Number(weight) : undefined,
+          status,
+        };
+        if (editData?._id) {
+          await apiClient.put(`/b2b/courierServices/updateCourier/${editData._id}`, payload);
+        } else {
+          await apiClient.post('/b2b/courierServices/createCourier', payload);
+        }
+        onSuccess();
+        onClose();
+      } catch (err: any) {
+        setError(err?.response?.data?.error || err?.response?.data?.message || 'Failed to save service');
+      } finally {
+        setSaving(false);
+      }
+      return;
+    }
     try {
       const courierValue = isLosung ? courier_id : courier_field;
       const payload = {
@@ -275,6 +328,24 @@ export function AddServiceModal({ isOpen, onClose, courier, onSuccess, editData 
                       value={courier_id}
                       className="w-full h-11 md:h-12 px-4 bg-[#F8FAFC] border border-[#E2E8F0] rounded-full md:rounded-[14px] text-[12px] md:text-sm text-[#94A3B8] cursor-not-allowed"
                     />
+                  </div>
+                )}
+
+                {/* Cargo — minimum chargeable weight of the service */}
+                {cargo && (
+                  <div>
+                    <label className="block text-[12px] font-semibold text-[#64748B] mb-1.5 md:mb-2 md:uppercase md:tracking-wide">
+                      <Hash className="inline w-3 h-3 mr-1" />Weight (kg)
+                    </label>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="Minimum chargeable weight, e.g. 20"
+                      value={weight}
+                      onChange={(e) => { if (/^\d*\.?\d*$/.test(e.target.value)) setWeight(e.target.value); }}
+                      className="w-full h-11 md:h-12 px-4 bg-white border border-[#E2E8F0] rounded-full md:rounded-[14px] text-[12px] md:text-sm font-medium text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#00A86B]/20 focus:border-[#00A86B]"
+                    />
+                    <p className="text-[12px] text-[#94A3B8] mt-1 ml-1">Shipments are billed at least this weight (10 kg when left empty)</p>
                   </div>
                 )}
 

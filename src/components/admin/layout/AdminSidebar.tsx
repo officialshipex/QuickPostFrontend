@@ -278,6 +278,19 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
 
   const visibleGroups = MENU_GROUPS.filter(shouldShowGroup);
 
+  // Cargo trims most groups to one entry (e.g. System → only Support Tickets); a group shown as that single
+  // link takes the entry's own icon and name there, so it doesn't show the group's (System's monitor icon).
+  const groupDisplay = (group: MenuGroup, singleItem?: MenuItem) => {
+    if (cargoView && singleItem) {
+      const isSupport = singleItem.path === '/admin/support';
+      return {
+        Icon: (isSupport ? HelpCircle : singleItem.icon) as React.ComponentType<{ className?: string; strokeWidth?: number }>,
+        label: isSupport ? 'Support' : singleItem.name,
+      };
+    }
+    return { Icon: group.icon as React.ComponentType<{ className?: string; strokeWidth?: number }>, label: group.label };
+  };
+
   return (
     <>
       {/* Desktop Sidebar — hidden on mobile */}
@@ -312,7 +325,7 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
                  (group.path === '/admin/dashboard' && location.pathname === '/user/dashboard'))
               : getIsGroupActive(group.items);
 
-            const Icon = group.icon as React.ComponentType<{ className?: string; strokeWidth?: number }>;
+            const { Icon, label: groupLabel } = groupDisplay(group, singleItem);
 
             return (
               <div key={index} className="relative group w-full">
@@ -321,7 +334,7 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
                   linkLocked ? (
                     <button
                       type="button"
-                      title={`${group.label} — no access`}
+                      title={`${groupLabel} — no access`}
                       onClick={() => notifyLocked(singleItem?.name ?? group.label)}
                       className="relative w-full h-12 flex items-center justify-center rounded-xl transition-all duration-200 text-[#94A3B8]/50 hover:bg-white/5"
                     >
@@ -331,7 +344,7 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
                   ) : (
                     <NavLink
                       to={group.path === '/admin/dashboard' ? dashboardPath : resolvedGroupPath}
-                      title={group.label}
+                      title={groupLabel}
                       className={`w-full h-12 flex items-center justify-center rounded-xl transition-all duration-200
                         ${isActive
                           ? 'bg-[#00A86B] text-white shadow-lg shadow-[#00A86B]/20'
@@ -470,7 +483,7 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
                      (group.path === '/admin/dashboard' && location.pathname === '/user/dashboard'))
                   : getIsGroupActive(group.items);
 
-                const Icon = group.icon as React.ComponentType<{ className?: string; strokeWidth?: number }>;
+                const { Icon, label: groupLabel } = groupDisplay(group, singleItem);
 
                 // Direct link (also handles single-item groups collapsed to one path)
                 if (resolvedGroupPath) {
@@ -483,7 +496,7 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
                         className="w-full flex items-center gap-3 px-3 py-3 rounded-xl mb-1 text-[#94A3B8]/60 hover:bg-white/5 text-left"
                       >
                         <Icon className="w-5 h-5" strokeWidth={2} />
-                        <span className="text-[13px] font-semibold">{group.label}</span>
+                        <span className="text-[13px] font-semibold">{groupLabel}</span>
                         <Lock className="w-3.5 h-3.5 ml-auto" strokeWidth={2.5} />
                       </button>
                     );
@@ -499,7 +512,7 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
                           : 'text-[#94A3B8] hover:bg-white/10 hover:text-white'}`}
                     >
                       <Icon className="w-5 h-5" strokeWidth={2} />
-                      <span className="text-[13px] font-semibold">{group.label}</span>
+                      <span className="text-[13px] font-semibold">{groupLabel}</span>
                       {group.isBeta && <span className="text-[8px] font-bold bg-[#00A86B]/20 text-[#00A86B] px-1.5 py-0.5 rounded-md ml-auto">BETA</span>}
                     </NavLink>
                   );

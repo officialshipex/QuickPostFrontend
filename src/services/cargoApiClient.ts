@@ -1,12 +1,15 @@
 import axios, { AxiosError, type AxiosAdapter } from 'axios';
 import { getToken, removeToken } from '../utils/session';
 
-/* API client for QuickPost Cargo pages (src/pages/cargo/*).
-   Cargo has its own backend namespace: `${VITE_API_URL}/cargo/...`. Until that backend exists,
-   CARGO_BACKEND_READY = false and requests never leave the browser:
-     • GET  → 200 with an empty body, so Cargo screens render their normal empty states
-     • others → rejected with "Cargo backend is not connected yet." (shown by the page's error toast)
-   Flip CARGO_BACKEND_READY to true once the Cargo APIs are live — no page changes needed. */
+/* Offline API client for the Cargo screens that have no B2B backend yet.
+   Cargo is the B2B flow and the live Cargo screens call the main apiClient against the backend's /b2b
+   namespace (Orders, Ship, Add Order, Rate Calculator, Couriers, Rate Card + Zone Matrix) or shared
+   account data (Pickup Address, Announcements, CRM sellers / leads / B2B shipments).
+   Still on this client — the backend has no B2B version of them (ShipexFrontend has none either):
+   Dashboard, NDR, Weight Discrepancy, CRM courier partners / business metrics, Pickup Manifest and the
+   Home summary. With CARGO_BACKEND_READY = false requests never leave the browser:
+     • GET  → 200 with an empty body, so those screens render their normal empty states
+     • others → rejected with "Cargo backend is not connected yet." (shown by the page's error toast) */
 
 export const CARGO_BACKEND_READY = false;
 

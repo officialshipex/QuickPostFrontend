@@ -1,11 +1,12 @@
 /* QuickPost Cargo — Dashboard. Same UI as the B2C page (pages/admin/AdminDashboard.tsx), kept as a separate
-   file so Cargo can diverge. All data comes from cargoApiClient (Cargo backend, wired later),
-   never from the B2C backend. */
+   file so Cargo can diverge. Data comes from the same /dashboard endpoints, which count B2B orders only
+   when the request carries x-shipping-mode: cargo (apiClient sets it on every Cargo page). */
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { apiClient as accountApi } from '../../services/apiClient';
-import { cargoApiClient as apiClient } from '../../services/cargoApiClient';
+// Same /dashboard endpoints as B2C; apiClient's x-shipping-mode: cargo makes them count B2B orders only
+const apiClient = accountApi;
 import { getToken } from '../../utils/session';
 import { useAdminTab } from '../../context/AdminUserContext';
 import { useDashboardFilters } from '../../context/DashboardFilterContext';
@@ -86,7 +87,9 @@ function StatCardWithTrend({ title, value, trend, isUp, isPrimary = false, icon:
   );
 }
 
-function MiniStatCard({ title, value, icon: Icon, iconColor, iconBg, to, className = '' }: any) {
+// `href` = a page outside the Cargo panel (full page load), e.g. the shared seller list in B2C admin
+function MiniStatCard({ title, value, icon: Icon, iconColor, iconBg, to, href, className = '' }: any) {
+  to = to || href;
   const inner = (
     <div className={`min-w-0 bg-white rounded-xl border border-[#E2E8F0] p-2.5 md:p-4 shadow-sm flex items-start justify-between gap-1.5 group ${to ? 'cursor-pointer hover:border-[#00A86B]/60 hover:shadow-md transition-all duration-150' : ''}`}>
       <div className="min-w-0 flex-1">
@@ -101,6 +104,7 @@ function MiniStatCard({ title, value, icon: Icon, iconColor, iconBg, to, classNa
       )}
     </div>
   );
+  if (href) return <a href={href} className={`block ${className}`}>{inner}</a>;
   if (to) return <Link to={to} className={`block ${className}`}>{inner}</Link>;
   return className ? <div className={className}>{inner}</div> : inner;
 }
@@ -335,8 +339,9 @@ export function CargoDashboard() {
   /* Onboarding gate — see full logic below. Computed pre-loading so the header
      (which reacts to context, not local component state) knows to hide the
      date filter as soon as this page mounts, not after data finishes loading. */
-  const hasPlacedOrder = monthOrders > 0 || totalShip > 0;
-  const showOnboardingNow = isUserRoute && !isEmployee && !loading && !loadingAdminTab && (!hasPlacedOrder || !kycComplete);
+  // Cargo gates on KYC only: a seller who is KYC-complete but hasn't booked a B2B shipment yet should
+  // still get the Cargo dashboard (B2C's extra "has placed an order" check would hide it from them).
+  const showOnboardingNow = isUserRoute && !isEmployee && !loading && !loadingAdminTab && !kycComplete;
   useEffect(() => {
     setShowOnboarding(showOnboardingNow);
     return () => setShowOnboarding(false);
@@ -361,11 +366,8 @@ export function CargoDashboard() {
 
   /* ── Onboarding view ─────────────────────────────────────────────
      User side accounts see the account setup flow instead of the dashboard
-     until they've both placed an order AND completed KYC. Employees are
-     excluded — they're linked to a parent user whose setup they don't own.
-     Order-activity check: lifetime month count (insights is fetched without
-     a date filter) OR shipments in the selected range, so an established
-     user narrowing to a quiet date range never drops back here. */
+     until they've completed KYC. Employees are excluded — they're linked to
+     a parent user whose setup they don't own. */
   if (showOnboardingNow) {
     return (
       <AdminLayout>
@@ -558,14 +560,14 @@ export function CargoDashboard() {
             <MiniStatCard title="Pending KYC/Docs"
               value={fmtN(actionCards?.pendingKYC)}
               icon={FileText} iconColor="text-blue-500" iconBg="bg-blue-50"
-              to="/admin/users?kycStatus=pending"
+              href="/admin/users?kycStatus=pending"
             />
           )}
           {isAdminView && (
             <MiniStatCard title="Low Balance Sellers"
               value={fmtN(actionCards?.lowBalanceSellers)}
               icon={CreditCard} iconColor="text-red-500" iconBg="bg-red-50"
-              to="/admin/users?balanceType=negative"
+              href="/admin/users?balanceType=negative"
             />
           )}
           <MiniStatCard title="Pending NDR"

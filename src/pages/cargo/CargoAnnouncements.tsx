@@ -1,9 +1,9 @@
 /* QuickPost Cargo (admin) — Announcements. Same UI as the B2C page (pages/admin/AdminAnnouncements.tsx), kept as a
-   separate file so Cargo can diverge. Data comes from cargoApiClient (Cargo backend, wired later),
-   never from the B2C backend. */
+   separate file so Cargo can diverge. Announcements are account-wide (there is no separate B2B list, same as
+   ShipexFrontend), so this reads and writes the main API. */
 import { useState, useEffect, useCallback } from 'react';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
-import { cargoApiClient as apiClient } from '../../services/cargoApiClient';
+import { apiClient } from '../../services/apiClient';
 import { Plus, Megaphone, Edit2, Trash2, X, Check, Search, ChevronDown, Calendar, MessageSquare, Clock, Users, Activity, Settings } from 'lucide-react';
 import { usePagination, DesktopPagination } from '../../hooks/usePagination';
 import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';

@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, AlertCircle, CheckCircle2, Briefcase } from 'lucide-react';
 import { apiClient } from '../services/apiClient';
-import { setToken, getRoleFromToken } from '../utils/session';
+import { setToken, getRoleFromToken, employeePanelMode } from '../utils/session';
+import { isCargoUrl, modeUrl } from '../utils/shippingMode';
 
 export function EmployeeLogin() {
   const navigate = useNavigate();
@@ -24,7 +25,13 @@ export function EmployeeLogin() {
       setToken(token);
       setStatus('success');
       const role = getRoleFromToken(token);
-      navigate(role === 'admin' ? '/admin/dashboard' : '/user/dashboard', { replace: true });
+      const landing = role === 'admin' ? '/admin/dashboard' : '/user/dashboard';
+      // A Cargo employee works in the Cargo panel — that is a different URL space, so a full navigation
+      if (employeePanelMode(token) === 'cargo' && !isCargoUrl()) {
+        window.location.replace(modeUrl('cargo', landing));
+        return;
+      }
+      navigate(landing, { replace: true });
     } catch (err: any) {
       setStatus('error');
       setErrorMsg(err.response?.data?.message || err.message || 'Login failed. Please try again.');

@@ -51,6 +51,35 @@ const mapShippingItem = (item: any) => {
   const vw = item.packageDetails?.volumetricWeight?.width || 0;
   const vh = item.packageDetails?.volumetricWeight?.height || 0;
   const wd = item.weightDiscrepancy;
+  // B2B (Cargo) shipments carry their weight in B2BPackageDetails (boxes), like ShipexFrontend's billing shows
+  if (item.orderType === 'B2B') {
+    const b2b = item.B2BPackageDetails || {};
+    const boxes = (b2b.packages || []).reduce((s: number, p: any) => s + (Number(p.noOfBox) || 0), 0);
+    const applicable = `${Number(b2b.applicableWeight || 0).toFixed(3)} Kg`;
+    const boxesLine = `B2B · ${boxes} ${boxes === 1 ? 'box' : 'boxes'}`;
+    const volLine = `Vol. Wt: ${Number(b2b.volumetricWeight || 0).toFixed(3)} Kg`;
+    return {
+      id: String(item.orderId || item._id || ''),
+      userId: item.user?.userId || '',
+      awb: item.awb_number || '',
+      userName: item.user?.name || '',
+      userEmail: item.user?.email || '',
+      mobile: item.user?.phoneNumber || '',
+      date: item.createdAt ? new Date(item.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '',
+      paymentMethod: item.paymentMethod || 'N/A',
+      courier: item.courierServiceName || '',
+      bookedDate: item.shipmentCreatedAt ? new Date(item.shipmentCreatedAt).toLocaleDateString('en-IN') : '',
+      statusAmount: (item.totalFreightCharges || 0).toFixed(2),
+      priceBreakup: item.priceBreakup || null,
+      status: item.status || 'new',
+      initialWeight: applicable,
+      initialDimensions: boxesLine,
+      initialVol: volLine,
+      courierWeight: applicable,
+      courierDimensions: boxesLine,
+      courierVol: volLine,
+    };
+  }
   return {
     id: String(item.orderId || item._id || ''),
     userId: item.user?.userId || '',

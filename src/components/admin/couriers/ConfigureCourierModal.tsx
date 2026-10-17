@@ -16,6 +16,11 @@ interface Courier {
   channelId?: string;
   liabilityCharge?: number;
   liabilityPercent?: number;
+  // Cargo (B2B) courier credentials
+  username?: string;
+  clientId?: string;
+  refreshToken?: string;
+  authToken?: string;
 }
 
 interface ConfigureCourierModalProps {
@@ -23,9 +28,24 @@ interface ConfigureCourierModalProps {
   onClose: () => void;
   courier: Courier | null;
   onSave: (data: Record<string, string>) => Promise<void>;
+  /** Cargo (B2B) courier — edits the B2B account's own settings (provider and name stay locked). */
+  cargo?: boolean;
 }
 
-const getFieldsForCourier = (name: string) => {
+// Cargo: every setting a B2B courier account can hold; only the ones its record actually has are shown
+// (same rule as ShipexFrontend's EditB2BCourierModal). A blank password keeps the saved one.
+const B2B_FIELDS = [
+  { id: 'CODDays', label: 'COD Contract (Days)', type: 'number', placeholder: 'e.g. 5', icon: Clock },
+  { id: 'username', label: 'Username / User', type: 'text', placeholder: 'B2B API Username', icon: User },
+  { id: 'password', label: 'Password', type: 'password', placeholder: 'Leave blank to keep unchanged', icon: ShieldCheck },
+  { id: 'apiKey', label: 'API Key', type: 'password', placeholder: 'B2B API Key', icon: Key },
+  { id: 'clientId', label: 'Client ID', type: 'text', placeholder: 'B2B Client ID', icon: Hash },
+  { id: 'refreshToken', label: 'Refresh Token', type: 'password', placeholder: 'OAuth Refresh Token', icon: Key },
+  { id: 'authToken', label: 'Auth Token', type: 'password', placeholder: 'Session or Bearer Token', icon: Key },
+];
+
+const getFieldsForCourier = (name: string, cargo = false) => {
+  if (cargo) return B2B_FIELDS;
   const n = name.toLowerCase();
 
   const defaultFields = [
@@ -86,7 +106,7 @@ const getFieldsForCourier = (name: string) => {
   ];
 };
 
-export function ConfigureCourierModal({ isOpen, onClose, courier, onSave }: ConfigureCourierModalProps) {
+export function ConfigureCourierModal({ isOpen, onClose, courier, onSave, cargo = false }: ConfigureCourierModalProps) {
   const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
@@ -103,13 +123,19 @@ export function ConfigureCourierModal({ isOpen, onClose, courier, onSave }: Conf
         carrierId: courier.carrierId || '',
         carrierName: courier.carrierName || '',
         channelId: courier.channelId || '',
+        ...(cargo ? {
+          username: courier.username || '',
+          clientId: courier.clientId || '',
+          refreshToken: courier.refreshToken || '',
+          authToken: courier.authToken || '',
+        } : {}),
       });
     }
-  }, [courier]);
+  }, [courier, cargo]);
 
   if (!courier) return null;
 
-  const fields = getFieldsForCourier(courier.name).filter((f) => f.id in courier);
+  const fields = getFieldsForCourier(courier.name, cargo).filter((f) => f.id in courier);
 
   const handleConnect = async () => {
     setSaving(true);
