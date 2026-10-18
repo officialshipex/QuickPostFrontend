@@ -56,7 +56,16 @@ export interface SalesCall {
   lastNote?: string;
   followUpAt?: string;
   priority?: 'high' | 'medium' | 'low';
+  city?: string;
+  category?: string;
+  stage?: LeadStage;
 }
+
+export type LeadStage = 'lead' | 'interested' | 'callback' | 'kyc_pending' | 'first_shipment_due' | 'onboarded';
+export const LEAD_STAGE_LABEL: Record<LeadStage, string> = {
+  lead: 'Lead', interested: 'Interested', callback: 'Callback', kyc_pending: 'KYC pending',
+  first_shipment_due: 'First shipment due', onboarded: 'Onboarded',
+};
 
 export interface ReferredSeller {
   _id: string;
@@ -80,7 +89,16 @@ export interface SalesOverview {
   orders?: { total: number; today: number; month: number; shipped: number; delivered: number; cancelled: number; rto: number };
   targets?: { daily?: Target; weekly?: Target; monthly?: Target };
   followUpList?: SalesCall[];
+  /** Seller funnel counts for the range, stage by stage. */
+  funnel?: Partial<Record<FunnelStage, number>>;
 }
+
+export type FunnelStage = 'leads' | 'called' | 'connected' | 'interested' | 'kyc' | 'onboarded' | 'firstShipment' | 'repeat';
+export const FUNNEL_STAGES: { key: FunnelStage; label: string }[] = [
+  { key: 'leads', label: 'Leads' }, { key: 'called', label: 'Called' }, { key: 'connected', label: 'Connected' },
+  { key: 'interested', label: 'Interested' }, { key: 'kyc', label: 'KYC done' }, { key: 'onboarded', label: 'Onboarded' },
+  { key: 'firstShipment', label: 'First shipment' }, { key: 'repeat', label: 'Repeat' },
+];
 
 export interface SalesPerformance {
   callsAssigned?: number; callsCompleted?: number;

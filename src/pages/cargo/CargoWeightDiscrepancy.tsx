@@ -23,7 +23,7 @@ import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
 import { useDateRangeFilter } from '../../hooks/filters/useDateRangeFilter';
 import { useFilterApplyState } from '../../hooks/filters/useFilterApplyState';
 import { TableLoader } from '../../components/ui/TableLoader';
-import { EmptyState } from '../../components/ui/EmptyState';
+import { CargoLottieEmptyState } from './CargoLottieEmptyState';
 import { TruncatedText } from '../../components/ui/TruncatedText';
 import { StatusRibbon } from '../../components/ui/StatusRibbon';
 import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
@@ -1056,7 +1056,7 @@ export function CargoWeightDiscrepancy() {
                 {filteredOrders.length === 0 ? (
                   <tr>
                     <td colSpan={isAdminView ? 11 : 10}>
-                      <EmptyState title="No discrepancies found" subtitle="Try changing filters" />
+                      <CargoLottieEmptyState title="No discrepancies found" subtitle="Try changing filters" />
                     </td>
                   </tr>
                 ) : (
@@ -1245,7 +1245,7 @@ export function CargoWeightDiscrepancy() {
           <div className="flex-1 overflow-y-auto overflow-x-hidden w-full relative">
             {loading && <TableLoader />}
             {!loading && filteredOrders.length === 0 && (
-              <EmptyState title="No discrepancies found" subtitle="Try changing filters" />
+              <CargoLottieEmptyState title="No discrepancies found" subtitle="Try changing filters" />
             )}
             {!loading && filteredOrders.length > 0 && (
               <div className="p-2 space-y-2">

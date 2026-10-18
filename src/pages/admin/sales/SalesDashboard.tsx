@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   PhoneCall, PhoneOutgoing, CalendarClock, UserPlus, UserCheck, PackageCheck, Package, Target,
-  Search, Copy, Check, Link2, X, AlertCircle, TrendingUp, Users, Clock, RefreshCw, type LucideIcon,
+  Search, Copy, Check, Link2, X, AlertCircle, TrendingUp, Users, Clock, RefreshCw, Phone, MessageCircle, ChevronDown, type LucideIcon,
 } from 'lucide-react';
 import { AdminLayout } from '../../../components/admin/layout/AdminLayout';
 import { useAdminTab } from '../../../context/AdminUserContext';
@@ -14,7 +14,7 @@ import { useToast } from '../../../hooks/useToast';
 import { copyToClipboard } from '../../../utils/clipboard';
 import {
   salesApiClient, pct, CALL_STATUS_LABEL, CALL_OUTCOME_LABEL,
-  type SalesOverview, type SalesCall, type ReferredSeller, type SalesPerformance, type TeamMember,
+  type SalesOverview, type SalesCall, type ReferredSeller, type SalesPerformance, type TeamMember, FUNNEL_STAGES, LEAD_STAGE_LABEL, type LeadStage,
   type CallStatus, type CallOutcome,
 } from '../../../services/salesApi';
 
@@ -37,6 +37,50 @@ const STATUS_TONE: Record<CallStatus, string> = {
   follow_up: 'bg-violet-50 text-violet-700 border-violet-200',
   unreachable: 'bg-slate-100 text-slate-600 border-slate-200',
 };
+
+// ── Seller funnel: stage bars sized to the first stage, % of previous, biggest drop-off flagged ──
+function SellerFunnel({ funnel, rangeLabel }: { funnel?: SalesOverview['funnel']; rangeLabel: string }) {
+  const stages = FUNNEL_STAGES.map(s => ({ ...s, value: funnel?.[s.key] || 0 }));
+  const max = Math.max(...stages.map(s => s.value), 0);
+  const conv = stages.map((s, i) => (i === 0 ? null : pct(s.value, stages[i - 1].value)));
+  let drop = -1;
+  if (max > 0) conv.forEach((c, i) => { if (c !== null && stages[i - 1].value > 0 && (drop < 0 || c < (conv[drop] ?? 101))) drop = i; });
+  return (
+    <div className="bg-white rounded-2xl border border-[#E2E8F0] p-5">
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+        <h2 className="text-[14px] font-bold text-[#0F172A]">Seller funnel <span className="font-medium text-[#94A3B8]">· {rangeLabel}</span></h2>
+        {drop > 0 && (
+          <span className="px-2.5 py-1 rounded-full bg-amber-50 border border-amber-200 text-[11.5px] font-semibold text-amber-700">
+            Biggest drop-off: {stages[drop - 1].label} → {stages[drop].label} ({conv[drop]}%)
+          </span>
+        )}
+      </div>
+      <div className="overflow-x-auto -mx-1 px-1">
+        <div className="grid grid-cols-8 gap-2 md:gap-3 min-w-[640px]">
+          {stages.map((s, i) => {
+            const h = max > 0 ? Math.max(14, Math.round((s.value / max) * 100)) : 14;
+            const isDrop = i === drop;
+            return (
+              <div key={s.key} className="flex flex-col items-center min-w-0">
+                <span className={`text-[11px] font-semibold mb-1 whitespace-nowrap ${isDrop ? 'text-amber-700' : 'text-[#64748B]'}`}>{i === 0 ? 'Start' : `${conv[i]}% of prev`}</span>
+                <div className="relative w-full h-[120px] flex items-end">
+                  <motion.div
+                    initial={{ height: 0 }} animate={{ height: `${h}%` }} transition={{ duration: 0.5, delay: i * 0.05, ease: 'easeOut' }}
+                    title={`${s.label}: ${s.value.toLocaleString('en-IN')}`}
+                    className={`w-full rounded-t-lg flex justify-center pt-1.5 ${max === 0 ? 'bg-[#F1F5F9]' : isDrop ? 'bg-amber-600' : 'bg-[#00A86B]'}`}>
+                    <span className={`text-[13px] font-bold tabular-nums ${max === 0 ? 'text-[#94A3B8]' : 'text-white'}`}>{s.value.toLocaleString('en-IN')}</span>
+                  </motion.div>
+                </div>
+                <span className="mt-2 text-[12px] font-medium text-[#475569] text-center truncate w-full">{s.label}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      {max === 0 && <p className="mt-3 text-[12px] text-[#94A3B8] text-center">Funnel data will appear once leads are assigned to you.</p>}
+    </div>
+  );
+}
 
 function Kpi({ label, value, sub, icon: Icon, tone }: { label: string; value: string; sub?: string; icon: LucideIcon; tone: string }) {
   return (
@@ -93,6 +137,190 @@ function Funnel({ steps }: { steps: { label: string; value: number; rate?: strin
 }
 
 // ── Call update dialog: a call can only be completed with an outcome ──────────
+// ── Priority queue: who to contact next, ranked by urgency (overdue → today → upcoming), with filters ──
+const STAGE_TONE: Record<LeadStage, string> = {
+  lead: 'bg-[#F1F5F9] text-[#475569]', interested: 'bg-sky-50 text-sky-700', callback: 'bg-emerald-50 text-emerald-700',
+  kyc_pending: 'bg-amber-50 text-amber-700', first_shipment_due: 'bg-violet-50 text-violet-700', onboarded: 'bg-[#F0FDF4] text-[#00A86B]',
+};
+const PRIORITY_RANK = { high: 0, medium: 1, low: 2 } as const;
+type DueBucket = 'overdue' | 'today' | 'upcoming' | 'none';
+const dayStart = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+function dueInfo(iso?: string): { bucket: DueBucket; label: string; tone: string } {
+  if (!iso) return { bucket: 'none', label: 'No date', tone: 'bg-[#F8FAFC] text-[#94A3B8]' };
+  const d = new Date(iso); const now = new Date();
+  const days = Math.round((dayStart(d) - dayStart(now)) / 86400000);
+  const time = d.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true }).toUpperCase();
+  if (d < now) return { bucket: 'overdue', label: days < 0 ? `Overdue ${-days}d` : `Overdue · ${time}`, tone: 'bg-red-50 text-red-600' };
+  if (days === 0) return { bucket: 'today', label: `Today ${time}`, tone: 'bg-amber-50 text-amber-700' };
+  if (days === 1) return { bucket: 'upcoming', label: 'Tomorrow', tone: 'bg-[#F1F5F9] text-[#475569]' };
+  return { bucket: 'upcoming', label: d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }), tone: 'bg-[#F1F5F9] text-[#475569]' };
+}
+const leadStage = (c: SalesCall): LeadStage => c.stage || (c.status === 'follow_up' ? 'callback' : c.outcome === 'interested' ? 'interested' : 'lead');
+const waLink = (phone: string) => {
+  const digits = phone.replace(/\D/g, '');
+  return `https://wa.me/${digits.length === 10 ? `91${digits}` : digits}`;
+};
+
+function PriorityQueue({ calls, onUpdate, onViewAll }: { calls: SalesCall[]; onUpdate: (c: SalesCall) => void; onViewAll: () => void }) {
+  const [bucket, setBucket] = useState<'all' | DueBucket>('all');
+  const [stage, setStage] = useState<'all' | LeadStage>('all');
+  const [sort, setSort] = useState<'urgency' | 'priority' | 'name'>('urgency');
+  const [query, setQuery] = useState('');
+  const [expanded, setExpanded] = useState(false);
+
+  const open = useMemo(() => calls.filter(c => c.status !== 'completed').map(c => ({ c, due: dueInfo(c.followUpAt), stage: leadStage(c) })), [calls]);
+  const counts = useMemo(() => {
+    const k: Record<'all' | DueBucket, number> = { all: open.length, overdue: 0, today: 0, upcoming: 0, none: 0 };
+    open.forEach(r => { k[r.due.bucket]++; });
+    return k;
+  }, [open]);
+  const rows = useMemo(() => {
+    const ql = query.trim().toLowerCase();
+    const BUCKET_RANK: Record<DueBucket, number> = { overdue: 0, today: 1, upcoming: 2, none: 3 };
+    const time = (iso?: string) => (iso ? new Date(iso).getTime() : Infinity);
+    return open
+      .filter(r => (bucket === 'all' || r.due.bucket === bucket) && (stage === 'all' || r.stage === stage)
+        && (!ql || [r.c.leadName, r.c.businessName, r.c.city, r.c.category, r.c.phone, r.c.lastNote].some(v => (v || '').toLowerCase().includes(ql))))
+      .sort((a, b) => {
+        if (sort === 'name') return (a.c.businessName || a.c.leadName).localeCompare(b.c.businessName || b.c.leadName);
+        const pa = PRIORITY_RANK[a.c.priority || 'medium'], pb = PRIORITY_RANK[b.c.priority || 'medium'];
+        if (sort === 'priority' && pa !== pb) return pa - pb;
+        return BUCKET_RANK[a.due.bucket] - BUCKET_RANK[b.due.bucket] || time(a.c.followUpAt) - time(b.c.followUpAt) || pa - pb;
+      });
+  }, [open, bucket, stage, sort, query]);
+  const shown = expanded ? rows : rows.slice(0, 6);
+
+  const chips: { key: 'all' | DueBucket; label: string; dot?: string }[] = [
+    { key: 'all', label: 'All' }, { key: 'overdue', label: 'Overdue', dot: 'bg-red-500' }, { key: 'today', label: 'Today', dot: 'bg-amber-500' },
+    { key: 'upcoming', label: 'Upcoming', dot: 'bg-slate-400' }, { key: 'none', label: 'No date' },
+  ];
+  const select = 'h-8 pl-2.5 pr-7 rounded-lg border border-[#E2E8F0] bg-white text-[12.5px] font-medium text-[#475569] outline-none focus:border-[#00A86B] appearance-none cursor-pointer';
+  const contact = (c: SalesCall) => (
+    <div className="flex items-center gap-1.5 justify-end">
+      <a href={`tel:${c.phone}`} title={`Call ${c.phone}`} aria-label={`Call ${c.leadName}`}
+        className="w-9 h-9 rounded-xl bg-[#00A86B] hover:bg-[#00965F] text-white flex items-center justify-center transition-colors"><Phone className="w-4 h-4" /></a>
+      <a href={waLink(c.phone)} target="_blank" rel="noopener noreferrer" title="Message on WhatsApp" aria-label={`Message ${c.leadName}`}
+        className="w-9 h-9 rounded-xl border border-[#E2E8F0] bg-white hover:border-[#00A86B]/40 hover:text-[#00A86B] text-[#475569] flex items-center justify-center transition-colors"><MessageCircle className="w-4 h-4" /></a>
+      <button type="button" onClick={() => onUpdate(c)} title="Log call outcome"
+        className="h-9 px-3 rounded-xl border border-[#E2E8F0] text-[12px] font-semibold text-[#475569] hover:border-[#00A86B]/40 hover:text-[#00A86B]">Log</button>
+    </div>
+  );
+  const seller = (c: SalesCall) => (
+    <div className="min-w-0">
+      <div className="flex items-center gap-1.5">
+        {c.priority === 'high' && <span title="High priority" className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />}
+        <span className="text-[13px] font-bold text-[#0F172A] truncate">{c.businessName || c.leadName}</span>
+      </div>
+      <div className="text-[11.5px] text-[#94A3B8] truncate">{[c.businessName ? c.leadName : null, c.city, c.category].filter(Boolean).join(' · ') || c.phone}</div>
+    </div>
+  );
+
+  return (
+    <div className={`${card} overflow-hidden`}>
+      <div className="px-5 pt-4 pb-3 flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h2 className="text-[14px] font-bold text-[#0F172A]">Priority queue</h2>
+          <p className="text-[12px] text-[#94A3B8]">{counts.overdue > 0 ? `${counts.overdue} overdue · ` : ''}{counts.today} due today · {counts.all} open</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <select value={sort} onChange={e => setSort(e.target.value as typeof sort)} className={select} aria-label="Sort queue">
+              <option value="urgency">Sorted by urgency</option>
+              <option value="priority">Sorted by priority</option>
+              <option value="name">Sorted by name</option>
+            </select>
+            <ChevronDown className="w-3.5 h-3.5 text-[#94A3B8] absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+          </div>
+          <button onClick={onViewAll} className="text-[12.5px] font-semibold text-[#00A86B] hover:underline">View all</button>
+        </div>
+      </div>
+
+      <div className="px-5 pb-3 flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap gap-1.5">
+          {chips.map(ch => (
+            <button key={ch.key} type="button" onClick={() => setBucket(ch.key)}
+              className={`h-7 px-2.5 rounded-full border text-[12px] font-semibold inline-flex items-center gap-1.5 transition-colors ${bucket === ch.key ? 'bg-[#0F172A] border-[#0F172A] text-white' : 'bg-white border-[#E2E8F0] text-[#475569] hover:border-[#CBD5E1]'}`}>
+              {ch.dot && <span className={`w-1.5 h-1.5 rounded-full ${ch.dot}`} />}{ch.label}
+              <span className={`tabular-nums ${bucket === ch.key ? 'text-white/70' : 'text-[#94A3B8]'}`}>{counts[ch.key]}</span>
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-2 ml-auto w-full sm:w-auto">
+          <div className="relative">
+            <select value={stage} onChange={e => setStage(e.target.value as typeof stage)} className={select} aria-label="Filter by stage">
+              <option value="all">All stages</option>
+              {(Object.keys(LEAD_STAGE_LABEL) as LeadStage[]).map(k => <option key={k} value={k}>{LEAD_STAGE_LABEL[k]}</option>)}
+            </select>
+            <ChevronDown className="w-3.5 h-3.5 text-[#94A3B8] absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+          </div>
+          <div className="relative flex-1 sm:w-48">
+            <Search className="w-3.5 h-3.5 text-[#94A3B8] absolute left-2.5 top-1/2 -translate-y-1/2" />
+            <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search seller, city, note…"
+              className="w-full h-8 pl-8 pr-2.5 rounded-lg border border-[#E2E8F0] text-[12.5px] outline-none focus:border-[#00A86B]" />
+          </div>
+        </div>
+      </div>
+
+      {rows.length === 0 ? (
+        <div className="border-t border-[#F1F5F9]">
+          <Empty icon={PhoneCall} title={open.length ? 'Nothing matches these filters' : 'Your queue is clear'}
+            body={open.length ? 'Try another due filter, stage or search.' : 'Assigned leads and follow-ups will be ranked here by urgency.'} />
+        </div>
+      ) : (
+        <>
+          {/* Desktop table */}
+          <div className="hidden md:block overflow-x-auto border-t border-[#F1F5F9]">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="text-[11.5px] font-semibold text-[#64748B] bg-[#FAFBFC]">
+                  <th className="py-2.5 px-4">Seller</th>
+                  <th className="py-2.5 px-4">Stage</th>
+                  <th className="py-2.5 px-4">Last note</th>
+                  <th className="py-2.5 px-4">Due</th>
+                  <th className="py-2.5 px-4 text-right">Contact</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#F1F5F9]">
+                {shown.map(({ c, due, stage: st }) => (
+                  <tr key={c._id} className={`hover:bg-[#FAFBFC] transition-colors ${due.bucket === 'overdue' ? 'shadow-[inset_3px_0_0_#EF4444]' : ''}`}>
+                    <td className="py-3 px-4 max-w-[220px]">{seller(c)}</td>
+                    <td className="py-3 px-4"><span className={`px-2.5 py-1 rounded-full text-[11.5px] font-semibold whitespace-nowrap ${STAGE_TONE[st]}`}>{LEAD_STAGE_LABEL[st]}</span></td>
+                    <td className="py-3 px-4 max-w-[280px]"><p className="text-[12.5px] text-[#475569] line-clamp-2" title={c.lastNote}>{c.lastNote || <span className="text-[#CBD5E1]">No notes yet</span>}</p></td>
+                    <td className="py-3 px-4"><span className={`px-2 py-1 rounded-md text-[11.5px] font-semibold whitespace-nowrap ${due.tone}`}>{due.label}</span></td>
+                    <td className="py-3 px-4">{contact(c)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {/* Mobile cards */}
+          <ul className="md:hidden divide-y divide-[#F1F5F9] border-t border-[#F1F5F9]">
+            {shown.map(({ c, due, stage: st }) => (
+              <li key={c._id} className="px-4 py-3">
+                <div className="flex items-start justify-between gap-2">
+                  {seller(c)}
+                  <span className={`px-2 py-0.5 rounded-md text-[11px] font-semibold whitespace-nowrap shrink-0 ${due.tone}`}>{due.label}</span>
+                </div>
+                <div className="mt-1.5 flex items-center gap-2 min-w-0">
+                  <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold whitespace-nowrap ${STAGE_TONE[st]}`}>{LEAD_STAGE_LABEL[st]}</span>
+                  <p className="text-[12px] text-[#64748B] truncate">{c.lastNote || 'No notes yet'}</p>
+                </div>
+                <div className="mt-2">{contact(c)}</div>
+              </li>
+            ))}
+          </ul>
+          {rows.length > 6 && (
+            <button type="button" onClick={() => setExpanded(e => !e)}
+              className="w-full py-2.5 border-t border-[#F1F5F9] text-[12.5px] font-semibold text-[#00A86B] hover:bg-[#F0FDF4] inline-flex items-center justify-center gap-1">
+              {expanded ? 'Show less' : `Show all ${rows.length}`}<ChevronDown className={`w-3.5 h-3.5 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+            </button>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 function CallUpdateDialog({ call, onClose, onSaved }: { call: SalesCall; onClose: () => void; onSaved: (msg: string, ok: boolean) => void }) {
   const [status, setStatus] = useState<CallStatus>(call.status);
   const [outcome, setOutcome] = useState<CallOutcome | ''>(call.outcome || '');
@@ -102,15 +330,15 @@ function CallUpdateDialog({ call, onClose, onSaved }: { call: SalesCall; onClose
   const [error, setError] = useState('');
 
   const save = async () => {
-    if (status === 'completed' && !outcome) { setError('Record an outcome before marking the call completed.'); return; }
+    if (status === 'completed' && !outcome) { setError('Record an outcome before marking the lead completed.'); return; }
     if (status === 'follow_up' && !followUpAt) { setError('Pick a follow-up date and time.'); return; }
     setSaving(true); setError('');
     try {
       await salesApiClient.patch(`/calls/${call._id}`, { status, outcome: outcome || undefined, note: note.trim() || undefined, followUpAt: followUpAt || undefined });
-      onSaved('Call updated', true);
+      onSaved('Lead updated', true);
       onClose();
     } catch (e: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
-      setError(e?.response?.data?.message || 'Could not update the call.');
+      setError(e?.response?.data?.message || 'Could not update the lead.');
     } finally { setSaving(false); }
   };
 
@@ -122,7 +350,7 @@ function CallUpdateDialog({ call, onClose, onSaved }: { call: SalesCall; onClose
         className="relative w-full max-w-md bg-white rounded-2xl shadow-[0_24px_64px_-16px_rgba(15,23,42,0.35)]">
         <div className="px-5 py-4 border-b border-[#F1F5F9] flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h3 className="text-[15px] font-bold text-[#0F172A]">Update call</h3>
+            <h3 className="text-[15px] font-bold text-[#0F172A]">Update lead</h3>
             <p className="text-[12px] text-[#64748B] truncate">{call.leadName}{call.businessName ? ` · ${call.businessName}` : ''} · {call.phone}</p>
           </div>
           <button onClick={onClose} aria-label="Close" className="w-8 h-8 rounded-full flex items-center justify-center text-[#94A3B8] hover:bg-[#F1F5F9]"><X className="w-4 h-4" /></button>
@@ -221,7 +449,7 @@ export function SalesDashboard() {
 
   const tabs: { key: Tab; label: string; icon: LucideIcon }[] = [
     { key: 'overview', label: 'Overview', icon: TrendingUp },
-    { key: 'calls', label: 'My Calls', icon: PhoneCall },
+    { key: 'calls', label: 'My Leads', icon: PhoneCall },
     { key: 'sellers', label: 'My Sellers', icon: UserPlus },
     { key: 'performance', label: 'Performance', icon: Target },
     ...(isSalesAdmin ? [{ key: 'team' as Tab, label: 'Team', icon: Users }] : []),
@@ -253,7 +481,7 @@ export function SalesDashboard() {
               <span className="w-10 h-10 rounded-xl bg-[#F0FDF4] text-[#00A86B] flex items-center justify-center shrink-0"><Target className="w-5 h-5" /></span>
               <div className="min-w-0">
                 <h1 className="text-[18px] font-bold text-[#0F172A]">{isSalesAdmin ? 'Sales — Team overview' : 'Sales Dashboard'}</h1>
-                <p className="text-[12.5px] text-[#64748B] truncate">{isSalesAdmin ? 'Calls, referred sellers and targets across the sales team.' : `Welcome back${userName ? `, ${userName.split(' ')[0]}` : ''} — here's your day.`}</p>
+                <p className="text-[12.5px] text-[#64748B] truncate">{isSalesAdmin ? 'Leads, referred sellers and targets across the sales team.' : `Welcome back${userName ? `, ${userName.split(' ')[0]}` : ''} — here's your day.`}</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -281,8 +509,8 @@ export function SalesDashboard() {
             {tab === 'overview' && (
               <div className="flex flex-col gap-5">
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-                  <Kpi label="Assigned calls" value={n(ov.calls?.assigned)} sub={rangeLabel} icon={PhoneCall} tone="bg-sky-50 text-sky-600" />
-                  <Kpi label="Calls completed" value={n(ov.calls?.completed)} sub={`${n(ov.calls?.pending)} pending`} icon={PhoneOutgoing} tone="bg-emerald-50 text-emerald-600" />
+                  <Kpi label="Assigned leads" value={n(ov.calls?.assigned)} sub={rangeLabel} icon={PhoneCall} tone="bg-sky-50 text-sky-600" />
+                  <Kpi label="Leads completed" value={n(ov.calls?.completed)} sub={`${n(ov.calls?.pending)} pending`} icon={PhoneOutgoing} tone="bg-emerald-50 text-emerald-600" />
                   <Kpi label="Follow-ups due" value={n(ov.followUps?.dueToday)} sub={`${n(ov.followUps?.overdue)} overdue`} icon={CalendarClock} tone="bg-amber-50 text-amber-600" />
                   <Kpi label="Sellers onboarded" value={n(ov.sellers?.onboarded)} sub={`${n(ov.sellers?.active)} active`} icon={UserCheck} tone="bg-[#F0FDF4] text-[#00A86B]" />
                   <Kpi label="First-order conversions" value={n(ov.sellers?.firstOrder)} sub={`${pct(ov.sellers?.firstOrder, ov.sellers?.onboarded)}% of onboarded`} icon={PackageCheck} tone="bg-violet-50 text-violet-600" />
@@ -290,6 +518,10 @@ export function SalesDashboard() {
                   <Kpi label="Orders today" value={n(ov.orders?.today)} sub={`${n(ov.orders?.month)} this month`} icon={TrendingUp} tone="bg-sky-50 text-sky-600" />
                   <Kpi label="RTO / Cancelled" value={`${n(ov.orders?.rto)} / ${n(ov.orders?.cancelled)}`} sub="By referred sellers" icon={AlertCircle} tone="bg-red-50 text-red-500" />
                 </div>
+
+                <SellerFunnel funnel={ov.funnel} rangeLabel={rangeLabel} />
+
+                <PriorityQueue calls={calls} onUpdate={setEditing} onViewAll={() => { setTab('calls'); setCallFilter('all'); }} />
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-5 items-start">
                   {/* Targets */}
@@ -379,7 +611,7 @@ export function SalesDashboard() {
                   </div>
                 </div>
                 {visibleCalls.length === 0 ? (
-                  <Empty icon={PhoneCall} title={calls.length ? 'No calls match' : 'No calls assigned yet'} body={calls.length ? 'Try a different status or search.' : 'Calls assigned to you will appear here with their status and follow-ups.'} />
+                  <Empty icon={PhoneCall} title={calls.length ? 'No leads match' : 'No leads assigned yet'} body={calls.length ? 'Try a different status or search.' : 'Leads assigned to you will appear here with their status and follow-ups.'} />
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="w-full text-left min-w-[860px]">
@@ -457,7 +689,7 @@ export function SalesDashboard() {
                   <h2 className="text-[14px] font-bold text-[#0F172A]">Conversion funnel</h2>
                   <p className="text-[12px] text-[#94A3B8] mb-4">{rangeLabel} · each rate is that step ÷ the step above</p>
                   <Funnel steps={[
-                    { label: 'Calls completed', value: perf.callsCompleted || 0, rate: `${pct(perf.callsCompleted, perf.callsAssigned)}% of assigned` },
+                    { label: 'Leads completed', value: perf.callsCompleted || 0, rate: `${pct(perf.callsCompleted, perf.callsAssigned)}% of assigned` },
                     { label: 'Registrations', value: perf.registrations || 0, rate: `${pct(perf.registrations, perf.callsCompleted)}%` },
                     { label: 'Onboarded', value: perf.onboarded || 0, rate: `${pct(perf.onboarded, perf.registrations)}%` },
                     { label: 'First order', value: perf.firstOrders || 0, rate: `${pct(perf.firstOrders, perf.onboarded)}%` },
@@ -512,7 +744,7 @@ export function SalesDashboard() {
                   <div className="overflow-x-auto">
                     <table className="w-full text-left min-w-[900px]">
                       <thead><tr className="bg-[#E6F9F2] text-xs font-medium text-[#64748B] uppercase tracking-wider">
-                        {['Executive', 'Referral ID', 'Calls (done / assigned)', 'Onboarded', 'First orders', 'Orders', 'Monthly target'].map(h => <th key={h} className="py-2.5 px-4 whitespace-nowrap">{h}</th>)}
+                        {['Executive', 'Referral ID', 'Leads (done / assigned)', 'Onboarded', 'First orders', 'Orders', 'Monthly target'].map(h => <th key={h} className="py-2.5 px-4 whitespace-nowrap">{h}</th>)}
                       </tr></thead>
                       <tbody className="text-[12.5px] text-[#475569]">
                         {team.map(m => (
