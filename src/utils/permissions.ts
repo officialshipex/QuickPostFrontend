@@ -172,6 +172,7 @@ const ROUTE_MODULES: [string, string | null][] = [
   ['/referral', 'referral'],
   ['/internal-crm', 'internalCrm'],
   ['/sales', 'sales'],
+  ['/sales-management', null],
   ['/tasks', 'sales'],
   // Owner-managed: employees never open these (the backend is the real boundary for /companies)
   ['/kyc', null],

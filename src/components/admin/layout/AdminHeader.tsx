@@ -22,6 +22,7 @@ import { useToast } from '../../../hooks/useToast';
 import { useNotificationList } from '../../../context/NotificationListContext';
 import { JobDetailModal } from '../notifications/JobDetailModal';
 import { NotificationHistoryModal } from '../notifications/NotificationHistoryModal';
+import { OPEN_RECHARGE_EVENT } from '../../../utils/walletEvents';
 
 interface AdminHeaderProps {
   onMobileMenuToggle?: () => void;
@@ -55,7 +56,19 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
   const [showWalletHover, setShowWalletHover] = useState(false);
   const [showMobileWalletSummary, setShowMobileWalletSummary] = useState(false);
   const [showRechargeModal, setShowRechargeModal] = useState(false);
+  const [rechargeDefault, setRechargeDefault] = useState(1000);
   const [showMobileSearch, setShowMobileSearch] = useState(false);
+
+  // Any page can open the recharge popup: window.dispatchEvent(new CustomEvent(OPEN_RECHARGE_EVENT, { detail: { amount } }))
+  useEffect(() => {
+    const open = (e: Event) => {
+      const amount = (e as CustomEvent<{ amount?: number }>).detail?.amount;
+      setRechargeDefault(amount && amount > 0 ? amount : 1000);
+      setShowRechargeModal(true);
+    };
+    window.addEventListener(OPEN_RECHARGE_EVENT, open);
+    return () => window.removeEventListener(OPEN_RECHARGE_EVENT, open);
+  }, []);
 
   // Bulk Import modal
   const [showBulkModal, setShowBulkModal] = useState(false);
@@ -1475,9 +1488,9 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
 
       <RechargeWalletModal
         open={showRechargeModal}
-        onClose={() => setShowRechargeModal(false)}
+        onClose={() => { setShowRechargeModal(false); setRechargeDefault(1000); }}
         walletBalance={walletBalance}
-        defaultAmount={1000}
+        defaultAmount={rechargeDefault}
         onSuccess={(amount) => setWalletBalance(prev => prev + amount)}
       />
       </header>

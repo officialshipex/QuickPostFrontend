@@ -67,6 +67,9 @@ import { CARGO_BASE, appPathname, isCargoUrl } from './utils/shippingMode';
 import { BookSession } from './pages/BookSession';
 import { SalesDashboard } from './pages/admin/sales/SalesDashboard';
 import { SalesTasks } from './pages/admin/sales/SalesTasks';
+import { SalesManagement } from './pages/admin/sales/SalesManagement';
+import { VasHub } from './pages/admin/vas/VasHub';
+import { NdrFollowups } from './pages/admin/vas/NdrFollowups';
 import { ModeRoute } from './pages/cargo/ModeRoute';
 import { CargoHome } from './pages/cargo/CargoHome';
 import { CargoRateCalculator } from './pages/cargo/CargoRateCalculator';
@@ -298,6 +301,7 @@ function App() {
               <Route path="/admin/companies" element={<AdminCompanies />} />
               <Route path="/admin/sales" element={<SalesDashboard />} />
               <Route path="/admin/tasks" element={<SalesTasks />} />
+              <Route path="/admin/sales-management" element={<SalesManagement />} />
               <Route path="/admin/audit" element={<AdminAuditLogs />} />
               <Route path="/admin/profile" element={<AdminProfile />} />
               <Route path="/admin/company" element={<AdminSettings />} />
@@ -362,6 +366,8 @@ function App() {
               <Route path="/user/channels" element={<AdminChannels />} />
               <Route path="/user/courier-setup" element={<AdminCourierSetup />} />
               <Route path="/user/seller-remittance/early-cod" element={<AdminEarlyCodRemittance />} />
+              <Route path="/user/vas" element={<VasHub />} />
+              <Route path="/user/vas/ndr-followups" element={<NdrFollowups />} />
               <Route path="/user/vas/auto-secure" element={<AdminAutoSecure />} />
               <Route path="/user/vas/rto-score" element={<AdminRtoScore />} />
               <Route path="/user/vas/delivery-boost" element={<AdminDeliveryBoost />} />

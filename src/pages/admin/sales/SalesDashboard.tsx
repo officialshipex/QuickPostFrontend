@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
@@ -393,9 +393,11 @@ function CallUpdateDialog({ call, onClose, onSaved }: { call: SalesCall; onClose
   );
 }
 
-export function SalesDashboard() {
+/** `viewAs`: owner viewing one sales executive's dashboard (Sales Management) — every request is scoped with ?employeeId. */
+export function SalesDashboard({ viewAs }: { viewAs?: { id: string; name: string } } = {}) {
   const { isEmployee, isAdmin, userName } = useAdminTab();
-  const isSalesAdmin = isAdmin && !isEmployee;
+  const isSalesAdmin = isAdmin && !isEmployee && !viewAs;
+  const viewAsId = viewAs?.id;
   const { toast, showToast, closeToast } = useToast();
   const [tab, setTab] = useState<Tab>('overview');
   // Date range comes from the navbar date filter (shared dashboard filter).
@@ -421,13 +423,14 @@ export function SalesDashboard() {
 
   useEffect(() => {
     let alive = true;
-    const params = { from: fromISO, to: toISO };
+    const scope = viewAsId ? { employeeId: viewAsId } : {};
+    const params = { from: fromISO, to: toISO, ...scope };
     Promise.allSettled([
       salesApiClient.get('/overview', { params }),
-      salesApiClient.get('/calls', { params: { limit: 100 } }),
-      salesApiClient.get('/sellers', { params: { limit: 100 } }),
+      salesApiClient.get('/calls', { params: { limit: 100, ...scope } }),
+      salesApiClient.get('/sellers', { params: { limit: 100, ...scope } }),
       salesApiClient.get('/performance', { params }),
-      salesApiClient.get('/referral'),
+      salesApiClient.get('/referral', { params: scope }),
       isSalesAdmin ? salesApiClient.get('/team', { params }) : Promise.resolve({ data: {} }),
     ]).then(([ov, cl, se, pf, rf, tm]) => {
       if (!alive) return;
@@ -440,7 +443,7 @@ export function SalesDashboard() {
       setLoading(false);
     });
     return () => { alive = false; };
-  }, [fromISO, toISO, isSalesAdmin, reloadKey]);
+  }, [fromISO, toISO, isSalesAdmin, viewAsId, reloadKey]);
 
   const copy = async (key: string, value?: string) => {
     if (!value) return;
@@ -470,8 +473,9 @@ export function SalesDashboard() {
   const ov = overview;
   const rangeLabel = filters.dateRange.label;
 
+  const Wrap = viewAs ? Fragment : AdminLayout;
   return (
-    <AdminLayout>
+    <Wrap>
       <Toast toast={toast} onClose={closeToast} />
       <div className="flex flex-col h-[calc(100vh-72px)] -m-4 md:-m-6 bg-[#F8FAFC] overflow-y-auto">
         <div className="px-4 md:px-6 pt-5 pb-8 flex flex-col gap-5">
@@ -480,8 +484,8 @@ export function SalesDashboard() {
             <div className="flex items-center gap-3 min-w-0">
               <span className="w-10 h-10 rounded-xl bg-[#F0FDF4] text-[#00A86B] flex items-center justify-center shrink-0"><Target className="w-5 h-5" /></span>
               <div className="min-w-0">
-                <h1 className="text-[18px] font-bold text-[#0F172A]">{isSalesAdmin ? 'Sales — Team overview' : 'Sales Dashboard'}</h1>
-                <p className="text-[12.5px] text-[#64748B] truncate">{isSalesAdmin ? 'Leads, referred sellers and targets across the sales team.' : `Welcome back${userName ? `, ${userName.split(' ')[0]}` : ''} — here's your day.`}</p>
+                <h1 className="text-[18px] font-bold text-[#0F172A]">{isSalesAdmin ? 'Sales — Team overview' : viewAs ? `${viewAs.name}'s Sales Dashboard` : 'Sales Dashboard'}</h1>
+                <p className="text-[12.5px] text-[#64748B] truncate">{isSalesAdmin ? 'Leads, referred sellers and targets across the sales team.' : viewAs ? 'Leads, referred sellers, funnel and targets for this sales person.' : `Welcome back${userName ? `, ${userName.split(' ')[0]}` : ''} — here's your day.`}</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -779,6 +783,6 @@ export function SalesDashboard() {
             onSaved={(msg, ok) => { showToast(ok ? 'success' : 'error', msg); load(); }} />
         )}
       </AnimatePresence>
-    </AdminLayout>
+    </Wrap>
   );
 }

@@ -25,8 +25,7 @@ import {
   Calendar,
   Mail,
   Building2,
-  Target,
-  ListChecks,
+  Target, Gauge, PhoneCall,
   RotateCcw,
   X,
   ChevronRight,
@@ -65,6 +64,7 @@ interface MenuGroup {
   items?: MenuItem[];
   divider?: boolean;
   permission?: string; // only for groups that are themselves a link (no items)
+  salesEmployeeOnly?: boolean;
 }
 
 const MENU_GROUPS: MenuGroup[] = [
@@ -88,18 +88,12 @@ const MENU_GROUPS: MenuGroup[] = [
     permission: 'internalCrm',
   },
   {
-    label: 'Sales',
+    label: 'Sales Dashboard',
     icon: Target,
     path: '/admin/sales',
     adminOnly: true,
     permission: 'sales',
-  },
-  {
-    label: 'Tasks',
-    icon: ListChecks,
-    path: '/admin/tasks',
-    adminOnly: true,
-    permission: 'sales',
+    salesEmployeeOnly: true,
   },
   {
     label: 'Orders',
@@ -148,8 +142,11 @@ const MENU_GROUPS: MenuGroup[] = [
     userOnly: true,
     items: [
       { name: 'Seller Remittance', path: '/user/seller-remittance/early-cod', icon: Wallet, userOnly: true, permission: 'sellerRemittance' },
+      { name: 'RTO Score', path: '/user/vas/rto-score', icon: Gauge, userOnly: true },
       { name: 'Secure', path: '/user/vas/auto-secure', icon: ShieldCheck, userOnly: true, permission: 'vasSecure' },
       { name: 'Branded Tracking Page', path: '/user/vas/branded-tracking', icon: Palette, userOnly: true, permission: 'brandedTracking' },
+      { name: 'NDR Follow-ups', path: '/user/vas/ndr-followups', icon: PhoneCall, userOnly: true },
+      { name: 'View all VAS', path: '/user/vas', icon: Zap, userOnly: true },
     ]
   },
   {
@@ -189,6 +186,7 @@ const MENU_GROUPS: MenuGroup[] = [
       // { name: 'System Settings', path: '/admin/settings', icon: Settings, noEmployee: true },
       { name: 'Admin Accounts', path: '/admin/accounts', icon: Users, noEmployee: true },
       { name: 'Companies', path: '/admin/companies', icon: Building2, noEmployee: true },
+      { name: 'Sales Management', path: '/admin/sales-management', icon: Target, noEmployee: true },
     ]
   },
   {
@@ -251,6 +249,7 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
 
   const shouldShowGroup = (group: MenuGroup) => {
     if (group.divider) return true;
+    if (group.salesEmployeeOnly && !isSalesEmployee) return false;
     // Sales employees work from the Sales Dashboard — the main dashboard is hidden for them.
     if (isSalesEmployee && group.path === '/admin/dashboard') return false;
     // Main dashboard: admin-panel employees only see it when given the Dashboard permission.
