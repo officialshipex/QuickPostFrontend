@@ -9,7 +9,7 @@ import { ShineButton } from '../../components/ui/ShineButton';
 import {
   Gauge, ShieldCheck, Rocket, BellRing, PackageCheck,
   ChevronDown, CheckCircle2, Clock, Users, BadgeCheck, Wallet2, PlayCircle,
-  ArrowRight, AlertTriangle, ShieldOff, Lock, Loader2,
+  ArrowRight, AlertTriangle, ShieldOff, Lock, Loader2, Zap, LayoutList, AlertCircle,
 } from 'lucide-react';
 import autoSecureHowItWorks from '../../assets/auto-secure-how-it-works.png';
 import rtoScoreHowItWorks from '../../assets/rto-score-how-it-works.png';
@@ -32,15 +32,15 @@ const VAS_NAV = [
   { id: 'shipsure', label: 'QuickSure', path: '/user/vas/shipsure', icon: PackageCheck, isNew: true },
 ];
 
-function VasShell({ children }: { children: React.ReactNode }) {
+function VasShell({ children, hideNav = false }: { children: React.ReactNode; hideNav?: boolean }) {
   const navigate = useNavigate();
   const location = useLocation();
 
   return (
     <AdminLayout>
-      <div className="max-w-[1400px] mx-auto pb-10 grid grid-cols-1 md:grid-cols-[240px_1fr] gap-6">
+      <div className={`max-w-[1400px] mx-auto pb-10 grid grid-cols-1 gap-6 ${hideNav ? '' : 'md:grid-cols-[240px_1fr]'}`}>
         {/* Left sub-nav — same pattern as the Seller Remittance nav */}
-        <aside className="md:sticky md:top-6 md:self-start">
+        {!hideNav && <aside className="md:sticky md:top-6 md:self-start">
           <p className="hidden md:block text-[11px] font-bold text-[#94A3B8] uppercase tracking-[0.08em] mb-2.5 px-3">Value Added Services</p>
           <nav className="flex md:flex-col gap-1 overflow-x-auto md:overflow-visible pb-1 md:pb-0">
             {VAS_NAV.map((item) => {
@@ -71,7 +71,7 @@ function VasShell({ children }: { children: React.ReactNode }) {
               );
             })}
           </nav>
-        </aside>
+        </aside>}
 
         {/* Content */}
         <div className="min-w-0">{children}</div>
@@ -410,19 +410,6 @@ function AutoSecurePanel() {
 }
 
 /* ── RTO Score ── */
-interface RtoBenefit {
-  title: string;
-  desc: string;
-}
-
-const RTO_BENEFITS: RtoBenefit[] = [
-  { title: 'All new Risk AI', desc: 'Enhanced RTO Prediction, trained on 1.8 billion data points.' },
-  { title: 'Next best actions', desc: 'Get preventive actions & accurate insights to reduce RTO risk.' },
-  { title: 'All new Address quality score', desc: 'Reduce shipping costs for bad quality addresses with an AI, trained on 2.9 billion data points.' },
-  { title: 'Boost customer engagement', desc: 'A new customer support tool with RTO risks, insights, customer calling scripts and free calls.' },
-  { title: 'Revised hassle-free billing, new FAQs', desc: 'Charges for only COD orders will be deducted from the wallet automatically.' },
-];
-
 const RTO_HOW_IT_WORKS = [
   { title: 'Enable RTO Score', desc: 'Click on Enable RTO score button on top right corner' },
   { title: 'RTO Score Enabled', desc: 'RTO Score is enabled on your shipments' },
@@ -433,7 +420,7 @@ const RTO_HOW_IT_WORKS = [
 const RTO_FAQS: { q: string; a: string }[] = [
   {
     q: 'What is the RTO score feature for you?',
-    a: 'RTO score feature is a data analytics product, powered by Risk AI built on 4.8 billion data points. It computes RTO risk scores on the basis of various factors including the buyer’s shopping history, address score etc. It helps you to identify high or low risk orders and make calculative decisions on those orders.\n\nThe model provides you risk insights and also suggests you the next best action to mitigate your RTO risk.',
+    a: 'RTO Score checks every COD order before dispatch and tags it as High, Medium or Low risk, based on factors like the buyer’s delivery history, address quality and pincode performance.\n\nIt helps you spot risky orders early and suggests the next best action to reduce returns.',
   },
   {
     q: 'What is High or low RTO predicted order?',
@@ -441,7 +428,7 @@ const RTO_FAQS: { q: string; a: string }[] = [
   },
   {
     q: 'What are the benefits of the RTO Score Feature?',
-    a: 'The RTO Score Feature powered by Risk AI, offers several benefits for businesses.\n\nOne of the main benefits is that it helps to save on inventory and shipping costs by proactively alerting businesses against risky buyers.\n\nThe in-built Customer connect module helps you to connect with your customer to verify the order and address details, thereby reducing the risk and costs involved in RTO.\n\nOverall, the RTO Score Feature is a valuable tool for businesses looking to minimize costs and mitigate risks associated with online sales.',
+    a: 'RTO Score offers several benefits for your business.\n\nOne of the main benefits is that it helps to save on inventory and shipping costs by proactively alerting businesses against risky buyers.\n\nThe in-built Customer connect module helps you to connect with your customer to verify the order and address details, thereby reducing the risk and costs involved in RTO.\n\nOverall, the RTO Score Feature is a valuable tool for businesses looking to minimize costs and mitigate risks associated with online sales.',
   },
   {
     q: 'What action can I take on High & Low RTO?',
@@ -452,6 +439,81 @@ const RTO_FAQS: { q: string; a: string }[] = [
     a: 'RTO Score feature will charge Rs. 3.49/- per order on all COD orders.',
   },
 ];
+
+const RTO_OVERVIEW = [
+  { label: 'Orders Scanned', icon: LayoutList, tone: 'bg-[#F0FDF4] text-[#00A86B]' },
+  { label: 'High Risk', icon: AlertTriangle, tone: 'bg-red-50 text-red-600' },
+  { label: 'Medium Risk', icon: AlertCircle, tone: 'bg-amber-50 text-amber-600' },
+  { label: 'Low Risk', icon: ShieldCheck, tone: 'bg-[#F0FDF4] text-[#16A34A]' },
+];
+
+/* Illustrative preview: a laser line sweeps a sample order list and stamps each row with its risk. */
+const SCAN_SAMPLE: { value: string; risk: 'Low' | 'Medium' | 'High' }[] = [
+  { value: '₹2,780', risk: 'Medium' }, { value: '₹6,340', risk: 'Low' }, { value: '₹2,450', risk: 'Low' },
+  { value: '₹1,299', risk: 'High' }, { value: '₹3,750', risk: 'Low' }, { value: '₹899', risk: 'Medium' },
+  { value: '₹4,120', risk: 'Low' }, { value: '₹1,560', risk: 'High' },
+];
+const RISK_PILL = { Low: 'bg-[#F0FDF4] text-[#16A34A] border-[#BBF7D0]', Medium: 'bg-amber-50 text-amber-700 border-amber-200', High: 'bg-red-50 text-red-600 border-red-200' };
+const ROWS_VISIBLE = 5;
+const ROW_H = 64;
+
+function RtoScanPreview() {
+  // `step` = how many rows have been scored. The window scrolls once the scan passes the visible rows.
+  const [step, setStep] = useState(0);
+  useEffect(() => {
+    const id = window.setInterval(() => setStep(s => (s >= SCAN_SAMPLE.length + 2 ? 0 : s + 1)), 1100);
+    return () => window.clearInterval(id);
+  }, []);
+  const offset = Math.max(0, Math.min(step, SCAN_SAMPLE.length) - (ROWS_VISIBLE - 2));
+  const scanY = Math.min(step, SCAN_SAMPLE.length) - offset;
+  const done = step >= SCAN_SAMPLE.length;
+
+  return (
+    <div className="rounded-2xl bg-white border border-[#E2E8F0] shadow-[0_20px_50px_-20px_rgba(15,23,42,0.25)] overflow-hidden" aria-hidden>
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-[#F1F5F9]">
+        <div className="flex gap-1.5"><span className="w-3 h-3 rounded-full bg-[#F87171]" /><span className="w-3 h-3 rounded-full bg-[#FBBF24]" /><span className="w-3 h-3 rounded-full bg-[#34D399]" /></div>
+        <div className="flex-1 h-7 rounded-lg bg-[#F8FAFC] border border-[#F1F5F9] text-[11.5px] text-[#94A3B8] flex items-center justify-center">app.quickpost.in</div>
+      </div>
+      <div className="grid grid-cols-[1.6fr_1fr_1fr_0.9fr] px-5 py-2.5 text-[10.5px] font-bold tracking-wider text-[#94A3B8] uppercase border-b border-[#F1F5F9] bg-[#FAFBFC]">
+        <span>Order</span><span>Value</span><span>Pincode</span><span>Risk</span>
+      </div>
+      <div className="relative overflow-hidden" style={{ height: ROWS_VISIBLE * ROW_H }}>
+        <motion.div animate={{ y: -offset * ROW_H }} transition={{ duration: 0.6, ease: 'easeInOut' }}>
+          {SCAN_SAMPLE.map((r, i) => (
+            <div key={i} className="grid grid-cols-[1.6fr_1fr_1fr_0.9fr] items-center px-5 border-b border-[#F8FAFC] text-[13px]" style={{ height: ROW_H }}>
+              <span className="font-semibold text-[#00A86B] truncate">#QP{(240518 + i).toString()}</span>
+              <span className="text-[#334155] tabular-nums">{r.value}</span>
+              <span className="text-[#334155] tabular-nums">{110001 + i * 37}</span>
+              <span>
+                <AnimatePresence mode="wait">
+                  {i < step ? (
+                    <motion.span key="pill" initial={{ opacity: 0, scale: 0.6 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: 'spring', stiffness: 420, damping: 22 }}
+                      className={`inline-flex px-2.5 py-0.5 rounded-full border text-[11.5px] font-bold ${RISK_PILL[r.risk]}`}>{r.risk}</motion.span>
+                  ) : (
+                    <motion.span key="dash" exit={{ opacity: 0 }} className="inline-block w-4 h-0.5 rounded bg-[#E2E8F0]" />
+                  )}
+                </AnimatePresence>
+              </span>
+            </div>
+          ))}
+        </motion.div>
+        {!done && (
+          <motion.div className="absolute inset-x-0 pointer-events-none" animate={{ top: scanY * ROW_H }} transition={{ duration: 0.6, ease: 'easeInOut' }}>
+            <div className="h-[3px] bg-[#00A86B] shadow-[0_0_14px_2px_rgba(0,168,107,0.55)]" />
+            <div className="h-12 bg-gradient-to-b from-[#00A86B]/15 to-transparent" />
+          </motion.div>
+        )}
+      </div>
+      <div className="px-5 py-3 border-t border-[#F1F5F9] bg-[#FAFBFC] flex items-center gap-2 text-[12.5px] font-semibold">
+        <span className="relative flex w-2 h-2">
+          <span className={`absolute inline-flex h-full w-full rounded-full opacity-75 ${done ? '' : 'animate-ping'} bg-[#16A34A]`} />
+          <span className="relative inline-flex w-2 h-2 rounded-full bg-[#16A34A]" />
+        </span>
+        <span className="text-[#16A34A]">{done ? 'All orders scored — ready to dispatch' : 'Scanning orders for delivery risk…'}</span>
+      </div>
+    </div>
+  );
+}
 
 function RtoScorePanel() {
   const { toast, showToast, closeToast } = useToast();
@@ -516,84 +578,95 @@ function RtoScorePanel() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-[20px] font-bold text-[#0F172A]">Introducing RTO Score - powered by Risk AI</h1>
-        <p className="text-[13px] text-[#64748B] mt-1">Enable RTO Score to improve your Delivery Success Rate and reduce RTO risk</p>
+      <div className="flex flex-col gap-2.5">
+        <div>
+          <h1 className="text-[20px] font-bold text-[#0F172A]">RTO Score</h1>
+          <p className="text-[13px] text-[#64748B] mt-0.5">See which orders may need your attention before dispatch.</p>
+        </div>
+        <span className="self-start inline-flex items-center gap-1.5 h-7 px-3 rounded-full bg-[#00A86B] text-white text-[12px] font-bold shadow-sm">
+          <Zap className="w-3.5 h-3.5 fill-current" /> Reduce Delivery Failures
+        </span>
       </div>
 
-      {/* Benefits + trial CTA */}
-      <div className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm p-6">
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr_auto] gap-x-8 gap-y-5">
-          <div className="space-y-5">
-            {RTO_BENEFITS.filter((_, i) => i % 2 === 0).map((b) => (
-              <div key={b.title} className="flex items-start gap-2.5">
-                <span className="w-5 h-5 rounded-full bg-[#16A34A] flex items-center justify-center shrink-0 mt-0.5">
-                  <CheckCircle2 className="w-3 h-3 text-white" />
-                </span>
-                <div>
-                  <p className="text-[13.5px] font-bold text-[#0F172A]">{b.title}</p>
-                  <p className="text-[12.5px] text-[#64748B] leading-relaxed mt-0.5">{b.desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
+      {/* Overview */}
+      <div className="relative overflow-hidden rounded-2xl border border-[#E2E8F0] bg-gradient-to-r from-[#00A86B] via-[#34D399] to-[#ECFDF5] p-4 md:p-5">
+        <div className="flex items-center justify-between mb-3.5">
+          <h2 className="text-[16px] font-bold text-white">Overview</h2>
+          <span className="text-[12.5px] font-medium text-[#334155]">Last 30 days</span>
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {RTO_OVERVIEW.map((s, i) => (
+            <motion.div key={s.label} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }}
+              className="bg-white rounded-xl border border-white/60 px-3.5 py-3 md:px-4 md:py-3.5 flex items-center gap-3 shadow-[0_1px_2px_rgba(16,24,40,0.06)]">
+              <span className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${s.tone}`}><s.icon className="w-[18px] h-[18px]" /></span>
+              <span className="text-[13.5px] font-bold text-[#0F172A] truncate flex-1">{s.label}</span>
+              <span className="text-[18px] font-extrabold text-[#00A86B] tabular-nums" title={isActive ? 'Counts appear as your COD orders are scored' : 'Activate RTO Score to start scoring orders'}>—</span>
+            </motion.div>
+          ))}
+        </div>
+      </div>
 
-          <div className="space-y-5">
-            {RTO_BENEFITS.filter((_, i) => i % 2 === 1).map((b) => (
-              <div key={b.title} className="flex items-start gap-2.5">
-                <span className="w-5 h-5 rounded-full bg-[#16A34A] flex items-center justify-center shrink-0 mt-0.5">
-                  <CheckCircle2 className="w-3 h-3 text-white" />
-                </span>
-                <div>
-                  <p className="text-[13.5px] font-bold text-[#0F172A]">{b.title}</p>
-                  <p className="text-[12.5px] text-[#64748B] leading-relaxed mt-0.5">{b.desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
+      {/* Hero: pitch + pricing + live scan preview */}
+      <div className="rounded-2xl border border-[#E2E8F0] bg-gradient-to-br from-[#F8FAFC] via-[#F0FDF4] to-[#F8FAFC] p-5 md:p-8">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 items-center">
+          <div className="text-center">
+            <h2 className="text-[30px] md:text-[40px] font-extrabold tracking-tight text-[#0F172A] leading-tight">
+              Predict. <span className="text-[#00A86B]">Protect.</span> Deliver.
+            </h2>
+            <svg viewBox="0 0 240 20" className="w-[200px] md:w-[240px] h-4 mx-auto mt-1" aria-hidden>
+              <motion.path d="M6 12 C 70 2, 170 2, 234 8" fill="none" stroke="#00A86B" strokeWidth="4" strokeLinecap="round"
+                initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 0.9, ease: 'easeOut' }} />
+              <motion.path d="M60 17 C 110 11, 160 11, 200 14" fill="none" stroke="#00A86B" strokeWidth="3" strokeLinecap="round"
+                initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 0.7, delay: 0.5, ease: 'easeOut' }} />
+            </svg>
+            <p className="text-[13.5px] md:text-[15px] text-[#64748B] leading-relaxed mt-3 max-w-[560px] mx-auto">
+              Identify high-risk COD shipments before dispatch. Reduce friction, expose intelligence, and secure your fulfillment metrics.
+            </p>
+            <div className="flex flex-wrap justify-center gap-2 mt-4">
+              {['See the risk in every order', 'Focus on what needs attention', 'Track actual outcomes after shipping'].map(t => (
+                <span key={t} className="px-3.5 py-1.5 rounded-full bg-white/80 border border-[#E2E8F0] text-[12.5px] font-semibold text-[#334155]">{t}</span>
+              ))}
+            </div>
 
-          {/* Trial CTA */}
-          <div className="lg:w-[300px]">
-            {!isActive && rto && !rto.charged && rto.enabled && (
-              <p className="text-[13px] font-semibold text-[#0F172A] mb-3 text-center lg:text-left">Congrats! RTO Score is free to activate for you.</p>
-            )}
-            <div className="bg-[#F0FDF4] border border-[#DCFCE7] rounded-2xl p-4">
-              {rto && !rto.enabled ? (
-                <div className="flex items-center justify-center gap-2 min-h-11 rounded-full bg-white border border-[#E2E8F0] text-[#64748B] text-[12.5px] font-bold mb-3 px-3 text-center">
-                  <Lock className="w-4 h-4 shrink-0" /> Not available for your account
-                </div>
-              ) : isActive ? (
-                <>
-                  <div className="flex items-center justify-center gap-2 h-11 rounded-full bg-white border border-[#16A34A]/30 text-[#16A34A] text-[13px] font-bold mb-2">
-                    <CheckCircle2 className="w-4 h-4" /> RTO Score Active
-                  </div>
-                  <button type="button" onClick={() => setConfirmOff(true)} disabled={isActivating} className="block mx-auto mb-3 text-[12.5px] font-bold text-red-600 hover:text-red-700 underline underline-offset-2 disabled:opacity-60">
-                    Deactivate
-                  </button>
-                </>
-              ) : (
-                <ShineButton
-                  type="button"
-                  onClick={handleActivate}
-                  disabled={isActivating}
-                  className="w-full h-11 rounded-full bg-gradient-to-r from-[#818CF8] to-[#6366F1] text-white text-[13px] font-bold shadow-sm transition-opacity disabled:opacity-70 flex items-center justify-center gap-2 mb-3"
-                >
-                  {isActivating ? 'Activating…' : rto?.status === 'expired' ? 'Renew RTO Score' : 'Activate RTO Score'}
-                </ShineButton>
-              )}
-              <ul className="space-y-1.5">
-                {rto?.charged ? (
-                  <li className="text-[11.5px] text-[#475569] leading-relaxed">
-                    • {isActive && rto.entitledUntil ? `Plan valid until ${fmtDate(rto.entitledUntil)}` : `Plans: ${rto.plans.map((p) => `${planLabel(p)} ${fmtMoney(p.price)}`).join(' · ')}`}
-                  </li>
+            {/* Pricing / activation card */}
+            <div className="relative mt-7 max-w-[480px] mx-auto">
+              <div className="rounded-2xl border-2 border-[#00A86B] bg-white/90 backdrop-blur px-5 py-5 shadow-[0_10px_30px_-12px_rgba(0,168,107,0.30)]">
+                {rto && !rto.charged && rto.enabled ? (
+                  <p className="text-[15px] text-[#94A3B8]"><span className="line-through">₹3.49</span> <span className="text-[26px] font-extrabold text-[#16A34A] align-middle">Free</span> / order</p>
                 ) : (
-                  <li className="text-[11.5px] text-[#475569] leading-relaxed">• No activation fee</li>
+                  <p className="text-[15px] text-[#94A3B8]"><span className="text-[26px] font-extrabold text-[#0F172A] align-middle">₹3.49</span> + GST / COD order</p>
                 )}
-                <li className="text-[11.5px] text-[#475569] leading-relaxed">• Rs 3.49 + GST per order - Charges will be automatically deducted from Wallet</li>
-                <li className="text-[11.5px] text-[#475569] leading-relaxed">• Charges deducted for High and Low prediction for COD orders only</li>
-              </ul>
+                <div className="mt-4">
+                  {rto && !rto.enabled ? (
+                    <div className="flex items-center justify-center gap-2 h-11 rounded-xl bg-[#F1F5F9] text-[#64748B] text-[13px] font-bold">
+                      <Lock className="w-4 h-4" /> Not available for your account
+                    </div>
+                  ) : isActive ? (
+                    <>
+                      <div className="flex items-center justify-center gap-2 h-11 rounded-xl bg-[#F0FDF4] border border-[#16A34A]/30 text-[#16A34A] text-[13.5px] font-bold">
+                        <CheckCircle2 className="w-4 h-4" /> Activated
+                      </div>
+                      <button type="button" onClick={() => setConfirmOff(true)} disabled={isActivating}
+                        className="mt-2.5 text-[12.5px] font-semibold text-[#94A3B8] hover:text-red-600 transition-colors disabled:opacity-60">Deactivate</button>
+                    </>
+                  ) : (
+                    <ShineButton type="button" onClick={handleActivate} disabled={isActivating}
+                      className="w-full h-11 rounded-xl bg-[#00A86B] hover:bg-[#00965F] text-white text-[13.5px] font-bold shadow-sm transition-colors disabled:opacity-70 flex items-center justify-center gap-2">
+                      {isActivating ? 'Activating…' : rto?.status === 'expired' ? 'Renew RTO Score' : 'Activate RTO Score'}
+                    </ShineButton>
+                  )}
+                </div>
+                <ul className="mt-3.5 space-y-1 text-left">
+                  {rto?.charged && (
+                    <li className="text-[11.5px] text-[#64748B]">• {isActive && rto.entitledUntil ? `Plan valid until ${fmtDate(rto.entitledUntil)}` : `Plans: ${rto.plans.map((p) => `${planLabel(p)} ${fmtMoney(p.price)}`).join(' · ')}`}</li>
+                  )}
+                  <li className="text-[11.5px] text-[#64748B]">• Charged only for High and Low predictions on COD orders, auto-deducted from wallet</li>
+                </ul>
+              </div>
             </div>
           </div>
+
+          <RtoScanPreview />
         </div>
       </div>
 
@@ -752,7 +825,7 @@ export function AdminAutoSecure() {
 
 export function AdminRtoScore() {
   return (
-    <VasShell>
+    <VasShell hideNav>
       <RtoScorePanel />
     </VasShell>
   );

@@ -20,6 +20,7 @@ import { useTableLoader } from '../../hooks/useTableLoader';
 import { TableLoader } from '../../components/ui/TableLoader';
 import { CourierLogo } from '../../components/ui/CourierLogo';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { WalletEmptyState } from '../../components/ui/WalletEmptyState';
 import { TruncatedText } from '../../components/ui/TruncatedText';
 import { RechargeWalletModal } from '../../components/ui/RechargeWalletModal';
 import { StatusRibbon } from '../../components/ui/StatusRibbon';
@@ -2342,7 +2343,7 @@ export function AdminWallet() {
                     {paginatedPassbookData.length === 0 && (
                       <tr>
                         <td colSpan={isAdminView ? 10 : 8}>
-                          <EmptyState title="No passbook records found" />
+                          {isAdminView ? <EmptyState title="No passbook records found" /> : <WalletEmptyState title="No passbook records found" />}
                         </td>
                       </tr>
                     )}
@@ -2382,7 +2383,7 @@ export function AdminWallet() {
                 )}
 
                 {paginatedPassbookData.length === 0 ? (
-                  <EmptyState title="No passbook records found" />
+                  (isAdminView ? <EmptyState title="No passbook records found" /> : <WalletEmptyState title="No passbook records found" />)
                 ) : (
                   <div className="p-2 space-y-2 bg-[#F8FAFC]">
                     {paginatedPassbookData.map((order) => {
@@ -2610,7 +2611,7 @@ export function AdminWallet() {
                     {paginatedRechargeData.length === 0 && (
                       <tr>
                         <td colSpan={isAdminView ? 7 : 6}>
-                          <EmptyState title="No recharge transactions found" />
+                          {isAdminView ? <EmptyState title="No recharge transactions found" /> : <WalletEmptyState title="No recharge transactions found" />}
                         </td>
                       </tr>
                     )}
@@ -2638,7 +2639,7 @@ export function AdminWallet() {
               <div className="md:hidden flex-1 flex flex-col min-h-0">
                 <div className="flex-1 overflow-y-auto">
                 {paginatedRechargeData.length === 0 ? (
-                  <EmptyState title="No recharge transactions found" />
+                  (isAdminView ? <EmptyState title="No recharge transactions found" /> : <WalletEmptyState title="No recharge transactions found" />)
                 ) : (
                   <div className="p-2 space-y-2 bg-[#F8FAFC]">
                     {paginatedRechargeData.map((recharge) => {

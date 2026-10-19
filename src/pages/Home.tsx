@@ -9,6 +9,7 @@ import { ProfitsSection } from '../components/sections/ProfitsSection';
 import { HowItWorks } from '../components/sections/HowItWorks';
 import { ServicesPortfolioSection } from '../components/sections/ServicesPortfolioSection';
 import { StatsSection } from '../components/sections/StatsSection';
+import { OfferPopup } from '../components/sections/OfferPopup';
 
 export function Home() {
   const location = useLocation();
@@ -34,6 +35,7 @@ export function Home() {
         <StatsSection />
       </main>
       <Footer />
+      <OfferPopup />
     </div>
   );
 }

@@ -16,6 +16,8 @@ import { getNotificationHistory, type AppNotification } from '../../services/not
 import { JobDetailModal } from '../../components/admin/notifications/JobDetailModal';
 import { NotificationHistoryModal } from '../../components/admin/notifications/NotificationHistoryModal';
 import walletReferAdImg from '../../assets/wallet-refer-ad.png';
+import { OfferFlagBanner } from '../../components/promo/OfferFlagBanner';
+import { WALLET_CASHBACK_OFFER } from '../../config/offers';
 import noPendingActionsImg from '../../assets/no-pending-actions.png';
 import noUpcomingPickupsImg from '../../assets/no-upcoming-pickups.png';
 
@@ -467,6 +469,9 @@ export function UserHome() {
             {hasAnyOrder ? "Here's a quick look at your shipping activity today." : "You're few steps away from shipping your first order."}
           </p>
         </div>
+
+        {/* Promo banner — desktop only */}
+        <OfferFlagBanner offer={WALLET_CASHBACK_OFFER} className="hidden lg:block mb-5 md:mb-7" />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 md:gap-7">
 

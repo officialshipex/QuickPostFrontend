@@ -19,6 +19,7 @@ import { useDateRangeFilter } from '../../hooks/filters/useDateRangeFilter';
 import { useFilterApplyState } from '../../hooks/filters/useFilterApplyState';
 import { TableLoader } from '../../components/ui/TableLoader';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { CargoLottieEmptyState } from '../cargo/CargoLottieEmptyState';
 import { TruncatedText } from '../../components/ui/TruncatedText';
 import { StatusRibbon } from '../../components/ui/StatusRibbon';
 import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
@@ -1051,7 +1052,7 @@ export function AdminWeightDiscrepancy() {
                 {filteredOrders.length === 0 ? (
                   <tr>
                     <td colSpan={isAdminView ? 11 : 10}>
-                      <EmptyState title="No discrepancies found" subtitle="Try changing filters" />
+                      {isAdminView ? <EmptyState title="No discrepancies found" subtitle="Try changing filters" /> : <CargoLottieEmptyState title="No discrepancies found" subtitle="Try changing filters" />}
                     </td>
                   </tr>
                 ) : (
@@ -1255,7 +1256,7 @@ export function AdminWeightDiscrepancy() {
           <div className="flex-1 overflow-y-auto overflow-x-hidden w-full relative">
             {loading && <TableLoader />}
             {!loading && filteredOrders.length === 0 && (
-              <EmptyState title="No discrepancies found" subtitle="Try changing filters" />
+              isAdminView ? <EmptyState title="No discrepancies found" subtitle="Try changing filters" /> : <CargoLottieEmptyState title="No discrepancies found" subtitle="Try changing filters" />
             )}
             {!loading && filteredOrders.length > 0 && (
               <div className="p-2 space-y-2">
