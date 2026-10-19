@@ -213,6 +213,8 @@ export function AdminPickupAddress() {
     if (!form.phoneNumber.trim()) e.phoneNumber = 'Required';
     else if (!/^[6-9]\d{9}$/.test(form.phoneNumber)) e.phoneNumber = '10 digits starting with 6-9';
     if (!form.address.trim()) e.address = 'Required';
+    // couriers refuse a pickup address that is only words (same rule as the backend)
+    else if (!/\d/.test(form.address)) e.address = 'Please add House No / Flat No / Plot No. The pickup address cannot be only text.';
     if (!form.pinCode.trim() || form.pinCode.length < 6) e.pinCode = 'Valid 6-digit pincode required';
     if (!form.city.trim()) e.city = 'Pincode lookup failed — enter city manually';
     if (!form.state.trim()) e.state = 'Pincode lookup failed — enter state manually';

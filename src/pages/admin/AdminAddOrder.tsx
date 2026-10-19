@@ -545,6 +545,8 @@ export function AdminAddOrder() {
     if (!pickupForm.contactName.trim()) e.contactName = 'Required';
     if (!pickupForm.phoneNumber.trim()) e.phoneNumber = 'Required';
     if (!pickupForm.address.trim()) e.address = 'Required';
+    // couriers refuse a pickup address that is only words (same rule as the backend)
+    else if (!/\d/.test(pickupForm.address)) e.address = 'Please add House No / Flat No / Plot No. The pickup address cannot be only text.';
     if (!pickupForm.pinCode.trim() || pickupForm.pinCode.length < 6) e.pinCode = 'Valid 6-digit pincode required';
     if (!pickupForm.city.trim()) e.city = 'Required';
     if (!pickupForm.state.trim()) e.state = 'Required';
@@ -575,8 +577,8 @@ export function AdminAddOrder() {
       resetPickupForm();
       setPickupRefresh(v => !v);
       if (newId) setSelectedPickupId(newId);
-    } catch {
-      setPickupFormErrors({ submit: 'Failed to add pickup address. Please try again.' });
+    } catch (err: any) {
+      setPickupFormErrors({ submit: err?.response?.data?.message || 'Failed to add pickup address. Please try again.' });
     } finally {
       setPickupSubmitting(false);
     }
