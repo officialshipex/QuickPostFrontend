@@ -8,6 +8,18 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <title>QuickPost | Modern Courier Aggregation</title>
+    <!-- Dark mode applies only inside the signed-in panel. Set it before the first paint so a reload does not flash white. -->
+    <script>
+      (function () {
+        try {
+          var p = location.pathname;
+          if (!/^[/]((cargo)[/])?(admin|user|internal-crm)([/]|$)/.test(p) || p.indexOf('/user/book-session') === 0) return;
+          var t = localStorage.getItem('qp_theme');
+          if (!t) t = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+        } catch (e) {}
+      })();
+    </script>
     <meta name="description" content="Ship Smarter. Deliver Faster. Grow Without Limits.">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>

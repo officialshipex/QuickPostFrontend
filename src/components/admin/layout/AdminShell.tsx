@@ -14,6 +14,7 @@ import { useShippingMode } from '../../../context/shippingMode';
 import { isAdminPanelPath, isCargoAllowedPath } from '../../../config/cargo';
 import { employeePanelMode, getToken } from '../../../utils/session';
 import { modeUrl } from '../../../utils/shippingMode';
+import { useApplyPanelTheme } from '../../../context/ThemeContext';
 
 // In Cargo mode only the sections in config/cargo.ts are reachable; anything else lands on Home.
 function CargoRouteGuard() {
@@ -47,6 +48,7 @@ function CargoRouteGuard() {
 }
 
 export function AdminShell() {
+  useApplyPanelTheme(); // dark mode lives only inside the signed-in panel
   const location = useLocation();
   const navigate = useNavigate();
   const { loadingAdminTab, isEmployee, isAdmin, adminTab, employeeAccessRights } = useAdminTab();

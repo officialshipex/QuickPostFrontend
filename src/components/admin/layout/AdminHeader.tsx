@@ -5,6 +5,7 @@ import { useAuth } from '../../../hooks/useAuth';
 import { ModeSwitch } from './ModeSwitch';
 import { AdminCargoSwitch } from './AdminCargoSwitch';
 import { SalesNotificationBell } from './SalesNotificationBell';
+import { ThemeToggle } from '../../ui/ThemeToggle';
 import { isAdminPanelPath } from '../../../config/cargo';
 import { useShippingMode } from '../../../context/shippingMode';
 import { modeUrl } from '../../../utils/shippingMode';
@@ -477,6 +478,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
             </button>
 
             <div className="flex items-center gap-1 shrink-0">
+              <ThemeToggle className="!w-8 !h-8" />
               {/* Notifications + Quick Actions — merged into one rolling icon slot on the user
                   side (both non-admin and non-employee) to save space for the profile icon;
                   admin-only and employee-only cases keep a single dedicated icon, no roll. */}
@@ -1272,6 +1274,8 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
             </AnimatePresence>
           </div>
         )}
+
+        <ThemeToggle />
 
         {/* Sales notifications — overdue / due tasks and follow-ups (Sales team) */}
         {isSalesEmployee && <SalesNotificationBell />}

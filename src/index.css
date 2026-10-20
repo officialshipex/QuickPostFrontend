@@ -11,6 +11,45 @@
   --font-sans: "Roboto", sans-serif;
 }
 
+/* ── Dark mode ──────────────────────────────────────────────────────────────
+   The dark colours for every utility class are generated at build time (tools/dark-theme). Only things that
+   cannot be derived from a colour value live here. Dark mode is switched on with data-theme="dark" on <html>,
+   by the signed-in panel only. */
+:root[data-theme="dark"] {
+  color-scheme: dark; /* native scrollbars, date pickers, form controls */
+}
+/* the colour logo has dark lettering: flip the lightness, keep the green */
+:root[data-theme="dark"] img[src="/logo-color.png"] {
+  filter: invert(1) hue-rotate(180deg);
+}
+/* photos and illustrations were drawn for a white page: take the glare off (logos and icons excluded) */
+:root[data-theme="dark"] img:not([src*="logo"]):not([src*="icon"]):not([src$=".svg"]):not([data-keep-light] img) {
+  filter: brightness(0.88);
+}
+
+/* Charts: Recharts paints its grid, axes, tooltip and legend with SVG attributes / inline styles, not classes */
+:root[data-theme="dark"] .recharts-cartesian-grid line,
+:root[data-theme="dark"] .recharts-polar-grid-concentric-polygon,
+:root[data-theme="dark"] .recharts-polar-grid-angle line { stroke: #2b2e32; }
+:root[data-theme="dark"] .recharts-cartesian-axis-line,
+:root[data-theme="dark"] .recharts-cartesian-axis-tick-line { stroke: #3b4047; }
+:root[data-theme="dark"] .recharts-cartesian-axis-tick-value,
+:root[data-theme="dark"] .recharts-label { fill: #a1adbf; }
+:root[data-theme="dark"] .recharts-legend-item-text { color: #bdc8d9 !important; }
+:root[data-theme="dark"] .recharts-default-tooltip {
+  background-color: #161921 !important;
+  border-color: #2b2e32 !important;
+}
+:root[data-theme="dark"] .recharts-tooltip-label { color: #e7efff !important; }
+:root[data-theme="dark"] .recharts-tooltip-cursor { fill: #1c2028; stroke: #3b4047; }
+:root[data-theme="dark"] .recharts-wrapper [stroke="#FFFFFF" i],
+:root[data-theme="dark"] .recharts-wrapper [stroke="#fff" i] { stroke: #161921; }
+:root[data-theme="dark"] .recharts-wrapper [fill="#FFFFFF" i],
+:root[data-theme="dark"] .recharts-wrapper [fill="#fff" i] { fill: #161921; }
+
+/* An element that must stay exactly as designed in dark mode (a company's logo / brand preview, a print preview, a customer-facing
+   mock-up): add data-keep-light. Its colours AND its images are left alone. */
+
 @layer base {
   body {
     background-color: var(--color-background);

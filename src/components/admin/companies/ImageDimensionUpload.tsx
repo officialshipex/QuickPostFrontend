@@ -79,7 +79,7 @@ export function ImageDimensionUpload({
       </label>
       <div className="flex items-center gap-3">
         {value ? (
-          <div className="relative w-16 h-16 rounded-[8px] border border-[#E2E8F0] overflow-hidden shrink-0 bg-[#F8FAFC] flex items-center justify-center">
+          <div data-keep-light className="relative w-16 h-16 rounded-[8px] border border-[#E2E8F0] overflow-hidden shrink-0 bg-[#F8FAFC] flex items-center justify-center">
             <img src={value} alt={label} className="max-w-full max-h-full object-contain" />
             {onClear && (
               <button

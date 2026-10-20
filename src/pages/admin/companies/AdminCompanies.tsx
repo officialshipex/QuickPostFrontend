@@ -52,7 +52,8 @@ function StatusPill({ status }: { status: string }) {
 
 function CompanyAvatar({ name, logoUrl, size = 'md' }: { name: string; logoUrl?: string; size?: 'md' | 'lg' }) {
   const box = size === 'lg' ? 'w-14 h-14 rounded-2xl text-[20px]' : 'w-9 h-9 rounded-xl text-[13px]';
-  if (logoUrl) return <img src={logoUrl} alt="" className={`${box} object-contain bg-white border border-[#E2E8F0] p-1 shrink-0`} />;
+  // a company's logo is shown exactly as that company supplied it, on white, in light and dark mode alike
+  if (logoUrl) return <span data-keep-light className="contents"><img src={logoUrl} alt="" className={`${box} object-contain bg-white border border-[#E2E8F0] p-1 shrink-0`} /></span>;
   const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?';
   return <div className={`${box} bg-gradient-to-br from-[#00A86B] to-[#00875A] text-white font-bold flex items-center justify-center shrink-0`}>{initials}</div>;
 }
@@ -480,7 +481,8 @@ function CompanyCreateForm({ onBack, onCreated }: { onBack: () => void; onCreate
           <div className={`${cardCls} overflow-hidden`}>
             <div className="px-4 py-3 border-b border-[#F1F5F9] text-[12px] font-semibold text-[#64748B] uppercase tracking-wider">Brand preview</div>
             <div className="p-4">
-              <div className="rounded-xl border border-[#E2E8F0] overflow-hidden">
+              {/* how the company's own site will look: always the light design, whatever theme the console is in */}
+              <div data-keep-light className="rounded-xl border border-[#E2E8F0] overflow-hidden">
                 <div className="h-11 px-3 flex items-center gap-2 bg-white border-b border-[#F1F5F9]">
                   {logoPreview
                     ? <img src={logoPreview} alt="" className="h-6 max-w-[110px] object-contain" />

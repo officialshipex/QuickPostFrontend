@@ -15,6 +15,7 @@ import { Register } from './pages/Register';
 import { EmployeeLogin } from './pages/EmployeeLogin';
 import { ProtectedRoute } from './components/layout/ProtectedRoute';
 import { AdminUserProvider } from './context/AdminUserContext';
+import { ThemeProvider } from './context/ThemeContext';
 import { DashboardFilterProvider } from './context/DashboardFilterContext';
 import { NotificationListProvider } from './context/NotificationListContext';
 import { OfflineOverlay } from './components/ui/OfflineOverlay';
@@ -241,6 +242,7 @@ const queryClient = new QueryClient();
 
 function App() {
   return (
+    <ThemeProvider>
     <QueryClientProvider client={queryClient}>
       <OfflineOverlay />
       <Router basename={isCargoUrl() ? CARGO_BASE : undefined}>
@@ -383,6 +385,7 @@ function App() {
         </Routes>
       </Router>
     </QueryClientProvider>
+    </ThemeProvider>
   );
 }
 
