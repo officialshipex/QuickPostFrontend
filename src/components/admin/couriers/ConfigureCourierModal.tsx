@@ -21,6 +21,10 @@ interface Courier {
   clientId?: string;
   refreshToken?: string;
   authToken?: string;
+  // Gati
+  customerCode?: string;
+  encryptedCustCode?: string;
+  goodsCode?: string;
 }
 
 interface ConfigureCourierModalProps {
@@ -42,6 +46,9 @@ const B2B_FIELDS = [
   { id: 'clientId', label: 'Client ID', type: 'text', placeholder: 'B2B Client ID', icon: Hash },
   { id: 'refreshToken', label: 'Refresh Token', type: 'password', placeholder: 'OAuth Refresh Token', icon: Key },
   { id: 'authToken', label: 'Auth Token', type: 'password', placeholder: 'Session or Bearer Token', icon: Key },
+  { id: 'customerCode', label: 'Customer Code', type: 'text', placeholder: '8-digit Gati customer code', icon: Hash },
+  { id: 'encryptedCustCode', label: 'Encrypted Customer Code', type: 'text', placeholder: 'Encrypted customer code issued by Gati', icon: Key },
+  { id: 'goodsCode', label: 'Default Goods Code (optional)', type: 'text', placeholder: 'Auto-detected from products; else this, else 18', icon: Hash },
 ];
 
 const getFieldsForCourier = (name: string, cargo = false) => {
@@ -128,6 +135,9 @@ export function ConfigureCourierModal({ isOpen, onClose, courier, onSave, cargo 
           clientId: courier.clientId || '',
           refreshToken: courier.refreshToken || '',
           authToken: courier.authToken || '',
+          customerCode: courier.customerCode || '',
+          encryptedCustCode: courier.encryptedCustCode || '',
+          goodsCode: courier.goodsCode || '',
         } : {}),
       });
     }

@@ -11,6 +11,8 @@ import { isHexChar, mapToDark, parseFunction, parseHex } from './colors.mjs';
 
 const ROOT = ':root[data-theme="dark"]';
 const KEEP_LIGHT = ':not([data-keep-light] *)';
+// pseudo-elements CSS still allows with a single colon (":before" = "::before"); the name must end there
+const LEGACY_PSEUDO_ELEMENT = /^(before|after|first-line|first-letter)(?![\w-])/i;
 
 const COLOR_FUNCTIONS = new Set(['rgb', 'rgba', 'hsl', 'hsla', 'oklch', 'oklab']);
 const SKIP_AT_RULES = new Set(['keyframes', '-webkit-keyframes', 'font-face', 'property', 'counter-style']);
@@ -126,13 +128,16 @@ function replaceColors(value, change, vars, inMix = false) {
 /** Put the dark scope in front of every selector of a rule (and the keep-light guard on the element it targets). */
 function darkSelector(selector) {
   const s = selector.trim();
-  // the guard has to sit on the targeted element, i.e. before a trailing ::pseudo-element
+  // the guard has to sit on the targeted element, i.e. before a trailing pseudo-element — written either
+  // ::before or the legacy single-colon :before / :after / :first-line / :first-letter (Tailwind's preflight
+  // uses ":after, :before"); nothing may follow a pseudo-element, or the CSS minifier rejects the selector
   let cut = s.length;
   let depth = 0;
   for (let i = 0; i < s.length - 1; i++) {
     if (s[i] === '(' || s[i] === '[') depth++;
     else if (s[i] === ')' || s[i] === ']') depth--;
     else if (depth === 0 && s[i] === ':' && s[i + 1] === ':') { cut = i; break; }
+    else if (depth === 0 && s[i] === ':' && LEGACY_PSEUDO_ELEMENT.test(s.slice(i + 1))) { cut = i; break; }
   }
   const guarded = s.slice(0, cut) + KEEP_LIGHT + s.slice(cut);
   if (s === ':root' || s === 'html' || s.startsWith(':root,') || s.startsWith(':host')) return ROOT; // theme-variable blocks

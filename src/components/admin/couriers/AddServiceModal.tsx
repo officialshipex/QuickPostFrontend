@@ -15,6 +15,7 @@ interface AddServiceModalProps {
 
 const DTDC_SERVICES = ['B2C SMART EXPRESS', 'B2C PRIORITY', 'B2C GROUND ECONOMY'];
 const DELHIVERY_B2B_SERVICES = ['Delhivery-surface', 'Delhivery-air'];
+const GATI_B2B_SERVICES = ['Gati-surface', 'Gati-air'];
 
 export function AddServiceModal({ isOpen, onClose, courier, onSuccess, editData, cargo = false }: AddServiceModalProps) {
   const [courier_field, setCourierField] = useState('');
@@ -76,6 +77,8 @@ export function AddServiceModal({ isOpen, onClose, courier, onSuccess, editData,
           setProviderServices([...new Set(keys)].map(s => ({ service: s })));
         } else if (p === 'delhivery') {
           setProviderServices(DELHIVERY_B2B_SERVICES.map(s => ({ service: s })));
+        } else if (p === 'gati') {
+          setProviderServices(GATI_B2B_SERVICES.map(s => ({ service: s })));
         }
         return;
       }

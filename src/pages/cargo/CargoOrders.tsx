@@ -872,6 +872,16 @@ export function CargoOrders() {
     catch (e) { console.error('Invoice download failed', e); }
   };
 
+  // Gati's own docket (LR) copy — Gati's pickup person collects it at pickup.
+  const handleGatiDocket = async (id: string) => {
+    try { await downloadBlob(`/b2b/gati/docketCopy/${id}`, `Gati-Docket-${id}.pdf`); }
+    catch (e) {
+      console.error('Gati docket download failed', e);
+      showToast('error', 'Could not download the Gati docket copy. Please try again.');
+    }
+  };
+  const isGatiDocket = (o: any) => o?.partner === 'Gati' && !!o?.awb_number;
+
   const handleManifest = async (id: string) => {
     try { await downloadBlob(`/manifest/generate-pdf?orderIds=${id}`, `manifest-${id}.pdf`); }
     catch (e) { console.error('Manifest download failed', e); }
@@ -1247,6 +1257,9 @@ export function CargoOrders() {
     if (activeTab === 'Ready to Ship') return (
       <>
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { handleLabel(rowOrder._id); close(); }}>Download Label</button>
+        {isGatiDocket(rowOrder) && (
+          <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { handleGatiDocket(rowOrder._id); close(); }}>Gati Docket Copy</button>
+        )}
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { handleInvoice(rowOrder._id); close(); }}>Download Invoice</button>
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { handleManifest(rowOrder._id); close(); }}>Download Manifest</button>
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { navigate(`${isAdminView ? '/admin' : '/user'}/add-order?cloneId=${rowOrder._id}`); close(); }}>Clone Order</button>
@@ -1264,6 +1277,9 @@ export function CargoOrders() {
     return (
       <>
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { handleLabel(rowOrder._id); close(); }}>Download Label</button>
+        {isGatiDocket(rowOrder) && (
+          <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { handleGatiDocket(rowOrder._id); close(); }}>Gati Docket Copy</button>
+        )}
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { handleInvoice(rowOrder._id); close(); }}>Download Invoice</button>
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { handleManifest(rowOrder._id); close(); }}>Download Manifest</button>
         <button className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] cursor-pointer" onClick={() => { navigate(`${isAdminView ? '/admin' : '/user'}/add-order?cloneId=${rowOrder._id}`); close(); }}>Clone Order</button>

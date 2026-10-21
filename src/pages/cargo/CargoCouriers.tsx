@@ -293,7 +293,7 @@ export function CargoCouriers() {
     // Only the settings this B2B account actually has; a blank password keeps the saved one
     // (same payload rules as ShipexFrontend's EditB2BCourierModal).
     const payload: Record<string, unknown> = {};
-    ['CODDays', 'username', 'password', 'apiKey', 'clientId', 'refreshToken', 'authToken'].forEach(key => {
+    ['CODDays', 'username', 'password', 'apiKey', 'clientId', 'refreshToken', 'authToken', 'customerCode', 'encryptedCustCode', 'goodsCode'].forEach(key => {
       if (!(key in selectedCourier)) return;
       if (key === 'password') { if ((data.password || '').trim()) payload.password = data.password.trim(); return; }
       if (key === 'CODDays') { payload.CODDays = data.CODDays !== '' && data.CODDays != null ? Number(data.CODDays) : 0; return; }

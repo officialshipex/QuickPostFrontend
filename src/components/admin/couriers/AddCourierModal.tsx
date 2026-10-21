@@ -9,7 +9,7 @@ const PROVIDERS = [
   'Shree Maruti', 'Smartship', 'XpressBees', 'ZipyPost', 'BoxdLogistics', 'Jiffy',
 ];
 
-type CredField = { id: string; label: string; type: string; placeholder: string; icon: any };
+type CredField = { id: string; label: string; type: string; placeholder: string; icon: any; optional?: boolean };
 
 const getCredFields = (provider: string): CredField[] => {
   const p = provider.toLowerCase();
@@ -80,6 +80,16 @@ const B2B_COURIER_CONFIGS: Record<string, { endpoint: string; fields: CredField[
       { id: 'accessKey', label: 'Access Key', type: 'text', placeholder: 'API Access Key', icon: Key },
     ],
   },
+  Gati: {
+    endpoint: '/b2b/gati/getToken',
+    fields: [
+      { id: 'username', label: 'User', type: 'text', placeholder: 'Gati API Username', icon: User },
+      { id: 'password', label: 'Password', type: 'password', placeholder: 'Password', icon: ShieldCheck },
+      { id: 'customerCode', label: 'Customer Code', type: 'text', placeholder: '8-digit customer code issued by Gati', icon: Hash },
+      { id: 'encryptedCustCode', label: 'Encrypted Customer Code', type: 'text', placeholder: 'Encrypted customer code issued by Gati', icon: Key },
+      { id: 'goodsCode', label: 'Default Goods Code (optional)', type: 'text', placeholder: 'Auto-detected from products; else this, else 18', icon: Hash, optional: true },
+    ],
+  },
 };
 
 interface AddCourierModalProps {
@@ -141,7 +151,7 @@ export function AddCourierModal({ isOpen, onClose, onSuccess, cargo = false, exi
     if (cargo) {
       if (!b2bConfig) { setError(`${provider} does not have a B2B integration yet`); return; }
       if (!codDays) { setError('COD days is required'); return; }
-      const missing = b2bConfig.fields.find(f => !(creds[f.id] || '').trim());
+      const missing = b2bConfig.fields.find(f => !f.optional && !(creds[f.id] || '').trim());
       if (missing) { setError(`Please enter ${missing.label}`); return; }
       setSaving(true);
       try {
