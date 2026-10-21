@@ -41,8 +41,12 @@ function matchParen(s, open) {
   return -1;
 }
 
-/** "40%" right after a colour inside color-mix(in oklab, #fff 40%, transparent) -> 40 */
-function peekPercent(s, from) {
+/**
+ * "40%" right after a colour INSIDE color-mix(in oklab, #fff 40%, transparent) -> 40: the share of that colour in the mix.
+ * Anywhere else a "40%" after a colour is something different (a gradient stop position: rgba(...) 40%), so it must be ignored.
+ */
+function peekPercent(s, from, inMix) {
+  if (!inMix) return 100;
   let i = from;
   while (s[i] === ' ') i++;
   let j = i;
@@ -52,7 +56,7 @@ function peekPercent(s, from) {
 }
 
 /** Replace every colour in a declaration value. `change(color, pct)` returns the new text or null to keep the old. */
-function replaceColors(value, change, vars) {
+function replaceColors(value, change, vars, inMix = false) {
   let out = '';
   let i = 0;
   const n = value.length;
@@ -66,7 +70,7 @@ function replaceColors(value, change, vars) {
       if ((len === 3 || len === 4 || len === 6 || len === 8) && !isAlnum(value[j])) {
         const lit = value.slice(i, j);
         const color = parseHex(lit);
-        const next = color ? change(color, peekPercent(value, j)) : null;
+        const next = color ? change(color, peekPercent(value, j, inMix)) : null;
         out += next ?? lit;
         i = j;
         continue;
@@ -88,15 +92,15 @@ function replaceColors(value, change, vars) {
         } else if (word === 'var') {
           const name = inner.split(',')[0].trim();
           const color = name.startsWith('--color-') ? vars.get(name) : undefined;
-          const next = color ? change(color, peekPercent(value, end + 1)) : null;
+          const next = color ? change(color, peekPercent(value, end + 1, inMix)) : null;
           out += next ?? value.slice(i, end + 1);
         } else if (COLOR_FUNCTIONS.has(word)) {
           const color = parseFunction(word, inner);
-          const next = color ? change(color, peekPercent(value, end + 1)) : null;
+          const next = color ? change(color, peekPercent(value, end + 1, inMix)) : null;
           out += next ?? value.slice(i, end + 1);
         } else {
           // linear-gradient(...), color-mix(...), calc(...): look inside
-          out += value.slice(i, j + 1) + replaceColors(inner, change, vars) + ')';
+          out += value.slice(i, j + 1) + replaceColors(inner, change, vars, word === 'color-mix') + ')';
         }
         i = end + 1;
         continue;
@@ -104,7 +108,7 @@ function replaceColors(value, change, vars) {
 
       if (word === 'white' || word === 'black') {
         const color = parseHex(word === 'white' ? '#ffffff' : '#000000');
-        out += change(color, peekPercent(value, j)) ?? value.slice(i, j);
+        out += change(color, peekPercent(value, j, inMix)) ?? value.slice(i, j);
         i = j;
         continue;
       }
@@ -176,8 +180,10 @@ export default function darkTheme() {
           if (decl.type !== 'decl') return;
           const role = roleOf(decl.prop);
           if (!role) return;
+          // EVERY colour-related declaration gets a twin, also the ones whose colour stays the same (a brand-green hover or focus
+          // border). Otherwise the twin of a plain rule (more specific) would beat the unchanged hover:/focus:/md: rule that wins in light mode.
           const value = replaceColors(decl.value, (color, pct) => mapToDark(color, role, pct), vars);
-          if (value !== decl.value) twins.push({ prop: decl.prop, value, important: decl.important });
+          twins.push({ prop: decl.prop, value, important: decl.important });
         });
         if (!twins.length) continue;
 

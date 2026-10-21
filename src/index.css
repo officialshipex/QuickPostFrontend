@@ -22,6 +22,15 @@
 :root[data-theme="dark"] img[src="/logo-color.png"] {
   filter: invert(1) hue-rotate(180deg);
 }
+/* date picker: its side column is a faint white sheen in light mode; in dark that sheen turns it pale grey with grey text */
+:root[data-theme="dark"] .glass-date-sidebar {
+  background: rgba(255, 255, 255, 0.025);
+  border-right-color: rgba(255, 255, 255, 0.08);
+}
+:root[data-theme="dark"] .glass-date-sidebar-title {
+  color: #a1adbf;
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
 /* photos and illustrations were drawn for a white page: take the glare off (logos and icons excluded) */
 :root[data-theme="dark"] img:not([src*="logo"]):not([src*="icon"]):not([src$=".svg"]):not([data-keep-light] img) {
   filter: brightness(0.88);
