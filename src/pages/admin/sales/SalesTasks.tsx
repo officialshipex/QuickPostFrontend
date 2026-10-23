@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
@@ -7,11 +7,10 @@ import {
 } from 'lucide-react';
 import { AdminLayout } from '../../../components/admin/layout/AdminLayout';
 import { useAdminTab } from '../../../context/AdminUserContext';
-import { readTasks, writeTasks, todayStr, type SalesTask, type TaskPriority } from './tasksStore';
+import { readTasks, loadTasks, writeTasks, todayStr, type SalesTask, type TaskPriority } from './tasksStore';
+import { SalesKycGate } from './SalesKycGate';
 
-/* Sales — Tasks (personal to-do list for the sales executive).
-   Until the Sales backend has a tasks endpoint, tasks are kept in this browser per employee
-   (localStorage, key below). Swap readTasks/writeTasks for `/sales/tasks` calls when it exists. */
+/* Sales — Tasks (personal to-do list for the sales executive), saved on the server (/sales/tasks). */
 
 type Priority = TaskPriority;
 type Task = SalesTask;
@@ -99,10 +98,14 @@ function TaskDialog({ task, onClose, onSave }: { task: Task; onClose: () => void
 export function SalesTasks() {
   const { employeeId, currentUserId } = useAdminTab();
   const owner = employeeId || currentUserId;
-  // Load once per owner (render-time sync — no effect needed).
-  const [loadedFor, setLoadedFor] = useState('');
-  const [tasks, setTasks] = useState<Task[]>([]);
-  if (owner && loadedFor !== owner) { setLoadedFor(owner); setTasks(readTasks(owner)); }
+  const [tasks, setTasks] = useState<Task[]>(() => readTasks(owner));
+  const [saveFailed, setSaveFailed] = useState(false);
+  useEffect(() => {
+    if (!owner) return;
+    let alive = true;
+    loadTasks(owner).then(t => { if (alive) setTasks(t); });
+    return () => { alive = false; };
+  }, [owner]);
 
   const [view, setView] = useState<View>('today');
   const [q, setQ] = useState('');
@@ -113,7 +116,7 @@ export function SalesTasks() {
   const [editing, setEditing] = useState<Task | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Task | null>(null);
 
-  const commit = (next: Task[]) => { setTasks(next); writeTasks(owner, next); };
+  const commit = (next: Task[]) => { setTasks(next); writeTasks(owner, next).then(ok => setSaveFailed(!ok)); };
   const addTask = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
@@ -172,8 +175,14 @@ export function SalesTasks() {
 
   return (
     <AdminLayout>
+      <SalesKycGate>
       <div className="flex flex-col h-[calc(100vh-72px)] -m-4 md:-m-6 bg-[#F8FAFC] overflow-y-auto">
         <div className="px-4 md:px-6 pt-5 pb-8 flex flex-col gap-5 max-w-[1200px] w-full mx-auto">
+          {saveFailed && (
+            <div className="flex items-start gap-2 px-3.5 py-2.5 rounded-xl bg-red-50 border border-red-100 text-[12.5px] text-red-600">
+              <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />Your last change could not be saved. Check your connection — it will be saved with your next change.
+            </div>
+          )}
           {/* Title */}
           <div className="flex items-center gap-3">
             <span className="w-10 h-10 rounded-xl bg-[#F0FDF4] text-[#00A86B] flex items-center justify-center shrink-0"><ListChecks className="w-5 h-5" /></span>
@@ -318,6 +327,7 @@ export function SalesTasks() {
         </div>,
         document.body,
       )}
+      </SalesKycGate>
     </AdminLayout>
   );
 }

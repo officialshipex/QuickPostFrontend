@@ -1,45 +1,41 @@
-import axios, { AxiosError, type AxiosAdapter } from 'axios';
-import { getToken, removeToken } from '../utils/session';
+import type { AxiosRequestConfig } from 'axios';
+import { apiClient } from './apiClient';
 
-/* Sales module API (`${VITE_API_URL}/sales/...`). Until the backend ships, SALES_BACKEND_READY = false:
-   GETs resolve with an empty body (screens show their empty / zero states) and writes are rejected
-   with a clear message. Flip the flag once the endpoints are live — no page changes needed.
+/* Sales module API (`${VITE_API_URL}/sales/...`, backend/sales). Goes through apiClient so it carries the same
+   auth, panel and company headers as every other call.
+     Sales person:      /me /overview /calls /sellers /performance /referral /tasks /earnings /rate-offers
+                        /rate-suggest /sellers/:id/rate /kyc/* /offer-letter
+     Owner (view-as):   the same with ?employeeId=<sales person>, plus /team
+     Sales Management:  /admin/*  */
 
-   Expected endpoints (all scoped server-side to the caller; sales admins may pass ?employeeId=):
-     GET   /sales/overview?from&to           → SalesOverview
-     GET   /sales/calls?status&q&page&limit   → { calls: SalesCall[], total }
-     PATCH /sales/calls/:id                   → { status, outcome, note, followUpAt }
-     GET   /sales/sellers?filter&q&page&limit → { sellers: ReferredSeller[], total }
-     GET   /sales/referral                    → { referralId, referralLink }
-     GET   /sales/performance?from&to         → SalesPerformance
-     GET   /sales/team?from&to                → { members: TeamMember[] }   (sales admins only) */
-
-export const SALES_BACKEND_READY = false;
-
-const API_BASE = (import.meta.env.VITE_API_URL as string) || 'http://localhost:5000/api/v1';
-const OFFLINE_MESSAGE = 'Sales backend is not connected yet.';
-
-const offlineAdapter: AxiosAdapter = async (config) => {
-  if ((config.method || 'get').toLowerCase() === 'get') return { data: {}, status: 200, statusText: 'OK', headers: {}, config };
-  throw new AxiosError(OFFLINE_MESSAGE, 'ERR_SALES_OFFLINE', config, null,
-    { data: { message: OFFLINE_MESSAGE }, status: 503, statusText: 'Service Unavailable', headers: {}, config });
+const prefix = (url: string) => `/sales${url}`;
+export const salesApiClient = {
+  get: <T = any>(url: string, config?: AxiosRequestConfig) => apiClient.get<T>(prefix(url), config), // eslint-disable-line @typescript-eslint/no-explicit-any
+  post: <T = any>(url: string, data?: unknown, config?: AxiosRequestConfig) => apiClient.post<T>(prefix(url), data, config), // eslint-disable-line @typescript-eslint/no-explicit-any
+  put: <T = any>(url: string, data?: unknown, config?: AxiosRequestConfig) => apiClient.put<T>(prefix(url), data, config), // eslint-disable-line @typescript-eslint/no-explicit-any
+  patch: <T = any>(url: string, data?: unknown, config?: AxiosRequestConfig) => apiClient.patch<T>(prefix(url), data, config), // eslint-disable-line @typescript-eslint/no-explicit-any
+  delete: <T = any>(url: string, config?: AxiosRequestConfig) => apiClient.delete<T>(prefix(url), config), // eslint-disable-line @typescript-eslint/no-explicit-any
 };
 
-export const salesApiClient = axios.create({
-  baseURL: `${API_BASE}/sales`,
-  headers: { 'Content-Type': 'application/json' },
-  ...(SALES_BACKEND_READY ? {} : { adapter: offlineAdapter }),
-});
+/** Server error message, or a fallback */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const apiError = (e: any, fallback = 'Something went wrong. Please try again.') => e?.response?.data?.message || fallback;
 
-salesApiClient.interceptors.request.use((config) => {
-  const token = getToken();
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
-});
-salesApiClient.interceptors.response.use((r) => r, (error) => {
-  if (error.response?.status === 401) { removeToken(); window.location.href = '/login'; }
-  return Promise.reject(error);
-});
+/** Where sellers sign up with a sales person's referral code */
+export const referralLinkFor = (code?: string) => (code ? `${window.location.origin}/register?ref=${encodeURIComponent(code)}` : '');
+
+/** Downloads the offer letter PDF (own, or a sales person's when employeeId is given) */
+export async function downloadOfferLetter(employeeId?: string) {
+  const res = await salesApiClient.get('/offer-letter', { params: employeeId ? { employeeId } : {}, responseType: 'blob' });
+  const url = URL.createObjectURL(res.data as Blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'Offer-Letter.pdf';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 export type CallStatus = 'assigned' | 'pending' | 'completed' | 'follow_up' | 'unreachable';
@@ -50,7 +46,9 @@ export interface SalesCall {
   leadName: string;
   businessName?: string;
   phone: string;
+  email?: string;
   assignedAt: string;
+  assignedBy?: 'admin' | 'self';
   status: CallStatus;
   outcome?: CallOutcome;
   lastNote?: string;
@@ -67,10 +65,15 @@ export const LEAD_STAGE_LABEL: Record<LeadStage, string> = {
   first_shipment_due: 'First shipment due', onboarded: 'Onboarded',
 };
 
+export interface SellerRate { current: string; committed: string; committedShipments: number; nextReviewAt: string; autoAdjust: boolean }
+export interface SellerBonus { status: 'earned' | 'paid' | 'pending' | 'expired'; amount?: number; deadline?: string }
+
 export interface ReferredSeller {
   _id: string;
+  userId?: number;
   name: string;
   businessName?: string;
+  email?: string;
   phone: string;
   registeredAt: string;
   kycStatus: 'pending' | 'submitted' | 'verified' | 'rejected';
@@ -79,6 +82,8 @@ export interface ReferredSeller {
   totalOrders: number;
   lastOrderAt?: string;
   active: boolean;
+  rate?: SellerRate | null;
+  bonus?: SellerBonus | null;
 }
 
 export interface Target { target: number; achieved: number }
@@ -104,15 +109,17 @@ export interface SalesPerformance {
   callsAssigned?: number; callsCompleted?: number;
   registrations?: number; onboarded?: number; firstOrders?: number;
   ordersGenerated?: number; delivered?: number;
-  trend?: { label: string; calls: number; onboarded: number }[];
   topSellers?: { name: string; orders: number }[];
   dormantSellers?: { name: string; lastOrderAt?: string }[];
 }
 
 export interface TeamMember {
-  _id: string; name: string; referralId: string;
-  callsAssigned: number; callsCompleted: number; onboarded: number; firstOrders: number; orders: number;
+  _id: string; name: string; email?: string; phone?: string; employeeId?: string; designation?: string; referralId: string; active?: boolean;
+  kycStatus?: KycStatus; kycMethod?: 'ekyc' | 'manual' | null; offerIssued?: boolean;
+  callsAssigned: number; callsCompleted: number; sellers?: number; onboarded: number; firstOrders: number; orders: number;
   monthlyTarget?: number;
+  month?: { shipments: number; freight: number; badge: string; badgeColor: string; projected: number };
+  unpaid?: number;
 }
 
 export const CALL_STATUS_LABEL: Record<CallStatus, string> = {
@@ -123,5 +130,71 @@ export const CALL_OUTCOME_LABEL: Record<CallOutcome, string> = {
   no_answer: 'No answer', invalid_number: 'Invalid number', onboarding_initiated: 'Onboarding initiated',
 };
 
+// ── KYC / me ──────────────────────────────────────────────────────────────────
+export type KycStatus = 'not_started' | 'pending' | 'verified' | 'rejected';
+export interface SalesKyc {
+  status: KycStatus;
+  method: 'ekyc' | 'manual' | null;
+  rejectionReason: string;
+  submittedAt?: string | null;
+  verifiedAt?: string | null;
+  pan: { verified: boolean; number: string; name: string };
+  aadhaar: { verified: boolean; number: string; name: string; otpSent: boolean };
+  bank: { verified: boolean; accountNumber: string; holderName: string; bankName: string };
+}
+export interface SalesMe {
+  viewer: 'self' | 'owner';
+  employee?: { _id: string; fullName: string; email: string; contactNumber?: string; employeeId: string; role: string; referralCode?: string };
+  kyc?: SalesKyc;
+  offer?: { letterNumber: string; issuedAt: string } | null;
+  referralId?: string;
+}
+
+// ── Earnings ──────────────────────────────────────────────────────────────────
+export interface Slab { minShipments: number; maxShipments: number | null; percent: number; badge: string; color?: string }
+export interface OnboardingBonusRule { enabled: boolean; amount: number; minRecharge: number; withinDays: number; requireKyc: boolean }
+export interface MonthIncentive {
+  period: string; planName: string; sellers: number; shipments: number; freight: number; percent: number;
+  badge: string; badgeColor: string; amount: number;
+  nextSlab: { minShipments: number; percent: number; badge: string; needed: number } | null;
+}
+export interface SalesEarning {
+  _id: string; type: 'onboarding_bonus' | 'monthly_incentive'; period: string; amount: number; status: 'unpaid' | 'paid'; earnedAt: string;
+  details?: { planName?: string; shipments?: number; freight?: number; percent?: number; badge?: string; sellers?: number; sellerName?: string; rechargeAmount?: number; rechargeAt?: string };
+  payout?: { _id: string; utr: string; paidAt: string } | null;
+  salesPerson?: { _id: string; fullName: string; employeeId: string };
+}
+export interface SalesPayout { _id: string; amount: number; utr: string; paidAt: string; note?: string; earnings: string[]; salesPerson?: { _id: string; fullName: string; employeeId: string } }
+export interface SalesEarnings {
+  current?: MonthIncentive;
+  plan?: { name: string; slabs: Slab[]; onboardingBonus: OnboardingBonusRule };
+  earnings?: SalesEarning[];
+  payouts?: SalesPayout[];
+  totals?: { earned: number; paid: number; unpaid: number };
+}
+
+// ── Rates ─────────────────────────────────────────────────────────────────────
+export interface WeightSlab { key: string; label: string; grams: number }
+export interface SlabPrice { key: string; label: string; zonePrices: Record<string, number | null>; weightedPrice: number }
+export interface RateOffer { _id: string; name: string; planName: string; minMonthlyShipments: number; description?: string; preview?: SlabPrice[]; active?: boolean; sellers?: number; salesPersons?: { _id: string; fullName: string; employeeId: string }[] }
+export interface RateRequirement {
+  monthlyShipments: number; codPercent: number; avgCodValue: number; productCategory: string;
+  weightMix: Record<string, number>; zoneMix: Record<string, number>;
+}
+export interface RateSuggestion {
+  requirement: RateRequirement;
+  recommendedOfferId: string | null;
+  offers: { offer: RateOffer; eligible: boolean; shipmentsShort: number; estimate: { avgPerShipment: number; codPerShipment: number; monthlyEstimate: number; couriers: string[]; perSlab: SlabPrice[] } | null }[];
+  weightSlabs: WeightSlab[];
+  zones: string[];
+}
+export const ZONE_LABEL: Record<string, string> = { zoneA: 'Zone A', zoneB: 'Zone B', zoneC: 'Zone C', zoneD: 'Zone D', zoneE: 'Zone E' };
+
 /** Safe percentage: numerator / denominator, 0 when the denominator is 0. */
 export const pct = (num?: number, den?: number) => (den && den > 0 ? Math.round(((num || 0) / den) * 100) : 0);
+export const inr = (v?: number) => `₹${(v ?? 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+export const periodLabel = (p?: string) => {
+  if (!p) return '—';
+  const [y, m] = p.split('-').map(Number);
+  return new Date(y, m - 1, 1).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+};

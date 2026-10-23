@@ -458,7 +458,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                 setShowMobileWalletSummary(false);
                 setShowDateDropdown(false);
               }}
-              className="flex items-center gap-1.5 h-8 flex-1 min-w-0 pl-2.5 pr-2.5 rounded-full border border-[#E2E8F0] bg-[#F8FAFC] text-[#94A3B8] hover:border-[#CBD5E1] transition-colors"
+              className={`flex items-center gap-1.5 h-8 flex-1 min-w-0 pl-2.5 pr-2.5 rounded-full border border-[#E2E8F0] bg-[#F8FAFC] text-[#94A3B8] hover:border-[#CBD5E1] transition-colors ${isSalesEmployee ? 'invisible' : ''}`}
             >
               <Search className="w-3.5 h-3.5 shrink-0" />
               <span className="relative flex-1 min-w-0 h-4 overflow-hidden text-[11px] font-medium leading-4 whitespace-nowrap text-left">
@@ -654,8 +654,8 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                 );
               })()}
 
-              {/* Wallet Balance */}
-              <div className="relative shrink-0">
+              {/* Wallet Balance (not for sales accounts — see the desktop wallet) */}
+              <div className={`relative shrink-0 ${isSalesEmployee ? 'hidden' : ''}`}>
                 <ShineBox
                   className={`flex items-center gap-1.5 shrink-0 whitespace-nowrap text-white pl-3 pr-1.5 py-2 rounded-full text-[12px] font-bold shadow-sm transition-all duration-200 ${walletBalance < 0 ? 'bg-[#EF4444]' : 'bg-[#00A86B]'} ${showMobileWalletSummary ? 'scale-105' : ''}`}
                 >
@@ -898,9 +898,10 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
         </Link>
       </div>
 
-      {/* Middle Section - Search — global Orders search, available from every page */}
+      {/* Middle Section - Search — global Orders search, available from every page (not for sales accounts:
+          they have no orders access, the search would only answer "access denied") */}
       <div className="flex-1 flex items-center justify-center min-w-0">
-        {!isKycPage && (
+        {!isKycPage && !isSalesEmployee && (
         <div ref={orderSearchRef} className="hidden md:flex items-center relative w-full max-w-lg group">
           <Search className="w-4 h-4 absolute left-3.5 text-[#94A3B8] group-focus-within:text-[#00A86B] transition-colors duration-300 z-10" />
           <input
@@ -1114,9 +1115,9 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
         {/* B2C ⇄ Cargo — seller side, Home page only */}
         {!(isAdmin && adminTab) && location.pathname === '/user/home' && <ModeSwitch />}
 
-        {/* Wallet Balance */}
+        {/* Wallet Balance — an employee's wallet is their admin's, so a sales account never sees it */}
         <div
-          className="relative"
+          className={`relative ${isSalesEmployee ? 'hidden' : ''}`}
           onMouseEnter={() => setShowWalletHover(true)}
           onMouseLeave={() => setShowWalletHover(false)}
         >

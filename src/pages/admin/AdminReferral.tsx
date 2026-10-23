@@ -5,7 +5,7 @@ import { useAdminTab } from '../../context/AdminUserContext';
 import {
   RefreshCcw, User, Package, Truck, Wallet,
   Phone, Calendar, ChevronDown, X, Mail, Users, Download, Settings, MoreHorizontal,
-  Search, Filter, MoreVertical,
+  Search, Filter, MoreVertical, Gift, Award,
 } from 'lucide-react';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { TableLoader } from '../../components/ui/TableLoader';
@@ -15,6 +15,7 @@ import { StatusRibbon } from '../../components/ui/StatusRibbon';
 import { DesktopPagination } from '../../hooks/usePagination';
 import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
 import { AnimatePresence, motion } from 'framer-motion';
+import { ReferralSettingsDialog, ReferralBonusesDialog, ReferralPlansDialog } from './ReferralProgramDialogs';
 
 const MONTH_NAMES = [
   'January','February','March','April','May','June',
@@ -44,6 +45,8 @@ interface Summary {
   totalOrders: number;
   totalCommission: number;
   totalShipping: number;
+  totalBonus?: number;
+  bonusCount?: number;
 }
 
 // ─── Type scale — only these four are allowed anywhere in this modal ─────────
@@ -275,6 +278,12 @@ export function AdminReferral() {
   const [showMobileSummary, setShowMobileSummary] = useState(false);
   const [mobileActionOpenId, setMobileActionOpenId] = useState<string | null>(null);
 
+  // Referral programme settings / joining bonuses (admin)
+  const [programOpen, setProgramOpen] = useState(false);
+  const [bonusesOpen, setBonusesOpen] = useState(false);
+  const [plansOpen, setPlansOpen] = useState(false);
+  const [notice, setNotice] = useState('');
+
   // Transfer modal
   const [transferOpen, setTransferOpen] = useState(false);
   const [userSearch, setUserSearch] = useState('');
@@ -490,6 +499,7 @@ export function AdminReferral() {
     { label: 'Total Referral Orders', value: String(summary.totalOrders || 0), icon: Package, color: 'text-fuchsia-500', iconBg: 'bg-fuchsia-100', cardBg: 'bg-fuchsia-50/30' },
     { label: 'Total Shipping', value: formatCurrency(summary.totalShipping), icon: Truck, color: 'text-emerald-500', iconBg: 'bg-emerald-100', cardBg: 'bg-emerald-50/30' },
     { label: 'Total Commission', value: formatCurrency(summary.totalCommission), icon: Wallet, color: 'text-yellow-600', iconBg: 'bg-yellow-100', cardBg: 'bg-yellow-50/30' },
+    { label: `Joining Bonuses (${summary.bonusCount || 0})`, value: formatCurrency(summary.totalBonus || 0), icon: Gift, color: 'text-[#00A86B]', iconBg: 'bg-emerald-100', cardBg: 'bg-emerald-50/30' },
   ];
 
   const closeTransferModal = () => {
@@ -509,13 +519,30 @@ export function AdminReferral() {
           {/* Header — desktop */}
           <div className="hidden md:flex justify-between items-center px-6 py-3 border-b border-[#E2E8F0] bg-white">
             <h1 className="text-[20px] font-bold text-[#0F172A] tracking-tight">Referrals</h1>
-            <button
-              onClick={fetchReferrals}
-              className="w-8 h-8 rounded-full border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC] transition-colors"
-            >
-              <RefreshCcw className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-2">
+              {notice && <span className="text-[12px] font-semibold text-[#00A86B]">{notice}</span>}
+              {isAdminView && (
+                <>
+                  <button onClick={() => setBonusesOpen(true)} className="h-8 px-3 rounded-full border border-[#E2E8F0] text-[12px] font-semibold text-[#475569] hover:border-[#00A86B]/40 hover:text-[#00A86B] inline-flex items-center gap-1.5"><Gift className="w-3.5 h-3.5" />Joining bonuses</button>
+                  <button onClick={() => setPlansOpen(true)} className="h-8 px-3 rounded-full border border-[#E2E8F0] text-[12px] font-semibold text-[#475569] hover:border-[#00A86B]/40 hover:text-[#00A86B] inline-flex items-center gap-1.5"><Award className="w-3.5 h-3.5" />Commission plans</button>
+                  <button onClick={() => setProgramOpen(true)} className="h-8 px-3 rounded-full border border-[#E2E8F0] text-[12px] font-semibold text-[#475569] hover:border-[#00A86B]/40 hover:text-[#00A86B] inline-flex items-center gap-1.5"><Settings className="w-3.5 h-3.5" />Programme settings</button>
+                </>
+              )}
+              <button
+                onClick={fetchReferrals}
+                className="w-8 h-8 rounded-full border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC] transition-colors"
+              >
+                <RefreshCcw className="w-4 h-4" />
+              </button>
+            </div>
           </div>
+          {isAdminView && (
+            <div className="md:hidden flex items-center gap-2 px-3 pt-2.5">
+              <button onClick={() => setBonusesOpen(true)} className="flex-1 h-8 rounded-full border border-[#E2E8F0] text-[12px] font-semibold text-[#475569] inline-flex items-center justify-center gap-1.5"><Gift className="w-3.5 h-3.5" />Bonuses</button>
+              <button onClick={() => setPlansOpen(true)} className="flex-1 h-8 rounded-full border border-[#E2E8F0] text-[12px] font-semibold text-[#475569] inline-flex items-center justify-center gap-1.5"><Award className="w-3.5 h-3.5" />Plans</button>
+              <button onClick={() => setProgramOpen(true)} className="flex-1 h-8 rounded-full border border-[#E2E8F0] text-[12px] font-semibold text-[#475569] inline-flex items-center justify-center gap-1.5"><Settings className="w-3.5 h-3.5" />Programme</button>
+            </div>
+          )}
 
           {/* Mobile Search + Filter + Action Row (matches Orders page) */}
           <div className="md:hidden relative z-[60] px-3 py-2.5 border-b border-[#E2E8F0] flex items-center gap-2 bg-white shrink-0">
@@ -575,7 +602,7 @@ export function AdminReferral() {
           </div>
 
           {/* Stats — desktop */}
-          <div className="hidden md:grid p-4 border-b border-[#E2E8F0] grid-cols-1 md:grid-cols-4 gap-4 bg-white">
+          <div className="hidden md:grid p-4 border-b border-[#E2E8F0] grid-cols-1 md:grid-cols-3 xl:grid-cols-5 gap-4 bg-white">
             {statsCards.map((s, i) => (
               <div key={i} className={`p-4 rounded-xl border border-[#E2E8F0] shadow-sm flex items-center gap-4 ${s.cardBg}`}>
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${s.iconBg} ${s.color}`}>
@@ -1037,6 +1064,9 @@ export function AdminReferral() {
       {detailsRow && (
         <ReferralDetailsModal referral={detailsRow} onClose={() => setDetailsRow(null)} />
       )}
+      {programOpen && <ReferralSettingsDialog onClose={() => setProgramOpen(false)} onSaved={msg => { setNotice(msg); setTimeout(() => setNotice(''), 3000); }} />}
+      {bonusesOpen && <ReferralBonusesDialog onClose={() => setBonusesOpen(false)} />}
+      {plansOpen && <ReferralPlansDialog onClose={() => setPlansOpen(false)} onSaved={msg => { setNotice(msg); setTimeout(() => setNotice(''), 3000); }} />}
 
       {/* Transfer Modal */}
       {transferOpen && (

@@ -8,6 +8,7 @@ import { refreshNotifications } from '../../context/NotificationListContext';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { useAdminTab } from '../../context/AdminUserContext';
 import { AdminKYC } from './AdminKYC';
+import { UserPlanDialog } from './ReferralProgramDialogs';
 import { copyToClipboard } from '../../utils/clipboard';
 import {
   MapPin,
@@ -715,40 +716,6 @@ function CreditLimitModal({ userId, currentValue, onClose, onSuccess }: {
   );
 }
 
-// ─── Referral Commission Modal ───────────────────────────────────────────────
-function ReferralCommissionModal({ userId, currentValue, onClose, onSuccess }: {
-  userId: string; currentValue: string; onClose: () => void; onSuccess: () => void;
-}) {
-  const [value, setValue] = useState(currentValue?.replace('%', '') || '0');
-  const [saving, setSaving] = useState(false);
-  const { toast: _t, showToast } = useToast();
-
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      await apiClient.post('/user/updateReferralCommission', { userId, referralCommissionPercentage: Number(value) });
-      showToast('success', 'Referral commission updated!');
-      onSuccess();
-      onClose();
-    } catch {
-      showToast('error', 'Failed to update referral commission');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <ModalWrap onClose={onClose}>
-      <Toast toast={_t} onClose={() => {}} />
-      <ModalHeader title="Update Referral Commission" onClose={onClose} />
-      <div className="px-5 py-4 overflow-y-auto min-h-0">
-        <ModalInput label="Commission (%)" type="number" min="0" max="100" step="0.1" value={value} onChange={e => setValue(e.target.value)} placeholder="Enter commission %" />
-      </div>
-      <ModalActions onClose={onClose} onSave={handleSave} saving={saving} />
-    </ModalWrap>
-  );
-}
-
 // ─── KAM Details Modal ───────────────────────────────────────────────────────
 function KAMModal({ userId, onClose, onSuccess }: { userId: string; onClose: () => void; onSuccess: () => void }) {
   const [form, setForm] = useState({ kamName: '', kamEmail: '', kamPhone: '' });
@@ -900,6 +867,16 @@ export function AdminProfile() {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showCreditModal, setShowCreditModal] = useState(false);
   const [showReferralModal, setShowReferralModal] = useState(false);
+  // The referral commission plan this user is on (admin view only)
+  const [referralPlanName, setReferralPlanName] = useState('');
+  useEffect(() => {
+    if (!isAdminView || !effectiveId) return;
+    let alive = true;
+    apiClient.get(`/referral/plans/user/${effectiveId}`)
+      .then(res => { if (alive) setReferralPlanName(res.data?.plan?.name || ''); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [isAdminView, effectiveId]);
   const [showKAMModal, setShowKAMModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [assignRateCardType, setAssignRateCardType] = useState<'B2C' | 'B2B'>('B2C');
@@ -941,7 +918,7 @@ export function AdminProfile() {
         creditLimit: String(apiUser.creditLimit || 0),
         orderCount: apiUser.orderCount || 0,
         referralCode: apiUser.referralCode || '—',
-        referralCommission: apiUser.referralCommissionPercentage ? `${apiUser.referralCommissionPercentage}%` : '—',
+        referralCommission: apiUser.referralCommissionPercentage ? `${apiUser.referralCommissionPercentage}%` : 'Company default',
         kamName: apiUser.kamDetails?.kamName || '—',
         kamEmail: apiUser.kamDetails?.kamEmail || '—',
         kamPhone: apiUser.kamDetails?.kamPhone || '—',
@@ -1017,7 +994,7 @@ export function AdminProfile() {
           orderCount: fresh.orderCount ?? prev.orderCount,
           lastLogin: fmtProfileDateTime(fresh.lastLogin) || prev.lastLogin,
           referralCode: fresh.referralCode || prev.referralCode,
-          referralCommission: fresh.referralCommissionPercentage ? `${fresh.referralCommissionPercentage}%` : prev.referralCommission,
+          referralCommission: fresh.referralCommissionPercentage ? `${fresh.referralCommissionPercentage}%` : 'Company default',
           publicKey: fresh.apiKeys?.publicKey || prev.publicKey,
           aadhaar: fresh.aadharDetails?.aadharNumber || prev.aadhaar,
           aadharName: fresh.aadharDetails?.nameOnAadhar || prev.aadharName,
@@ -1159,7 +1136,7 @@ export function AdminProfile() {
       {showAssignModal && <AssignRateCardModal userId={effectiveId} userName={userData.name} rateCardType={assignRateCardType} onClose={() => setShowAssignModal(false)} onSuccess={() => { refreshUser(); fetchRates(effectiveId); }} />}
       {showUploadModal && <UploadRateCardModal userId={effectiveId} planName={userPlanName} onClose={() => setShowUploadModal(false)} onSuccess={() => fetchRates(effectiveId)} />}
       {showCreditModal && <CreditLimitModal userId={effectiveId} currentValue={userData.creditLimit} onClose={() => setShowCreditModal(false)} onSuccess={refreshUser} />}
-      {showReferralModal && <ReferralCommissionModal userId={effectiveId} currentValue={userData.referralCommission} onClose={() => setShowReferralModal(false)} onSuccess={refreshUser} />}
+      {showReferralModal && <UserPlanDialog userId={effectiveId} onClose={() => setShowReferralModal(false)} onSaved={name => setReferralPlanName(name)} />}
       {showKAMModal && <KAMModal userId={effectiveId} onClose={() => setShowKAMModal(false)} onSuccess={refreshUser} />}
       {showPasswordModal && <ChangePasswordModal email={userData.email} onClose={() => setShowPasswordModal(false)} onSuccess={() => {}} />}
 
@@ -1430,11 +1407,13 @@ export function AdminProfile() {
 
                     <Field label="Referral Code" value={userData.referralCode} />
 
-                    <Field
-                      label="Referral Commission"
-                      value={userData.referralCommission}
-                      action={isAdminView ? <EditBtn onClick={() => setShowReferralModal(true)} /> : undefined}
-                    />
+                    {isAdminView && (
+                      <Field
+                        label="Referral Commission Plan"
+                        value={referralPlanName || '—'}
+                        action={<EditBtn onClick={() => setShowReferralModal(true)} />}
+                      />
+                    )}
 
                     <Field label="Total Orders" value={String(userData.orderCount)} />
 

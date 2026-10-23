@@ -4,10 +4,9 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Bell, AlertCircle, CalendarDays, PhoneCall, ListChecks, ChevronRight, CheckCircle2 } from 'lucide-react';
 import { useAdminTab } from '../../../context/AdminUserContext';
 import { salesApiClient, type SalesCall } from '../../../services/salesApi';
-import { readTasks, todayStr, TASKS_CHANGED_EVENT, type SalesTask } from '../../../pages/admin/sales/tasksStore';
+import { readTasks, loadTasks, todayStr, TASKS_CHANGED_EVENT, type SalesTask } from '../../../pages/admin/sales/tasksStore';
 
-/* Navbar bell for the Sales team: overdue / due-today tasks (from Tasks) and sales activity
-   (follow-ups due, from the Sales API — empty until the backend is connected). */
+/* Navbar bell for the Sales team: overdue / due-today tasks (from Tasks) and follow-ups due (Sales API). */
 
 interface Notice { id: string; tone: 'red' | 'amber' | 'sky' | 'green'; icon: typeof Bell; title: string; meta: string; to: string }
 
@@ -26,15 +25,15 @@ export function SalesNotificationBell() {
   const [followUps, setFollowUps] = useState<SalesCall[]>([]);
   const ref = useRef<HTMLDivElement>(null);
 
-  // Keep tasks in sync with the Tasks page (same tab or other tabs).
+  // Keep tasks in sync with the Tasks page.
   useEffect(() => {
     const sync = () => setTasks(readTasks(owner));
     window.addEventListener(TASKS_CHANGED_EVENT, sync);
-    window.addEventListener('storage', sync);
-    return () => { window.removeEventListener(TASKS_CHANGED_EVENT, sync); window.removeEventListener('storage', sync); };
+    if (owner) loadTasks(owner);
+    return () => window.removeEventListener(TASKS_CHANGED_EVENT, sync);
   }, [owner]);
 
-  // Sales activity — follow-ups due (Sales API).
+  // Sales activity — follow-ups due (Sales API; refused until the person's KYC is verified).
   useEffect(() => {
     let alive = true;
     salesApiClient.get('/overview').then(res => { if (alive) setFollowUps(res.data?.followUpList || []); }).catch(() => {});

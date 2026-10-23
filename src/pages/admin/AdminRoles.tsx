@@ -39,7 +39,12 @@ interface Employee {
   createdAt: string;
   /** Admin-panel employees: 'sales' gets the Sales Dashboard */
   team?: 'operations' | 'sales';
+  /** Sales people: the code sellers register with */
+  referralCode?: string;
 }
+
+/** What the admin hands a newly created sales person */
+interface SalesCredentials { fullName: string; email: string; password: string; referralCode?: string; emailed?: boolean }
 
 // ─── Permission Matrix ────────────────────────────────────────────────────────
 
@@ -136,7 +141,7 @@ function PermissionMatrix({ accessRights, onChange, panel }: PermissionMatrixPro
 interface EmployeeModalProps {
   employee?: Employee | null;
   onClose: () => void;
-  onSaved: (emp: Employee) => void;
+  onSaved: (emp: Employee, credentials?: SalesCredentials) => void;
   panel: PanelType;
 }
 
@@ -150,6 +155,13 @@ function EmployeeModal({ employee, onClose, onSaved, panel }: EmployeeModalProps
   const [role, setRole]             = useState(employee?.role || '');
   const [team, setTeam]             = useState<'operations' | 'sales'>(employee?.team || 'operations');
   const [password, setPassword]     = useState('');
+  // Sales hires: offer letter details (editable later in Sales Management) and whether to email the login
+  const [joiningDate, setJoiningDate] = useState('');
+  const [monthlyCtc, setMonthlyCtc]   = useState('');
+  const [location, setLocation]       = useState('');
+  const [sendCredentials, setSendCredentials] = useState(true);
+  const isSales = isAdminView && team === 'sales';
+  const salesOffer = { joiningDate: joiningDate || undefined, monthlyCtc: monthlyCtc === '' ? undefined : Number(monthlyCtc), location: location.trim() || undefined };
   // Stored rights -> catalog shape (an employee saved before the per-item keys keeps what they had)
   const [accessRights, setAccessRights] = useState<AccessRights>(() =>
     employee?.accessRights ? toFormRights(employee.accessRights, panel) : emptyAccessRights(panel)
@@ -190,7 +202,7 @@ function EmployeeModal({ employee, onClose, onSaved, panel }: EmployeeModalProps
     const storedRights = toStoredRights(accessRights, panel);
     try {
       if (isEdit) {
-        const body: any = { fullName: fullName.trim(), contactNumber: contactNumber.trim(), role: role.trim(), accessRights: storedRights, mode: panel, ...(isAdminView ? { team } : {}) };
+        const body: any = { fullName: fullName.trim(), contactNumber: contactNumber.trim(), role: role.trim(), accessRights: storedRights, mode: panel, ...(isAdminView ? { team } : {}), ...(isSales ? { salesOffer } : {}) };
         if (password) body.password = password;
         const res = await apiClient.put(`/staffRole/updateRole/${employee!._id}`, body);
         onSaved(res.data.updatedRole);
@@ -199,9 +211,10 @@ function EmployeeModal({ employee, onClose, onSaved, panel }: EmployeeModalProps
         const res = await apiClient.post('/staffRole/createRole', {
           fullName: fullName.trim(), email: email.trim(), contactNumber: contactNumber.trim(),
           password, role: role.trim(), accessRights: storedRights, mode: panel, ...(isAdminView ? { team } : {}),
+          ...(isSales ? { salesOffer, sendCredentials, loginUrl: `${window.location.origin}/employee-login` } : {}),
         });
-        onSaved(res.data.data.user as any);
-        // Refetch to get full employee doc
+        const user = res.data.data.user;
+        onSaved(user as any, isSales ? { fullName: fullName.trim(), email: email.trim().toLowerCase(), password, referralCode: user.referralCode, emailed: res.data.data.emailed } : undefined);
       }
       onClose();
     } catch (err: any) {
@@ -296,7 +309,7 @@ function EmployeeModal({ employee, onClose, onSaved, panel }: EmployeeModalProps
                     <div className="grid grid-cols-2 gap-2">
                       {([
                         { key: 'operations', title: 'Operations', hint: 'Orders, NDR, finance, support…' },
-                        { key: 'sales', title: 'Sales', hint: 'Gets the Sales Dashboard — calls, referred sellers, targets' },
+                        { key: 'sales', title: 'Sales', hint: 'Sales panel only — referral code, KYC, offer letter, commission' },
                       ] as const).map(t => {
                         const on = team === t.key;
                         return (
@@ -315,11 +328,30 @@ function EmployeeModal({ employee, onClose, onSaved, panel }: EmployeeModalProps
                     </div>
                   </div>
                 )}
+                {isSales && (
+                  <div className="sm:col-span-2 rounded-xl border border-[#DCFCE7] bg-[#F0FDF4]/60 p-3.5 space-y-3">
+                    <div className="text-[12.5px] text-[#475569]">
+                      {isEdit && employee?.referralCode ? <>Referral code <b className="font-mono text-[#0F172A]">{employee.referralCode}</b>. </> : 'A referral code is created for them. '}
+                      After signing in they complete their KYC; the offer letter is issued once it is verified. {isEdit ? 'Leave the fields below empty to keep what is saved (all of it is editable in Sales Management).' : 'You can change these later in Sales Management.'}
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      {field('Joining date', CalendarDays, <input type="date" value={joiningDate} onChange={e => setJoiningDate(e.target.value)} className={fieldCls} />)}
+                      {field('Monthly CTC (₹)', Hash, <input type="number" min={0} value={monthlyCtc} onChange={e => setMonthlyCtc(e.target.value)} placeholder="Optional" className={fieldCls} />)}
+                      {field('Work location', Briefcase, <input value={location} onChange={e => setLocation(e.target.value)} placeholder="e.g. Pune" className={fieldCls} />)}
+                    </div>
+                    {!isEdit && (
+                      <label className="flex items-center gap-2 text-[12.5px] text-[#475569] cursor-pointer">
+                        <input type="checkbox" checked={sendCredentials} onChange={e => setSendCredentials(e.target.checked)} className="h-4 w-4 accent-[#00A86B]" />
+                        Email the login details (and referral code) to the sales person
+                      </label>
+                    )}
+                  </div>
+                )}
               </div>
             </section>
 
-            {/* Permission Matrix */}
-            <section>
+            {/* Permission Matrix — not for sales people: their account only ever opens the Sales panel */}
+            {!isSales && <section>
               <div className="flex items-center justify-between gap-3 mb-2">
                 <div className="flex items-center gap-2">
                   <Lock className="w-4 h-4 text-[#00A86B]" />
@@ -333,7 +365,7 @@ function EmployeeModal({ employee, onClose, onSaved, panel }: EmployeeModalProps
                   : 'The employee sees every menu item; items without View access are locked and show a "no access" message when clicked.'}
               </p>
               <PermissionMatrix accessRights={accessRights} onChange={setAccessRights} panel={panel} />
-            </section>
+            </section>}
           </div>
 
           {/* Footer */}
@@ -384,6 +416,7 @@ export function AdminRoles() {
   const { toast, showToast, closeToast } = useToast();
   const [searchTerm, setSearchTerm]       = useState('');
   const [copied, setCopied]               = useState(false);
+  const [credentials, setCredentials]     = useState<SalesCredentials | null>(null);
 
   const employeeLoginUrl = `${window.location.origin}/employee-login`;
 
@@ -445,10 +478,11 @@ export function AdminRoles() {
     }
   };
 
-  const handleSaved = () => {
+  const handleSaved = (_emp: Employee, creds?: SalesCredentials) => {
     showToast('success', editEmployee ? 'Employee updated' : 'Employee created successfully');
     setEditEmployee(null);
     setShowModal(false);
+    if (creds) setCredentials(creds);
     fetchEmployees();
   };
 
@@ -628,6 +662,7 @@ export function AdminRoles() {
                               <Briefcase className="w-3 h-3 text-[#94A3B8]" />{emp.role}
                               {emp.team === 'sales' && <span className="ml-1 px-1.5 py-px rounded-md bg-[#F0FDF4] text-[#00A86B] text-[10px] font-bold uppercase tracking-wider">Sales</span>}
                             </span>
+                            {emp.team === 'sales' && emp.referralCode && <div className="text-[11px] text-[#94A3B8] mt-1 pl-1">Code <span className="font-mono font-semibold text-[#475569]">{emp.referralCode}</span></div>}
                           </td>
                           <td className="py-3 px-4">
                             <div className="w-[140px]">
@@ -697,6 +732,30 @@ export function AdminRoles() {
           panel={panel}
         />
       )}
+
+      {/* A new sales person's login details, ready to hand over */}
+      {credentials && (() => {
+        const loginUrl = `${window.location.origin}/employee-login`;
+        const text = `Hi ${credentials.fullName}, your sales account is ready.\nLogin: ${loginUrl}\nEmail: ${credentials.email}\nPassword: ${credentials.password}${credentials.referralCode ? `\nYour referral code: ${credentials.referralCode}` : ''}\nPlease complete your KYC after signing in.`;
+        return (
+          <div className="fixed inset-0 z-[220] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-[#0F172A]/40 backdrop-blur-sm" onClick={() => setCredentials(null)} />
+            <div className="relative w-full max-w-md bg-white rounded-2xl shadow-[0_24px_64px_-16px_rgba(15,23,42,0.35)] p-6">
+              <div className="flex items-center gap-3">
+                <span className="w-10 h-10 rounded-xl bg-[#F0FDF4] text-[#00A86B] flex items-center justify-center"><UserCheck className="w-5 h-5" /></span>
+                <div><h3 className="text-[15px] font-bold text-[#0F172A]">Sales account created</h3>
+                  <p className="text-[12px] text-[#64748B]">{credentials.emailed ? `Login details were emailed to ${credentials.email}.` : 'Share these login details with the sales person.'}</p></div>
+              </div>
+              <pre className="mt-4 whitespace-pre-wrap break-all rounded-xl bg-[#F8FAFC] border border-[#EEF2F6] p-3.5 text-[12.5px] text-[#0F172A] font-sans">{text}</pre>
+              <div className="mt-4 flex gap-2">
+                <button onClick={() => navigator.clipboard.writeText(text).then(() => showToast('success', 'Copied'))} className="flex-1 h-10 rounded-full border border-[#E2E8F0] text-[13px] font-semibold text-[#475569] hover:bg-[#F8FAFC] inline-flex items-center justify-center gap-1.5"><Copy className="w-4 h-4" />Copy</button>
+                <a href={`https://wa.me/?text=${encodeURIComponent(text)}`} target="_blank" rel="noopener noreferrer" className="flex-1 h-10 rounded-full bg-[#00A86B] hover:bg-[#009B63] text-white text-[13px] font-semibold inline-flex items-center justify-center">Share on WhatsApp</a>
+              </div>
+              <button onClick={() => setCredentials(null)} className="mt-2 w-full h-9 text-[12.5px] font-semibold text-[#64748B] hover:text-[#0F172A]">Done</button>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Delete Confirmation */}
       {deleteTarget && (

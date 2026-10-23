@@ -1,9 +1,10 @@
-import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   PhoneCall, PhoneOutgoing, CalendarClock, UserPlus, UserCheck, PackageCheck, Package, Target,
-  Search, Copy, Check, Link2, X, AlertCircle, TrendingUp, Users, Clock, RefreshCw, Phone, MessageCircle, ChevronDown, type LucideIcon,
+  Search, Copy, Check, Link2, X, AlertCircle, TrendingUp, Users, Clock, RefreshCw, Phone, MessageCircle, ChevronDown,
+  Wallet, BadgePercent, Plus, Eye, Gift, type LucideIcon,
 } from 'lucide-react';
 import { AdminLayout } from '../../../components/admin/layout/AdminLayout';
 import { useAdminTab } from '../../../context/AdminUserContext';
@@ -13,16 +14,19 @@ import { Toast } from '../../../components/ui/Toast';
 import { useToast } from '../../../hooks/useToast';
 import { copyToClipboard } from '../../../utils/clipboard';
 import {
-  salesApiClient, pct, CALL_STATUS_LABEL, CALL_OUTCOME_LABEL,
+  salesApiClient, pct, CALL_STATUS_LABEL, CALL_OUTCOME_LABEL, apiError, referralLinkFor, inr,
   type SalesOverview, type SalesCall, type ReferredSeller, type SalesPerformance, type TeamMember, FUNNEL_STAGES, LEAD_STAGE_LABEL, type LeadStage,
-  type CallStatus, type CallOutcome,
+  type CallStatus, type CallOutcome, type SalesMe, type SalesEarnings, type RateOffer,
 } from '../../../services/salesApi';
+import { SalesKycGate, OfferLetterCard } from './SalesKycGate';
+import { SalesEarningsTab, BadgeChip } from './SalesEarningsTab';
+import { SalesRatesTab, AssignRateDialog, SellerDetailDialog } from './SalesRatesTab';
 
-/* Sales module — one page, tabbed: Overview · My Calls · My Sellers · Performance (+ Team for sales admins).
-   Sales executives (employees with the Sales module) see their own data; admins see the team view.
-   All numbers come from the Sales API (salesApi.ts) — empty / zero until the backend is connected. */
+/* Sales module — one page, tabbed: Overview · My Leads · My Sellers · Earnings · Rates · Performance (+ Team for the owner).
+   A sales person sees only their own leads and the sellers who registered with their referral code (read-only);
+   nothing loads until their KYC is verified (SalesKycGate). The owner opens a person's view from Sales Management. */
 
-type Tab = 'overview' | 'calls' | 'sellers' | 'performance' | 'team';
+type Tab = 'overview' | 'calls' | 'sellers' | 'earnings' | 'rates' | 'performance' | 'team';
 
 const card = 'bg-white rounded-2xl border border-[#EEF2F6] shadow-[0_1px_2px_rgba(16,24,40,0.04),0_2px_8px_rgba(16,24,40,0.05)]';
 const n = (v?: number) => (v ?? 0).toLocaleString('en-IN');
@@ -161,7 +165,7 @@ const waLink = (phone: string) => {
   return `https://wa.me/${digits.length === 10 ? `91${digits}` : digits}`;
 };
 
-function PriorityQueue({ calls, onUpdate, onViewAll }: { calls: SalesCall[]; onUpdate: (c: SalesCall) => void; onViewAll: () => void }) {
+function PriorityQueue({ calls, onUpdate, onViewAll, readOnly }: { calls: SalesCall[]; onUpdate: (c: SalesCall) => void; onViewAll: () => void; readOnly?: boolean }) {
   const [bucket, setBucket] = useState<'all' | DueBucket>('all');
   const [stage, setStage] = useState<'all' | LeadStage>('all');
   const [sort, setSort] = useState<'urgency' | 'priority' | 'name'>('urgency');
@@ -201,8 +205,8 @@ function PriorityQueue({ calls, onUpdate, onViewAll }: { calls: SalesCall[]; onU
         className="w-9 h-9 rounded-xl bg-[#00A86B] hover:bg-[#00965F] text-white flex items-center justify-center transition-colors"><Phone className="w-4 h-4" /></a>
       <a href={waLink(c.phone)} target="_blank" rel="noopener noreferrer" title="Message on WhatsApp" aria-label={`Message ${c.leadName}`}
         className="w-9 h-9 rounded-xl border border-[#E2E8F0] bg-white hover:border-[#00A86B]/40 hover:text-[#00A86B] text-[#475569] flex items-center justify-center transition-colors"><MessageCircle className="w-4 h-4" /></a>
-      <button type="button" onClick={() => onUpdate(c)} title="Log call outcome"
-        className="h-9 px-3 rounded-xl border border-[#E2E8F0] text-[12px] font-semibold text-[#475569] hover:border-[#00A86B]/40 hover:text-[#00A86B]">Log</button>
+      {!readOnly && <button type="button" onClick={() => onUpdate(c)} title="Log call outcome"
+        className="h-9 px-3 rounded-xl border border-[#E2E8F0] text-[12px] font-semibold text-[#475569] hover:border-[#00A86B]/40 hover:text-[#00A86B]">Log</button>}
     </div>
   );
   const seller = (c: SalesCall) => (
@@ -393,11 +397,72 @@ function CallUpdateDialog({ call, onClose, onSaved }: { call: SalesCall; onClose
   );
 }
 
+// ── Add a lead (the sales person's own prospects) ───────────────────────────
+function AddLeadDialog({ onClose, onSaved }: { onClose: () => void; onSaved: (msg: string) => void }) {
+  const [f, setF] = useState({ leadName: '', businessName: '', phone: '', city: '', category: '', priority: 'medium', followUpAt: '', note: '' });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const set = (k: keyof typeof f, v: string) => setF(p => ({ ...p, [k]: v }));
+  const save = async () => {
+    setSaving(true); setError('');
+    try {
+      await salesApiClient.post('/calls', { ...f, followUpAt: f.followUpAt || undefined });
+      onSaved('Lead added');
+      onClose();
+    } catch (e) { setError(apiError(e, 'Could not add the lead.')); } finally { setSaving(false); }
+  };
+  const fieldCls = 'w-full h-10 px-3.5 rounded-xl border border-[#E2E8F0] text-[13px] text-[#0F172A] bg-white focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]';
+  const field = (k: keyof typeof f, label: string, props: Record<string, unknown> = {}) => (
+    <div><label className="block text-[12px] font-semibold text-[#475569] mb-1.5">{label}</label><input value={f[k]} onChange={e => set(k, e.target.value)} className={fieldCls} {...props} /></div>
+  );
+  return createPortal(
+    <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-[#0F172A]/40 backdrop-blur-sm" onClick={onClose} />
+      <motion.div initial={{ opacity: 0, y: 12, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} className="relative w-full max-w-lg bg-white rounded-2xl shadow-[0_24px_64px_-16px_rgba(15,23,42,0.35)]">
+        <div className="px-5 py-4 border-b border-[#F1F5F9] flex items-center justify-between">
+          <h3 className="text-[15px] font-bold text-[#0F172A]">Add lead</h3>
+          <button onClick={onClose} aria-label="Close" className="w-8 h-8 rounded-full flex items-center justify-center text-[#94A3B8] hover:bg-[#F1F5F9]"><X className="w-4 h-4" /></button>
+        </div>
+        <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {error && <div className="sm:col-span-2 flex items-start gap-2 px-3 py-2 rounded-xl bg-red-50 border border-red-100 text-[12.5px] text-red-600"><AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />{error}</div>}
+          {field('leadName', 'Contact name *')}
+          {field('phone', 'Phone *', { inputMode: 'tel', placeholder: '10-digit mobile' })}
+          {field('businessName', 'Business name')}
+          {field('city', 'City')}
+          {field('category', 'Category')}
+          <div><label className="block text-[12px] font-semibold text-[#475569] mb-1.5">Priority</label>
+            <select value={f.priority} onChange={e => set('priority', e.target.value)} className={fieldCls}><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select></div>
+          <div className="sm:col-span-2">{field('followUpAt', 'Follow-up', { type: 'datetime-local' })}</div>
+          <div className="sm:col-span-2">{field('note', 'Note')}</div>
+        </div>
+        <div className="px-5 py-3.5 border-t border-[#F1F5F9] flex justify-end gap-2.5">
+          <button onClick={onClose} className="h-10 px-5 rounded-full border border-[#E2E8F0] text-[13px] font-semibold text-[#475569] hover:bg-[#F8FAFC]">Cancel</button>
+          <button onClick={save} disabled={saving} className="h-10 px-6 rounded-full bg-[#00A86B] hover:bg-[#009B63] text-white text-[13px] font-semibold disabled:opacity-50">{saving ? 'Saving…' : 'Add lead'}</button>
+        </div>
+      </motion.div>
+    </div>,
+    document.body,
+  );
+}
+
+const BONUS_TONE: Record<string, string> = { earned: 'text-[#00A86B]', paid: 'text-emerald-700', pending: 'text-amber-700', expired: 'text-[#94A3B8]' };
+
 /** `viewAs`: owner viewing one sales executive's dashboard (Sales Management) — every request is scoped with ?employeeId. */
 export function SalesDashboard({ viewAs }: { viewAs?: { id: string; name: string } } = {}) {
+  if (viewAs) return <SalesDashboardBody viewAs={viewAs} />;
+  return (
+    <AdminLayout>
+      <SalesKycGate><SalesDashboardBody /></SalesKycGate>
+    </AdminLayout>
+  );
+}
+
+function SalesDashboardBody({ viewAs }: { viewAs?: { id: string; name: string } }) {
   const { isEmployee, isAdmin, userName } = useAdminTab();
   const isSalesAdmin = isAdmin && !isEmployee && !viewAs;
   const viewAsId = viewAs?.id;
+  // Leads and rates are the sales person's own work; the owner's view is read-only
+  const canAct = !viewAs && isEmployee;
   const { toast, showToast, closeToast } = useToast();
   const [tab, setTab] = useState<Tab>('overview');
   // Date range comes from the navbar date filter (shared dashboard filter).
@@ -410,7 +475,13 @@ export function SalesDashboard({ viewAs }: { viewAs?: { id: string; name: string
   const [sellers, setSellers] = useState<ReferredSeller[]>([]);
   const [perf, setPerf] = useState<SalesPerformance>({});
   const [team, setTeam] = useState<TeamMember[]>([]);
-  const [referral, setReferral] = useState<{ referralId?: string; referralLink?: string }>({});
+  const [me, setMe] = useState<SalesMe | null>(null);
+  const [earnings, setEarnings] = useState<SalesEarnings>({});
+  const [offers, setOffers] = useState<RateOffer[]>([]);
+  const [addingLead, setAddingLead] = useState(false);
+  const [assigning, setAssigning] = useState<ReferredSeller | null>(null);
+  const [viewing, setViewing] = useState<string | null>(null);
+  const referral = { referralId: me?.referralId, referralLink: referralLinkFor(me?.referralId) };
   const [callFilter, setCallFilter] = useState<'all' | CallStatus>('all');
   const [sellerFilter, setSellerFilter] = useState<'all' | 'new' | 'kyc_pending' | 'onboarding' | 'active' | 'inactive' | 'no_first_order'>('all');
   const [q, setQ] = useState('');
@@ -425,21 +496,27 @@ export function SalesDashboard({ viewAs }: { viewAs?: { id: string; name: string
     let alive = true;
     const scope = viewAsId ? { employeeId: viewAsId } : {};
     const params = { from: fromISO, to: toISO, ...scope };
+    const person = !isSalesAdmin; // the owner's own page (no person picked) only has the team view
+    const none = Promise.resolve({ data: {} });
     Promise.allSettled([
       salesApiClient.get('/overview', { params }),
-      salesApiClient.get('/calls', { params: { limit: 100, ...scope } }),
-      salesApiClient.get('/sellers', { params: { limit: 100, ...scope } }),
+      person ? salesApiClient.get('/calls', { params: { limit: 300, ...scope } }) : none,
+      person ? salesApiClient.get('/sellers', { params: scope }) : none,
       salesApiClient.get('/performance', { params }),
-      salesApiClient.get('/referral', { params: scope }),
-      isSalesAdmin ? salesApiClient.get('/team', { params }) : Promise.resolve({ data: {} }),
-    ]).then(([ov, cl, se, pf, rf, tm]) => {
+      salesApiClient.get('/me', { params: scope }),
+      isSalesAdmin ? salesApiClient.get('/team', { params }) : none,
+      person ? salesApiClient.get('/earnings', { params: scope }) : none,
+      person ? salesApiClient.get('/rate-offers', { params: scope }) : none,
+    ]).then(([ov, cl, se, pf, mo, tm, ea, ro]) => {
       if (!alive) return;
       if (ov.status === 'fulfilled') setOverview(ov.value.data || {});
       if (cl.status === 'fulfilled') setCalls(cl.value.data?.calls || []);
       if (se.status === 'fulfilled') setSellers(se.value.data?.sellers || []);
       if (pf.status === 'fulfilled') setPerf(pf.value.data || {});
-      if (rf.status === 'fulfilled') setReferral(rf.value.data || {});
+      if (mo.status === 'fulfilled') setMe(mo.value.data || null);
       if (tm.status === 'fulfilled') setTeam(tm.value.data?.members || []);
+      if (ea.status === 'fulfilled') setEarnings(ea.value.data || {});
+      if (ro.status === 'fulfilled') setOffers(ro.value.data?.offers || []);
       setLoading(false);
     });
     return () => { alive = false; };
@@ -450,12 +527,16 @@ export function SalesDashboard({ viewAs }: { viewAs?: { id: string; name: string
     if (await copyToClipboard(value)) { setCopied(key); setTimeout(() => setCopied(''), 1500); }
   };
 
-  const tabs: { key: Tab; label: string; icon: LucideIcon }[] = [
+  const tabs: { key: Tab; label: string; icon: LucideIcon }[] = isSalesAdmin ? [
     { key: 'overview', label: 'Overview', icon: TrendingUp },
-    { key: 'calls', label: 'My Leads', icon: PhoneCall },
-    { key: 'sellers', label: 'My Sellers', icon: UserPlus },
+    { key: 'team', label: 'Team', icon: Users },
+  ] : [
+    { key: 'overview', label: 'Overview', icon: TrendingUp },
+    { key: 'calls', label: viewAs ? 'Leads' : 'My Leads', icon: PhoneCall },
+    { key: 'sellers', label: viewAs ? 'Sellers' : 'My Sellers', icon: UserPlus },
+    { key: 'earnings', label: 'Earnings', icon: Wallet },
+    { key: 'rates', label: 'Rates', icon: BadgePercent },
     { key: 'performance', label: 'Performance', icon: Target },
-    ...(isSalesAdmin ? [{ key: 'team' as Tab, label: 'Team', icon: Users }] : []),
   ];
 
   const ql = q.trim().toLowerCase();
@@ -473,9 +554,9 @@ export function SalesDashboard({ viewAs }: { viewAs?: { id: string; name: string
   const ov = overview;
   const rangeLabel = filters.dateRange.label;
 
-  const Wrap = viewAs ? Fragment : AdminLayout;
+  const cur = earnings.current;
   return (
-    <Wrap>
+    <>
       <Toast toast={toast} onClose={closeToast} />
       <div className="flex flex-col h-[calc(100vh-72px)] -m-4 md:-m-6 bg-[#F8FAFC] overflow-y-auto">
         <div className="px-4 md:px-6 pt-5 pb-8 flex flex-col gap-5">
@@ -484,7 +565,7 @@ export function SalesDashboard({ viewAs }: { viewAs?: { id: string; name: string
             <div className="flex items-center gap-3 min-w-0">
               <span className="w-10 h-10 rounded-xl bg-[#F0FDF4] text-[#00A86B] flex items-center justify-center shrink-0"><Target className="w-5 h-5" /></span>
               <div className="min-w-0">
-                <h1 className="text-[18px] font-bold text-[#0F172A]">{isSalesAdmin ? 'Sales — Team overview' : viewAs ? `${viewAs.name}'s Sales Dashboard` : 'Sales Dashboard'}</h1>
+                <h1 className="text-[18px] font-bold text-[#0F172A] flex items-center gap-2 flex-wrap">{isSalesAdmin ? 'Sales — Team overview' : viewAs ? `${viewAs.name}'s Sales Dashboard` : 'Sales Dashboard'}{cur?.badge && <BadgeChip badge={cur.badge} color={cur.badgeColor} />}</h1>
                 <p className="text-[12.5px] text-[#64748B] truncate">{isSalesAdmin ? 'Leads, referred sellers and targets across the sales team.' : viewAs ? 'Leads, referred sellers, funnel and targets for this sales person.' : `Welcome back${userName ? `, ${userName.split(' ')[0]}` : ''} — here's your day.`}</p>
               </div>
             </div>
@@ -523,9 +604,29 @@ export function SalesDashboard({ viewAs }: { viewAs?: { id: string; name: string
                   <Kpi label="RTO / Cancelled" value={`${n(ov.orders?.rto)} / ${n(ov.orders?.cancelled)}`} sub="By referred sellers" icon={AlertCircle} tone="bg-red-50 text-red-500" />
                 </div>
 
+                {!isSalesAdmin && (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
+                    <button type="button" onClick={() => setTab('earnings')} className={`${card} px-4 py-3.5 text-left hover:border-[#00A86B]/40 transition-colors`}>
+                      <div className="flex items-center justify-between"><span className="text-[12px] font-medium text-[#64748B]">This month's incentive</span><BadgeChip badge={cur?.badge} color={cur?.badgeColor} /></div>
+                      <div className="text-[22px] font-bold text-[#0F172A] tabular-nums mt-0.5">{inr(cur?.amount)}</div>
+                      <div className="text-[11.5px] text-[#94A3B8] truncate">{n(cur?.shipments)} shipments · {cur?.percent ?? 0}%{cur?.nextSlab ? ` · ${n(cur.nextSlab.needed)} more for ${cur.nextSlab.badge || 'next slab'}` : ''}</div>
+                    </button>
+                    <button type="button" onClick={() => setTab('earnings')} className={`${card} px-4 py-3.5 text-left hover:border-[#00A86B]/40 transition-colors`}>
+                      <div className="flex items-center justify-between"><span className="text-[12px] font-medium text-[#64748B]">Awaiting payment</span><Wallet className="w-4 h-4 text-amber-600" /></div>
+                      <div className="text-[22px] font-bold text-[#0F172A] tabular-nums mt-0.5">{inr(earnings.totals?.unpaid)}</div>
+                      <div className="text-[11.5px] text-[#94A3B8]">{inr(earnings.totals?.paid)} paid so far</div>
+                    </button>
+                    <button type="button" onClick={() => setTab('sellers')} className={`${card} px-4 py-3.5 text-left hover:border-[#00A86B]/40 transition-colors`}>
+                      <div className="flex items-center justify-between"><span className="text-[12px] font-medium text-[#64748B]">Onboarding bonuses pending</span><Gift className="w-4 h-4 text-[#00A86B]" /></div>
+                      <div className="text-[22px] font-bold text-[#0F172A] tabular-nums mt-0.5">{n(sellers.filter(s => s.bonus?.status === 'pending').length)}</div>
+                      <div className="text-[11.5px] text-[#94A3B8] truncate">sellers yet to complete KYC + first recharge of {inr(earnings.plan?.onboardingBonus?.minRecharge)}</div>
+                    </button>
+                  </div>
+                )}
+
                 <SellerFunnel funnel={ov.funnel} rangeLabel={rangeLabel} />
 
-                <PriorityQueue calls={calls} onUpdate={setEditing} onViewAll={() => { setTab('calls'); setCallFilter('all'); }} />
+                {!isSalesAdmin && <PriorityQueue calls={calls} readOnly={!canAct} onUpdate={setEditing} onViewAll={() => { setTab('calls'); setCallFilter('all'); }} />}
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-5 items-start">
                   {/* Targets */}
@@ -560,7 +661,7 @@ export function SalesDashboard({ viewAs }: { viewAs?: { id: string; name: string
                                 <span className={`text-[11.5px] font-semibold px-2 py-0.5 rounded-full ${overdue ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-700'}`}>
                                   <Clock className="w-3 h-3 inline -mt-0.5 mr-1" />{fmtDateTime(c.followUpAt)}
                                 </span>
-                                <button onClick={() => setEditing(c)} className="h-8 px-3 rounded-full border border-[#E2E8F0] text-[12px] font-semibold text-[#475569] hover:border-[#00A86B]/40 hover:text-[#00A86B]">Update</button>
+                                {canAct && <button onClick={() => setEditing(c)} className="h-8 px-3 rounded-full border border-[#E2E8F0] text-[12px] font-semibold text-[#475569] hover:border-[#00A86B]/40 hover:text-[#00A86B]">Update</button>}
                               </div>
                             </li>
                           );
@@ -576,8 +677,8 @@ export function SalesDashboard({ viewAs }: { viewAs?: { id: string; name: string
                     <div className="flex items-center gap-3 flex-1 min-w-0">
                       <span className="w-10 h-10 rounded-xl bg-[#F0FDF4] text-[#00A86B] flex items-center justify-center shrink-0"><Link2 className="w-5 h-5" /></span>
                       <div className="min-w-0">
-                        <div className="text-[14px] font-bold text-[#0F172A]">Your referral</div>
-                        <p className="text-[12.5px] text-[#64748B]">Sellers who register with your ID or link are attributed to you.</p>
+                        <div className="text-[14px] font-bold text-[#0F172A]">{viewAs ? 'Referral code' : 'Your referral code'}</div>
+                        <p className="text-[12.5px] text-[#64748B]">Sellers who sign up with this code (or the link) are linked to {viewAs ? 'this sales person' : 'you'} — share it before they register.</p>
                       </div>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
@@ -593,6 +694,8 @@ export function SalesDashboard({ viewAs }: { viewAs?: { id: string; name: string
                     </div>
                   </div>
                 )}
+
+                {!isSalesAdmin && <OfferLetterCard employeeId={viewAsId} letterNumber={me?.offer?.letterNumber} issuedAt={me?.offer?.issuedAt} />}
               </div>
             )}
 
@@ -608,10 +711,15 @@ export function SalesDashboard({ viewAs }: { viewAs?: { id: string; name: string
                       </button>
                     ))}
                   </div>
-                  <div className="relative w-[240px] max-w-full">
-                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8]" />
-                    <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search name, business or phone"
-                      className="w-full h-9 pl-10 pr-4 rounded-full border border-[#E2E8F0] text-[12.5px] focus:outline-none focus:border-[#00A86B]" />
+                  <div className="flex items-center gap-2 max-w-full">
+                    <div className="relative w-[240px] max-w-full">
+                      <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8]" />
+                      <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search name, business or phone"
+                        className="w-full h-9 pl-10 pr-4 rounded-full border border-[#E2E8F0] text-[12.5px] focus:outline-none focus:border-[#00A86B]" />
+                    </div>
+                    {canAct && (
+                      <button onClick={() => setAddingLead(true)} className="h-9 px-4 rounded-full bg-[#00A86B] hover:bg-[#009B63] text-white text-[12.5px] font-semibold inline-flex items-center gap-1.5 shrink-0"><Plus className="w-4 h-4" />Add lead</button>
+                    )}
                   </div>
                 </div>
                 {visibleCalls.length === 0 ? (
@@ -631,7 +739,7 @@ export function SalesDashboard({ viewAs }: { viewAs?: { id: string; name: string
                             <td className="py-3 px-4"><span className={`px-2 py-0.5 rounded-full border text-[11px] font-semibold ${STATUS_TONE[c.status]}`}>{CALL_STATUS_LABEL[c.status]}</span></td>
                             <td className="py-3 px-4">{c.outcome ? CALL_OUTCOME_LABEL[c.outcome] : '—'}</td>
                             <td className="py-3 px-4 whitespace-nowrap">{fmtDateTime(c.followUpAt)}</td>
-                            <td className="py-3 px-4 text-right"><button onClick={() => setEditing(c)} className="h-8 px-3 rounded-full border border-[#E2E8F0] text-[12px] font-semibold text-[#475569] hover:border-[#00A86B]/40 hover:text-[#00A86B]">Update</button></td>
+                            <td className="py-3 px-4 text-right">{canAct ? <button onClick={() => setEditing(c)} className="h-8 px-3 rounded-full border border-[#E2E8F0] text-[12px] font-semibold text-[#475569] hover:border-[#00A86B]/40 hover:text-[#00A86B]">Update</button> : c.stage === 'onboarded' ? <span className="text-[11.5px] font-semibold text-[#00A86B]">Onboarded</span> : null}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -661,9 +769,9 @@ export function SalesDashboard({ viewAs }: { viewAs?: { id: string; name: string
                   <Empty icon={UserPlus} title={sellers.length ? 'No sellers match' : 'No referred sellers yet'} body={sellers.length ? 'Try a different filter or search.' : 'Sellers who register with your referral ID will appear here.'} />
                 ) : (
                   <div className="overflow-x-auto">
-                    <table className="w-full text-left min-w-[960px]">
+                    <table className="w-full text-left min-w-[1240px]">
                       <thead><tr className="bg-[#E6F9F2] text-xs font-medium text-[#64748B] uppercase tracking-wider">
-                        {['Seller', 'Phone', 'Registered', 'KYC', 'Onboarding', 'First order', 'Orders', 'Last order', 'Activity'].map(h => <th key={h} className="py-2.5 px-4 whitespace-nowrap">{h}</th>)}
+                        {['Seller', 'Phone', 'Registered', 'KYC', 'Onboarding', 'First order', 'Shipments', 'Last order', 'Activity', 'Rate', 'Bonus', ''].map(h => <th key={h} className="py-2.5 px-4 whitespace-nowrap">{h}</th>)}
                       </tr></thead>
                       <tbody className="text-[12.5px] text-[#475569]">
                         {visibleSellers.map(s => (
@@ -677,6 +785,16 @@ export function SalesDashboard({ viewAs }: { viewAs?: { id: string; name: string
                             <td className="py-3 px-4 font-semibold text-[#0F172A] tabular-nums">{n(s.totalOrders)}</td>
                             <td className="py-3 px-4 whitespace-nowrap">{fmtDate(s.lastOrderAt)}</td>
                             <td className="py-3 px-4"><span className={`inline-flex items-center gap-1.5 text-[12px] font-semibold ${s.active ? 'text-[#00A86B]' : 'text-[#94A3B8]'}`}><span className={`w-1.5 h-1.5 rounded-full ${s.active ? 'bg-[#00A86B]' : 'bg-[#CBD5E1]'}`} />{s.active ? 'Active' : 'Inactive'}</span></td>
+                            <td className="py-3 px-4 whitespace-nowrap">{s.rate
+                              ? <div><div className="font-semibold text-[#0F172A]">{s.rate.current}</div><div className="text-[11px] text-[#94A3B8]">{s.rate.current !== s.rate.committed ? `committed ${s.rate.committed} · ` : ''}{s.rate.autoAdjust ? `review ${fmtDate(s.rate.nextReviewAt)}` : 'fixed'}</div></div>
+                              : <span className="text-[#94A3B8]">Default</span>}</td>
+                            <td className="py-3 px-4 whitespace-nowrap">{s.bonus
+                              ? <span className={`text-[12px] font-semibold capitalize ${BONUS_TONE[s.bonus.status]}`}>{s.bonus.status === 'earned' || s.bonus.status === 'paid' ? `${inr(s.bonus.amount)} ${s.bonus.status}` : s.bonus.status === 'pending' ? `Pending till ${fmtDate(s.bonus.deadline)}` : 'Window closed'}</span>
+                              : '—'}</td>
+                            <td className="py-3 px-4 text-right whitespace-nowrap">
+                              <button onClick={() => setViewing(s._id)} title="View seller" aria-label={`View ${s.name}`} className="w-8 h-8 rounded-full border border-[#E2E8F0] inline-flex items-center justify-center text-[#475569] hover:border-[#00A86B]/40 hover:text-[#00A86B]"><Eye className="w-4 h-4" /></button>
+                              {canAct && offers.length > 0 && <button onClick={() => setAssigning(s)} className="ml-1.5 h-8 px-3 rounded-full border border-[#E2E8F0] text-[12px] font-semibold text-[#475569] hover:border-[#00A86B]/40 hover:text-[#00A86B]">{s.rate ? 'Change rate' : 'Set rate'}</button>}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -685,6 +803,9 @@ export function SalesDashboard({ viewAs }: { viewAs?: { id: string; name: string
                 )}
               </div>
             )}
+
+            {tab === 'earnings' && <SalesEarningsTab key={reloadKey} viewAsId={viewAsId} />}
+            {tab === 'rates' && <SalesRatesTab viewAsId={viewAsId} sellers={sellers} canAssign={canAct} onAssigned={msg => { showToast('success', msg); load(); }} />}
 
             {/* ── Performance ── */}
             {tab === 'performance' && (
@@ -783,6 +904,12 @@ export function SalesDashboard({ viewAs }: { viewAs?: { id: string; name: string
             onSaved={(msg, ok) => { showToast(ok ? 'success' : 'error', msg); load(); }} />
         )}
       </AnimatePresence>
-    </Wrap>
+      {addingLead && <AddLeadDialog onClose={() => setAddingLead(false)} onSaved={msg => { showToast('success', msg); load(); }} />}
+      {assigning && (
+        <AssignRateDialog sellers={sellers} offers={offers} initialSellerId={assigning._id}
+          onClose={() => setAssigning(null)} onDone={msg => { showToast('success', msg); load(); }} />
+      )}
+      {viewing && <SellerDetailDialog sellerId={viewing} viewAsId={viewAsId} onClose={() => setViewing(null)} />}
+    </>
   );
 }

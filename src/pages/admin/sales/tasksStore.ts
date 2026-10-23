@@ -1,5 +1,7 @@
-/* Sales tasks storage — shared by the Tasks page and the Sales notifications bell.
-   Kept in this browser per employee until the Sales backend exposes `/sales/tasks`. */
+import { salesApiClient } from '../../../services/salesApi';
+
+/* Sales tasks — shared by the Tasks page and the Sales notifications bell. Saved on the server
+   (/sales/tasks, the sales person's own list); kept in memory here so both read the same copy. */
 
 export type TaskPriority = 'high' | 'medium' | 'low';
 
@@ -16,15 +18,33 @@ export interface SalesTask {
 }
 
 export const TASKS_CHANGED_EVENT = 'qp-sales-tasks-changed';
-const storageKey = (owner: string) => `qp_sales_tasks:${owner || 'me'}`;
+const cache = new Map<string, SalesTask[]>();
 
 export function readTasks(owner: string): SalesTask[] {
-  try { return JSON.parse(localStorage.getItem(storageKey(owner)) || '[]'); } catch { return []; }
+  return cache.get(owner || 'me') || [];
 }
 
-export function writeTasks(owner: string, tasks: SalesTask[]) {
-  try { localStorage.setItem(storageKey(owner), JSON.stringify(tasks)); } catch { /* storage blocked */ }
+/** Fetches the list from the server (once per call) and refreshes everyone reading it */
+export async function loadTasks(owner: string): Promise<SalesTask[]> {
+  try {
+    const res = await salesApiClient.get('/tasks');
+    const tasks: SalesTask[] = res.data?.tasks || [];
+    cache.set(owner || 'me', tasks);
+    window.dispatchEvent(new Event(TASKS_CHANGED_EVENT));
+    return tasks;
+  } catch {
+    return readTasks(owner);
+  }
+}
+
+/** Saves the whole list; the screen updates at once and the server copy follows */
+export function writeTasks(owner: string, tasks: SalesTask[]): Promise<boolean> {
+  cache.set(owner || 'me', tasks);
   window.dispatchEvent(new Event(TASKS_CHANGED_EVENT));
+  return salesApiClient.put('/tasks', { tasks }).then(() => true, () => false);
 }
 
-export const todayStr = () => new Date().toISOString().slice(0, 10);
+export const todayStr = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};

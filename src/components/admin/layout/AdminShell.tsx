@@ -16,6 +16,8 @@ import { employeePanelMode, getToken } from '../../../utils/session';
 import { modeUrl } from '../../../utils/shippingMode';
 import { useApplyPanelTheme } from '../../../context/ThemeContext';
 
+const SALES_PATHS = ['/admin/sales', '/admin/tasks'];
+
 // In Cargo mode only the sections in config/cargo.ts are reachable; anything else lands on Home.
 function CargoRouteGuard() {
   const { pathname } = useLocation();
@@ -29,8 +31,8 @@ function CargoRouteGuard() {
   }, [wrongPanel, employeeMode, pathname]);
   const { isSalesEmployee, isEmployee, isAdmin, adminTab, employeeAccessRights, employeeRightsLoaded } = useAdminTab();
   if (wrongPanel) return null;
-  // Sales employees land on (and are kept on) the Sales Dashboard instead of the main dashboard.
-  if (isSalesEmployee && pathname === '/admin/dashboard') {
+  // Sales employees work only in the Sales panel: anything else (the main dashboard included) lands there.
+  if (isSalesEmployee && !SALES_PATHS.includes(pathname)) {
     return <Navigate to="/admin/sales" replace />;
   }
   // Admin-panel employees without the Dashboard permission go to their first permitted page instead.
@@ -51,7 +53,7 @@ export function AdminShell() {
   useApplyPanelTheme(); // dark mode lives only inside the signed-in panel
   const location = useLocation();
   const navigate = useNavigate();
-  const { loadingAdminTab, isEmployee, isAdmin, adminTab, employeeAccessRights } = useAdminTab();
+  const { loadingAdminTab, isEmployee, isAdmin, adminTab, employeeAccessRights, isSalesEmployee } = useAdminTab();
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [accessDeniedMsg, setAccessDeniedMsg] = useState<string | null>(null);
   const isImpersonating = !!localStorage.getItem('admin_token_backup');
@@ -66,7 +68,8 @@ export function AdminShell() {
 
   // Employees may only open what their rights allow. The forbidden page is never mounted (so it
   // never fetches), the popup explains why, and OK returns them to their own dashboard.
-  const employeeBlocked = isEmployee && !loadingAdminTab && !canAccessRoute(employeeAccessRights, location.pathname);
+  // (Sales people are redirected to the Sales panel instead — see CargoRouteGuard.)
+  const employeeBlocked = isEmployee && !isSalesEmployee && !loadingAdminTab && !canAccessRoute(employeeAccessRights, location.pathname);
   const landing = isAdmin && adminTab ? '/admin/dashboard' : '/user/dashboard';
 
   const showHeader =

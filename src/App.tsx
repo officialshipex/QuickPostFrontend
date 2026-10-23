@@ -58,6 +58,7 @@ import { AdminStatusMap } from './pages/admin/AdminStatusMap';
 import { AdminEDDMapping } from './pages/admin/AdminEDDMapping';
 import { AdminEPDMapping } from './pages/admin/AdminEPDMapping';
 import { AdminReferral } from './pages/admin/AdminReferral';
+import { UserReferral } from './pages/admin/UserReferral';
 import { AdminRateCard } from './pages/admin/AdminRateCard';
 import { AdminRateCalculator } from './pages/admin/AdminRateCalculator';
 import { AdminAddOrder } from './pages/admin/AdminAddOrder';
@@ -348,7 +349,7 @@ function App() {
               <Route path="/user/notification" element={<AdminNotification />} />
               <Route path="/user/notification/:tabSlug" element={<AdminNotification />} />
               <Route path="/user/kyc" element={<Navigate to="/user/profile?tab=kyc" replace />} />
-              <Route path="/user/referral" element={<AdminReferral />} />
+              <Route path="/user/referral" element={<UserReferral />} />
               <Route path="/user/support" element={<AdminSupport />} />
               <Route path="/user/support/:tabSlug" element={<AdminSupport />} />
               <Route path="/user/rate-calculator" element={<ModeRoute b2c={<AdminRateCalculator />} cargo={<CargoRateCalculator />} />} />

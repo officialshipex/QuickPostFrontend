@@ -46,6 +46,8 @@ export function SignupCard({ onBack }: SignupCardProps) {
   const [serverError, setServerError] = useState<string | null>(null);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  // Code from a sales person or another seller (pre-filled from a ?ref= link, or typed in)
+  const [referralCode, setReferralCode] = useState(() => searchParams.get('ref') || searchParams.get('code') || '');
   const { login } = useAuth();
 
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormData>({
@@ -68,7 +70,7 @@ export function SignupCard({ onBack }: SignupCardProps) {
         password: data.password,
         confirmedPassword: data.confirmedPassword,
         checked: data.checked,
-        referralCode: searchParams.get('ref') || undefined,
+        referralCode: referralCode.trim() || undefined,
       });
 
       if (!response.data.success) throw new Error(response.data.message || 'Registration failed');
@@ -189,6 +191,11 @@ export function SignupCard({ onBack }: SignupCardProps) {
               </button>
             </div>
           </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-[#475569] mb-1.5">Referral code <span className="font-normal text-[#94A3B8]">(optional)</span></label>
+          <Input value={referralCode} onChange={e => setReferralCode(e.target.value.toUpperCase())} placeholder="e.g. SPAB12CD (from your sales contact)" autoComplete="off" className="h-11 bg-transparent border-[#E2E8F0] text-sm uppercase focus-visible:ring-[#00A86B]" />
         </div>
 
         <div className="flex items-start gap-2">

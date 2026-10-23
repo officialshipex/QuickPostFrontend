@@ -37,6 +37,7 @@ import {
   Palette,
   LayoutDashboard,
   Lock,
+  ListChecks,
 } from 'lucide-react';
 
 const LOGO_URL = '/logo-white.png';
@@ -91,6 +92,14 @@ const MENU_GROUPS: MenuGroup[] = [
     label: 'Sales Dashboard',
     icon: Target,
     path: '/admin/sales',
+    adminOnly: true,
+    permission: 'sales',
+    salesEmployeeOnly: true,
+  },
+  {
+    label: 'Tasks',
+    icon: ListChecks,
+    path: '/admin/tasks',
     adminOnly: true,
     permission: 'sales',
     salesEmployeeOnly: true,
@@ -248,6 +257,8 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
     });
 
   const shouldShowGroup = (group: MenuGroup) => {
+    // Sales people work only in the Sales panel: their sidebar is the Sales Dashboard and Tasks.
+    if (isSalesEmployee) return !!group.salesEmployeeOnly;
     if (group.divider) return true;
     if (group.salesEmployeeOnly && !isSalesEmployee) return false;
     // Sales employees work from the Sales Dashboard — the main dashboard is hidden for them.

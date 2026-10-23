@@ -165,10 +165,8 @@ export function AdminUserProvider({ children }: { children: ReactNode }) {
       isAdmin, adminTab, loadingAdminTab, currentUserId,
       userName, userEmail, businessName, profileImage, walletBalance, walletHold, creditLimit,
       isEmployee, employeeId, employeeAccessRights, employeeRightsLoaded, parentEmail,
-      // Sales team = team 'sales' from the backend; until the backend returns `team`, an admin-panel
-      // employee holding the Sales Dashboard permission counts as Sales.
-      isSalesEmployee: isEmployee && (employeeTeam === 'sales'
-        || (!employeeTeam && isAdmin && employeeAccessRights?.sales?.view === true)),
+      // Sales team = team 'sales' on the employee (the backend locks those accounts to the Sales panel).
+      isSalesEmployee: isEmployee && employeeTeam === 'sales',
       showOnboarding, setShowOnboarding,
       toggleAdminTab,
       refetchUser: fetchAdminTab,
