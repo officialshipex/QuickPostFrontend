@@ -165,7 +165,7 @@ export function AdminAddOrder() {
   const h = Number(height) || 0;
   const volWeight = l && w && h ? (l * w * h) / 5000 : 0;
   const dWeight = Number(deadWeight) || 0;
-  const applicableWeight = Math.max(dWeight, volWeight, 0.5);
+  const applicableWeight = Math.max(dWeight, volWeight, 0.25); // minimum chargeable weight 0.25 kg
 
   // B2B weight
   const b2bTotalDead = b2bPackages.reduce(
@@ -1310,7 +1310,7 @@ export function AdminAddOrder() {
               )}
 
               <p className="text-[12px] md:text-[11px] text-[#64748B]">
-                <span className="text-red-500 font-bold">Note:</span> The minimum chargeable weight is <span className="font-bold">0.50 Kg.</span> Dimensions should be in <span className="font-bold">centimetres only</span> and value should be greater than <span className="font-bold">0.50 cm.</span>
+                <span className="text-red-500 font-bold">Note:</span> The minimum chargeable weight is <span className="font-bold">0.25 Kg.</span> Dimensions should be in <span className="font-bold">centimetres only</span> and value should be greater than <span className="font-bold">0.50 cm.</span>
               </p>
             </div>
           </div>

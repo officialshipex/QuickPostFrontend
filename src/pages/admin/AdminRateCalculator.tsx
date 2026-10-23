@@ -382,7 +382,7 @@ export function AdminRateCalculator() {
                   />
                   <span className={suffixCls}>kg</span>
                 </div>
-                <p className="text-[11.5px] text-[#94A3B8] mt-1.5 pl-1">Min. chargeable weight is 0.5 kg</p>
+                <p className="text-[11.5px] text-[#94A3B8] mt-1.5 pl-1">Min. chargeable weight is 0.25 kg</p>
               </div>
               <div>
                 <label className={labelCls}>Shipment Value <span className="text-red-500">*</span></label>

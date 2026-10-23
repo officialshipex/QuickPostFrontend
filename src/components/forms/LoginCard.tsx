@@ -10,8 +10,6 @@ import { useAuth } from '../../hooks/useAuth';
 import { apiClient } from '../../services/apiClient';
 import { getRoleFromToken } from '../../utils/session';
 
-const ALLOWED_EMAILS = ['bhanjabijayketan@gmail.com', 'vincesingal@gmail.com', 'shubhamjha493@gmail.com'];
-
 const formSchema = z.object({
   email: z.string().min(1, 'Email is required').email('Invalid email address'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
@@ -33,12 +31,6 @@ export function LoginCard() {
   const onSubmit = async (data: FormData) => {
     setStatus('loading');
     setServerError(null);
-
-    if (!ALLOWED_EMAILS.includes(data.email.toLowerCase().trim())) {
-      setStatus('error');
-      setServerError('This panel is currently in testing mode. Please login at app.shipexindia.com/login');
-      return;
-    }
 
     try {
       const response = await apiClient.post('/external/login', {

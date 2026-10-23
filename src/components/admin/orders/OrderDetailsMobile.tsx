@@ -197,6 +197,19 @@ export function OrderDetailsMobile(p: OrderDetailsMobileProps) {
               </span>
             )}
           </div>
+          {/* whose order this is — admin / employee only (the backend sends `seller` only to staff) */}
+          {order?.seller && (
+            <div className="mt-3.5 pt-3 border-t border-dashed border-[#E2E8F0] text-[13px]">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className="text-[#64748B] shrink-0">User :</span>
+                <span className="font-semibold text-[#0F172A] truncate">{order.seller.name || '—'}</span>
+                <span className="text-[#00A86B] font-semibold shrink-0">({order.seller.userId ?? '—'})</span>
+              </div>
+              <div className="text-[12px] text-[#64748B] mt-0.5 break-all">
+                {[order.seller.email, order.seller.phoneNumber].filter(Boolean).join(' · ') || '—'}
+              </div>
+            </div>
+          )}
           <div className="mt-3.5 pt-3 border-t border-dashed border-[#E2E8F0]">
             <button type="button" onClick={() => setSheet('pickup')} className="w-full flex items-center gap-1.5 text-left text-[13px] min-w-0">
               <span className="text-[#64748B] shrink-0">Pickup Address :</span>

@@ -8,7 +8,7 @@ import { ShipOrderModal } from '../../components/admin/orders/ShipOrderModal';
 import { OrderDetailsMobile } from '../../components/admin/orders/OrderDetailsMobile';
 import {
   ArrowLeft, AlertTriangle, Copy, Check, Truck, ClipboardList, MapPin, Navigation,
-  Package, Receipt, Map, History, X, Phone, Clock, Home, Info, FileText, Loader2,
+  Package, Receipt, Map, History, X, Phone, Clock, Home, Info, FileText, Loader2, UserCircle,
 } from 'lucide-react';
 import { Toast } from '../../components/ui/Toast';
 import { useToast } from '../../hooks/useToast';
@@ -34,6 +34,8 @@ export interface OrderData {
   _id: string;
   orderId?: number | string;
   userId?: string;
+  // whose order this is: sent by the backend to admin / employees only
+  seller?: { _id?: string; userId?: number | string; name?: string; email?: string; phoneNumber?: string };
   channel?: string;
   channelId?: number;
   channelOrderName?: string;
@@ -870,6 +872,36 @@ export function AdminOrderTracking() {
 
           {/* LEFT COLUMN */}
           <div className="flex flex-col gap-3 md:gap-5 min-w-0">
+
+            {/* USER DETAILS — admin / employee only: the backend sends `seller` only to staff */}
+            {order?.seller && (
+              <div className="bg-white rounded-xl border border-[#E2E8F0] p-3 md:p-5 shadow-sm left-col-card">
+                <div className="flex items-center gap-2.5 border-b border-[#E2E8F0] pb-2.5 md:pb-3 mb-3 md:mb-4">
+                  <div className="w-8 h-8 rounded-full bg-[#F0FDF4] flex items-center justify-center shrink-0">
+                    <UserCircle className="w-4 h-4 text-[#00A86B]" />
+                  </div>
+                  <h3 className="text-[14px] leading-[20px] font-semibold text-[#0F172A]">User Details</h3>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 md:gap-4">
+                  <div>
+                    <label className="block text-[12px] leading-[18px] font-medium text-[#94A3B8] uppercase tracking-wider">User ID</label>
+                    <div className="text-[12px] leading-[18px] font-semibold text-[#00A86B] mt-0.5">{order.seller.userId ?? '—'}</div>
+                  </div>
+                  <div>
+                    <label className="block text-[12px] leading-[18px] font-medium text-[#94A3B8] uppercase tracking-wider">Name</label>
+                    <div className="text-[12px] leading-[18px] font-normal text-[#0F172A] mt-0.5 break-words">{order.seller.name || '—'}</div>
+                  </div>
+                  <div>
+                    <label className="block text-[12px] leading-[18px] font-medium text-[#94A3B8] uppercase tracking-wider">Email</label>
+                    <div className="text-[12px] leading-[18px] font-normal text-[#0F172A] mt-0.5 break-all">{order.seller.email || '—'}</div>
+                  </div>
+                  <div>
+                    <label className="block text-[12px] leading-[18px] font-medium text-[#94A3B8] uppercase tracking-wider">Phone</label>
+                    <div className="text-[12px] leading-[18px] font-normal text-[#0F172A] mt-0.5">{order.seller.phoneNumber || '—'}</div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* SECTION 1: ORDER DETAILS */}
             <div className="bg-white rounded-xl border border-[#E2E8F0] p-3 md:p-5 shadow-sm left-col-card">

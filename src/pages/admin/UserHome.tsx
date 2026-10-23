@@ -398,7 +398,7 @@ export function UserHome() {
     setRateErrors(errs);
     if (Object.keys(errs).length) return;
 
-    const weight = Math.max(parseFloat(rate.weight), 0.5);
+    const weight = Math.max(parseFloat(rate.weight), 0.25);
     setRateLoading(true);
     setRateError('');
     setRateResults(null);
@@ -411,7 +411,7 @@ export function UserHome() {
         weight: String(weight),
         declaredValue: rate.value,
         paymentType: 'Prepaid',
-        // Quick estimate — nominal box whose volumetric weight (0.2 kg) never exceeds the 0.5 kg minimum
+        // Quick estimate — nominal box whose volumetric weight (0.2 kg) never exceeds the 0.25 kg minimum
         dimensions: { length: '10', breadth: '10', height: '10' },
         applicableWeight: weight,
       });
@@ -633,7 +633,7 @@ export function UserHome() {
                           </div>
                           {rateErrors.weight
                             ? <p className="text-[12px] text-red-500 mt-1.5">{rateErrors.weight}</p>
-                            : <p className="text-[12px] text-[#64748B] mt-1.5">Min. chargeable wt is 0.5kg</p>}
+                            : <p className="text-[12px] text-[#64748B] mt-1.5">Min. chargeable wt is 0.25kg</p>}
                         </div>
                         <div className="min-w-0">
                           <label className="block text-[14px] md:text-[15px] font-medium mb-2.5">Shipment Value (₹)</label>
