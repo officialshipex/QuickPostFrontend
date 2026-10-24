@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { Suspense, lazy, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Navbar } from '../components/layout/Navbar';
 import { Footer } from '../components/layout/Footer';
@@ -10,6 +10,8 @@ import { HowItWorks } from '../components/sections/HowItWorks';
 import { ServicesPortfolioSection } from '../components/sections/ServicesPortfolioSection';
 import { StatsSection } from '../components/sections/StatsSection';
 import { OfferPopup } from '../components/sections/OfferPopup';
+
+const ShippingNetworkScene = lazy(() => import('../components/sections/ShippingNetworkScene').then(m => ({ default: m.ShippingNetworkScene })));
 
 export function Home() {
   const location = useLocation();
@@ -29,6 +31,9 @@ export function Home() {
         </div>
         <TrustedBrands />
         <Features />
+        <Suspense fallback={<div aria-hidden className="bg-[#F4F6F5] py-[48px] md:py-[80px]"><div className="max-w-[1320px] mx-auto px-4 md:px-8"><div className="min-h-[420px] lg:min-h-[480px]" /></div></div>}>
+          <ShippingNetworkScene />
+        </Suspense>
         <ProfitsSection />
         <HowItWorks />
         <ServicesPortfolioSection />
