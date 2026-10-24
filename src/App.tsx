@@ -15,6 +15,7 @@ import { Register } from './pages/Register';
 import { EmployeeLogin } from './pages/EmployeeLogin';
 import { ProtectedRoute } from './components/layout/ProtectedRoute';
 import { AdminUserProvider } from './context/AdminUserContext';
+import { FeedbackPrompt } from './components/feedback/FeedbackPrompt';
 import { ThemeProvider } from './context/ThemeContext';
 import { DashboardFilterProvider } from './context/DashboardFilterContext';
 import { NotificationListProvider } from './context/NotificationListContext';
@@ -266,7 +267,7 @@ function App() {
           <Route path="/forgot-password" element={<AuthRedirect><ForgotPassword /></AuthRedirect>} />
 
           {/* Protected Routes — auth check + context providers */}
-          <Route element={<AdminUserProvider><DashboardFilterProvider><NotificationListProvider><ProtectedRoute /></NotificationListProvider></DashboardFilterProvider></AdminUserProvider>}>
+          <Route element={<AdminUserProvider><DashboardFilterProvider><NotificationListProvider><ProtectedRoute /><FeedbackPrompt /></NotificationListProvider></DashboardFilterProvider></AdminUserProvider>}>
 
             {/* Standalone (no sidebar/header) — opens in its own tab from Home */}
             <Route path="/user/book-session" element={<BookSession />} />

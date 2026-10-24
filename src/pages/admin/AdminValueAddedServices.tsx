@@ -2,12 +2,13 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
+import { DesktopPreferred } from '../../components/ui/DesktopPreferred';
 import { useToast } from '../../hooks/useToast';
 import { Toast } from '../../components/ui/Toast';
 import { TableLoader } from '../../components/ui/TableLoader';
 import { ShineButton } from '../../components/ui/ShineButton';
 import {
-  Gauge, ShieldCheck, Rocket, BellRing, PackageCheck,
+  ShieldCheck, Rocket, BellRing, PackageCheck,
   ChevronDown, CheckCircle2, Clock, Users, BadgeCheck, Wallet2, PlayCircle,
   ArrowRight, AlertTriangle, ShieldOff, Lock, Loader2, Zap, LayoutList, AlertCircle,
 } from 'lucide-react';
@@ -23,7 +24,6 @@ import { apiCode, apiMessage, fmtDate, fmtMoney, planLabel, vasApi, type VasAcce
 
 /* ── Left sub-nav — mirrors the sidebar's Value Added Services group ── */
 const VAS_NAV = [
-  { id: 'rto-score', label: 'RTO Score', path: '/user/vas/rto-score', icon: Gauge },
   { id: 'auto-secure', label: 'Auto-Secure Shipments', path: '/user/vas/auto-secure', icon: ShieldCheck },
   { id: 'delivery-boost', label: 'QuickBoost', path: '/user/vas/delivery-boost', icon: Rocket },
   // { id: 'secure-x', label: 'Secure X', path: '/user/vas/secure-x', icon: ShieldAlert },
@@ -32,7 +32,7 @@ const VAS_NAV = [
   { id: 'shipsure', label: 'QuickSure', path: '/user/vas/shipsure', icon: PackageCheck, isNew: true },
 ];
 
-function VasShell({ children, hideNav = false }: { children: React.ReactNode; hideNav?: boolean }) {
+function VasShell({ children, hideNav = true }: { children: React.ReactNode; hideNav?: boolean }) {
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -818,7 +818,9 @@ function VasComingSoonPanel({ title, description }: { title: string; description
 export function AdminAutoSecure() {
   return (
     <VasShell>
-      <AutoSecurePanel />
+      <DesktopPreferred title="Secure">
+        <AutoSecurePanel />
+      </DesktopPreferred>
     </VasShell>
   );
 }

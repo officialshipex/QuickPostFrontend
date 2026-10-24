@@ -3,10 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   ArrowLeft, ArrowRight, Zap, Phone, MessageCircle, PhoneCall, CheckCircle2, Sparkles, PackageX, Clock, RefreshCw,
-  Truck, ChevronDown, X, Info, MapPin, BadgeCheck, Signal, Wifi, BatteryFull, ChevronLeft, Video, MoreVertical, Lock,
+  ChevronDown, X, Info, MapPin, BadgeCheck, Signal, Wifi, BatteryFull, ChevronLeft, Video, MoreVertical, Lock,
   CheckCheck, Smile, Paperclip, Mic, type LucideIcon,
 } from 'lucide-react';
 import { AdminLayout } from '../../../components/admin/layout/AdminLayout';
+import { DesktopPreferred } from '../../../components/ui/DesktopPreferred';
 import { Toast } from '../../../components/ui/Toast';
 import { ShineButton } from '../../../components/ui/ShineButton';
 import { useToast } from '../../../hooks/useToast';
@@ -198,6 +199,7 @@ export function NdrFollowups() {
 
   return (
     <AdminLayout>
+      <DesktopPreferred title="NDR Follow-ups">
       <div className="max-w-[1400px] mx-auto pb-10 flex flex-col gap-6">
         {/* Header */}
         <div className="flex items-start gap-3">
@@ -411,6 +413,7 @@ export function NdrFollowups() {
       </AnimatePresence>
 
       <Toast toast={toast} onClose={closeToast} />
+      </DesktopPreferred>
     </AdminLayout>
   );
 }

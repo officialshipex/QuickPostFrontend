@@ -25,7 +25,7 @@ import {
   Calendar,
   Mail,
   Building2,
-  Target, Gauge, PhoneCall,
+  Target, Gauge, PhoneCall, PackageCheck, BellRing, Rocket,
   RotateCcw,
   X,
   ChevronRight,
@@ -155,6 +155,9 @@ const MENU_GROUPS: MenuGroup[] = [
       { name: 'Secure', path: '/user/vas/auto-secure', icon: ShieldCheck, userOnly: true, permission: 'vasSecure' },
       { name: 'Branded Tracking Page', path: '/user/vas/branded-tracking', icon: Palette, userOnly: true, permission: 'brandedTracking' },
       { name: 'NDR Follow-ups', path: '/user/vas/ndr-followups', icon: PhoneCall, userOnly: true },
+      { name: 'QuickBoost', path: '/user/vas/delivery-boost', icon: Rocket, userOnly: true },
+      { name: 'Notify', path: '/user/vas/notify', icon: BellRing, userOnly: true },
+      { name: 'QuickSure', path: '/user/vas/shipsure', icon: PackageCheck, userOnly: true, isNew: true },
       { name: 'View all VAS', path: '/user/vas', icon: Zap, userOnly: true },
     ]
   },

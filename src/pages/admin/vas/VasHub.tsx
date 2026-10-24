@@ -7,6 +7,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { AdminLayout } from '../../../components/admin/layout/AdminLayout';
+import { DesktopPreferred } from '../../../components/ui/DesktopPreferred';
 import { vasApi } from './vasApi';
 
 /* View all VAS — one hub for every value-added service: a "Curated for you" carousel, category tabs and a
@@ -250,6 +251,7 @@ export function VasHub() {
 
   return (
     <AdminLayout>
+      <DesktopPreferred title="Value Added Services">
       <div className="max-w-[1400px] mx-auto pb-10 flex flex-col gap-6">
         <div>
           <h1 className="text-[20px] font-bold text-[#0F172A]">Value Added Services</h1>
@@ -284,6 +286,7 @@ export function VasHub() {
           </AnimatePresence>
         </div>
       </div>
+      </DesktopPreferred>
     </AdminLayout>
   );
 }
