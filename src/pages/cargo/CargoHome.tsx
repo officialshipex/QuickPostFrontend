@@ -362,7 +362,11 @@ export function CargoHome() {
     const suffix = `${pickupTab}-${ymd(pickupTab === 'today' ? new Date() : addDays(new Date(), 1))}`;
     try {
       if (kind === 'manifests') {
-        const res = await fetch(`${BACKEND_BASE}/manifest/generate-pdf?orderIds=${activeOrderIds.join(',')}`, { headers: authHeaders() });
+        const res = await fetch(`${BACKEND_BASE}/manifest/generate-pdf`, {
+          method: 'POST',
+          headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderIds: activeOrderIds }), // in the body: a large selection does not fit in a URL
+        });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         saveBlob(await res.blob(), `manifest-${suffix}.pdf`);
       } else if (kind === 'labels') {

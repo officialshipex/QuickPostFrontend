@@ -240,7 +240,11 @@ export function AdminPickupManifest({
     try {
       const token = getToken();
       const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
-      const res = await fetch(`${BACKEND_BASE}/manifest/generate-pdf?orderIds=${orderIds.join(',')}`, { headers });
+      const res = await fetch(`${BACKEND_BASE}/manifest/generate-pdf`, {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderIds }), // in the body: a large manifest does not fit in a URL
+      });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);

@@ -295,11 +295,14 @@ const RtoRiskLine = ({ order, historyMaps, riskResult, className = '' }: { order
 // ─── File download helper ──────────────────────────────────────────────────────
 const BACKEND_BASE = (import.meta.env.VITE_API_URL as string) || 'http://localhost:5000/v1';
 
-const downloadBlob = async (path: string, filename: string) => {
+const downloadBlob = async (path: string, filename: string, body?: unknown) => {
   const token = getToken();
   const headers: Record<string, string> = {};
   if (token) headers['Authorization'] = `Bearer ${token}`;
-  const res = await fetch(`${BACKEND_BASE}${path}`, { headers });
+  // a JSON body makes it a POST (used for long ID lists that do not fit in a URL)
+  const res = await fetch(`${BACKEND_BASE}${path}`, body === undefined
+    ? { headers }
+    : { method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   if (!res.ok) throw new Error(`Download failed: HTTP ${res.status}`);
   const blob = await res.blob();
   const blobUrl = window.URL.createObjectURL(blob);
@@ -962,7 +965,7 @@ export function CargoOrders() {
   };
 
   const handleBulkManifest = async (ids: string[]) => {
-    try { await downloadBlob(`/manifest/generate-pdf?orderIds=${ids.join(',')}`, 'bulk-manifest.pdf'); }
+    try { await downloadBlob('/manifest/generate-pdf', 'bulk-manifest.pdf', { orderIds: ids }); }
     catch (e) { console.error('Bulk manifest download failed', e); }
   };
 

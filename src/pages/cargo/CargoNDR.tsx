@@ -13,6 +13,7 @@ import { Toast } from '../../components/ui/Toast';
 import { useToast } from '../../hooks/useToast';
 import { getToken } from '../../utils/session';
 import { PDFDocument } from 'pdf-lib';
+import { buildBulkLabelPdf } from '../../utils/bulkLabelPdf';
 import * as XLSX from 'xlsx';
 import { useAdminTab } from '../../context/AdminUserContext';
 import { useUserSearchFilter } from '../../hooks/filters/useUserSearchFilter';
@@ -184,11 +185,14 @@ const exportOrdersToExcel = (rows: any[], filename: string) => {
 };
 
 // ─── Download helpers ──────────────────────────────────────────────────────────
-const downloadBlob = async (path: string, filename: string) => {
+const downloadBlob = async (path: string, filename: string, body?: unknown) => {
   const token = getToken();
   const headers: Record<string, string> = {};
   if (token) headers['Authorization'] = `Bearer ${token}`;
-  const res = await fetch(`${BACKEND_BASE}${path}`, { headers });
+  // a JSON body makes it a POST (used for long ID lists that do not fit in a URL)
+  const res = await fetch(`${BACKEND_BASE}${path}`, body === undefined
+    ? { headers }
+    : { method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   if (!res.ok) throw new Error(`Download failed: HTTP ${res.status}`);
   const blob = await res.blob();
   const url = window.URL.createObjectURL(blob);
@@ -432,35 +436,11 @@ export function CargoNDR() {
   const handleBulkLabel = async (ids: string[]) => {
     if (!ids.length) return;
     try {
-      const mergedPdf = await PDFDocument.create();
-      const pageW = 595, pageH = 842, labelW = pageW / 2, labelH = pageH / 2;
-      let labelCount = 0;
-      let currentPage: ReturnType<typeof mergedPdf.addPage> | null = null;
+      // one 4"×6" label per page for thermal labels, A4 labels as before (see utils/bulkLabelPdf.ts)
       const token = getToken();
       const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
-      for (const id of ids) {
-        try {
-          const res = await fetch(`${BACKEND_BASE}/label/get-label?orderId=${id}`, { headers });
-          if (!res.ok) continue;
-          const pdfBytes = await (await res.blob()).arrayBuffer();
-          const srcPdf = await PDFDocument.load(pdfBytes);
-          const copied = await mergedPdf.copyPages(srcPdf, srcPdf.getPageIndices());
-          for (const pg of copied) {
-            if (ids.length <= 2) {
-              const p = mergedPdf.addPage([pageW, pageH]);
-              p.drawPage(await mergedPdf.embedPage(pg), { x: 0, y: 0, width: pageW, height: pageH });
-            } else {
-              if (labelCount % 4 === 0) currentPage = mergedPdf.addPage([pageW, pageH]);
-              const x = (labelCount % 2) * labelW;
-              const y = pageH - ((Math.floor(labelCount / 2) % 2) + 1) * labelH;
-              currentPage!.drawPage(await mergedPdf.embedPage(pg), { x, y, width: labelW, height: labelH });
-              labelCount++;
-            }
-          }
-        } catch (e) { console.error(`Label fetch failed for ${id}`, e); }
-      }
-      const pdfSaved = await mergedPdf.save();
-      const blob = new Blob([pdfSaved.buffer as ArrayBuffer], { type: 'application/pdf' });
+      const bytes = await buildBulkLabelPdf(ids.map((id) => `${BACKEND_BASE}/b2b/generate-label/${id}`), headers, { asIs: true });
+      const blob = new Blob([bytes.buffer as ArrayBuffer], { type: 'application/pdf' });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a'); a.href = url; a.download = 'bulk-labels.pdf';
       document.body.appendChild(a); a.click(); a.remove();
@@ -494,7 +474,7 @@ export function CargoNDR() {
   };
 
   const handleBulkManifest = async (ids: string[]) => {
-    try { await downloadBlob(`/manifest/generate-pdf?orderIds=${ids.join(',')}`, 'bulk-manifest.pdf'); }
+    try { await downloadBlob('/manifest/generate-pdf', 'bulk-manifest.pdf', { orderIds: ids }); }
     catch (e) { console.error('Bulk manifest download failed', e); }
   };
 

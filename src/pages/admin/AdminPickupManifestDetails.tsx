@@ -172,10 +172,13 @@ export function AdminPickupManifestDetails() {
   useEffect(() => { fetchDetails(); }, [fetchDetails]);
 
   // ── Download helpers ──
-  const fetchBlob = async (url: string) => {
+  const fetchBlob = async (url: string, body?: unknown) => {
     const token = getToken();
     const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
-    const res = await fetch(url, { headers });
+    // a JSON body makes it a POST (long ID lists do not fit in a URL)
+    const res = await fetch(url, body === undefined
+      ? { headers }
+      : { method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.blob();
   };
@@ -190,7 +193,7 @@ export function AdminPickupManifestDetails() {
   const downloadManifest = async (orderIds: string[]) => {
     if (!orderIds.length) return;
     try {
-      const blob = await fetchBlob(`${BACKEND_BASE}/manifest/generate-pdf?orderIds=${orderIds.join(',')}`);
+      const blob = await fetchBlob(`${BACKEND_BASE}/manifest/generate-pdf`, { orderIds });
       triggerDownload(blob, 'manifest.pdf');
     } catch (e) { console.error(e); }
   };
