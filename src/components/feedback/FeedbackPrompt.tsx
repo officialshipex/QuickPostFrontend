@@ -15,7 +15,7 @@ const ACTIVE_OWNER_KEY = 'qp_active_owner';         // localStorage — which lo
 const LAST_TICK_KEY = 'qp_active_last_tick';        // localStorage — last counted slot (cross-tab de-dup)
 const SNOOZE_KEY = 'qp_feedback_snooze_until';      // localStorage — epoch ms
 const FEEDBACK_STORE_KEY = 'qp_feedback_responses'; // localStorage — pending responses
-const SHOW_AFTER_MS = 30 * 60 * 1000;
+const SHOW_AFTER_MS = 10 * 60 * 1000;
 const TICK_MS = 15 * 1000;
 const DAY = 24 * 60 * 60 * 1000;
 
