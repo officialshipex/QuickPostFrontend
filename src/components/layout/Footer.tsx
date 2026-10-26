@@ -133,9 +133,15 @@ export function Footer() {
               <h4 className="text-[12px] font-medium uppercase tracking-[0.1em] text-white/35 mb-[20px] m-0">Company</h4>
               <div className="flex flex-col gap-[12px]">
                 {['About Us', 'Careers', 'Partner Program', 'Contact Us'].map((link) => (
-                  <span key={link} className="text-[14px] font-normal text-white/65 cursor-default">
-                    {link}
-                  </span>
+                  link === 'Careers' ? (
+                    <Link key={link} to="/careers" className="text-[14px] font-normal text-white/65 hover:text-white transition-colors">
+                      {link}
+                    </Link>
+                  ) : (
+                    <span key={link} className="text-[14px] font-normal text-white/65 cursor-default">
+                      {link}
+                    </span>
+                  )
                 ))}
               </div>
             </div>
