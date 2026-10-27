@@ -17,6 +17,47 @@
    by the signed-in panel only. */
 :root[data-theme="dark"] {
   color-scheme: dark; /* native scrollbars, date pickers, form controls */
+  -webkit-tap-highlight-color: transparent; /* no pale flash on tap */
+}
+
+/* Theme switch: the new theme is revealed in a circle from the toggle (ThemeToggle drives the clip-path), so the
+   default cross-fade is turned off. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+::view-transition-new(root) { z-index: 2; }
+::view-transition-old(root) { z-index: 1; }
+
+/* Browser-painted states the build step cannot reach (they are not colour classes). In dark mode the browser falls
+   back to light defaults for these, which flashes white and hides the text on click / select / autofill. */
+:root[data-theme="dark"] ::selection {
+  background: rgba(0, 168, 107, 0.38) !important;
+  color: #ffffff !important;
+}
+:root[data-theme="dark"] input:-webkit-autofill,
+:root[data-theme="dark"] input:-webkit-autofill:hover,
+:root[data-theme="dark"] input:-webkit-autofill:focus,
+:root[data-theme="dark"] textarea:-webkit-autofill,
+:root[data-theme="dark"] select:-webkit-autofill {
+  -webkit-text-fill-color: #e7efff;
+  caret-color: #e7efff;
+  -webkit-box-shadow: 0 0 0 1000px #1c2028 inset;
+  box-shadow: 0 0 0 1000px #1c2028 inset;
+  transition: background-color 9999s ease-in-out 0s;
+}
+:root[data-theme="dark"] select option,
+:root[data-theme="dark"] select optgroup {
+  background-color: #161921;
+  color: #e7efff;
+}
+:root[data-theme="dark"] input,
+:root[data-theme="dark"] textarea {
+  caret-color: #e7efff;
+}
+:root[data-theme="dark"] :focus-visible {
+  outline-color: #00A86B;
 }
 /* the colour logo has dark lettering: flip the lightness, keep the green */
 :root[data-theme="dark"] img[src="/logo-color.png"] {

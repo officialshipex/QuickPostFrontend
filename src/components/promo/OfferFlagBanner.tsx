@@ -94,7 +94,8 @@ export function OfferFlagBanner({ offer, className = '' }: { offer: SellerOffer;
       </motion.div>
 
       {/* Flag between the two poles */}
-      <div className="absolute left-[97px] right-[97px] top-[12px] h-[108px] z-10">
+      {/* data-keep-light: the flag cloth is SVG (stays white), so its text keeps the light-theme colours too */}
+      <div data-keep-light className="absolute left-[97px] right-[97px] top-[12px] h-[108px] z-10">
         <svg viewBox="0 0 1000 120" preserveAspectRatio="none" className="absolute inset-0 w-full h-full overflow-visible drop-shadow-[0_2px_3px_rgba(15,23,42,0.08)]" aria-hidden>
           <defs>
             {/* Unroll mask: grows from the first pole to the second */}

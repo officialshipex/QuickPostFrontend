@@ -136,6 +136,7 @@ function darkSelector(selector) {
   for (let i = 0; i < s.length - 1; i++) {
     if (s[i] === '(' || s[i] === '[') depth++;
     else if (s[i] === ')' || s[i] === ']') depth--;
+    else if (s[i] === ':' && i > 0 && s[i - 1] === '\\') continue; // escaped colon inside a class name (peer-checked\:after\:…)
     else if (depth === 0 && s[i] === ':' && s[i + 1] === ':') { cut = i; break; }
     else if (depth === 0 && s[i] === ':' && LEGACY_PSEUDO_ELEMENT.test(s.slice(i + 1))) { cut = i; break; }
   }
@@ -173,11 +174,39 @@ export default function darkTheme() {
 
       // 2) a dark twin for every rule that paints with a colour
       const rules = [];
+      const nested = [];
+      const hasRuleAncestor = (node) => { for (let p = node.parent; p; p = p.parent) if (p.type === 'rule') return true; return false; };
       root.walkRules((rule) => {
         if (insideSkipped(rule)) return;
         if (rule.selector.includes('[data-theme')) return; // hand-written dark rules
-        rules.push(rule);
+        if (hasRuleAncestor(rule)) return; // handled with its outermost rule below
+        // The dev server serves Tailwind v4 CSS still nested (.hover\:bg-x { &:hover { @media (hover:hover) { ... } } });
+        // production flattens it first. Nested rules are twinned as a whole tree so hover:/focus: work in dev too.
+        if (rule.some((n) => n.type === 'rule' || n.type === 'atrule')) nested.push(rule);
+        else rules.push(rule);
       });
+
+      for (const rule of nested) {
+        const selectors = rule.selectors.map(darkSelector);
+        if (selectors.every((s) => s === ROOT)) continue;
+        const twin = rule.clone({ selectors: [...new Set(selectors)] });
+        let painted = false;
+        twin.walkDecls((decl) => {
+          const role = roleOf(decl.prop);
+          if (!role) { decl.remove(); return; }
+          decl.value = replaceColors(decl.value, (color, pct) => mapToDark(color, role, pct), vars);
+          painted = true;
+        });
+        if (!painted) continue;
+        // drop containers left empty after removing non-colour declarations
+        for (let changed = true; changed;) {
+          changed = false;
+          twin.walk((n) => {
+            if ((n.type === 'rule' || n.type === 'atrule') && n.nodes && n.nodes.length === 0) { n.remove(); changed = true; }
+          });
+        }
+        rule.after(twin);
+      }
 
       for (const rule of rules) {
         const twins = [];
