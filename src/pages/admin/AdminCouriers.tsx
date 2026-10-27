@@ -161,10 +161,19 @@ export function AdminCouriers() {
 
       if (servicesRes.status === 'fulfilled') {
         const services: any[] = servicesRes.value.data || [];
+        const accounts: any[] = providersRes.status === 'fulfilled' ? providersRes.value.data || [] : [];
+        // A Shiprocket service is stored as provider "Shiprocket" + courierName = the Shiprocket account it books
+        // with (a company may hold several), so list it under that account.
+        const groupKey = (s: any) =>
+          s.provider === 'Shiprocket' && s.courierName &&
+          accounts.some(a => a.courierName === s.courierName && a.courierProvider === 'Shiprocket')
+            ? s.courierName
+            : s.provider;
         const grouped: Record<string, any[]> = {};
         services.forEach(s => {
-          if (!grouped[s.provider]) grouped[s.provider] = [];
-          grouped[s.provider].push(s);
+          const key = groupKey(s);
+          if (!grouped[key]) grouped[key] = [];
+          grouped[key].push(s);
         });
         setServicesMap(grouped);
       }
@@ -186,11 +195,10 @@ export function AdminCouriers() {
     try {
       await apiClient.put(`/courierServices/updateStatus/${svc._id}`, { status: newStatus });
       setServicesMap(prev => {
-        const updated = { ...prev };
-        if (updated[svc.provider]) {
-          updated[svc.provider] = updated[svc.provider].map(s =>
-            s._id === svc._id ? { ...s, status: newStatus } : s
-          );
+        // the service's group may be its account rather than its provider (see fetchAll)
+        const updated: Record<string, any[]> = {};
+        for (const [key, list] of Object.entries(prev)) {
+          updated[key] = list.map(s => (s._id === svc._id ? { ...s, status: newStatus } : s));
         }
         return updated;
       });

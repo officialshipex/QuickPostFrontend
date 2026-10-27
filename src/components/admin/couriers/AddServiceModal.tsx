@@ -83,7 +83,8 @@ export function AddServiceModal({ isOpen, onClose, courier, onSuccess, editData,
         return;
       }
       if (p === 'shiprocket') {
-        const res = await apiClient.get('/Shiprocket/getAllActiveCourierServices');
+        // the couriers of THIS Shiprocket account (a company may hold several)
+        const res = await apiClient.get('/Shiprocket/getAllActiveCourierServices', { params: { account: providerName } });
         setProviderServices(res.data || []);
       } else if (p === 'nimbuspost') {
         const res = await apiClient.get('/NimbusPost/getCourierServices');
