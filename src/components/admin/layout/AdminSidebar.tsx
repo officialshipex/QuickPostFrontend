@@ -38,6 +38,7 @@ import {
   LayoutDashboard,
   Lock,
   ListChecks,
+  MessageSquare,
 } from 'lucide-react';
 
 const LOGO_URL = '/logo-white.png';
@@ -199,6 +200,7 @@ const MENU_GROUPS: MenuGroup[] = [
       { name: 'Admin Accounts', path: '/admin/accounts', icon: Users, noEmployee: true },
       { name: 'Companies', path: '/admin/companies', icon: Building2, noEmployee: true },
       { name: 'Sales Management', path: '/admin/sales-management', icon: Target, noEmployee: true },
+      { name: 'Seller Feedback', path: '/admin/seller-feedback', icon: MessageSquare, noEmployee: true },
     ]
   },
   {

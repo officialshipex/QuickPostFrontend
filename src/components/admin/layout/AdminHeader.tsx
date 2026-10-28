@@ -226,6 +226,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
     '/admin/wallet',
     '/admin/support',
     '/admin/referral',
+    '/admin/seller-feedback',
     '/admin/accounts',
     '/admin/announcement',
     '/admin/notification',

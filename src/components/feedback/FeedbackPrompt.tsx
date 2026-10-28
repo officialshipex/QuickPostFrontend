@@ -1,32 +1,26 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X, Check, ArrowRight } from 'lucide-react';
 import { useAdminTab } from '../../context/AdminUserContext';
-import { getToken } from '../../utils/session';
+import { apiClient } from '../../services/apiClient';
 
-/* Seller feedback prompt (user side only). Mounted once for every logged-in page, so it measures continuous use
-   of QuickPost — across pages and tabs — not time on one page. Time only counts while a QuickPost tab is visible;
-   with several tabs open each time slot is counted once. The counter resets on every new login.
-   Schedule: first shown after 30 min of use. "Maybe later" / close → shown again after every further 10 min of
-   use, until the seller submits. Submitted → not shown again for 90 days.
-   Backend not connected yet: responses are kept locally under FEEDBACK_STORE_KEY until an endpoint exists. */
+/* Seller feedback prompt (seller side only; not admins or a seller's staff logins). Mounted once for every
+   logged-in page. The schedule lives on the server (backend feedback/), so closing the panel, logging out or
+   switching devices never resets it: first shown 30 min after the account first opens QuickPost; "Maybe later" /
+   close → again 30 min later; once submitted, never again. Responses appear in Admin → Seller Feedback. */
 
-const ACTIVE_MS_KEY = 'qp_active_ms';               // localStorage — active time in the current login
-const ACTIVE_OWNER_KEY = 'qp_active_owner';         // localStorage — which login the counter belongs to
-const LAST_TICK_KEY = 'qp_active_last_tick';        // localStorage — last counted slot (cross-tab de-dup)
-const NEXT_AT_KEY = 'qp_feedback_next_at';          // localStorage — active-time mark (ms) when it shows next
-const DONE_KEY = 'qp_feedback_done_until';          // localStorage — epoch ms; set after a submission
-const FEEDBACK_STORE_KEY = 'qp_feedback_responses'; // localStorage — pending responses
-const FIRST_SHOW_MS = 30 * 60 * 1000;               // first prompt after 30 min of use
-const REMIND_EVERY_MS = 10 * 60 * 1000;             // after "Maybe later", again every 10 min of use
-const TICK_MS = 15 * 1000;
-const DAY = 24 * 60 * 60 * 1000;
+const POLL_MS = 60 * 1000; // how often an open panel asks whether the prompt is due
 
 const OPTIONS = ['Going well', 'Could be better', 'Facing issues'] as const;
 type Sentiment = typeof OPTIONS[number];
 
-const read = (store: Storage, key: string) => { try { return store.getItem(key); } catch { return null; } };
-const write = (store: Storage, key: string, v: string) => { try { store.setItem(key, v); } catch { /* storage blocked */ } };
+// "Before QuickPost, where were you shipping from?" — tells the admin how many sellers moved from ShipexIndia
+const SWITCHED_FROM = [
+  { value: 'shipexindia', label: 'ShipexIndia' },
+  { value: 'other_platform', label: 'Another platform' },
+  { value: 'new', label: 'New to shipping' },
+] as const;
+type SwitchedFrom = typeof SWITCHED_FROM[number]['value'];
 
 /** Small 3D visual: three stacked message cards gently tilting in perspective. */
 function FeedbackVisual() {
@@ -50,58 +44,58 @@ function FeedbackVisual() {
 }
 
 export function FeedbackPrompt() {
-  const { isAdmin, adminTab, loadingAdminTab } = useAdminTab();
-  const userSide = !loadingAdminTab && !(isAdmin && adminTab);
+  const { isAdmin, adminTab, loadingAdminTab, isEmployee } = useAdminTab();
+  // the seller themself: not an admin, a seller's staff login, or an admin signed in as the seller
+  const impersonating = (() => { try { return !!localStorage.getItem('admin_token_backup'); } catch { return false; } })();
+  const userSide = !loadingAdminTab && !isAdmin && !adminTab && !isEmployee && !impersonating;
   const [open, setOpen] = useState(false);
   const [choice, setChoice] = useState<Sentiment | null>(null);
+  const [switchedFrom, setSwitchedFrom] = useState<SwitchedFrom | null>(null);
   const [note, setNote] = useState('');
   const [sent, setSent] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
 
-  // Accumulate continuous active time for this login; open once it crosses the threshold.
+  // Ask the server whether the prompt is due (it also records that this account uses QuickPost).
+  const checkStatus = useCallback(async () => {
+    if (document.visibilityState !== 'visible') return;
+    try {
+      const { data } = await apiClient.get('/feedback/status');
+      // never close the form while the seller is filling it in; only open when due
+      if (data?.show) setOpen(true);
+      else if (data?.submitted) setOpen(false);
+    } catch { /* offline / not logged in: try again on the next poll */ }
+  }, []);
+
   useEffect(() => {
     if (!userSide) return;
-    const tick = () => {
-      if (Number(read(localStorage, DONE_KEY) || 0) > Date.now()) { setOpen(false); return; } // already submitted
-      if (document.visibilityState !== 'visible') return;
-      const owner = (getToken() || '').slice(-24);
-      if (read(localStorage, ACTIVE_OWNER_KEY) !== owner) {
-        write(localStorage, ACTIVE_OWNER_KEY, owner);
-        write(localStorage, ACTIVE_MS_KEY, '0');
-        write(localStorage, LAST_TICK_KEY, '0');
-        write(localStorage, NEXT_AT_KEY, String(FIRST_SHOW_MS));
-      }
-      const now = Date.now();
-      let total = Number(read(localStorage, ACTIVE_MS_KEY) || 0);
-      // Another visible tab already counted this slot → don't count it twice.
-      if (now - Number(read(localStorage, LAST_TICK_KEY) || 0) >= TICK_MS * 0.8) {
-        total += TICK_MS;
-        write(localStorage, ACTIVE_MS_KEY, String(total));
-        write(localStorage, LAST_TICK_KEY, String(now));
-      }
-      const nextAt = Number(read(localStorage, NEXT_AT_KEY) || FIRST_SHOW_MS);
-      // Open when due; closes here too if "Maybe later" was pressed in another tab.
-      setOpen(total >= nextAt);
-    };
-    const id = window.setInterval(tick, TICK_MS);
-    return () => window.clearInterval(id);
-  }, [userSide]);
+    checkStatus();
+    const id = window.setInterval(checkStatus, POLL_MS);
+    document.addEventListener('visibilitychange', checkStatus);
+    return () => { window.clearInterval(id); document.removeEventListener('visibilitychange', checkStatus); };
+  }, [userSide, checkStatus]);
 
-  // "Maybe later" / close: remind again after another REMIND_EVERY_MS of use.
+  // "Maybe later" / close: the server schedules it again 30 min from now.
   const remindLater = () => {
-    const total = Number(read(localStorage, ACTIVE_MS_KEY) || 0);
-    write(localStorage, NEXT_AT_KEY, String(total + REMIND_EVERY_MS));
     setOpen(false);
+    setError('');
+    apiClient.post('/feedback/later').catch(() => { /* the next status check simply shows it again */ });
   };
 
-  const submit = () => {
-    if (!choice) return;
-    let list: unknown[];
-    try { list = JSON.parse(read(localStorage, FEEDBACK_STORE_KEY) || '[]'); } catch { list = []; }
-    list.push({ sentiment: choice, note: note.trim(), page: window.location.pathname, at: new Date().toISOString() });
-    write(localStorage, FEEDBACK_STORE_KEY, JSON.stringify(list));
-    setSent(true);
-    write(localStorage, DONE_KEY, String(Date.now() + 90 * DAY));
-    window.setTimeout(() => setOpen(false), 2200);
+  const submit = async () => {
+    if (!choice || !switchedFrom || submitting) return;
+    setSubmitting(true);
+    setError('');
+    try {
+      await apiClient.post('/feedback/submit', { sentiment: choice, switchedFrom, note: note.trim(), page: window.location.pathname });
+      setSent(true);
+      window.setTimeout(() => setOpen(false), 2200);
+    } catch (err: any) {
+      if (err?.response?.status === 409) { setSent(true); window.setTimeout(() => setOpen(false), 2200); }
+      else setError(err?.response?.data?.message || 'Could not send your feedback. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (!userSide) return null;
@@ -154,6 +148,18 @@ export function FeedbackPrompt() {
                       ))}
                     </div>
 
+                    <p className="mt-4 text-[12.5px] font-semibold text-[#334155]">Before QuickPost, where were you shipping from?</p>
+                    <div className="mt-1.5 grid grid-cols-3 gap-2" role="radiogroup" aria-label="Where you shipped from before">
+                      {SWITCHED_FROM.map(o => (
+                        <button key={o.value} type="button" role="radio" aria-checked={switchedFrom === o.value} onClick={() => setSwitchedFrom(o.value)}
+                          className={`h-10 px-2 rounded-lg border text-[12.5px] font-semibold transition-colors ${switchedFrom === o.value
+                            ? 'border-[#00A86B] bg-[#F0FDF4] text-[#0F6B38]'
+                            : 'border-[#E2E8F0] text-[#475569] hover:border-[#CBD5E1] hover:bg-[#F8FAFC]'}`}>
+                          {o.label}
+                        </button>
+                      ))}
+                    </div>
+
                     <AnimatePresence initial={false}>
                       {choice && (
                         <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
@@ -168,12 +174,14 @@ export function FeedbackPrompt() {
                       )}
                     </AnimatePresence>
 
+                    {error && <p className="mt-3 text-[12px] text-[#DC2626]">{error}</p>}
+
                     <div className="mt-5 flex items-center gap-3">
                       <button type="button" onClick={remindLater}
                         className="flex-1 h-10 rounded-lg border border-[#E2E8F0] text-[13px] font-semibold text-[#475569] hover:bg-[#F8FAFC] transition-colors">
                         Maybe later
                       </button>
-                      <button type="button" onClick={submit} disabled={!choice}
+                      <button type="button" onClick={submit} disabled={!choice || !switchedFrom || submitting}
                         className="flex-1 h-10 rounded-lg bg-[#00A86B] hover:bg-[#00965F] text-white text-[13px] font-bold inline-flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                         Submit feedback <ArrowRight className="w-3.5 h-3.5" />
                       </button>

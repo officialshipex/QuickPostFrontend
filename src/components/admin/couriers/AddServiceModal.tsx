@@ -30,9 +30,9 @@ export function AddServiceModal({ isOpen, onClose, courier, onSuccess, editData,
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  // B2C services are grouped by the courier account's name; B2B services by the provider type
-  // (ShipexFrontend's B2B service form picks from the accounts' courierProvider values).
-  const providerName: string = cargo ? (courier?.courierProvider || courier?.name || '') : (courier?.name || '');
+  // Services are saved under the courier ACCOUNT's name (a company may hold several accounts of one courier); the
+  // backend stores it as the courier type + that account.
+  const providerName: string = cargo ? (courier?.courierName || courier?.courierProvider || courier?.name || '') : (courier?.name || '');
   // the account may be named anything ("Jiffy Main"); what decides the inputs is its real provider type
   const p = (courier?.courierProvider || providerName).toLowerCase().replace(/\s+/g, '');
 
@@ -70,9 +70,11 @@ export function AddServiceModal({ isOpen, onClose, courier, onSuccess, editData,
         // B2B: Shiprocket Cargo / BigShip have no "list my services" API — the backend asks their live
         // serviceability for a reference route and returns { data: [{ service: [key] }] }.
         if (p === 'shiprocket' || p === 'bigship') {
+          // Shiprocket: the couriers of THIS account
           const res = await apiClient.get(p === 'shiprocket'
             ? '/b2b/couriers/getShiprocketCourierServices'
-            : '/b2b/couriers/getBigShipCourierServices');
+            : '/b2b/couriers/getBigShipCourierServices',
+            p === 'shiprocket' ? { params: { account: providerName } } : undefined);
           const keys: string[] = (res.data?.data || []).flatMap((i: any) => i.service || []);
           setProviderServices([...new Set(keys)].map(s => ({ service: s })));
         } else if (p === 'delhivery') {

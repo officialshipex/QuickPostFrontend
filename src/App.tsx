@@ -60,6 +60,7 @@ import { AdminStatusMap } from './pages/admin/AdminStatusMap';
 import { AdminEDDMapping } from './pages/admin/AdminEDDMapping';
 import { AdminEPDMapping } from './pages/admin/AdminEPDMapping';
 import { AdminReferral } from './pages/admin/AdminReferral';
+import { AdminSellerFeedback } from './pages/admin/AdminSellerFeedback';
 import { UserReferral } from './pages/admin/UserReferral';
 import { AdminRateCard } from './pages/admin/AdminRateCard';
 import { AdminRateCalculator } from './pages/admin/AdminRateCalculator';
@@ -321,6 +322,7 @@ function App() {
               <Route path="/admin/add-order" element={<AdminAddOrder />} />
               <Route path="/admin/tracking" element={<AdminTracking />} />
               <Route path="/admin/referral" element={<AdminReferral />} />
+              <Route path="/admin/seller-feedback" element={<AdminSellerFeedback />} />
               <Route path="/admin/rate-card" element={<ModeRoute b2c={<AdminRateCard />} cargo={<CargoRateCard />} />} />
               <Route path="/admin/order-tracking" element={<AdminOrderTracking />} />
               <Route path="/admin/kyc" element={<AdminKYC />} />

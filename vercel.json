@@ -1,15 +1,15 @@
 {
   "redirects": [
     {
-      "source": "/:path+",
+      "source": "/:path((?!assets/)[^.]+)",
       "has": [{ "type": "host", "value": "quickpost.in" }],
-      "destination": "https://app.quickpost.in/:path*",
+      "destination": "https://app.quickpost.in/:path",
       "permanent": false
     },
     {
-      "source": "/:path+",
+      "source": "/:path((?!assets/)[^.]+)",
       "has": [{ "type": "host", "value": "www.quickpost.in" }],
-      "destination": "https://app.quickpost.in/:path*",
+      "destination": "https://app.quickpost.in/:path",
       "permanent": false
     }
   ],

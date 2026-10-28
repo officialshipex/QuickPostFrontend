@@ -184,11 +184,24 @@ export function CargoCouriers() {
     }
   };
 
+  // A company may hold several accounts of one courier. The services list returns each service under the ACCOUNT
+  // it books with (provider = account name); services naming no account belong to the courier's default account
+  // (the first enabled one, else the first).
+  const servicesFor = (provider: any): any[] => {
+    const own = servicesMap[provider.courierName] || [];
+    if (provider.courierName === provider.courierProvider) return own;
+    const sameType = providers.filter(p => p.courierProvider === provider.courierProvider);
+    const defaultAccount = sameType.find(p => p.status === 'Enable') || sameType[0];
+    const isDefault = !defaultAccount || defaultAccount._id === provider._id;
+    const typeNamedAccount = sameType.some(p => p.courierName === provider.courierProvider);
+    return isDefault && !typeNamedAccount ? [...own, ...(servicesMap[provider.courierProvider] || [])] : own;
+  };
+
   const toggleProviderStatus = async (provider: any) => {
     const newStatus = provider.status === 'Enable' ? 'Disable' : 'Enable';
     try {
-      // B2B accounts are one per provider, so the status is set by provider type
-      await apiClient.post('/b2b/couriers/updateCourierStatus', { provider: provider.courierProvider, status: newStatus });
+      // by the account's id: a company may hold several accounts of one courier
+      await apiClient.post('/b2b/couriers/updateCourierStatus', { id: provider._id, provider: provider.courierProvider, status: newStatus });
       setProviders(prev => prev.map(p => p._id === provider._id ? { ...p, status: newStatus } : p));
     } catch {}
   };
@@ -198,11 +211,9 @@ export function CargoCouriers() {
     try {
       await apiClient.put(`/b2b/courierServices/updateCourierServicesStatus/${svc._id}`, { status: newStatus });
       setServicesMap(prev => {
-        const updated = { ...prev };
-        if (updated[svc.provider]) {
-          updated[svc.provider] = updated[svc.provider].map(s =>
-            s._id === svc._id ? { ...s, status: newStatus } : s
-          );
+        const updated: Record<string, any[]> = {};
+        for (const [key, list] of Object.entries(prev)) {
+          updated[key] = list.map(s => (s._id === svc._id ? { ...s, status: newStatus } : s));
         }
         return updated;
       });
@@ -233,7 +244,7 @@ export function CargoCouriers() {
       }
     } catch (err: any) {
       setLoading(false);
-      const localServices = servicesMap[provider.courierProvider] || [];
+      const localServices = servicesFor(provider);
       if (localServices.length > 0) {
         setRejectionModalData({
           courier: courierObj,
@@ -478,7 +489,7 @@ export function CargoCouriers() {
                   const name = provider.courierName || provider.courierProvider || '';
                   const logo = logoFor(provider, name);
                   const isEnabled = provider.status === 'Enable';
-                  const services = servicesMap[provider.courierProvider] || [];
+                  const services = servicesFor(provider);
                   const isExpanded = expandedProviderId === provider._id;
 
                   return (
@@ -723,7 +734,7 @@ export function CargoCouriers() {
               const name = provider.courierName || provider.courierProvider || '';
               const logo = logoFor(provider, name);
               const isEnabled = provider.status === 'Enable';
-              const services = servicesMap[provider.courierProvider] || [];
+              const services = servicesFor(provider);
               const isExpanded = expandedProviderId === provider._id;
 
               return (
