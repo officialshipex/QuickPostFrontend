@@ -7,15 +7,18 @@ import { getToken } from '../../utils/session';
 /* Seller feedback prompt (user side only). Mounted once for every logged-in page, so it measures continuous use
    of QuickPost — across pages and tabs — not time on one page. Time only counts while a QuickPost tab is visible;
    with several tabs open each time slot is counted once. The counter resets on every new login.
-   Dismissed → hidden for 7 days; submitted → hidden for 90 days.
+   Schedule: first shown after 30 min of use. "Maybe later" / close → shown again after every further 10 min of
+   use, until the seller submits. Submitted → not shown again for 90 days.
    Backend not connected yet: responses are kept locally under FEEDBACK_STORE_KEY until an endpoint exists. */
 
 const ACTIVE_MS_KEY = 'qp_active_ms';               // localStorage — active time in the current login
 const ACTIVE_OWNER_KEY = 'qp_active_owner';         // localStorage — which login the counter belongs to
 const LAST_TICK_KEY = 'qp_active_last_tick';        // localStorage — last counted slot (cross-tab de-dup)
-const SNOOZE_KEY = 'qp_feedback_snooze_until';      // localStorage — epoch ms
+const NEXT_AT_KEY = 'qp_feedback_next_at';          // localStorage — active-time mark (ms) when it shows next
+const DONE_KEY = 'qp_feedback_done_until';          // localStorage — epoch ms; set after a submission
 const FEEDBACK_STORE_KEY = 'qp_feedback_responses'; // localStorage — pending responses
-const SHOW_AFTER_MS = 10 * 60 * 1000;
+const FIRST_SHOW_MS = 30 * 60 * 1000;               // first prompt after 30 min of use
+const REMIND_EVERY_MS = 10 * 60 * 1000;             // after "Maybe later", again every 10 min of use
 const TICK_MS = 15 * 1000;
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -58,13 +61,14 @@ export function FeedbackPrompt() {
   useEffect(() => {
     if (!userSide) return;
     const tick = () => {
-      if (Number(read(localStorage, SNOOZE_KEY) || 0) > Date.now()) { setOpen(false); return; } // closed in another tab
+      if (Number(read(localStorage, DONE_KEY) || 0) > Date.now()) { setOpen(false); return; } // already submitted
       if (document.visibilityState !== 'visible') return;
       const owner = (getToken() || '').slice(-24);
       if (read(localStorage, ACTIVE_OWNER_KEY) !== owner) {
         write(localStorage, ACTIVE_OWNER_KEY, owner);
         write(localStorage, ACTIVE_MS_KEY, '0');
         write(localStorage, LAST_TICK_KEY, '0');
+        write(localStorage, NEXT_AT_KEY, String(FIRST_SHOW_MS));
       }
       const now = Date.now();
       let total = Number(read(localStorage, ACTIVE_MS_KEY) || 0);
@@ -74,15 +78,18 @@ export function FeedbackPrompt() {
         write(localStorage, ACTIVE_MS_KEY, String(total));
         write(localStorage, LAST_TICK_KEY, String(now));
       }
-      if (total >= SHOW_AFTER_MS) setOpen(true);
+      const nextAt = Number(read(localStorage, NEXT_AT_KEY) || FIRST_SHOW_MS);
+      // Open when due; closes here too if "Maybe later" was pressed in another tab.
+      setOpen(total >= nextAt);
     };
     const id = window.setInterval(tick, TICK_MS);
     return () => window.clearInterval(id);
   }, [userSide]);
 
-  const close = (days: number) => {
-    write(localStorage, SNOOZE_KEY, String(Date.now() + days * DAY));
-    write(localStorage, ACTIVE_MS_KEY, '0'); // next prompt needs another full stretch of use
+  // "Maybe later" / close: remind again after another REMIND_EVERY_MS of use.
+  const remindLater = () => {
+    const total = Number(read(localStorage, ACTIVE_MS_KEY) || 0);
+    write(localStorage, NEXT_AT_KEY, String(total + REMIND_EVERY_MS));
     setOpen(false);
   };
 
@@ -93,7 +100,8 @@ export function FeedbackPrompt() {
     list.push({ sentiment: choice, note: note.trim(), page: window.location.pathname, at: new Date().toISOString() });
     write(localStorage, FEEDBACK_STORE_KEY, JSON.stringify(list));
     setSent(true);
-    window.setTimeout(() => close(90), 2200);
+    write(localStorage, DONE_KEY, String(Date.now() + 90 * DAY));
+    window.setTimeout(() => setOpen(false), 2200);
   };
 
   if (!userSide) return null;
@@ -103,13 +111,13 @@ export function FeedbackPrompt() {
       {open && (
         <motion.div key="feedback" className="fixed inset-0 z-[300] flex items-center justify-center p-4"
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
-          <div className="absolute inset-0 bg-[#0F172A]/45 backdrop-blur-[2px]" onClick={() => close(7)} />
+          <div className="absolute inset-0 bg-[#0F172A]/45 backdrop-blur-[2px]" onClick={remindLater} />
 
           <motion.div role="dialog" aria-modal="true" aria-labelledby="qp-feedback-title"
             initial={{ opacity: 0, y: 16, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.98 }}
             transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
             className="relative w-full max-w-[440px] bg-white rounded-2xl border border-[#E2E8F0] shadow-[0_24px_60px_-20px_rgba(15,23,42,0.4)] overflow-hidden">
-            <button type="button" onClick={() => close(7)} aria-label="Close"
+            <button type="button" onClick={remindLater} aria-label="Close"
               className="absolute right-3 top-3 z-10 w-8 h-8 rounded-full flex items-center justify-center text-[#94A3B8] hover:bg-white hover:text-[#0F172A] transition-colors">
               <X className="w-4 h-4" />
             </button>
@@ -161,7 +169,7 @@ export function FeedbackPrompt() {
                     </AnimatePresence>
 
                     <div className="mt-5 flex items-center gap-3">
-                      <button type="button" onClick={() => close(7)}
+                      <button type="button" onClick={remindLater}
                         className="flex-1 h-10 rounded-lg border border-[#E2E8F0] text-[13px] font-semibold text-[#475569] hover:bg-[#F8FAFC] transition-colors">
                         Maybe later
                       </button>

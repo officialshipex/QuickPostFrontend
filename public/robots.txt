@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /
+
+# Signed-in areas and account pages — not for search results
+Disallow: /admin
+Disallow: /user
+Disallow: /cargo
+Disallow: /internal-crm
+Disallow: /login
+Disallow: /register
+Disallow: /employee-login
+Disallow: /forgot-password
+
+Sitemap: https://quickpost.in/sitemap.xml

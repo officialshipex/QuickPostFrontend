@@ -4,15 +4,13 @@ import { useSearchParams } from 'react-router-dom';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import {
   ArrowLeft, Plus, ShoppingBag, BookOpen, Layers, CheckCircle2, PauseCircle, ChevronDown, Check,
-  Trash2, Pencil, RefreshCw, Loader2, AlertTriangle, Download, ChevronRight, X, Copy,
+  Trash2, Pencil, RefreshCw, Loader2, AlertTriangle, Download, ChevronRight, Copy,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { apiClient } from '../../services/apiClient';
-import { getToken } from '../../utils/session';
 import { ShineButton } from '../../components/ui/ShineButton';
 import wooCommerceLogo from '../../assets/woo-commerce-logo.png';
 import shopifyLogo from '../../assets/shopify-logo.png';
-import channelsPromoBanner from '../../assets/channels-promo-banner.png';
 
 type ChannelView = 'list' | 'add' | 'woocommerce' | 'shopify';
 
@@ -191,20 +189,6 @@ export function AdminChannels() {
   const isEditing = !!editId;
   const isWoo = view === 'woocommerce';
 
-  // ── Promo banner — shown once per login session, dismissible
-  const [showPromoBanner, setShowPromoBanner] = useState(false);
-  useEffect(() => {
-    const token = getToken();
-    if (!token) return;
-    if (sessionStorage.getItem(`channelsPromoBannerSeen_${token}`) === '1') return;
-    setShowPromoBanner(true);
-  }, []);
-  const dismissPromoBanner = () => {
-    const token = getToken();
-    if (token) sessionStorage.setItem(`channelsPromoBannerSeen_${token}`, '1');
-    setShowPromoBanner(false);
-  };
-
   // ── List state
   const [channels, setChannels]           = useState<Channel[]>([]);
   const [loading, setLoading]             = useState(false);
@@ -368,33 +352,6 @@ export function AdminChannels() {
               </button>
             </div>
           </div>
-
-          <AnimatePresence>
-            {showPromoBanner && (
-              <motion.div
-                key="channels-promo-banner"
-                initial={{ opacity: 0, y: -12, scale: 0.98 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -8, scale: 0.98, transition: { duration: 0.2 } }}
-                transition={{ type: 'spring', stiffness: 340, damping: 28, mass: 0.9 }}
-                className="relative mb-5 rounded-2xl overflow-hidden border border-[#E2E8F0] shadow-[0_8px_30px_-12px_rgba(0,0,0,0.18)] bg-gradient-to-r from-[#F0FDF4] via-white to-[#F0FDF4]"
-              >
-                <img
-                  src={channelsPromoBanner}
-                  alt="More Channels, More Growth — connect Shopify, WooCommerce, WordPress, Amazon and more, all in one place."
-                  className="w-full h-auto block"
-                />
-                <button
-                  type="button"
-                  onClick={dismissPromoBanner}
-                  aria-label="Dismiss"
-                  className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/90 hover:bg-white shadow-sm border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:text-[#0F172A] transition-colors"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
 
           {listError && (
             <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-4">
