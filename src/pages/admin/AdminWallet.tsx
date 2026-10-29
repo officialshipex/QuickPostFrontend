@@ -5,6 +5,7 @@ import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { useAdminTab } from '../../context/AdminUserContext';
 import { apiClient } from '../../services/apiClient';
 import { getToken } from '../../utils/session';
+import { customerOrderIdOf, csvCell } from '../../utils/customerOrderId';
 import { Toast } from '../../components/ui/Toast';
 import { useToast } from '../../hooks/useToast';
 import { usePagination, DesktopPagination } from '../../hooks/usePagination';
@@ -61,6 +62,7 @@ const mapShippingItem = (item: any) => {
     const volLine = `Vol. Wt: ${Number(b2b.volumetricWeight || 0).toFixed(3)} Kg`;
     return {
       id: String(item.orderId || item._id || ''),
+      customerOrderId: customerOrderIdOf(item),
       userId: item.user?.userId || '',
       awb: item.awb_number || '',
       userName: item.user?.name || '',
@@ -83,6 +85,7 @@ const mapShippingItem = (item: any) => {
   }
   return {
     id: String(item.orderId || item._id || ''),
+    customerOrderId: customerOrderIdOf(item),
     userId: item.user?.userId || '',
     awb: item.awb_number || '',
     userName: item.user?.name || '',
@@ -106,6 +109,7 @@ const mapShippingItem = (item: any) => {
 
 const mapPassbookItem = (item: any) => ({
   id: item.orderId || String(item._id || ''),
+  customerOrderId: customerOrderIdOf(item),
   // Unique per-transaction id — awb is empty for recharges/credit notes/etc.,
   // so using it as a React key or selection id collapses every such row onto
   // the same identity and rows end up showing each other's stale content.
@@ -1124,11 +1128,11 @@ export function AdminWallet() {
     }
     let csvContent = "";
     if (type === 'shipping') {
-      csvContent = "ID,AWB,User Name,Email,Courier,Booked Date,Amount,Status\n" +
-        dataToExport.map(o => `"${o.id}","${o.awb}","${o.userName}","${o.userEmail}","${o.courier}","${o.bookedDate}","${o.statusAmount}","${o.status}"`).join("\n");
+      csvContent = "Order ID,Customer Order ID,AWB,User Name,Email,Courier,Booked Date,Amount,Status\n" +
+        dataToExport.map(o => `"${o.id}",${csvCell(o.customerOrderId)},"${o.awb}","${o.userName}","${o.userEmail}","${o.courier}","${o.bookedDate}","${o.statusAmount}","${o.status}"`).join("\n");
     } else if (type === 'passbook') {
-      csvContent = "ID,AWB,User Name,Email,Category,Amount,Balance,Description\n" +
-        dataToExport.map(o => `"${o.id}","${o.awb}","${o.userName}","${o.userEmail}","${o.category}","${o.amount}","${o.balance}","${o.description}"`).join("\n");
+      csvContent = "Order ID,Customer Order ID,AWB,User Name,Email,Category,Amount,Balance,Description\n" +
+        dataToExport.map(o => `"${o.id}",${csvCell(o.customerOrderId)},"${o.awb}","${o.userName}","${o.userEmail}","${o.category}","${o.amount}","${o.balance}","${o.description}"`).join("\n");
     } else if (type === 'recharge') {
       csvContent = "ID,User Name,Email,Txn ID,Amount,Status,Payment ID,Order ID\n" +
         dataToExport.map(o => `"${o.id}","${o.userName}","${o.userEmail}","${o.transactionId}","${o.amount}","${o.status}","${o.paymentId}","${o.orderId}"`).join("\n");

@@ -812,6 +812,9 @@ function WebhookAddressesSection({ tenantKey, refreshKey }: { tenantKey: string;
   const [secretDraft, setSecretDraft] = useState('');
   const [secretSaving, setSecretSaving] = useState(false);
   const [secretError, setSecretError] = useState('');
+  // Revealed secret values, keyed by url; only fetched when "Show" is clicked
+  const [shownSecret, setShownSecret] = useState<Record<string, string>>({});
+  const [showError, setShowError] = useState<Record<string, string>>({});
 
   const reload = useCallback(() => {
     return companiesApi.webhookUrls(tenantKey)
@@ -842,6 +845,29 @@ function WebhookAddressesSection({ tenantKey, refreshKey }: { tenantKey: string;
     setSecretError('');
   };
 
+  const toggleShowSecret = async (u: WebhookAddress) => {
+    if (shownSecret[u.url]) {
+      setShownSecret(({ [u.url]: _, ...rest }) => rest);
+      return;
+    }
+    if (!u.settingsGroup || !u.secretField) return;
+    try {
+      const res = await companiesApi.webhookSecret(tenantKey, u.settingsGroup, u.secretField);
+      setShownSecret(s => ({ ...s, [u.url]: res.data.value }));
+      setShowError(({ [u.url]: _, ...rest }) => rest);
+    } catch (err: any) {
+      setShowError(s => ({ ...s, [u.url]: err.response?.data?.message || 'Could not load the secret' }));
+    }
+  };
+
+  // A random 32-byte hex token, for couriers where we choose the token ourselves (e.g. Shiprocket)
+  const generateSecret = () => {
+    const bytes = new Uint8Array(32);
+    crypto.getRandomValues(bytes);
+    setSecretDraft(Array.from(bytes, b => b.toString(16).padStart(2, '0')).join(''));
+    setSecretError('');
+  };
+
   const saveSecret = async (u: WebhookAddress) => {
     if (!u.settingsGroup || !u.secretField) return;
     if (!secretDraft.trim()) { setSecretError('Enter a value'); return; }
@@ -849,6 +875,8 @@ function WebhookAddressesSection({ tenantKey, refreshKey }: { tenantKey: string;
     setSecretError('');
     try {
       await companiesApi.updateConfigGroup(tenantKey, u.settingsGroup, { [u.secretField]: secretDraft.trim() });
+      // show what was just saved so it can be copied into the courier's panel straight away
+      setShownSecret(s => ({ ...s, [u.url]: secretDraft.trim() }));
       setSettingSecretFor(null);
       await reload();
     } catch (err: any) {
@@ -883,6 +911,14 @@ function WebhookAddressesSection({ tenantKey, refreshKey }: { tenantKey: string;
                   {u.automatic && badge('Automatic', 'muted')}
                   {!u.authenticated && badge('No authentication', 'warn')}
                   {u.secretStatus && badge(u.secretStatus === 'set' ? 'Secret set' : 'Secret missing', u.secretStatus === 'set' ? 'ok' : 'warn')}
+                  {u.secretStatus === 'set' && (
+                    <button
+                      onClick={() => toggleShowSecret(u)}
+                      className="text-[10px] font-semibold text-[#00A86B] hover:underline"
+                    >
+                      {shownSecret[u.url] ? 'Hide' : 'Show'}
+                    </button>
+                  )}
                   {u.secretStatus && (
                     <button
                       onClick={() => startSettingSecret(u)}
@@ -903,6 +939,20 @@ function WebhookAddressesSection({ tenantKey, refreshKey }: { tenantKey: string;
                   {copied === u.url ? <span className="text-[10px] font-semibold text-[#00A86B]">Copied</span> : <Copy className="w-3.5 h-3.5" />}
                 </button>
               </div>
+              {shownSecret[u.url] && (
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-[#64748B] shrink-0">Secret</span>
+                  <code data-testid="webhook-secret" className="text-[11px] text-[#475569] bg-[#FFFBEB] border border-[#FDE68A] rounded-[6px] px-2 py-1 break-all flex-1">{shownSecret[u.url]}</code>
+                  <button
+                    onClick={() => copy(shownSecret[u.url])}
+                    title="Copy secret"
+                    className="p-1.5 rounded-[6px] text-[#94A3B8] hover:text-[#00A86B] hover:bg-[#ECFDF5] transition-colors shrink-0"
+                  >
+                    {copied === shownSecret[u.url] ? <span className="text-[10px] font-semibold text-[#00A86B]">Copied</span> : <Copy className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+              )}
+              {showError[u.url] && <p className="text-[11px] text-red-500 mt-1">{showError[u.url]}</p>}
               <p className="text-[11px] text-[#94A3B8] mt-1">{u.how}</p>
               {settingSecretFor === u.url && (
                 <div className="flex flex-col gap-1.5 mt-2 p-2.5 rounded-[8px] bg-[#F8FAFC] border border-[#E2E8F0]">
@@ -916,6 +966,7 @@ function WebhookAddressesSection({ tenantKey, refreshKey }: { tenantKey: string;
                       autoComplete="new-password"
                       className="flex-1 min-w-0 h-8 px-2.5 rounded-[6px] border border-[#E2E8F0] text-[12px] text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#00A86B]/40 focus:border-[#00A86B]"
                     />
+                    <button onClick={generateSecret} disabled={secretSaving} title="Fill in a random token" className="text-[11px] font-semibold text-[#00A86B] px-2.5 py-1.5 rounded-[6px] border border-[#A7F3D0] hover:bg-[#ECFDF5] disabled:opacity-50">Generate</button>
                     <button onClick={() => setSettingSecretFor(null)} disabled={secretSaving} className="text-[11px] font-semibold text-[#64748B] px-2.5 py-1.5 rounded-[6px] border border-[#E2E8F0] hover:bg-white disabled:opacity-50">Cancel</button>
                     <button onClick={() => saveSecret(u)} disabled={secretSaving} className="text-[11px] font-semibold text-white px-2.5 py-1.5 rounded-[6px] bg-[#00A86B] hover:bg-[#008F5C] disabled:opacity-50">
                       {secretSaving ? 'Saving…' : 'Save'}

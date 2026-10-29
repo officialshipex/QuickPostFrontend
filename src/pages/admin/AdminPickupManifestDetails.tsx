@@ -1,3 +1,4 @@
+import { customerOrderIdOf, orderReferenceOf } from '../../utils/customerOrderId';
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { createPortal } from 'react-dom';
@@ -85,6 +86,8 @@ const mapOrder = (o: any) => {
   return {
     _id:               o._id,
     orderId:           o.orderId || o._id,
+    orderRef: orderReferenceOf(o),
+    customerOrderId:   customerOrderIdOf(o),
     awb:               o.awb_number || o.awbNumber || '',
     date:              o.createdAt ? fmt(o.createdAt) : '—',
     bookedDate:        o.shipmentCreatedAt ? fmt(o.shipmentCreatedAt) : '—',
@@ -249,6 +252,7 @@ export function AdminPickupManifestDetails() {
   const exportExcel = (rows: any[]) => {
     const data = rows.map(o => ({
       'Order ID':     o.orderId,
+      'Customer Order ID': customerOrderIdOf(o),
       'AWB':          o.awb,
       'Booked Date':  o.bookedDate,
       'Customer':     o.customerName,
@@ -471,9 +475,12 @@ export function AdminPickupManifestDetails() {
                             </button>
                           </div>
                           <div className="text-[12px] leading-[18px] font-normal text-[#64748B]">{o.date}</div>
-                          <span className="px-2 py-0.5 rounded-full border border-blue-200 text-[#004AAD] font-semibold text-[10px] leading-4 bg-blue-50/50 inline-block uppercase w-fit">
-                            {o.channel === 'WooCommerce' ? 'Woo' : (o.channel || 'CUSTOM')}
-                          </span>
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span className="px-2 py-0.5 rounded-full border border-blue-200 text-[#004AAD] font-semibold text-[10px] leading-4 bg-blue-50/50 inline-block uppercase w-fit shrink-0">
+                              {o.channel === 'WooCommerce' ? 'Woo' : (o.channel || 'CUSTOM')}
+                            </span>
+                            {o.orderRef && <span className="text-[11px] leading-4 font-normal text-[#64748B] truncate max-w-[140px]" title={`Customer order ID: ${o.orderRef}`}>({o.orderRef})</span>}
+                          </div>
                         </div>
                       </td>
 

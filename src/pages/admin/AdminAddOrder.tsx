@@ -141,6 +141,7 @@ export function AdminAddOrder() {
   const [showExtraFees, setShowExtraFees] = useState(false);
 
   // ── Other Details ──
+  const [customerOrderId, setCustomerOrderId] = useState('');
   const [resellerName, setResellerName] = useState('');
   const [gstin, setGstin] = useState('');
   const [ewaybill, setEwaybill] = useState('');
@@ -266,6 +267,7 @@ export function AdminAddOrder() {
         setPaymentMode(order.paymentDetails?.method || '');
 
         const od = order.otherDetails || {};
+        setCustomerOrderId(order.clientOrderId || '');
         setResellerName(od.resellerName || '');
         setGstin(od.gstin || '');
         setEwaybill(od.ewaybill || '');
@@ -631,6 +633,8 @@ export function AdminAddOrder() {
       })),
       paymentDetails: { method: paymentMode, amount: totalOrderValue },
       otherDetails: { resellerName, gstin, ewaybill },
+      // optional Customer Order ID (saved as the order's clientOrderId)
+      clientOrderId: customerOrderId.trim(),
       orderType,
     };
     if (orderType === 'B2C') {
@@ -1351,7 +1355,14 @@ export function AdminAddOrder() {
               <h2 className="text-[14px] font-semibold text-[#0F172A]">Other Details</h2>
             </div>
             <div className="p-3 md:p-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-5">
+                <div>
+                  <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">
+                    Customer Order ID <span className="font-medium text-[#94A3B8]">(Optional)</span>
+                  </label>
+                  <input type="text" value={customerOrderId} onChange={e => setCustomerOrderId(e.target.value)} maxLength={100}
+                    placeholder="Your own order ID" className={fieldCls()} />
+                </div>
                 <div>
                   <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Reseller Name</label>
                   <input type="text" value={resellerName} onChange={e => setResellerName(e.target.value)} placeholder="Reseller Name" className={fieldCls()} />

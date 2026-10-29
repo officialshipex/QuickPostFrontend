@@ -13,6 +13,7 @@ import {
 import { Toast } from '../../components/ui/Toast';
 import { useToast } from '../../hooks/useToast';
 import { copyToClipboard } from '../../utils/clipboard';
+import { orderReferenceOf } from '../../utils/customerOrderId';
 import { AddressAccuracyGauge } from '../../components/ui/AddressAccuracy';
 
 // Milestone timeline icons are looked up dynamically by name (see getMilestonesFromStatus).
@@ -39,6 +40,7 @@ export interface OrderData {
   channel?: string;
   channelId?: number;
   channelOrderName?: string;
+  clientOrderId?: string;
   createdAt?: string;
   shipmentCreatedAt?: string;
   pickupDate?: string;
@@ -927,7 +929,7 @@ export function AdminOrderTracking() {
                   <label className="block text-[12px] leading-[18px] font-medium text-[#94A3B8] uppercase tracking-wider">Channel</label>
                   <div className="mt-1">
                     <span className="bg-[#F0FDF4] text-[#009B63] text-[12px] leading-[18px] font-normal px-2.5 py-0.5 rounded">
-                      {(order?.channel || 'CUSTOM').toUpperCase()}{(order?.channelOrderName || order?.channelId) ? ` (${order.channelOrderName || order.channelId})` : ''}
+                      {(order?.channel || 'CUSTOM').toUpperCase()}{orderReferenceOf(order) ? ` (${orderReferenceOf(order)})` : ''}
                     </span>
                   </div>
                 </div>

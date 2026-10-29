@@ -120,6 +120,10 @@ export const companiesApi = {
   webhookUrls: (tenantKey: string) =>
     apiClient.get<{ success: boolean; tenantKey: string; baseUrl: string; urls: WebhookAddress[] }>(`/platform-admin/companies/${tenantKey}/webhook-urls`),
 
+  // The value of one webhook secret (only webhook secrets), to copy into the courier's / gateway's panel.
+  webhookSecret: (tenantKey: string, group: string, field: string) =>
+    apiClient.get<{ success: boolean; value: string }>(`/platform-admin/companies/${tenantKey}/webhook-secret`, { params: { group, field } }),
+
   create: (payload: CompanyCreatePayload) =>
     apiClient.post<{ success: boolean; company: { tenantKey: string; displayName: string } }>('/platform-admin/companies', payload),
 

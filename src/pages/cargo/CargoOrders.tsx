@@ -2,6 +2,7 @@
    file so Cargo can diverge. Cargo = the B2B flow: orders come from the backend's /b2b namespace
    (getb2buserorder / getb2badminorder), shipping goes through /b2b/shipNow + /b2b/{provider}/createShipment
    and booked orders are cancelled with /b2b/cancelOrder — same endpoints ShipexFrontend's B2B pages use. */
+import { customerOrderIdOf, orderReferenceOf } from '../../utils/customerOrderId';
 import { CargoPackageInfo } from './CargoPackageInfo';
 import { orderCargoPackage, boxesLabel, kg } from './cargoPackage';
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
@@ -13,6 +14,8 @@ import { apiClient } from '../../services/apiClient';
 import { refreshNotifications } from '../../context/NotificationListContext';
 import { getToken } from '../../utils/session';
 import { PDFDocument } from 'pdf-lib';
+import { buildBulkLabelPdf, buildBulkInvoicePdf, downloadBulkPdfWithProgress } from '../../utils/bulkLabelPdf';
+import { startDownloadProgress } from '../../utils/downloadProgress';
 import * as XLSX from 'xlsx';
 import {
   Search, ChevronDown, RefreshCcw, Send, Calendar, Check, MoreHorizontal,
@@ -189,6 +192,8 @@ const mapOrder = (o: any) => {
   return {
     _id:            o._id,
     orderId:        o.orderId || o._id,
+    orderRef: orderReferenceOf(o),
+    customerOrderId: customerOrderIdOf(o),
     awb:            o.awb_number || o.awbNumber || '',
     userName:       o.userId?.fullname || o.userId?.name || '—',
     userEmail:      o.userId?.email || '—',
@@ -318,6 +323,7 @@ const downloadBlob = async (path: string, filename: string, body?: unknown) => {
 // ─── Excel export helpers ──────────────────────────────────────────────────────
 const ordersToSheetRows = (rows: any[]) => rows.map((o) => ({
   'Order ID':        o.orderId,
+  'Customer Order ID': customerOrderIdOf(o),
   'AWB':             o.awb,
   'Date':            o.date,
   'Customer Name':   o.customerName,
@@ -909,64 +915,33 @@ export function CargoOrders() {
     }
   };
 
+  // Bulk label / invoice PDFs: fetched in batches from the backend (see utils/bulkLabelPdf.ts)
+  const bulkPdfHeaders = (): Record<string, string> => {
+    const token = getToken();
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  };
+
+  // each shows a progress card (bottom-right) until the file is ready — the menu closes right away
   const handleBulkLabel = async (ids: string[]) => {
     if (!ids.length) return;
-    try {
-      // B2B label PDFs are already laid out (four box labels per A4 page) — append their pages as they are
-      const mergedPdf = await PDFDocument.create();
-      const token = getToken();
-      const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
-
-      for (const id of ids) {
-        try {
-          const res = await fetch(`${BACKEND_BASE}/b2b/generate-label/${id}`, { headers });
-          if (!res.ok) continue;
-          const pdfBytes = await (await res.blob()).arrayBuffer();
-          const srcPdf = await PDFDocument.load(pdfBytes);
-          const copied = await mergedPdf.copyPages(srcPdf, srcPdf.getPageIndices());
-          copied.forEach(p => mergedPdf.addPage(p));
-        } catch (e) { console.error(`Label fetch failed for ${id}`, e); }
-      }
-
-      const saved = await mergedPdf.save();
-      const blob = new Blob([saved.buffer as ArrayBuffer], { type: 'application/pdf' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href = url; a.download = 'bulk-labels.pdf';
-      document.body.appendChild(a); a.click(); a.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (e) { console.error('Bulk label merge failed', e); }
+    // B2B label PDFs are already laid out (four box labels per A4 page) — kept as generated
+    await downloadBulkPdfWithProgress('labels', (onProgress) => buildBulkLabelPdf(BACKEND_BASE, ids, bulkPdfHeaders(), { b2b: true, onProgress }), ids.length, 'bulk-labels.pdf');
   };
 
   const handleBulkInvoice = async (ids: string[]) => {
     if (!ids.length) return;
-    try {
-      const mergedPdf = await PDFDocument.create();
-      const token = getToken();
-      const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
-
-      for (const id of ids) {
-        try {
-          const res = await fetch(`${BACKEND_BASE}/printinvoice/download-invoice/${id}`, { headers });
-          if (!res.ok) continue;
-          const pdfBytes = await (await res.blob()).arrayBuffer();
-          const srcPdf = await PDFDocument.load(pdfBytes);
-          const copied = await mergedPdf.copyPages(srcPdf, srcPdf.getPageIndices());
-          copied.forEach(p => mergedPdf.addPage(p));
-        } catch (e) { console.error(`Invoice fetch failed for ${id}`, e); }
-      }
-
-      const pdfSaved = await mergedPdf.save();
-      const blob = new Blob([pdfSaved.buffer as ArrayBuffer], { type: 'application/pdf' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href = url; a.download = 'bulk-invoices.pdf';
-      document.body.appendChild(a); a.click(); a.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (e) { console.error('Bulk invoice merge failed', e); }
+    await downloadBulkPdfWithProgress('invoices', (onProgress) => buildBulkInvoicePdf(BACKEND_BASE, ids, bulkPdfHeaders(), { onProgress }), ids.length, 'bulk-invoices.pdf');
   };
 
   const handleBulkManifest = async (ids: string[]) => {
-    try { await downloadBlob('/manifest/generate-pdf', 'bulk-manifest.pdf', { orderIds: ids }); }
-    catch (e) { console.error('Bulk manifest download failed', e); }
+    const progress = startDownloadProgress('manifest', null);
+    try {
+      await downloadBlob('/manifest/generate-pdf', 'bulk-manifest.pdf', { orderIds: ids });
+      progress.finish('success', `Manifest downloaded (${ids.length} orders)`);
+    } catch (e) {
+      console.error('Bulk manifest download failed', e);
+      progress.finish('error', 'Failed to download manifest', 'Please try again.');
+    }
   };
 
   // Fetch on tab/page/globalSearch change, or when filters are explicitly applied/cleared.
@@ -1152,20 +1127,17 @@ export function CargoOrders() {
   // /order/cancelOrdersAtNotShipped (a real Order.findByIdAndDelete) per order,
   // not /order/bulkCancelOrder — that endpoint only accepts Ready To Ship
   // orders and would silently skip "new" orders.
+  // ONE request for the whole selection (/order/bulkDeleteNotShipped, same rules as cancelOrdersAtNotShipped):
+  // one request per order, all at once, hit the backend's per-minute rate limit on large selections.
   const handleBulkDelete = async () => {
     if (selectedOrders.length === 0) return;
     try {
-      const results = await Promise.allSettled(
-        selectedOrders.map(id => apiClient.post('/order/cancelOrdersAtNotShipped', { orderId: id }))
-      );
-      const failed = results.filter(r => r.status === 'rejected').length;
-      const succeeded = results.length - failed;
-      if (failed === 0) showToast('success', `Deleted ${succeeded} order(s).`);
-      else showToast('error', `Deleted ${succeeded} order(s), ${failed} failed.`);
+      const { data } = await apiClient.post('/order/bulkDeleteNotShipped', { orderIds: selectedOrders });
+      showToast(data?.notDeleted ? 'error' : 'success', data?.message || `Deleted ${data?.deleted ?? 0} order(s).`);
       setSelectedOrders([]);
       fetchOrders(page);
     } catch (error: any) {
-      showToast('error', 'Failed to delete orders.');
+      showToast('error', error?.response?.data?.message || 'Failed to delete orders.');
     }
   };
 
@@ -1806,9 +1778,12 @@ export function CargoOrders() {
                                 <button onClick={(e) => { e.stopPropagation(); copyToClipboard(order.orderId, 'Order ID'); }} className="opacity-100 md:opacity-0 md:group-hover/copy:opacity-100 transition-opacity shrink-0 focus:outline-none" title="Copy Order ID"><Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" /></button>
                               </div>
                               <div className="text-[12px] leading-[18px] font-normal text-[#64748B]">{order.date}</div>
-                              <span className="px-2 py-0.5 rounded-full border border-blue-200 text-[#004AAD] font-semibold text-[10px] leading-4 bg-blue-50/50 inline-block uppercase w-fit">
-                                {order.channel === 'WooCommerce' ? 'Woo' : (order.channel || 'CUSTOM')}
-                              </span>
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <span className="px-2 py-0.5 rounded-full border border-blue-200 text-[#004AAD] font-semibold text-[10px] leading-4 bg-blue-50/50 inline-block uppercase w-fit shrink-0">
+                                  {order.channel === 'WooCommerce' ? 'Woo' : (order.channel || 'CUSTOM')}
+                                </span>
+                                {order.orderRef && <span className="text-[11px] leading-4 font-normal text-[#64748B] truncate max-w-[140px]" title={`Customer order ID: ${order.orderRef}`}>({order.orderRef})</span>}
+                              </div>
                             </div>
                           </td>
                           <td className="p-3">

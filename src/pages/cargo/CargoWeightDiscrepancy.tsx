@@ -14,6 +14,7 @@ import { cargoApiClient as apiClient } from '../../services/cargoApiClient';
 import { useAdminTab } from '../../context/AdminUserContext';
 import { useUserSearchFilter } from '../../hooks/filters/useUserSearchFilter';
 import * as XLSX from 'xlsx';
+import { customerOrderIdOf } from '../../utils/customerOrderId';
 import {
   ChevronDown, RefreshCcw, Check, Package, User, Truck,
   Upload, FileText, AlertTriangle, X, Search, Download, Filter, MoreVertical, Copy,
@@ -297,6 +298,8 @@ function DetailsModal({ text, imageUrl, onClose }: { text: string; imageUrl: str
 // ─── Excel export helpers ──────────────────────────────────────────────────────
 const discrepancyToSheetRows = (rows: any[]) => rows.map((o) => ({
   'AWB':              o.awbNumber,
+  'Order ID':         o.orderId ?? '',
+  'Customer Order ID': customerOrderIdOf(o),
   'Date':             o.createdAt ? new Date(o.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '',
   'User':             o.user?.fullname || o.user?.name || '',
   'User Email':       o.user?.email || '',

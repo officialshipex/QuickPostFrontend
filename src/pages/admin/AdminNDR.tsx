@@ -1,3 +1,4 @@
+import { customerOrderIdOf, orderReferenceOf } from '../../utils/customerOrderId';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { createPortal } from 'react-dom';
@@ -8,7 +9,8 @@ import { Toast } from '../../components/ui/Toast';
 import { useToast } from '../../hooks/useToast';
 import { getToken } from '../../utils/session';
 import { PDFDocument } from 'pdf-lib';
-import { buildBulkLabelPdf } from '../../utils/bulkLabelPdf';
+import { buildBulkLabelPdf, buildBulkInvoicePdf, downloadBulkPdfWithProgress } from '../../utils/bulkLabelPdf';
+import { startDownloadProgress } from '../../utils/downloadProgress';
 import * as XLSX from 'xlsx';
 import { useAdminTab } from '../../context/AdminUserContext';
 import { useUserSearchFilter } from '../../hooks/filters/useUserSearchFilter';
@@ -98,6 +100,8 @@ const mapOrder = (o: any) => {
   return {
     _id:           o._id,
     orderId:       o.orderId || '',
+    orderRef: orderReferenceOf(o),
+    customerOrderId: customerOrderIdOf(o),
     awb:           o.awb_number || o.awbNumber || '',
     channel:       o.channel === 'WooCommerce' ? 'Woo' : (o.channel || 'CUSTOM'),
     productName:   products.map((p: any) => p.name).filter(Boolean).join(', ') || '—',
@@ -151,6 +155,7 @@ const mapOrder = (o: any) => {
 // ─── Excel export helpers ──────────────────────────────────────────────────────
 const ordersToSheetRows = (rows: any[]) => rows.map((o) => ({
   'Order ID':        o.orderId,
+  'Customer Order ID': customerOrderIdOf(o),
   'AWB':             o.awb,
   'Date':            o.date,
   'Customer Name':   o.customerName,
@@ -427,49 +432,34 @@ export function AdminNDR() {
   const showActionsColumn = activeTab === 'Action Required';
 
   // ── Bulk download helpers ──
-  const handleBulkLabel = async (ids: string[]) => {
-    if (!ids.length) return;
-    try {
-      // one 4"×6" label per page for thermal labels, A4 labels as before (see utils/bulkLabelPdf.ts)
-      const token = getToken();
-      const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
-      const bytes = await buildBulkLabelPdf(ids.map((id) => `${BACKEND_BASE}/printlabel/generate-pdf/${id}`), headers);
-      const blob = new Blob([bytes.buffer as ArrayBuffer], { type: 'application/pdf' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href = url; a.download = 'bulk-labels.pdf';
-      document.body.appendChild(a); a.click(); a.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (e) { console.error('Bulk label merge failed', e); }
+  // Bulk label / invoice PDFs: fetched in batches from the backend (see utils/bulkLabelPdf.ts)
+  const bulkPdfHeaders = (): Record<string, string> => {
+    const token = getToken();
+    return token ? { Authorization: `Bearer ${token}` } : {};
   };
 
+  // each shows a progress card (bottom-right) until the file is ready — the menu closes right away
+  const handleBulkLabel = async (ids: string[]) => {
+    if (!ids.length) return;
+    // one 4"×6" label per page for thermal labels, A4 labels as before (see utils/bulkLabelPdf.ts)
+    await downloadBulkPdfWithProgress('labels', (onProgress) => buildBulkLabelPdf(BACKEND_BASE, ids, bulkPdfHeaders(), { onProgress }), ids.length, 'bulk-labels.pdf');
+  };
+
+  // (used /label/invoice?orderId=, which does not exist — every invoice was skipped and the PDF came out empty)
   const handleBulkInvoice = async (ids: string[]) => {
     if (!ids.length) return;
-    try {
-      const mergedPdf = await PDFDocument.create();
-      const token = getToken();
-      const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
-      for (const id of ids) {
-        try {
-          const res = await fetch(`${BACKEND_BASE}/label/invoice?orderId=${id}`, { headers });
-          if (!res.ok) continue;
-          const pdfBytes = await (await res.blob()).arrayBuffer();
-          const srcPdf = await PDFDocument.load(pdfBytes);
-          const copied = await mergedPdf.copyPages(srcPdf, srcPdf.getPageIndices());
-          copied.forEach(p => mergedPdf.addPage(p));
-        } catch (e) { console.error(`Invoice fetch failed for ${id}`, e); }
-      }
-      const pdfSaved = await mergedPdf.save();
-      const blob = new Blob([pdfSaved.buffer as ArrayBuffer], { type: 'application/pdf' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href = url; a.download = 'bulk-invoices.pdf';
-      document.body.appendChild(a); a.click(); a.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (e) { console.error('Bulk invoice merge failed', e); }
+    await downloadBulkPdfWithProgress('invoices', (onProgress) => buildBulkInvoicePdf(BACKEND_BASE, ids, bulkPdfHeaders(), { onProgress }), ids.length, 'bulk-invoices.pdf');
   };
 
   const handleBulkManifest = async (ids: string[]) => {
-    try { await downloadBlob('/manifest/generate-pdf', 'bulk-manifest.pdf', { orderIds: ids }); }
-    catch (e) { console.error('Bulk manifest download failed', e); }
+    const progress = startDownloadProgress('manifest', null);
+    try {
+      await downloadBlob('/manifest/generate-pdf', 'bulk-manifest.pdf', { orderIds: ids });
+      progress.finish('success', `Manifest downloaded (${ids.length} orders)`);
+    } catch (e) {
+      console.error('Bulk manifest download failed', e);
+      progress.finish('error', 'Failed to download manifest', 'Please try again.');
+    }
   };
 
   // ── Action menu items ──
@@ -819,9 +809,12 @@ export function AdminNDR() {
                           {order.orderId && <button onClick={(e) => { e.stopPropagation(); copyText(order.orderId, 'Order ID'); }} className="opacity-100 md:opacity-0 md:group-hover/copy:opacity-100 transition-opacity shrink-0 focus:outline-none" title="Copy Order ID"><Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" /></button>}
                         </div>
                         <div className="text-[12px] font-normal text-[#94A3B8] mt-0.5">{order.date}</div>
-                        <span className="px-2 py-0.5 rounded-full border border-blue-200 text-blue-600 font-semibold text-[10px] bg-blue-50/50 mt-1 inline-block">
-                          {order.channel}
-                        </span>
+                        <div className="flex items-center gap-1.5 min-w-0 mt-1">
+                          <span className="px-2 py-0.5 rounded-full border border-blue-200 text-blue-600 font-semibold text-[10px] bg-blue-50/50 inline-block shrink-0">
+                            {order.channel}
+                          </span>
+                          {order.orderRef && <span className="text-[11px] leading-4 font-normal text-[#64748B] truncate max-w-[140px]" title={`Customer order ID: ${order.orderRef}`}>({order.orderRef})</span>}
+                        </div>
                       </td>
 
                       {/* Product */}

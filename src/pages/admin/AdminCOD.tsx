@@ -26,6 +26,7 @@ import { useTableLoader } from '../../hooks/useTableLoader';
 import { usePagination, DesktopPagination } from '../../hooks/usePagination';
 import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
 import { copyToClipboard } from '../../utils/clipboard';
+import { customerOrderIdOf, csvCell } from '../../utils/customerOrderId';
 import { CodAdjustmentBadge, CodAdjustmentNotes, CodRecoveryBanner, CodReversalsModal } from '../../components/ui/CodAdjustments';
 
 const ADMIN_TABS = [
@@ -54,6 +55,7 @@ const SLUG_TO_TAB: Record<string, string> = {
 const mapCodOrder = (item: any) => ({
   id: String(item._id || item.orderID || ''),
   orderID: String(item.orderID || ''),
+  customerOrderId: customerOrderIdOf(item),
   awb: item.AWB_Number || '',          // model field is AWB_Number (not AwbNumber)
   userId: item.userId || '',
   userName: item.userName || '',
@@ -98,6 +100,7 @@ const mapSellerRemittance = (item: any) => ({
 const mapCourierRemittance = (item: any) => ({
   id: String(item._id || item.orderID || ''),
   orderID: String(item.orderID || ''),
+  customerOrderId: customerOrderIdOf(item),
   awb: item.AwbNumber || '',            // courier model field is AwbNumber
   userId: item.userId || '',
   userName: item.userName || '',
@@ -544,7 +547,7 @@ export function AdminCOD() {
   const handleExportCsv = (rows: any[], filename: string) => {
     if (rows.length === 0) { showToast('error', 'Select rows to export.'); return; }
     const keys = Object.keys(rows[0]);
-    const csv = [keys.join(','), ...rows.map(r => keys.map(k => `"${r[k] ?? ''}"`).join(','))].join('\n');
+    const csv = [keys.join(','), ...rows.map(r => keys.map(k => csvCell(r[k])).join(','))].join('\n');
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
     a.download = filename;

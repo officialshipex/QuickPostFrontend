@@ -5,7 +5,7 @@
    cargo, so it counts B2B orders only (pickup manifests and weight disputes are B2C flows: empty here). */
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { PDFDocument } from 'pdf-lib';
+import { buildBulkLabelPdf, buildBulkInvoicePdf, downloadPdf, bulkSkippedMessage } from '../../utils/bulkLabelPdf';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Package, IndianRupee, Download, MapPin, Users, Truck, Loader2, X, ChevronRight,
@@ -92,23 +92,6 @@ const saveBlob = (blob: Blob, filename: string) => {
   const a = document.createElement('a'); a.href = url; a.download = filename;
   document.body.appendChild(a); a.click(); a.remove();
   window.URL.revokeObjectURL(url);
-};
-
-// Fetches one PDF per order and merges them into a single download
-const mergePdfs = async (urls: string[], filename: string) => {
-  const merged = await PDFDocument.create();
-  for (const url of urls) {
-    try {
-      const res = await fetch(url, { headers: authHeaders() });
-      if (!res.ok) continue;
-      const src = await PDFDocument.load(await (await res.blob()).arrayBuffer());
-      const pages = await merged.copyPages(src, src.getPageIndices());
-      pages.forEach(p => merged.addPage(p));
-    } catch (e) { console.error(`PDF fetch failed for ${url}`, e); }
-  }
-  if (merged.getPageCount() === 0) throw new Error('No documents available');
-  const bytes = await merged.save();
-  saveBlob(new Blob([bytes.buffer as ArrayBuffer], { type: 'application/pdf' }), filename);
 };
 
 /* ─── types ───────────────────────────────────────────────────────── */
@@ -369,10 +352,14 @@ export function CargoHome() {
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         saveBlob(await res.blob(), `manifest-${suffix}.pdf`);
-      } else if (kind === 'labels') {
-        await mergePdfs(activeOrderIds.map(id => `${BACKEND_BASE}/b2b/generate-label/${id}`), `labels-${suffix}.pdf`);
       } else {
-        await mergePdfs(activeOrderIds.map(id => `${BACKEND_BASE}/printinvoice/download-invoice/${id}`), `invoices-${suffix}.pdf`);
+        // fetched in batches from the backend (see utils/bulkLabelPdf.ts); skipped orders are reported
+        const { bytes, failed } = kind === 'labels'
+          ? await buildBulkLabelPdf(BACKEND_BASE, activeOrderIds, authHeaders(), { b2b: true })
+          : await buildBulkInvoicePdf(BACKEND_BASE, activeOrderIds, authHeaders());
+        downloadPdf(bytes, `${kind}-${suffix}.pdf`);
+        const skipped = bulkSkippedMessage(kind, activeOrderIds.length, failed);
+        if (skipped) setDownloadError(skipped);
       }
     } catch (e) {
       console.error(`${kind} download failed`, e);

@@ -1,6 +1,7 @@
 /* QuickPost Cargo (admin) — CRM · Shipments. Same UI as the B2C page (pages/admin/CRMShipmentListing.tsx), kept as a
    separate file so Cargo can diverge. Reads the CRM shipments API pinned to B2B orders
    (orderType=B2B), so Cargo never lists B2C shipments. */
+import { orderReferenceOf } from '../../utils/customerOrderId';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
@@ -31,7 +32,7 @@ import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
 import { useProductTooltip, ProductTooltipCard } from '../../hooks/useProductTooltip';
 
 const STATUS_OPTS = ['Ready To Ship', 'Pickup Scheduled', 'Picked Up', 'In Transit', 'Out for Delivery', 'Delivered', 'Undelivered', 'Action Requested', 'RTO Initiated', 'RTO In Transit', 'RTO Delivered', 'RTO Lost', 'RTO Damaged', 'Lost', 'Damaged', 'Cancelled'];
-const CHANNEL_OPTS = ['custom', 'api', 'shopify', 'woocommerce'];
+const CHANNEL_OPTS = ['custom', 'bulk upload', 'api', 'shopify', 'woocommerce'];
 const ORDER_TYPE_OPTS = ['Prepaid', 'COD'];
 const WEIGHT_RANGE_OPTS = [
   { label: 'Under 500g', value: 'under500', min: 0, max: 0.5 },
@@ -148,6 +149,7 @@ const mapOrder = (o: any) => ({
   _id: String(o._id || ''),
   awb: o.awb_number || '',
   orderId: String(o.orderId || ''),
+  orderRef: orderReferenceOf(o),
   orderType: o.paymentDetails?.method || 'Prepaid',
   courier: o.courierServiceName || '—',
   channel: o.channel || 'API',
@@ -908,9 +910,12 @@ export function CargoCRMShipmentListing() {
                           <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(row.orderId).catch(()=>{}); }} className="opacity-100 md:opacity-0 md:group-hover/copy:opacity-100 transition-opacity shrink-0 focus:outline-none" title="Copy Order ID"><Copy className="w-3 h-3 text-[#94A3B8] hover:text-[#00A86B]" /></button>
                         </div>
                         <div className="text-[12px] leading-[18px] font-normal text-[#64748B]">{new Date(row.manifestDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
-                        <span className="px-2 py-0.5 rounded-full border border-blue-200 text-[#004AAD] font-semibold text-[10px] leading-4 bg-blue-50/50 inline-block uppercase w-fit">
-                          {row.channel === 'WooCommerce' ? 'Woo' : (row.channel || 'API')}
-                        </span>
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span className="px-2 py-0.5 rounded-full border border-blue-200 text-[#004AAD] font-semibold text-[10px] leading-4 bg-blue-50/50 inline-block uppercase w-fit shrink-0">
+                            {row.channel === 'WooCommerce' ? 'Woo' : (row.channel || 'API')}
+                          </span>
+                          {row.orderRef && <span className="text-[11px] leading-4 font-normal text-[#64748B] truncate max-w-[140px]" title={`Customer order ID: ${row.orderRef}`}>({row.orderRef})</span>}
+                        </div>
                       </div>
                     </td>
                     <td className="p-3">

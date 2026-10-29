@@ -39,6 +39,7 @@ import {
   Lock,
   ListChecks,
   MessageSquare,
+  ScrollText,
 } from 'lucide-react';
 
 const LOGO_URL = '/logo-white.png';
@@ -201,6 +202,7 @@ const MENU_GROUPS: MenuGroup[] = [
       { name: 'Companies', path: '/admin/companies', icon: Building2, noEmployee: true },
       { name: 'Sales Management', path: '/admin/sales-management', icon: Target, noEmployee: true },
       { name: 'Seller Feedback', path: '/admin/seller-feedback', icon: MessageSquare, noEmployee: true },
+      { name: 'System Logs', path: '/admin/system-logs', icon: ScrollText, noEmployee: true },
     ]
   },
   {
