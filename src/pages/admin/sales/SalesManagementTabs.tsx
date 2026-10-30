@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { TableLoader } from '../../../components/ui/TableLoader';
 import {
-  salesApiClient, apiError, inr, periodLabel,
+  salesApiClient, apiError, inr, periodLabel, incentiveLine,
   type TeamMember, type Slab, type OnboardingBonusRule, type RateOffer, type SalesEarning, type SalesPayout, type KycStatus,
 } from '../../../services/salesApi';
 import { BadgeChip } from './SalesEarningsTab';
@@ -294,6 +294,7 @@ function PlanEditor({ plan, people, onClose, onSaved }: { plan: Plan; people: Te
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
               <div><label className={labelCls}>Bonus (₹)</label><input type="number" min={0} value={bonus.amount} onChange={e => setBonus('amount', Number(e.target.value))} className={fieldCls} /></div>
               <div><label className={labelCls}>First recharge at least (₹)</label><input type="number" min={0} value={bonus.minRecharge} onChange={e => setBonus('minRecharge', Number(e.target.value))} className={fieldCls} /></div>
+              <div><label className={labelCls}>Shipments picked at least</label><input type="number" min={0} value={bonus.minShipments ?? 100} onChange={e => setBonus('minShipments', Number(e.target.value))} className={fieldCls} /></div>
               <div><label className={labelCls}>Within (days)</label><input type="number" min={1} value={bonus.withinDays} onChange={e => setBonus('withinDays', Number(e.target.value))} className={fieldCls} /></div>
               <label className="flex items-end gap-2 pb-2.5 text-[12.5px] text-[#475569]"><input type="checkbox" checked={bonus.requireKyc} onChange={e => setBonus('requireKyc', e.target.checked)} className="h-4 w-4 accent-[#00A86B]" />Seller KYC required</label>
             </div>
@@ -302,16 +303,16 @@ function PlanEditor({ plan, people, onClose, onSaved }: { plan: Plan; people: Te
         <section>
           <div className="flex items-center justify-between mb-2">
             <h4 className="text-[13px] font-bold text-[#0F172A]">Monthly incentive slabs</h4>
-            <button type="button" onClick={() => setDraft(d => ({ ...d, slabs: [...d.slabs, { minShipments: (d.slabs.at(-1)?.maxShipments ?? 0) + 1, maxShipments: null, percent: 0, badge: '', color: '#00A86B' }] }))} className="text-[12.5px] font-semibold text-[#00A86B] inline-flex items-center gap-1"><Plus className="w-3.5 h-3.5" />Add slab</button>
+            <button type="button" onClick={() => setDraft(d => ({ ...d, slabs: [...d.slabs, { minShipments: (d.slabs.at(-1)?.maxShipments ?? 0) + 1, maxShipments: null, ratePerShipment: 0, badge: '', color: '#00A86B' }] }))} className="text-[12.5px] font-semibold text-[#00A86B] inline-flex items-center gap-1"><Plus className="w-3.5 h-3.5" />Add slab</button>
           </div>
-          <p className="text-[11.5px] text-[#94A3B8] mb-2">In-transit shipments of the person's sellers in the month (booked-but-not-picked-up and cancelled ones don't count) pick the slab; that % is paid on the freight of all those shipments. Leave "to" empty for "and above".</p>
+          <p className="text-[11.5px] text-[#94A3B8] mb-2">In-transit shipments of the person's sellers in the month (booked-but-not-picked-up and cancelled ones don't count) pick the slab on the last day of the month; incentive = all those shipments × that slab's ₹ rate. Leave "to" empty for "and above".</p>
           <div className="space-y-2">
-            <div className="grid grid-cols-[1fr_1fr_90px_1fr_56px_32px] gap-2 text-[11px] font-semibold text-[#64748B]"><span>From</span><span>To</span><span>%</span><span>Badge</span><span>Color</span><span /></div>
+            <div className="grid grid-cols-[1fr_1fr_90px_1fr_56px_32px] gap-2 text-[11px] font-semibold text-[#64748B]"><span>From</span><span>To</span><span>₹ / shipment</span><span>Badge</span><span>Color</span><span /></div>
             {draft.slabs.map((s, i) => (
               <div key={i} className="grid grid-cols-[1fr_1fr_90px_1fr_56px_32px] gap-2 items-center">
                 <input type="number" min={0} value={s.minShipments} onChange={e => setSlab(i, 'minShipments', e.target.value)} className={small} />
                 <input type="number" min={0} value={s.maxShipments ?? ''} placeholder="and above" onChange={e => setSlab(i, 'maxShipments', e.target.value)} className={small} />
-                <input type="number" min={0} max={100} step={0.05} value={s.percent} onChange={e => setSlab(i, 'percent', e.target.value)} className={small} />
+                <input type="number" min={0} step={0.05} value={s.ratePerShipment} onChange={e => setSlab(i, 'ratePerShipment', e.target.value)} className={small} />
                 <input value={s.badge} onChange={e => setSlab(i, 'badge', e.target.value)} placeholder="e.g. Gold" className={small} />
                 <input type="color" value={s.color || '#00A86B'} onChange={e => setSlab(i, 'color', e.target.value)} className="h-9 w-full rounded-lg border border-[#E2E8F0] cursor-pointer" />
                 <button type="button" aria-label="Remove slab" onClick={() => setDraft(d => ({ ...d, slabs: d.slabs.filter((_, j) => j !== i) }))} className="w-8 h-8 rounded-full flex items-center justify-center text-[#94A3B8] hover:text-red-500 hover:bg-red-50"><Trash2 className="w-4 h-4" /></button>
@@ -354,11 +355,11 @@ export function PlansTab({ people, notify }: { people: TeamMember[]; notify: Not
                 {!p.isDefault && <button onClick={() => remove(p)} aria-label="Delete plan" className="w-8 h-8 rounded-full flex items-center justify-center text-[#64748B] hover:bg-red-50 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>}
               </div>
             </div>
-            <p className="text-[12.5px] text-[#475569] mt-3">{p.onboardingBonus.enabled ? <>Onboarding bonus <b className="text-[#0F172A]">{inr(p.onboardingBonus.amount)}</b> · first recharge ≥ {inr(p.onboardingBonus.minRecharge)} within {p.onboardingBonus.withinDays} days{p.onboardingBonus.requireKyc ? ' + KYC' : ''}</> : 'No onboarding bonus'}</p>
+            <p className="text-[12.5px] text-[#475569] mt-3">{p.onboardingBonus.enabled ? <>Onboarding bonus <b className="text-[#0F172A]">{inr(p.onboardingBonus.amount)}</b> · first recharge ≥ {inr(p.onboardingBonus.minRecharge)} + {n(p.onboardingBonus.minShipments ?? 100)} shipments picked within {p.onboardingBonus.withinDays} days{p.onboardingBonus.requireKyc ? ' + KYC' : ''}</> : 'No onboarding bonus'}</p>
             <table className="w-full mt-3 text-[12px]">
               <tbody className="divide-y divide-[#F1F5F9]">
                 {p.slabs.map(s => (
-                  <tr key={s.minShipments}><td className="py-1.5 tabular-nums text-[#475569]">{n(s.minShipments)}{s.maxShipments ? ` – ${n(s.maxShipments)}` : '+'} shipments</td><td className="py-1.5 font-semibold text-[#0F172A]">{s.percent}%</td><td className="py-1.5 text-right"><BadgeChip badge={s.badge} color={s.color} /></td></tr>
+                  <tr key={s.minShipments}><td className="py-1.5 tabular-nums text-[#475569]">{n(s.minShipments)}{s.maxShipments ? ` – ${n(s.maxShipments)}` : '+'} shipments</td><td className="py-1.5 font-semibold text-[#0F172A]">{inr(s.ratePerShipment)} / shipment</td><td className="py-1.5 text-right"><BadgeChip badge={s.badge} color={s.color} /></td></tr>
                 ))}
               </tbody>
             </table>
@@ -531,7 +532,7 @@ export function PayoutsTab({ people, notify, initialPerson }: { people: TeamMemb
                     <td className="py-3 px-4">{e.status === 'unpaid' && <input type="checkbox" readOnly checked={selected.includes(e._id)} className="h-4 w-4 accent-[#00A86B]" />}</td>
                     <td className="py-3 px-4 font-semibold text-[#0F172A]">{e.salesPerson?.fullName}</td>
                     <td className="py-3 px-4">{e.type === 'onboarding_bonus' ? 'Onboarding bonus' : `Incentive · ${periodLabel(e.period)}`}</td>
-                    <td className="py-3 px-4">{e.type === 'onboarding_bonus' ? `${e.details?.sellerName || 'Seller'} · recharge ${inr(e.details?.rechargeAmount)}` : <span className="inline-flex items-center gap-2">{n(e.details?.shipments)} shipments · {e.details?.percent}% of {inr(e.details?.freight)} <BadgeChip badge={e.details?.badge} /></span>}</td>
+                    <td className="py-3 px-4">{e.type === 'onboarding_bonus' ? `${e.details?.sellerName || 'Seller'} · recharge ${inr(e.details?.rechargeAmount)}` : <span className="inline-flex items-center gap-2">{incentiveLine(e.details)} <BadgeChip badge={e.details?.badge} /></span>}</td>
                     <td className="py-3 px-4 font-bold text-[#0F172A] tabular-nums">{inr(e.amount)}</td>
                     <td className="py-3 px-4">{e.status === 'paid' ? <span className="text-emerald-700 font-semibold">Paid · UTR {e.payout?.utr}</span> : <span className="text-amber-700 font-semibold">Unpaid</span>}</td>
                   </tr>

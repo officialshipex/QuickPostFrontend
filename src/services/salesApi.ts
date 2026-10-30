@@ -151,16 +151,16 @@ export interface SalesMe {
 }
 
 // ── Earnings ──────────────────────────────────────────────────────────────────
-export interface Slab { minShipments: number; maxShipments: number | null; percent: number; badge: string; color?: string }
-export interface OnboardingBonusRule { enabled: boolean; amount: number; minRecharge: number; withinDays: number; requireKyc: boolean }
+export interface Slab { minShipments: number; maxShipments: number | null; ratePerShipment: number; badge: string; color?: string }
+export interface OnboardingBonusRule { enabled: boolean; amount: number; minRecharge: number; minShipments?: number; withinDays: number; requireKyc: boolean }
 export interface MonthIncentive {
-  period: string; planName: string; sellers: number; shipments: number; freight: number; percent: number;
+  period: string; planName: string; sellers: number; shipments: number; freight: number; ratePerShipment: number;
   badge: string; badgeColor: string; amount: number;
-  nextSlab: { minShipments: number; percent: number; badge: string; needed: number } | null;
+  nextSlab: { minShipments: number; ratePerShipment: number; badge: string; needed: number } | null;
 }
 export interface SalesEarning {
   _id: string; type: 'onboarding_bonus' | 'monthly_incentive'; period: string; amount: number; status: 'unpaid' | 'paid'; earnedAt: string;
-  details?: { planName?: string; shipments?: number; freight?: number; percent?: number; badge?: string; sellers?: number; sellerName?: string; rechargeAmount?: number; rechargeAt?: string };
+  details?: { planName?: string; shipments?: number; freight?: number; ratePerShipment?: number; percent?: number; badge?: string; sellers?: number; sellerName?: string; rechargeAmount?: number; rechargeAt?: string };
   payout?: { _id: string; utr: string; paidAt: string } | null;
   salesPerson?: { _id: string; fullName: string; employeeId: string };
 }
@@ -192,6 +192,10 @@ export const ZONE_LABEL: Record<string, string> = { zoneA: 'Zone A', zoneB: 'Zon
 
 /** Safe percentage: numerator / denominator, 0 when the denominator is 0. */
 export const pct = (num?: number, den?: number) => (den && den > 0 ? Math.round(((num || 0) / den) * 100) : 0);
+/** How an incentive was worked out: "17,493 shipments × ₹1.25" (older records: "2% of ₹5,000") */
+export const incentiveLine = (d?: SalesEarning['details']) => (d?.ratePerShipment != null
+  ? `${(d.shipments ?? 0).toLocaleString('en-IN')} shipments × ${inr(d.ratePerShipment)}`
+  : `${(d?.shipments ?? 0).toLocaleString('en-IN')} shipments · ${d?.percent ?? 0}% of ${inr(d?.freight)}`);
 export const inr = (v?: number) => `₹${(v ?? 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
 export const periodLabel = (p?: string) => {
   if (!p) return '—';

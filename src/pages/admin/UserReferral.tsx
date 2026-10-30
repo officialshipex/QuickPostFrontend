@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Gift, Copy, Check, Link2, Users, Wallet, Percent, RefreshCcw, MessageCircle, CheckCircle2, Clock, XCircle, ArrowRightLeft } from 'lucide-react';
+import { Gift, Copy, Check, Link2, Users, Wallet, Coins, RefreshCcw, MessageCircle, CheckCircle2, Clock, XCircle, ArrowRightLeft } from 'lucide-react';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { TableLoader } from '../../components/ui/TableLoader';
 import { apiClient } from '../../services/apiClient';
@@ -11,15 +11,15 @@ import { SlabBadge as BadgeChip } from './ReferralProgramDialogs';
    from before automatic crediting, a transfer to the wallet. Backend GET /referral/stats, POST /referral/withdraw. */
 
 interface Stats { referredFriends: number; referralOrders: number; totalShipping: number; totalCommission: number; withdrawn: number; remaining: number; bonusEarned: number; bonusCount: number }
-interface MonthRow { _id: string; month: string; referralOrders: number; shippingCharges: number; commission: number; commissionRate: number | null; badge?: string; creditedToWallet: number }
+interface MonthRow { _id: string; month: string; referralOrders: number; shippingCharges: number; commission: number; ratePerShipment: number | null; commissionRate: number | null; badge?: string; creditedToWallet: number }
 interface Friend { _id: string; name: string; joinedAt: string; kycDone: boolean; bonusStatus: 'credited' | 'processing' | 'pending' | 'expired' | 'not_eligible'; bonusAmount: number; bonusDeadline: string }
-interface Slab { minShipments: number; maxShipments: number | null; percent: number; badge: string; color?: string }
+interface Slab { minShipments: number; maxShipments: number | null; ratePerShipment: number; badge: string; color?: string }
 interface CurrentMonth {
-  period: string; shipments: number; freight: number; percent: number; badge: string; badgeColor: string; amount: number;
-  nextSlab: { minShipments: number; percent: number; badge: string; needed: number } | null;
+  period: string; shipments: number; freight: number; ratePerShipment: number; badge: string; badgeColor: string; amount: number;
+  nextSlab: { minShipments: number; ratePerShipment: number; badge: string; needed: number } | null;
 }
 interface StatsResponse {
-  stats: Stats; monthlyData: MonthRow[]; referralCommissionPercentage: number; referralCode: string;
+  stats: Stats; monthlyData: MonthRow[]; referralCode: string;
   program: { joiningBonus: { enabled: boolean; amount: number; minFirstRecharge: number; withinDays: number; requireKyc: boolean } };
   plan: { name: string; slabs: Slab[] };
   currentMonth: CurrentMonth;
@@ -113,7 +113,7 @@ export function UserReferral() {
                   </div>
                   <div className="rounded-xl bg-[#F8FAFC] border border-[#EEF2F6] p-3.5">
                     <div className="text-[11px] font-bold text-[#00A86B] uppercase tracking-wider">3 · Every month</div>
-                    <p className="text-[12.5px] text-[#475569] mt-1">A commission on the shipping charges of their shipments that go in transit — the more they ship in the month, the higher your % (see your plan below). Added to your wallet at the end of each month.</p>
+                    <p className="text-[12.5px] text-[#475569] mt-1">A commission for each of their shipments that go in transit — the more they ship in the month, the higher your ₹ per shipment (see your plan below). Added to your wallet at the end of each month.</p>
                   </div>
                 </div>
               </div>
@@ -141,7 +141,7 @@ export function UserReferral() {
                   { label: 'Friends referred', value: String(s?.referredFriends || 0), icon: Users, tone: 'bg-sky-50 text-sky-600' },
                   { label: `Joining bonuses (${s?.bonusCount || 0})`, value: inr(s?.bonusEarned), icon: Gift, tone: 'bg-[#F0FDF4] text-[#00A86B]' },
                   { label: 'Commission earned', value: inr(s?.totalCommission), icon: Wallet, tone: 'bg-amber-50 text-amber-600' },
-                  { label: 'This month\'s rate', value: `${data.currentMonth?.percent ?? 0}%`, icon: Percent, tone: 'bg-violet-50 text-violet-600' },
+                  { label: 'This month\'s rate', value: `${inr(data.currentMonth?.ratePerShipment)} / shipment`, icon: Coins, tone: 'bg-violet-50 text-violet-600' },
                 ].map(k => (
                   <div key={k.label} className={`${card} px-4 py-3.5 flex items-start justify-between gap-3`}>
                     <div className="min-w-0"><div className="text-[12px] font-medium text-[#64748B] truncate">{k.label}</div><div className="text-[20px] font-bold text-[#0F172A] tabular-nums mt-0.5">{k.value}</div></div>
@@ -161,17 +161,17 @@ export function UserReferral() {
                         <div>
                           <div className="text-[12px] font-semibold text-[#64748B]">This month so far</div>
                           <div className="text-[26px] font-bold text-[#0F172A] tabular-nums leading-tight mt-1">{inr(cm.amount)}</div>
-                          <div className="text-[12.5px] text-[#64748B] mt-0.5">{cm.percent}% of {inr(cm.freight)} · {cm.shipments.toLocaleString('en-IN')} in-transit shipments</div>
+                          <div className="text-[12.5px] text-[#64748B] mt-0.5">{cm.shipments.toLocaleString('en-IN')} in-transit shipments × {inr(cm.ratePerShipment)}</div>
                         </div>
                         {cm.badge && <BadgeChip badge={cm.badge} color={cm.badgeColor} />}
                       </div>
                       <div className="mt-4">
                         <div className="flex items-center justify-between text-[12.5px]">
-                          <span className="font-medium text-[#334155]">{cm.nextSlab ? `Next: ${cm.nextSlab.percent}%${cm.nextSlab.badge ? ` (${cm.nextSlab.badge})` : ''} at ${cm.nextSlab.minShipments.toLocaleString('en-IN')} shipments` : 'Top slab reached'}</span>
+                          <span className="font-medium text-[#334155]">{cm.nextSlab ? `Next: ${inr(cm.nextSlab.ratePerShipment)} per shipment${cm.nextSlab.badge ? ` (${cm.nextSlab.badge})` : ''} at ${cm.nextSlab.minShipments.toLocaleString('en-IN')} shipments` : 'Top slab reached'}</span>
                           {cm.nextSlab && <span className="text-[#64748B] tabular-nums">{cm.nextSlab.needed.toLocaleString('en-IN')} to go</span>}
                         </div>
                         <div className="mt-1.5 h-2.5 rounded-full bg-[#F1F5F9] overflow-hidden"><div className="h-full rounded-full bg-[#00A86B]" style={{ width: `${toNext}%` }} /></div>
-                        <p className="text-[11.5px] text-[#94A3B8] mt-2">Credited to your wallet at the end of the month. When a higher slab is reached, its % applies to all of the month's shipments.</p>
+                        <p className="text-[11.5px] text-[#94A3B8] mt-2">Credited to your wallet at the end of the month. When a higher slab is reached, its rate applies to all of the month's shipments.</p>
                       </div>
                     </div>
                     <div className={`${card} overflow-hidden`}>
@@ -180,11 +180,11 @@ export function UserReferral() {
                         <thead><tr className="bg-[#FAFBFC] text-[11.5px] font-semibold text-[#64748B]"><th className="py-2.5 px-5">Shipments / month</th><th className="py-2.5 px-5">Commission</th><th className="py-2.5 px-5">Badge</th></tr></thead>
                         <tbody className="divide-y divide-[#F1F5F9]">
                           {data.plan.slabs.map(sl => {
-                            const on = sl.percent === cm.percent && (sl.badge || '') === (cm.badge || '');
+                            const on = sl.ratePerShipment === cm.ratePerShipment &&(sl.badge || '') === (cm.badge || '');
                             return (
                               <tr key={sl.minShipments} className={on ? 'bg-[#F0FDF4]' : ''}>
                                 <td className="py-2.5 px-5 tabular-nums font-medium text-[#0F172A]">{sl.minShipments.toLocaleString('en-IN')}{sl.maxShipments ? ` – ${sl.maxShipments.toLocaleString('en-IN')}` : ' and above'}</td>
-                                <td className="py-2.5 px-5 font-semibold text-[#0F172A]">{sl.percent}%</td>
+                                <td className="py-2.5 px-5 font-semibold text-[#0F172A]">{inr(sl.ratePerShipment)} / shipment</td>
                                 <td className="py-2.5 px-5">{sl.badge ? <BadgeChip badge={sl.badge} color={sl.color} /> : <span className="text-[#94A3B8]">—</span>}{on && <span className="ml-2 text-[11px] font-semibold text-[#00A86B]">You're here</span>}</td>
                               </tr>
                             );
@@ -239,7 +239,7 @@ export function UserReferral() {
                               <td className="py-3 px-4 font-semibold text-[#0F172A] whitespace-nowrap">{m.month}</td>
                               <td className="py-3 px-4 tabular-nums">{m.referralOrders}</td>
                               <td className="py-3 px-4 tabular-nums">{inr(m.shippingCharges)}</td>
-                              <td className="py-3 px-4 tabular-nums font-bold text-[#0F172A]">{inr(m.commission)}{m.commissionRate != null && <span className="font-normal text-[#94A3B8]"> · {m.commissionRate}%{m.badge ? ` · ${m.badge}` : ''}</span>}</td>
+                              <td className="py-3 px-4 tabular-nums font-bold text-[#0F172A]">{inr(m.commission)}{(m.ratePerShipment != null || m.commissionRate != null) && <span className="font-normal text-[#94A3B8]"> · {m.ratePerShipment != null ? `${inr(m.ratePerShipment)} / shipment` : `${m.commissionRate}%`}{m.badge ? ` · ${m.badge}` : ''}</span>}</td>
                               <td className="py-3 px-4 whitespace-nowrap">{m.creditedToWallet >= m.commission - 0.01
                                 ? <span className="text-emerald-700 font-semibold">Credited</span>
                                 : m.creditedToWallet > 0

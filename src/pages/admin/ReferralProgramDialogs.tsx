@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
-import { X, AlertCircle, Gift, Percent, Award, Plus, Trash2, Pencil, Search } from 'lucide-react';
+import { X, AlertCircle, Gift, Coins, Award, Plus, Trash2, Pencil, Search } from 'lucide-react';
 import { apiClient } from '../../services/apiClient';
 import { TableLoader } from '../../components/ui/TableLoader';
 
@@ -12,7 +12,7 @@ export interface ReferralProgram {
   joiningBonus: { enabled: boolean; amount: number; minFirstRecharge: number; withinDays: number; requireKyc: boolean };
 }
 
-export interface ReferralSlab { minShipments: number; maxShipments: number | null; percent: number; badge: string; color?: string }
+export interface ReferralSlab { minShipments: number; maxShipments: number | null; ratePerShipment: number; badge: string; color?: string }
 interface PlanUser { _id: string; fullname: string; company?: string; userId?: number; email?: string; referred?: number }
 export interface ReferralPlan { _id?: string; name: string; isDefault?: boolean; users: PlanUser[]; slabs: ReferralSlab[]; active?: boolean }
 
@@ -78,8 +78,8 @@ export function ReferralSettingsDialog({ onClose, onSaved }: { onClose: () => vo
             )}
           </section>
           <section className="rounded-xl bg-[#F8FAFC] border border-[#EEF2F6] p-3.5">
-            <div className="flex items-center gap-2 text-[13px] font-bold text-[#0F172A]"><Percent className="w-4 h-4 text-[#00A86B]" />Monthly commission</div>
-            <p className="text-[12px] text-[#64748B] mt-1">Set in <b>Commission plans</b>: slabs by the referred users' in-transit shipments in the month, each with its % and badge — a default plan for everyone and plans for selected referrers. Credited to the referrer's wallet at month end.</p>
+            <div className="flex items-center gap-2 text-[13px] font-bold text-[#0F172A]"><Coins className="w-4 h-4 text-[#00A86B]" />Monthly commission</div>
+            <p className="text-[12px] text-[#64748B] mt-1">Set in <b>Commission plans</b>: slabs by the referred users' in-transit shipments in the month, each with its ₹ per shipment and badge — a default plan for everyone and plans for selected referrers. Credited to the referrer's wallet at month end.</p>
           </section>
         </div>
       )}
@@ -163,16 +163,16 @@ function PlanEditor({ plan, onClose, onSaved }: { plan: ReferralPlan; onClose: (
         <section>
           <div className="flex items-center justify-between mb-2">
             <h4 className="text-[13px] font-bold text-[#0F172A]">Slabs</h4>
-            <button type="button" onClick={() => setD(p => ({ ...p, slabs: [...p.slabs, { minShipments: (p.slabs.at(-1)?.maxShipments ?? p.slabs.at(-1)?.minShipments ?? 0) + 1, maxShipments: null, percent: 0, badge: '', color: '#00A86B' }] }))} className="text-[12.5px] font-semibold text-[#00A86B] inline-flex items-center gap-1"><Plus className="w-3.5 h-3.5" />Add slab</button>
+            <button type="button" onClick={() => setD(p => ({ ...p, slabs: [...p.slabs, { minShipments: (p.slabs.at(-1)?.maxShipments ?? p.slabs.at(-1)?.minShipments ?? 0) + 1, maxShipments: null, ratePerShipment: 0, badge: '', color: '#00A86B' }] }))} className="text-[12.5px] font-semibold text-[#00A86B] inline-flex items-center gap-1"><Plus className="w-3.5 h-3.5" />Add slab</button>
           </div>
-          <p className="text-[11.5px] text-[#94A3B8] mb-2">The month's in-transit shipments of all the referrer's referred users pick the slab; its % is paid on the shipping charges of all those shipments. Leave "to" empty for "and above".</p>
+          <p className="text-[11.5px] text-[#94A3B8] mb-2">The month's in-transit shipments of all the referrer's referred users pick the slab on the last day of the month; commission = all those shipments × that slab's ₹ rate. Leave "to" empty for "and above".</p>
           <div className="space-y-2">
-            <div className="grid grid-cols-[1fr_1fr_90px_1fr_56px_32px] gap-2 text-[11px] font-semibold text-[#64748B]"><span>From</span><span>To</span><span>%</span><span>Badge</span><span>Color</span><span /></div>
+            <div className="grid grid-cols-[1fr_1fr_90px_1fr_56px_32px] gap-2 text-[11px] font-semibold text-[#64748B]"><span>From</span><span>To</span><span>₹ / shipment</span><span>Badge</span><span>Color</span><span /></div>
             {d.slabs.map((s, i) => (
               <div key={i} className="grid grid-cols-[1fr_1fr_90px_1fr_56px_32px] gap-2 items-center">
                 <input type="number" min={0} value={s.minShipments} onChange={e => setSlab(i, 'minShipments', e.target.value)} className={small} />
                 <input type="number" min={0} value={s.maxShipments ?? ''} placeholder="and above" onChange={e => setSlab(i, 'maxShipments', e.target.value)} className={small} />
-                <input type="number" min={0} max={100} step={0.05} value={s.percent} onChange={e => setSlab(i, 'percent', e.target.value)} className={small} />
+                <input type="number" min={0} step={0.05} value={s.ratePerShipment} onChange={e => setSlab(i, 'ratePerShipment', e.target.value)} className={small} />
                 <input value={s.badge} onChange={e => setSlab(i, 'badge', e.target.value)} placeholder="e.g. Gold" className={small} />
                 <input type="color" value={s.color || '#00A86B'} onChange={e => setSlab(i, 'color', e.target.value)} className="h-9 w-full rounded-lg border border-[#E2E8F0] cursor-pointer" />
                 <button type="button" aria-label="Remove slab" onClick={() => setD(p => ({ ...p, slabs: p.slabs.filter((_, j) => j !== i) }))} className="w-8 h-8 rounded-full flex items-center justify-center text-[#94A3B8] hover:text-red-500 hover:bg-red-50"><Trash2 className="w-4 h-4" /></button>
@@ -220,7 +220,7 @@ export function ReferralPlansDialog({ onClose, onSaved }: { onClose: () => void;
                 </div>
                 <table className="w-full mt-3 text-[12px]"><tbody className="divide-y divide-[#F1F5F9]">
                   {p.slabs.map(s => (
-                    <tr key={s.minShipments}><td className="py-1.5 tabular-nums text-[#475569]">{s.minShipments.toLocaleString('en-IN')}{s.maxShipments ? ` – ${s.maxShipments.toLocaleString('en-IN')}` : '+'} shipments</td><td className="py-1.5 font-semibold text-[#0F172A]">{s.percent}%</td><td className="py-1.5 text-right"><SlabBadge badge={s.badge} color={s.color} /></td></tr>
+                    <tr key={s.minShipments}><td className="py-1.5 tabular-nums text-[#475569]">{s.minShipments.toLocaleString('en-IN')}{s.maxShipments ? ` – ${s.maxShipments.toLocaleString('en-IN')}` : '+'} shipments</td><td className="py-1.5 font-semibold text-[#0F172A]">{inr(s.ratePerShipment)} / shipment</td><td className="py-1.5 text-right"><SlabBadge badge={s.badge} color={s.color} /></td></tr>
                   ))}
                 </tbody></table>
               </div>
@@ -267,7 +267,7 @@ export function UserPlanDialog({ userId, onClose, onSaved }: { userId: string; o
           {plans.map(p => (
             <label key={p._id} className={`block rounded-xl border p-3 cursor-pointer ${choice === p._id ? 'border-[#00A86B] bg-[#F0FDF4]' : 'border-[#E2E8F0] hover:border-[#CBD5E1]'}`}>
               <div className="flex items-center gap-2"><input type="radio" checked={choice === p._id} onChange={() => setChoice(p._id!)} className="accent-[#00A86B]" /><span className="text-[13px] font-bold text-[#0F172A]">{p.name}</span>{p.isDefault && <span className="text-[10.5px] font-bold text-sky-700 uppercase">Default</span>}</div>
-              <div className="mt-1.5 flex flex-wrap gap-1.5 pl-6">{p.slabs.map(s => <span key={s.minShipments} className="text-[11.5px] text-[#475569] bg-white border border-[#EEF2F6] rounded-full px-2 py-0.5">{s.minShipments.toLocaleString('en-IN')}{s.maxShipments ? `–${s.maxShipments.toLocaleString('en-IN')}` : '+'}: <b>{s.percent}%</b>{s.badge ? ` · ${s.badge}` : ''}</span>)}</div>
+              <div className="mt-1.5 flex flex-wrap gap-1.5 pl-6">{p.slabs.map(s => <span key={s.minShipments} className="text-[11.5px] text-[#475569] bg-white border border-[#EEF2F6] rounded-full px-2 py-0.5">{s.minShipments.toLocaleString('en-IN')}{s.maxShipments ? `–${s.maxShipments.toLocaleString('en-IN')}` : '+'}: <b>{inr(s.ratePerShipment)}</b> / shipment{s.badge ? ` · ${s.badge}` : ''}</span>)}</div>
             </label>
           ))}
         </div>

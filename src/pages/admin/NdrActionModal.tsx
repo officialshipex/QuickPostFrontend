@@ -169,8 +169,10 @@ export function NdrActionModal({ isOpen, onClose, order, onSubmit }: Props) {
       await onSubmit(payload);
       notify('NDR action submitted successfully!', 'success');
       onClose();
-    } catch {
-      notify('Failed to submit. Please try again.', 'error');
+    } catch (err: any) {
+      // the backend's reason when it gave one (e.g. the courier won't accept this action right now)
+      const reason = err?.response?.data?.message || err?.message;
+      notify(reason && reason !== 'Failed' ? reason : 'Failed to submit. Please try again.', 'error');
     } finally {
       setLoading(false);
     }

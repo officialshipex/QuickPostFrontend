@@ -609,7 +609,7 @@ function SalesDashboardBody({ viewAs }: { viewAs?: { id: string; name: string } 
                     <button type="button" onClick={() => setTab('earnings')} className={`${card} px-4 py-3.5 text-left hover:border-[#00A86B]/40 transition-colors`}>
                       <div className="flex items-center justify-between"><span className="text-[12px] font-medium text-[#64748B]">This month's incentive</span><BadgeChip badge={cur?.badge} color={cur?.badgeColor} /></div>
                       <div className="text-[22px] font-bold text-[#0F172A] tabular-nums mt-0.5">{inr(cur?.amount)}</div>
-                      <div className="text-[11.5px] text-[#94A3B8] truncate">{n(cur?.shipments)} shipments · {cur?.percent ?? 0}%{cur?.nextSlab ? ` · ${n(cur.nextSlab.needed)} more for ${cur.nextSlab.badge || 'next slab'}` : ''}</div>
+                      <div className="text-[11.5px] text-[#94A3B8] truncate">{n(cur?.shipments)} shipments × {inr(cur?.ratePerShipment)}{cur?.nextSlab ? ` · ${n(cur.nextSlab.needed)} more for ${cur.nextSlab.badge || 'next slab'}` : ''}</div>
                     </button>
                     <button type="button" onClick={() => setTab('earnings')} className={`${card} px-4 py-3.5 text-left hover:border-[#00A86B]/40 transition-colors`}>
                       <div className="flex items-center justify-between"><span className="text-[12px] font-medium text-[#64748B]">Awaiting payment</span><Wallet className="w-4 h-4 text-amber-600" /></div>
@@ -619,7 +619,7 @@ function SalesDashboardBody({ viewAs }: { viewAs?: { id: string; name: string } 
                     <button type="button" onClick={() => setTab('sellers')} className={`${card} px-4 py-3.5 text-left hover:border-[#00A86B]/40 transition-colors`}>
                       <div className="flex items-center justify-between"><span className="text-[12px] font-medium text-[#64748B]">Onboarding bonuses pending</span><Gift className="w-4 h-4 text-[#00A86B]" /></div>
                       <div className="text-[22px] font-bold text-[#0F172A] tabular-nums mt-0.5">{n(sellers.filter(s => s.bonus?.status === 'pending').length)}</div>
-                      <div className="text-[11.5px] text-[#94A3B8] truncate">sellers yet to complete KYC + first recharge of {inr(earnings.plan?.onboardingBonus?.minRecharge)}</div>
+                      <div className="text-[11.5px] text-[#94A3B8] truncate">sellers yet to complete KYC, first recharge of {inr(earnings.plan?.onboardingBonus?.minRecharge)} + {n(earnings.plan?.onboardingBonus?.minShipments ?? 100)} shipments</div>
                     </button>
                   </div>
                 )}

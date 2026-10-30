@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Award, Wallet, CheckCircle2, Clock, Gift, TrendingUp, Receipt } from 'lucide-react';
 import { TableLoader } from '../../../components/ui/TableLoader';
-import { salesApiClient, inr, periodLabel, type SalesEarnings } from '../../../services/salesApi';
+import { salesApiClient, inr, periodLabel, incentiveLine, type SalesEarnings } from '../../../services/salesApi';
 
 /* Earnings: this month's live incentive (slab, badge, progress to the next slab), the plan, every amount earned
    and every payment the admin made (with UTR). Sales people have no wallet — the admin pays out of band. */
@@ -50,13 +50,13 @@ export function SalesEarningsTab({ viewAsId }: { viewAsId?: string }) {
             <div>
               <div className="text-[12px] font-semibold text-[#64748B]">{periodLabel(cur?.period)} · so far</div>
               <div className="text-[28px] font-bold text-[#0F172A] tabular-nums leading-tight mt-1">{inr(cur?.amount)}</div>
-              <div className="text-[12.5px] text-[#64748B] mt-0.5">{cur?.percent ?? 0}% of {inr(cur?.freight)} freight · {n(cur?.shipments)} shipments by {n(cur?.sellers)} sellers</div>
+              <div className="text-[12.5px] text-[#64748B] mt-0.5">{n(cur?.shipments)} shipments × {inr(cur?.ratePerShipment)} · from {n(cur?.sellers)} sellers</div>
             </div>
             <BadgeChip badge={cur?.badge} color={cur?.badgeColor} size="md" />
           </div>
           <div className="mt-5">
             <div className="flex items-center justify-between text-[12.5px]">
-              <span className="font-medium text-[#334155]">{cur?.nextSlab ? `Next: ${cur.nextSlab.badge || 'next slab'} at ${n(cur.nextSlab.minShipments)} shipments (${cur.nextSlab.percent}%)` : 'Top slab reached'}</span>
+              <span className="font-medium text-[#334155]">{cur?.nextSlab ? `Next: ${cur.nextSlab.badge || 'next slab'} at ${n(cur.nextSlab.minShipments)} shipments (${inr(cur.nextSlab.ratePerShipment)} per shipment)` : 'Top slab reached'}</span>
               {cur?.nextSlab && <span className="text-[#64748B] tabular-nums">{n(cur.nextSlab.needed)} to go</span>}
             </div>
             <div className="mt-1.5 h-2.5 rounded-full bg-[#F1F5F9] overflow-hidden"><div className="h-full rounded-full bg-[#00A86B] transition-all" style={{ width: `${nextPct}%` }} /></div>
@@ -82,17 +82,17 @@ export function SalesEarningsTab({ viewAsId }: { viewAsId?: string }) {
         <div className={`${card} overflow-hidden`}>
           <div className="px-5 py-4 border-b border-[#F1F5F9]">
             <h2 className="text-[14px] font-bold text-[#0F172A]">Monthly incentive · {data.plan?.name}</h2>
-            <p className="text-[12px] text-[#94A3B8]">In-transit shipments in the month decide the % paid on all their freight</p>
+            <p className="text-[12px] text-[#94A3B8]">In-transit shipments on the last day of the month decide the ₹ rate, paid on all of them</p>
           </div>
           <table className="w-full text-left text-[12.5px]">
             <thead><tr className="bg-[#FAFBFC] text-[11.5px] font-semibold text-[#64748B]"><th className="py-2.5 px-5">Shipments / month</th><th className="py-2.5 px-5">Commission</th><th className="py-2.5 px-5">Badge</th></tr></thead>
             <tbody className="divide-y divide-[#F1F5F9]">
               {slabs.map(s => {
-                const on = cur?.badge === s.badge && cur?.percent === s.percent;
+                const on = cur?.badge === s.badge && cur?.ratePerShipment === s.ratePerShipment;
                 return (
                   <tr key={s.minShipments} className={on ? 'bg-[#F0FDF4]' : ''}>
                     <td className="py-2.5 px-5 tabular-nums font-medium text-[#0F172A]">{n(s.minShipments)}{s.maxShipments ? ` – ${n(s.maxShipments)}` : ' and above'}</td>
-                    <td className="py-2.5 px-5 font-semibold text-[#0F172A]">{s.percent}%</td>
+                    <td className="py-2.5 px-5 font-semibold text-[#0F172A]">{inr(s.ratePerShipment)} / shipment</td>
                     <td className="py-2.5 px-5"><BadgeChip badge={s.badge} color={s.color} />{on && <span className="ml-2 text-[11px] font-semibold text-[#00A86B]">You're here</span>}</td>
                   </tr>
                 );
@@ -107,6 +107,7 @@ export function SalesEarningsTab({ viewAsId }: { viewAsId?: string }) {
               <li><b className="text-[#0F172A]">{inr(bonus.amount)}</b> for every seller who registers with your referral code and, within <b className="text-[#0F172A]">{bonus.withinDays} days</b>:</li>
               {bonus.requireKyc && <li className="flex gap-2"><CheckCircle2 className="w-4 h-4 text-[#00A86B] shrink-0" />completes KYC</li>}
               <li className="flex gap-2"><CheckCircle2 className="w-4 h-4 text-[#00A86B] shrink-0" />makes a first recharge of at least {inr(bonus.minRecharge)} (only the first recharge counts)</li>
+              {(bonus.minShipments ?? 100) > 0 && <li className="flex gap-2"><CheckCircle2 className="w-4 h-4 text-[#00A86B] shrink-0" />has at least {n(bonus.minShipments ?? 100)} shipments picked up</li>}
               <li className="text-[11.5px] text-[#94A3B8]">Added to your earnings automatically within a day of the seller qualifying.</li>
             </ul>
           ) : <p className="mt-2 text-[12.5px] text-[#94A3B8]">No onboarding bonus on your plan.</p>}
@@ -128,7 +129,7 @@ export function SalesEarningsTab({ viewAsId }: { viewAsId?: string }) {
                     <td className="py-3 px-4 font-semibold text-[#0F172A]">{e.type === 'onboarding_bonus' ? 'Onboarding bonus' : `Incentive · ${periodLabel(e.period)}`}</td>
                     <td className="py-3 px-4">{e.type === 'onboarding_bonus'
                       ? `${e.details?.sellerName || 'Seller'} · recharge ${inr(e.details?.rechargeAmount)}`
-                      : <span className="inline-flex items-center gap-2">{n(e.details?.shipments)} shipments · {e.details?.percent}% of {inr(e.details?.freight)} <BadgeChip badge={e.details?.badge} /></span>}</td>
+                      : <span className="inline-flex items-center gap-2">{incentiveLine(e.details)} <BadgeChip badge={e.details?.badge} /></span>}</td>
                     <td className="py-3 px-4 font-bold text-[#0F172A] tabular-nums">{inr(e.amount)}</td>
                     <td className="py-3 px-4">{e.status === 'paid'
                       ? <span className="text-[12px] font-semibold text-emerald-700">Paid{e.payout?.utr ? ` · UTR ${e.payout.utr}` : ''}</span>

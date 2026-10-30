@@ -191,18 +191,21 @@ export function AdminUsers() {
         }
       }
       if (appliedKyc.length === 1) params.kycStatus = appliedKyc[0].toLowerCase();
-      if (appliedRateCard.length === 1) params.rateCard = appliedRateCard[0];
-      if (appliedBalance.length === 1) {
+      if (appliedRateCard.length) params.rateCard = appliedRateCard;
+      if (appliedBalance.length) {
         const bmap: Record<string, string> = {
           'Positive': 'positive',
           'Negative': 'negative',
           'Never Recharged': 'never',
           'Hold Balance': 'hold',
         };
-        params.balanceType = bmap[appliedBalance[0]] || appliedBalance[0].toLowerCase();
+        params.balanceType = appliedBalance.map(b => bmap[b] || b.toLowerCase());
       }
-      if (appliedDateStart) params.fromDate = new Date(appliedDateStart).toISOString();
-      if (appliedDateEnd) params.toDate = new Date(appliedDateEnd).toISOString();
+      // The picker's default (last 7 days) means "no date filter": this list shows all users unless a range is chosen.
+      if (appliedDateStart && appliedDateEnd && !(appliedDateStart === defStart && appliedDateEnd === defEnd)) {
+        params.fromDate = appliedDateStart;
+        params.toDate = appliedDateEnd;
+      }
       const res = await apiClient.get('/user/getAllUsers', { params });
       setUsers(res.data.userDetails || []);
       setTotalPages(res.data.totalPages || 1);
@@ -215,7 +218,7 @@ export function AdminUsers() {
     } finally {
       setIsLoading(false);
     }
-  }, [globalSearch, appliedSearch, appliedUserEmail, appliedKyc, appliedRateCard, appliedBalance, appliedDateStart, appliedDateEnd, rowsPerPage]);
+  }, [globalSearch, appliedSearch, appliedUserEmail, appliedKyc, appliedRateCard, appliedBalance, appliedDateStart, appliedDateEnd, defStart, defEnd, rowsPerPage]);
 
   useEffect(() => {
     fetchUsers(currentPage);
