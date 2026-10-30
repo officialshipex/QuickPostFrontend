@@ -9,6 +9,7 @@ import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { useAdminTab } from '../../context/AdminUserContext';
 import { AdminKYC } from './AdminKYC';
 import { UserPlanDialog } from './ReferralProgramDialogs';
+import { TwoFactorAdminCard, TwoFactorPanel } from '../../components/twoFactor/TwoFactorPanel';
 import { copyToClipboard } from '../../utils/clipboard';
 import {
   MapPin,
@@ -830,6 +831,7 @@ const TABS = [
   { id: 'bank', label: 'Bank & Payout', icon: Landmark },
   { id: 'rates', label: 'Rate Cards', icon: CreditCard },
   { id: 'api', label: 'API & Notifications', icon: Settings },
+  { id: 'two-factor', label: 'Two-Factor Auth', icon: ShieldCheck },
 ] as const;
 
 type TabId = typeof TABS[number]['id'];
@@ -1735,6 +1737,13 @@ export function AdminProfile() {
                   </div>
                 </SectionCard>
               </div>
+            )}
+
+            {/* ── Two-Factor Authentication ── */}
+            {activeTab === 'two-factor' && (
+              mongoId && mongoId !== currentUserId
+                ? <TwoFactorAdminCard userId={mongoId} />
+                : <TwoFactorPanel readOnly={isImpersonating} />
             )}
             </div>
           </div>

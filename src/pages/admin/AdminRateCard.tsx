@@ -253,33 +253,47 @@ export function AdminRateCard() {
       link.remove();
       window.URL.revokeObjectURL(url);
     } catch {
-      setCostingSaveError('Template download not available yet');
+      setCostingSaveError('Failed to download template');
     }
   };
 
-  const handleCostingUpload = async (file: File) => {
+  // Changing an existing cost reprices every seller of that service, so it is confirmed in a popup first
+  const [costingConfirm, setCostingConfirm] = useState<{ changedServices: string[]; rateCards: number; plans: number; run: () => Promise<void> } | null>(null);
+  const [costingConfirmBusy, setCostingConfirmBusy] = useState(false);
+
+  const handleCostingUpload = async (file: File, confirmed = false) => {
     setCostingUploading(true);
     setCostingSaveError('');
     try {
       const formData = new FormData();
       formData.append('file', file);
-      await apiClient.post('/costingRate/upload', formData, {
+      if (confirmed) formData.append('confirmed', 'true');
+      const res = await apiClient.post('/costingRate/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      const fresh = await apiClient.get('/costingRate/getAll');
-      setCostingRatesMap(buildCostingRatesMap(fresh.data.costingRateCards || [], services));
-      setCostingUploadSuccess('Costing rate card uploaded successfully!');
-      setTimeout(() => setCostingUploadSuccess(''), 4000);
+      const { message, errors, needsConfirm, changedServices, rateCards, plans } = res.data || {};
+      if (needsConfirm) {
+        // nothing was saved: ask, then send the same file again
+        setCostingConfirm({ changedServices, rateCards, plans, run: () => handleCostingUpload(file, true) });
+      } else if (errors?.length) {
+        setCostingSaveError(`${message || 'Upload failed'} — ${errors[0]}${errors.length > 1 ? ` (+${errors.length - 1} more, see notifications)` : ''}`);
+      } else {
+        const fresh = await apiClient.get('/costingRate/getAll');
+        setCostingRatesMap(buildCostingRatesMap(fresh.data.costingRateCards || [], services));
+        setCostingUploadSuccess(message || 'Costing rate card uploaded successfully!');
+        setTimeout(() => setCostingUploadSuccess(''), 6000);
+      }
     } catch (err: any) {
       setCostingSaveError(err?.response?.data?.message || 'Upload failed');
     } finally {
+      refreshNotifications();
       setCostingUploading(false);
     }
   };
 
   const [addingCostingRate, setAddingCostingRate] = useState(false);
 
-  const handleAddCostingRateCard = async () => {
+  const handleAddCostingRateCard = async (confirmed = false) => {
     if (!addCostingRateForm.providerName || !addCostingRateForm.serviceName) {
       setAddCostingRateError('Provider and service are required');
       return;
@@ -297,8 +311,16 @@ export function AdminRateCard() {
         weightPriceAdditional: [{ weight: parseFloat(addCostingRateForm.addWeight)||0, zoneA: parseFloat(addCostingRateForm.addZoneA)||0, zoneB: parseFloat(addCostingRateForm.addZoneB)||0, zoneC: parseFloat(addCostingRateForm.addZoneC)||0, zoneD: parseFloat(addCostingRateForm.addZoneD)||0, zoneE: parseFloat(addCostingRateForm.addZoneE)||0 }],
         codPercent: parseFloat(addCostingRateForm.codPercentage)||0,
         codCharge: parseFloat(addCostingRateForm.codCharge)||0,
+        isFlatRate: addCostingRateForm.isFlatRate === true,
+        confirmed,
       };
-      await apiClient.post('/costingRate/save', payload);
+      const saved = await apiClient.post('/costingRate/save', payload);
+      if (saved.data?.needsConfirm) {
+        // this service already has a costing rate: nothing was saved, ask first
+        const { changedServices, rateCards, plans } = saved.data;
+        setCostingConfirm({ changedServices, rateCards, plans, run: () => handleAddCostingRateCard(true) });
+        return;
+      }
       const fresh = await apiClient.get('/costingRate/getAll');
       setCostingRatesMap(buildCostingRatesMap(fresh.data.costingRateCards || [], services));
       setAddCostingRateModal(false);
@@ -322,12 +344,13 @@ export function AdminRateCard() {
     });
   };
 
-  const handleSaveCostingRates = async (provider: any) => {
+  const handleSaveCostingRates = async (provider: any, confirmed = false) => {
     setCostingSavingId(provider._id);
     setCostingSaveError('');
     try {
       const provKey = (provider.courierName || '').trim();
       const svcs: any[] = costingServicesGrouped[provKey] || [];
+      const toSave: { rate: any; payload: any }[] = [];
       for (const svc of svcs) {
         const svcKey = (svc.name || '').trim();
         const rate = costingRatesMap[provKey]?.[svcKey];
@@ -341,7 +364,21 @@ export function AdminRateCard() {
           weightPriceAdditional: [{ weight: parseFloat(rate.addWeight)||0, zoneA: parseFloat(rate.addZoneA)||0, zoneB: parseFloat(rate.addZoneB)||0, zoneC: parseFloat(rate.addZoneC)||0, zoneD: parseFloat(rate.addZoneD)||0, zoneE: parseFloat(rate.addZoneE)||0 }],
           codPercent: parseFloat(rate.codPercentage)||0,
           codCharge: parseFloat(rate.codCharge)||0,
+          isFlatRate: rate.isFlatRate === true,
+          confirmed: true, // sent only after the check below (or the popup) has passed
         };
+        toSave.push({ rate, payload });
+      }
+      // Ask once for the whole provider, before anything is saved
+      if (!confirmed) {
+        const check = await apiClient.post('/costingRate/check', { cards: toSave.map((s) => s.payload) });
+        if (check.data?.needsConfirm) {
+          const { changedServices, rateCards, plans } = check.data;
+          setCostingConfirm({ changedServices, rateCards, plans, run: () => handleSaveCostingRates(provider, true) });
+          return;
+        }
+      }
+      for (const { rate, payload } of toSave) {
         if (rate._id && !String(rate._id).startsWith('cst-rate-')) {
           await apiClient.put(`/costingRate/update/${rate._id}`, payload);
         } else {
@@ -1380,7 +1417,7 @@ export function AdminRateCard() {
               <input
                 ref={costingUploadInputRef}
                 type="file"
-                accept=".xlsx,.xls,.csv"
+                accept=".xlsx"
                 className="hidden"
                 disabled={costingUploading}
                 onChange={(e) => { const f = e.target.files?.[0]; if (f) { handleCostingUpload(f); e.target.value = ''; } }}
@@ -1424,7 +1461,7 @@ export function AdminRateCard() {
           </button>
           <label title="Upload Costing Rate Card" className={`w-9 h-9 rounded-full border border-[#E2E8F0] bg-white text-[#475569] flex items-center justify-center shrink-0 cursor-pointer ${costingUploading ? 'opacity-60 pointer-events-none' : ''}`}>
             {costingUploading ? <Spinner /> : <Upload className="w-4 h-4" />}
-            <input type="file" accept=".xlsx,.xls,.csv" className="hidden" disabled={costingUploading}
+            <input type="file" accept=".xlsx" className="hidden" disabled={costingUploading}
               onChange={(e) => { const f = e.target.files?.[0]; if (f) { handleCostingUpload(f); e.target.value = ''; } }} />
           </label>
           <button onClick={() => { setAddCostingRateForm(emptyAddCostingRateForm); setAddCostingRateError(''); setAddCostingRateModal(true); }} title="Add Rate Card"
@@ -2155,6 +2192,46 @@ export function AdminRateCard() {
         )}
       </AnimatePresence>
 
+      {/* Costing — confirm before an existing cost changes every seller's rate */}
+      <AnimatePresence>
+        {costingConfirm && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0, scale: 0.96, y: 16 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96, y: 12 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 32 }}
+              role="alertdialog" aria-modal="true" aria-labelledby="costing-confirm-title"
+              className="w-full max-w-[480px] bg-white rounded-[24px] shadow-[0_40px_80px_-16px_rgba(0,0,0,0.2)] border border-[#E2E8F0] overflow-hidden max-h-[90vh] flex flex-col">
+              <div className="px-6 py-5 border-b border-[#E2E8F0] shrink-0">
+                <h3 id="costing-confirm-title" className="text-base font-bold text-[#0F172A]">Please cross check all the rates</h3>
+                <p className="text-[13px] text-[#64748B] mt-1">
+                  This will update your existing rate cards. The increase or decrease is applied automatically to <b>{costingConfirm.rateCards} rate card(s)</b> and <b>{costingConfirm.plans} seller plan(s)</b>, and it cannot be undone automatically.
+                </p>
+              </div>
+              <div className="px-6 py-4 overflow-y-auto">
+                <p className="text-xs font-bold text-[#475569] mb-2">Services with a changed rate ({costingConfirm.changedServices.length})</p>
+                <ul className="text-[13px] text-[#0F172A] list-disc pl-5 space-y-1">
+                  {costingConfirm.changedServices.map((s) => <li key={s}>{s}</li>)}
+                </ul>
+              </div>
+              <div className="px-6 py-4 border-t border-[#E2E8F0] flex flex-col-reverse sm:flex-row sm:justify-end gap-2 shrink-0">
+                <button type="button" disabled={costingConfirmBusy} onClick={() => setCostingConfirm(null)}
+                  className="h-10 px-4 rounded-full border border-[#E2E8F0] bg-white text-[#475569] text-xs font-bold hover:bg-[#F8FAFC] disabled:opacity-60">
+                  Cancel, let me check
+                </button>
+                <button type="button" disabled={costingConfirmBusy}
+                  onClick={async () => {
+                    setCostingConfirmBusy(true);
+                    try { await costingConfirm.run(); } finally { setCostingConfirmBusy(false); setCostingConfirm(null); }
+                  }}
+                  className="h-10 px-4 rounded-full bg-[#00A86B] text-white text-xs font-bold hover:opacity-90 disabled:opacity-60">
+                  {costingConfirmBusy ? 'Updating...' : 'Yes, I have checked. Update all rates'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Costing — Add Rate Card Modal */}
       <AnimatePresence>
         {addCostingRateModal && (
@@ -2284,7 +2361,7 @@ export function AdminRateCard() {
                   className="px-5 h-11 rounded-[14px] font-semibold text-sm text-[#475569] bg-white border border-[#E2E8F0] hover:bg-[#F8FAFC] transition-all">
                   Cancel
                 </button>
-                <button onClick={handleAddCostingRateCard} disabled={addingCostingRate}
+                <button onClick={() => handleAddCostingRateCard()} disabled={addingCostingRate}
                   className="px-6 h-11 rounded-[14px] font-semibold text-sm text-white bg-[#00A86B] hover:bg-[#009B63] transition-all shadow-sm flex items-center gap-2 disabled:opacity-60">
                   <Save className="w-4 h-4" /> {addingCostingRate ? 'Saving...' : 'Save Rate Card'}
                 </button>

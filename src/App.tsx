@@ -10,7 +10,7 @@ import { RefundPolicy } from './pages/RefundPolicy';
 import { PrivacyPolicy } from './pages/PrivacyPolicy';
 import { Careers } from './pages/Careers';
 import { RateCalculator } from './pages/RateCalculator';
-import { ForgotPassword } from './pages/ForgotPassword';
+import { ResetPassword } from './pages/ResetPassword';
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
 import { EmployeeLogin } from './pages/EmployeeLogin';
@@ -108,6 +108,7 @@ import {
 } from './pages/admin/AdminValueAddedServices';
 import { AdminCourierSetup } from './pages/admin/AdminCourierSetup';
 import { AdminSettingsPlaceholder } from './pages/admin/AdminSettingsPlaceholder';
+import { AdminTwoFactor } from './pages/admin/AdminTwoFactor';
 import { AdminWebhookSettings } from './pages/admin/AdminWebhookSettings';
 import { AdminLabelSettings } from './pages/admin/AdminLabelSettings';
 import { AdminChangePassword } from './pages/admin/AdminChangePassword';
@@ -268,7 +269,9 @@ function App() {
           <Route path="/login" element={<AuthRedirect><Login /></AuthRedirect>} />
           <Route path="/register" element={<AuthRedirect><Register /></AuthRedirect>} />
           <Route path="/employee-login" element={<EmployeeAuthRedirect><EmployeeLogin /></EmployeeAuthRedirect>} />
-          <Route path="/forgot-password" element={<AuthRedirect><ForgotPassword /></AuthRedirect>} />
+          {/* Forgot password is now a mail sent from the login form; an old link just lands there */}
+          <Route path="/forgot-password" element={<Navigate to="/login" replace />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
 
           {/* Protected Routes — auth check + context providers */}
           <Route element={<AdminUserProvider><DashboardFilterProvider><NotificationListProvider><ProtectedRoute /><FeedbackPrompt /></NotificationListProvider></DashboardFilterProvider></AdminUserProvider>}>
@@ -366,6 +369,7 @@ function App() {
               <Route path="/user/order-tracking" element={<AdminOrderTracking />} />
               <Route path="/user/settings" element={<AdminSettingsHub />} />
               <Route path="/user/settings/change-password" element={<AdminChangePassword />} />
+              <Route path="/user/settings/two-factor" element={<AdminTwoFactor />} />
               <Route path="/user/settings/label" element={<ModeRoute b2c={<AdminLabelSettings />} cargo={<CargoLabelSettings />} />} />
               <Route path="/user/settings/invoice" element={<AdminSettingsPlaceholder title="Invoice" description="Manage your invoice preferences and billing settings." />} />
               <Route path="/user/settings/webhook" element={<AdminWebhookSettings />} />

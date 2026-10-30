@@ -716,7 +716,7 @@ function CompanyDetail({ tenantKey, onBack }: { tenantKey: string; onBack: () =>
           <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-5 items-start">
           {/* Section nav */}
           <nav className="hidden lg:block sticky top-5 bg-white rounded-2xl border border-[#EEF2F6] shadow-[0_1px_2px_rgba(16,24,40,0.04)] p-2">
-            {['Status', 'Branding', 'Invoice Billing & Tax Details', 'Domains', ...groupSections.map(g => g.label), 'Webhook addresses', 'Email & phone verification', 'KYC methods', 'Label design', 'Scheduled jobs'].map(title => {
+            {['Status', 'Branding', 'Invoice Billing & Tax Details', 'Domains', ...groupSections.map(g => g.label), 'Webhook addresses', 'Email & phone verification', 'KYC methods', 'Two-factor authentication', 'Label design', 'Scheduled jobs'].map(title => {
               const Icon = SECTION_ICONS[title] || Settings2;
               return (
                 <button key={title} type="button"
@@ -778,6 +778,7 @@ function CompanyDetail({ tenantKey, onBack }: { tenantKey: string; onBack: () =>
 
           <ContactVerificationSection company={company} onSaved={load} showToast={showToast} />
           <KycMethodsSection company={company} onSaved={load} showToast={showToast} />
+          <TwoFactorSection company={company} onSaved={load} showToast={showToast} />
           <LabelTemplateSection company={company} onSaved={load} showToast={showToast} />
           <JobsSection company={company} onSaved={load} showToast={showToast} />
           </div>
@@ -996,6 +997,7 @@ const SECTION_ICONS: Record<string, LucideIcon> = {
   'Webhook addresses': Webhook,
   'Email & phone verification': BadgeCheck,
   'KYC methods': IdCard,
+  'Two-factor authentication': ShieldCheck,
   'Label design': Tag,
   'Scheduled jobs': CalendarClock,
 };
@@ -1574,6 +1576,62 @@ function KycMethodsSection({ company, onSaved, showToast }: {
           );
         })}
         <p className="text-[11px] text-[#94A3B8]">When both are on, sellers choose; when only one is on, they go straight into it. Sellers already verified are not affected.</p>
+      </div>
+    </SectionCard>
+  );
+}
+
+// Whether this company's sellers are offered two-factor login: the Settings option and the OTP step at login.
+function TwoFactorSection({ company, onSaved, showToast }: {
+  company: CompanySummary; onSaved: () => void; showToast: (t: 'success' | 'error', m: string) => void;
+}) {
+  const [saving, setSaving] = useState(false);
+
+  // an older backend does not know this setting: show nothing rather than a switch that cannot work
+  if (typeof company.twoFactorEnabled !== 'boolean') return null;
+  const on = company.twoFactorEnabled;
+
+  const toggle = async () => {
+    setSaving(true);
+    try {
+      await companiesApi.updateBasic(company.tenantKey, { twoFactorEnabled: !on });
+      showToast('success', `Two-factor authentication ${on ? 'disabled' : 'enabled'} for ${company.displayName}`);
+      onSaved();
+    } catch (err) {
+      const message = (err as { response?: { data?: { message?: string } } }).response?.data?.message;
+      showToast('error', message || 'Failed to update two-factor authentication');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <SectionCard title="Two-factor authentication">
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center justify-between gap-4 rounded-[8px] border border-[#E2E8F0] p-3">
+          <div>
+            <p className="text-[13px] text-[#334155]">{on ? 'Enabled' : 'Disabled'}</p>
+            <p className="text-[11px] text-[#94A3B8] mt-0.5">
+              Sellers get a Two-Factor Authentication option in Settings and can turn on an OTP at login. Needs this company's SMS account to be set up.
+            </p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={on}
+            aria-label="Two-factor authentication"
+            disabled={saving}
+            onClick={toggle}
+            className={`relative w-10 h-6 rounded-full transition-colors shrink-0 disabled:opacity-50 ${on ? 'bg-[#00A86B]' : 'bg-[#CBD5E1]'}`}
+          >
+            <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${on ? 'translate-x-4' : ''}`} />
+          </button>
+        </div>
+        <p className="text-[11px] text-[#94A3B8]">
+          {company.isDefaultTenant
+            ? 'This switch controls the option in the Shipex panel. QuickPost always offers it, and sellers who turned it on are asked for an OTP in both.'
+            : 'Turning this off stops the OTP step for everyone at this company. Their own choice is kept for when it is turned back on.'}
+        </p>
       </div>
     </SectionCard>
   );
