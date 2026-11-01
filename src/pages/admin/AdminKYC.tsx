@@ -13,9 +13,10 @@ import { copyToClipboard } from '../../utils/clipboard';
 import { FieldLabel } from './kyc/kycUi';
 import { cardShadow, GSTIN_RE, inputCls } from './kyc/kycStyles';
 import {
-  buildManualKycFormData, createManualKycData, isAadhaarComplete, isBankComplete, isPanComplete,
+  buildManualKycFormData, createManualKycData, isAadhaarComplete, isBankComplete, isPanComplete, kycSubmitError, manualDraftSection, restoreManualDraft,
   type ManualKycData, type ManualStep,
 } from './kyc/manualKycData';
+import { loadDraft, SELLER_DRAFT_URL, useDraftAutosave } from './kyc/kycDraft';
 import { DocumentUpload, ManualAadhaarStep, ManualBankStep, ManualPanStep, ManualReviewStep, ManualStepper } from './kyc/ManualKycSteps';
 import {
   Check,
@@ -412,8 +413,10 @@ function PanVerificationModal({
               {/* ── PAN input — inset/pressed field, carved into a soft white surface ── */}
               {!isPanVerified && (
                 <div className="w-full max-w-[460px] mt-7 space-y-3">
+                  {/* The whole box looks like the field, but the input is only the middle strip: a click anywhere in it focuses the input. */}
                   <div
-                    className="relative rounded-[16px] px-5 pt-3 pb-3 transition-shadow duration-200 focus-within:shadow-[inset_2px_2px_6px_rgba(15,23,42,0.12),inset_-2px_-2px_5px_rgba(255,255,255,0.9),0_0_0_3px_rgba(0,157,100,0.18),0_0_16px_rgba(0,157,100,0.2)]"
+                    onClick={() => document.getElementById('pan-number-input')?.focus()}
+                    className="relative cursor-text rounded-[16px] px-5 pt-3 pb-3 transition-shadow duration-200 focus-within:shadow-[inset_2px_2px_6px_rgba(15,23,42,0.12),inset_-2px_-2px_5px_rgba(255,255,255,0.9),0_0_0_3px_rgba(0,157,100,0.18),0_0_16px_rgba(0,157,100,0.2)]"
                     style={{
                       background: 'linear-gradient(155deg, #eef1f5 0%, #f7f9fb 45%, #eef1f5 100%)',
                       boxShadow: 'inset 2px 2px 5px rgba(15,23,42,0.1), inset -2px -2px 4px rgba(255,255,255,0.85), 0 1px 0 rgba(255,255,255,0.6)',
@@ -425,6 +428,7 @@ function PanVerificationModal({
                     </label>
                     <input
                       id="pan-number-input"
+                      autoFocus
                       type="text"
                       maxLength={10}
                       value={panNumber}
@@ -638,7 +642,8 @@ function AadhaarVerificationModal({
               {!isAadhaarVerified && (
                 <div className="w-full max-w-[460px] mt-7 space-y-3">
                   <div
-                    className="relative rounded-[16px] px-5 pt-3 pb-3 transition-shadow duration-200 focus-within:shadow-[inset_2px_2px_6px_rgba(15,23,42,0.12),inset_-2px_-2px_5px_rgba(255,255,255,0.9),0_0_0_3px_rgba(0,157,100,0.18),0_0_16px_rgba(0,157,100,0.2)]"
+                    onClick={() => document.getElementById('aadhaar-number-input')?.focus()}
+                    className="relative cursor-text rounded-[16px] px-5 pt-3 pb-3 transition-shadow duration-200 focus-within:shadow-[inset_2px_2px_6px_rgba(15,23,42,0.12),inset_-2px_-2px_5px_rgba(255,255,255,0.9),0_0_0_3px_rgba(0,157,100,0.18),0_0_16px_rgba(0,157,100,0.2)]"
                     style={{
                       background: 'linear-gradient(155deg, #eef1f5 0%, #f7f9fb 45%, #eef1f5 100%)',
                       boxShadow: 'inset 2px 2px 5px rgba(15,23,42,0.1), inset -2px -2px 4px rgba(255,255,255,0.85), 0 1px 0 rgba(255,255,255,0.6)',
@@ -650,6 +655,7 @@ function AadhaarVerificationModal({
                     </label>
                     <input
                       id="aadhaar-number-input"
+                      autoFocus
                       type="text"
                       maxLength={12}
                       value={aadhaarNumber}
@@ -1182,6 +1188,13 @@ interface ManualKycStatus {
   };
 }
 
+// A failed status read would quietly hide manual KYC (only the backend knows it is on), so it gets one more try.
+const fetchKycStatus = () =>
+  apiClient.get('/getKyc/getKycStatus').catch(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    return apiClient.get('/getKyc/getKycStatus');
+  });
+
 /* ── MAIN COMPONENT ── */
 export function AdminKYC({ embedded = false }: { embedded?: boolean } = {}) {
   const navigate = useNavigate();
@@ -1229,9 +1242,10 @@ export function AdminKYC({ embedded = false }: { embedded?: boolean } = {}) {
       }
       try {
         const [statusRes, userRes] = await Promise.allSettled([
-          apiClient.get('/getKyc/getKycStatus'),
+          fetchKycStatus(),
           apiClient.get('/user/getUserDetails'),
         ]);
+        if (statusRes.status === 'rejected') showToast('error', 'Could not load all KYC options. Please refresh the page.');
 
         const userData = userRes.status === 'fulfilled' ? userRes.value.data?.user : null;
         if (userData?.email) setEmail(userData.email);
@@ -1270,12 +1284,13 @@ export function AdminKYC({ embedded = false }: { embedded?: boolean } = {}) {
 
           setKycComplete(true);
         } else {
-          const [gstRes, aRes, pRes, bRes, billRes2] = await Promise.allSettled([
+          const [gstRes, aRes, pRes, bRes, billRes2, draftRes] = await Promise.allSettled([
             apiClient.get('/getKyc/getGST'),
             apiClient.get('/getKyc/getAadhaar'),
             apiClient.get('/getKyc/getPan'),
             apiClient.get('/getKyc/getBankAccount'),
             apiClient.get('/getKyc/getBillingInfo'),
+            loadDraft(SELLER_DRAFT_URL),
           ]);
 
           const g = gstRes.status === 'fulfilled' ? gstRes.value.data : null;
@@ -1304,7 +1319,7 @@ export function AdminKYC({ embedded = false }: { embedded?: boolean } = {}) {
           if (p?.pan) {
             setPanNumber(p.pan);
             setIsPanVerified(true);
-            setPanData({ panType: p.panType || '', name: p.registeredName || '' });
+            setPanData({ panType: p.panType || '', name: p.registeredName || p.nameProvided || '' });
           }
 
           const b = bRes.status === 'fulfilled' ? (bRes.value.data ?? {}) : {};
@@ -1347,9 +1362,36 @@ export function AdminKYC({ embedded = false }: { embedded?: boolean } = {}) {
             }));
           }
 
+          // What the seller had filled in when they left. A verified record always wins over typed text.
+          const draft = draftRes.status === 'fulfilled' ? draftRes.value : null;
+          if (draft) {
+            const c = draft.common;
+            if (c.businessType === 'INDIVIDUAL' || c.businessType === 'COMPANY') setBusinessType(c.businessType);
+            // The seller moved away from a verified GSTIN in the manual form: the tick does not come back.
+            if (g?.gstin && (c.businessType === 'INDIVIDUAL' || (c.gstin && c.gstin !== g.gstin))) setIsGstinVerified(false);
+            if (c.gstin) setGstin(c.gstin);
+            if (c.address) {
+              setAddress(c.address); setPincode(c.pincode || '');
+              setCity(c.city || ''); setState(c.state || '');
+            }
+            const e = draft.ekyc;
+            if (e.pan && !p?.pan) setPanNumber(e.pan);
+            if (e.aadhaar && !a?.aadhaarNumber) setAadhaarNumber(e.aadhaar);
+            if (!(b?.accountNumber && b?.ifsc)) {
+              if (e.accountNumber) setAccountNumber(e.accountNumber);
+              if (e.confirmAccountNumber) setConfirmAccountNumber(e.confirmAccountNumber);
+              if (e.ifsc) setIfscCode(e.ifsc);
+            }
+            setManualData((d) => restoreManualDraft(d, draft.manual, draft.documents));
+            if (draft.manual.step) setManualStep(draft.manual.step);
+            if (draft.method) setSelectedMethod(draft.method === 'manual' ? 'MANUAL' : 'EKYC');
+          }
+          setDraftReady(true);
+
           // Everything is already verified and only the final submit is left (the seller left the page before
           // submitting): reopen straight on Review & Submit. "Edit details" there goes back to the form.
-          const resumeAtReview = methods.ekyc && manualRequest?.status !== 'pending'
+          // Not when the company also offers manual KYC: the seller must still see that choice first.
+          const resumeAtReview = methods.ekyc && !methods.manual && manualRequest?.status !== 'pending'
             && (!EMAIL_VERIFICATION_MANDATORY || !!userData?.isEmailVerified)
             && (!PHONE_VERIFICATION_MANDATORY || !!userData?.isPhoneVerified)
             && !!a?.aadhaarNumber && !!p?.pan && !!(b?.accountNumber && b?.ifsc)
@@ -1498,6 +1540,7 @@ export function AdminKYC({ embedded = false }: { embedded?: boolean } = {}) {
   const [manualStep, setManualStep] = useState<ManualStep>('details');
   const [manualData, setManualData] = useState<ManualKycData>(createManualKycData);
   const [isManualSubmitting, setIsManualSubmitting] = useState(false);
+  const [draftReady, setDraftReady] = useState(false);
   const goToManualStep = (next: ManualStep) => {
     setManualStep(next);
     // Embedded in Profile the page scrolls inside the tab panel, so scroll the flow itself into view.
@@ -1591,7 +1634,7 @@ export function AdminKYC({ embedded = false }: { embedded?: boolean } = {}) {
       if (res.data?.success) {
         const d = res.data.data || {};
         setIsPanVerified(true);
-        setPanData({ panType: d.panType || '', name: d.nameProvided || d.name || '' });
+        setPanData({ panType: d.panType || '', name: d.nameProvided || d.registeredName || d.name || '' });
         showToast('success', 'PAN verified successfully!');
         refreshEditsLeft();
       } else {
@@ -1870,7 +1913,7 @@ export function AdminKYC({ embedded = false }: { embedded?: boolean } = {}) {
         setManualStatus({ status: 'pending' });
         return;
       }
-      showToast('error', e.response?.data?.message || 'Could not submit your KYC. Please try again.');
+      showToast('error', kycSubmitError(err));
     } finally {
       setIsManualSubmitting(false);
     }
@@ -1904,6 +1947,15 @@ export function AdminKYC({ embedded = false }: { embedded?: boolean } = {}) {
     }, 400);
     return () => clearTimeout(t);
   }, [method, ekycTargetStep, ekycRevealedStep]);
+
+  /* ── DRAFT ── saved while filling in, for both methods */
+  const chosenMethod = method ?? selectedMethod;
+  useDraftAutosave(SELLER_DRAFT_URL, {
+    ...(chosenMethod ? { method: chosenMethod === 'MANUAL' ? 'manual' : 'ekyc' } : {}),
+    common: { businessType: businessType ?? '', gstin, address, pincode, city, state },
+    ekyc: { pan: panNumber, aadhaar: aadhaarNumber, accountNumber, confirmAccountNumber, ifsc: ifscCode },
+    manual: manualDraftSection(manualData, manualStep),
+  }, draftReady && !kycComplete && !isSubmitted && !isManualSubmitting && !showManualSuccess && manualStatus?.status !== 'pending');
 
   /* ── LOADING ── */
   if (kycLoading) {
@@ -2001,7 +2053,7 @@ export function AdminKYC({ embedded = false }: { embedded?: boolean } = {}) {
     );
   }
 
-  /* ── SUBMITTED (E-KYC under review) ── */
+  /* ── SUBMITTED (e-KYC is verified the moment it is submitted) ── */
   if (isSubmitted) {
     return (
       <AdminLayout>
@@ -2020,8 +2072,8 @@ export function AdminKYC({ embedded = false }: { embedded?: boolean } = {}) {
             </div>
 
             <div className="relative space-y-1.5 md:space-y-2">
-              <h2 className="text-base md:text-xl font-bold text-[#0F172A] px-2">KYC Verification Under Review</h2>
-              <p className="text-[11.5px] md:text-xs text-[#64748B] max-w-md mx-auto leading-relaxed px-1">Your Aadhaar, PAN Card, and Bank details have been successfully received. Our verification team is reviewing them. Usually, accounts are validated in less than 2 hours.</p>
+              <h2 className="text-base md:text-xl font-bold text-[#0F172A] px-2">KYC Verified</h2>
+              <p className="text-[11.5px] md:text-xs text-[#64748B] max-w-md mx-auto leading-relaxed px-1">Your Aadhaar, PAN Card and Bank details have been verified. Your account is ready to use.</p>
             </div>
 
             <div className="relative bg-gradient-to-b from-[#F8FAFC] to-white border border-[#E2E8F0]/60 rounded-xl md:rounded-2xl p-3.5 md:p-4 max-w-sm mx-auto text-left space-y-1">
@@ -2169,7 +2221,13 @@ export function AdminKYC({ embedded = false }: { embedded?: boolean } = {}) {
   const detailSections = (
     <>
               <KycSection step={1} title="Business Type" description="Select how your business is registered" done={ekycStepDone[1]}>
-                <BusinessTypeSelector businessType={businessType} setBusinessType={setBusinessType} disabled={isGstinVerified} hideLabel />
+                {/* A GSTIN verified by e-KYC locks the type only in e-KYC. Changing it in manual KYC drops that tick, so going back to e-KYC checks it again. */}
+                <BusinessTypeSelector
+                  businessType={businessType}
+                  setBusinessType={(t) => { if (t !== businessType) setIsGstinVerified(false); setBusinessType(t); }}
+                  disabled={method === 'EKYC' && isGstinVerified}
+                  hideLabel
+                />
               </KycSection>
 
               <KycSection step={2} title="Mandatory Information" description="Used for account alerts and KYC communication" done={ekycStepDone[2]} show={ekycRevealedStep >= 2}>
@@ -2702,10 +2760,10 @@ export function AdminKYC({ embedded = false }: { embedded?: boolean } = {}) {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <FieldLabel required>GSTIN No.</FieldLabel>
-                        <input type="text" maxLength={15} value={gstin} onChange={(e) => setGstin(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))} placeholder="15-character GSTIN" className={`${inputCls} uppercase placeholder:normal-case tracking-wide ${manualGstinInvalid ? '!border-red-300' : ''}`} />
+                        <input type="text" maxLength={15} value={gstin} onChange={(e) => { setGstin(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '')); setIsGstinVerified(false); }} placeholder="15-character GSTIN" className={`${inputCls} uppercase placeholder:normal-case tracking-wide ${manualGstinInvalid ? '!border-red-300' : ''}`} />
                         {manualGstinInvalid && <p className="text-[11px] font-medium text-red-500 mt-1.5">Enter a valid GSTIN (e.g. 27AAPFU0939F1ZV)</p>}
                       </div>
-                      <DocumentUpload label="GST Registration Certificate" value={manualData.gstCertificate} onChange={(gstCertificate) => setManualData((d) => ({ ...d, gstCertificate }))} onError={(m) => showToast('error', m)} />
+                      <DocumentUpload field="gstCertificate" label="GST Registration Certificate" value={manualData.gstCertificate} onChange={(gstCertificate) => setManualData((d) => ({ ...d, gstCertificate }))} onError={(m) => showToast('error', m)} />
                     </div>
                   </KycSection>
 
@@ -2789,7 +2847,7 @@ export function AdminKYC({ embedded = false }: { embedded?: boolean } = {}) {
                   <CheckCircle2 className="w-7 h-7 text-[#00A86B]" />
                 </div>
                 <h2 className="text-[16px] font-bold text-[#0F172A] mb-1.5">KYC Submitted for Verification</h2>
-                <p className="text-[13px] text-[#64748B] leading-relaxed mb-5">Our team will review your details and documents within 2–3 business days. You'll be notified by email and SMS once your KYC is verified.</p>
+                <p className="text-[13px] text-[#64748B] leading-relaxed mb-5">Our team will review your details and documents within 2–3 business days. You'll be notified by email once your KYC is verified.</p>
                 <button
                   type="button"
                   onClick={() => { setShowManualSuccess(false); navigate('/user/dashboard'); }}

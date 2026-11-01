@@ -14,10 +14,10 @@ export interface PersonDetail {
   kyc: {
     status: KycStatus; method: 'ekyc' | 'manual' | null; submittedAt?: string; verifiedAt?: string; rejectionReason?: string;
     pan: { number?: string; name?: string; verified: boolean }; aadhaar: { number?: string; name?: string; dob?: string; address?: string; verified: boolean };
-    bank: { accountNumber?: string; ifsc?: string; holderName?: string; bankName?: string; verified: boolean };
+    bank: { accountNumber?: string; ifsc?: string; holderName?: string; bankName?: string; branch?: string; verified: boolean };
     documents: Record<string, string | null>;
   };
-  offer: { letterNumber?: string; issuedAt?: string; joiningDate?: string; monthlyCtc?: number; location?: string };
+  offer: { letterNumber?: string; issuedAt?: string; downloadedAt?: string | null; joiningDate?: string; monthlyCtc?: number; location?: string };
   targets: { daily: number; weekly: number; monthly: number };
   plan: { _id: string; name: string; isDefault: boolean };
 }

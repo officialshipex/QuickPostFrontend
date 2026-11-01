@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { getToken, removeToken, isEmployeeToken } from '../utils/session';
+import { getToken, setToken, removeToken, isEmployeeToken } from '../utils/session';
 import { isCargoUrl } from '../utils/shippingMode';
 
 export const apiClient = axios.create({
@@ -28,6 +28,14 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
+      // Signed in as someone and that session ended: back to the admin's own session.
+      const adminBackup = localStorage.getItem('admin_token_backup');
+      if (adminBackup) {
+        localStorage.removeItem('admin_token_backup');
+        setToken(adminBackup);
+        window.location.href = '/admin/dashboard';
+        return Promise.reject(error);
+      }
       // An employee whose session ended (expired, deactivated) goes back to the employee login
       const token = getToken();
       const wasEmployee = !!token && isEmployeeToken(token);

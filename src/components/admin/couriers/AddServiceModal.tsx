@@ -90,7 +90,8 @@ export function AddServiceModal({ isOpen, onClose, courier, onSuccess, editData,
         setProviderServices(res.data || []);
       } else if (p === 'nimbuspost') {
         const res = await apiClient.get('/NimbusPost/getCourierServices');
-        setProviderServices((res.data || []).map((i: any) => ({ service: i.service || i })));
+        // Keep NimbusPost's courier id: without it NimbusPost picks any courier it likes at booking
+        setProviderServices((res.data || []).map((i: any) => ({ service: i.service || i, courier_id: i.provider_courier_id })));
       } else if (p === 'xpressbees') {
         // Keep Xpressbees' own courier id: bookings send it so Xpressbees
         // ships exactly the service that was priced.
@@ -114,12 +115,19 @@ export function AddServiceModal({ isOpen, onClose, courier, onSuccess, editData,
 
   const handleCourierSelect = (value: string) => {
     setCourierField(value);
-    // For Shiprocket and Xpressbees, auto-fill courier_id from the fetched service list
-    if (!cargo && (p === 'shiprocket' || p === 'xpressbees')) {
+    // For Shiprocket, Xpressbees and NimbusPost, auto-fill courier_id from the fetched service list
+    if (!cargo && (p === 'shiprocket' || p === 'xpressbees' || p === 'nimbuspost')) {
       const found = providerServices.find(s => s.service === value);
       setCourierId(found?.courier_id != null ? String(found.courier_id) : '');
     }
   };
+
+  // Editing a NimbusPost service saved without a courier id: fill it in from the list for its courier
+  useEffect(() => {
+    if (cargo || p !== 'nimbuspost' || courier_id || !courier_field) return;
+    const found = providerServices.find(s => s.service === courier_field);
+    if (found?.courier_id != null) setCourierId(String(found.courier_id));
+  }, [providerServices, courier_field, courier_id, cargo, p]);
 
   const validate = () => {
     if (!name.trim()) return 'Service name is required';
@@ -135,6 +143,7 @@ export function AddServiceModal({ isOpen, onClose, courier, onSuccess, editData,
     if (isBoxd && !courier_field.trim()) return 'Courier Service ID is required';
     if ((isJiffy || isShipMaxx) && !courier_field.trim()) return 'Courier Code is required';
     if (hasServiceDropdown && !courier_field) return 'Please select a sub-service';
+    if (p === 'nimbuspost' && !courier_id) return 'This NimbusPost courier has no courier ID. Please select the sub-service again.';
     return '';
   };
 
@@ -322,8 +331,8 @@ export function AddServiceModal({ isOpen, onClose, courier, onSuccess, editData,
                   </div>
                 )}
 
-                {/* Shiprocket: show auto-filled courier_id as read-only */}
-                {p === 'shiprocket' && courier_id && (
+                {/* Shiprocket, NimbusPost: show auto-filled courier_id as read-only */}
+                {(p === 'shiprocket' || p === 'nimbuspost') && courier_id && (
                   <div>
                     <label className="block text-[12px] font-semibold text-[#64748B] mb-1.5 md:mb-2 md:uppercase md:tracking-wide">
                       Courier ID (auto-filled)

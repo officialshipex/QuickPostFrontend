@@ -695,7 +695,7 @@ function SalesDashboardBody({ viewAs }: { viewAs?: { id: string; name: string } 
                   </div>
                 )}
 
-                {!isSalesAdmin && <OfferLetterCard employeeId={viewAsId} letterNumber={me?.offer?.letterNumber} issuedAt={me?.offer?.issuedAt} />}
+                {!isSalesAdmin && <OfferLetterCard employeeId={viewAsId} letterNumber={me?.offer?.letterNumber} issuedAt={me?.offer?.issuedAt} downloadedAt={me?.offer?.downloadedAt} ready={me?.offer?.ready} />}
               </div>
             )}
 

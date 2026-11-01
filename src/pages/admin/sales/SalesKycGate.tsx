@@ -7,7 +7,9 @@ import {
 } from 'lucide-react';
 import { TableLoader } from '../../../components/ui/TableLoader';
 import { useAdminTab } from '../../../context/AdminUserContext';
-import { salesApiClient, apiError, downloadOfferLetter, type SalesMe, type SalesKyc } from '../../../services/salesApi';
+import { salesApiClient, downloadOfferLetter, type SalesMe, type SalesKyc } from '../../../services/salesApi';
+import { kycSubmitError, MAX_DOCUMENT_MB, pdfProblem } from '../kyc/manualKycData';
+import { loadDraft, removeDraftDocument, SALES_DRAFT_URL, uploadDraftDocument, useDraftAutosave, type DraftDocument, type KycDraft } from '../kyc/kycDraft';
 
 /* Sales people can do nothing in the Sales panel until their own KYC is verified. This gate loads /sales/me and,
    for a sales person without verified KYC, shows the KYC screen instead of the page:
@@ -59,10 +61,12 @@ function Step({ n, title, icon: Icon, done, doneText, children }: { n: number; t
   );
 }
 
-function EkycFlow({ kyc, onChange, onVerified }: { kyc: SalesKyc; onChange: (k: SalesKyc) => void; onVerified: () => void }) {
-  const [pan, setPan] = useState(''); const [panName, setPanName] = useState('');
-  const [aadhaar, setAadhaar] = useState(''); const [otp, setOtp] = useState('');
-  const [account, setAccount] = useState(''); const [ifsc, setIfsc] = useState('');
+function EkycFlow({ kyc, draft, onChange, onVerified }: { kyc: SalesKyc; draft: KycDraft | null; onChange: (k: SalesKyc) => void; onVerified: () => void }) {
+  const saved = draft?.ekyc ?? {};
+  const [pan, setPan] = useState<string>(saved.pan || ''); const [panName, setPanName] = useState<string>(saved.panName || '');
+  const [aadhaar, setAadhaar] = useState<string>(saved.aadhaar || ''); const [otp, setOtp] = useState('');
+  const [account, setAccount] = useState<string>(saved.account || ''); const [ifsc, setIfsc] = useState<string>(saved.ifsc || '');
+  useDraftAutosave(SALES_DRAFT_URL, { method: 'ekyc', ekyc: { pan, panName, aadhaar, account, ifsc } }, true);
   const [busy, setBusy] = useState(''); const [error, setError] = useState(''); const [info, setInfo] = useState('');
 
   const run = async (key: string, url: string, body: object) => {
@@ -72,7 +76,7 @@ function EkycFlow({ kyc, onChange, onVerified }: { kyc: SalesKyc; onChange: (k: 
       if (res.data?.kyc) onChange(res.data.kyc);
       if (key === 'otp') setInfo(res.data?.message || 'OTP sent');
       return true;
-    } catch (e) { setError(apiError(e)); return false; } finally { setBusy(''); }
+    } catch (e) { setError(kycSubmitError(e)); return false; } finally { setBusy(''); }
   };
 
   const allDone = kyc.pan.verified && kyc.aadhaar.verified && kyc.bank.verified;
@@ -124,27 +128,60 @@ const DOCS: { key: string; label: string; required: boolean }[] = [
   { key: 'photo', label: 'Your photo (optional)', required: false },
 ];
 
-function ManualForm({ onSubmitted }: { onSubmitted: () => void }) {
-  const [f, setF] = useState({ pan: '', panName: '', aadhaarNumber: '', aadhaarName: '', dob: '', address: '', accountNumber: '', ifsc: '', holderName: '', bankName: '' });
-  const [files, setFiles] = useState<Record<string, File | null>>({});
+async function docProblem(d: (typeof DOCS)[number], file: File): Promise<string> {
+  if (d.key !== 'photo') return pdfProblem(file, d.label);
+  if (!/\.(jpe?g|png)$/i.test(file.name)) return 'Your photo must be a JPG or PNG image.';
+  return file.size > MAX_DOCUMENT_MB * 1024 * 1024 ? `Your photo is larger than ${MAX_DOCUMENT_MB} MB. Please upload a smaller image.` : '';
+}
+
+function ManualForm({ draft, onSubmitted }: { draft: KycDraft | null; onSubmitted: () => void }) {
+  const [f, setF] = useState({ pan: '', panName: '', aadhaarNumber: '', aadhaarName: '', dob: '', address: '', accountNumber: '', ifsc: '', holderName: '', bankName: '', ...draft?.manual });
+  const [files, setFiles] = useState<Record<string, DraftDocument | null>>(draft?.documents ?? {});
+  const [uploading, setUploading] = useState('');
   const [busy, setBusy] = useState(false); const [error, setError] = useState('');
+  useDraftAutosave(SALES_DRAFT_URL, { method: 'manual', manual: f }, !busy);
   const set = (k: keyof typeof f, v: string) => setF(p => ({ ...p, [k]: v }));
+
+  // Refused the moment it is chosen, and saved on the server straight away so it survives leaving the page.
+  const pick = async (d: (typeof DOCS)[number], file: File | null) => {
+    if (!file) return;
+    setError('');
+    const problem = await docProblem(d, file);
+    if (problem) { setError(problem); return; }
+    setUploading(d.key);
+    try {
+      const saved = await uploadDraftDocument(SALES_DRAFT_URL, d.key, file);
+      setFiles(p => ({ ...p, [d.key]: saved }));
+    } catch (e) { setError(kycSubmitError(e)); } finally { setUploading(''); }
+  };
+  const removeFile = async (d: (typeof DOCS)[number]) => {
+    setError('');
+    try {
+      await removeDraftDocument(SALES_DRAFT_URL, d.key);
+      setFiles(p => ({ ...p, [d.key]: null }));
+    } catch (e) { setError(kycSubmitError(e)); }
+  };
 
   const submit = async () => {
     setError('');
-    for (const d of DOCS) {
-      const file = files[d.key];
-      if (d.required && !file) { setError(`Upload: ${d.label}`); return; }
-      if (file && file.size > 5 * 1024 * 1024) { setError(`${d.label} must be smaller than 5 MB.`); return; }
-    }
+    // Same order and wording as the backend, so the first thing wrong is the thing shown.
+    const problem = !/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(f.pan) ? 'Enter a valid PAN number.'
+      : f.panName.trim().length < 2 ? 'Enter the name as on the PAN card.'
+      : f.aadhaarNumber.length !== 12 ? 'Enter a valid 12-digit Aadhaar number.'
+      : f.aadhaarName.trim().length < 2 ? 'Enter the name as on Aadhaar.'
+      : f.address.trim().length < 5 ? 'Enter your address as on Aadhaar.'
+      : !/^[A-Za-z0-9]{9,18}$/.test(f.accountNumber) ? 'Enter a valid bank account number (9 to 18 characters).'
+      : !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(f.ifsc) ? 'Enter a valid IFSC code.'
+      : f.holderName.trim().length < 2 || !f.bankName.trim() ? 'Enter the account holder and bank name.'
+      : DOCS.find(d => d.required && !files[d.key]) ? `Upload: ${DOCS.find(d => d.required && !files[d.key])!.label}` : '';
+    if (problem) { setError(problem); return; }
     const fd = new FormData();
-    Object.entries(f).forEach(([k, v]) => fd.append(k, v.trim()));
-    DOCS.forEach(d => { const file = files[d.key]; if (file) fd.append(d.key, file); });
+    Object.entries(f).forEach(([k, v]) => fd.append(k, String(v ?? '').trim()));
     setBusy(true);
     try {
       await salesApiClient.post('/kyc/manual', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
       onSubmitted();
-    } catch (e) { setError(apiError(e)); } finally { setBusy(false); }
+    } catch (e) { setError(kycSubmitError(e)); } finally { setBusy(false); }
   };
 
   const input = (k: keyof typeof f, label: string, props: InputHTMLAttributes<HTMLInputElement> = {}) => (
@@ -180,22 +217,25 @@ function ManualForm({ onSubmitted }: { onSubmitted: () => void }) {
       </section>
       <section>
         <h3 className="text-[13px] font-bold text-[#0F172A] mb-1">Documents</h3>
-        <p className="text-[12px] text-[#94A3B8] mb-3">JPG, PNG or PDF, up to 5 MB each.</p>
+        <p className="text-[12px] text-[#94A3B8] mb-3">PDF only, up to {MAX_DOCUMENT_MB} MB each. Your photo can be a JPG or PNG.</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {DOCS.map(d => (
             <label key={d.key} className={`flex items-center gap-3 rounded-xl border border-dashed px-3.5 py-3 cursor-pointer transition-colors ${files[d.key] ? 'border-[#00A86B] bg-[#F0FDF4]' : 'border-[#CBD5E1] hover:border-[#00A86B]'}`}>
               <Upload className={`w-4 h-4 shrink-0 ${files[d.key] ? 'text-[#00A86B]' : 'text-[#94A3B8]'}`} />
               <span className="min-w-0">
                 <span className="block text-[12.5px] font-semibold text-[#0F172A]">{d.label}{d.required && <span className="text-red-500"> *</span>}</span>
-                <span className="block text-[11.5px] text-[#64748B] truncate">{files[d.key]?.name || 'Choose file'}</span>
+                <span className="block text-[11.5px] text-[#64748B] truncate">{uploading === d.key ? 'Uploading…' : files[d.key]?.name || 'Choose file'}</span>
               </span>
-              <input type="file" accept=".jpg,.jpeg,.png,.pdf" className="sr-only" onChange={e => setFiles(p => ({ ...p, [d.key]: e.target.files?.[0] || null }))} />
+              {files[d.key] && uploading !== d.key && (
+                <button type="button" aria-label={`Remove ${d.label}`} onClick={e => { e.preventDefault(); removeFile(d); }} className="ml-auto w-6 h-6 rounded-full flex items-center justify-center text-[#94A3B8] hover:text-red-500 hover:bg-red-50 shrink-0"><X className="w-3.5 h-3.5" /></button>
+              )}
+              <input type="file" accept={d.key === 'photo' ? '.jpg,.jpeg,.png' : '.pdf,application/pdf'} className="sr-only" onChange={e => { const file = e.target.files?.[0] || null; e.target.value = ''; pick(d, file); }} />
             </label>
           ))}
         </div>
       </section>
       <div className="flex justify-end">
-        <button disabled={busy} onClick={submit} className={`${primaryBtn} h-11 px-7`}><Upload className="w-4 h-4" />{busy ? 'Submitting…' : 'Submit for verification'}</button>
+        <button disabled={busy || !!uploading} onClick={submit} className={`${primaryBtn} h-11 px-7`}><Upload className="w-4 h-4" />{busy ? 'Submitting…' : 'Submit for verification'}</button>
       </div>
     </div>
   );
@@ -207,6 +247,28 @@ function KycScreen({ me, reload, onVerified }: { me: SalesMe; reload: () => Prom
   const [method, setMethod] = useState<'ekyc' | 'manual' | null>(me.kyc?.method && me.kyc.status !== 'rejected' ? me.kyc.method : null);
   const [submittedPopup, setSubmittedPopup] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  // Read once on arrival and again when switching method, so the other form's typing is back on returning to it.
+  const [draft, setDraft] = useState<KycDraft | null>(null);
+  const [draftLoaded, setDraftLoaded] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    loadDraft(SALES_DRAFT_URL).then((d) => {
+      if (!alive) return;
+      setDraft(d);
+      if (d?.method) setMethod(m => m ?? d.method);
+      setDraftLoaded(true);
+    });
+    return () => { alive = false; };
+  }, []);
+  const switchMethod = async (m: 'ekyc' | 'manual') => {
+    if (m === method) return;
+    setDraftLoaded(false);
+    setMethod(null); // the form being left saves as it closes
+    await new Promise(r => setTimeout(r, 200));
+    setDraft(await loadDraft(SALES_DRAFT_URL));
+    setMethod(m);
+    setDraftLoaded(true);
+  };
 
   if (kyc.status === 'pending') {
     return (
@@ -214,7 +276,7 @@ function KycScreen({ me, reload, onVerified }: { me: SalesMe; reload: () => Prom
         <div className={`${card} p-8 text-center`}>
           <span className="mx-auto w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center"><Clock className="w-7 h-7" /></span>
           <h2 className="mt-4 text-[18px] font-bold text-[#0F172A]">Your KYC is under review</h2>
-          <p className="mt-1.5 text-[13px] text-[#64748B]">Submitted {fmt(kyc.submittedAt)}. Verification takes up to 24 hours. You'll get an email, and your offer letter will be ready to download here once it's verified.</p>
+          <p className="mt-1.5 text-[13px] text-[#64748B]">Submitted {fmt(kyc.submittedAt)}. Verification takes up to 24 hours. You'll get an email once it's verified, and your offer letter will be on your dashboard.</p>
           <button disabled={refreshing} onClick={async () => { setRefreshing(true); await reload(); setRefreshing(false); }}
             className="mt-5 h-10 px-5 rounded-full border border-[#E2E8F0] text-[13px] font-semibold text-[#475569] hover:border-[#00A86B]/40 hover:text-[#00A86B] inline-flex items-center gap-2">
             <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />Check status
@@ -224,7 +286,7 @@ function KycScreen({ me, reload, onVerified }: { me: SalesMe; reload: () => Prom
           <Modal onClose={() => setSubmittedPopup(false)}>
             <span className="mx-auto w-12 h-12 rounded-2xl bg-[#F0FDF4] text-[#00A86B] flex items-center justify-center"><CheckCircle2 className="w-6 h-6" /></span>
             <h3 className="mt-3 text-[16px] font-bold text-[#0F172A]">KYC submitted</h3>
-            <p className="mt-1 text-[13px] text-[#64748B]">The process will take up to 24 hours. Once the admin verifies your documents you can download your offer letter from your Sales Dashboard.</p>
+            <p className="mt-1 text-[13px] text-[#64748B]">The process will take up to 24 hours. Once the admin verifies your documents, your offer letter will be on your Sales Dashboard.</p>
             <button onClick={() => setSubmittedPopup(false)} className={`${primaryBtn} mt-5 w-full`}>OK</button>
           </Modal>
         )}
@@ -251,34 +313,58 @@ function KycScreen({ me, reload, onVerified }: { me: SalesMe; reload: () => Prom
           { key: 'ekyc', icon: Zap, title: 'Instant e-KYC', body: 'PAN, Aadhaar OTP and bank verified online. Your offer letter is ready immediately.' },
           { key: 'manual', icon: Upload, title: 'Manual KYC', body: 'Upload your documents. The admin verifies them within 24 hours.' },
         ] as const).map(m => (
-          <button key={m.key} type="button" onClick={() => setMethod(m.key)}
+          <button key={m.key} type="button" onClick={() => switchMethod(m.key)}
             className={`text-left rounded-2xl border p-4 transition-colors ${method === m.key ? 'border-[#00A86B] bg-[#F0FDF4]' : 'border-[#E2E8F0] bg-white hover:border-[#CBD5E1]'}`}>
             <div className="flex items-center gap-2"><m.icon className={`w-4 h-4 ${method === m.key ? 'text-[#00A86B]' : 'text-[#64748B]'}`} /><span className={`text-[14px] font-bold ${method === m.key ? 'text-[#00A86B]' : 'text-[#0F172A]'}`}>{m.title}</span></div>
             <p className="text-[12.5px] text-[#64748B] mt-1">{m.body}</p>
           </button>
         ))}
       </div>
-      {method === 'ekyc' && <EkycFlow kyc={kyc} onChange={setKyc} onVerified={onVerified} />}
-      {method === 'manual' && <ManualForm onSubmitted={() => { setKyc(k => ({ ...k, status: 'pending', submittedAt: new Date().toISOString() })); setSubmittedPopup(true); }} />}
+      {!draftLoaded && <div className="relative h-40"><TableLoader /></div>}
+      {draftLoaded && method === 'ekyc' && <EkycFlow kyc={kyc} draft={draft} onChange={setKyc} onVerified={onVerified} />}
+      {draftLoaded && method === 'manual' && <ManualForm draft={draft} onSubmitted={() => { setKyc(k => ({ ...k, status: 'pending', submittedAt: new Date().toISOString() })); setSubmittedPopup(true); }} />}
     </div>
   );
 }
 
-export function OfferLetterCard({ employeeId, issuedAt, letterNumber }: { employeeId?: string; issuedAt?: string; letterNumber?: string }) {
+// The sales person downloads their letter once. Someone viewing on their behalf (the admin) is not limited.
+export function OfferLetterCard({ employeeId, issuedAt, letterNumber, downloadedAt, ready }: { employeeId?: string; issuedAt?: string; letterNumber?: string; downloadedAt?: string | null; ready?: boolean }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [justDownloaded, setJustDownloaded] = useState<string | null>(null);
+  const doneAt = justDownloaded || downloadedAt || null; // the page's data can arrive after this card first draws
+  const byAdmin = !!employeeId || !!localStorage.getItem('admin_token_backup');
+  const used = !byAdmin && !!doneAt;
+  const waiting = !byAdmin && !!letterNumber && !ready && !doneAt;
+  const line = !letterNumber ? 'Your offer letter has not been issued yet.'
+    : used ? `Downloaded on ${new Date(doneAt as string).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}. Please ask your admin if you need another copy.`
+    : waiting ? 'Your offer letter has not been issued yet.'
+    : `${letterNumber} · issued ${issuedAt ? new Date(issuedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : ''}${byAdmin ? '' : '. You can download it once, so please save the file.'}`;
   return (
     <div className={`${card} p-5 flex flex-col sm:flex-row sm:items-center gap-4`}>
       <div className="flex items-center gap-3 flex-1 min-w-0">
         <span className="w-10 h-10 rounded-xl bg-violet-50 text-violet-600 flex items-center justify-center shrink-0"><FileText className="w-5 h-5" /></span>
         <div className="min-w-0">
           <div className="text-[14px] font-bold text-[#0F172A]">Offer letter</div>
-          <p className="text-[12.5px] text-[#64748B] truncate">{letterNumber ? `${letterNumber} · issued ${issuedAt ? new Date(issuedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : ''}` : 'Issued once KYC is verified.'}</p>
+          <p className="text-[12.5px] text-[#64748B]">{line}</p>
           {error && <p className="text-[12px] text-red-600 mt-0.5">{error}</p>}
         </div>
       </div>
-      <button disabled={busy || !letterNumber} onClick={async () => { setBusy(true); setError(''); try { await downloadOfferLetter(employeeId); } catch { setError('Could not download the offer letter.'); } finally { setBusy(false); } }}
-        className={primaryBtn}><Download className="w-4 h-4" />{busy ? 'Preparing…' : 'Download'}</button>
+      {!used && (
+        <button
+          disabled={busy}
+          onClick={async () => {
+            setBusy(true); setError('');
+            try {
+              await downloadOfferLetter(employeeId);
+              if (!byAdmin) setJustDownloaded(new Date().toISOString());
+            } catch (e) {
+              setError((e as Error).message);
+            } finally { setBusy(false); }
+          }}
+          className={primaryBtn}
+        ><Download className="w-4 h-4" />{busy ? 'Preparing…' : 'Download'}</button>
+      )}
     </div>
   );
 }
@@ -323,11 +409,8 @@ export function SalesKycGate({ children }: { children: ReactNode }) {
         <Modal onClose={() => setJustVerified(false)}>
           <span className="mx-auto w-12 h-12 rounded-2xl bg-[#F0FDF4] text-[#00A86B] flex items-center justify-center"><CheckCircle2 className="w-6 h-6" /></span>
           <h3 className="mt-3 text-[16px] font-bold text-[#0F172A]">KYC verified</h3>
-          <p className="mt-1 text-[13px] text-[#64748B]">Welcome aboard! Your offer letter has been generated.</p>
-          <div className="mt-5 flex gap-2">
-            <button onClick={() => setJustVerified(false)} className="flex-1 h-10 rounded-full border border-[#E2E8F0] text-[13px] font-semibold text-[#475569] hover:bg-[#F8FAFC]">Later</button>
-            <button onClick={() => downloadOfferLetter().catch(() => {})} className={`${primaryBtn} flex-1`}><Download className="w-4 h-4" />Offer letter</button>
-          </div>
+          <p className="mt-1 text-[13px] text-[#64748B]">Welcome aboard! You can download your offer letter from your dashboard.</p>
+          <button onClick={() => setJustVerified(false)} className={`${primaryBtn} mt-5 w-full`}>OK</button>
         </Modal>
       )}
     </>

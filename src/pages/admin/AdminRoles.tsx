@@ -6,6 +6,8 @@ import { apiClient } from '../../services/apiClient';
 import { Toast } from '../../components/ui/Toast';
 import { useToast } from '../../hooks/useToast';
 import { TableLoader } from '../../components/ui/TableLoader';
+import { getToken, setToken } from '../../utils/session';
+import { modeUrl } from '../../utils/shippingMode';
 import {
   PERM_TYPES, modulesFor, emptyAccessRights, toFormRights, toStoredRights, hasPermission,
   type AccessRights, type PanelType, type PermKey,
@@ -15,6 +17,7 @@ import {
   AlertCircle, RefreshCcw, Shield, Lock, Copy, Check,
   Search, User, Mail, Phone, Briefcase, KeyRound, EyeOff, Eye, Activity, CalendarDays, Settings2, Hash,
   UserCheck, UserX, Link2, type LucideIcon,
+  LogIn,
 } from 'lucide-react';
 
 // Permission modules (one per sidebar item) live in utils/permissions.ts, shared with the sidebar
@@ -400,7 +403,24 @@ function formatDate(iso: string) {
 }
 
 export function AdminRoles() {
-  const { isEmployee } = useAdminTab();
+  const { isEmployee, isAdmin } = useAdminTab();
+  const [loginAsId, setLoginAsId] = useState('');
+  // Like "login as user": same tab, and "Return to admin" in the header comes back.
+  const loginAs = async (emp: { _id: string }) => {
+    setLoginAsId(emp._id);
+    try {
+      const res = await apiClient.post(`/staffRole/loginAs/${emp._id}`);
+      const current = getToken();
+      if (current) localStorage.setItem('admin_token_backup', current);
+      setToken(res.data.token);
+      const e = res.data.employee || {};
+      const page = e.team === 'sales' ? '/admin/sales' : e.parentType === 'user' ? '/user/dashboard' : '/admin/dashboard';
+      window.location.href = modeUrl(e.mode === 'cargo' ? 'cargo' : 'b2c', page);
+    } catch (err: any) {
+      showToast('error', err.response?.data?.message || 'Could not sign in as this employee. Please try again.');
+      setLoginAsId('');
+    }
+  };
   const location = useLocation();
   // URL path is the authoritative signal — the admin/adminTab flags come from async state and can lag
   const isUserPanel = location.pathname.startsWith('/user/');
@@ -695,6 +715,16 @@ export function AdminRoles() {
                           <td className="py-3 px-4 text-[#64748B] whitespace-nowrap">{formatDate(emp.createdAt)}</td>
                           <td className="py-3 px-4 text-right">
                             <div className="flex items-center justify-end gap-1.5">
+                              {isAdmin && !isEmployee && (
+                                <button
+                                  disabled={!emp.isEmpActive || loginAsId === emp._id}
+                                  onClick={() => loginAs(emp)}
+                                  className="h-8 px-3 rounded-full border border-[#E2E8F0] inline-flex items-center gap-1.5 text-[12px] font-semibold text-[#475569] hover:border-[#00A86B] hover:text-[#00A86B] disabled:opacity-50 disabled:pointer-events-none transition-colors"
+                                  title={emp.isEmpActive ? 'Sign in as this employee' : 'Activate this employee first'}
+                                >
+                                  <LogIn className="w-3.5 h-3.5" /> {loginAsId === emp._id ? 'Opening…' : 'Login'}
+                                </button>
+                              )}
                               <button
                                 onClick={() => { setEditEmployee(emp); setShowModal(true); }}
                                 className="h-8 px-3 rounded-full border border-[#E2E8F0] inline-flex items-center gap-1.5 text-[12px] font-semibold text-[#475569] hover:bg-[#F0FDF4] hover:text-[#00A86B] hover:border-[#00A86B]/40 transition-colors"

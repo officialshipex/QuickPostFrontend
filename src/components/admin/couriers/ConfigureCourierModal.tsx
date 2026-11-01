@@ -48,7 +48,7 @@ const B2B_FIELDS = [
   { id: 'authToken', label: 'Auth Token', type: 'password', placeholder: 'Session or Bearer Token', icon: Key },
   { id: 'customerCode', label: 'Customer Code', type: 'text', placeholder: '8-digit Gati customer code', icon: Hash },
   { id: 'encryptedCustCode', label: 'Encrypted Customer Code', type: 'text', placeholder: 'Encrypted customer code issued by Gati', icon: Key },
-  { id: 'goodsCode', label: 'Default Goods Code (optional)', type: 'text', placeholder: 'Auto-detected from products; else this, else 18', icon: Hash },
+  { id: 'goodsCode', label: 'Default Goods Code (optional)', type: 'text', placeholder: 'Auto-detected from products; else this, else 401', icon: Hash },
 ];
 
 const getFieldsForCourier = (name: string, cargo = false) => {

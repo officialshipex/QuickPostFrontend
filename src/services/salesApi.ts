@@ -26,7 +26,16 @@ export const referralLinkFor = (code?: string) => (code ? `${window.location.ori
 
 /** Downloads the offer letter PDF (own, or a sales person's when employeeId is given) */
 export async function downloadOfferLetter(employeeId?: string) {
-  const res = await salesApiClient.get('/offer-letter', { params: employeeId ? { employeeId } : {}, responseType: 'blob' });
+  let res;
+  try {
+    res = await salesApiClient.get('/offer-letter', { params: employeeId ? { employeeId } : {}, responseType: 'blob' });
+  } catch (e) {
+    // The reply was asked for as a file, so the backend's message arrives as a blob too.
+    const data = (e as { response?: { data?: unknown } })?.response?.data;
+    let message = 'Could not download the offer letter. Please try again.';
+    if (data instanceof Blob) { try { message = JSON.parse(await data.text()).message || message; } catch { /* keep the general message */ } }
+    throw new Error(message);
+  }
   const url = URL.createObjectURL(res.data as Blob);
   const a = document.createElement('a');
   a.href = url;
@@ -146,7 +155,7 @@ export interface SalesMe {
   viewer: 'self' | 'owner';
   employee?: { _id: string; fullName: string; email: string; contactNumber?: string; employeeId: string; role: string; referralCode?: string };
   kyc?: SalesKyc;
-  offer?: { letterNumber: string; issuedAt: string } | null;
+  offer?: { letterNumber: string; issuedAt: string; downloadedAt?: string | null; ready?: boolean } | null;
   referralId?: string;
 }
 

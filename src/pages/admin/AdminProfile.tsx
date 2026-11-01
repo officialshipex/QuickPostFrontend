@@ -333,6 +333,54 @@ function AadhaarEditModal({ userId, onClose, onSuccess }: { userId: string; onCl
   );
 }
 
+// ─── Seller details (PAN, GST, contact) ──────────────────────
+// The admin's correction: the backend validates it, refuses a value that belongs to another account, and records it.
+function SellerDetailsModal({ userId, title, section, note, fields, onClose, onSuccess }: {
+  userId: string; title: string; section: 'pan' | 'gst' | 'contact'; note?: string;
+  fields: { key: string; label: string; value: string; upper?: boolean; numeric?: boolean; maxLength?: number }[];
+  onClose: () => void; onSuccess: () => void;
+}) {
+  const clean = (v: unknown) => (v === '—' || v === 'N/A' || v == null ? '' : String(v));
+  const [form, setForm] = useState<Record<string, string>>(() => Object.fromEntries(fields.map(f => [f.key, clean(f.value)])));
+  const [saving, setSaving] = useState(false);
+  const { toast: _t, showToast } = useToast();
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await apiClient.put(`/kyc-review/seller-details/${userId}`, { section, ...form });
+      onSuccess();
+      onClose();
+    } catch (err: any) {
+      showToast('error', err.response?.data?.message || 'Could not save these details. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+  return (
+    <ModalWrap onClose={onClose}>
+      <Toast toast={_t} onClose={() => {}} />
+      <ModalHeader title={title} onClose={onClose} />
+      <div className="px-5 py-4 flex flex-col gap-3 overflow-y-auto min-h-0">
+        {note && <p className={`${TXT.meta} text-[#64748B]`}>{note}</p>}
+        {fields.map(f => (
+          <ModalInput
+            key={f.key}
+            label={f.label}
+            value={form[f.key]}
+            maxLength={f.maxLength}
+            inputMode={f.numeric ? 'numeric' : undefined}
+            onChange={e => {
+              const raw = e.target.value;
+              setForm(p => ({ ...p, [f.key]: f.upper ? raw.toUpperCase() : f.numeric ? raw.replace(/\D/g, '') : raw }));
+            }}
+          />
+        ))}
+      </div>
+      <ModalActions onClose={onClose} onSave={handleSave} saving={saving} saveLabel="Save" />
+    </ModalWrap>
+  );
+}
+
 // ─── COD Cycle Modal ─────────────────────────────────────────────────────────
 const COD_PLANS = [
   { name: 'D+2', amount: 0.99, label: 'D + 2 Days' },
@@ -485,6 +533,123 @@ function CODModal({ userId, onClose, onSuccess }: { userId: string; onClose: () 
     </ModalWrap>
   );
 }
+
+// ─── Edit Rate Card Modal ─────────────────────────────────────────────────────
+function EditRateCardModal({ card, userId, onClose, onSuccess }: {
+  card: any; userId: string; onClose: () => void; onSuccess: () => void;
+}) {
+  const [form, setForm] = useState({
+    basicWeight:  String(card.weightPriceBasic?.[0]?.weight  ?? ''),
+    basicZoneA:   String(card.weightPriceBasic?.[0]?.zoneA   ?? ''),
+    basicZoneB:   String(card.weightPriceBasic?.[0]?.zoneB   ?? ''),
+    basicZoneC:   String(card.weightPriceBasic?.[0]?.zoneC   ?? ''),
+    basicZoneD:   String(card.weightPriceBasic?.[0]?.zoneD   ?? ''),
+    basicZoneE:   String(card.weightPriceBasic?.[0]?.zoneE   ?? ''),
+    addWeight:    String(card.weightPriceAdditional?.[0]?.weight ?? ''),
+    addZoneA:     String(card.weightPriceAdditional?.[0]?.zoneA  ?? ''),
+    addZoneB:     String(card.weightPriceAdditional?.[0]?.zoneB  ?? ''),
+    addZoneC:     String(card.weightPriceAdditional?.[0]?.zoneC  ?? ''),
+    addZoneD:     String(card.weightPriceAdditional?.[0]?.zoneD  ?? ''),
+    addZoneE:     String(card.weightPriceAdditional?.[0]?.zoneE  ?? ''),
+    codCharge:    String(card.codCharge  ?? ''),
+    codPercent:   String(card.codPercent ?? ''),
+  });
+  const [saving, setSaving] = useState(false);
+  const { toast: _t, showToast } = useToast();
+
+  const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setForm(f => ({ ...f, [k]: e.target.value }));
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const hasAdditional = (card.weightPriceAdditional?.length ?? 0) > 0 || !!form.addWeight;
+      const payload = {
+        userId,
+        courierServiceName: card.courierServiceName,
+        weightPriceBasic: [{ ...card.weightPriceBasic?.[0], weight: parseFloat(form.basicWeight)||0, zoneA: parseFloat(form.basicZoneA)||0, zoneB: parseFloat(form.basicZoneB)||0, zoneC: parseFloat(form.basicZoneC)||0, zoneD: parseFloat(form.basicZoneD)||0, zoneE: parseFloat(form.basicZoneE)||0 }, ...(card.weightPriceBasic?.slice(1) ?? [])],
+        weightPriceAdditional: hasAdditional
+          ? [{ ...card.weightPriceAdditional?.[0], weight: parseFloat(form.addWeight)||0, zoneA: parseFloat(form.addZoneA)||0, zoneB: parseFloat(form.addZoneB)||0, zoneC: parseFloat(form.addZoneC)||0, zoneD: parseFloat(form.addZoneD)||0, zoneE: parseFloat(form.addZoneE)||0 }, ...(card.weightPriceAdditional?.slice(1) ?? [])]
+          : [],
+        codCharge: parseFloat(form.codCharge)||0,
+        codPercent: parseFloat(form.codPercent)||0,
+      };
+      // Same endpoint as ShipexFrontend's seller profile: changes only this seller's plan and marks the rate custom
+      await apiClient.post('/users/updateServiceRate', payload);
+      onSuccess();
+      onClose();
+    } catch (err: any) {
+      showToast('error', err.response?.data?.message || 'Failed to update rate card');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const zones = ['A', 'B', 'C', 'D', 'E'] as const;
+
+  return (
+    <ModalWrap onClose={onClose}>
+      <Toast toast={_t} onClose={() => {}} />
+      <ModalHeader title="Edit Rate Card" onClose={onClose} />
+      <div className="px-5 py-4 flex flex-col gap-4 overflow-y-auto min-h-0">
+        {/* Provider info (read-only) */}
+        <div className="flex items-center gap-2 flex-wrap bg-[#F8FAFC] border border-[#E2E8F0] rounded-[8px] px-3 py-2">
+          <span className={`${TXT.label} text-[#0F172A]`}>{card.courierProviderName}</span>
+          <span className={`${TXT.meta} text-[#94A3B8]`}>·</span>
+          <span className={`${TXT.value} text-[#64748B]`}>{card.courierServiceName}</span>
+          {card.mode && <span className={`${TXT.meta} bg-[#E2E8F0] text-[#64748B] px-1.5 py-0.5 rounded`}>{card.mode}</span>}
+        </div>
+
+        {/* Basic weight row */}
+        <div className="flex flex-col gap-1.5">
+          <p className={`${TXT.meta} text-[#94A3B8] uppercase tracking-wide`}>Basic Weight Prices</p>
+          <div className="grid grid-cols-3 gap-1.5">
+            <div className="flex flex-col gap-0.5">
+              <label className={`${TXT.meta} text-[#94A3B8]`}>Weight (g)</label>
+              <input type="number" value={form.basicWeight} onChange={set('basicWeight')} className={`border border-[#E2E8F0] rounded-[6px] px-2 py-1 ${TXT.value} text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#00A86B]/40 focus:border-[#00A86B] transition-colors`} />
+            </div>
+            {zones.map(z => (
+              <div key={z} className="flex flex-col gap-0.5">
+                <label className={`${TXT.meta} text-[#94A3B8]`}>Zone {z}</label>
+                <input type="number" value={(form as any)[`basicZone${z}`]} onChange={set(`basicZone${z}`)} className={`border border-[#E2E8F0] rounded-[6px] px-2 py-1 ${TXT.value} text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#00A86B]/40 focus:border-[#00A86B] transition-colors`} />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Additional weight row */}
+        <div className="flex flex-col gap-1.5">
+          <p className={`${TXT.meta} text-[#94A3B8] uppercase tracking-wide`}>Additional Weight Prices</p>
+          <div className="grid grid-cols-3 gap-1.5">
+            <div className="flex flex-col gap-0.5">
+              <label className={`${TXT.meta} text-[#94A3B8]`}>Weight (g)</label>
+              <input type="number" value={form.addWeight} onChange={set('addWeight')} className={`border border-[#E2E8F0] rounded-[6px] px-2 py-1 ${TXT.value} text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#00A86B]/40 focus:border-[#00A86B] transition-colors`} />
+            </div>
+            {zones.map(z => (
+              <div key={z} className="flex flex-col gap-0.5">
+                <label className={`${TXT.meta} text-[#94A3B8]`}>Zone {z}</label>
+                <input type="number" value={(form as any)[`addZone${z}`]} onChange={set(`addZone${z}`)} className={`border border-[#E2E8F0] rounded-[6px] px-2 py-1 ${TXT.value} text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#00A86B]/40 focus:border-[#00A86B] transition-colors`} />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* COD */}
+        <div className="grid grid-cols-2 gap-3">
+          <ModalInput label="COD Charge (₹)" type="number" value={form.codCharge}   onChange={set('codCharge')}  placeholder="e.g. 50" />
+          <ModalInput label="COD Percent (%)" type="number" value={form.codPercent} onChange={set('codPercent')} placeholder="e.g. 1.5" />
+        </div>
+
+        {/* Custom notice */}
+        <p className={`${TXT.meta} text-[#F59E0B] bg-[#FFFBEB] border border-[#FDE68A] rounded-[6px] px-3 py-1.5`}>
+          Saving this will mark the rate as Custom for this user.
+        </p>
+      </div>
+      <ModalActions onClose={onClose} onSave={handleSave} saving={saving} saveLabel="Save Changes" />
+    </ModalWrap>
+  );
+}
+
 
 // ─── Assign Rate Card Modal ──────────────────────────────────────────────────
 function AssignRateCardModal({ userId, userName, rateCardType, onClose, onSuccess }: {
@@ -864,9 +1029,12 @@ export function AdminProfile() {
   // Modal visibility
   const [showBankModal, setShowBankModal] = useState(false);
   const [showAadhaarModal, setShowAadhaarModal] = useState(false);
+  const [detailsModal, setDetailsModal] = useState<'pan' | 'gst' | 'contact' | null>(null);
   const [showCODModal, setShowCODModal] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showEditRateModal, setShowEditRateModal] = useState(false);
+  const [editingRateCard, setEditingRateCard] = useState<any>(null);
   const [showCreditModal, setShowCreditModal] = useState(false);
   const [showReferralModal, setShowReferralModal] = useState(false);
   // The referral commission plan this user is on (admin view only)
@@ -1134,9 +1302,32 @@ export function AdminProfile() {
       {/* Modals */}
       {showBankModal && <BankEditModal userId={effectiveId} onClose={() => setShowBankModal(false)} onSuccess={refreshUser} />}
       {showAadhaarModal && <AadhaarEditModal userId={effectiveId} onClose={() => setShowAadhaarModal(false)} onSuccess={refreshUser} />}
+      {detailsModal === 'contact' && (
+        <SellerDetailsModal userId={effectiveId} section="contact" title="Edit Email & Mobile" onClose={() => setDetailsModal(null)} onSuccess={() => { showToast('success', 'Details updated'); refreshUser(); }}
+          note="The seller signs in with these. Their old email is told about the change."
+          fields={[{ key: 'email', label: 'Email', value: userData.email }, { key: 'phoneNumber', label: 'Mobile Number', value: userData.phone, numeric: true, maxLength: 10 }]} />
+      )}
+      {detailsModal === 'pan' && (
+        <SellerDetailsModal userId={effectiveId} section="pan" title="Edit PAN Details" onClose={() => setDetailsModal(null)} onSuccess={() => { showToast('success', 'PAN updated'); refreshUser(); }}
+          note="Saved as entered, without an online check. The change is recorded against your account."
+          fields={[{ key: 'number', label: 'PAN Number', value: userData.panNumber, upper: true, maxLength: 10 }, { key: 'name', label: 'Name as on PAN', value: userData.panName }]} />
+      )}
+      {detailsModal === 'gst' && (
+        <SellerDetailsModal userId={effectiveId} section="gst" title="Edit GST Details" onClose={() => setDetailsModal(null)} onSuccess={() => { showToast('success', 'GST updated'); refreshUser(); }}
+          note="Saved as entered, without an online check. The change is recorded against your account."
+          fields={[
+            { key: 'gstin', label: 'GSTIN', value: userData.gstin, upper: true, maxLength: 15 },
+            { key: 'businessName', label: 'Business Name', value: userData.business },
+            { key: 'address', label: 'Registered Address', value: userData.address },
+            { key: 'city', label: 'City', value: userData.city },
+            { key: 'state', label: 'State', value: userData.state },
+            { key: 'pincode', label: 'Pincode', value: userData.pincode, numeric: true, maxLength: 6 },
+          ]} />
+      )}
       {showCODModal && <CODModal userId={effectiveId} onClose={() => setShowCODModal(false)} onSuccess={refreshUser} />}
       {showAssignModal && <AssignRateCardModal userId={effectiveId} userName={userData.name} rateCardType={assignRateCardType} onClose={() => setShowAssignModal(false)} onSuccess={() => { refreshUser(); fetchRates(effectiveId); }} />}
       {showUploadModal && <UploadRateCardModal userId={effectiveId} planName={userPlanName} onClose={() => setShowUploadModal(false)} onSuccess={() => fetchRates(effectiveId)} />}
+      {showEditRateModal && editingRateCard && <EditRateCardModal card={editingRateCard} userId={effectiveId} onClose={() => { setShowEditRateModal(false); setEditingRateCard(null); }} onSuccess={() => { showToast('success', 'Rate updated and marked as custom for this seller.'); fetchRates(effectiveId); }} />}
       {showCreditModal && <CreditLimitModal userId={effectiveId} currentValue={userData.creditLimit} onClose={() => setShowCreditModal(false)} onSuccess={refreshUser} />}
       {showReferralModal && <UserPlanDialog userId={effectiveId} onClose={() => setShowReferralModal(false)} onSaved={name => setReferralPlanName(name)} />}
       {showKAMModal && <KAMModal userId={effectiveId} onClose={() => setShowKAMModal(false)} onSuccess={refreshUser} />}
@@ -1464,6 +1655,13 @@ export function AdminProfile() {
             )}
             {activeTab === 'kyc' && isAdminView && (
               <div className="flex flex-col gap-4">
+                <SectionCard icon={Mail} title="Email & Mobile" action={<EditBtn onClick={() => setDetailsModal('contact')} />}>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-0 md:gap-y-4">
+                    <Field label="Email" value={userData.email} />
+                    <Field label="Mobile Number" value={userData.phone} />
+                  </div>
+                </SectionCard>
+
                 <SectionCard
                   icon={IdCard}
                   title="Aadhar Details"
@@ -1477,7 +1675,7 @@ export function AdminProfile() {
                   </div>
                 </SectionCard>
 
-                <SectionCard icon={FileText} title="PAN Details">
+                <SectionCard icon={FileText} title="PAN Details" action={<EditBtn onClick={() => setDetailsModal('pan')} />}>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-0 md:gap-y-4">
                     <Field label="PAN Number" value={userData.panNumber} />
                     <Field label="Name" value={userData.panName} />
@@ -1486,7 +1684,7 @@ export function AdminProfile() {
                   </div>
                 </SectionCard>
 
-                <SectionCard icon={Building2} title="GST Details">
+                <SectionCard icon={Building2} title="GST Details" action={<EditBtn onClick={() => setDetailsModal('gst')} />}>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-0 md:gap-y-4">
                     <Field label="GSTIN" value={userData.gstin} />
                     <Field label="Company Name" value={userData.business} />
@@ -1566,7 +1764,9 @@ export function AdminProfile() {
                         rates.map((card: any, i: number) => (
                           <React.Fragment key={i}>
                             <tr className="border-b border-[#F1F5F9] text-[#374151]">
-                              <td className={`px-3 py-2 ${TXT.value}`} rowSpan={2}>{card.courierProviderName}</td>
+                              <td className={`px-3 py-2 ${TXT.value}`} rowSpan={2}>
+                                <span className="inline-flex items-center gap-1.5">{card.courierProviderName}{card.isCustomRate && <span className="text-[9px] font-bold bg-[#ECFDF5] text-[#00A86B] border border-[#A7F3D0] px-1.5 py-0.5 rounded-full flex-shrink-0">Custom</span>}</span>
+                              </td>
                               <td className={`px-3 py-2 ${TXT.value}`} rowSpan={2}>{card.courierServiceName}</td>
                               <td className={`px-3 py-2 ${TXT.value}`} rowSpan={2}>{card.mode}</td>
                               <td className={`px-3 py-2 ${TXT.value} text-[#94A3B8]`}>Basic: {card.weightPriceBasic?.[0]?.weight}gm</td>
@@ -1579,6 +1779,13 @@ export function AdminProfile() {
                               {isAdminView && (
                                 <td className={`px-3 py-2`} rowSpan={2}>
                                   <div className="flex items-center justify-center gap-2">
+                                    <button
+                                      onClick={() => { setEditingRateCard(card); setShowEditRateModal(true); }}
+                                      className="text-[#00A86B] hover:text-[#007A4D] transition-colors"
+                                      title="Edit rate card"
+                                    >
+                                      <Pencil className="w-3.5 h-3.5" />
+                                    </button>
                                     <button
                                       onClick={() => handleDeleteRateCard(card._id)}
                                       disabled={deletingId === card._id}
@@ -1626,13 +1833,22 @@ export function AdminProfile() {
                           {/* Header */}
                           <div className="flex items-start justify-between gap-2 px-3 py-2.5 bg-[#F8FAFC] border-b border-[#E2E8F0]">
                             <div className="min-w-0">
-                              <p className="text-[13px] font-bold text-[#0F172A] truncate">{card.courierProviderName}</p>
+                              <p className="text-[13px] font-bold text-[#0F172A] truncate flex items-center gap-1.5">{card.courierProviderName}{card.isCustomRate && <span className="text-[9px] font-bold bg-[#ECFDF5] text-[#00A86B] border border-[#A7F3D0] px-1.5 py-0.5 rounded-full flex-shrink-0">Custom</span>}</p>
                               <p className="text-[11px] text-[#64748B] truncate">{card.courierServiceName} · {card.mode}</p>
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
                               <span className="text-[11px] font-semibold text-[#00A86B] bg-[#ECFDF5] px-2 py-0.5 rounded-full whitespace-nowrap">
                                 COD ₹{card.codCharge} / {card.codPercent}%
                               </span>
+                              {isAdminView && (
+                                <button
+                                  onClick={() => { setEditingRateCard(card); setShowEditRateModal(true); }}
+                                  className="text-[#00A86B] hover:text-[#007A4D] transition-colors shrink-0"
+                                  title="Edit rate card"
+                                >
+                                  <Pencil className="w-3.5 h-3.5" />
+                                </button>
+                              )}
                               {isAdminView && (
                                 <button
                                   onClick={() => handleDeleteRateCard(card._id)}

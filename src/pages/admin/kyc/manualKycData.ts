@@ -7,10 +7,11 @@
 
 import { IFSC_RE, PAN_RE } from './kycStyles';
 
+/** A document already saved on the server (uploaded when it was chosen). */
 export interface KycFile {
-  file: File;
-  /** Object URL for previews — revoke when the file is removed/replaced. */
-  url: string;
+  name: string;
+  size: number;
+  url?: string | null;
 }
 
 export interface ManualPan {
@@ -73,6 +74,32 @@ export const createManualKycData = (): ManualKycData => ({
   bank: { holderName: '', accountNumber: '', confirmAccountNumber: '', ifsc: '', bankName: '', branch: '', accountType: 'current', proofType: 'cheque', proof: null },
 });
 
+/* ── Document rules (same as backend kyc/kycDocuments.js) ── */
+
+export const MAX_DOCUMENT_MB = 5;
+
+/** What is wrong with this document, or '' if it can be uploaded. A real PDF has "%PDF-" in its first 1024 bytes. */
+export async function pdfProblem(file: File, label: string): Promise<string> {
+  if (!/\.pdf$/i.test(file.name)) return `${label} must be a PDF file. "${file.name}" is not a PDF.`;
+  if (!file.size) return `${label} is an empty file. Please choose it again.`;
+  if (file.size > MAX_DOCUMENT_MB * 1024 * 1024) return `${label} is larger than ${MAX_DOCUMENT_MB} MB. Please upload a smaller PDF.`;
+  const head = await file.slice(0, 1024).text();
+  if (!head.includes('%PDF-')) return `${label} is not a valid PDF. "${file.name}" may have been renamed or damaged; please upload the original PDF.`;
+  return '';
+}
+
+/** The specific reason a KYC submission failed, including failures that never reach our backend's own messages. */
+export function kycSubmitError(err: unknown): string {
+  const e = err as { response?: { status?: number; data?: { message?: unknown } } };
+  const message = e.response?.data?.message;
+  if (typeof message === 'string' && message) return message;
+  const status = e.response?.status;
+  if (status === 413) return `Your documents are too large to upload together. Please upload smaller PDFs (up to ${MAX_DOCUMENT_MB} MB each).`;
+  if (status === 429) return 'Too many attempts. Please wait a minute and try again.';
+  if (!e.response) return 'The upload could not finish. Please check your internet connection and try again. Nothing was submitted.';
+  return 'We could not submit your KYC because of a problem on our side. Please try again in a few minutes.';
+}
+
 /* ── Per-step completeness ── */
 
 export const isPanComplete = (p: ManualPan) =>
@@ -102,7 +129,7 @@ export const formatFileSize = (bytes: number) =>
   bytes >= 1024 * 1024 ? `${(bytes / (1024 * 1024)).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
 
 /* ── Submission payload ──
-   Multipart body for the manual-KYC endpoint once the backend exposes it.
+   Multipart body for the manual-KYC endpoint.
    Field names follow the existing e-KYC payload where one exists. */
 export function buildManualKycFormData(args: {
   data: ManualKycData;
@@ -114,23 +141,40 @@ export function buildManualKycFormData(args: {
 }): FormData {
   const { data, businessType, email, phoneNumber, billing, gstin } = args;
   const fd = new FormData();
+  // The documents are already on the server (the draft); the backend takes them from there.
   fd.append('selectedType', businessType === 'COMPANY' ? 'company' : 'individual');
   fd.append('email', email);
   fd.append('phoneNumber', phoneNumber);
   fd.append('billingInfo', JSON.stringify(billing));
-  if (businessType === 'COMPANY') {
-    fd.append('gstNumber', gstin);
-    if (data.gstCertificate) fd.append('gstCertificate', data.gstCertificate.file);
-  }
+  if (businessType === 'COMPANY') fd.append('gstNumber', gstin);
   fd.append('pan', JSON.stringify({ pan: data.pan.number, name: data.pan.name, date: data.pan.date }));
-  if (data.pan.card) fd.append('panCard', data.pan.card.file);
-  const { front, back, ...aadhaar } = data.aadhaar;
+  const { front: _front, back: _back, ...aadhaar } = data.aadhaar;
+  void _front; void _back;
   fd.append('aadhaar', JSON.stringify({ ...aadhaar, aadhaarNumber: aadhaar.number }));
-  if (front) fd.append('aadhaarFront', front.file);
-  if (back) fd.append('aadhaarBack', back.file);
-  const { proof, confirmAccountNumber: _confirm, ...bank } = data.bank;
-  void _confirm;
+  const { proof: _proof, confirmAccountNumber: _confirm, ...bank } = data.bank;
+  void _proof; void _confirm;
   fd.append('bankDetails', JSON.stringify(bank));
-  if (proof) fd.append('bankProof', proof.file);
   return fd;
+}
+
+/* ── Draft ── what is saved while the form is being filled, and how it comes back ── */
+export function manualDraftSection(data: ManualKycData, step: ManualStep) {
+  const { card: _c, ...pan } = data.pan;
+  const { front: _f, back: _b, ...aadhaar } = data.aadhaar;
+  const { proof: _p, ...bank } = data.bank;
+  void _c; void _f; void _b; void _p;
+  return { pan, aadhaar, bank, step };
+}
+
+export function restoreManualDraft(
+  base: ManualKycData,
+  manual: { pan?: Partial<ManualPan>; aadhaar?: Partial<ManualAadhaar>; bank?: Partial<ManualBank> },
+  documents: Record<string, KycFile>,
+): ManualKycData {
+  return {
+    gstCertificate: documents.gstCertificate ?? base.gstCertificate,
+    pan: { ...base.pan, ...manual.pan, card: documents.panCard ?? base.pan.card },
+    aadhaar: { ...base.aadhaar, ...manual.aadhaar, front: documents.aadhaarFront ?? base.aadhaar.front, back: documents.aadhaarBack ?? base.aadhaar.back },
+    bank: { ...base.bank, ...manual.bank, proof: documents.bankProof ?? base.bank.proof },
+  };
 }

@@ -2,65 +2,76 @@ import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight, Check, Eye, EyeOff, FileText, Info, Lock, Pencil, RefreshCcw, UploadCloud, X } from 'lucide-react';
 import { ShineButton } from '../../../components/ui/ShineButton';
 import { FieldLabel } from './kycUi';
+import { removeDraftDocument, SELLER_DRAFT_URL, uploadDraftDocument } from './kycDraft';
 import { cardShadow, IFSC_RE, inputCls, PAN_RE } from './kycStyles';
 import {
   formatAadhaar, formatDate, formatFileSize, isAadhaarComplete, isBankAccountLengthOk, isBankComplete, isPanComplete,
-  MANUAL_STEPS, maskTail,
+  kycSubmitError, MANUAL_STEPS, MAX_DOCUMENT_MB, maskTail, pdfProblem,
   type KycFile, type ManualAadhaar, type ManualBank, type ManualKycData, type ManualPan, type ManualStep,
 } from './manualKycData';
 
 type BusinessType = 'INDIVIDUAL' | 'COMPANY';
 
-const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'application/pdf'];
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
 /* ── Document upload — dropzone → file row with preview / replace / remove ── */
 export function DocumentUpload({
-  label, hint, value, onChange, onError, required = true, maxMb = 5,
+  field, label, hint, value, onChange, onError, required = true,
 }: {
+  /** The document's name on the server (panCard, aadhaarFront, ...) */
+  field: string;
   label: string;
   hint?: string;
   value: KycFile | null;
   onChange: (f: KycFile | null) => void;
   onError: (msg: string) => void;
   required?: boolean;
-  maxMb?: number;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
-  const accept = (file?: File | null) => {
+  const accept = async (file?: File | null) => {
+    if (inputRef.current) inputRef.current.value = ''; // so choosing the same file again still fires
     if (!file) return;
-    if (!ACCEPTED_TYPES.includes(file.type)) return onError('Please upload a JPG, PNG or PDF file.');
-    if (file.size > maxMb * 1024 * 1024) return onError(`File must be smaller than ${maxMb} MB.`);
-    if (value) URL.revokeObjectURL(value.url);
-    onChange({ file, url: URL.createObjectURL(file) });
-    if (inputRef.current) inputRef.current.value = '';
+    const problem = await pdfProblem(file, label);
+    if (problem) return onError(problem);
+    // Saved on the server straight away, so it is still here if the seller leaves and comes back.
+    setUploading(true);
+    try {
+      onChange(await uploadDraftDocument(SELLER_DRAFT_URL, field, file));
+    } catch (err) {
+      onError(kycSubmitError(err));
+    } finally {
+      setUploading(false);
+    }
   };
 
-  const remove = () => {
-    if (value) URL.revokeObjectURL(value.url);
-    onChange(null);
+  const remove = async () => {
+    try {
+      await removeDraftDocument(SELLER_DRAFT_URL, field);
+      onChange(null);
+    } catch (err) {
+      onError(kycSubmitError(err));
+    }
   };
-
-  const isImage = value?.file.type.startsWith('image/');
 
   return (
     <div>
       <FieldLabel required={required}>{label}</FieldLabel>
-      <input ref={inputRef} type="file" accept={ACCEPTED_TYPES.join(',')} className="hidden" onChange={(e) => accept(e.target.files?.[0])} />
+      <input ref={inputRef} type="file" accept=".pdf,application/pdf" className="hidden" onChange={(e) => accept(e.target.files?.[0])} />
       {value ? (
         <div className="flex items-center gap-3 rounded-xl border border-[#E2E8F0] bg-white p-2.5 pr-3">
-          <a href={value.url} target="_blank" rel="noopener noreferrer" className="w-12 h-12 rounded-lg bg-[#F8FAFC] overflow-hidden flex items-center justify-center shrink-0" title="Open preview">
-            {isImage ? <img src={value.url} alt="" className="w-full h-full object-cover" /> : <FileText className="w-5 h-5 text-[#DC2626]" />}
+          <a href={value.url || undefined} target="_blank" rel="noopener noreferrer" className="w-12 h-12 rounded-lg bg-[#F8FAFC] overflow-hidden flex items-center justify-center shrink-0" title="Open preview">
+            <FileText className="w-5 h-5 text-[#DC2626]" />
           </a>
           <div className="min-w-0 flex-1">
-            <p className="text-[12.5px] font-semibold text-[#0F172A] truncate">{value.file.name}</p>
+            <p className="text-[12.5px] font-semibold text-[#0F172A] truncate">{value.name}</p>
             <p className="text-[11px] text-[#94A3B8] flex items-center gap-1">
-              <Check className="w-3 h-3 text-[#00A86B]" strokeWidth={3} /> Uploaded · {formatFileSize(value.file.size)}
+              <Check className="w-3 h-3 text-[#00A86B]" strokeWidth={3} /> Uploaded · {formatFileSize(value.size)}
             </p>
           </div>
-          <button type="button" onClick={() => inputRef.current?.click()} className="text-[12px] font-semibold text-[#00A86B] hover:underline shrink-0">Replace</button>
+          <button type="button" disabled={uploading} onClick={() => inputRef.current?.click()} className="text-[12px] font-semibold text-[#00A86B] hover:underline shrink-0 disabled:opacity-50">{uploading ? 'Uploading…' : 'Replace'}</button>
           <button type="button" onClick={remove} aria-label={`Remove ${label}`} className="w-7 h-7 rounded-full flex items-center justify-center text-[#94A3B8] hover:text-red-500 hover:bg-red-50 shrink-0">
             <X className="w-4 h-4" />
           </button>
@@ -68,15 +79,16 @@ export function DocumentUpload({
       ) : (
         <button
           type="button"
+          disabled={uploading}
           onClick={() => inputRef.current?.click()}
           onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
           onDragLeave={() => setDragging(false)}
           onDrop={(e) => { e.preventDefault(); setDragging(false); accept(e.dataTransfer.files?.[0]); }}
           className={`w-full h-[104px] rounded-xl border border-dashed flex flex-col items-center justify-center gap-1.5 transition-colors ${dragging ? 'border-[#00A86B] bg-[#F0FDF4]' : 'border-[#CBD5E1] bg-[#F8FAFC] hover:border-[#00A86B]/60 hover:bg-[#F0FDF4]/50'}`}
         >
-          <UploadCloud className="w-5 h-5 text-[#64748B]" />
-          <span className="text-[12.5px] text-[#475569]">Drag &amp; drop or <span className="font-semibold text-[#00A86B]">browse</span></span>
-          <span className="text-[11px] text-[#94A3B8]">{hint || `JPG, PNG or PDF · up to ${maxMb} MB`}</span>
+          {uploading ? <RefreshCcw className="w-5 h-5 text-[#64748B] animate-spin" /> : <UploadCloud className="w-5 h-5 text-[#64748B]" />}
+          <span className="text-[12.5px] text-[#475569]">{uploading ? 'Uploading…' : <>Drag &amp; drop or <span className="font-semibold text-[#00A86B]">browse</span></>}</span>
+          <span className="text-[11px] text-[#94A3B8]">{hint || `PDF only · up to ${MAX_DOCUMENT_MB} MB`}</span>
         </button>
       )}
     </div>
@@ -217,7 +229,7 @@ export function ManualPanStep({
       nextLabel="Continue"
       nextDisabled={!isPanComplete(value)}
       aside={<GuidanceCard title="Before you upload" items={[
-        'Upload a clear photo or scan of the original PAN card',
+        'Upload a clear scan of the original PAN card as a PDF',
         'All four corners and text must be visible',
         isCompany ? 'Use the PAN issued in your business name' : 'Name must match your bank account',
       ]} />}
@@ -240,7 +252,7 @@ export function ManualPanStep({
       <div className="mt-6 pt-5 border-t border-[#F1F5F9]">
         <SubHeading>Document</SubHeading>
         <div className="sm:max-w-[420px]">
-          <DocumentUpload label="PAN Card" value={value.card} onChange={(card) => onChange({ card })} onError={onError} />
+          <DocumentUpload field="panCard" label="PAN Card" value={value.card} onChange={(card) => onChange({ card })} onError={onError} />
         </div>
       </div>
     </ManualStepLayout>
@@ -328,8 +340,8 @@ export function ManualAadhaarStep({
       <div className="mt-6 pt-5 border-t border-[#F1F5F9]">
         <SubHeading>Documents</SubHeading>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <DocumentUpload label="Aadhaar Front" value={value.front} onChange={(front) => onChange({ front })} onError={onError} />
-          <DocumentUpload label="Aadhaar Back" value={value.back} onChange={(back) => onChange({ back })} onError={onError} />
+          <DocumentUpload field="aadhaarFront" label="Aadhaar Front" value={value.front} onChange={(front) => onChange({ front })} onError={onError} />
+          <DocumentUpload field="aadhaarBack" label="Aadhaar Back" value={value.back} onChange={(back) => onChange({ back })} onError={onError} />
         </div>
       </div>
     </ManualStepLayout>
@@ -438,8 +450,9 @@ export function ManualBankStep({
         </div>
         <div className="sm:max-w-[420px]">
           <DocumentUpload
+            field="bankProof"
             label={value.proofType === 'cheque' ? 'Cancelled Cheque' : 'Bank Statement'}
-            hint={value.proofType === 'cheque' ? 'Account number, IFSC and name must be visible' : 'Last 3 months · JPG, PNG or PDF up to 5 MB'}
+            hint={value.proofType === 'cheque' ? 'Account number, IFSC and name must be visible' : `Last 3 months · PDF only, up to ${MAX_DOCUMENT_MB} MB`}
             value={value.proof}
             onChange={(proof) => onChange({ proof })}
             onError={onError}
@@ -472,8 +485,8 @@ function ReviewSection({ title, onEdit, rows, files }: { title: string; onEdit: 
       {docs.length > 0 && (
         <div className="flex flex-wrap gap-2 mt-2">
           {docs.map((d) => (
-            <a key={d.url} href={d.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-[#F8FAFC] text-[12px] font-medium text-[#475569] hover:text-[#0F172A] max-w-[220px]">
-              <FileText className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">{d.file.name}</span>
+            <a key={d.name} href={d.url || undefined} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-[#F8FAFC] text-[12px] font-medium text-[#475569] hover:text-[#0F172A] max-w-[220px]">
+              <FileText className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">{d.name}</span>
             </a>
           ))}
         </div>
@@ -564,7 +577,7 @@ export function ManualReviewStep({
         </span>
       </label>
       <p className="mt-3 flex items-start gap-2 text-[11.5px] text-[#94A3B8]">
-        <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" /> You'll be notified by email and SMS once your KYC is verified.
+        <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" /> You'll be notified by email once your KYC is verified.
       </p>
     </ManualStepLayout>
   );

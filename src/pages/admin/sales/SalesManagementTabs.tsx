@@ -3,9 +3,10 @@ import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import {
-  X, AlertCircle, CheckCircle2, ExternalLink, Plus, Trash2, Pencil, ShieldCheck, RefreshCw, UserPlus, Receipt, Settings2,
+  X, AlertCircle, CheckCircle2, ExternalLink, Plus, Trash2, Pencil, ShieldCheck, RefreshCw, UserPlus, Receipt,
 } from 'lucide-react';
 import { TableLoader } from '../../../components/ui/TableLoader';
+import { OfferLetterEditor, type LetterTemplate } from './OfferLetterEditor';
 import {
   salesApiClient, apiError, inr, periodLabel, incentiveLine,
   type TeamMember, type Slab, type OnboardingBonusRule, type RateOffer, type SalesEarning, type SalesPayout, type KycStatus,
@@ -586,42 +587,26 @@ export function PayoutsTab({ people, notify, initialPerson }: { people: TeamMemb
 
 // ── Settings ─────────────────────────────────────────────────────────────────
 export function SettingsTab({ notify, onAutoAdjust }: { notify: Notify; onAutoAdjust: (on: boolean) => void }) {
-  const [s, setS] = useState<{ rateAutoAdjust: boolean; offerLetter: { signatoryName: string; signatoryDesignation: string; body: string; terms: string }; defaults: { body: string; terms: string } } | null>(null);
+  const [s, setS] = useState<{ rateAutoAdjust: boolean; offerLetter: LetterTemplate; offerLetterPublishedAt?: string | null; defaults: LetterTemplate } | null>(null);
   const [busy, setBusy] = useState(false);
-  useEffect(() => { salesApiClient.get('/admin/settings').then(r => setS(r.data)).catch(() => {}); }, []);
+  useEffect(() => { salesApiClient.get('/admin/settings').then(r => setS(r.data)).catch(e => notify(false, apiError(e))); }, [notify]);
   if (!s) return <div className="relative h-60"><TableLoader /></div>;
-  const ol = s.offerLetter;
-  const setOl = (k: keyof typeof ol, v: string) => setS({ ...s, offerLetter: { ...ol, [k]: v } });
   const save = async () => {
     setBusy(true);
-    try { await salesApiClient.put('/admin/settings', { rateAutoAdjust: s.rateAutoAdjust, offerLetter: ol }); onAutoAdjust(s.rateAutoAdjust); notify(true, 'Settings saved'); }
+    try { await salesApiClient.put('/admin/settings', { rateAutoAdjust: s.rateAutoAdjust }); onAutoAdjust(s.rateAutoAdjust); notify(true, 'Settings saved'); }
     catch (e) { notify(false, apiError(e)); } finally { setBusy(false); }
   };
   return (
-    <div className="flex flex-col gap-4 max-w-3xl">
-      <div className={`${card} p-5`}>
-        <label className="flex items-start gap-3 cursor-pointer">
+    <div className="flex flex-col gap-4">
+      <div className={`${card} p-5 flex flex-col sm:flex-row sm:items-center gap-4`}>
+        <label className="flex items-start gap-3 cursor-pointer flex-1 min-w-0">
           <input type="checkbox" checked={s.rateAutoAdjust} onChange={e => setS({ ...s, rateAutoAdjust: e.target.checked })} className="mt-1 h-4 w-4 accent-[#00A86B]" />
           <span><span className="block text-[14px] font-bold text-[#0F172A]">Auto upgrade / downgrade commitment rates</span>
             <span className="block text-[12.5px] text-[#64748B]">Every month from the commitment date, sellers move to the rate their shipments earned — never above the rate their sales person committed. Switch off to keep every seller on their assigned rate.</span></span>
         </label>
+        <button disabled={busy} onClick={save} className={primaryBtn}>{busy ? 'Saving…' : 'Save'}</button>
       </div>
-      <div className={`${card} p-5 space-y-4`}>
-        <div className="flex items-center gap-2"><Settings2 className="w-4 h-4 text-[#00A86B]" /><h3 className="text-[14px] font-bold text-[#0F172A]">Offer letter</h3></div>
-        <p className="text-[12px] text-[#94A3B8]">Issued automatically when a sales person's KYC is verified. Placeholders: {'{{name}} {{designation}} {{company}} {{employeeId}} {{joiningDate}} {{ctc}} {{location}}'}. The incentive plan is added to every letter. The letterhead uses the company billing details.</p>
-        <div className="grid grid-cols-2 gap-3">
-          <div><label className={labelCls}>Signatory name</label><input value={ol.signatoryName} onChange={e => setOl('signatoryName', e.target.value)} className={fieldCls} /></div>
-          <div><label className={labelCls}>Signatory designation</label><input value={ol.signatoryDesignation} onChange={e => setOl('signatoryDesignation', e.target.value)} className={fieldCls} /></div>
-        </div>
-        {(['body', 'terms'] as const).map(k => (
-          <div key={k}>
-            <div className="flex items-center justify-between mb-1.5"><label className="text-[12px] font-semibold text-[#475569]">{k === 'body' ? 'Letter body' : 'Terms'}</label>
-              {!ol[k] && <button type="button" onClick={() => setOl(k, s.defaults[k])} className="text-[12px] font-semibold text-[#00A86B]">Start from the default text</button>}</div>
-            <textarea value={ol[k]} onChange={e => setOl(k, e.target.value)} rows={k === 'body' ? 7 : 4} placeholder="Empty = the default text" className="w-full px-3.5 py-2.5 rounded-xl border border-[#E2E8F0] text-[13px] focus:outline-none focus:border-[#00A86B] resize-y" />
-          </div>
-        ))}
-      </div>
-      <div className="flex justify-end"><button disabled={busy} onClick={save} className={primaryBtn}>{busy ? 'Saving…' : 'Save settings'}</button></div>
+      <OfferLetterEditor initial={s.offerLetter} defaults={s.defaults} publishedAt={s.offerLetterPublishedAt} notify={notify} />
     </div>
   );
 }
