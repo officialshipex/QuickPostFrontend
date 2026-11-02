@@ -198,7 +198,6 @@ const MENU_GROUPS: MenuGroup[] = [
     items: [
       { name: 'Support Tickets', path: '/admin/support', icon: Mail, permission: 'support' },
       // { name: 'System Settings', path: '/admin/settings', icon: Settings, noEmployee: true },
-      { name: 'Admin Accounts', path: '/admin/accounts', icon: Users, noEmployee: true },
       { name: 'Companies', path: '/admin/companies', icon: Building2, noEmployee: true },
       { name: 'Sales Management', path: '/admin/sales-management', icon: Target, noEmployee: true },
       { name: 'Seller Feedback', path: '/admin/seller-feedback', icon: MessageSquare, noEmployee: true },

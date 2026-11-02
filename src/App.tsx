@@ -47,7 +47,6 @@ import { AdminReportsHub } from './pages/admin/AdminReportsHub';
 import { AdminPerformance } from './pages/admin/AdminPerformance';
 import { AdminCOD } from './pages/admin/AdminCOD';
 import { AdminSettings } from './pages/admin/AdminSettings';
-import { AdminAccounts } from './pages/admin/AdminAccounts';
 import { AdminCompanies } from './pages/admin/companies/AdminCompanies';
 import { AdminAuditLogs } from './pages/admin/AdminAuditLogs';
 import { AdminWeightDiscrepancy } from './pages/admin/AdminWeightDiscrepancy';
@@ -308,7 +307,8 @@ function App() {
               <Route path="/admin/support" element={<AdminSupport />} />
               <Route path="/admin/support/:tabSlug" element={<AdminSupport />} />
               {/* <Route path="/admin/settings" element={<AdminSettings />} /> */}
-              <Route path="/admin/accounts" element={<AdminAccounts />} />
+              {/* Old "System → Admin Accounts" link: same page as Setup & Manage → Employees */}
+              <Route path="/admin/accounts" element={<Navigate to="/admin/roles" replace />} />
               <Route path="/admin/companies" element={<AdminCompanies />} />
               <Route path="/admin/sales" element={<SalesDashboard />} />
               <Route path="/admin/tasks" element={<SalesTasks />} />
