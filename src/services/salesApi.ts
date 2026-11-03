@@ -4,7 +4,7 @@ import { apiClient } from './apiClient';
 /* Sales module API (`${VITE_API_URL}/sales/...`, backend/sales). Goes through apiClient so it carries the same
    auth, panel and company headers as every other call.
      Sales person:      /me /overview /calls /sellers /performance /referral /tasks /earnings /rate-offers
-                        /rate-suggest /sellers/:id/rate /kyc/* /offer-letter
+                        /rate-suggest /rate-quote /sellers/:id/rate /sellers/:id/business /kyc/* /offer-letter
      Owner (view-as):   the same with ?employeeId=<sales person>, plus /team
      Sales Management:  /admin/*  */
 
@@ -24,27 +24,39 @@ export const apiError = (e: any, fallback = 'Something went wrong. Please try ag
 /** Where sellers sign up with a sales person's referral code */
 export const referralLinkFor = (code?: string) => (code ? `${window.location.origin}/register?ref=${encodeURIComponent(code)}` : '');
 
-/** Downloads the offer letter PDF (own, or a sales person's when employeeId is given) */
-export async function downloadOfferLetter(employeeId?: string) {
+// Fetches a PDF and saves it. The reply is asked for as a file, so a backend error message arrives as a blob too.
+async function savePdf(request: () => Promise<{ data: unknown }>, fileName: string, fallback: string) {
   let res;
   try {
-    res = await salesApiClient.get('/offer-letter', { params: employeeId ? { employeeId } : {}, responseType: 'blob' });
+    res = await request();
   } catch (e) {
-    // The reply was asked for as a file, so the backend's message arrives as a blob too.
     const data = (e as { response?: { data?: unknown } })?.response?.data;
-    let message = 'Could not download the offer letter. Please try again.';
+    let message = fallback;
     if (data instanceof Blob) { try { message = JSON.parse(await data.text()).message || message; } catch { /* keep the general message */ } }
-    throw new Error(message);
+    throw new Error(message, { cause: e });
   }
   const url = URL.createObjectURL(res.data as Blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'Offer-Letter.pdf';
+  a.download = fileName;
   document.body.appendChild(a);
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
+
+/** Downloads the offer letter PDF (own, or a sales person's when employeeId is given) */
+export const downloadOfferLetter = (employeeId?: string) =>
+  savePdf(() => salesApiClient.get('/offer-letter', { params: employeeId ? { employeeId } : {}, responseType: 'blob' }), 'Offer-Letter.pdf', 'Could not download the offer letter. Please try again.');
+
+/** "Send rate": the same proposal emailed to the prospect (replies go to the sales person) */
+export const sendRateQuote = (body: BusinessDetails & QuoteTarget & { prospectName?: string; email: string }) =>
+  salesApiClient.post<{ success: boolean; message: string }>('/rate-quote/send', body).then(r => r.data);
+
+/** "Fetch rate" proposal PDF for a prospect: their business details, the offer (or the suggested one), prices */
+export const downloadRateQuote = (body: BusinessDetails & QuoteTarget & { prospectName?: string }, employeeId?: string) =>
+  savePdf(() => salesApiClient.post('/rate-quote', body, { params: employeeId ? { employeeId } : {}, responseType: 'blob' }),
+    `Rate-Proposal${body.prospectName ? `-${body.prospectName.replace(/[^\w-]+/g, '-').slice(0, 40)}` : ''}.pdf`, 'Could not create the proposal. Please try again.');
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 export type CallStatus = 'assigned' | 'pending' | 'completed' | 'follow_up' | 'unreachable';
@@ -93,6 +105,8 @@ export interface ReferredSeller {
   active: boolean;
   rate?: SellerRate | null;
   bonus?: SellerBonus | null;
+  /** This month's in-transit shipments against the Monthly Business Details target (0 = not set) */
+  monthTarget?: { target: number; achieved: number };
 }
 
 export interface Target { target: number; achieved: number }
@@ -183,19 +197,39 @@ export interface SalesEarnings {
 }
 
 // ── Rates ─────────────────────────────────────────────────────────────────────
-export interface WeightSlab { key: string; label: string; grams: number }
 export interface SlabPrice { key: string; label: string; zonePrices: Record<string, number | null>; weightedPrice: number }
 export interface RateOffer { _id: string; name: string; planName: string; minMonthlyShipments: number; description?: string; preview?: SlabPrice[]; active?: boolean; sellers?: number; salesPersons?: { _id: string; fullName: string; employeeId: string }[] }
-export interface RateRequirement {
-  monthlyShipments: number; codPercent: number; avgCodValue: number; productCategory: string;
-  weightMix: Record<string, number>; zoneMix: Record<string, number>;
+/** Monthly Business Details (sales person fills them for a seller or a prospect) */
+export interface BusinessDetails {
+  totalShipments: number; monthlyShippingBill: number; productCategory: string; productValue: number;
+  averageWeight: number; rtoPercent: number; codPercent: number; topZone: string;
+}
+export const emptyBusiness = (): BusinessDetails => ({ totalShipments: 0, monthlyShippingBill: 0, productCategory: '', productValue: 0, averageWeight: 0.5, rtoPercent: 0, codPercent: 0, topZone: '' });
+export interface BusinessEstimate {
+  freightPerShipment: number; codPerShipment: number; rtoPerShipment: number; avgPerShipment: number;
+  monthlyEstimate: number; savings: number | null; zonePrices: Record<string, number | null>; couriers: string[];
+  /** e.g. the top zone has no price on this card and the average of the other zones was used */
+  note?: string;
 }
 export interface RateSuggestion {
-  requirement: RateRequirement;
+  business: BusinessDetails;
   recommendedOfferId: string | null;
-  offers: { offer: RateOffer; eligible: boolean; shipmentsShort: number; estimate: { avgPerShipment: number; codPerShipment: number; monthlyEstimate: number; couriers: string[]; perSlab: SlabPrice[] } | null }[];
-  weightSlabs: WeightSlab[];
+  /** `problem`: why the row could not be priced (what the admin has to set up first) */
+  offers: { offer: RateOffer; eligible: boolean; shipmentsShort: number; estimate: BusinessEstimate | null; problem?: string | null }[];
+  /** The main rate cards priced for the same business (no commitment; recharge plans carry their amount) */
+  plans?: { planName: string; minRecharge: number | null; estimate: BusinessEstimate | null; problem?: string | null }[];
+  /** Why a list is empty: the step that has to be done first */
+  offersEmptyReason?: string | null;
+  plansEmptyReason?: string | null;
   zones: string[];
+}
+/** Which rate a proposal is for: a commitment offer, a main rate card, or (neither) the suggested offer */
+export interface QuoteTarget { offerId?: string; planName?: string }
+export interface SavedBusiness extends BusinessDetails {
+  updatedAt?: string;
+  suggestedOffer?: Pick<RateOffer, '_id' | 'name' | 'planName' | 'minMonthlyShipments'> | null;
+  appliedOffer?: Pick<RateOffer, '_id' | 'name' | 'planName' | 'minMonthlyShipments'> | null;
+  applyNote?: string;
 }
 export const ZONE_LABEL: Record<string, string> = { zoneA: 'Zone A', zoneB: 'Zone B', zoneC: 'Zone C', zoneD: 'Zone D', zoneE: 'Zone E' };
 
