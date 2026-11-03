@@ -34,6 +34,7 @@ import { AdminPickupManifest } from './AdminPickupManifest';
 import { useAdminTab } from '../../context/AdminUserContext';
 import { ShipOrderModal } from '../../components/admin/orders/ShipOrderModal';
 import { BulkShipModal } from '../../components/admin/orders/BulkShipModal';
+import { confirmBulkAction } from '../../components/ui/BulkActionConfirm';
 import { Toast } from '../../components/ui/Toast';
 import { useToast } from '../../hooks/useToast';
 import { useProductTooltip, ProductTooltipCard } from '../../hooks/useProductTooltip';
@@ -880,11 +881,13 @@ export function AdminOrders() {
   const handleCancelOrder = async (order: any) => {
     const isBooked = ['Ready To Ship'].includes(order.status);
     const endpoint = isBooked ? '/order/cancelOrdersAtBooked' : '/order/cancelOrdersAtNotShipped';
-    setCancellingIds(prev => new Set(prev).add(order._id));
     setDropdownPos(null); // close any open per-row dropdown immediately
+    // booked: courier cancel + refund, the order stays; not booked: cancelOrdersAtNotShipped DELETES the order
+    if (!(await confirmBulkAction({ action: isBooked ? 'cancel' : 'delete', orderNumber: order.orderId }))) return;
+    setCancellingIds(prev => new Set(prev).add(order._id));
     try {
       await apiClient.post(endpoint, { orderId: order._id });
-      showToast('success', 'Order cancelled successfully');
+      showToast('success', isBooked ? 'Order cancelled successfully' : 'Order deleted successfully');
       fetchOrders(page);
     } catch (e: any) {
       console.error('Cancel failed', e);
@@ -1066,9 +1069,14 @@ export function AdminOrders() {
     ? (orders.find(o => selectedOrders.includes(o._id))?.userMongoId || undefined)
     : undefined;
 
-  const runBulkShip = async (wh?: Record<string, string>) => {
+  const runBulkShip = async (wh?: Record<string, string>, priority?: { name: string; provider: string; mode: string }[]) => {
     try {
-      const res = await apiClient.post('/bulk/create-bulk-order', { selectedOrders, ...(wh ? { wh } : {}) });
+      // a priority ranked in the popup is used for this run whatever the parcel weight
+      const res = await apiClient.post('/bulk/create-bulk-order', {
+        selectedOrders,
+        ...(wh ? { wh } : {}),
+        ...(priority && priority.length ? { courierPriority: priority } : {}),
+      });
       showToast('success', res.data?.message || `Bulk shipment started for ${selectedOrders.length} orders.`);
       refreshNotifications();
       fetchOrders(page);
@@ -1086,6 +1094,7 @@ export function AdminOrders() {
   // skipping non-cancellable statuses in the background, one call not N.
   const handleBulkCancel = async () => {
     if (selectedOrders.length === 0) return;
+    if (!(await confirmBulkAction({ action: 'cancel', count: selectedOrders.length }))) return;
     try {
       const res = await apiClient.post('/order/bulkCancelOrder', { selectedOrders });
       showToast('success', res.data?.message || `Bulk cancellation started for ${selectedOrders.length} order(s).`);
@@ -1107,6 +1116,7 @@ export function AdminOrders() {
   // one request per order, all at once, hit the backend's per-minute rate limit on large selections.
   const handleBulkDelete = async () => {
     if (selectedOrders.length === 0) return;
+    if (!(await confirmBulkAction({ action: 'delete', count: selectedOrders.length }))) return;
     try {
       const { data } = await apiClient.post('/order/bulkDeleteNotShipped', { orderIds: selectedOrders });
       showToast(data?.notDeleted ? 'error' : 'success', data?.message || `Deleted ${data?.deleted ?? 0} order(s).`);
@@ -1971,7 +1981,7 @@ export function AdminOrders() {
                         <div className="flex items-center gap-2">
                           {cancellingIds.has(order._id) ? (
                             <span className="flex items-center gap-1.5 text-[10px] font-bold text-rose-500 bg-rose-50 border border-rose-100 rounded-full px-2.5 py-1 whitespace-nowrap">
-                              <Loader2 className="w-3 h-3 animate-spin" /> Cancelling…
+                              <Loader2 className="w-3 h-3 animate-spin" /> {order.status === 'new' ? 'Deleting…' : 'Cancelling…'}
                             </span>
                           ) : (
                             <>
@@ -2036,7 +2046,7 @@ export function AdminOrders() {
                     {cancellingIds.has(order._id) && (
                       <div className="absolute inset-0 z-20 bg-white/80 rounded-2xl flex items-center justify-center">
                         <span className="flex items-center gap-2 text-[11px] font-bold text-rose-500 bg-rose-50 border border-rose-100 rounded-full px-3 py-1.5">
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" /> Cancelling…
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" /> {order.status === 'new' ? 'Deleting…' : 'Cancelling…'}
                         </span>
                       </div>
                     )}

@@ -40,6 +40,7 @@ import { CargoPickupManifest } from './CargoPickupManifest';
 import { useAdminTab } from '../../context/AdminUserContext';
 import { ShipOrderModal } from '../../components/admin/orders/ShipOrderModal';
 import { BulkShipModal } from '../../components/admin/orders/BulkShipModal';
+import { confirmBulkAction } from '../../components/ui/BulkActionConfirm';
 import { Toast } from '../../components/ui/Toast';
 import { useToast } from '../../hooks/useToast';
 import { useProductTooltip, ProductTooltipCard } from '../../hooks/useProductTooltip';
@@ -900,8 +901,9 @@ export function CargoOrders() {
     // Never booked ("new") → the order is deleted, same as ShipexFrontend's "Delete Order".
     // Booked → the B2B cancel cancels the shipment with the carrier and refunds the freight to the wallet.
     const isNew = order.status === 'new';
-    setCancellingIds(prev => new Set(prev).add(order._id));
     setDropdownPos(null); // close any open per-row dropdown immediately
+    if (!(await confirmBulkAction({ action: isNew ? 'delete' : 'cancel', orderNumber: order.orderId }))) return;
+    setCancellingIds(prev => new Set(prev).add(order._id));
     try {
       if (isNew) await apiClient.post('/order/cancelOrdersAtNotShipped', { orderId: order._id });
       else await apiClient.post(`/b2b/cancelOrder/${order._id}`);
@@ -1105,6 +1107,7 @@ export function CargoOrders() {
   // order goes through the B2B cancel (carrier cancel + wallet refund), one call per order.
   const handleBulkCancel = async () => {
     if (selectedOrders.length === 0) return;
+    if (!(await confirmBulkAction({ action: 'cancel', count: selectedOrders.length }))) return;
     const ids = [...selectedOrders];
     setCancellingIds(prev => { const s = new Set(prev); ids.forEach(id => s.add(id)); return s; });
     try {
@@ -1131,6 +1134,7 @@ export function CargoOrders() {
   // one request per order, all at once, hit the backend's per-minute rate limit on large selections.
   const handleBulkDelete = async () => {
     if (selectedOrders.length === 0) return;
+    if (!(await confirmBulkAction({ action: 'delete', count: selectedOrders.length }))) return;
     try {
       const { data } = await apiClient.post('/order/bulkDeleteNotShipped', { orderIds: selectedOrders });
       showToast(data?.notDeleted ? 'error' : 'success', data?.message || `Deleted ${data?.deleted ?? 0} order(s).`);
@@ -1953,7 +1957,7 @@ export function CargoOrders() {
                         <div className="flex items-center gap-2">
                           {cancellingIds.has(order._id) ? (
                             <span className="flex items-center gap-1.5 text-[10px] font-bold text-rose-500 bg-rose-50 border border-rose-100 rounded-full px-2.5 py-1 whitespace-nowrap">
-                              <Loader2 className="w-3 h-3 animate-spin" /> Cancelling…
+                              <Loader2 className="w-3 h-3 animate-spin" /> {order.status === 'new' ? 'Deleting…' : 'Cancelling…'}
                             </span>
                           ) : (
                             <>
@@ -2018,7 +2022,7 @@ export function CargoOrders() {
                     {cancellingIds.has(order._id) && (
                       <div className="absolute inset-0 z-20 bg-white/80 rounded-2xl flex items-center justify-center">
                         <span className="flex items-center gap-2 text-[11px] font-bold text-rose-500 bg-rose-50 border border-rose-100 rounded-full px-3 py-1.5">
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" /> Cancelling…
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" /> {order.status === 'new' ? 'Deleting…' : 'Cancelling…'}
                         </span>
                       </div>
                     )}

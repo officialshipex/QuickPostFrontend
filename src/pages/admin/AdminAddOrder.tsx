@@ -592,6 +592,8 @@ export function AdminAddOrder() {
     if (!selectedPickupId) e.pickup = 'Select a pickup address';
     if (!contactName.trim()) e.contactName = 'Required';
     if (!phoneNumber.trim()) e.phoneNumber = 'Required';
+    // an order saved with two numbers ("9727977677, 9574663777") must be corrected, not saved again as it is
+    else if (!/^\d{10}$/.test(phoneNumber.trim())) e.phoneNumber = 'Enter one 10-digit mobile number';
     if (!address.trim()) e.address = 'Required';
     if (!pinCode.trim()) e.pinCode = 'Required';
     if (!city.trim()) e.city = 'Required';

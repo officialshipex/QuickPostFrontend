@@ -19,7 +19,8 @@ interface Props {
   onClose: () => void;
   selectedOrders: string[];
   userId?: string;
-  onShip: (wh?: Record<string, string>) => Promise<void> | void;
+  // priority = the couriers ranked in this popup (empty = none picked: the account's saved settings decide)
+  onShip: (wh?: Record<string, string>, priority?: Ranked[]) => Promise<void> | void;
 }
 
 const courierKey = (c: { name?: string; provider?: string; mode?: string }) =>
@@ -184,7 +185,7 @@ export function BulkShipModal({ open, onClose, selectedOrders, userId, onShip }:
         };
         await apiClient.post('/bulk/updatePickup', { formData: wh, setSelectedData: selectedOrders }, { params: scope });
       }
-      await onShip(wh);
+      await onShip(wh, ranked);
       onClose();
     } catch (e: any) {
       setError(e?.response?.data?.message || 'Could not start the bulk shipment.');
@@ -230,7 +231,7 @@ export function BulkShipModal({ open, onClose, selectedOrders, userId, onShip }:
                 <ListOrdered className="w-4 h-4 text-[#00A86B]" />
                 <h4 className="text-[12px] font-semibold text-[#334155]">Courier priority (optional)</h4>
               </div>
-              <p className="text-[11px] text-[#94A3B8] mb-2">Rank the couriers to try first. This also becomes your standing priority for future shipments. Leave blank to keep your current settings.</p>
+              <p className="text-[11px] text-[#94A3B8] mb-2">Only the couriers listed here are used, in this order, whatever the parcel weight (extra weight is charged per the rate card). This also becomes your standing priority. Leave blank to use your current settings.</p>
               <SearchSelect
                 options={serviceOptions}
                 placeholder="Search or select a courier to add as next priority"

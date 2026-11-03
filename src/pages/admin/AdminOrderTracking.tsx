@@ -5,6 +5,7 @@ import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { apiClient } from '../../services/apiClient';
 import { getToken } from '../../utils/session';
 import { ShipOrderModal } from '../../components/admin/orders/ShipOrderModal';
+import { confirmBulkAction } from '../../components/ui/BulkActionConfirm';
 import { OrderDetailsMobile } from '../../components/admin/orders/OrderDetailsMobile';
 import {
   ArrowLeft, AlertTriangle, Copy, Check, Truck, ClipboardList, MapPin, Navigation,
@@ -508,19 +509,27 @@ export function AdminOrderTracking() {
 
   const handleCancelOrder = async () => {
     if (!order?._id || cancelling) return;
-    setCancelling(true);
     const isBooked = ['Ready To Ship'].includes(order.status || '');
+    // booked: courier cancel + refund, the order stays; not booked: cancelOrdersAtNotShipped DELETES the order
+    if (!(await confirmBulkAction({ action: isBooked ? 'cancel' : 'delete', orderNumber: order.orderId }))) return;
+    setCancelling(true);
     const endpoint = isBooked ? '/order/cancelOrdersAtBooked' : '/order/cancelOrdersAtNotShipped';
     try {
       // A booked B2B order is cancelled through the B2B cancel (carrier cancel + wallet refund)
       if (isBooked && order.orderType === 'B2B') await apiClient.post(`/b2b/cancelOrder/${order._id}`);
       else await apiClient.post(endpoint, { orderId: order._id });
+      if (!isBooked) {
+        // the order is gone from the database: back to the orders list (reloading it here would find nothing)
+        setToastMessage('Order deleted successfully.');
+        const base = appPathname().startsWith('/user/') ? '/user' : '/admin';
+        setTimeout(() => navigate(`${base}/orders`), 800);
+        return;
+      }
       setToastMessage('Order cancelled successfully.');
-      apiClient.get(`/order/getOrderById/${orderId}`).then(res => setOrder(res.data?.order || res.data?.data || res.data));
+      apiClient.get(`/order/getOrderById/${orderId}`).then(res => setOrder(res.data?.order || res.data?.data || res.data)).catch(() => {});
     } catch (e: any) {
-      setToastMessage(order.orderType === 'B2B' && e?.response?.data?.message
-        ? e.response.data.message
-        : 'Failed to cancel order. Please try again.');
+      setToastMessage(e?.response?.data?.message || e?.response?.data?.error ||
+        (isBooked ? 'Failed to cancel the shipment. Please try again.' : 'Failed to delete the order. Please try again.'));
     } finally {
       setCancelling(false);
     }
@@ -735,7 +744,7 @@ export function AdminOrderTracking() {
               <button
                 onClick={(e) => { e.stopPropagation(); if (!cancelling) setIsHeaderDropdownOpen(!isHeaderDropdownOpen); }}
                 className="border border-[#E2E8F0] hover:bg-[#F8FAFC] rounded-lg w-9 h-9 flex items-center justify-center text-slate-600 transition-all focus:outline-none"
-                title={cancelling ? 'Cancelling…' : 'More Actions'}
+                title={cancelling ? (order?.status === 'new' ? 'Deleting…' : 'Cancelling…') : 'More Actions'}
               >
                 {cancelling
                   ? <Loader2 className="w-4 h-4 animate-spin text-rose-500" />
@@ -771,7 +780,7 @@ export function AdminOrderTracking() {
               <button
                 onClick={(e) => { e.stopPropagation(); if (!cancelling) setIsHeaderDropdownOpen(!isHeaderDropdownOpen); }}
                 className="border border-[#E2E8F0] hover:bg-[#F8FAFC] rounded-lg w-9 h-9 flex items-center justify-center text-slate-600 transition-all focus:outline-none"
-                title={cancelling ? 'Cancelling…' : 'More Actions'}
+                title={cancelling ? (order?.status === 'new' ? 'Deleting…' : 'Cancelling…') : 'More Actions'}
               >
                 {cancelling
                   ? <Loader2 className="w-4 h-4 animate-spin text-rose-500" />
