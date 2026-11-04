@@ -25,7 +25,7 @@ import {
   Calendar,
   Mail,
   Building2,
-  Target, Gauge, PhoneCall, PackageCheck, BellRing, Rocket,
+  Target, Gauge, PhoneCall, BellRing,
   RotateCcw,
   X,
   ChevronRight,
@@ -40,6 +40,7 @@ import {
   ListChecks,
   MessageSquare,
   ScrollText,
+  Contact,
 } from 'lucide-react';
 
 const LOGO_URL = '/logo-white.png';
@@ -157,9 +158,9 @@ const MENU_GROUPS: MenuGroup[] = [
       { name: 'Secure', path: '/user/vas/auto-secure', icon: ShieldCheck, userOnly: true, permission: 'vasSecure' },
       { name: 'Branded Tracking Page', path: '/user/vas/branded-tracking', icon: Palette, userOnly: true, permission: 'brandedTracking' },
       { name: 'NDR Follow-ups', path: '/user/vas/ndr-followups', icon: PhoneCall, userOnly: true },
-      { name: 'QuickBoost', path: '/user/vas/delivery-boost', icon: Rocket, userOnly: true },
+      // Hidden for now:       { name: 'QuickBoost', path: '/user/vas/delivery-boost', icon: Rocket, userOnly: true },
       { name: 'Notify', path: '/user/vas/notify', icon: BellRing, userOnly: true },
-      { name: 'QuickSure', path: '/user/vas/shipsure', icon: PackageCheck, userOnly: true, isNew: true },
+      // Hidden for now:       { name: 'QuickSure', path: '/user/vas/shipsure', icon: PackageCheck, userOnly: true, isNew: true },
       { name: 'View all VAS', path: '/user/vas', icon: Zap, userOnly: true },
     ]
   },
@@ -177,6 +178,7 @@ const MENU_GROUPS: MenuGroup[] = [
       { name: 'Complete KYC', path: '/admin/kyc', icon: FileText, userOnly: true, noEmployee: true },
       { name: 'Employees', path: '/user/employees', icon: Users, userOnly: true, noEmployee: true },
       { name: 'Pickup Address', path: '/admin/settings/pickup-address', icon: MapPin, permission: 'pickupAddress' },
+      { name: 'Customers', path: '/user/customers', icon: Contact, userOnly: true, isNew: true },
       { name: 'Channels', path: '/user/channels', icon: ShoppingCart, userOnly: true, permission: 'channels' },
       { name: 'Courier', path: '/user/courier-setup', icon: Truck, userOnly: true, permission: 'courierSetup' },
       { name: 'Settings', path: '/user/settings', icon: Settings, userOnly: true, permission: 'settings' },

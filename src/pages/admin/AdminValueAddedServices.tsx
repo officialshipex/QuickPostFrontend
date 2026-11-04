@@ -8,7 +8,7 @@ import { Toast } from '../../components/ui/Toast';
 import { TableLoader } from '../../components/ui/TableLoader';
 import { ShineButton } from '../../components/ui/ShineButton';
 import {
-  ShieldCheck, Rocket, BellRing, PackageCheck,
+  ShieldCheck, BellRing, PackageCheck,
   ChevronDown, CheckCircle2, Clock, Users, BadgeCheck, Wallet2, PlayCircle,
   ArrowRight, AlertTriangle, ShieldOff, Lock, Loader2, Zap, LayoutList, AlertCircle,
 } from 'lucide-react';
@@ -23,13 +23,13 @@ import { useVasServices } from './vas/useVasServices';
 import { apiCode, apiMessage, fmtDate, fmtMoney, planLabel, vasApi, type VasAccess, type VasPlan } from './vas/vasApi';
 
 /* ── Left sub-nav — mirrors the sidebar's Value Added Services group ── */
-const VAS_NAV = [
+const VAS_NAV: { id: string; label: string; path: string; icon: typeof BellRing; isNew?: boolean }[] = [
   { id: 'auto-secure', label: 'Auto-Secure Shipments', path: '/user/vas/auto-secure', icon: ShieldCheck },
-  { id: 'delivery-boost', label: 'QuickBoost', path: '/user/vas/delivery-boost', icon: Rocket },
+  // Hidden for now: { id: 'delivery-boost', label: 'QuickBoost', path: '/user/vas/delivery-boost', icon: Rocket },
   // { id: 'secure-x', label: 'Secure X', path: '/user/vas/secure-x', icon: ShieldAlert },
   // { id: 'brand-boost', label: 'Brand Boost', path: '/user/vas/brand-boost', icon: Award },
   { id: 'notify', label: 'Notify', path: '/user/vas/notify', icon: BellRing },
-  { id: 'shipsure', label: 'QuickSure', path: '/user/vas/shipsure', icon: PackageCheck, isNew: true },
+  // Hidden for now: { id: 'shipsure', label: 'QuickSure', path: '/user/vas/shipsure', icon: PackageCheck, isNew: true },
 ];
 
 function VasShell({ children, hideNav = true }: { children: React.ReactNode; hideNav?: boolean }) {
