@@ -99,11 +99,9 @@ interface AddCourierModalProps {
   onSuccess: () => void;
   /** Cargo (B2B) courier — B2B providers, credentials and save routes. */
   cargo?: boolean;
-  /** Cargo: providers already added (one account per B2B provider). */
-  existingProviders?: string[];
 }
 
-export function AddCourierModal({ isOpen, onClose, onSuccess, cargo = false, existingProviders = [] }: AddCourierModalProps) {
+export function AddCourierModal({ isOpen, onClose, onSuccess, cargo = false }: AddCourierModalProps) {
   const [b2bProviders, setB2bProviders] = useState<string[]>([]);
   const [provider, setProvider] = useState('');
   const [courierName, setCourierName] = useState('');
@@ -138,9 +136,9 @@ export function AddCourierModal({ isOpen, onClose, onSuccess, cargo = false, exi
       .catch(() => setB2bProviders([]));
   }, [cargo, isOpen]);
 
-  const providerOptions = cargo
-    ? b2bProviders.filter(p => !existingProviders.includes(p))
-    : PROVIDERS;
+  // Several accounts of one cargo courier are allowed (each with its own name), so every enabled courier stays
+  // selectable; the backend refuses the SAME account twice.
+  const providerOptions = cargo ? b2bProviders : PROVIDERS;
   const b2bConfig = cargo ? B2B_COURIER_CONFIGS[provider] : undefined;
   const credFields = !provider ? [] : cargo ? (b2bConfig?.fields || []) : getCredFields(provider);
 
@@ -254,9 +252,7 @@ export function AddCourierModal({ isOpen, onClose, onSuccess, cargo = false, exi
                   </select>
                   {cargo && providerOptions.length === 0 && (
                     <p className="text-[12px] text-[#64748B] mt-1.5 ml-1">
-                      {b2bProviders.length === 0
-                        ? 'No B2B couriers are enabled for your company yet.'
-                        : 'All enabled B2B couriers have already been added.'}
+                      No B2B couriers are enabled for your company yet.
                     </p>
                   )}
                 </div>

@@ -1040,7 +1040,6 @@ export function CargoCouriers() {
 
       <AddCourierModal
         cargo
-        existingProviders={providers.map(p => p.courierProvider).filter(Boolean)}
         isOpen={showAddCourier}
         onClose={() => setShowAddCourier(false)}
         onSuccess={() => { fetchAll(); setShowAddCourier(false); }}
