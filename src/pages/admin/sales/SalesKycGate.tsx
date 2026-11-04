@@ -9,6 +9,7 @@ import { TableLoader } from '../../../components/ui/TableLoader';
 import { useAdminTab } from '../../../context/AdminUserContext';
 import { salesApiClient, downloadOfferLetter, type SalesMe, type SalesKyc } from '../../../services/salesApi';
 import { kycSubmitError, MAX_DOCUMENT_MB, pdfProblem } from '../kyc/manualKycData';
+import { useDigilocker } from '../kyc/useDigilocker';
 import { loadDraft, removeDraftDocument, SALES_DRAFT_URL, uploadDraftDocument, useDraftAutosave, type DraftDocument, type KycDraft } from '../kyc/kycDraft';
 
 /* Sales people can do nothing in the Sales panel until their own KYC is verified. This gate loads /sales/me and,
@@ -79,6 +80,16 @@ function EkycFlow({ kyc, draft, onChange, onVerified }: { kyc: SalesKyc; draft: 
     } catch (e) { setError(kycSubmitError(e)); return false; } finally { setBusy(''); }
   };
 
+  // Aadhaar through DigiLocker: the main way (the OTP is kept as the fallback)
+  const digi = useDigilocker({
+    client: salesApiClient,
+    startUrl: '/kyc/ekyc/aadhaar/digilocker/start',
+    statusUrl: '/kyc/ekyc/aadhaar/digilocker/status',
+    onVerified: (body) => { if (body?.kyc) onChange(body.kyc); setError(''); setInfo(body?.message || 'Aadhaar verified'); },
+    onFailed: (message) => { setInfo(''); setError(message); },
+  });
+  const startDigi = () => { setError(''); setInfo(''); void digi.start(aadhaar); };
+
   const allDone = kyc.pan.verified && kyc.aadhaar.verified && kyc.bank.verified;
   return (
     <div className="flex flex-col gap-4">
@@ -92,10 +103,21 @@ function EkycFlow({ kyc, draft, onChange, onVerified }: { kyc: SalesKyc; draft: 
         </div>
       </Step>
       <Step n={2} title="Aadhaar" icon={Fingerprint} done={kyc.aadhaar.verified} doneText={`${kyc.aadhaar.number} · ${kyc.aadhaar.name}`}>
-        <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3 items-end">
-          <div><label className={labelCls}>Aadhaar number</label><input value={aadhaar} onChange={e => setAadhaar(e.target.value.replace(/\D/g, '').slice(0, 12))} inputMode="numeric" placeholder="12-digit Aadhaar" className={fieldCls} /></div>
-          <button disabled={!!busy || aadhaar.length !== 12} onClick={() => run('otp', '/kyc/ekyc/aadhaar/otp', { aadhaarNo: aadhaar })} className={`${primaryBtn} bg-white !text-[#00A86B] border border-[#00A86B] hover:!bg-[#F0FDF4]`}>{busy === 'otp' ? 'Sending…' : kyc.aadhaar.otpSent ? 'Resend OTP' : 'Send OTP'}</button>
+        <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] gap-3 items-end">
+          <div><label className={labelCls}>Aadhaar number</label><input value={aadhaar} disabled={digi.phase !== 'idle'} onChange={e => setAadhaar(e.target.value.replace(/\D/g, '').slice(0, 12))} inputMode="numeric" placeholder="12-digit Aadhaar" className={fieldCls} /></div>
+          <button disabled={!!busy || digi.phase !== 'idle' || aadhaar.length !== 12} onClick={startDigi} className={primaryBtn}>{digi.phase === 'starting' ? 'Opening…' : 'Verify with DigiLocker'}</button>
+          <button disabled={!!busy || digi.phase !== 'idle' || aadhaar.length !== 12} onClick={() => run('otp', '/kyc/ekyc/aadhaar/otp', { aadhaarNo: aadhaar })} className={`${primaryBtn} bg-white !text-[#00A86B] border border-[#00A86B] hover:!bg-[#F0FDF4]`}>{busy === 'otp' ? 'Sending…' : kyc.aadhaar.otpSent ? 'Resend OTP' : 'Use OTP instead'}</button>
         </div>
+        {digi.phase === 'waiting' && (
+          <div className="mt-3 px-3 py-2.5 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] text-[12.5px] text-[#475569]">
+            <b className="text-[#0F172A]">Waiting for DigiLocker…</b> Log in in the new window and click <b>Allow</b> to share your Aadhaar. This page updates by itself.
+            <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 font-semibold">
+              {digi.link && <a href={digi.link} target="_blank" rel="noopener" className="text-[#00A86B] hover:underline">Open DigiLocker again</a>}
+              <button type="button" onClick={() => void digi.checkNow()} className="text-[#00A86B] hover:underline">I have finished</button>
+              <button type="button" onClick={digi.cancel} className="text-[#64748B] hover:underline">Cancel</button>
+            </div>
+          </div>
+        )}
         {kyc.aadhaar.otpSent && (
           <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3 items-end mt-3">
             <div><label className={labelCls}>OTP sent to your Aadhaar-linked mobile</label><input value={otp} onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))} inputMode="numeric" placeholder="6-digit OTP" className={fieldCls} /></div>

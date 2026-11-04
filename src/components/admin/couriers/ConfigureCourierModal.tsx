@@ -25,6 +25,7 @@ interface Courier {
   customerCode?: string;
   encryptedCustCode?: string;
   goodsCode?: string;
+  trackingToken?: string;
 }
 
 interface ConfigureCourierModalProps {
@@ -49,6 +50,7 @@ const B2B_FIELDS = [
   { id: 'customerCode', label: 'Customer Code', type: 'text', placeholder: '8-digit Gati customer code', icon: Hash },
   { id: 'encryptedCustCode', label: 'Encrypted Customer Code', type: 'text', placeholder: 'Encrypted customer code issued by Gati', icon: Key },
   { id: 'goodsCode', label: 'Default Goods Code (optional)', type: 'text', placeholder: 'Auto-detected from products; else this, else 401', icon: Hash },
+  { id: 'trackingToken', label: 'Tracking Token', type: 'text', placeholder: 'Security token for tracking (16 characters)', icon: Key },
 ];
 
 const getFieldsForCourier = (name: string, cargo = false) => {
@@ -138,6 +140,7 @@ export function ConfigureCourierModal({ isOpen, onClose, courier, onSave, cargo 
           customerCode: courier.customerCode || '',
           encryptedCustCode: courier.encryptedCustCode || '',
           goodsCode: courier.goodsCode || '',
+          trackingToken: courier.trackingToken || '',
         } : {}),
       });
     }

@@ -88,6 +88,7 @@ const B2B_COURIER_CONFIGS: Record<string, { endpoint: string; fields: CredField[
       { id: 'customerCode', label: 'Customer Code', type: 'text', placeholder: '8-digit customer code issued by Gati', icon: Hash },
       { id: 'encryptedCustCode', label: 'Encrypted Customer Code', type: 'text', placeholder: 'Encrypted customer code issued by Gati', icon: Key },
       { id: 'goodsCode', label: 'Default Goods Code (optional)', type: 'text', placeholder: 'Auto-detected from products; else this, else 401', icon: Hash, optional: true },
+      { id: 'trackingToken', label: 'Tracking Token', type: 'text', placeholder: 'Security token for tracking (16 characters)', icon: Key, optional: true },
     ],
   },
 };
