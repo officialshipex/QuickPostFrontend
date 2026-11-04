@@ -220,7 +220,7 @@ function ManualForm({ draft, onSubmitted }: { draft: KycDraft | null; onSubmitte
         <p className="text-[12px] text-[#94A3B8] mb-3">PDF only, up to {MAX_DOCUMENT_MB} MB each. Your photo can be a JPG or PNG.</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {DOCS.map(d => (
-            <label key={d.key} className={`flex items-center gap-3 rounded-xl border border-dashed px-3.5 py-3 cursor-pointer transition-colors ${files[d.key] ? 'border-[#00A86B] bg-[#F0FDF4]' : 'border-[#CBD5E1] hover:border-[#00A86B]'}`}>
+            <label key={d.key} className={`relative flex items-center gap-3 rounded-xl border border-dashed px-3.5 py-3 cursor-pointer transition-colors ${files[d.key] ? 'border-[#00A86B] bg-[#F0FDF4]' : 'border-[#CBD5E1] hover:border-[#00A86B]'}`}>
               <Upload className={`w-4 h-4 shrink-0 ${files[d.key] ? 'text-[#00A86B]' : 'text-[#94A3B8]'}`} />
               <span className="min-w-0">
                 <span className="block text-[12.5px] font-semibold text-[#0F172A]">{d.label}{d.required && <span className="text-red-500"> *</span>}</span>

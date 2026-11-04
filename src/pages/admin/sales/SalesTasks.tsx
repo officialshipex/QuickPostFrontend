@@ -195,12 +195,12 @@ export function SalesTasks() {
           {/* Stats */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
             {stats.map(st => (
-              <div key={st.label} className={`${card} px-4 py-3.5 flex items-center justify-between gap-3`}>
+              <div key={st.label} className={`${card} px-3.5 py-3 md:px-4 md:py-3.5 flex items-center justify-between gap-2 md:gap-3`}>
                 <div className="min-w-0">
-                  <div className="text-[12px] font-medium text-[#64748B] truncate">{st.label}</div>
-                  <div className="text-[22px] font-bold text-[#0F172A] tabular-nums leading-tight mt-0.5">{st.value}</div>
+                  <div className="text-[12px] font-medium text-[#64748B] leading-tight md:truncate">{st.label}</div>
+                  <div className="text-[20px] md:text-[22px] font-bold text-[#0F172A] tabular-nums leading-tight mt-1 md:mt-0.5">{st.value}</div>
                 </div>
-                <span className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${st.tone}`}><st.icon className="w-5 h-5" /></span>
+                <span className={`w-9 h-9 md:w-10 md:h-10 rounded-xl flex items-center justify-center shrink-0 ${st.tone}`}><st.icon className="w-[18px] h-[18px] md:w-5 md:h-5" /></span>
               </div>
             ))}
           </div>
@@ -213,23 +213,23 @@ export function SalesTasks() {
                 <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Add a task, e.g. Call Acme Traders about KYC"
                   className={`${fieldCls} w-full pl-10`} />
               </div>
-              <div className="flex flex-wrap gap-2.5">
-                <div className="relative">
+              <div className="grid grid-cols-[1fr_auto] gap-2.5 sm:flex sm:flex-wrap">
+                <div className="relative col-span-2 sm:col-span-1">
                   <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8] pointer-events-none" />
-                  <input value={relatedTo} onChange={e => setRelatedTo(e.target.value)} placeholder="Seller / lead (optional)" className={`${fieldCls} w-[200px] pl-10`} />
+                  <input value={relatedTo} onChange={e => setRelatedTo(e.target.value)} placeholder="Seller / lead (optional)" className={`${fieldCls} w-full sm:w-[200px] pl-10`} />
                 </div>
-                <input type="date" value={due} onChange={e => setDue(e.target.value)} aria-label="Due date" className={`${fieldCls} w-[150px]`} />
-                <div role="radiogroup" aria-label="Priority" className="inline-flex p-1 h-10 rounded-full bg-[#F1F5F9] border border-[#E2E8F0]">
+                <input type="date" value={due} onChange={e => setDue(e.target.value)} aria-label="Due date" className={`${fieldCls} w-full sm:w-[150px] min-w-0`} />
+                <div role="radiogroup" aria-label="Priority" className="col-span-2 row-start-2 sm:row-start-auto flex sm:inline-flex p-1 h-10 rounded-full bg-[#F1F5F9] border border-[#E2E8F0] min-w-0">
                   {(['high', 'medium', 'low'] as Priority[]).map(p => (
                     <button key={p} type="button" role="radio" aria-checked={priority === p} onClick={() => setPriority(p)}
-                      className={`px-3 rounded-full text-[12px] font-semibold inline-flex items-center gap-1.5 transition-all ${priority === p ? 'bg-white text-[#0F172A] shadow-sm' : 'text-[#64748B]'}`}>
+                      className={`flex-1 sm:flex-none justify-center px-2 sm:px-3 rounded-full text-[12px] font-semibold inline-flex items-center gap-1 sm:gap-1.5 transition-all ${priority === p ? 'bg-white text-[#0F172A] shadow-sm' : 'text-[#64748B]'}`}>
                       <span className={`w-1.5 h-1.5 rounded-full ${PRIORITY[p].dot}`} />{PRIORITY[p].label}
                     </button>
                   ))}
                 </div>
                 <button type="submit" disabled={!title.trim()}
-                  className="h-10 px-5 rounded-full bg-[#00A86B] hover:bg-[#009B63] text-white text-[13px] font-semibold inline-flex items-center gap-1.5 shadow-sm transition-colors disabled:opacity-40 disabled:pointer-events-none">
-                  <Plus className="w-4 h-4" /> Add task
+                  className="justify-center self-center h-9 sm:h-10 px-4 sm:px-5 rounded-full bg-[#00A86B] hover:bg-[#009B63] text-white text-[12.5px] sm:text-[13px] font-semibold inline-flex items-center gap-1.5 shadow-sm transition-colors disabled:opacity-40 disabled:pointer-events-none">
+                  <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Add task
                 </button>
               </div>
             </div>
@@ -237,8 +237,8 @@ export function SalesTasks() {
 
           {/* List */}
           <div className={`${card} overflow-hidden`}>
-            <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-[#F1F5F9]">
-              <div className="flex items-center gap-1 overflow-x-auto">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-2.5 md:gap-3 px-4 py-3 border-b border-[#F1F5F9]">
+              <div className="flex items-center gap-1 overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {views.map(v => (
                   <button key={v.key} onClick={() => setView(v.key)}
                     className={`h-8 px-3 rounded-full text-[12.5px] font-semibold whitespace-nowrap inline-flex items-center gap-1.5 transition-colors ${view === v.key ? 'bg-[#F0FDF4] text-[#00A86B]' : 'text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A]'}`}>
@@ -247,7 +247,7 @@ export function SalesTasks() {
                   </button>
                 ))}
               </div>
-              <div className="relative w-[240px] max-w-full">
+              <div className="relative w-full md:w-[240px]">
                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8]" />
                 <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search tasks" className={`${fieldCls} w-full h-9 pl-10`} />
               </div>

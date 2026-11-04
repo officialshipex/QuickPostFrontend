@@ -43,6 +43,8 @@ export function ThemeToggle({ className = '' }: { className?: string }) {
     if (reduced) { toggleTheme(); return; }
     setSwitching(true);
     window.setTimeout(applyTheme, SWITCH_AFTER_MS);
+    // Unlock on a timer too: on some mobile browsers the bar's onAnimationComplete never fires, which left the toggle stuck.
+    window.setTimeout(() => setSwitching(false), SWITCH_AFTER_MS + REVEAL_MS + 300);
   };
 
   return (

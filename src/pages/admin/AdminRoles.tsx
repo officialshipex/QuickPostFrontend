@@ -81,9 +81,9 @@ function PermissionMatrix({ accessRights, onChange, panel }: PermissionMatrixPro
     <div className="border border-[#E2E8F0] rounded-2xl overflow-hidden">
       {/* Header */}
       <div className="grid grid-cols-[1fr_auto_auto_auto] bg-[#F8FAFC] border-b border-[#E2E8F0]">
-        <div className="px-4 py-2.5 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider">Module</div>
+        <div className="px-3 sm:px-4 py-2.5 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider">Module</div>
         {PERM_TYPES.map(p => (
-          <div key={p.key} className="w-[72px] text-center px-2 py-2.5 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider">{p.label}</div>
+          <div key={p.key} className="w-[52px] sm:w-[72px] text-center px-1 sm:px-2 py-2.5 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider">{p.label}</div>
         ))}
       </div>
 
@@ -99,7 +99,7 @@ function PermissionMatrix({ accessRights, onChange, panel }: PermissionMatrixPro
             </div>
           )}
           <div className="grid grid-cols-[1fr_auto_auto_auto] items-center border-b border-[#F1F5F9] last:border-0 bg-white hover:bg-[#FAFCFB] transition-colors">
-            <div className="px-4 py-3 min-w-0">
+            <div className="px-3 sm:px-4 py-3 min-w-0">
               <div className="text-[13px] font-semibold text-[#0F172A]">{mod.label}</div>
               <div className="text-[11.5px] text-[#94A3B8] mt-0.5">{mod.desc}</div>
             </div>
@@ -107,10 +107,10 @@ function PermissionMatrix({ accessRights, onChange, panel }: PermissionMatrixPro
               const checked = rights[p.key] === true;
               const disabled = (p.key === 'edit' || p.key === 'delete') && !rights.view;
               if (mod.viewOnly && p.key !== 'view') {
-                return <div key={p.key} className="w-[72px] flex justify-center items-center py-3 text-[13px] text-[#CBD5E1]" aria-label="Not applicable">—</div>;
+                return <div key={p.key} className="w-[52px] sm:w-[72px] flex justify-center items-center py-3 text-[13px] text-[#CBD5E1]" aria-label="Not applicable">—</div>;
               }
               return (
-                <div key={p.key} className="w-[72px] flex justify-center items-center py-3">
+                <div key={p.key} className="w-[52px] sm:w-[72px] flex justify-center items-center py-3">
                   <button
                     type="button"
                     role="checkbox"
@@ -249,10 +249,10 @@ function EmployeeModal({ employee, onClose, onSaved, panel }: EmployeeModalProps
   return (
     <div className="fixed inset-0 z-[200] overflow-y-auto">
       <div className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="flex min-h-full items-start justify-center p-4 pt-10">
-      <div className="relative bg-white rounded-2xl shadow-[0_24px_64px_-16px_rgba(15,23,42,0.35)] w-full max-w-3xl z-10 mb-8 flex flex-col max-h-[calc(100vh-5rem)]">
+      <div className="flex min-h-full items-end sm:items-start justify-center p-0 sm:p-4 sm:pt-10">
+      <div className="relative bg-white rounded-t-2xl sm:rounded-2xl shadow-[0_24px_64px_-16px_rgba(15,23,42,0.35)] w-full max-w-3xl z-10 mb-0 sm:mb-8 flex flex-col max-h-[92vh] sm:max-h-[calc(100vh-5rem)]">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-[#F1F5F9] flex items-center justify-between gap-3 shrink-0">
+        <div className="px-4 sm:px-6 py-4 border-b border-[#F1F5F9] flex items-center justify-between gap-3 shrink-0">
           <div className="flex items-center gap-3 min-w-0">
             <span className="w-10 h-10 rounded-xl bg-[#F0FDF4] text-[#00A86B] flex items-center justify-center shrink-0">
               {isEdit ? <Edit2 className="w-[18px] h-[18px]" /> : <Users className="w-[18px] h-[18px]" />}
@@ -545,36 +545,37 @@ export function AdminRoles() {
       <div className="flex flex-col h-[calc(100vh-72px)] -m-4 md:-m-6 bg-[#F8FAFC] overflow-y-auto">
         <div className="px-4 md:px-6 pt-5 pb-6 flex flex-col gap-5">
           {/* Title */}
-          <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
-              <span className="w-10 h-10 rounded-xl bg-[#F0FDF4] text-[#00A86B] flex items-center justify-center shrink-0"><Users className="w-5 h-5" /></span>
+              <span className="hidden md:flex w-10 h-10 rounded-xl bg-[#F0FDF4] text-[#00A86B] items-center justify-center shrink-0"><Users className="w-5 h-5" /></span>
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <h1 className="text-[18px] font-bold text-[#0F172A]">Employees</h1>
-                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${isUserPanel ? 'bg-amber-50 text-amber-700' : 'bg-blue-50 text-blue-600'}`}>
+                  <h1 className="text-[20px] md:text-[18px] font-bold text-[#0F172A] leading-tight">Employees</h1>
+                  <span className={`hidden md:inline text-[10px] font-semibold px-2 py-0.5 rounded-full ${isUserPanel ? 'bg-amber-50 text-amber-700' : 'bg-blue-50 text-blue-600'}`}>
                     {isUserPanel ? 'Your Panel Employees' : 'Admin Panel Employees'}
                   </span>
                 </div>
-                <p className="text-[12.5px] text-[#64748B]">Give your team access with role-based permissions.</p>
+                <p className="hidden md:block text-[12.5px] text-[#64748B]">Give your team access with role-based permissions.</p>
+                <p className="md:hidden mt-0.5 text-[12px] text-[#64748B]">Role-based access for your team</p>
               </div>
             </div>
             <button
               onClick={() => { setEditEmployee(null); setShowModal(true); }}
-              className="h-10 px-5 rounded-full bg-[#00A86B] text-white text-[13px] font-semibold shadow-sm hover:bg-[#009B63] flex items-center gap-1.5 transition-colors"
+              className="shrink-0 h-9 pl-3 pr-3.5 md:h-10 md:px-5 rounded-full bg-[#00A86B] text-white text-[13px] font-semibold shadow-sm hover:bg-[#009B63] active:bg-[#009B63] flex items-center gap-1.5 transition-colors"
             >
-              <Plus className="w-4 h-4" /> Add Employee
+              <Plus className="w-4 h-4" strokeWidth={2.5} /> <span className="md:hidden">Add</span><span className="hidden md:inline">Add Employee</span>
             </button>
           </div>
 
           {/* Stats */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
             {stats.map(st => (
-              <div key={st.label} className={`${softCard} px-4 py-3.5 flex items-center justify-between gap-3`}>
+              <div key={st.label} className={`${softCard} px-3.5 py-3 md:px-4 md:py-3.5 flex items-center justify-between gap-2 md:gap-3`}>
                 <div className="min-w-0">
-                  <div className="text-[12px] font-medium text-[#64748B] truncate">{st.label}</div>
-                  <div className="text-[22px] font-bold text-[#0F172A] tabular-nums leading-tight mt-0.5">{loading ? '—' : st.value}</div>
+                  <div className="text-[11.5px] md:text-[12px] font-medium text-[#64748B] leading-tight md:truncate">{st.label}</div>
+                  <div className="text-[20px] md:text-[22px] font-bold text-[#0F172A] tabular-nums leading-tight mt-0.5">{loading ? '—' : st.value}</div>
                 </div>
-                <span className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${st.tone}`}><st.icon className="w-5 h-5" /></span>
+                <span className={`w-9 h-9 md:w-10 md:h-10 rounded-xl flex items-center justify-center shrink-0 ${st.tone}`}><st.icon className="w-[18px] h-[18px] md:w-5 md:h-5" /></span>
               </div>
             ))}
           </div>
@@ -606,8 +607,8 @@ export function AdminRoles() {
               <div className="text-[13px] font-semibold text-[#0F172A]">
                 All employees <span className="text-[#94A3B8] font-medium tabular-nums">({filtered.length})</span>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="relative w-[240px] max-w-[60vw]">
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <div className="relative flex-1 sm:flex-none sm:w-[240px] sm:max-w-[60vw]">
                   <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8] pointer-events-none" />
                   <input
                     type="text"
@@ -643,7 +644,94 @@ export function AdminRoles() {
                   )}
                 </div>
               ) : (
-                <table className="w-full text-left border-collapse min-w-[900px]">
+                <>
+                {/* Phones: one card per employee */}
+                <ul className="md:hidden divide-y divide-[#F1F5F9]">
+                  {filtered.map(emp => {
+                    const granted = permittedCount(emp);
+                    const pct = moduleCount ? Math.round((granted / moduleCount) * 100) : 0;
+                    return (
+                      <li key={emp._id} className="px-4 py-4">
+                        <div className="flex items-start gap-3">
+                          <span className={`w-10 h-10 rounded-full flex items-center justify-center text-[13px] font-bold shrink-0 ${emp.isEmpActive ? 'bg-gradient-to-br from-[#00A86B] to-[#00875A] text-white' : 'bg-[#E2E8F0] text-[#64748B]'}`}>
+                            {initials(emp.fullName)}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <div className="font-semibold text-[14px] leading-snug text-[#0F172A] break-words">{emp.fullName}</div>
+                                <div className="text-[12px] leading-snug text-[#64748B] break-all">{emp.email}</div>
+                              </div>
+                              <button
+                                onClick={() => handleToggleStatus(emp)}
+                                disabled={togglingId === emp._id}
+                                role="switch"
+                                aria-checked={emp.isEmpActive}
+                                aria-label={emp.isEmpActive ? 'Deactivate employee' : 'Activate employee'}
+                                className="shrink-0 inline-flex items-center gap-1.5 disabled:opacity-60 pt-0.5"
+                              >
+                                <span className={`text-[11.5px] font-semibold ${emp.isEmpActive ? 'text-[#00A86B]' : 'text-[#94A3B8]'}`}>
+                                  {togglingId === emp._id ? 'Updating…' : emp.isEmpActive ? 'Active' : 'Inactive'}
+                                </span>
+                                <span className={`relative w-9 h-5 rounded-full transition-colors ${emp.isEmpActive ? 'bg-[#00A86B]' : 'bg-[#CBD5E1]'}`}>
+                                  <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-all ${emp.isEmpActive ? 'left-[18px]' : 'left-0.5'}`} />
+                                </span>
+                              </button>
+                            </div>
+                            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                              <span className="inline-flex items-center gap-1.5 max-w-full px-2.5 py-0.5 min-h-6 bg-[#F8FAFC] border border-[#EEF2F6] rounded-full text-[11.5px] font-medium text-[#334155] break-words">
+                                <Briefcase className="w-3 h-3 text-[#94A3B8] shrink-0" />{emp.role}
+                              </span>
+                              {emp.team === 'sales' && <span className="px-1.5 py-px rounded-md bg-[#F0FDF4] text-[#00A86B] text-[10px] font-bold uppercase tracking-wider">Sales</span>}
+                              <span className="px-1.5 py-px rounded-md bg-[#F1F5F9] text-[#64748B] text-[10.5px] font-mono">ID {emp.employeeId}</span>
+                              {emp.team === 'sales' && emp.referralCode && <span className="text-[11px] text-[#94A3B8]">Code <span className="font-mono font-semibold text-[#475569]">{emp.referralCode}</span></span>}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="mt-3 grid grid-cols-2 gap-3 rounded-xl bg-[#F8FAFC] border border-[#F1F5F9] px-3 py-2.5">
+                          <div className="min-w-0">
+                            <div className="text-[10.5px] font-semibold text-[#64748B] uppercase tracking-wider">Permissions</div>
+                            <div className="mt-1 flex items-center gap-2">
+                              <span className="text-[12px] font-semibold text-[#0F172A] tabular-nums">{granted}/{moduleCount}</span>
+                              <span className="flex-1 h-1.5 rounded-full bg-[#E2E8F0] overflow-hidden"><span className="block h-full rounded-full bg-[#00A86B]" style={{ width: `${pct}%` }} /></span>
+                            </div>
+                          </div>
+                          <div className="min-w-0 text-right">
+                            <div className="text-[10.5px] font-semibold text-[#64748B] uppercase tracking-wider">Created</div>
+                            <div className="mt-1 text-[12px] font-medium text-[#334155] whitespace-nowrap">{formatDate(emp.createdAt)}</div>
+                          </div>
+                        </div>
+
+                        <div className="mt-3 flex items-center gap-2">
+                          {isAdmin && !isEmployee && (
+                            <button
+                              disabled={!emp.isEmpActive || loginAsId === emp._id}
+                              onClick={() => loginAs(emp)}
+                              className="flex-1 h-9 rounded-full border border-[#E2E8F0] inline-flex items-center justify-center gap-1.5 text-[12.5px] font-semibold text-[#475569] active:bg-[#F8FAFC] disabled:opacity-50 disabled:pointer-events-none"
+                            >
+                              <LogIn className="w-3.5 h-3.5" /> {loginAsId === emp._id ? 'Opening…' : 'Login'}
+                            </button>
+                          )}
+                          <button
+                            onClick={() => { setEditEmployee(emp); setShowModal(true); }}
+                            className="flex-1 h-9 rounded-full border border-[#00A86B]/40 text-[#00A86B] inline-flex items-center justify-center gap-1.5 text-[12.5px] font-semibold active:bg-[#F0FDF4]"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" /> Edit
+                          </button>
+                          <button
+                            onClick={() => setDeleteTarget(emp)}
+                            aria-label={`Delete ${emp.fullName}`}
+                            className="w-9 h-9 shrink-0 rounded-full border border-[#E2E8F0] flex items-center justify-center text-[#94A3B8] active:bg-red-50 active:text-red-500"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+                <table className="hidden md:table w-full text-left border-collapse min-w-[900px]">
                   <thead>
                     <tr className="bg-[#E6F9F2] text-xs font-medium text-[#64748B] uppercase tracking-wider">
                       {([
@@ -747,6 +835,7 @@ export function AdminRoles() {
                     })}
                   </tbody>
                 </table>
+                </>
               )}
             </div>
           </div>
