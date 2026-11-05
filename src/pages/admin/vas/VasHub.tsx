@@ -31,7 +31,7 @@ interface Service {
   isNew?: boolean;
 }
 
-const SERVICES: Service[] = [
+const ALL_SERVICES: Service[] = [
   {
     key: 'rto-score', vasKey: 'rto-score', name: 'RTO Score', category: 'failures', icon: Gauge, path: '/user/vas/rto-score',
     headline: 'Spot risky COD orders before you ship them',
@@ -89,6 +89,10 @@ const SERVICES: Service[] = [
     flow: [{ icon: MapPinCheck, label: 'Address verified', tone: 'bg-sky-50 text-sky-600' }, { icon: Zap, label: 'Auto-tagged', tone: 'bg-amber-50 text-amber-600' }, { icon: PackageCheck, label: 'Assured', tone: 'bg-[#F0FDF4] text-[#00A86B]' }],
   },
 ];
+
+// QuickBoost and QuickSure are hidden for now.
+const HIDDEN = new Set(['delivery-boost', 'shipsure']);
+const SERVICES = ALL_SERVICES.filter(s => !HIDDEN.has(s.key));
 
 const TABS: { key: Tab; label: string }[] = [
   { key: 'all', label: 'All Services' },

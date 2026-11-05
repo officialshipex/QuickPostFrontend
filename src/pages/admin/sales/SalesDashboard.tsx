@@ -88,13 +88,13 @@ function SellerFunnel({ funnel, rangeLabel }: { funnel?: SalesOverview['funnel']
 
 function Kpi({ label, value, sub, icon: Icon, tone }: { label: string; value: string; sub?: string; icon: LucideIcon; tone: string }) {
   return (
-    <div className={`${card} px-4 py-3.5 flex items-start justify-between gap-3`}>
+    <div className={`${card} p-3.5 md:px-4 md:py-3.5 flex flex-col-reverse md:flex-row md:items-start md:justify-between gap-2.5 md:gap-3`}>
       <div className="min-w-0">
-        <div className="text-[12px] font-medium text-[#64748B] truncate">{label}</div>
-        <div className="text-[22px] font-bold text-[#0F172A] tabular-nums leading-tight mt-0.5">{value}</div>
-        {sub && <div className="text-[11.5px] text-[#94A3B8] mt-0.5 truncate">{sub}</div>}
+        <div className="text-[12px] font-medium text-[#475569] md:text-[#64748B] leading-snug md:truncate">{label}</div>
+        <div className="text-[20px] md:text-[22px] font-bold text-[#0F172A] tabular-nums leading-tight mt-1 md:mt-0.5">{value}</div>
+        {sub && <div className="text-[11.5px] text-[#94A3B8] mt-0.5 leading-snug md:truncate">{sub}</div>}
       </div>
-      <span className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${tone}`}><Icon className="w-[18px] h-[18px]" /></span>
+      <span className={`w-8 h-8 md:w-9 md:h-9 rounded-lg md:rounded-xl flex items-center justify-center shrink-0 ${tone}`}><Icon className="w-4 h-4 md:w-[18px] md:h-[18px]" /></span>
     </div>
   );
 }
@@ -221,12 +221,12 @@ function PriorityQueue({ calls, onUpdate, onViewAll, readOnly }: { calls: SalesC
 
   return (
     <div className={`${card} overflow-hidden`}>
-      <div className="px-5 pt-4 pb-3 flex flex-wrap items-center justify-between gap-2">
-        <div>
+      <div className="px-4 md:px-5 pt-4 pb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2.5">
+        <div className="min-w-0">
           <h2 className="text-[14px] font-bold text-[#0F172A]">Priority queue</h2>
           <p className="text-[12px] text-[#94A3B8]">{counts.overdue > 0 ? `${counts.overdue} overdue · ` : ''}{counts.today} due today · {counts.all} open</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between md:justify-start gap-3 w-full md:w-auto">
           <div className="relative">
             <select value={sort} onChange={e => setSort(e.target.value as typeof sort)} className={select} aria-label="Sort queue">
               <option value="urgency">Sorted by urgency</option>
@@ -239,11 +239,11 @@ function PriorityQueue({ calls, onUpdate, onViewAll, readOnly }: { calls: SalesC
         </div>
       </div>
 
-      <div className="px-5 pb-3 flex flex-wrap items-center gap-2">
-        <div className="flex flex-wrap gap-1.5">
+      <div className="px-4 md:px-5 pb-3 flex flex-wrap items-center gap-2">
+        <div className="flex gap-1.5 overflow-x-auto md:flex-wrap -mx-4 px-4 md:mx-0 md:px-0 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden w-[calc(100%+2rem)] md:w-auto">
           {chips.map(ch => (
             <button key={ch.key} type="button" onClick={() => setBucket(ch.key)}
-              className={`h-7 px-2.5 rounded-full border text-[12px] font-semibold inline-flex items-center gap-1.5 transition-colors ${bucket === ch.key ? 'bg-[#0F172A] border-[#0F172A] text-white' : 'bg-white border-[#E2E8F0] text-[#475569] hover:border-[#CBD5E1]'}`}>
+              className={`shrink-0 h-8 md:h-7 px-3 md:px-2.5 rounded-full border text-[12px] font-semibold inline-flex items-center gap-1.5 whitespace-nowrap transition-colors ${bucket === ch.key ? 'bg-[#0F172A] border-[#0F172A] text-white' : 'bg-white border-[#E2E8F0] text-[#475569] hover:border-[#CBD5E1]'}`}>
               {ch.dot && <span className={`w-1.5 h-1.5 rounded-full ${ch.dot}`} />}{ch.label}
               <span className={`tabular-nums ${bucket === ch.key ? 'text-white/70' : 'text-[#94A3B8]'}`}>{counts[ch.key]}</span>
             </button>
@@ -257,10 +257,10 @@ function PriorityQueue({ calls, onUpdate, onViewAll, readOnly }: { calls: SalesC
             </select>
             <ChevronDown className="w-3.5 h-3.5 text-[#94A3B8] absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
-          <div className="relative flex-1 sm:w-48">
+          <div className="relative flex-1 min-w-0 sm:w-48">
             <Search className="w-3.5 h-3.5 text-[#94A3B8] absolute left-2.5 top-1/2 -translate-y-1/2" />
             <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search seller, city, note…"
-              className="w-full h-8 pl-8 pr-2.5 rounded-lg border border-[#E2E8F0] text-[12.5px] outline-none focus:border-[#00A86B]" />
+              className="w-full h-9 md:h-8 pl-8 pr-2.5 rounded-lg border border-[#E2E8F0] text-[13px] md:text-[12.5px] outline-none focus:border-[#00A86B]" />
           </div>
         </div>
       </div>
@@ -300,16 +300,23 @@ function PriorityQueue({ calls, onUpdate, onViewAll, readOnly }: { calls: SalesC
           {/* Mobile cards */}
           <ul className="md:hidden divide-y divide-[#F1F5F9] border-t border-[#F1F5F9]">
             {shown.map(({ c, due, stage: st }) => (
-              <li key={c._id} className="px-4 py-3">
-                <div className="flex items-start justify-between gap-2">
+              <li key={c._id} className={`px-4 py-3.5 ${due.bucket === 'overdue' ? 'shadow-[inset_3px_0_0_#EF4444]' : ''}`}>
+                <div className="flex items-start justify-between gap-3">
                   {seller(c)}
-                  <span className={`px-2 py-0.5 rounded-md text-[11px] font-semibold whitespace-nowrap shrink-0 ${due.tone}`}>{due.label}</span>
+                  <span className={`px-2 py-1 rounded-md text-[11px] font-semibold whitespace-nowrap shrink-0 ${due.tone}`}>{due.label}</span>
                 </div>
-                <div className="mt-1.5 flex items-center gap-2 min-w-0">
-                  <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold whitespace-nowrap ${STAGE_TONE[st]}`}>{LEAD_STAGE_LABEL[st]}</span>
-                  <p className="text-[12px] text-[#64748B] truncate">{c.lastNote || 'No notes yet'}</p>
+                <div className="mt-2">
+                  <span className={`inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold whitespace-nowrap ${STAGE_TONE[st]}`}>{LEAD_STAGE_LABEL[st]}</span>
                 </div>
-                <div className="mt-2">{contact(c)}</div>
+                <p className="mt-1.5 text-[12.5px] text-[#475569] leading-snug line-clamp-2">{c.lastNote || <span className="text-[#94A3B8]">No notes yet</span>}</p>
+                <div className="mt-3 grid grid-cols-[1fr_1fr_auto] gap-2">
+                  <a href={`tel:${c.phone}`} aria-label={`Call ${c.leadName}`}
+                    className="h-9 rounded-lg bg-[#00A86B] active:bg-[#00965F] text-white text-[12.5px] font-semibold inline-flex items-center justify-center gap-1.5"><Phone className="w-3.5 h-3.5" /> Call</a>
+                  <a href={waLink(c.phone)} target="_blank" rel="noopener noreferrer" aria-label={`Message ${c.leadName}`}
+                    className="h-9 rounded-lg border border-[#E2E8F0] text-[#334155] text-[12.5px] font-semibold inline-flex items-center justify-center gap-1.5 active:bg-[#F8FAFC]"><MessageCircle className="w-3.5 h-3.5" /> WhatsApp</a>
+                  <button type="button" onClick={() => onUpdate(c)}
+                    className="h-9 px-3.5 rounded-lg border border-[#E2E8F0] text-[#334155] text-[12.5px] font-semibold active:bg-[#F8FAFC]">Log</button>
+                </div>
               </li>
             ))}
           </ul>
@@ -398,46 +405,183 @@ function CallUpdateDialog({ call, onClose, onSaved }: { call: SalesCall; onClose
 }
 
 // ── Add a lead (the sales person's own prospects) ───────────────────────────
+const LEAD_CATEGORIES = ['Fashion & Apparel', 'Beauty & Personal care', 'Electronics', 'Home & Kitchen', 'Health & Wellness', 'Food & Grocery', 'Jewellery', 'Books & Stationery', 'Toys & Kids', 'Other'];
+const PRIORITIES = [
+  { key: 'high', label: 'High', dot: 'bg-red-500' },
+  { key: 'medium', label: 'Medium', dot: 'bg-amber-500' },
+  { key: 'low', label: 'Low', dot: 'bg-slate-400' },
+] as const;
+
+/** "YYYY-MM-DDTHH:mm" for a datetime-local input, in local time. */
+const toLocalInput = (d: Date) => {
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+};
+const followUpPreset = (kind: 'today' | 'tomorrow' | '3days' | 'week') => {
+  const d = new Date();
+  if (kind === 'today') d.setHours(Math.max(d.getHours() + 2, 18), 0, 0, 0);
+  else { d.setDate(d.getDate() + (kind === 'tomorrow' ? 1 : kind === '3days' ? 3 : 7)); d.setHours(11, 0, 0, 0); }
+  return toLocalInput(d);
+};
+
 function AddLeadDialog({ onClose, onSaved }: { onClose: () => void; onSaved: (msg: string) => void }) {
   const [f, setF] = useState({ leadName: '', businessName: '', phone: '', city: '', category: '', priority: 'medium', followUpAt: '', note: '' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [touched, setTouched] = useState(false);
   const set = (k: keyof typeof f, v: string) => setF(p => ({ ...p, [k]: v }));
+
+  const phoneDigits = f.phone.replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '');
+  const errs = {
+    leadName: !f.leadName.trim() ? 'Enter the contact name' : '',
+    phone: !phoneDigits ? 'Enter a mobile number' : !/^[6-9]\d{9}$/.test(phoneDigits) ? 'Enter a valid 10-digit mobile number' : '',
+  };
+  const valid = !errs.leadName && !errs.phone;
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = prev; };
+  }, [onClose]);
+
   const save = async () => {
+    setTouched(true);
+    if (!valid) return;
     setSaving(true); setError('');
     try {
-      await salesApiClient.post('/calls', { ...f, followUpAt: f.followUpAt || undefined });
+      await salesApiClient.post('/calls', {
+        ...f, leadName: f.leadName.trim(), businessName: f.businessName.trim(), city: f.city.trim(), note: f.note.trim(),
+        phone: phoneDigits, followUpAt: f.followUpAt || undefined,
+      });
       onSaved('Lead added');
       onClose();
     } catch (e) { setError(apiError(e, 'Could not add the lead.')); } finally { setSaving(false); }
   };
-  const fieldCls = 'w-full h-10 px-3.5 rounded-xl border border-[#E2E8F0] text-[13px] text-[#0F172A] bg-white focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]';
-  const field = (k: keyof typeof f, label: string, props: Record<string, unknown> = {}) => (
-    <div><label className="block text-[12px] font-semibold text-[#475569] mb-1.5">{label}</label><input value={f[k]} onChange={e => set(k, e.target.value)} className={fieldCls} {...props} /></div>
+
+  const inputCls = (bad?: string) => `w-full h-11 md:h-10 px-3.5 rounded-xl border text-[14px] md:text-[13px] text-[#0F172A] bg-white placeholder:text-[#94A3B8] focus:outline-none focus:ring-2 transition-colors ${bad ? 'border-red-300 focus:border-red-400 focus:ring-red-100' : 'border-[#E2E8F0] focus:border-[#00A86B] focus:ring-[#00A86B]/15'}`;
+  const label = (text: string, required = false, htmlFor?: string) => (
+    <label htmlFor={htmlFor} className="block text-[12.5px] font-semibold text-[#334155] mb-1.5">{text}{required && <span className="text-red-500"> *</span>}</label>
   );
+  const fieldError = (msg: string) => (touched && msg ? <p className="mt-1 text-[11.5px] text-red-600">{msg}</p> : null);
+  const section = (title: string) => <div className="sm:col-span-2 pt-1 text-[11px] font-bold uppercase tracking-[0.08em] text-[#94A3B8]">{title}</div>;
+  const presets: { key: 'today' | 'tomorrow' | '3days' | 'week'; label: string }[] = [
+    { key: 'today', label: 'Today' }, { key: 'tomorrow', label: 'Tomorrow' }, { key: '3days', label: 'In 3 days' }, { key: 'week', label: 'Next week' },
+  ];
+
   return createPortal(
-    <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-[#0F172A]/40 backdrop-blur-sm" onClick={onClose} />
-      <motion.div initial={{ opacity: 0, y: 12, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} className="relative w-full max-w-lg bg-white rounded-2xl shadow-[0_24px_64px_-16px_rgba(15,23,42,0.35)]">
-        <div className="px-5 py-4 border-b border-[#F1F5F9] flex items-center justify-between">
-          <h3 className="text-[15px] font-bold text-[#0F172A]">Add lead</h3>
-          <button onClick={onClose} aria-label="Close" className="w-8 h-8 rounded-full flex items-center justify-center text-[#94A3B8] hover:bg-[#F1F5F9]"><X className="w-4 h-4" /></button>
+    <div className="fixed inset-0 z-[300] flex items-end sm:items-center justify-center sm:p-4">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 bg-[#0F172A]/40 backdrop-blur-sm" onClick={onClose} />
+      <motion.div role="dialog" aria-modal="true" aria-labelledby="add-lead-title"
+        initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+        className="relative w-full sm:max-w-lg bg-white rounded-t-2xl sm:rounded-2xl shadow-[0_24px_64px_-16px_rgba(15,23,42,0.35)] flex flex-col max-h-[92vh] sm:max-h-[calc(100vh-4rem)]">
+        {/* drag handle (phones) */}
+        <div className="sm:hidden pt-2.5 flex justify-center"><span className="w-10 h-1 rounded-full bg-[#E2E8F0]" /></div>
+
+        <div className="px-5 pt-3 sm:pt-4 pb-3.5 border-b border-[#F1F5F9] flex items-start justify-between gap-3 shrink-0">
+          <div className="flex items-start gap-3 min-w-0">
+            <span className="w-9 h-9 rounded-xl bg-[#F0FDF4] text-[#00A86B] flex items-center justify-center shrink-0"><UserPlus className="w-[18px] h-[18px]" /></span>
+            <div className="min-w-0">
+              <h3 id="add-lead-title" className="text-[15.5px] font-bold text-[#0F172A] leading-tight">Add lead</h3>
+              <p className="text-[12px] text-[#64748B] mt-0.5">Save a prospect and schedule your next follow-up.</p>
+            </div>
+          </div>
+          <button onClick={onClose} aria-label="Close" className="w-8 h-8 rounded-full flex items-center justify-center text-[#94A3B8] hover:bg-[#F1F5F9] shrink-0"><X className="w-4 h-4" /></button>
         </div>
-        <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {error && <div className="sm:col-span-2 flex items-start gap-2 px-3 py-2 rounded-xl bg-red-50 border border-red-100 text-[12.5px] text-red-600"><AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />{error}</div>}
-          {field('leadName', 'Contact name *')}
-          {field('phone', 'Phone *', { inputMode: 'tel', placeholder: '10-digit mobile' })}
-          {field('businessName', 'Business name')}
-          {field('city', 'City')}
-          {field('category', 'Category')}
-          <div><label className="block text-[12px] font-semibold text-[#475569] mb-1.5">Priority</label>
-            <select value={f.priority} onChange={e => set('priority', e.target.value)} className={fieldCls}><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select></div>
-          <div className="sm:col-span-2">{field('followUpAt', 'Follow-up', { type: 'datetime-local' })}</div>
-          <div className="sm:col-span-2">{field('note', 'Note')}</div>
-        </div>
-        <div className="px-5 py-3.5 border-t border-[#F1F5F9] flex justify-end gap-2.5">
-          <button onClick={onClose} className="h-10 px-5 rounded-full border border-[#E2E8F0] text-[13px] font-semibold text-[#475569] hover:bg-[#F8FAFC]">Cancel</button>
-          <button onClick={save} disabled={saving} className="h-10 px-6 rounded-full bg-[#00A86B] hover:bg-[#009B63] text-white text-[13px] font-semibold disabled:opacity-50">{saving ? 'Saving…' : 'Add lead'}</button>
+
+        <form className="flex-1 min-h-0 overflow-y-auto px-5 py-4 grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-3.5"
+          onSubmit={e => { e.preventDefault(); save(); }} noValidate>
+          {error && <div className="sm:col-span-2 flex items-start gap-2 px-3 py-2.5 rounded-xl bg-red-50 border border-red-100 text-[12.5px] text-red-600"><AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />{error}</div>}
+
+          {section('Contact')}
+          <div>
+            {label('Contact name', true, 'lead-name')}
+            <input id="lead-name" autoFocus autoComplete="name" value={f.leadName} onChange={e => set('leadName', e.target.value)}
+              placeholder="e.g. Priya Sharma" className={inputCls(touched ? errs.leadName : '')} />
+            {fieldError(errs.leadName)}
+          </div>
+          <div>
+            {label('Mobile number', true, 'lead-phone')}
+            <div className="relative">
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[14px] md:text-[13px] text-[#64748B] font-medium pointer-events-none">+91</span>
+              <input id="lead-phone" type="tel" inputMode="numeric" autoComplete="tel-national" maxLength={14}
+                value={f.phone} onChange={e => set('phone', e.target.value.replace(/[^\d\s+-]/g, ''))}
+                placeholder="98765 43210" className={`${inputCls(touched ? errs.phone : '')} pl-12 tabular-nums`} />
+            </div>
+            {fieldError(errs.phone)}
+          </div>
+
+          {section('Business')}
+          <div>
+            {label('Business name', false, 'lead-business')}
+            <input id="lead-business" autoComplete="organization" value={f.businessName} onChange={e => set('businessName', e.target.value)}
+              placeholder="e.g. Priya Fashions" className={inputCls()} />
+          </div>
+          <div>
+            {label('City', false, 'lead-city')}
+            <input id="lead-city" autoComplete="address-level2" value={f.city} onChange={e => set('city', e.target.value)}
+              placeholder="e.g. Jaipur" className={inputCls()} />
+          </div>
+          <div className="sm:col-span-2">
+            {label('Category', false, 'lead-category')}
+            <div className="relative">
+              <select id="lead-category" value={f.category} onChange={e => set('category', e.target.value)}
+                className={`${inputCls()} appearance-none pr-9 ${f.category ? '' : 'text-[#94A3B8]'}`}>
+                <option value="">Select a category</option>
+                {LEAD_CATEGORIES.map(c => <option key={c} value={c} className="text-[#0F172A]">{c}</option>)}
+              </select>
+              <ChevronDown className="w-4 h-4 text-[#94A3B8] absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
+          </div>
+
+          {section('Follow-up')}
+          <div className="sm:col-span-2">
+            {label('Priority')}
+            <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Priority">
+              {PRIORITIES.map(p => (
+                <button key={p.key} type="button" role="radio" aria-checked={f.priority === p.key} onClick={() => set('priority', p.key)}
+                  className={`h-10 rounded-xl border text-[13px] font-semibold inline-flex items-center justify-center gap-2 transition-colors ${f.priority === p.key
+                    ? 'border-[#00A86B] bg-[#F0FDF4] text-[#0F6B38]' : 'border-[#E2E8F0] text-[#475569] hover:bg-[#F8FAFC]'}`}>
+                  <span className={`w-2 h-2 rounded-full ${p.dot}`} />{p.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="sm:col-span-2">
+            {label('Next follow-up', false, 'lead-followup')}
+            <div className="flex gap-1.5 overflow-x-auto -mx-5 px-5 sm:mx-0 sm:px-0 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {presets.map(p => {
+                const v = followUpPreset(p.key);
+                const on = f.followUpAt.slice(0, 10) === v.slice(0, 10) && !!f.followUpAt;
+                return (
+                  <button key={p.key} type="button" onClick={() => set('followUpAt', on ? '' : v)}
+                    className={`shrink-0 h-8 px-3 rounded-full border text-[12px] font-semibold transition-colors ${on ? 'border-[#00A86B] bg-[#F0FDF4] text-[#0F6B38]' : 'border-[#E2E8F0] text-[#475569] hover:bg-[#F8FAFC]'}`}>
+                    {p.label}
+                  </button>
+                );
+              })}
+            </div>
+            <input id="lead-followup" type="datetime-local" value={f.followUpAt} onChange={e => set('followUpAt', e.target.value)}
+              className={`${inputCls()} mt-2`} />
+          </div>
+          <div className="sm:col-span-2">
+            <div className="flex items-end justify-between">
+              {label('Note', false, 'lead-note')}
+              <span className="text-[11px] text-[#94A3B8] mb-1.5 tabular-nums">{f.note.length}/300</span>
+            </div>
+            <textarea id="lead-note" rows={3} maxLength={300} value={f.note} onChange={e => set('note', e.target.value)}
+              placeholder="What did you discuss? e.g. ships 200 orders/month, wants COD remittance faster"
+              className="w-full px-3.5 py-2.5 rounded-xl border border-[#E2E8F0] text-[14px] md:text-[13px] text-[#0F172A] placeholder:text-[#94A3B8] resize-none focus:outline-none focus:border-[#00A86B] focus:ring-2 focus:ring-[#00A86B]/15" />
+          </div>
+          <button type="submit" className="hidden" aria-hidden tabIndex={-1} />
+        </form>
+
+        <div className="px-5 py-3 border-t border-[#F1F5F9] flex items-center justify-end gap-2 shrink-0 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+          <button onClick={onClose} className="h-9 px-4 rounded-full border border-[#E2E8F0] text-[12.5px] font-semibold text-[#475569] hover:bg-[#F8FAFC]">Cancel</button>
+          <button onClick={save} disabled={saving} className="h-9 px-4 rounded-full bg-[#00A86B] hover:bg-[#009B63] text-white text-[12.5px] font-semibold disabled:opacity-50">
+            {saving ? 'Saving…' : 'Add lead'}
+          </button>
         </div>
       </motion.div>
     </div>,

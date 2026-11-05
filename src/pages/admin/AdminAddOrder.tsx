@@ -15,6 +15,7 @@ import { TableLoader } from '../../components/ui/TableLoader';
 import { AddressAccuracyGauge } from '../../components/ui/AddressAccuracy';
 import packingGuidelinesImg from '../../assets/packing-guidelines.png';
 import pickupAddressBannerImg from '../../assets/pickup-address-banner.png';
+import { ORDER_PREFILL_KEY } from './customers/customersStore';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Product {
@@ -202,6 +203,21 @@ export function AdminAddOrder() {
       })
       .catch(() => {});
   }, [pickupRefresh, orderOwnerId]);
+
+  // ── Prefill delivery details from Customers → Add order ──
+  useEffect(() => {
+    if (cloneId || updateId) return;
+    let r: any = null;
+    try { r = JSON.parse(sessionStorage.getItem(ORDER_PREFILL_KEY) || 'null'); sessionStorage.removeItem(ORDER_PREFILL_KEY); } catch { /* ignore */ }
+    if (!r) return;
+    setContactName(r.contactName || '');
+    setEmail(r.email || '');
+    setPhoneNumber(r.phoneNumber || '');
+    setAddress(r.address || '');
+    setPinCode(r.pinCode || '');
+    setCity(r.city || '');
+    setCityState(r.state || '');
+  }, []);
 
   // ── Prefill for clone / update ──
   useEffect(() => {

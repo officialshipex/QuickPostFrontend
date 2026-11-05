@@ -10,7 +10,7 @@ const TXT = {
   value: 'text-[12px] font-normal',
 };
 
-interface LabelSettings {
+export interface LabelSettings {
   showLogo: boolean;
   hideCustomerMobile: boolean;
   hideCustomerBarcode: boolean;
@@ -29,7 +29,7 @@ interface LabelSettings {
   hideProduct: boolean;
 }
 
-const DEFAULT_SETTINGS: LabelSettings = {
+export const DEFAULT_SETTINGS: LabelSettings = {
   showLogo: false,
   hideCustomerMobile: false,
   hideCustomerBarcode: false,
@@ -49,7 +49,7 @@ const DEFAULT_SETTINGS: LabelSettings = {
 };
 
 // Map backend response → frontend state
-function fromBackend(data: any): LabelSettings {
+export function fromBackend(data: any): LabelSettings {
   const w = data.warehouseSettings || {};
   const p = data.productDetails || {};
   return {
@@ -134,30 +134,62 @@ function CheckboxRow({ label, checked, onChange }: { label: string; checked: boo
   );
 }
 
-function LabelPreview({ settings, logoUrl }: { settings: LabelSettings; logoUrl: string | null }) {
+/** Live mode: pass `to` (the Add Customer form) and the label fills only from real data — the customer being typed and
+    the seller's primary pickup address. Anything that only exists once an order is created shows as a placeholder. */
+export interface LabelPreviewTo { name: string; address: string; cityLine: string; mobile: string }
+export type LabelPreviewAddress = LabelPreviewTo;
+
+/** Grey bar standing in for a value that has not been entered yet. */
+function Blank({ w = 'w-32' }: { w?: string }) {
+  return <span className={`inline-block align-middle h-2.5 rounded-full bg-[#E2E8F0] ${w}`} />;
+}
+const Pending = ({ text = 'On order' }: { text?: string }) => <span className="text-[#94A3B8] italic">{text}</span>;
+
+export function LabelPreview({ settings, logoUrl, to, pickup }: { settings: LabelSettings; logoUrl: string | null; to?: LabelPreviewTo; pickup?: LabelPreviewAddress | null }) {
+  const live = !!to;
+  const v = (val: string | undefined, sample: string, w?: string) => (live ? (val ? val : <Blank w={w} />) : sample);
+  const productCols = [!settings.hideSku, !settings.hideProduct, !settings.hideHsn, !settings.hideQty, !settings.hideOrderAmount, !settings.hideTotalAmount].filter(Boolean).length;
+  const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+  const addressBlock = (title: string, hideName: boolean, hideMobile: boolean) => (
+    <div className="mt-3">
+      <p className={TXT.label}>{title}</p>
+      {live && !pickup ? (
+        <p className="text-[#94A3B8] italic">Your primary pickup address</p>
+      ) : (
+        <>
+          {!hideName && <p>{pickup ? pickup.name : 'Ajeet Kumar'}</p>}
+          <p>{pickup ? pickup.address : 'Vaidic Panchgavyya, Near LIC Building, Laxmi Sweets, Sagwan Chowk'}</p>
+          <p>{pickup ? pickup.cityLine : 'Sirsa, HARYANA, 125055'}</p>
+          {!hideMobile && <p>Mobile No: {pickup ? pickup.mobile : '9518156020'}</p>}
+        </>
+      )}
+    </div>
+  );
+
   return (
     <div className="bg-white border border-[#0F172A]/80 rounded-lg p-5 text-[11px] text-[#1E293B] leading-relaxed font-sans">
       {settings.showLogo && logoUrl && (
         <img src={logoUrl} alt="Company logo" className="h-10 max-w-[140px] object-contain mb-3" />
       )}
       <p className={TXT.label}>To:</p>
-      <p className="mt-1">narinder kaur</p>
-      <p>block c 14/2 new govind pura street no-8 near gandhi park</p>
-      <p>East Delhi, DELHI, 110051</p>
-      {!settings.hideCustomerMobile && <p>MOBILE NO: 9718794406</p>}
+      <p className="mt-1 break-words">{v(to?.name, 'narinder kaur', 'w-28')}</p>
+      <p className="break-words">{v(to?.address, 'block c 14/2 new govind pura street no-8 near gandhi park', 'w-48')}</p>
+      <p>{v(to?.cityLine, 'East Delhi, DELHI, 110051', 'w-36')}</p>
+      {!settings.hideCustomerMobile && <p>MOBILE NO: {v(to?.mobile, '9718794406', 'w-20')}</p>}
 
       <div className="h-px bg-[#CBD5E1] my-3" />
 
       <div className="flex items-start justify-between gap-4">
         <div className="space-y-0.5">
-          <p><span className={TXT.label}>Order Date:</span> Mar 7, 2025</p>
-          <p><span className={TXT.label}>Invoice No:</span> 843987</p>
-          {!settings.hideGstNumber && <p><span className={TXT.label}>GSTIN No:</span> 22XXXXX0000SHI</p>}
+          <p><span className={TXT.label}>Order Date:</span> {live ? today : 'Mar 7, 2025'}</p>
+          <p><span className={TXT.label}>Invoice No:</span> {live ? <Pending /> : '843987'}</p>
+          {!settings.hideGstNumber && <p><span className={TXT.label}>GSTIN No:</span> {live ? <Pending text="From your KYC" /> : '22XXXXX0000SHI'}</p>}
         </div>
         {!settings.hideCustomerBarcode && (
-          <div className="text-center shrink-0">
+          <div className={`text-center shrink-0 ${live ? 'opacity-25' : ''}`}>
             <Barcode value="1234ABCD" />
-            <p className="text-[10px] mt-1 tracking-wider">1234ABCD</p>
+            <p className="text-[10px] mt-1 tracking-wider">{live ? 'ORDER ID' : '1234ABCD'}</p>
           </div>
         )}
       </div>
@@ -166,18 +198,18 @@ function LabelPreview({ settings, logoUrl }: { settings: LabelSettings; logoUrl:
 
       <div className="flex items-start justify-between gap-4">
         <div className="space-y-0.5">
-          <p><span className={TXT.label}>MODE:</span> PREPAID</p>
-          <p><span className={TXT.label}>WEIGHT:</span> 0.4</p>
-          <p><span className={TXT.label}>Dimensions (cm):</span> 10*10*10</p>
+          <p><span className={TXT.label}>MODE:</span> {live ? <Pending /> : 'PREPAID'}</p>
+          <p><span className={TXT.label}>WEIGHT:</span> {live ? <Pending /> : '0.4'}</p>
+          <p><span className={TXT.label}>Dimensions (cm):</span> {live ? <Pending /> : '10*10*10'}</p>
         </div>
-        <div className="text-center shrink-0">
-          <p className={`${TXT.label} mb-1`}>SHIPEX INDIA</p>
+        <div className={`text-center shrink-0 ${live ? 'opacity-25' : ''}`}>
+          <p className={`${TXT.label} mb-1`}>{live ? 'COURIER' : 'SHIPEX INDIA'}</p>
           <Barcode value="35973710008735" />
-          <p className="text-[10px] mt-1 tracking-wider">35973710008735</p>
+          <p className="text-[10px] mt-1 tracking-wider">{live ? 'AWB NUMBER' : '35973710008735'}</p>
         </div>
       </div>
 
-      {(!settings.hideSku || !settings.hideProduct || !settings.hideHsn || !settings.hideQty || !settings.hideOrderAmount || !settings.hideTotalAmount) && (
+      {productCols > 0 && (
         <table className="w-full border-collapse mt-3 text-[11px]">
           <thead>
             <tr className="bg-[#E6F9F2]">
@@ -190,37 +222,24 @@ function LabelPreview({ settings, logoUrl }: { settings: LabelSettings; logoUrl:
             </tr>
           </thead>
           <tbody>
-            <tr>
-              {!settings.hideSku        && <td className="border border-[#CBD5E1] px-2 py-1">SKU001</td>}
-              {!settings.hideProduct    && <td className="border border-[#CBD5E1] px-2 py-1">Sample Product</td>}
-              {!settings.hideHsn        && <td className="border border-[#CBD5E1] px-2 py-1">6204</td>}
-              {!settings.hideQty        && <td className="border border-[#CBD5E1] px-2 py-1">1</td>}
-              {!settings.hideOrderAmount && <td className="border border-[#CBD5E1] px-2 py-1">₹499</td>}
-              {!settings.hideTotalAmount && <td className="border border-[#CBD5E1] px-2 py-1">₹499</td>}
-            </tr>
+            {live ? (
+              <tr><td colSpan={productCols} className="border border-[#CBD5E1] px-2 py-1.5 text-center text-[#94A3B8] italic">Products are added when you create the order</td></tr>
+            ) : (
+              <tr>
+                {!settings.hideSku        && <td className="border border-[#CBD5E1] px-2 py-1">SKU001</td>}
+                {!settings.hideProduct    && <td className="border border-[#CBD5E1] px-2 py-1">Sample Product</td>}
+                {!settings.hideHsn        && <td className="border border-[#CBD5E1] px-2 py-1">6204</td>}
+                {!settings.hideQty        && <td className="border border-[#CBD5E1] px-2 py-1">1</td>}
+                {!settings.hideOrderAmount && <td className="border border-[#CBD5E1] px-2 py-1">₹499</td>}
+                {!settings.hideTotalAmount && <td className="border border-[#CBD5E1] px-2 py-1">₹499</td>}
+              </tr>
+            )}
           </tbody>
         </table>
       )}
 
-      {!settings.hidePickupAddress && (
-        <div className="mt-3">
-          <p className={TXT.label}>Pickup Address:</p>
-          {!settings.hidePickupName && <p>Ajeet Kumar</p>}
-          <p>Vaidic Panchgavyya, Near LIC Building, Laxmi Sweets, Sagwan Chowk</p>
-          <p>Sirsa, HARYANA, 125055</p>
-          {!settings.hidePickupMobile && <p>Mobile No: 9518156020</p>}
-        </div>
-      )}
-
-      {!settings.hideRtoAddress && (
-        <div className="mt-3">
-          <p className={TXT.label}>Return Address:</p>
-          {!settings.hideRtoName && <p>Ajeet Kumar</p>}
-          <p>Vaidic Panchgavyya, Near LIC Building, Laxmi Sweets, Sagwan Chowk</p>
-          <p>Sirsa, HARYANA, 125055</p>
-          {!settings.hideRtoMobile && <p>Mobile No: 9518156020</p>}
-        </div>
-      )}
+      {!settings.hidePickupAddress && addressBlock('Pickup Address:', settings.hidePickupName, settings.hidePickupMobile)}
+      {!settings.hideRtoAddress && addressBlock('Return Address:', settings.hideRtoName, settings.hideRtoMobile)}
 
       <div className="h-px bg-[#CBD5E1] my-3" />
       <p>This is a computer-generated document, hence does not require a signature.</p>

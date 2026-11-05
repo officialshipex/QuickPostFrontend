@@ -116,6 +116,8 @@ import { AdminKycReview } from './pages/admin/AdminKycReview';
 import { AdminAgreement } from './pages/admin/AdminAgreement';
 import { AdminAgreementSettings } from './pages/admin/AdminAgreementSettings';
 import { AdminPickupAddress } from './pages/admin/AdminPickupAddress';
+import { AdminCustomers } from './pages/admin/customers/AdminCustomers';
+import { AddCustomer } from './pages/admin/customers/AddCustomer';
 import { AdminPickupManifestDetails } from './pages/admin/AdminPickupManifestDetails';
 import { AdminShell } from './components/admin/layout/AdminShell';
 import { UserHome } from './pages/admin/UserHome';
@@ -379,6 +381,9 @@ function App() {
               <Route path="/user/employees" element={<AdminRoles />} />
               <Route path="/user/channels" element={<AdminChannels />} />
               <Route path="/user/courier-setup" element={<AdminCourierSetup />} />
+              <Route path="/user/customers" element={<AdminCustomers />} />
+              <Route path="/user/customers/new" element={<AddCustomer />} />
+              <Route path="/user/customers/:id/edit" element={<AddCustomer />} />
               <Route path="/user/seller-remittance/early-cod" element={<AdminEarlyCodRemittance />} />
               <Route path="/user/vas" element={<VasHub />} />
               <Route path="/user/vas/ndr-followups" element={<NdrFollowups />} />
