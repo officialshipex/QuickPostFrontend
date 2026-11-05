@@ -112,6 +112,8 @@ export interface OrderData {
     status?: string;
   }>;
   awb_number?: string;
+  // B2B: one AWB per extra box (the master is awb_number)
+  child_awb_numbers?: string[];
   courierServiceName?: string;
   courierName?: string;
   pickupId?: string;
@@ -436,6 +438,11 @@ export function AdminOrderTracking() {
     }
   };
 
+  const handleCopyChildAwb = async (awb: string) => {
+    const ok = await copyToClipboard(awb);
+    showToastMsg(ok ? 'success' : 'error', ok ? `Copied ${awb}` : "Couldn't copy AWB Number");
+  };
+
   const handleRaiseDispute = async () => {
     if (!disputeText.trim()) { setDisputeError('Please describe the dispute reason.'); return; }
     if (!order?.awb_number) { setDisputeError('AWB number not available.'); return; }
@@ -554,6 +561,7 @@ export function AdminOrderTracking() {
   const milestones = getMilestonesFromStatus(order?.status || 'new', order || undefined);
   const courierName = order?.courierName || order?.courierServiceName || '—';
   const awbNumber = order?.awb_number || '—';
+  const childAwbs = isB2BOrder ? (order?.child_awb_numbers || []).filter(Boolean) : [];
   const displayOrderId = String(order?.orderId || orderId);
   const isDisputeRaised = discrepancy?.status === 'Discrepancy Raised';
   const isDisputeAccepted = discrepancy?.status === 'Accepted';
@@ -1466,7 +1474,7 @@ export function AdminOrderTracking() {
               </div>
 
               {/* AWB block */}
-              <div className="flex items-center justify-between bg-slate-50 rounded-xl p-3 mb-5">
+              <div className={`flex items-center justify-between bg-slate-50 rounded-xl p-3 ${childAwbs.length ? 'mb-2' : 'mb-5'}`}>
                 <div>
                   <div className="text-[10px] leading-4 font-semibold text-[#94A3B8] uppercase tracking-wider">AWB Number</div>
                   <div onClick={handleCopyAwb} title="Click to copy AWB Number" className="text-[12px] leading-[18px] font-bold text-[#00A86B] mt-0.5 tracking-wide font-mono cursor-pointer hover:underline">{awbNumber}</div>
@@ -1483,6 +1491,18 @@ export function AdminOrderTracking() {
                   </button>
                 </div>
               </div>
+
+              {/* B2B child AWBs (one per extra box) */}
+              {childAwbs.length > 0 && (
+                <div className="bg-slate-50 rounded-xl p-3 mb-5">
+                  <div className="text-[10px] leading-4 font-semibold text-[#94A3B8] uppercase tracking-wider">Child AWB Numbers ({childAwbs.length})</div>
+                  <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1 max-h-[96px] overflow-y-auto thin-scrollbar">
+                    {childAwbs.map((awb) => (
+                      <span key={awb} onClick={() => handleCopyChildAwb(awb)} title="Click to copy" className="text-[12px] leading-[18px] font-semibold text-[#00A86B] font-mono cursor-pointer hover:underline">{awb}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Tracking timeline */}
               <div className="relative pl-8 py-1 overflow-y-auto pr-2 thin-scrollbar" style={{ maxHeight: '190px' }}>
