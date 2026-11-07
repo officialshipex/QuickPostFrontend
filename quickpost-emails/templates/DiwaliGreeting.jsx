@@ -10,9 +10,9 @@ export default function DiwaliGreeting() {
       preview="Brighter partnerships. Bigger possibilities. Wishing you and your family a Happy Diwali!"
       footer="none"
       banner={{
-        file: "festive-diwali.png",
+        file: "festive-diwali.jpg",
         alt: "Quickpost wishes you a Happy Diwali! Brighter partnerships. Bigger possibilities.",
-        href: "https://quickpost.in",
+        href: "https://www.quickpost.in",
       }}
     />
   );
