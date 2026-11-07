@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { CheckCircle2, Mail, Smartphone, X, AlertCircle, ShieldCheck } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { apiClient } from '../../services/apiClient';
 
 // OTP check of the email AND mobile number before an account is created — only when the company has
@@ -20,7 +21,8 @@ const normEmail = (v: string) => v.trim().toLowerCase();
 const normPhone = (v: string) => v.replace(/\D/g, '').slice(-10);
 const errText = (e: any, fallback: string) => e?.response?.data?.message || e?.message || fallback;
 
-export function useRegisterOtp() {
+// fields: the form's input names, so "Change email / mobile" can put the cursor back in that field.
+export function useRegisterOtp(fields: Record<Channel, string> = { email: 'email', phone: 'phone' }) {
   const [required, setRequired] = useState<boolean | null>(null);
   const [open, setOpen] = useState<{ email: string; phone: string } | null>(null);
   const verified = useRef<Partial<Record<Channel, Verified>>>({});
@@ -71,6 +73,13 @@ export function useRegisterOtp() {
       onVerified={(ch, v) => { verified.current = { ...verified.current, [ch]: v }; rerender(n => n + 1); }}
       onDone={() => finish(tokensFor(open.email, open.phone))}
       onClose={() => finish(null)}
+      onEdit={(ch) => {
+        finish(null);
+        setTimeout(() => {
+          const el = document.querySelector<HTMLInputElement>(`input[name="${fields[ch]}"]`);
+          if (el) { el.focus(); el.select(); }
+        }, 50);
+      }}
     />
   ) : null;
 
@@ -106,9 +115,9 @@ export function RegisterOtpFormBar({ otp, email, phone }: {
   );
 }
 
-function OtpRow({ channel, label, shown, target, already, onVerified }: {
+function OtpRow({ channel, label, shown, target, already, onVerified, onEdit }: {
   channel: Channel; label: string; shown: string; target: string;
-  already?: Verified; onVerified: (v: Verified) => void;
+  already?: Verified; onVerified: (v: Verified) => void; onEdit: () => void;
 }) {
   const [done, setDone] = useState(already?.target === target);
   const [code, setCode] = useState('');
@@ -117,6 +126,8 @@ function OtpRow({ channel, label, shown, target, already, onVerified }: {
   const [sent, setSent] = useState(false);
   const [wait, setWait] = useState(0);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  // already registered: no OTP can be sent, only changing it (or logging in) helps
+  const [taken, setTaken] = useState<string | null>(null);
   const started = useRef(false);
 
   useEffect(() => {
@@ -134,6 +145,7 @@ function OtpRow({ channel, label, shown, target, already, onVerified }: {
       setSent(true); setWait(r.data?.resendAfter || 30);
       setMsg({ ok: true, text: r.data?.message || 'OTP sent' });
     } catch (e: any) {
+      if (e?.response?.status === 409) { setTaken(errText(e, `This ${label.toLowerCase()} is already registered.`)); return; }
       const after = e?.response?.data?.retryAfter;
       if (after) { setSent(true); setWait(after); }
       setMsg({ ok: false, text: errText(e, 'Could not send the OTP') });
@@ -161,10 +173,10 @@ function OtpRow({ channel, label, shown, target, already, onVerified }: {
 
   const Icon = channel === 'email' ? Mail : Smartphone;
   return (
-    <div className={`rounded-xl border p-4 ${done ? 'border-[#BBF7D0] bg-[#F0FDF4]' : 'border-[#E2E8F0]'}`}>
+    <div className={`rounded-xl border p-4 ${done ? 'border-[#BBF7D0] bg-[#F0FDF4]' : taken ? 'border-red-200 bg-red-50' : 'border-[#E2E8F0]'}`}>
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
-          <Icon className="w-4 h-4 text-[#00A86B] shrink-0" />
+          <Icon className={`w-4 h-4 shrink-0 ${taken ? 'text-red-500' : 'text-[#00A86B]'}`} />
           <div className="min-w-0">
             <p className="text-xs font-semibold text-[#0F172A]">{label}</p>
             <p className="text-[11px] text-[#64748B] truncate">{shown}</p>
@@ -172,7 +184,18 @@ function OtpRow({ channel, label, shown, target, already, onVerified }: {
         </div>
         {done && <span className="flex items-center gap-1 text-xs font-semibold text-[#00A86B] shrink-0"><CheckCircle2 className="w-4 h-4" /> Verified</span>}
       </div>
-      {!done && (
+      {taken ? (
+        <div className="mt-3">
+          <p className="text-[11px] text-red-600 flex items-start gap-1"><AlertCircle className="w-3.5 h-3.5 shrink-0 mt-px" />{taken}</p>
+          <div className="flex items-center gap-3 mt-2.5">
+            <button type="button" onClick={onEdit}
+              className="h-9 px-4 rounded-md bg-[#00A86B] text-white text-xs font-semibold">
+              Change {channel === 'email' ? 'email' : 'mobile number'}
+            </button>
+            <Link to="/login" className="text-xs font-semibold text-[#00A86B] hover:underline">Log in instead</Link>
+          </div>
+        </div>
+      ) : !done && (
         <>
           <div className="flex gap-2 mt-3">
             <input
@@ -195,10 +218,15 @@ function OtpRow({ channel, label, shown, target, already, onVerified }: {
                 {!msg.ok && <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-px" />}{msg.text}
               </p>
             ) : <span />}
-            <button type="button" onClick={send} disabled={sending || wait > 0}
-              className="text-[11px] font-semibold text-[#00A86B] disabled:text-[#94A3B8] shrink-0">
-              {sending ? 'Sending…' : wait > 0 ? `Resend in ${wait}s` : sent ? 'Resend OTP' : 'Send OTP'}
-            </button>
+            <div className="flex items-center gap-3 shrink-0">
+              <button type="button" onClick={onEdit} className="text-[11px] font-semibold text-[#64748B] hover:text-[#0F172A]">
+                Change
+              </button>
+              <button type="button" onClick={send} disabled={sending || wait > 0}
+                className="text-[11px] font-semibold text-[#00A86B] disabled:text-[#94A3B8]">
+                {sending ? 'Sending…' : wait > 0 ? `Resend in ${wait}s` : sent ? 'Resend OTP' : 'Send OTP'}
+              </button>
+            </div>
           </div>
         </>
       )}
@@ -206,9 +234,9 @@ function OtpRow({ channel, label, shown, target, already, onVerified }: {
   );
 }
 
-function RegisterOtpDialog({ email, phone, already, onVerified, onDone, onClose }: {
+function RegisterOtpDialog({ email, phone, already, onVerified, onDone, onClose, onEdit }: {
   email: string; phone: string; already: Partial<Record<Channel, Verified>>;
-  onVerified: (ch: Channel, v: Verified) => void; onDone: () => void; onClose: () => void;
+  onVerified: (ch: Channel, v: Verified) => void; onDone: () => void; onClose: () => void; onEdit: (ch: Channel) => void;
 }) {
   const e = normEmail(email), p = normPhone(phone);
   const [ok, setOk] = useState({ email: already.email?.target === e, phone: already.phone?.target === p });
@@ -231,16 +259,14 @@ function RegisterOtpDialog({ email, phone, already, onVerified, onDone, onClose 
           <ShieldCheck className="w-5 h-5 text-[#00A86B]" />
           <h3 className="text-base font-bold text-[#0F172A]">Verify your email and mobile</h3>
         </div>
-        <p className="text-xs text-[#64748B] mb-4">We have sent a 6-digit code to each. Enter both to create your account.</p>
+        <p className="text-xs text-[#64748B] mb-4">We send a 6-digit code to each. Enter both to create your account.</p>
         <div className="space-y-3">
           <OtpRow channel="email" label="Email" shown={email.trim()} target={e} already={already.email}
-            onVerified={v => { onVerified('email', v); setOk(s => ({ ...s, email: true })); }} />
+            onVerified={v => { onVerified('email', v); setOk(s => ({ ...s, email: true })); }} onEdit={() => onEdit('email')} />
           <OtpRow channel="phone" label="Mobile number" shown={`+91 ${p}`} target={p} already={already.phone}
-            onVerified={v => { onVerified('phone', v); setOk(s => ({ ...s, phone: true })); }} />
+            onVerified={v => { onVerified('phone', v); setOk(s => ({ ...s, phone: true })); }} onEdit={() => onEdit('phone')} />
         </div>
-        <p className="text-[11px] text-center mt-4 text-[#64748B]">
-          {both ? 'Verified. Creating your account…' : 'Wrong email or number? Close this, correct it in the form and sign up again.'}
-        </p>
+        {both && <p className="text-[11px] text-center mt-4 text-[#00A86B] font-semibold">Verified. Creating your account…</p>}
       </div>
     </div>,
     document.body
