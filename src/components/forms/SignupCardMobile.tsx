@@ -10,7 +10,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { apiClient } from '../../services/apiClient';
 import { useAuth } from '../../hooks/useAuth';
 import { getRoleFromToken } from '../../utils/session';
-import { useRegisterOtp } from './RegisterOtpStep';
+import { useRegisterOtp, RegisterOtpFormBar } from './RegisterOtpStep';
 
 const MONTHLY_ORDER_OPTIONS = [
   '0 - 500',
@@ -52,7 +52,7 @@ export function SignupCardMobile({ onBack }: SignupCardMobileProps) {
   const { login } = useAuth();
   const registerOtp = useRegisterOtp();
 
-  const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
+  const { register, handleSubmit, watch, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: { checked: false },
   });
@@ -135,6 +135,7 @@ export function SignupCardMobile({ onBack }: SignupCardMobileProps) {
             <Input type="tel" placeholder="9876543210" className="h-11 rounded-l-none bg-transparent border-[#E2E8F0] text-sm focus-visible:ring-[#00A86B]" {...register('phone')} error={errors.phone?.message} />
           </div>
         </div>
+        <RegisterOtpFormBar otp={registerOtp} email={watch('email')} phone={watch('phone')} />
 
         <div>
           <label className="block text-xs font-semibold text-[#475569] mb-1.5 font-sans">Company Name<span className="text-red-500">*</span></label>

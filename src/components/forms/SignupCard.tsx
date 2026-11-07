@@ -10,7 +10,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { apiClient } from '../../services/apiClient';
 import { useAuth } from '../../hooks/useAuth';
 import { getRoleFromToken } from '../../utils/session';
-import { useRegisterOtp } from './RegisterOtpStep';
+import { useRegisterOtp, RegisterOtpFormBar } from './RegisterOtpStep';
 
 const MONTHLY_ORDER_OPTIONS = [
   '0 - 500',
@@ -125,6 +125,7 @@ export function SignupCard({ onBack }: SignupCardProps) {
             </div>
           </div>
         </div>
+        <RegisterOtpFormBar otp={registerOtp} email={watch('email')} phone={watch('phone')} />
 
         <div className="grid grid-cols-2 gap-4">
           <div>
