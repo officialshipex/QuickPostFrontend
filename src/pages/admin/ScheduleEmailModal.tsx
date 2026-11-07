@@ -78,12 +78,14 @@ export function ScheduleEmailModal({ onClose }: { onClose: () => void }) {
   const [items, setItems] = useState<Scheduled[]>([]);
   const [listLoading, setListLoading] = useState(false);
   const [cancelling, setCancelling] = useState<string | null>(null);
+  const [senderOn, setSenderOn] = useState(true);
 
   const loadList = async () => {
     setListLoading(true);
     try {
       const res = await apiClient.get('/notification/scheduledEmail');
       setItems(res.data?.items || []);
+      setSenderOn(res.data?.senderOn !== false);
     } catch { setItems([]); }
     finally { setListLoading(false); }
   };
@@ -211,6 +213,12 @@ export function ScheduleEmailModal({ onClose }: { onClose: () => void }) {
           <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center text-[#64748B] hover:bg-[#E2E8F0] transition-colors"><X className="w-4 h-4" /></button>
         </div>
 
+        {!senderOn && (
+          <div className="mx-5 mt-4 text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 flex items-start gap-1.5 shrink-0">
+            <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+            <span>This server is not sending scheduled emails (sender is off here). Emails you schedule stay waiting until a server with the sender on picks them up. Set SCHEDULED_EMAIL_WORKER=true in the backend .env and restart to send from this server.</span>
+          </div>
+        )}
         <div className="flex border-b border-[#E2E8F0] px-5 shrink-0">
           {([['new', 'New schedule'], ['list', `Scheduled emails${waitingCount ? ` (${waitingCount})` : ''}`]] as const).map(([k, l]) => (
             <button key={k} onClick={() => setView(k)}
