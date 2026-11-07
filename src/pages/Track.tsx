@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search,
@@ -402,7 +402,8 @@ export function Track() {
   const [showAllEvents, setShowAllEvents] = useState(false);
   const resultRef = useRef<HTMLDivElement>(null);
 
-  const runSearch = async (value: string) => {
+  const runSearch = async (value: string, mode: 'order' | 'awb' = searchMode) => {
+    const searchMode = mode;
     if (!value.trim()) {
       setError(`Please enter a valid ${searchMode === 'awb' ? 'AWB number' : 'Order ID'}.`);
       return;
@@ -433,7 +434,21 @@ export function Track() {
     }
   };
 
-  const copyValue = (value: string, key: 'awb' | 'order') => {
+  // Links in emails open /track?awb=<AWB> (or ?order=<id>): search it straight away.
+  const [searchParams] = useSearchParams();
+  useEffect(() => {
+    const awb = searchParams.get('awb');
+    const order = searchParams.get('order');
+    const value = (awb || order || '').trim();
+    if (!value) return;
+    const mode = awb ? 'awb' : 'order';
+    setSearchMode(mode);
+    setQuery(value);
+    runSearch(value, mode);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const copyValue =(value: string, key: 'awb' | 'order') => {
     navigator.clipboard.writeText(value);
     setCopied(key);
     setTimeout(() => setCopied(null), 1500);
