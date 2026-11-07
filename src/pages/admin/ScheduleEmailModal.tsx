@@ -26,6 +26,15 @@ const fmtDateLabel = (ymd: string) => {
 };
 const pad = (n: number) => String(n).padStart(2, '0');
 
+// Whether an image URL actually loads (8 s timeout).
+const imageLoads = (src: string) => new Promise<boolean>(resolve => {
+  const img = new Image();
+  const timer = setTimeout(() => resolve(false), 8000);
+  img.onload = () => { clearTimeout(timer); resolve(img.naturalWidth > 0); };
+  img.onerror = () => { clearTimeout(timer); resolve(false); };
+  img.src = src;
+});
+
 const STATUS_STYLE: Record<Scheduled['status'], { label: string; cls: string }> = {
   scheduled: { label: 'Scheduled', cls: 'bg-blue-50 text-blue-600 border-blue-200' },
   sending:   { label: 'Sending…',  cls: 'bg-amber-50 text-amber-700 border-amber-200' },
@@ -46,6 +55,8 @@ export function ScheduleEmailModal({ onClose }: { onClose: () => void }) {
   const [templateKey, setTemplateKey] = useState('');
   const [previewHtml, setPreviewHtml] = useState('');
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState('');
+  const [missingImages, setMissingImages] = useState<string[]>([]);
   const [subject, setSubject] = useState('');
 
   // recipients
@@ -94,10 +105,29 @@ export function ScheduleEmailModal({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     if (!templateKey) { setPreviewHtml(''); return; }
     let live = true;
-    setPreviewLoading(true);
+    setPreviewLoading(true); setPreviewError(''); setMissingImages([]);
     apiClient.get(`/notification/scheduledEmail/templates/${encodeURIComponent(templateKey)}/preview`)
-      .then(res => { if (live) setPreviewHtml(res.data?.html || ''); })
-      .catch(() => { if (live) setPreviewHtml(''); })
+      .then(async res => {
+        const html: string = res.data?.html || '';
+        // The email loads its images from the email image host (S3). One not uploaded there yet would
+        // leave the preview blank (the Diwali email is a single picture), so show QuickPost's own copy
+        // in the preview and say which images still have to be uploaded.
+        const srcs = Array.from(new Set(Array.from(html.matchAll(/<img[^>]+src="([^"]+)"/g), m => m[1])));
+        const missing = (await Promise.all(srcs.map(async s => ((await imageLoads(s)) ? null : s)))).filter(Boolean) as string[];
+        let shown = html;
+        for (const src of missing) {
+          const local = `${window.location.origin}/email/${src.split('/').pop()}`;
+          if (await imageLoads(local)) shown = shown.split(src).join(local);
+        }
+        if (!live) return;
+        setPreviewHtml(shown);
+        setMissingImages(missing.map(s => s.split('/').pop() || s));
+      })
+      .catch((e: any) => {
+        if (!live) return;
+        setPreviewHtml('');
+        setPreviewError(e?.response?.data?.error || e?.response?.data?.message || e?.message || 'Could not load the preview');
+      })
       .finally(() => { if (live) setPreviewLoading(false); });
     return () => { live = false; };
   }, [templateKey]);
@@ -287,10 +317,20 @@ export function ScheduleEmailModal({ onClose }: { onClose: () => void }) {
                     <div className="h-full flex items-center justify-center text-xs text-[#94A3B8]">Loading preview…</div>
                   ) : previewHtml ? (
                     <iframe title="Email preview" srcDoc={previewHtml} sandbox="" className="w-full h-full bg-white" />
+                  ) : previewError ? (
+                    <div className="h-full flex flex-col items-center justify-center gap-2 px-6 text-center text-xs text-red-500">
+                      <AlertTriangle className="w-5 h-5" />{previewError}
+                    </div>
                   ) : (
                     <div className="h-full flex items-center justify-center text-xs text-[#94A3B8]">No preview</div>
                   )}
                 </div>
+                {missingImages.length > 0 && (
+                  <div className="mt-2 text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 flex items-start gap-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                    <span>Not uploaded to the email image storage yet: {missingImages.join(', ')}. The preview uses QuickPost's copy, but the email itself will show a broken image until it is uploaded.</span>
+                  </div>
+                )}
                 <p className="text-[11px] text-[#94A3B8] mt-1.5 flex items-center gap-1"><Mail className="w-3 h-3" /> Sent from QuickPost</p>
               </div>
             </div>
