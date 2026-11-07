@@ -9,6 +9,7 @@
 import fs from "fs";
 import path from "path";
 import { templates, renderEmail } from "./index";
+import { IMAGE_BASE_URL } from "./theme";
 
 const OUT_DIR = path.resolve("../public/email-preview");
 fs.mkdirSync(OUT_DIR, { recursive: true });
@@ -20,6 +21,7 @@ const inDays = (n) => { const d = new Date(now); d.setDate(d.getDate() + n); ret
 // Realistic sample props per template — same shape the real backend will pass in.
 const SAMPLE_PROPS = {
   emailVerificationOtp: { firstName: "Ravi", otp: "482913", expiryMinutes: "10" },
+  diwaliGreeting: {},
   forgotPassword: { firstName: "Ravi", resetLink: "https://app.quickpost.in/reset-password?token=sample", expiryMinutes: "30" },
   notificationUpdate: {
     firstName: "Ravi",
@@ -109,7 +111,8 @@ const PLACEHOLDER_TO_PROP = {
 const manifest = [];
 for (const [key, { component, subject }] of Object.entries(templates)) {
   const props = SAMPLE_PROPS[key] || {};
-  const html = renderEmail(component, props);
+  // Point images at the dev server's /email/ folder instead of the production CDN.
+  const html = renderEmail(component, props).split(IMAGE_BASE_URL + "/").join("/email/");
   fs.writeFileSync(path.join(OUT_DIR, `${key}.html`), html);
   const filledSubject = subject.replace(/\{\{(\w+)\}\}/g, (_, k) => {
     const propKey = PLACEHOLDER_TO_PROP[k] || (k.charAt(0).toLowerCase() + k.slice(1));

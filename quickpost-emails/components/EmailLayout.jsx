@@ -23,10 +23,12 @@ const responsiveCss = `
 /**
  * Shared shell for every Quickpost email.
  * @param preview  Hidden inbox preview text (shown after the subject line).
- * @param footer   "compact" (default) or "full" (adds the app-download block).
+ * @param footer   "compact" (default), "full" (adds the app-download block) or "none".
  * @param hero     { file, alt } main image shown on the green city backdrop, or null.
+ * @param banner   { file, alt, width, height, href } full-width artwork that already carries the logo (festive
+ *                 greetings). Replaces the header; the body text below it is the fallback when images are blocked.
  */
-export default function EmailLayout({ preview = "", footer = "compact", hero = null, children }) {
+export default function EmailLayout({ preview = "", footer = "compact", hero = null, banner = null, children }) {
   return (
     <html lang="en">
       <head>
@@ -100,7 +102,21 @@ export default function EmailLayout({ preview = "", footer = "compact", hero = n
                         {"\u00A0"}
                       </td>
                     </tr>
-                    {hero ? (
+                    {banner ? (
+                      /* full-width artwork (has its own logo) */
+                      <tr>
+                        <td style={{ padding: 0, lineHeight: 0, fontSize: 0 }}>
+                          <a href={banner.href || brand.website} target="_blank" rel="noreferrer">
+                            <img
+                              src={img(banner.file)}
+                              width="600"
+                              alt={banner.alt || ""}
+                              style={{ display: "block", width: "100%", maxWidth: 600, height: "auto" }}
+                            />
+                          </a>
+                        </td>
+                      </tr>
+                    ) : hero ? (
                       /* header scene: logo + main image on the green city backdrop */
                       <tr>
                         <td
@@ -157,23 +173,25 @@ export default function EmailLayout({ preview = "", footer = "compact", hero = n
                       </tr>
                     )}
                     {/* body */}
-                    <tr>
+                    {children ? <tr>
                       <td
                         className="qp-px"
                         style={{
-                          padding: hero ? "32px 48px 40px" : "8px 48px 40px",
+                          padding: hero || banner ? "32px 48px 40px" : "8px 48px 40px",
                           fontFamily: font,
                           color: colors.body,
                         }}
                       >
                         {children}
                       </td>
-                    </tr>
-                    <tr>
-                      <td>
-                        <Footer variant={footer} />
-                      </td>
-                    </tr>
+                    </tr> : null}
+                    {footer !== "none" ? (
+                      <tr>
+                        <td>
+                          <Footer variant={footer} />
+                        </td>
+                      </tr>
+                    ) : null}
                   </tbody>
                 </table>
               </td>
