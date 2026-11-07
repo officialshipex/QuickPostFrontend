@@ -10,6 +10,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { apiClient } from '../../services/apiClient';
 import { useAuth } from '../../hooks/useAuth';
 import { getRoleFromToken } from '../../utils/session';
+import { useRegisterOtp } from './RegisterOtpStep';
 
 const MONTHLY_ORDER_OPTIONS = [
   '0 - 500',
@@ -49,6 +50,7 @@ export function SignupCardMobile({ onBack }: SignupCardMobileProps) {
   // Code from a sales person or another seller (pre-filled from a ?ref= link, or typed in)
   const [referralCode, setReferralCode] = useState(() => searchParams.get('ref') || searchParams.get('code') || '');
   const { login } = useAuth();
+  const registerOtp = useRegisterOtp();
 
   const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -59,7 +61,11 @@ export function SignupCardMobile({ onBack }: SignupCardMobileProps) {
     setStatus('loading');
     setServerError(null);
     try {
+      // Company asks for OTP at registration: verify email + mobile first (closed = stay on the form)
+      const otpTokens = await registerOtp.verify(data.email, data.phone);
+      if (!otpTokens) { setStatus('idle'); return; }
       const response = await apiClient.post('/external/register', {
+        ...otpTokens,
         fullname: data.fullname,
         email: data.email,
         phoneNumber: data.phone,
@@ -242,6 +248,7 @@ export function SignupCardMobile({ onBack }: SignupCardMobileProps) {
           Already have an account? <Link to="/login" className="text-[#00A86B] font-semibold hover:underline">Log in</Link>
         </p>
       </div>
+      {registerOtp.dialog}
     </div>
   );
 }

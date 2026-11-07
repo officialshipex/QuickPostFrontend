@@ -57,6 +57,8 @@ export interface CompanySummary {
   // when on, users who register under this company are saved with that contact already verified
   autoVerifyEmail?: boolean;
   autoVerifyPhone?: boolean;
+  // when on, registering needs an email OTP + mobile OTP first; absent from a backend that predates the setting
+  registrationOtp?: boolean;
   // which KYC routes sellers of this company are offered; absent from a backend that predates the setting
   kycMethods?: { ekyc: boolean; manual: boolean };
   // which shipping-label design this company's sellers download; absent from a backend that predates the setting
