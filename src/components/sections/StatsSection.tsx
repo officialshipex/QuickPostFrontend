@@ -41,7 +41,7 @@ export function StatsSection() {
   const isInView = useInView(ref, { once: true, margin: "-100px" });
 
   return (
-    <section className="py-20 md:py-28 bg-[#FAFAFA] border-t border-slate-100" ref={ref}>
+    <section className="py-12 md:py-28 bg-[#F1F5F3] md:bg-[#FAFAFA] border-t border-slate-100" ref={ref}>
       <style>{`
         @keyframes dash {
           to {
@@ -50,26 +50,65 @@ export function StatsSection() {
         }
       `}</style>
 
-      {/* Mobile: compact green stat banner */}
-      <div className="md:hidden container mx-auto px-6">
-        <div className="bg-[#00A86B] rounded-3xl px-6 py-8 text-center">
-          <h2 className="text-xl font-bold text-white tracking-tight leading-tight mb-6 font-sans">
-            Built for Speed. Trusted for Scale.
-          </h2>
-          <div className="grid grid-cols-3 gap-2">
-            <div>
-              <div className="text-2xl font-black text-white tracking-tight"><CountUp end={10000} suffix="+" /></div>
-              <div className="text-white/80 text-[10px] font-semibold uppercase tracking-wide font-sans mt-1">Sellers Onboarded</div>
-            </div>
-            <div>
-              <div className="text-2xl font-black text-white tracking-tight"><CountUp end={50} suffix="L+" /></div>
-              <div className="text-white/80 text-[10px] font-semibold uppercase tracking-wide font-sans mt-1">Shipments Delivered</div>
-            </div>
-            <div>
-              <div className="text-2xl font-black text-white tracking-tight"><CountUp end={25} suffix="+" /></div>
-              <div className="text-white/80 text-[10px] font-semibold uppercase tracking-wide font-sans mt-1">Courier Partners</div>
-            </div>
-          </div>
+      {/* Mobile: light stat cards (the green CTA band sits right above, so no second green block) */}
+      <div className="md:hidden px-4">
+        <h2 className="text-[24px] font-black text-[#0F172A] tracking-tight leading-tight text-center font-sans">
+          Built for Speed. <span className="text-[#00A86B]">Trusted for Scale.</span>
+        </h2>
+        <div className="w-12 h-1 bg-[#00A86B] mx-auto rounded-full mt-4 mb-7" />
+        <div className="rounded-3xl bg-white border border-slate-200/80 shadow-[0_18px_40px_-28px_rgba(15,23,42,0.35)] divide-y divide-slate-100 overflow-hidden">
+          {[
+            { end: 10000, suffix: '+', label: 'Sellers onboarded', art: 'growth' },
+            { end: 50, suffix: 'L+', label: 'Shipments delivered', art: 'routes' },
+            { end: 25, suffix: '+', label: 'Courier partners', art: 'network' },
+          ].map((st, i) => (
+            <motion.div
+              key={st.label}
+              className="relative flex items-center justify-between gap-4 pl-6 pr-4 py-5"
+              initial={{ opacity: 0, x: -12 }}
+              animate={isInView ? { opacity: 1, x: 0 } : {}}
+              transition={{ duration: 0.5, delay: 0.1 + i * 0.12 }}
+            >
+              {/* accent bar grows in */}
+              <motion.span
+                className="absolute left-0 top-5 bottom-5 w-[3px] rounded-r-full bg-[#00A86B] origin-top"
+                initial={{ scaleY: 0 }}
+                animate={isInView ? { scaleY: 1 } : {}}
+                transition={{ duration: 0.6, delay: 0.25 + i * 0.12 }}
+              />
+              <div className="min-w-0">
+                <div className="text-[32px] font-black text-[#0F172A] tracking-tight leading-none tabular-nums"><CountUp end={st.end} suffix={st.suffix} /></div>
+                <div className="mt-1.5 text-[#5F5E5A] text-[11.5px] font-semibold uppercase tracking-wider font-sans">{st.label}</div>
+              </div>
+              <svg className="w-[112px] h-12 shrink-0 text-[#00A86B]" viewBox="0 0 200 80" fill="none" stroke="currentColor" aria-hidden>
+                {st.art === 'growth' && (
+                  <>
+                    <path d="M10,70 L40,68 L70,55 L100,58 L130,35 L160,38 L190,12" stroke="#E2E8F0" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M10,70 L40,68 L70,55 L100,58 L130,35 L160,38 L190,12" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="24 156" className="animate-[dash_3s_linear_infinite]" />
+                    <circle cx="190" cy="12" r="5" fill="#00A86B" />
+                  </>
+                )}
+                {st.art === 'routes' && [20, 40, 60].map((y, k) => (
+                  <g key={y}>
+                    <line x1="10" y1={y} x2="190" y2={y} stroke="#E2E8F0" strokeWidth="3" strokeLinecap="round" />
+                    <line x1="10" y1={y} x2="190" y2={y} strokeWidth="3" strokeLinecap="round" strokeDasharray="15 165" strokeDashoffset={k * 40} className={['animate-[dash_3.5s_linear_infinite]', 'animate-[dash_2.8s_linear_infinite]', 'animate-[dash_2.2s_linear_infinite]'][k]} />
+                  </g>
+                ))}
+                {st.art === 'network' && (
+                  <>
+                    {[[45, 20], [155, 20], [45, 60], [155, 60]].map(([x, y]) => (
+                      <g key={`${x}-${y}`}>
+                        <line x1="100" y1="40" x2={x} y2={y} stroke="#E2E8F0" strokeWidth="2" />
+                        <circle cx={x} cy={y} r="6" fill="#F1F5F9" stroke="#94A3B8" strokeWidth="2" />
+                        <circle r="3" fill="currentColor"><animateMotion path={`M100,40 L${x},${y}`} dur={`${1.2 + (x + y) % 5 / 10}s`} repeatCount="indefinite" /></circle>
+                      </g>
+                    ))}
+                    <circle cx="100" cy="40" r="8" fill="currentColor" />
+                  </>
+                )}
+              </svg>
+            </motion.div>
+          ))}
         </div>
       </div>
 

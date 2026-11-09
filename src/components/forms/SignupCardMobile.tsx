@@ -49,6 +49,7 @@ export function SignupCardMobile({ onBack }: SignupCardMobileProps) {
   const [searchParams] = useSearchParams();
   // Code from a sales person or another seller (pre-filled from a ?ref= link, or typed in)
   const [referralCode, setReferralCode] = useState(() => searchParams.get('ref') || searchParams.get('code') || '');
+  const [showReferral, setShowReferral] = useState(() => !!referralCode);
   const { login } = useAuth();
   const registerOtp = useRegisterOtp();
 
@@ -96,12 +97,12 @@ export function SignupCardMobile({ onBack }: SignupCardMobileProps) {
   };
 
   return (
-    <div className="bg-white p-6 rounded-2xl shadow-2xl shadow-black/10">
+    <div className="bg-white px-4 py-5 rounded-2xl shadow-2xl shadow-black/10">
       {onBack && (
         <button
           type="button"
           onClick={onBack}
-          className="flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-[#00A86B] transition-colors mb-4 font-sans"
+          className="flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-[#00A86B] transition-colors mb-3 font-sans"
         >
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
             <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
@@ -110,76 +111,83 @@ export function SignupCardMobile({ onBack }: SignupCardMobileProps) {
         </button>
       )}
 
-      <div className="text-center mb-6">
-        <h2 className="text-xl font-bold text-[#0F172A] mb-1.5 font-sans">Create an account</h2>
-        <p className="text-[#64748B] text-sm font-sans">Sign up in less than 2 minutes.</p>
+      <div className="text-center mb-4">
+        <h2 className="text-[18px] font-bold text-[#0F172A] font-sans">Create an account</h2>
+        <p className="text-[#64748B] text-[12.5px] mt-0.5 font-sans">Sign up in less than 2 minutes.</p>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
         <div>
-          <label className="block text-xs font-semibold text-[#475569] mb-1.5 font-sans">Full Name<span className="text-red-500">*</span></label>
-          <Input placeholder="Enter your full name" className="h-11 bg-transparent border-[#E2E8F0] text-sm focus-visible:ring-[#00A86B]" {...register('fullname')} error={errors.fullname?.message} />
+          <label className="block text-xs font-semibold text-[#475569] mb-1 font-sans">Full Name<span className="text-red-500">*</span></label>
+          <Input placeholder="Enter your full name" className="h-10 bg-transparent border-[#E2E8F0] text-sm focus-visible:ring-[#00A86B]" {...register('fullname')} error={errors.fullname?.message} />
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-[#475569] mb-1.5 font-sans">Email<span className="text-red-500">*</span></label>
-          <Input type="email" placeholder="abc@gmail.com" className="h-11 bg-transparent border-[#E2E8F0] text-sm focus-visible:ring-[#00A86B]" {...register('email')} error={errors.email?.message} />
+          <label className="block text-xs font-semibold text-[#475569] mb-1 font-sans">Email<span className="text-red-500">*</span></label>
+          <Input type="email" placeholder="abc@gmail.com" className="h-10 bg-transparent border-[#E2E8F0] text-sm focus-visible:ring-[#00A86B]" {...register('email')} error={errors.email?.message} />
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-[#475569] mb-1.5 font-sans">Phone Number<span className="text-red-500">*</span></label>
+          <label className="block text-xs font-semibold text-[#475569] mb-1 font-sans">Phone Number<span className="text-red-500">*</span></label>
           <div className="flex">
             <div className="flex items-center border border-r-0 border-[#E2E8F0] rounded-l-md px-2 bg-transparent text-sm text-[#475569] font-sans">
               +91 <ChevronDown className="w-3 h-3 ml-1" />
             </div>
-            <Input type="tel" placeholder="9876543210" className="h-11 rounded-l-none bg-transparent border-[#E2E8F0] text-sm focus-visible:ring-[#00A86B]" {...register('phone')} error={errors.phone?.message} />
+            <Input type="tel" placeholder="9876543210" className="h-10 rounded-l-none bg-transparent border-[#E2E8F0] text-sm focus-visible:ring-[#00A86B]" {...register('phone')} error={errors.phone?.message} />
           </div>
         </div>
         <RegisterOtpFormBar otp={registerOtp} email={watch('email')} phone={watch('phone')} />
 
-        <div>
-          <label className="block text-xs font-semibold text-[#475569] mb-1.5 font-sans">Company Name<span className="text-red-500">*</span></label>
-          <Input placeholder="Your company name" className="h-11 bg-transparent border-[#E2E8F0] text-sm focus-visible:ring-[#00A86B]" {...register('company')} error={errors.company?.message} />
+        <div className="grid grid-cols-2 gap-2.5">
+        <div className="min-w-0">
+          <label className="block text-xs font-semibold text-[#475569] mb-1 font-sans">Company Name<span className="text-red-500">*</span></label>
+          <Input placeholder="Your company name" className="h-10 bg-transparent border-[#E2E8F0] text-sm focus-visible:ring-[#00A86B]" {...register('company')} error={errors.company?.message} />
         </div>
 
-        <div>
-          <label className="block text-xs font-semibold text-[#475569] mb-1.5 font-sans">Monthly Orders<span className="text-red-500">*</span></label>
+        <div className="min-w-0">
+          <label className="block text-xs font-semibold text-[#475569] mb-1 font-sans">Monthly Orders<span className="text-red-500">*</span></label>
           <select
             {...register('monthlyOrders')}
-            className="h-11 w-full rounded-md border border-[#E2E8F0] bg-transparent px-3 text-sm text-[#0F172A] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B] font-sans"
+            className="h-10 w-full rounded-md border border-[#E2E8F0] bg-transparent px-3 text-sm text-[#0F172A] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B] font-sans"
           >
-            <option value="">Select monthly order range</option>
+            <option value="">Select range</option>
             {MONTHLY_ORDER_OPTIONS.map(opt => (
               <option key={opt} value={opt}>{opt}</option>
             ))}
           </select>
           {errors.monthlyOrders && <p className="mt-1 text-xs text-red-500 font-sans">{errors.monthlyOrders.message}</p>}
         </div>
-
-        <div>
-          <label className="block text-xs font-semibold text-[#475569] mb-1.5 font-sans">Referral code <span className="font-normal text-[#94A3B8]">(optional)</span></label>
-          <Input value={referralCode} onChange={e => setReferralCode(e.target.value.toUpperCase())} placeholder="e.g. SPAB12CD" autoComplete="off" className="h-11 bg-transparent border-[#E2E8F0] text-sm uppercase focus-visible:ring-[#00A86B]" />
         </div>
 
+        {!showReferral ? (
+          <button type="button" onClick={() => setShowReferral(true)} className="text-[12px] font-semibold text-[#00A86B] font-sans">+ Have a referral code?</button>
+        ) : (
         <div>
-          <label className="block text-xs font-semibold text-[#475569] mb-1.5 font-sans">Password<span className="text-red-500">*</span></label>
+          <label className="block text-xs font-semibold text-[#475569] mb-1 font-sans">Referral code <span className="font-normal text-[#94A3B8]">(optional)</span></label>
+          <Input value={referralCode} onChange={e => setReferralCode(e.target.value.toUpperCase())} placeholder="e.g. SPAB12CD" autoComplete="off" className="h-10 bg-transparent border-[#E2E8F0] text-sm uppercase focus-visible:ring-[#00A86B]" />
+        </div>
+        )}
+
+        <div className="grid grid-cols-2 gap-2.5">
+        <div className="min-w-0">
+          <label className="block text-xs font-semibold text-[#475569] mb-1 font-sans">Password<span className="text-red-500">*</span></label>
           <div className="relative">
-            <Input type={showPassword ? 'text' : 'password'} placeholder="Create a password" className="h-11 bg-transparent border-[#E2E8F0] text-sm pr-10 focus-visible:ring-[#00A86B]" {...register('password')} error={errors.password?.message} />
-            <button type="button" onClick={() => setShowPassword(p => !p)} className="absolute right-3 top-3.5 text-[#94A3B8] hover:text-[#475569]">
+            <Input type={showPassword ? 'text' : 'password'} placeholder="Min. 8 characters" className="h-10 bg-transparent border-[#E2E8F0] text-sm pr-10 focus-visible:ring-[#00A86B]" {...register('password')} error={errors.password?.message} />
+            <button type="button" onClick={() => setShowPassword(p => !p)} className="absolute right-3 top-3 text-[#94A3B8] hover:text-[#475569]">
               {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
           </div>
-          <p className="text-[10px] text-[#94A3B8] mt-1 font-sans">Must be at least 8 characters.</p>
         </div>
 
-        <div>
-          <label className="block text-xs font-semibold text-[#475569] mb-1.5 font-sans">Confirm Password<span className="text-red-500">*</span></label>
+        <div className="min-w-0">
+          <label className="block text-xs font-semibold text-[#475569] mb-1 font-sans">Confirm Password<span className="text-red-500">*</span></label>
           <div className="relative">
-            <Input type={showConfirm ? 'text' : 'password'} placeholder="Confirm your password" className="h-11 bg-transparent border-[#E2E8F0] text-sm pr-10 focus-visible:ring-[#00A86B]" {...register('confirmedPassword')} error={errors.confirmedPassword?.message} />
-            <button type="button" onClick={() => setShowConfirm(p => !p)} className="absolute right-3 top-3.5 text-[#94A3B8] hover:text-[#475569]">
+            <Input type={showConfirm ? 'text' : 'password'} placeholder="Re-enter" className="h-10 bg-transparent border-[#E2E8F0] text-sm pr-10 focus-visible:ring-[#00A86B]" {...register('confirmedPassword')} error={errors.confirmedPassword?.message} />
+            <button type="button" onClick={() => setShowConfirm(p => !p)} className="absolute right-3 top-3 text-[#94A3B8] hover:text-[#475569]">
               {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
           </div>
+        </div>
         </div>
 
         <div className="flex items-start gap-2">
@@ -244,7 +252,7 @@ export function SignupCardMobile({ onBack }: SignupCardMobileProps) {
       </div>
       */}
 
-      <div className="text-center mt-6">
+      <div className="text-center mt-4">
         <p className="text-xs text-[#64748B] font-sans">
           Already have an account? <Link to="/login" className="text-[#00A86B] font-semibold hover:underline">Log in</Link>
         </p>

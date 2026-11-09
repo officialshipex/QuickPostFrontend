@@ -9,7 +9,83 @@ const IconYouTube = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" hei
 const IconMail = ({ size = 14, color = "#1D9E75" }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-10z" /><path d="M3 7l9 6l9 -6" /></svg>;
 const IconClock = ({ size = 14, color = "#1D9E75" }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" /><path d="M12 7l0 5l3 3" /></svg>;
 
-export function Footer() {
+/** `hideCta`: the page already ends with its own call-to-action band (the landing page). */
+const FOOTER_GROUPS: { title: string; links: { label: string; to?: string }[] }[] = [
+  { title: 'Product', links: ['Order Management', 'Rate Calculator', 'Courier Comparison', 'NDR Management', 'COD Remittance', 'Tracking Page'].map(label => ({ label, to: label === 'Rate Calculator' ? '/rate-calculator' : undefined })) },
+  { title: 'Company', links: ['About Us', 'Careers', 'Partner Program', 'Contact Us'].map(label => ({ label, to: label === 'Careers' ? '/careers' : undefined })) },
+  { title: 'Integrations', links: ['Shopify', 'WooCommerce', 'API Documentation'].map(label => ({ label })) },
+];
+
+const LEGAL_LINKS = [
+  { label: 'Terms & Conditions', to: '/terms-and-conditions' },
+  { label: 'Privacy Policy', to: '/privacy-policy' },
+  { label: 'Refund & Cancellation Policy', to: '/refund-and-cancellation-policy' },
+];
+
+/** Phones: open layout — brand and description, social, two-column link groups, contact, then legal. */
+function MobileFooter() {
+  const [product, company, integrations] = FOOTER_GROUPS;
+  const linkCls = 'text-[14.5px] text-white/75 leading-snug active:text-white';
+  const group = (g: typeof product) => (
+    <div>
+      <h4 className="text-[19px] font-bold text-white mb-3.5">{g.title}</h4>
+      <ul className="space-y-3.5">
+        {g.links.map(l => (
+          <li key={l.label}>
+            {l.to ? <Link to={l.to} className={linkCls}>{l.label}</Link> : <span className={linkCls}>{l.label}</span>}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+  return (
+    <div className="md:hidden bg-[#0D1F1A] px-6 pt-12 pb-[max(1.75rem,env(safe-area-inset-bottom))]">
+      <img src="/logo-white.png" alt="QuickPost" className="h-[64px] w-auto object-contain scale-[1.5] origin-left" />
+      <p className="mt-5 text-[15.5px] text-white/70 leading-[1.75]">
+        QuickPost is a multi-courier shipping platform built for Indian eCommerce. Compare live rates across leading couriers,
+        ship to pincodes across India, automate NDR and RTO follow-ups, and get your COD remitted faster — all from one dashboard.
+      </p>
+
+      <h4 className="mt-10 text-[21px] font-bold text-white">Follow Us</h4>
+      <div className="mt-5 flex items-center gap-7 pl-1">
+        {[IconLinkedIn, IconInstagram, IconX, IconYouTube].map((Icon, idx) => (
+          <span key={idx} className="text-white [&_svg]:w-[24px] [&_svg]:h-[24px]"><Icon /></span>
+        ))}
+      </div>
+
+      <div className="mt-12 grid grid-cols-2 gap-x-6">
+        <div className="space-y-10">
+          {group(company)}
+          {group(integrations)}
+        </div>
+        {group(product)}
+      </div>
+
+      <h4 className="mt-12 text-[21px] font-bold text-white">Contact Us</h4>
+      <div className="mt-5 space-y-5">
+        <a href="mailto:support@quickpost.in" className="flex items-center gap-4">
+          <span className="w-7 h-6 rounded-md bg-[#1D9E75] flex items-center justify-center shrink-0"><IconMail size={15} color="#FFFFFF" /></span>
+          <span className="text-[16px] text-white/80">support@quickpost.in</span>
+        </a>
+        <div className="flex items-center gap-4">
+          <span className="w-7 h-7 rounded-full bg-[#F59E0B] flex items-center justify-center shrink-0"><IconClock size={15} color="#FFFFFF" /></span>
+          <span className="text-[16px] text-white/80">Mon–Sat, 9am–7pm IST</span>
+        </div>
+      </div>
+
+      <div className="mt-10 mx-2 pt-7 border-t border-white/15 text-center">
+        <div className="grid grid-cols-3 items-center">
+          {LEGAL_LINKS.map((l, idx) => (
+            <Link key={l.label} to={l.to} className={`px-2 text-[14px] leading-snug text-white/75 active:text-white ${idx > 0 ? 'border-l border-white/30' : ''}`}>{l.label}</Link>
+          ))}
+        </div>
+        <p className="mt-7 text-[15px] text-white/75">© 2026 Quickpost. All rights reserved.</p>
+      </div>
+    </div>
+  );
+}
+
+export function Footer({ hideCta = false }: { hideCta?: boolean }) {
   const footerRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -50,7 +126,7 @@ export function Footer() {
     <footer ref={footerRef} className="overflow-hidden" style={{ fontFamily: 'Roboto, sans-serif' }}>
       
       {/* ================= ZONE 1: CTA STRIP ================= */}
-      <div className="bg-[#1D9E75] footer-zone-1 relative z-10 border-b border-white/15">
+      {!hideCta && <div className="bg-[#1D9E75] footer-zone-1 relative z-10 border-b border-white/15">
         <div className="max-w-[1200px] mx-auto px-5 md:px-0 py-[28px] md:py-[48px] flex flex-col md:flex-row items-center">
           {/* LEFT: 55% */}
           <div className="w-full md:w-[55%] text-center md:text-left mb-5 md:mb-0 footer-cta-left">
@@ -72,10 +148,12 @@ export function Footer() {
             </Link>
           </div>
         </div>
-      </div>
+      </div>}
 
       {/* ================= ZONE 2: MAIN FOOTER COLUMNS ================= */}
-      <div className="bg-[#0D1F1A] footer-zone-2">
+      <MobileFooter />
+
+      <div className="hidden md:block bg-[#0D1F1A] footer-zone-2">
         <div className="max-w-[1200px] mx-auto px-5 md:px-0 pt-[36px] pb-[28px] md:pt-[64px] md:pb-[48px]">
           
           {/* Grid Layout */}

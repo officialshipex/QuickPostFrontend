@@ -8,6 +8,8 @@ import { Features } from '../components/sections/Features';
 import { ProfitsSection } from '../components/sections/ProfitsSection';
 import { HowItWorks } from '../components/sections/HowItWorks';
 import { ServicesPortfolioSection } from '../components/sections/ServicesPortfolioSection';
+import { ValueAddedServicesSection } from '../components/sections/ValueAddedServicesSection';
+import { FinalCtaBand } from '../components/sections/FinalCtaBand';
 import { StatsSection } from '../components/sections/StatsSection';
 import { OfferPopup } from '../components/sections/OfferPopup';
 
@@ -36,10 +38,12 @@ export function Home() {
         </Suspense>
         <ProfitsSection />
         <HowItWorks />
+        <ValueAddedServicesSection />
+        <FinalCtaBand />
         <ServicesPortfolioSection />
         <StatsSection />
       </main>
-      <Footer />
+      <Footer hideCta />
       <OfferPopup />
     </div>
   );

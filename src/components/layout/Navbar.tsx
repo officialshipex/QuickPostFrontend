@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence, useScroll, useMotionValueEvent } from 'framer-motion';
+import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, ChevronRight } from 'lucide-react';
 import { appUrl } from '../../utils/domainUrl';
+import { FestiveOfferBar, FESTIVE_BAR_HEIGHT } from './FestiveOfferBar';
 
 const navLinks = [
   { label: 'Platform', href: '#features', badge: null },
@@ -15,11 +17,23 @@ export function Navbar() {
   const { scrollY } = useScroll();
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  // Mobile festive strip above the navbar; closing it lasts for this visit
+  const [offerClosed, setOfferClosed] = useState(() => { try { return sessionStorage.getItem('qp_festive_bar_closed') === '1'; } catch { return false; } });
+  const closeOffer = () => { setOfferClosed(true); try { sessionStorage.setItem('qp_festive_bar_closed', '1'); } catch { /* ignore */ } };
 
   useMotionValueEvent(scrollY, "change", (latest) => {
     setIsScrolled(latest > 60);
-    if (latest > 60) setMobileOpen(false);
   });
+
+  // Full-screen mobile menu: lock page scroll and close on Esc while it is open.
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMobileOpen(false); };
+    window.addEventListener('keydown', onKey);
+    return () => { document.body.style.overflow = prev; window.removeEventListener('keydown', onKey); };
+  }, [mobileOpen]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -83,6 +97,7 @@ export function Navbar() {
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
       >
+        <FestiveOfferBar hidden={offerClosed || isScrolled} onClose={closeOffer} />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-10 h-[78px] flex items-center justify-between gap-3 sm:gap-6">
 
           {/* ── Logo ── */}
@@ -182,91 +197,101 @@ export function Navbar() {
           </button>
         </div>
 
-        {/* ── Mobile Menu ── */}
+      </motion.header>
+
+      {/* Pushes the page down by the festive strip's height on phones (the header itself is fixed) */}
+      {!offerClosed && <div aria-hidden className="md:hidden" style={{ height: FESTIVE_BAR_HEIGHT }} />}
+
+      {/* ── Mobile Menu — full-screen sheet ── */}
+      {createPortal(
         <AnimatePresence>
           {mobileOpen && (
             <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-              className={`lg:hidden overflow-y-auto border-t ${
-                isScrolled
-                  ? 'bg-white border-slate-100'
-                  : 'bg-[#006B44]/95 backdrop-blur-2xl border-white/10'
-              }`}
-              style={{ maxHeight: 'calc(100dvh - 78px)' }}
+              key="qp-mobile-menu"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Main menu"
+              className="lg:hidden fixed inset-0 z-[100] bg-white flex flex-col"
+              style={{ fontFamily: 'Roboto, sans-serif' }}
+              initial={{ opacity: 0, y: -12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -12 }}
+              transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
             >
-              <div className="max-w-7xl mx-auto px-4 sm:px-5 py-3 sm:py-4 flex flex-col gap-1">
+              {/* Header */}
+              <div className="h-[78px] px-4 sm:px-6 flex items-center justify-between shrink-0 border-b border-slate-100">
+                <Link to="/" onClick={() => setMobileOpen(false)} className="flex items-center">
+                  <img src="/logo-color.png" alt="QuickPost" className="object-contain scale-[1.5] origin-left ml-2" style={{ height: '64px', width: 'auto' }} />
+                </Link>
+                <button
+                  onClick={() => setMobileOpen(false)}
+                  aria-label="Close menu"
+                  className="w-10 h-10 rounded-full flex items-center justify-center text-[#0F172A] hover:bg-slate-100 active:bg-slate-100 transition-colors"
+                >
+                  <X size={22} />
+                </button>
+              </div>
+
+              {/* Links */}
+              <nav className="flex-1 overflow-y-auto px-4 sm:px-6 py-2">
                 {navLinks.map((link, i) => {
-                  const mobileLinkClass = `flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-[14px] font-medium transition-colors ${
-                    isScrolled
-                      ? 'text-[#4A5568] hover:text-[#0F172A] hover:bg-slate-50'
-                      : 'text-white/85 hover:text-white hover:bg-white/10'
-                  }`;
+                  const rowClass = 'group flex items-center justify-between gap-3 py-[18px] border-b border-slate-100 text-[17px] font-semibold text-[#0F172A] active:text-[#00A86B]';
                   const content = (
                     <>
-                      {link.label}
-                      {link.badge && (
-                        <span className="text-[10px] font-bold px-1.5 py-[2px] rounded-full bg-[#00A86B] text-white">
-                          {link.badge}
-                        </span>
-                      )}
+                      <span className="flex items-center gap-2">
+                        {link.label}
+                        {link.badge && (
+                          <span className="text-[10px] font-bold px-1.5 py-[2px] rounded-full bg-[#00A86B] text-white leading-none">{link.badge}</span>
+                        )}
+                      </span>
+                      <ChevronRight className="w-5 h-5 text-slate-400 transition-transform group-hover:translate-x-0.5 group-hover:text-[#00A86B]" />
                     </>
                   );
-                  // Same fix as the desktop nav — real routes use Link (client-side,
-                  // no reload), pure hash anchors stay as native <a> tags.
-                  return link.href.startsWith('/') ? (
+                  return (
                     <motion.div
                       key={link.label}
-                      initial={{ opacity: 0, x: -12 }}
+                      initial={{ opacity: 0, x: -16 }}
                       animate={{ opacity: 1, x: 0 }}
-                      transition={{ duration: 0.22, delay: i * 0.05 }}
+                      transition={{ duration: 0.3, delay: 0.06 + i * 0.05, ease: [0.16, 1, 0.3, 1] }}
                     >
-                      <Link to={link.href} onClick={() => setMobileOpen(false)} className={mobileLinkClass}>
-                        {content}
-                      </Link>
+                      {/* Real routes use Link (no reload); hash anchors stay native <a> for scroll-to-anchor. */}
+                      {link.href.startsWith('/') ? (
+                        <Link to={link.href} onClick={() => setMobileOpen(false)} className={rowClass}>{content}</Link>
+                      ) : (
+                        <a href={link.href} onClick={() => setMobileOpen(false)} className={rowClass}>{content}</a>
+                      )}
                     </motion.div>
-                  ) : (
-                    <motion.a
-                      key={link.label}
-                      href={link.href}
-                      onClick={() => setMobileOpen(false)}
-                      initial={{ opacity: 0, x: -12 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ duration: 0.22, delay: i * 0.05 }}
-                      className={mobileLinkClass}
-                    >
-                      {content}
-                    </motion.a>
                   );
                 })}
+              </nav>
 
-                <div className={`flex flex-col gap-2.5 mt-3 pt-3 border-t ${isScrolled ? 'border-slate-100' : 'border-white/15'}`}>
-                  <a
-                    href={appUrl('/login')}
-                    onClick={() => setMobileOpen(false)}
-                    className={`w-full text-center px-5 py-3 rounded-xl text-[14px] font-semibold border transition-all ${
-                      isScrolled
-                        ? 'border-[#D1D5DB] text-[#374151] hover:bg-slate-50'
-                        : 'border-white/30 text-white hover:bg-white/10'
-                    }`}
-                  >
-                    Log In
-                  </a>
-                  <Link
-                    to="/#signup"
-                    onClick={() => setMobileOpen(false)}
-                    className="qp-cta-primary w-full text-center px-5 py-3 rounded-xl text-[14px] font-bold text-white"
-                  >
-                    Get Started →
-                  </Link>
-                </div>
-              </div>
+              {/* CTAs */}
+              <motion.div
+                className="shrink-0 px-4 sm:px-6 pt-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] flex flex-col gap-2.5 border-t border-slate-100"
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: 0.06 + navLinks.length * 0.05, ease: [0.16, 1, 0.3, 1] }}
+              >
+                <Link
+                  to="/#signup"
+                  onClick={() => setMobileOpen(false)}
+                  className="qp-cta-primary w-full h-12 rounded-full flex items-center justify-center text-[15px] font-bold text-white"
+                >
+                  Get Started
+                </Link>
+                <a
+                  href={appUrl('/login')}
+                  onClick={() => setMobileOpen(false)}
+                  className="w-full h-12 rounded-full flex items-center justify-center text-[15px] font-semibold border border-[#D1D5DB] text-[#374151] active:bg-slate-50"
+                >
+                  Log In
+                </a>
+              </motion.div>
             </motion.div>
           )}
-        </AnimatePresence>
-      </motion.header>
+        </AnimatePresence>,
+        document.body,
+      )}
     </>
   );
 }

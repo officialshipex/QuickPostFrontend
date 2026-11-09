@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { ArrowRight } from 'lucide-react';
 import heroImg from '../../assets/hero-image.png';
 
 interface MobileAuthHeroProps {
@@ -60,9 +61,10 @@ export function MobileAuthHero({ ctaLabel, renderForm, initialShowForm = false }
 
             <button
               onClick={() => setShowForm(true)}
-              className="w-full max-w-xs mx-auto block bg-white text-[#00A86B] font-bold text-sm py-3.5 rounded-xl shadow-lg hover:bg-[#F0FAF5] active:scale-[0.98] transition-all font-sans"
+              className="w-full max-w-xs mx-auto flex items-center justify-center gap-2 h-12 bg-white text-[#00A86B] font-bold text-[15px] rounded-full shadow-[0_10px_24px_-8px_rgba(0,0,0,0.3)] hover:bg-[#F0FAF5] active:scale-[0.98] transition-all font-sans"
             >
               {ctaLabel}
+              <ArrowRight className="w-4 h-4" />
             </button>
           </motion.div>
         ) : (

@@ -286,22 +286,22 @@ function UnitInput({
 }) {
   return (
     <div>
-      <label className="block text-[12px] font-bold text-[#475569] mb-2">
+      <label className="block text-[11.5px] sm:text-[12px] font-bold text-[#475569] mb-1.5 sm:mb-2 truncate">
         {label} {required && <span className="text-[#DC2626]">*</span>}
       </label>
-      <div className="flex h-[46px] group">
+      <div className="flex h-11 sm:h-[46px] group">
         <div className="relative flex-1 min-w-0">
-          <Icon className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-[#94A3B8] transition-colors group-focus-within:text-[#00A86B]" />
+          <Icon className="hidden sm:block w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-[#94A3B8] transition-colors group-focus-within:text-[#00A86B]" />
           <input
             type="text"
             inputMode="decimal"
             value={value}
             onChange={(e) => onChange(e.target.value)}
             placeholder={placeholder}
-            className="w-full h-full pl-10 pr-3 border border-r-0 border-[#E2E8F0] rounded-l-full bg-[#F8FAFC] text-[13.5px] font-semibold text-[#0F172A] placeholder:text-[#94A3B8] placeholder:font-normal focus:outline-none focus:border-[#00A86B] focus:bg-white transition-colors"
+            className="w-full h-full pl-4 sm:pl-10 pr-2 sm:pr-3 border border-r-0 border-[#E2E8F0] rounded-l-full bg-[#F8FAFC] text-[13.5px] font-semibold text-[#0F172A] placeholder:text-[#94A3B8] placeholder:font-normal focus:outline-none focus:border-[#00A86B] focus:bg-white transition-colors"
           />
         </div>
-        <span className="w-11 flex items-center justify-center bg-[#00A86B] text-white text-[11.5px] font-bold rounded-r-full shrink-0">
+        <span className="w-9 sm:w-11 flex items-center justify-center bg-[#00A86B] text-white text-[11.5px] font-bold rounded-r-full shrink-0">
           {unit}
         </span>
       </div>
@@ -418,7 +418,7 @@ export function RateCalculator() {
       <main className="flex-1">
 
         {/* ═══════════════════════ HERO ═══════════════════════ */}
-        <section className="relative overflow-hidden pt-[104px] pb-10 sm:pt-[120px] sm:pb-16 md:pt-[150px] md:pb-24 bg-[#F8FAFC]">
+        <section className="relative overflow-hidden pt-[96px] pb-12 sm:pt-[120px] sm:pb-16 md:pt-[150px] md:pb-24 bg-[#F8FAFC]">
           <DotGrid />
           <div className="absolute top-24 -right-24 w-[420px] h-[420px] rounded-full bg-[#00A86B]/[0.05] blur-3xl pointer-events-none" />
 
@@ -431,15 +431,15 @@ export function RateCalculator() {
               <Eyebrow>Rate Calculator</Eyebrow>
               <h1 className="mt-4 sm:mt-5 text-[28px] leading-[1.2] sm:text-[34px] sm:leading-[1.15] md:text-[52px] md:leading-[1.1] font-bold text-[#0F172A] tracking-tight">
                 Know Your Shipping Cost
-                <br />
-                <span className="text-[#00A86B]">Before You Ship. Instantly.</span>
+                <br className="hidden sm:block" />
+                <span className="hidden sm:inline text-[#00A86B]">Before You Ship. Instantly.</span>
               </h1>
 
-              <p className="mt-4 sm:mt-5 text-[13.5px] sm:text-[15px] md:text-[16px] text-[#5F5E5A] leading-relaxed max-w-[520px]">
+              <p className="hidden sm:block mt-4 sm:mt-5 text-[13.5px] sm:text-[15px] md:text-[16px] text-[#5F5E5A] leading-relaxed max-w-[520px]">
                 Compare live courier rates across 25+ partners by pincode, weight, and dimensions — see the cheapest and fastest option side-by-side, with zero hidden charges.
               </p>
 
-              <div className="mt-6 sm:mt-9 flex flex-wrap items-center gap-x-5 sm:gap-x-8 gap-y-2.5 sm:gap-y-3">
+              <div className="hidden sm:flex mt-6 sm:mt-9 flex-wrap items-center gap-x-5 sm:gap-x-8 gap-y-2.5 sm:gap-y-3">
                 {[
                   { icon: Truck, label: '25+ Courier Partners' },
                   { icon: Zap, label: 'Instant Comparison' },
@@ -454,6 +454,7 @@ export function RateCalculator() {
             </motion.div>
 
             <motion.div
+              className="hidden sm:block"
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.7, delay: 0.15, ease: EASE }}
@@ -531,7 +532,7 @@ export function RateCalculator() {
               </AnimatePresence>
 
               {/* Pincodes */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+              <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-4 sm:mb-5">
                 <UnitInput
                   label="Pickup Pincode" required icon={MapPin} unit="IN"
                   value={form.pickUpPincode}
@@ -547,9 +548,9 @@ export function RateCalculator() {
               </div>
 
               {/* Weight + Value */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+              <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-4 sm:mb-5">
                 <UnitInput
-                  label="Approximate Weight" required icon={Weight} unit="kg"
+                  label="Weight" required icon={Weight} unit="kg"
                   value={form.weight}
                   onChange={(v) => { if (/^\d*\.?\d*$/.test(v)) setField('weight', v); }}
                   placeholder="e.g. 1"
@@ -563,8 +564,8 @@ export function RateCalculator() {
               </div>
 
               {/* Dimensions */}
-              <div className="mb-5">
-                <label className="block text-[12px] font-bold text-[#475569] mb-2">
+              <div className="mb-4 sm:mb-5">
+                <label className="block text-[11.5px] sm:text-[12px] font-bold text-[#475569] mb-1.5 sm:mb-2">
                   Package Dimensions (cm) <span className="text-[#DC2626]">*</span>
                 </label>
                 <div className="grid grid-cols-3 gap-2 sm:gap-3">
@@ -577,7 +578,7 @@ export function RateCalculator() {
                         value={form[key]}
                         onChange={(e) => setField(key, e.target.value)}
                         placeholder={label}
-                        className="w-full h-[46px] pl-7 sm:pl-10 pr-2 sm:pr-3 border border-[#E2E8F0] rounded-full bg-[#F8FAFC] text-[13px] sm:text-[13.5px] font-semibold text-[#0F172A] placeholder:text-[#94A3B8] placeholder:font-normal focus:outline-none focus:border-[#00A86B] focus:bg-white transition-colors"
+                        className="w-full h-11 sm:h-[46px] pl-7 sm:pl-10 pr-2 sm:pr-3 border border-[#E2E8F0] rounded-full bg-[#F8FAFC] text-[13px] sm:text-[13.5px] font-semibold text-[#0F172A] placeholder:text-[#94A3B8] placeholder:font-normal focus:outline-none focus:border-[#00A86B] focus:bg-white transition-colors"
                       />
                     </div>
                   ))}
@@ -585,14 +586,14 @@ export function RateCalculator() {
               </div>
 
               {/* Live weight readout */}
-              <div className="flex flex-wrap gap-3 mb-6">
-                <div className="flex items-center gap-2 px-4 py-2 bg-[#F0FDF4] border border-[#DCFCE7] rounded-xl">
+              <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 sm:gap-3 mb-5 sm:mb-6">
+                <div className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 bg-[#F0FDF4] border border-[#DCFCE7] rounded-xl">
                   <Weight className="w-3.5 h-3.5 text-[#00A86B]" />
-                  <span className="text-[12px] font-bold text-[#0F172A]">Volumetric: {volumetricWeight.toFixed(2)} kg</span>
+                  <span className="text-[11.5px] sm:text-[12px] font-bold text-[#0F172A]">Volumetric: {volumetricWeight.toFixed(2)} kg</span>
                 </div>
-                <div className="flex items-center gap-2 px-4 py-2 bg-[#F0FDF4] border border-[#DCFCE7] rounded-xl">
+                <div className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 bg-[#F0FDF4] border border-[#DCFCE7] rounded-xl">
                   <PackageCheck className="w-3.5 h-3.5 text-[#00A86B]" />
-                  <span className="text-[12px] font-bold text-[#0F172A]">Applicable: {applicableWeight.toFixed(2)} kg</span>
+                  <span className="text-[11.5px] sm:text-[12px] font-bold text-[#0F172A]">Applicable: {applicableWeight.toFixed(2)} kg</span>
                 </div>
               </div>
 
