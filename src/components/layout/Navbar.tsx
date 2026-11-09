@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence, useScroll, useMotionValueEvent } from 'framer-motion';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
-import { Menu, X, ChevronRight } from 'lucide-react';
+import { Menu, X, ChevronRight, ArrowRight } from 'lucide-react';
 import { appUrl } from '../../utils/domainUrl';
 import { FestiveOfferBar, FESTIVE_BAR_HEIGHT } from './FestiveOfferBar';
 
@@ -16,6 +16,7 @@ const navLinks = [
 export function Navbar() {
   const { scrollY } = useScroll();
   const [isScrolled, setIsScrolled] = useState(false);
+  const [pastHero, setPastHero] = useState(false); // phones: show a Sign up pill once the hero is behind us
   const [mobileOpen, setMobileOpen] = useState(false);
   // Mobile festive strip above the navbar; closing it lasts for this visit
   const [offerClosed, setOfferClosed] = useState(() => { try { return sessionStorage.getItem('qp_festive_bar_closed') === '1'; } catch { return false; } });
@@ -23,6 +24,7 @@ export function Navbar() {
 
   useMotionValueEvent(scrollY, "change", (latest) => {
     setIsScrolled(latest > 60);
+    setPastHero(latest > window.innerHeight * 0.85);
   });
 
   // Full-screen mobile menu: lock page scroll and close on Esc while it is open.
@@ -173,7 +175,26 @@ export function Navbar() {
             </Link>
           </div>
 
-          {/* ── Mobile Hamburger ── */}
+          {/* ── Mobile: Sign up pill (after the hero) + hamburger ── */}
+          <div className="lg:hidden flex items-center gap-2 flex-shrink-0">
+          <AnimatePresence>
+            {pastHero && (
+              <motion.div
+                initial={{ opacity: 0, x: 16, scale: 0.85 }}
+                animate={{ opacity: 1, x: 0, scale: 1 }}
+                exit={{ opacity: 0, x: 16, scale: 0.85 }}
+                transition={{ type: 'spring', stiffness: 420, damping: 28 }}
+              >
+                <Link
+                  to="/#signup"
+                  className="group h-10 pl-5 pr-4 rounded-full bg-[#00A86B] hover:bg-[#009B63] text-white text-[14px] font-semibold tracking-[-0.01em] inline-flex items-center gap-1.5 shadow-[0_4px_12px_-4px_rgba(0,168,107,0.55)] active:scale-[0.96] transition-[transform,background-color] duration-150"
+                >
+                  Sign up
+                  <ArrowRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-0.5 group-active:translate-x-0.5" />
+                </Link>
+              </motion.div>
+            )}
+          </AnimatePresence>
           <button
             onClick={() => setMobileOpen((v) => !v)}
             className={`lg:hidden flex-shrink-0 flex items-center justify-center w-10 h-10 rounded-xl transition-colors ${
@@ -195,6 +216,7 @@ export function Navbar() {
               </motion.div>
             </AnimatePresence>
           </button>
+          </div>
         </div>
 
       </motion.header>

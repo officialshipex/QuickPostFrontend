@@ -1,9 +1,9 @@
-import { motion, useReducedMotion } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 
 /* Landing page — closing call-to-action. A delivery cycle drawn in the hero van's dashed-line style rides
-   across the band towing a "Get Started" ribbon. Reduced motion keeps it parked in the middle. */
+   across the band towing a "Get Started" ribbon. */
 
 const DASH = { stroke: 'white', fill: 'none', strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
 
@@ -51,7 +51,6 @@ function DottedCycle({ spin }: { spin: boolean }) {
 }
 
 export function FinalCtaBand() {
-  const reduced = useReducedMotion() ?? false;
   return (
     <section className="relative bg-[#F4F7F5] px-4 md:px-8 py-12 md:py-20 overflow-hidden" style={{ fontFamily: 'Roboto, sans-serif' }}>
       <div aria-hidden className="pointer-events-none absolute inset-0 [background-image:radial-gradient(#C7D7CF_1.2px,transparent_1.2px)] [background-size:20px_20px] [mask-image:radial-gradient(ellipse_at_center,#000_35%,transparent_85%)]" />
@@ -80,16 +79,16 @@ export function FinalCtaBand() {
         {/* Road with the cycle towing the ribbon */}
         <div className="relative mt-8 md:mt-10 h-[150px] md:h-[190px]">
           <div className="absolute left-0 right-0 bottom-[22px] md:bottom-[28px] h-[3px] bg-[repeating-linear-gradient(90deg,rgba(255,255,255,0.7)_0_14px,transparent_14px_24px)]" />
-          <motion.div
-            className="absolute bottom-[24px] md:bottom-[30px] flex items-end"
-            initial={false}
-            animate={reduced ? { left: '50%', x: '-50%' } : { left: ['-75%', '105%'] }}
-            transition={reduced ? { duration: 0 } : { duration: 16, repeat: Infinity, ease: 'linear' }}
-          >
+          {/* The ride is a plain CSS transform loop: a track-wide layer slides from fully left of the band to
+              fully right, carrying the cycle at its right edge. Runs on every device, including phones with
+              battery saver (which reports reduced motion). */}
+          <style>{`@keyframes qp-cta-ride { from { transform: translate3d(-100%,0,0) } to { transform: translate3d(100%,0,0) } }`}</style>
+          <div className="absolute inset-0 pointer-events-none will-change-transform" style={{ animation: 'qp-cta-ride 16s linear infinite' }}>
+          <div className="absolute right-0 bottom-[24px] md:bottom-[30px] flex items-end pointer-events-auto">
             {/* Ribbon */}
             <motion.div
               className="mb-[52px] md:mb-[70px] origin-right"
-              animate={reduced ? undefined : { rotate: [-2, 2, -2], skewY: [-2, 2, -2] }}
+              animate={{ rotate: [-2, 2, -2], skewY: [-2, 2, -2] }}
               transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
             >
               <Link
@@ -103,8 +102,9 @@ export function FinalCtaBand() {
             <svg width="44" height="70" viewBox="0 0 44 70" className="mb-[34px] md:mb-[46px] -mx-px" aria-hidden="true">
               <path d="M0 18 Q 22 30 44 46" stroke="white" strokeWidth="2" strokeDasharray="3 3" fill="none" opacity="0.85" />
             </svg>
-            <DottedCycle spin={!reduced} />
-          </motion.div>
+            <DottedCycle spin />
+          </div>
+          </div>
         </div>
       </div>
     </section>

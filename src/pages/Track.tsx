@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search,
@@ -432,6 +432,25 @@ export function Track() {
       setLoading(false);
     }
   };
+
+  // Deep link from the landing page's tracking dock: /track?awb=… or /track?order=… searches straight away.
+  const [searchParams] = useSearchParams();
+  const [pendingSearch, setPendingSearch] = useState<string | null>(null);
+  useEffect(() => {
+    const awb = searchParams.get('awb'), order = searchParams.get('order');
+    const v = (awb || order || '').trim();
+    if (!v) return;
+    setSearchMode(awb ? 'awb' : 'order');
+    setQuery(v);
+    setPendingSearch(v);
+  }, [searchParams]);
+  useEffect(() => {
+    if (!pendingSearch) return;
+    setPendingSearch(null);
+    runSearch(pendingSearch);
+    // runSearch is recreated each render; it runs once per deep link, after searchMode has updated
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingSearch]);
 
   const copyValue = (value: string, key: 'awb' | 'order') => {
     navigator.clipboard.writeText(value);
