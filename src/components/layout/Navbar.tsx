@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence, useScroll, useMotionValueEvent } from 'framer-motion';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
-import { Menu, X, ChevronRight, ArrowRight } from 'lucide-react';
+import { Menu, X, ChevronRight } from 'lucide-react';
 import { appUrl } from '../../utils/domainUrl';
 import { FestiveOfferBar, FESTIVE_BAR_HEIGHT } from './FestiveOfferBar';
 
@@ -16,7 +16,6 @@ const navLinks = [
 export function Navbar() {
   const { scrollY } = useScroll();
   const [isScrolled, setIsScrolled] = useState(false);
-  const [pastHero, setPastHero] = useState(false); // phones: show a Sign up pill once the hero is behind us
   const [mobileOpen, setMobileOpen] = useState(false);
   // Mobile festive strip above the navbar; closing it lasts for this visit
   const [offerClosed, setOfferClosed] = useState(() => { try { return sessionStorage.getItem('qp_festive_bar_closed') === '1'; } catch { return false; } });
@@ -24,7 +23,6 @@ export function Navbar() {
 
   useMotionValueEvent(scrollY, "change", (latest) => {
     setIsScrolled(latest > 60);
-    setPastHero(latest > window.innerHeight * 0.85);
   });
 
   // Full-screen mobile menu: lock page scroll and close on Esc while it is open.
@@ -90,7 +88,7 @@ export function Navbar() {
 
       <motion.header
         style={{ fontFamily: 'Roboto, sans-serif' }}
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-350 ${
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-350 max-lg:!bg-transparent max-lg:!shadow-none max-lg:!border-0 max-lg:!backdrop-blur-none ${
           isScrolled
             ? 'bg-white shadow-[0_2px_24px_rgba(0,0,0,0.07)] border-b border-slate-100'
             : 'bg-black/10 backdrop-blur-md'
@@ -100,14 +98,22 @@ export function Navbar() {
         transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
       >
         <FestiveOfferBar hidden={offerClosed || isScrolled} onClose={closeOffer} />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-10 h-[78px] flex items-center justify-between gap-3 sm:gap-6">
+        {/* Phones: the bar is a floating white capsule; from lg it is the full-width bar */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-10 h-[78px] flex items-center justify-between gap-3 sm:gap-6 max-lg:mx-3 max-lg:mt-2 max-lg:h-16 max-lg:px-2 max-lg:pl-4 max-lg:rounded-full max-lg:bg-white max-lg:border max-lg:border-slate-200/80 max-lg:shadow-[0_8px_24px_-12px_rgba(15,23,42,0.25)]">
 
           {/* ── Logo ── */}
           <Link to="/" className="flex-shrink-0 flex items-center">
             <img
-              src={isScrolled ? '/logo-color.png' : '/logo-white.png'}
+              src="/logo-color.png"
               alt="QuickPost"
-              className={`object-contain transition-all duration-300 scale-[1.5] origin-left ml-2 ${isScrolled ? '' : 'qp-logo-white'}`}
+              className="lg:hidden object-contain scale-[1.7] origin-left"
+              style={{ height: '56px', width: 'auto' }}
+            />
+            <img
+              src={isScrolled ? '/logo-color.png' : '/logo-white.png'}
+              alt=""
+              aria-hidden
+              className={`hidden lg:block object-contain transition-all duration-300 scale-[1.5] origin-left ml-2 ${isScrolled ? '' : 'qp-logo-white'}`}
               style={{
                 height: '64px',
                 width: 'auto',
@@ -177,31 +183,15 @@ export function Navbar() {
 
           {/* ── Mobile: Sign up pill (after the hero) + hamburger ── */}
           <div className="lg:hidden flex items-center gap-2 flex-shrink-0">
-          <AnimatePresence>
-            {pastHero && (
-              <motion.div
-                initial={{ opacity: 0, x: 16, scale: 0.85 }}
-                animate={{ opacity: 1, x: 0, scale: 1 }}
-                exit={{ opacity: 0, x: 16, scale: 0.85 }}
-                transition={{ type: 'spring', stiffness: 420, damping: 28 }}
-              >
-                <Link
-                  to="/#signup"
-                  className="group h-10 pl-5 pr-4 rounded-full bg-[#00A86B] hover:bg-[#009B63] text-white text-[14px] font-semibold tracking-[-0.01em] inline-flex items-center gap-1.5 shadow-[0_4px_12px_-4px_rgba(0,168,107,0.55)] active:scale-[0.96] transition-[transform,background-color] duration-150"
-                >
-                  Sign up
-                  <ArrowRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-0.5 group-active:translate-x-0.5" />
-                </Link>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          <Link
+            to="/#signup"
+            className="h-11 px-5 rounded-full bg-[#00A86B] hover:bg-[#009B63] text-white text-[15px] font-semibold tracking-[-0.01em] inline-flex items-center active:scale-[0.96] transition-[transform,background-color] duration-150"
+          >
+            Sign up
+          </Link>
           <button
             onClick={() => setMobileOpen((v) => !v)}
-            className={`lg:hidden flex-shrink-0 flex items-center justify-center w-10 h-10 rounded-xl transition-colors ${
-              isScrolled
-                ? 'text-slate-700 hover:bg-slate-100'
-                : 'text-white hover:bg-white/10'
-            }`}
+            className="lg:hidden flex-shrink-0 flex items-center justify-center w-11 h-11 rounded-full text-[#0F172A] active:bg-slate-100 transition-colors"
             aria-label="Toggle navigation menu"
           >
             <AnimatePresence mode="wait" initial={false}>
@@ -212,7 +202,7 @@ export function Navbar() {
                 exit={{ opacity: 0, rotate: 90 }}
                 transition={{ duration: 0.15 }}
               >
-                {mobileOpen ? <X size={20} /> : <Menu size={20} />}
+                {mobileOpen ? <X size={24} /> : <Menu size={26} strokeWidth={2} />}
               </motion.div>
             </AnimatePresence>
           </button>

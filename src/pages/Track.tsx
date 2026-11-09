@@ -225,6 +225,14 @@ function HeroIllustration() {
           alt="QuickPost"
           className="h-32 md:h-36 w-auto object-contain drop-shadow-[0_10px_30px_rgba(0,168,107,0.25)]"
         />
+        {/* Phones: the tracking product's one-word name under the logo */}
+        <div className="md:hidden -mt-2 flex items-center gap-2.5">
+          <span className="relative flex w-2.5 h-2.5">
+            <span className="absolute inline-flex w-full h-full rounded-full bg-[#00A86B] opacity-60 animate-ping" />
+            <span className="relative inline-flex w-2.5 h-2.5 rounded-full bg-[#00A86B]" />
+          </span>
+          <span className="text-[13px] font-bold uppercase tracking-[0.42em] text-[#0F172A]">Pinpoint</span>
+        </div>
       </div>
     </div>
   );
@@ -468,28 +476,28 @@ export function Track() {
       <main className="flex-1">
 
         {/* ═══════════════════════ HERO ═══════════════════════ */}
-        <section className="relative overflow-hidden pt-[120px] pb-16 md:pt-[150px] md:pb-24 bg-[#F8FAFC]">
+        <section className="relative overflow-hidden pt-[96px] pb-16 md:pt-[150px] md:pb-24 bg-[#F8FAFC]">
           <DotGrid />
           <div className="absolute top-24 -right-24 w-[420px] h-[420px] rounded-full bg-[#00A86B]/[0.05] blur-3xl pointer-events-none" />
 
-          <div className="relative max-w-7xl mx-auto px-6 md:px-10 grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+          <div className="relative max-w-7xl mx-auto px-6 md:px-10 grid grid-cols-1 lg:grid-cols-2 gap-0 md:gap-12 lg:gap-16 items-center">
             {/* Left — copy */}
             <motion.div
               initial={{ opacity: 0, y: 24 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, ease: EASE }}
             >
-              <h1 className="text-[34px] leading-[1.15] md:text-[52px] md:leading-[1.1] font-bold text-[#0F172A] tracking-tight">
+              <h1 className="hidden md:block text-[34px] leading-[1.15] md:text-[52px] md:leading-[1.1] font-bold text-[#0F172A] tracking-tight">
                 Track Every Shipment
                 <br />
                 <span className="text-[#00A86B]">Real-Time. Accurate. Transparent.</span>
               </h1>
 
-              <p className="mt-5 text-[15px] md:text-[16px] text-[#5F5E5A] leading-relaxed max-w-[520px]">
+              <p className="hidden md:block mt-5 text-[15px] md:text-[16px] text-[#5F5E5A] leading-relaxed max-w-[520px]">
                 Track your courier across all courier partners using Order ID or AWB Number. Get live shipment updates, courier information, estimated delivery, and complete tracking history.
               </p>
 
-              <div className="mt-9 flex flex-wrap items-center gap-x-8 gap-y-3">
+              <div className="hidden md:flex mt-9 flex-wrap items-center gap-x-8 gap-y-3">
                 {[
                   { icon: Truck, label: '25+ Courier Partners' },
                   { icon: Zap, label: 'Real-Time Updates' },
@@ -552,13 +560,13 @@ export function Track() {
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder={searchMode === 'order' ? 'Enter Order ID (e.g. QP2408417)' : 'Enter AWB Number'}
-                  className="w-full h-[52px] pl-12 pr-4 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] text-[14.5px] font-medium text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-4 focus:ring-[#00A86B]/10 focus:bg-white transition-all duration-200"
+                  className="w-full h-[52px] pl-12 pr-4 rounded-full border border-[#E2E8F0] bg-[#F8FAFC] text-[14.5px] font-medium text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-4 focus:ring-[#00A86B]/10 focus:bg-white transition-all duration-200"
                 />
               </div>
               <button
                 type="submit"
                 disabled={loading}
-                className="qp-cta-track h-[52px] px-7 rounded-xl text-[14.5px] font-bold text-white tracking-[-0.01em] flex items-center justify-center gap-2 disabled:opacity-70"
+                className="qp-cta-track h-[52px] px-7 rounded-full text-[14.5px] font-bold text-white tracking-[-0.01em] flex items-center justify-center gap-2 disabled:opacity-70"
                 style={{
                   background: 'linear-gradient(135deg, #00A86B 0%, #00C47A 100%)',
                   boxShadow: '0 2px 14px rgba(0, 168, 107, 0.38)',

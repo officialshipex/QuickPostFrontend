@@ -53,7 +53,11 @@ export function SignupCardMobile({ onBack }: SignupCardMobileProps) {
 
   const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(formSchema),
-    defaultValues: { checked: false },
+    defaultValues: {
+      checked: false,
+      // Prefilled from the landing hero's phone field
+      phone: (() => { try { return sessionStorage.getItem('qp_signup_phone') || ''; } catch { return ''; } })(),
+    },
   });
 
   const onSubmit = async (data: FormData) => {

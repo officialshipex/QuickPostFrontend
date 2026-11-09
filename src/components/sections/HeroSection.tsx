@@ -5,6 +5,7 @@ import { MobileAuthHero } from '../layout/MobileAuthHero';
 import { SignupCard } from '../forms/SignupCard';
 import { SignupCardMobile } from '../forms/SignupCardMobile';
 import { LiveLogisticsConsole } from './LiveLogisticsConsole';
+import { MobileHeroCarousel } from './MobileHeroCarousel';
 
 interface HeroSectionProps {
   /** Skip straight to the signup form (e.g. deep-linked from a "Get Started" CTA elsewhere on the page). */
@@ -29,6 +30,7 @@ export function HeroSection({ openSignupOnMount = false }: HeroSectionProps) {
         ctaLabel="Get Started"
         renderForm={(onBack) => <SignupCardMobile onBack={onBack} />}
         initialShowForm={openSignupOnMount}
+        renderHero={(start) => <MobileHeroCarousel onStart={start} />}
       />
 
       {/* Desktop: 3D flip card (Live Logistics Console <-> Signup) inside AuthHeroLayout */}
