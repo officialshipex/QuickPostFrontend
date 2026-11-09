@@ -185,17 +185,17 @@ export function LoginCard() {
       >
         {/* ── Front: email and password ── */}
         <div
-          className="[grid-area:1/1] bg-white p-8 md:p-10 rounded-2xl shadow-2xl shadow-black/10"
+          className="[grid-area:1/1] bg-white px-5 py-6 md:p-10 rounded-2xl shadow-2xl shadow-black/10"
           style={{ ...FACE_STYLE, pointerEvents: flipped ? 'none' : undefined }}
           aria-hidden={flipped}
         >
-          <div className="text-center mb-8">
-            <h2 className="text-2xl font-bold text-[#0F172A] mb-2">Sign in using E-mail</h2>
-            <p className="text-[#64748B] text-sm">Discover the best shipping solution for your eCommerce business.</p>
+          <div className="text-center mb-5 md:mb-8">
+            <h2 className="text-[19px] md:text-2xl font-bold text-[#0F172A] mb-1 md:mb-2">Sign in using E-mail</h2>
+            <p className="text-[#64748B] text-[12.5px] md:text-sm">Discover the best shipping solution for your eCommerce business.</p>
           </div>
 
           <form onSubmit={handleSubmit(onSubmit)}>
-            <fieldset disabled={flipped} className="space-y-5">
+            <fieldset disabled={flipped} className="space-y-4 md:space-y-5">
               <div>
                 <label className="block text-xs font-semibold text-[#475569] mb-1.5">Email<span className="text-red-500">*</span></label>
                 <div className="relative">
@@ -278,7 +278,7 @@ export function LoginCard() {
             </fieldset>
           </form>
 
-          <div className="text-center mt-6 space-y-2">
+          <div className="text-center mt-5 md:mt-6 space-y-2">
             <p className="text-xs text-[#64748B]">
               Don't have an account? <Link to="/register" className="text-[#00A86B] font-semibold hover:underline">Sign up</Link>
             </p>
@@ -293,7 +293,7 @@ export function LoginCard() {
 
         {/* ── Back: the OTP ── */}
         <div
-          className="[grid-area:1/1] bg-white p-8 md:p-10 rounded-2xl shadow-2xl shadow-black/10 flex flex-col justify-center"
+          className="[grid-area:1/1] bg-white px-5 py-6 md:p-10 rounded-2xl shadow-2xl shadow-black/10 flex flex-col justify-center"
           style={{ ...FACE_STYLE, transform: 'rotateY(180deg)', pointerEvents: flipped ? undefined : 'none' }}
           aria-hidden={!flipped}
         >

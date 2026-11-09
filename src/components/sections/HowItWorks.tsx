@@ -96,50 +96,59 @@ export function HowItWorks() {
         </p>
       </div>
 
-      {/* Mobile: clean numbered-step list (no sticky-scroll, no neon badges) */}
+      {/* Mobile: same look as desktop — gradient heading and sticky stacking cards, sized for phones */}
       <div className="md:hidden">
         <div className="mb-10 text-center">
-          <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#00A86B]">How It Works</span>
-          <h2 className="text-white font-bold text-[26px] leading-tight mt-2 font-sans">
-            From Order to Payout, Automatically
+          <h2 className="hero-heading font-black uppercase text-[clamp(2.6rem,14vw,4rem)] tracking-tight leading-none">
+            How it works
           </h2>
-          <p className="text-white/50 text-sm mt-2 max-w-xs mx-auto font-sans">
-            Four steps, fully automated — no manual work required.
+          <p className="text-[#D7E2EA]/60 mt-4 text-[14px] font-light max-w-xs mx-auto leading-relaxed">
+            From order placement to cash in your bank — four steps, fully automated.
           </p>
         </div>
 
-        <div className="space-y-4 max-w-md mx-auto">
+        <div className="space-y-6 max-w-md mx-auto">
           {cards.map((card, index) => (
-            <div
-              key={index}
-              className="bg-[#141414] border border-white/10 rounded-2xl p-5"
-            >
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-8 h-8 rounded-full bg-white/10 text-white flex items-center justify-center text-[13px] font-bold shrink-0 font-sans">
-                  {index + 1}
+            <div key={index} className="sticky top-[84px]" style={{ paddingTop: `${index * 14}px` }}>
+              <motion.div
+                initial={{ opacity: 0, y: 40, scale: 0.96 }}
+                whileInView={{ opacity: 1, y: 0, scale: 1 - (cards.length - 1 - index) * 0.03 }}
+                viewport={{ once: true, margin: '-60px' }}
+                transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+                className="bg-[#0C0C0C] border-2 border-[#D7E2EA] rounded-[32px] p-5 shadow-2xl"
+              >
+                <div className="flex items-center gap-3 border-b border-[#D7E2EA]/15 pb-3.5">
+                  <span className="text-[26px] font-black text-[#D7E2EA] leading-none font-mono">{card.num}</span>
+                  <div className="min-w-0">
+                    <span className="text-[9px] font-extrabold tracking-widest text-[#D7E2EA]/60 uppercase block">{card.category}</span>
+                    <span className="text-[15px] font-bold text-[#D7E2EA] uppercase leading-tight">{card.title}</span>
+                  </div>
                 </div>
-                <div className="min-w-0">
-                  <span className="text-[10px] font-semibold tracking-wide text-white/40 uppercase block font-sans">{card.category}</span>
-                  <span className="text-[15px] font-bold text-white font-sans">{card.title}</span>
+
+                <div className="w-full rounded-[20px] overflow-hidden aspect-video mt-4">
+                  <img src={card.img} alt={card.title} className="w-full h-full object-cover" />
                 </div>
-              </div>
 
-              <div className="w-full rounded-xl overflow-hidden aspect-video mb-4">
-                <img src={card.img} alt={card.title} className="w-full h-full object-cover" />
-              </div>
+                <p className="text-[#D7E2EA]/80 text-[13px] font-light leading-relaxed mt-4">{card.desc}</p>
 
-              <p className="text-white/60 text-[13px] leading-relaxed mb-3 font-sans">{card.desc}</p>
+                <ul className="space-y-2 mt-3">
+                  {card.bullets.map((bullet, i) => (
+                    <li key={i} className="flex items-start gap-2.5 text-[#D7E2EA]">
+                      <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-[#00A86B] shrink-0" />
+                      <span className="text-[12.5px] leading-snug">{bullet}</span>
+                    </li>
+                  ))}
+                </ul>
 
-              <ul className="space-y-1.5">
-                {card.bullets.map((bullet, i) => (
-                  <li key={i} className="flex items-start gap-2 text-white/75">
-                    <svg className="w-3.5 h-3.5 mt-0.5 text-[#00A86B] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                    </svg>
-                    <span className="text-[12.5px] leading-snug font-sans">{bullet}</span>
-                  </li>
-                ))}
-              </ul>
+                <div className="mt-4 inline-flex bg-[#00A86B]/10 border border-[#00A86B]/30 rounded-xl px-3.5 py-1.5">
+                  <span className="text-[#00A86B] text-[10.5px] font-extrabold tracking-wider uppercase">
+                    {index === 0 && "5-second sync"}
+                    {index === 1 && "9+ courier partners"}
+                    {index === 2 && "40% RTO reduction"}
+                    {index === 3 && "24-hr settlement"}
+                  </span>
+                </div>
+              </motion.div>
             </div>
           ))}
         </div>

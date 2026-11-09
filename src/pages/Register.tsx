@@ -2,6 +2,7 @@ import React from 'react';
 import { AuthHeroLayout } from '../components/layout/AuthHeroLayout';
 import { MobileAuthHero } from '../components/layout/MobileAuthHero';
 import { SignupCard } from '../components/forms/SignupCard';
+import { SignupCardMobile } from '../components/forms/SignupCardMobile';
 import { TrustedBrands } from '../components/sections/TrustedBrands';
 import { Features } from '../components/sections/Features';
 import { StatsSection } from '../components/sections/StatsSection';
@@ -17,7 +18,7 @@ export function Register() {
       <main className="flex-1">
         <MobileAuthHero
           ctaLabel="Sign Up"
-          renderForm={() => <SignupCard />}
+          renderForm={(onBack) => <SignupCardMobile onBack={onBack} />}
         />
 
         <div className="hidden md:block">

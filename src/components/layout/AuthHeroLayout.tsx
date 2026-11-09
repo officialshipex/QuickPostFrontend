@@ -25,7 +25,7 @@ export function AuthHeroLayout({ children, showInlineLogo = true }: AuthHeroLayo
               src="/logo-white.png"
               alt="Quickpost"
               className="object-contain scale-[1.5] origin-left"
-              style={{ height: '64px', width: 'auto', filter: 'drop-shadow(0 1px 4px rgba(0,0,0,0.18)) brightness(1.1)' }}
+              style={{ height: '88px', width: 'auto', filter: 'drop-shadow(0 1px 4px rgba(0,0,0,0.18)) brightness(1.1)' }}
             />
           </div>
         )}

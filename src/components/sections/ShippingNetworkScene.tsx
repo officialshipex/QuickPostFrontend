@@ -1,6 +1,6 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion, useInView, useReducedMotion, useScroll, useTransform } from 'framer-motion';
-import { Check } from 'lucide-react';
+import { Check, Home, LayoutDashboard, Bike, Store } from 'lucide-react';
 import shopifyLogo from '../../assets/shopify-logo-tight.png';
 import wooLogo from '../../assets/woo-commerce-logo.png';
 
@@ -181,6 +181,151 @@ const POINTS = [
   'Each parcel is tracked from pickup to doorstep',
 ];
 
+/** Vertical connector between flow steps; a dot travels down it. */
+function FlowLink({ animated }: { animated: boolean }) {
+  return (
+    <div className="relative mx-auto w-px h-9 bg-[repeating-linear-gradient(180deg,#00A86B_0_4px,transparent_4px_8px)] opacity-60">
+      {animated && (
+        <motion.span
+          className="absolute -left-[3px] w-[7px] h-[7px] rounded-full bg-[#00A86B]"
+          animate={{ top: ['-10%', '100%'], opacity: [0, 1, 0] }}
+          transition={{ duration: 1.4, repeat: Infinity, ease: 'easeIn' }}
+        />
+      )}
+    </div>
+  );
+}
+
+const RUN_STEPS = ['Picked up', 'In transit', 'Delivered'];
+const PHASE_MS = [1400, 5000, 3200]; // pickup, ride, delivered (then repeat)
+
+/** Rider picks the parcel up, rides the dotted route for 5 s, and the home card flips (3D) to "Delivered". */
+function DeliveryRun({ animated }: { animated: boolean }) {
+  const [phase, setPhase] = useState(animated ? 0 : 2);
+  useEffect(() => {
+    if (!animated) return;
+    const t = window.setTimeout(() => setPhase(p => (p + 1) % 3), PHASE_MS[phase]);
+    return () => window.clearTimeout(t);
+  }, [phase, animated]);
+
+  const riderX = phase === 0 ? '0%' : '100%';
+  return (
+    <div className="rounded-2xl border border-[#EEF2F6] bg-[#F8FAFC] px-3.5 pt-4 pb-3.5">
+      {/* Route */}
+      <div className="relative h-[64px]">
+        {/* dotted road */}
+        <div className="absolute left-7 right-7 top-1/2 -translate-y-1/2 h-[3px] bg-[repeating-linear-gradient(90deg,#CBD5E1_0_6px,transparent_6px_12px)] rounded-full" />
+        {/* travelled part */}
+        <motion.div
+          className="absolute left-7 top-1/2 -translate-y-1/2 h-[3px] bg-[repeating-linear-gradient(90deg,#00A86B_0_6px,transparent_6px_12px)] rounded-full"
+          initial={false}
+          animate={{ width: phase === 0 ? '0%' : 'calc(100% - 56px)' }}
+          transition={{ duration: phase === 1 ? 5 : 0, ease: 'linear' }}
+        />
+
+        {/* pickup point */}
+        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-14 flex flex-col items-center">
+          <span className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${phase === 0 ? 'bg-[#00A86B] text-white' : 'bg-white border border-[#E2E8F0] text-[#00A86B]'}`}>
+            <Store className="w-5 h-5" />
+          </span>
+        </div>
+
+        {/* home: flips in 3D to "Delivered" */}
+        <div className="absolute right-0 top-1/2 -translate-y-1/2 w-14 h-14" style={{ perspective: 400 }}>
+          <motion.div
+            className="relative w-full h-full"
+            style={{ transformStyle: 'preserve-3d' }}
+            initial={false}
+            animate={{ rotateY: phase === 2 ? 180 : 0, scale: phase === 2 ? [1, 1.12, 1] : 1 }}
+            transition={{ rotateY: { duration: 0.7, ease: [0.16, 1, 0.3, 1] }, scale: { duration: 0.7 } }}
+          >
+            <span className="absolute inset-[8px] rounded-xl bg-white border border-[#E2E8F0] text-[#94A3B8] flex items-center justify-center [backface-visibility:hidden]">
+              <Home className="w-5 h-5" />
+            </span>
+            <span className="absolute inset-[8px] rounded-xl bg-[#00A86B] text-white flex items-center justify-center shadow-[0_10px_20px_-8px_rgba(0,168,107,0.6)] [backface-visibility:hidden] [transform:rotateY(180deg)]">
+              <Check className="w-5 h-5" strokeWidth={3} />
+            </span>
+          </motion.div>
+        </div>
+
+        {/* rider */}
+        <div className="absolute left-14 right-14 top-1/2 -translate-y-1/2 h-0">
+          <motion.div
+            className="absolute -top-[17px] -ml-[17px]"
+            initial={false}
+            animate={{ left: riderX, opacity: phase === 2 ? 0 : 1 }}
+            transition={{ left: { duration: phase === 1 ? 5 : 0, ease: 'easeInOut' }, opacity: { duration: 0.25 } }}
+          >
+            <motion.span
+              className="w-[34px] h-[34px] rounded-full bg-white border-2 border-[#00A86B] text-[#00A86B] flex items-center justify-center shadow-md"
+              animate={phase === 1 ? { y: [0, -2, 0] } : { y: 0 }}
+              transition={{ duration: 0.4, repeat: phase === 1 ? Infinity : 0 }}
+            >
+              <Bike className="w-4 h-4" />
+            </motion.span>
+          </motion.div>
+        </div>
+      </div>
+
+      {/* Steps */}
+      <div className="mt-3 grid grid-cols-3 gap-1.5">
+        {RUN_STEPS.map((label, i) => {
+          const done = i < phase || (i === 2 && phase === 2);
+          const active = i === phase;
+          return (
+            <div key={label} className="flex flex-col items-center text-center">
+              <span className={`w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center transition-colors duration-300 ${done || active ? 'bg-[#00A86B] text-white' : 'bg-[#E2E8F0] text-[#94A3B8]'}`}>
+                {done && !active ? <Check className="w-3 h-3" strokeWidth={3} /> : i + 1}
+              </span>
+              <span className={`mt-1 text-[11.5px] font-semibold transition-colors duration-300 ${active ? 'text-[#0F172A]' : done ? 'text-[#475569]' : 'text-[#94A3B8]'}`}>{label}</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/** Phones: the wide SVG scene is unreadable at this width, so the same story is told as a vertical flow. */
+function MobileFlow({ animated }: { animated: boolean }) {
+  const step = (i: number) => ({
+    initial: { opacity: 0, y: 14 },
+    whileInView: { opacity: 1, y: 0 },
+    viewport: { once: true, margin: '-40px' },
+    transition: { duration: 0.45, delay: i * 0.12, ease: [0.16, 1, 0.3, 1] as const },
+  });
+  return (
+    <div className="rounded-3xl bg-white border border-[#E2E8F0] p-4 shadow-[0_12px_32px_-18px_rgba(15,23,42,0.25)]">
+      <motion.div {...step(0)}>
+        <p className="text-[12px] font-bold uppercase tracking-[0.1em] text-[#64748B] text-center mb-3">Your sales channels</p>
+        <div className="grid grid-cols-2 gap-2">
+          {CHANNELS.map(c => (
+            <div key={c.alt} className="h-14 rounded-2xl border border-[#EEF2F6] bg-[#F8FAFC] flex items-center justify-center px-3">
+              <img src={c.logo} alt={c.alt} className="max-h-7 max-w-[100px] w-auto object-contain" />
+            </div>
+          ))}
+        </div>
+      </motion.div>
+
+      <FlowLink animated={animated} />
+
+      <motion.div {...step(1)} className="rounded-2xl bg-[#00A86B] text-white px-4 py-3.5 flex items-center gap-3">
+        <span className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center shrink-0"><LayoutDashboard className="w-5 h-5" /></span>
+        <div className="min-w-0">
+          <div className="text-[14px] font-bold">QuickPost dashboard</div>
+          <div className="text-[12px] text-white/85">Every order in one place, ready to ship</div>
+        </div>
+      </motion.div>
+
+      <FlowLink animated={animated} />
+
+      <motion.div {...step(2)}>
+        <DeliveryRun animated={animated} />
+      </motion.div>
+    </div>
+  );
+}
+
 export function ShippingNetworkScene() {
   const sectionRef = useRef<HTMLElement>(null);
   const ref = useRef<HTMLDivElement>(null);
@@ -188,6 +333,7 @@ export function ShippingNetworkScene() {
   const reduced = useReducedMotion() ?? false;
   const [small] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches);
   const animated = !reduced && !small && inView;
+  const mobileAnimated = !reduced && small;
 
   // Scroll-linked 3D entrance: tilted in depth while the section approaches, flat once it is centred.
   const still = reduced || small;
@@ -201,19 +347,19 @@ export function ShippingNetworkScene() {
 
   return (
     <section ref={sectionRef} className="bg-[#F4F6F5] py-[48px] md:py-[80px] overflow-hidden" style={{ fontFamily: 'Roboto, sans-serif' }}>
-      <div className="max-w-[1320px] mx-auto px-4 md:px-8 grid grid-cols-1 lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)] gap-10 lg:gap-12 items-center [perspective:1400px]">
+      <div className="max-w-[1320px] mx-auto px-4 md:px-8 grid grid-cols-1 lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)] gap-7 md:gap-10 lg:gap-12 items-center [perspective:1400px]">
         {/* Text — swings in from depth and settles on the left */}
         <motion.div style={{ rotateY: textRotateY, x: textX, opacity: fade, transformOrigin: 'left center' }}>
-          <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#00A86B]">Channels</span>
+          <span className="inline-flex items-center px-3 py-1 rounded-full bg-[#00A86B]/10 text-[13px] md:text-[11px] font-bold uppercase tracking-[0.12em] md:tracking-[0.14em] text-[#00A86B]">Channels</span>
           <h2 className="mt-3 text-[28px] md:text-[40px] font-bold text-[#1A1A1A] leading-[1.15] tracking-tight">
             Every sales channel. <span className="text-[#00A86B]">One shipping network.</span>
           </h2>
-          <p className="mt-4 text-[16px] text-[#5F5E5A] leading-relaxed">
+          <p className="mt-3 md:mt-4 text-[14.5px] md:text-[16px] text-[#5F5E5A] leading-relaxed">
             Connect your store and marketplaces once — QuickPost brings every order into a single flow, from your warehouse to the customer’s door.
           </p>
-          <ul className="mt-6 space-y-3">
+          <ul className="mt-5 md:mt-6 space-y-2.5 md:space-y-3">
             {POINTS.map(t => (
-              <li key={t} className="flex items-start gap-3 text-[15px] text-[#334155]">
+              <li key={t} className="flex items-start gap-3 text-[14px] md:text-[15px] text-[#334155]">
                 <span className="mt-0.5 w-5 h-5 rounded-full bg-[#00A86B]/10 flex items-center justify-center shrink-0"><Check className="w-3 h-3 text-[#00A86B]" strokeWidth={3} /></span>
                 {t}
               </li>
@@ -221,8 +367,11 @@ export function ShippingNetworkScene() {
           </ul>
         </motion.div>
 
+        {/* Phones: vertical flow */}
+        <div className="md:hidden"><MobileFlow animated={mobileAnimated} /></div>
+
         {/* Scene — tilts back in 3D and lays flat as you scroll in */}
-        <motion.div ref={ref} style={{ rotateX: sceneRotateX, scale: sceneScale, y: sceneY, opacity: fade, transformOrigin: 'center bottom' }}>
+        <motion.div ref={ref} className="hidden md:block" style={{ rotateX: sceneRotateX, scale: sceneScale, y: sceneY, opacity: fade, transformOrigin: 'center bottom' }}>
         <svg viewBox={`0 0 ${VB_W} ${VB_H}`} className="w-full h-auto block" aria-hidden="true">
           <defs>
             <radialGradient id="qp-net-light" cx="0.52" cy="0.45" r="0.6">

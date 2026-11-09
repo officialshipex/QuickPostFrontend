@@ -1,13 +1,14 @@
 import { motion } from 'framer-motion';
 
-const couriers = [
-  { name: "Delhivery",      logo: "/brands/delhivery.png" },
-  { name: "Blue Dart",      logo: "/brands/bluedart.png" },
-  { name: "DTDC",           logo: "/brands/dtdc.png" },
+// `zoom` enlarges logos whose image files carry a lot of empty padding, so they read at the same size as the rest.
+const couriers: { name: string; logo: string; zoom?: number }[] = [
+  { name: "Delhivery",      logo: "/brands/delhivery.png", zoom: 1.9 },
+  { name: "Blue Dart",      logo: "/brands/bluedart.png", zoom: 1.9 },
+  { name: "DTDC",           logo: "/brands/dtdc.png", zoom: 1.9 },
   // { name: "XpressBees",     logo: "/brands/xpressbees.png" },
   { name: "Ekart",          logo: "/brands/ekart.png" },
   { name: "Shadowfax",      logo: "/brands/shadowfax.png" },
-  { name: "Amazon Shipping",logo: "/brands/amazon.png" },
+  { name: "Amazon Shipping",logo: "/brands/amazon.png", zoom: 1.9 },
   { name: "Shree Maruti",   logo: "/brands/shree_maruti.jpg" },
   // { name: "Losung360",      logo: "/brands/losung.jpg" },
 ];
@@ -17,11 +18,11 @@ const row1 = [...couriers, ...couriers, ...couriers, ...couriers];
 const row2 = [...couriers, ...couriers, ...couriers, ...couriers];
 
 
-function LogoCard({ name, logo }: { name: string; logo: string }) {
+function LogoCard({ name, logo, zoom = 1 }: { name: string; logo: string; zoom?: number }) {
   return (
     <div
       className="
-        group flex-shrink-0
+        group flex-shrink-0 overflow-hidden
         flex items-center justify-center
         w-[112px] h-[52px] sm:w-[158px] sm:h-[72px]
         bg-white
@@ -39,6 +40,7 @@ function LogoCard({ name, logo }: { name: string; logo: string }) {
       <img
         src={logo}
         alt={name}
+        style={zoom !== 1 ? { transform: `scale(${zoom})` } : undefined}
         className="
           max-h-[26px] max-w-[80px] sm:max-h-[38px] sm:max-w-[112px]
           w-auto object-contain
