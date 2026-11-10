@@ -331,7 +331,9 @@ export function AdminDashboard() {
   /* Onboarding gate — see full logic below. Computed pre-loading so the header
      (which reacts to context, not local component state) knows to hide the
      date filter as soon as this page mounts, not after data finishes loading. */
-  const hasPlacedOrder = monthOrders > 0 || totalShip > 0;
+  // hasAnyOrder = ever placed an order (lifetime). This month's count / the date range alone sent established
+  // sellers with no order this month back to the setup screen.
+  const hasPlacedOrder = insights?.hasAnyOrder === true || monthOrders > 0 || totalShip > 0;
   const showOnboardingNow = isUserRoute && !isEmployee && !loading && !loadingAdminTab && (!hasPlacedOrder || !kycComplete);
   useEffect(() => {
     setShowOnboarding(showOnboardingNow);
