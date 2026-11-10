@@ -9,12 +9,15 @@ import { openRechargePopup } from '../../utils/walletEvents';
    or the plan moves down. Choosing a plan opens the wallet recharge with that amount filled in. */
 
 interface PlanRow { planName: string; minRecharge: number; isCurrent: boolean; isHigher: boolean; preview: Record<string, number | null> | null }
+interface TierRow { planName: string; minShipments: number; maxShipments: number | null; label: string; isCurrent?: boolean; isCommitment?: boolean }
 interface MyPlans {
-  enabled: boolean; managed: boolean; message: string | null; currentPlan: string | null;
+  enabled: boolean; rechargeEnabled?: boolean; managed: boolean; message: string | null; currentPlan: string | null;
   plans: PlanRow[];
   month: { period: string; recharged: number; biggestRecharge: number };
   keep: { planName: string; amount: number; recharged: number; remaining: number; monthEnd: string } | null;
-  history: { at: string; action: 'upgraded' | 'downgraded' | 'kept'; fromPlan?: string; toPlan?: string; amount?: number; period?: string }[];
+  shipment?: { tiers: TierRow[]; commitment: TierRow & { setBy: string }; shippedThisMonth: number; monthEnd: string } | null;
+  nextPlan?: string | null;
+  history: { at: string; action: 'upgraded' | 'downgraded' | 'kept'; fromPlan?: string; toPlan?: string; amount?: number; shipments?: number; period?: string; note?: string }[];
 }
 
 const inr = (v?: number) => `₹${(v ?? 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
@@ -41,7 +44,7 @@ export function UpgradePlanDialog({ onClose }: { onClose: () => void }) {
         </div>
         <div className="overflow-y-auto p-5">
           {error ? <p className="text-[13px] text-red-600">{error}</p> : !data ? <p className="text-[13px] text-[#94A3B8] py-10 text-center">Loading plans…</p> : !data.enabled ? (
-            <p className="text-[13px] text-[#64748B] py-6 text-center">Recharge plans are not available right now.</p>
+            <p className="text-[13px] text-[#64748B] py-6 text-center">Automatic plans are not available right now.</p>
           ) : (
             <div className="space-y-4">
               {!data.managed && data.message && (
@@ -50,8 +53,38 @@ export function UpgradePlanDialog({ onClose }: { onClose: () => void }) {
               {data.managed && data.plans.length > 0 && !data.plans.some(p => p.isHigher) && (
                 <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-[#F0FDF4] border border-[#BBF7D0] text-[12.5px] text-[#14532D]"><CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" />You are on the highest plan.</div>
               )}
-              {data.managed && (
-                <p className="text-[12.5px] text-[#475569]">Recharge your wallet with a plan's amount in <b>one payment</b> and your rates move to that plan at once. To keep it, your recharges in each month need to add up to the plan's amount; otherwise from the 1st of next month you move to the plan your recharges reached.</p>
+              {data.managed && data.currentPlan && (
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12.5px] text-[#475569]">
+                  <span>Current plan: <b className="text-[#0F172A]">{data.currentPlan}</b></span>
+                  {data.nextPlan && <span>If the month ended today, from the 1st: <b className="text-[#0F172A]">{data.nextPlan}</b></span>}
+                </div>
+              )}
+              {/* ── Shipment commitment ── */}
+              {data.managed && data.shipment && (() => {
+                const s = data.shipment;
+                const need = s.commitment.minShipments;
+                const pct = need > 0 ? Math.min(100, Math.round((s.shippedThisMonth / need) * 100)) : 100;
+                const done = s.shippedThisMonth >= need;
+                return (
+                  <div className="rounded-xl border border-[#EEF2F6] px-4 py-3 text-[12.5px] space-y-2">
+                    <div className="font-semibold text-[#0F172A]">Your monthly shipment commitment: {s.commitment.label}</div>
+                    <p className="text-[#64748B]">On the 1st of every month you move to the plan your shipments of the month reached, up to <b>{s.commitment.planName}</b>. To change your commitment, please contact support.</p>
+                    {need > 0 && (
+                      <>
+                        <div className="h-2 rounded-full bg-[#E2E8F0] overflow-hidden"><div className={`h-full ${done ? 'bg-[#00A86B]' : 'bg-amber-500'}`} style={{ width: `${pct}%` }} /></div>
+                        <div className="text-[#64748B]">{s.shippedThisMonth.toLocaleString('en-IN')} of {need.toLocaleString('en-IN')} shipments this month{done ? ` · ${s.commitment.planName} reached` : ` · ship ${(need - s.shippedThisMonth).toLocaleString('en-IN')} more by month end for ${s.commitment.planName}`}</div>
+                      </>
+                    )}
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {s.tiers.map(t => (
+                        <span key={t.planName} className={`px-2 py-0.5 rounded-full text-[11px] font-semibold border ${t.isCommitment ? 'border-[#00A86B] text-[#00A86B] bg-[#F0FDF4]' : 'border-[#E2E8F0] text-[#64748B]'}`}>{t.label}{t.isCurrent ? ' · current' : ''}</span>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+              {data.managed && data.rechargeEnabled !== false && data.plans.length > 0 && (
+                <p className="text-[12.5px] text-[#475569]">Or recharge your wallet with a plan's amount in <b>one payment</b> and your rates move to that plan at once. To keep it, your recharges in each month need to add up to the plan's amount; otherwise from the 1st of next month you move to the plan your recharges or shipments reached.</p>
               )}
               {data.keep && (
                 <div className="rounded-xl border border-[#EEF2F6] bg-[#F8FAFC] px-4 py-3 text-[12.5px]">
@@ -87,7 +120,7 @@ export function UpgradePlanDialog({ onClose }: { onClose: () => void }) {
                   </div>
                 ))}
               </div>
-              <p className="text-[11px] text-[#94A3B8]">Prices are forward freight per shipment for 500 g with the cheapest courier, before GST and COD. Zones: A within city, B within state, C metro to metro, D rest of India, E special areas.</p>
+              {data.plans.length > 0 && <p className="text-[11px] text-[#94A3B8]">Prices are forward freight per shipment for 500 g with the cheapest courier, before GST and COD. Zones: A within city, B within state, C metro to metro, D rest of India, E special areas.</p>}
               {data.history.length > 0 && (
                 <div>
                   <h4 className="text-[12.5px] font-bold text-[#0F172A] mb-1.5">Plan changes</h4>
@@ -97,7 +130,7 @@ export function UpgradePlanDialog({ onClose }: { onClose: () => void }) {
                         {h.action === 'upgraded' ? <ArrowUpRight className="w-3.5 h-3.5 text-emerald-600" /> : h.action === 'downgraded' ? <ArrowDownRight className="w-3.5 h-3.5 text-red-500" /> : <Minus className="w-3.5 h-3.5 text-[#94A3B8]" />}
                         <span className="text-[#64748B] w-[92px] shrink-0">{fmtDate(h.at)}</span>
                         <span className="text-[#0F172A]">{h.action === 'kept' ? `Kept ${h.toPlan}` : `${h.fromPlan} → ${h.toPlan}`}</span>
-                        {h.amount != null && <span className="ml-auto text-[#94A3B8]">{h.action === 'upgraded' ? `recharge ${inr(h.amount)}` : `${inr(h.amount)} in the month`}</span>}
+                        {(h.note || h.amount != null) && <span className="ml-auto text-[#94A3B8] text-right">{h.note || (h.action === 'upgraded' ? `recharge ${inr(h.amount)}` : `${inr(h.amount)} in the month`)}</span>}
                       </li>
                     ))}
                   </ul>

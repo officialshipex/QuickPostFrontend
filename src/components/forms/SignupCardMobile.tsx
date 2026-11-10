@@ -11,14 +11,7 @@ import { apiClient } from '../../services/apiClient';
 import { useAuth } from '../../hooks/useAuth';
 import { getRoleFromToken } from '../../utils/session';
 import { useRegisterOtp, RegisterOtpFormBar } from './RegisterOtpStep';
-
-const MONTHLY_ORDER_OPTIONS = [
-  '0 - 500',
-  '500 - 1500',
-  '1500 - 3000',
-  '3000 - 5000',
-  '5000+',
-];
+import { useMonthlyOrderOptions, commitmentPlanOf } from '../../services/monthlyOrderOptions';
 
 const formSchema = z.object({
   fullname: z.string().min(2, 'Full name is required'),
@@ -52,6 +45,8 @@ export function SignupCardMobile({ onBack }: SignupCardMobileProps) {
   const [showReferral, setShowReferral] = useState(() => !!referralCode);
   const { login } = useAuth();
   const registerOtp = useRegisterOtp();
+  // Monthly Orders = the shipment commitment (plan ranges from the company's settings)
+  const monthlyOrderOptions = useMonthlyOrderOptions();
 
   const { register, handleSubmit, watch, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -76,6 +71,7 @@ export function SignupCardMobile({ onBack }: SignupCardMobileProps) {
         phoneNumber: data.phone,
         company: data.company,
         monthlyOrders: data.monthlyOrders,
+        commitmentPlan: commitmentPlanOf(monthlyOrderOptions, data.monthlyOrders),
         password: data.password,
         confirmedPassword: data.confirmedPassword,
         checked: data.checked,
@@ -155,8 +151,8 @@ export function SignupCardMobile({ onBack }: SignupCardMobileProps) {
             className="h-10 w-full rounded-md border border-[#E2E8F0] bg-transparent px-3 text-sm text-[#0F172A] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B] font-sans"
           >
             <option value="">Select range</option>
-            {MONTHLY_ORDER_OPTIONS.map(opt => (
-              <option key={opt} value={opt}>{opt}</option>
+            {monthlyOrderOptions.map(opt => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
             ))}
           </select>
           {errors.monthlyOrders && <p className="mt-1 text-xs text-red-500 font-sans">{errors.monthlyOrders.message}</p>}

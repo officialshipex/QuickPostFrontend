@@ -11,14 +11,7 @@ import { apiClient } from '../../services/apiClient';
 import { useAuth } from '../../hooks/useAuth';
 import { getRoleFromToken } from '../../utils/session';
 import { useRegisterOtp, RegisterOtpFormBar } from './RegisterOtpStep';
-
-const MONTHLY_ORDER_OPTIONS = [
-  '0 - 500',
-  '500 - 1500',
-  '1500 - 3000',
-  '3000 - 5000',
-  '5000+',
-];
+import { useMonthlyOrderOptions, commitmentPlanOf } from '../../services/monthlyOrderOptions';
 
 const formSchema = z.object({
   fullname: z.string().min(2, 'Full name is required'),
@@ -58,6 +51,8 @@ export function SignupCard({ onBack }: SignupCardProps) {
   });
   const monthlyOrders = watch('monthlyOrders');
   const [isMonthlyOrdersOpen, setIsMonthlyOrdersOpen] = useState(false);
+  // Monthly Orders = the shipment commitment (plan ranges from the company's settings)
+  const monthlyOrderOptions = useMonthlyOrderOptions();
 
   const onSubmit = async (data: FormData) => {
     setStatus('loading');
@@ -73,6 +68,7 @@ export function SignupCard({ onBack }: SignupCardProps) {
         phoneNumber: data.phone,
         company: data.company,
         monthlyOrders: data.monthlyOrders,
+        commitmentPlan: commitmentPlanOf(monthlyOrderOptions, data.monthlyOrders),
         password: data.password,
         confirmedPassword: data.confirmedPassword,
         checked: data.checked,
@@ -151,21 +147,21 @@ export function SignupCard({ onBack }: SignupCardProps) {
                 <>
                   <div className="fixed inset-0 z-10" onClick={() => setIsMonthlyOrdersOpen(false)} />
                   <div className="absolute top-[calc(100%+6px)] left-0 w-full bg-white border border-[#E2E8F0] rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.15)] z-20 overflow-hidden py-1.5">
-                    {MONTHLY_ORDER_OPTIONS.map(opt => {
-                      const isSelected = monthlyOrders === opt;
+                    {monthlyOrderOptions.map(opt => {
+                      const isSelected = monthlyOrders === opt.value;
                       return (
                         <button
-                          key={opt}
+                          key={opt.value}
                           type="button"
                           onClick={() => {
-                            setValue('monthlyOrders', opt, { shouldValidate: true });
+                            setValue('monthlyOrders', opt.value, { shouldValidate: true });
                             setIsMonthlyOrdersOpen(false);
                           }}
                           className={`w-full text-left px-3.5 py-2.5 text-sm transition-colors flex items-center justify-between gap-2 ${
                             isSelected ? 'bg-[#F0FDF4] text-[#00A86B] font-semibold' : 'text-[#0F172A] hover:bg-[#F8FAFC]'
                           }`}
                         >
-                          {opt}
+                          {opt.label}
                           {isSelected && <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />}
                         </button>
                       );
