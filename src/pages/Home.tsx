@@ -12,6 +12,7 @@ import { ValueAddedServicesSection } from '../components/sections/ValueAddedServ
 import { FinalCtaBand } from '../components/sections/FinalCtaBand';
 import { StatsSection } from '../components/sections/StatsSection';
 import { OfferPopup } from '../components/sections/OfferPopup';
+import { TrackFab } from '../components/layout/TrackFab';
 
 const ShippingNetworkScene = lazy(() => import('../components/sections/ShippingNetworkScene').then(m => ({ default: m.ShippingNetworkScene })));
 
@@ -45,6 +46,7 @@ export function Home() {
       </main>
       <Footer hideCta />
       <OfferPopup />
+      <TrackFab afterRef={heroRef} />
     </div>
   );
 }

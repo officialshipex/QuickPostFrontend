@@ -8,6 +8,8 @@ interface MobileAuthHeroProps {
   renderForm: (onBack: () => void) => React.ReactNode;
   /** Skip the hero and show the form immediately (e.g. deep-linked from "Get Started"). */
   initialShowForm?: boolean;
+  /** Replaces the default photo + tagline hero (the landing page uses its carousel); gets the "start" action. */
+  renderHero?: (start: () => void) => React.ReactNode;
 }
 
 /**
@@ -15,7 +17,7 @@ interface MobileAuthHeroProps {
  * Tapping the CTA smoothly swaps in the form (signup or login) passed via renderForm.
  * Desktop keeps its own separate layout (AuthHeroLayout + flip card / plain card).
  */
-export function MobileAuthHero({ ctaLabel, renderForm, initialShowForm = false }: MobileAuthHeroProps) {
+export function MobileAuthHero({ ctaLabel, renderForm, initialShowForm = false, renderHero }: MobileAuthHeroProps) {
   const [showForm, setShowForm] = useState(initialShowForm);
 
   // Same fix as HeroSection's flip card — useState's initial value doesn't
@@ -27,9 +29,19 @@ export function MobileAuthHero({ ctaLabel, renderForm, initialShowForm = false }
   }, [initialShowForm]);
 
   return (
-    <section className="md:hidden bg-[#00A86B] pt-[88px] pb-10 px-4 overflow-hidden">
+    <section className={`md:hidden pb-10 overflow-hidden transition-colors duration-300 ${renderHero && !showForm ? 'bg-[#F7F8F6] pt-[96px] px-5' : 'bg-[#00A86B] pt-[88px] px-4'}`}>
       <AnimatePresence mode="wait" initial={false}>
-        {!showForm ? (
+        {!showForm && renderHero ? (
+          <motion.div
+            key="custom-hero"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -12 }}
+            transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+          >
+            {renderHero(() => setShowForm(true))}
+          </motion.div>
+        ) : !showForm ? (
           <motion.div
             key="hero"
             initial={{ opacity: 0, y: 12 }}

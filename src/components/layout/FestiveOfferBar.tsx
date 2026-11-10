@@ -9,6 +9,7 @@ import { ArrowRight, X } from 'lucide-react';
 
 export const FESTIVE_BAR_HEIGHT = 76;
 const INTRO_MS = 2200;
+const MESSAGE_MS = 4000;
 
 interface P { x: number; y: number; vx: number; vy: number; life: number; max: number; hue: number; trail?: boolean }
 
@@ -86,6 +87,14 @@ export function FestiveOfferBar({ hidden, onClose }: { hidden: boolean; onClose:
     return () => window.clearTimeout(t);
   }, [intro]);
 
+  // After the intro the strip alternates between its messages every 4 s
+  const [msg, setMsg] = useState(0);
+  useEffect(() => {
+    if (intro) return;
+    const t = window.setInterval(() => setMsg(m => (m + 1) % 2), MESSAGE_MS);
+    return () => window.clearInterval(t);
+  }, [intro]);
+
   return (
     <motion.div
       className="md:hidden relative overflow-hidden bg-[#0B1F4D]"
@@ -93,7 +102,7 @@ export function FestiveOfferBar({ hidden, onClose }: { hidden: boolean; onClose:
       animate={{ height: hidden ? 0 : FESTIVE_BAR_HEIGHT }}
       transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
       role="region"
-      aria-label="Diwali offer"
+      aria-label="Offers"
     >
       <div className="relative h-[76px]" style={{ fontFamily: 'Roboto, sans-serif' }}>
         {/* Blooming warm light */}
@@ -116,9 +125,31 @@ export function FestiveOfferBar({ hidden, onClose }: { hidden: boolean; onClose:
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
             >
-              <div className="min-w-0 flex-1 leading-tight">
-                <p className="text-[15px] font-extrabold text-[#FBBF24] tracking-[-0.01em] truncate">Is Diwali, sirf ghar nahi.</p>
-                <p className="mt-0.5 text-[13.5px] text-white/95 truncate">Shipping bhi sorted rakho. 🪔</p>
+              <div className="relative min-w-0 flex-1 h-full overflow-hidden">
+                <AnimatePresence mode="wait" initial={false}>
+                  {msg === 0 ? (
+                    <motion.div
+                      key="diwali"
+                      className="absolute inset-0 flex flex-col justify-center leading-tight"
+                      initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }}
+                      transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                    >
+                      <p className="text-[15px] font-extrabold text-[#FBBF24] tracking-[-0.01em] truncate">Is Diwali, sirf ghar nahi.</p>
+                      <p className="mt-0.5 text-[13.5px] text-white/95 truncate">Shipping bhi sorted rakho. 🪔</p>
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="vas"
+                      className="absolute inset-0 flex flex-col justify-center leading-tight"
+                      initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }}
+                      transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                    >
+                      <p className="text-[14.5px] font-extrabold text-[#FBBF24] tracking-[-0.01em] truncate">VAS ke bhi paise? Seriously? 👀</p>
+                      <p className="mt-0.5 text-[13.5px] text-white/95 truncate">QuickPost pe toh <span className="font-bold text-white">FREE</span> hai! 💚</p>
+                      <p className="mt-0.5 text-[8.5px] text-white/50 tracking-wide">*T&amp;C Apply.</p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
               <Link
                 to="/#signup"
