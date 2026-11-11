@@ -10,7 +10,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Edit2, Save, Trash2, Plus, X, Search, MapPin, Layers, Loader2, ChevronDown } from 'lucide-react';
+import { Edit2, Save, Trash2, Plus, X, Search, MapPin, Layers, Loader2, ChevronDown, Upload, Download } from 'lucide-react';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { apiClient } from '../../services/apiClient';
 import { TableLoader } from '../../components/ui/TableLoader';
@@ -127,6 +127,122 @@ function ConfirmDialog({ title, body, confirmLabel, busy, onConfirm, onClose }: 
   );
 }
 
+/* ─── Upload rates (Excel) — zone prices only; overhead charges stay as set on this screen ─── */
+interface UploadResult { row: number; status: 'success' | 'skipped' | 'failed'; message: string }
+function UploadRatesModal({ planId, planName, onClose, onDone }: {
+  planId: string; planName: string; onClose: () => void; onDone: () => void;
+}) {
+  const [scope, setScope] = useState<'plan' | 'all'>(planId ? 'plan' : 'all');
+  const [file, setFile] = useState<File | null>(null);
+  const [downloading, setDownloading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [outcome, setOutcome] = useState<{ ok: boolean; message: string; errors: string[]; results: UploadResult[] } | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const readBlobError = async (err: any, fallback: string) => {
+    const data = err?.response?.data;
+    if (data instanceof Blob) { try { return JSON.parse(await data.text())?.message || fallback; } catch { return fallback; } }
+    return data?.message || fallback;
+  };
+
+  const download = async () => {
+    setDownloading(true);
+    try {
+      const res = await apiClient.get('/b2b/ratecard/uploadTemplate', { params: scope === 'plan' && planId ? { planId } : undefined, responseType: 'blob' });
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = scope === 'plan' && planName ? `b2b-ratecard-${planName}.xlsx` : 'b2b-ratecard-all-plans.xlsx';
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (err) {
+      setOutcome({ ok: false, message: await readBlobError(err, 'Could not download the sample file'), errors: [], results: [] });
+    } finally { setDownloading(false); }
+  };
+
+  const upload = async () => {
+    if (!file) return;
+    setUploading(true); setOutcome(null);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const res = await apiClient.post('/b2b/ratecard/uploadRates', form, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const d = res.data || {};
+      setOutcome({ ok: !!d.success, message: d.message || '', errors: d.errors || [], results: d.results || [] });
+      if (d.success || (d.created || 0) + (d.updated || 0) > 0) onDone();
+    } catch (err: any) {
+      setOutcome({ ok: false, message: err?.response?.data?.message || 'Upload failed', errors: err?.response?.data?.errors || [], results: [] });
+    } finally { setUploading(false); }
+  };
+
+  const tone = (s: UploadResult['status']) => s === 'success' ? 'text-[#00A86B]' : s === 'failed' ? 'text-red-600' : 'text-[#64748B]';
+
+  return createPortal(
+    <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={() => !uploading && onClose()} />
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between px-6 pt-5 pb-3">
+          <h3 className="text-[15px] font-bold text-[#0F172A]">Upload B2B Rates</h3>
+          <button onClick={() => !uploading && onClose()} className="w-7 h-7 rounded-full flex items-center justify-center text-[#94A3B8] hover:bg-[#F8FAFC]" aria-label="Close"><X className="w-4 h-4" /></button>
+        </div>
+        <div className="px-6 pb-5 overflow-y-auto space-y-4">
+          <p className="text-[12px] text-[#64748B] leading-relaxed">
+            Only the zone prices (per kg, from zone → to zone) are uploaded. <span className="font-semibold text-[#0F172A]">Overhead charges are not changed</span> — set them on this screen with Edit. A new rate card created by the upload starts with the standard overhead charges.
+          </p>
+
+          <div className="rounded-xl border border-[#E2E8F0] p-3.5 space-y-2.5">
+            <p className="text-[12px] font-bold text-[#0F172A]">1. Download the sample file</p>
+            <div className="flex flex-wrap gap-4">
+              {planId && (
+                <label className="flex items-center gap-1.5 text-[12px] font-semibold text-[#475569] cursor-pointer">
+                  <input type="radio" checked={scope === 'plan'} onChange={() => setScope('plan')} className="accent-[#00A86B]" /> {planName || 'Selected plan'}
+                </label>
+              )}
+              <label className="flex items-center gap-1.5 text-[12px] font-semibold text-[#475569] cursor-pointer">
+                <input type="radio" checked={scope === 'all'} onChange={() => setScope('all')} className="accent-[#00A86B]" /> All plans
+              </label>
+            </div>
+            <p className="text-[11px] text-[#94A3B8]">Current prices are already filled in — change only what you need. Blank or 0 = lane not offered.</p>
+            <button onClick={download} disabled={downloading} className={btnGhost}>
+              {downloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />} Download sample
+            </button>
+          </div>
+
+          <div className="rounded-xl border border-[#E2E8F0] p-3.5 space-y-2.5">
+            <p className="text-[12px] font-bold text-[#0F172A]">2. Upload the filled file (.xlsx)</p>
+            <input ref={fileRef} type="file" accept=".xlsx" className="hidden"
+              onChange={e => { setFile(e.target.files?.[0] || null); setOutcome(null); }} />
+            <div className="flex flex-wrap items-center gap-2">
+              <button onClick={() => fileRef.current?.click()} disabled={uploading} className={btnGhost}>Choose file</button>
+              <span className="text-[12px] text-[#475569] truncate max-w-[220px]">{file ? file.name : 'No file chosen'}</span>
+            </div>
+            <button onClick={upload} disabled={!file || uploading} className={btnPrimary}>
+              {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />} Upload
+            </button>
+          </div>
+
+          {outcome && (
+            <div className={`rounded-xl border p-3.5 ${outcome.ok ? 'border-[#BBF7D0] bg-[#F0FDF4]' : 'border-red-200 bg-red-50'}`}>
+              <p className={`text-[12.5px] font-bold ${outcome.ok ? 'text-[#00A86B]' : 'text-red-600'}`}>{outcome.message}</p>
+              {outcome.errors.length > 0 && (
+                <ul className="mt-2 space-y-1 max-h-48 overflow-y-auto text-[11.5px] text-red-700 list-disc pl-4">
+                  {outcome.errors.map((e, i) => <li key={i}>{e}</li>)}
+                </ul>
+              )}
+              {outcome.errors.length === 0 && outcome.results.length > 0 && (
+                <ul className="mt-2 space-y-1 max-h-48 overflow-y-auto text-[11.5px]">
+                  {outcome.results.map((r, i) => <li key={i} className={tone(r.status)}>{r.message}</li>)}
+                </ul>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 /* ═══════════════════════════════ Rate Card tab ═══════════════════════════════ */
 function RateCardTab({ showToast }: { showToast: (t: 'success' | 'error' | 'info', m: string) => void }) {
   const [meta, setMeta] = useState<Meta | null>(null);
@@ -145,6 +261,7 @@ function RateCardTab({ showToast }: { showToast: (t: 'success' | 'error' | 'info
   const [showAddPlan, setShowAddPlan] = useState(false);
   const [newPlanName, setNewPlanName] = useState('');
   const [addingPlan, setAddingPlan] = useState(false);
+  const [showUpload, setShowUpload] = useState(false);
 
   const zones = meta?.zones || [];
 
@@ -295,6 +412,11 @@ function RateCardTab({ showToast }: { showToast: (t: 'success' | 'error' | 'info
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} {mode === 'create' ? 'Create Rate Card' : 'Save'}
             </button>
           )}
+          {!editing || mode === 'create' ? (
+            <button onClick={() => setShowUpload(true)} className={btnGhost} title="Upload zone prices from Excel (overhead charges are not changed)">
+              <Upload className="w-4 h-4" /> Upload Rates
+            </button>
+          ) : null}
           <button onClick={() => setShowAddPlan(true)} className={btnGhost}><Plus className="w-4 h-4" /> Add Plan</button>
         </div>
       </div>
@@ -438,6 +560,10 @@ function RateCardTab({ showToast }: { showToast: (t: 'success' | 'error' | 'info
           onConfirm={handleDelete}
           onClose={() => setConfirmDelete(false)}
         />
+      )}
+
+      {showUpload && (
+        <UploadRatesModal planId={planId} planName={planName} onClose={() => setShowUpload(false)} onDone={() => { loadCard(); }} />
       )}
 
       {showAddPlan && createPortal(
