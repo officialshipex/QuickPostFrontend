@@ -689,7 +689,7 @@ export function CargoRateCard() {
 
   return (
     <AdminLayout>
-      <div className={`flex flex-col ${isImpersonating ? 'h-[calc(100vh-104px)]' : 'h-[calc(100vh-72px)]'} -m-4 md:-m-6 bg-white`}>
+      <div className={`flex flex-col h-[calc(100vh-72px)] -m-4 md:-m-6 bg-white`}>
         <div className="px-4 md:px-6 py-2 border-b border-[#E2E8F0] shrink-0">
           <div className="flex gap-1 items-center bg-[#F7FEFC] rounded-full p-1.5 w-fit">
             {([['ratecard', 'Rate Card', Layers], ['zones', 'Zone Matrix', MapPin]] as const).map(([key, label, Icon]) => (

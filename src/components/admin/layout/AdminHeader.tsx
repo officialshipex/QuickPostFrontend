@@ -14,6 +14,7 @@ import { getToken, setToken } from '../../../utils/session';
 import { useAdminTab } from '../../../context/AdminUserContext';
 import { useDashboardFilters } from '../../../context/DashboardFilterContext';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { SpectateFloat } from './SpectateEye';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BulkUploadModal } from '../../ui/BulkUploadModal';
 import { RechargeWalletModal } from '../../ui/RechargeWalletModal';
@@ -408,23 +409,18 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
         </div>,
         document.body,
       )}
-      {/* Impersonation Banner */}
-      {isImpersonating && (
-        <div className="fixed top-0 left-0 right-0 z-[1000] bg-gradient-to-r from-orange-600 to-orange-500 text-white h-8 px-4 shadow-md flex items-center justify-center gap-3">
-          <Shield className="w-3.5 h-3.5 animate-pulse" />
-          <span className="text-[11px] font-semibold tracking-wide uppercase">Impersonation Mode Active</span>
-          <button
-            onClick={handleReturnToAdmin}
-            className="ml-2 flex items-center gap-1.5 bg-white/20 hover:bg-white/30 rounded-full px-3 py-0.5 text-[11px] font-semibold transition-colors"
-          >
-            <LogOut className="w-3 h-3" />
-            Return to Admin
-          </button>
-        </div>
+      {/* Impersonation: floating eye (top right, below the header). Click it to stop viewing. */}
+      {isImpersonating && createPortal(
+        <SpectateFloat
+          name={businessName || userName || 'User'}
+          role={isSalesEmployee ? 'Sales' : 'Seller'}
+          onExit={handleReturnToAdmin}
+        />,
+        document.body,
       )}
 
       {/* Mobile Top Bar — visible only on mobile */}
-      <div ref={mobileSearchRef} className={`md:hidden bg-white border-b border-[#E2E8F0] sticky ${isImpersonating ? 'top-8' : 'top-0'} z-[100] shadow-sm overflow-hidden`}>
+      <div ref={mobileSearchRef} className={`md:hidden bg-white border-b border-[#E2E8F0] sticky top-0 z-[100] shadow-sm overflow-hidden`}>
 
         <AnimatePresence mode="wait" initial={false}>
         {/* Normal mode — hamburger + logo + icon strip */}
@@ -534,7 +530,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                     {showNotifications && (
                       <>
                         <div className="fixed inset-0 z-40" onClick={() => setShowNotifications(false)} />
-                        <div className={`fixed right-3 ${isImpersonating ? 'top-[96px]' : 'top-[64px]'} w-56 max-w-[calc(100vw-24px)] bg-white rounded-xl shadow-xl border border-[#E2E8F0] overflow-hidden z-50 origin-top-right`}>
+                        <div className={`fixed right-3 top-[64px] w-56 max-w-[calc(100vw-24px)] bg-white rounded-xl shadow-xl border border-[#E2E8F0] overflow-hidden z-50 origin-top-right`}>
                           <div className="px-2.5 py-1.5 border-b border-[#E2E8F0] flex justify-between items-center bg-slate-50/50">
                             <h3 className="font-bold text-[#0F172A] text-[10px] uppercase tracking-wider">Notifications</h3>
                             {((pendingAgreement ? 1 : 0) + notifications.length) > 0 && (
@@ -625,7 +621,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                     {showQuickActions && (
                       <>
                         <div className="fixed inset-0 z-40" onClick={() => setShowQuickActions(false)} />
-                        <div className={`fixed right-3 ${isImpersonating ? 'top-[96px]' : 'top-[64px]'} w-48 max-w-[calc(100vw-24px)] bg-white rounded-xl shadow-xl border border-[#E2E8F0] py-2 z-50 origin-top-right`}>
+                        <div className={`fixed right-3 top-[64px] w-48 max-w-[calc(100vw-24px)] bg-white rounded-xl shadow-xl border border-[#E2E8F0] py-2 z-50 origin-top-right`}>
                           <div className="px-4 py-1.5 border-b border-slate-100 mb-1">
                             <span className="text-[10px] font-bold text-[#94A3B8] uppercase">Quick Menu</span>
                           </div>
@@ -686,7 +682,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                 {showMobileWalletSummary && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setShowMobileWalletSummary(false)} />
-                    <div className={`fixed right-3 ${isImpersonating ? 'top-[96px]' : 'top-[64px]'} w-64 max-w-[calc(100vw-24px)] bg-white rounded-2xl shadow-xl border border-[#E2E8F0] p-4 z-50 origin-top-right`}>
+                    <div className={`fixed right-3 top-[64px] w-64 max-w-[calc(100vw-24px)] bg-white rounded-2xl shadow-xl border border-[#E2E8F0] p-4 z-50 origin-top-right`}>
                       <div className="flex justify-between items-center mb-3">
                         <span className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider">Wallet Summary</span>
                         <span className="w-1.5 h-1.5 rounded-full bg-[#00A86B] animate-pulse shrink-0"></span>
@@ -739,7 +735,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                 {showProfileMenu && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setShowProfileMenu(false)} />
-                    <div className={`fixed right-3 ${isImpersonating ? 'top-[96px]' : 'top-[64px]'} w-56 max-w-[calc(100vw-24px)] bg-white rounded-xl shadow-xl border border-[#E2E8F0] py-2 z-50 origin-top-right`}>
+                    <div className={`fixed right-3 top-[64px] w-56 max-w-[calc(100vw-24px)] bg-white rounded-xl shadow-xl border border-[#E2E8F0] py-2 z-50 origin-top-right`}>
                       <div className="px-4 py-2.5 border-b border-slate-100 bg-slate-50/50">
                         {isEmployee ? (
                           <>
@@ -842,8 +838,8 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
         {/* Mobile search results panel */}
         {showMobileSearch && showOrderSearchResults && searchQuery.trim() && (
           <>
-            <div className="fixed inset-0 z-[89]" style={{ top: isImpersonating ? 92 : 60 }} onClick={() => setShowOrderSearchResults(false)} />
-            <div className={`fixed left-0 right-0 ${isImpersonating ? 'top-[92px]' : 'top-[60px]'} max-h-[60vh] overflow-y-auto bg-white border-b border-[#E2E8F0] shadow-2xl z-[90]`}>
+            <div className="fixed inset-0 z-[89]" style={{ top: 60 }} onClick={() => setShowOrderSearchResults(false)} />
+            <div className={`fixed left-0 right-0 top-[60px] max-h-[60vh] overflow-y-auto bg-white border-b border-[#E2E8F0] shadow-2xl z-[90]`}>
               {orderSearchLoading ? (
                 <div className="px-4 py-6 flex items-center justify-center gap-2 text-[#94A3B8]">
                   <div className="w-4 h-4 border-2 border-[#00A86B] border-t-transparent rounded-full animate-spin" />
@@ -880,7 +876,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
       </div>
 
       {/* Desktop Header — hidden on mobile */}
-      <header className={`hidden md:flex bg-white/80 backdrop-blur-xl border-b border-[#E2E8F0]/60 h-[72px] px-6 items-center gap-6 sticky ${isImpersonating ? 'top-8' : 'top-0'} z-[100] shadow-[0_4px_24px_-12px_rgba(0,0,0,0.05)]`}>
+      <header className={`hidden md:flex bg-white/80 backdrop-blur-xl border-b border-[#E2E8F0]/60 h-[72px] px-6 items-center gap-6 sticky top-0 z-[100] shadow-[0_4px_24px_-12px_rgba(0,0,0,0.05)]`}>
       
       {/* Left Section - Logo & Portal Name */}
       <div className="flex items-center shrink-0">

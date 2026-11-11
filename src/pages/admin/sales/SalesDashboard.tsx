@@ -4,12 +4,13 @@ import { AnimatePresence, motion } from 'framer-motion';
 import {
   PhoneCall, PhoneOutgoing, CalendarClock, UserPlus, UserCheck, PackageCheck, Package, Target,
   Search, Copy, Check, Link2, X, AlertCircle, TrendingUp, Users, Clock, RefreshCw, Phone, MessageCircle, ChevronDown,
-  Wallet, BadgePercent, Plus, Eye, Gift, type LucideIcon,
+  Wallet, BadgePercent, Plus, Eye, Gift, ShieldBan, ArchiveRestore, Inbox, type LucideIcon,
 } from 'lucide-react';
 import { AdminLayout } from '../../../components/admin/layout/AdminLayout';
 import { useAdminTab } from '../../../context/AdminUserContext';
 import { useDashboardFilters } from '../../../context/DashboardFilterContext';
 import { TableLoader } from '../../../components/ui/TableLoader';
+import { GlassDateFilter } from '../../../components/ui/GlassDateFilter';
 import { Toast } from '../../../components/ui/Toast';
 import { useToast } from '../../../hooks/useToast';
 import { copyToClipboard } from '../../../utils/clipboard';
@@ -165,14 +166,117 @@ const waLink = (phone: string) => {
   return `https://wa.me/${digits.length === 10 ? `91${digits}` : digits}`;
 };
 
+/* Junk box: leads marked as spam leave the priority queue. The sales API has no spam field yet, so the list of
+   junked lead ids lives in this browser; the lead itself is not changed on the server and can be restored. */
+const JUNK_KEY = 'qp_sales_junk';
+function readJunk(): string[] {
+  try { const v = JSON.parse(localStorage.getItem(JUNK_KEY) || '[]'); return Array.isArray(v) ? v : []; } catch { return []; }
+}
+function useJunk() {
+  const [ids, setIds] = useState<string[]>(readJunk);
+  const save = (next: string[]) => { setIds(next); try { localStorage.setItem(JUNK_KEY, JSON.stringify(next)); } catch { /* ignore */ } };
+  return {
+    ids,
+    add: (id: string) => save(ids.includes(id) ? ids : [id, ...ids]),
+    remove: (id: string) => save(ids.filter(x => x !== id)),
+    clear: () => save([]),
+  };
+}
+
+const SWIPE_ACTION_W = 92;
+/** Phones: drag a card left to reveal "Junk"; release past halfway to keep it open. */
+function SwipeToJunk({ children, onJunk, disabled }: { children: React.ReactNode; onJunk: () => void; disabled?: boolean }) {
+  const [open, setOpen] = useState(false);
+  if (disabled) return <>{children}</>;
+  return (
+    <div className="relative overflow-hidden">
+      <button
+        type="button"
+        onClick={() => { setOpen(false); onJunk(); }}
+        aria-label="Move to junk"
+        className="absolute inset-y-0 right-0 flex flex-col items-center justify-center gap-1 bg-[#DC2626] text-white text-[11.5px] font-semibold"
+        style={{ width: SWIPE_ACTION_W }}
+      >
+        <ShieldBan className="w-5 h-5" /> Junk
+      </button>
+      <motion.div
+        className="relative bg-white touch-pan-y"
+        drag="x"
+        dragConstraints={{ left: -SWIPE_ACTION_W, right: 0 }}
+        dragElastic={{ left: 0.08, right: 0 }}
+        dragDirectionLock
+        animate={{ x: open ? -SWIPE_ACTION_W : 0 }}
+        transition={{ type: 'spring', stiffness: 500, damping: 40 }}
+        onDragEnd={(_, info) => setOpen(info.offset.x < -SWIPE_ACTION_W / 2 || (open && info.offset.x < 10))}
+      >
+        {children}
+      </motion.div>
+    </div>
+  );
+}
+
+function JunkBoxDialog({ leads, onRestore, onRestoreAll, onClose }: { leads: SalesCall[]; onRestore: (id: string) => void; onRestoreAll: () => void; onClose: () => void }) {
+  return createPortal(
+    <div className="fixed inset-0 z-[300] flex items-end sm:items-center justify-center sm:p-4">
+      <div className="absolute inset-0 bg-[#0F172A]/40 backdrop-blur-sm" onClick={onClose} />
+      <div role="dialog" aria-modal="true" aria-label="Junk box" className="relative w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl shadow-xl max-h-[80vh] flex flex-col">
+        <div className="px-5 py-4 border-b border-[#F1F5F9] flex items-center justify-between gap-3">
+          <div>
+            <h3 className="text-[15px] font-bold text-[#0F172A]">Junk box</h3>
+            <p className="text-[12px] text-[#94A3B8]">Leads marked as spam. Restore any to put it back in your queue.</p>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Close" className="w-8 h-8 rounded-full flex items-center justify-center text-[#94A3B8] hover:bg-[#F1F5F9]"><X className="w-4 h-4" /></button>
+        </div>
+        {leads.length === 0 ? (
+          <div className="py-12 px-6 text-center">
+            <span className="mx-auto w-12 h-12 rounded-2xl bg-[#F1F5F9] flex items-center justify-center"><Inbox className="w-6 h-6 text-[#94A3B8]" /></span>
+            <p className="mt-3 text-[13px] font-semibold text-[#0F172A]">Junk box is empty</p>
+            <p className="text-[12px] text-[#94A3B8]">Leads you mark as spam will show up here.</p>
+          </div>
+        ) : (
+          <ul className="flex-1 overflow-y-auto divide-y divide-[#F1F5F9]">
+            {leads.map(c => (
+              <li key={c._id} className="px-5 py-3 flex items-center gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="text-[13px] font-semibold text-[#0F172A] truncate">{c.businessName || c.leadName}</div>
+                  <div className="text-[11.5px] text-[#94A3B8] truncate">{[c.businessName ? c.leadName : null, c.phone, c.city].filter(Boolean).join(' · ')}</div>
+                </div>
+                <button type="button" onClick={() => onRestore(c._id)}
+                  className="h-8 px-3 rounded-lg border border-[#E2E8F0] text-[12px] font-semibold text-[#475569] hover:border-[#00A86B]/40 hover:text-[#00A86B] inline-flex items-center gap-1.5 shrink-0">
+                  <ArchiveRestore className="w-3.5 h-3.5" /> Restore
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        {leads.length > 1 && (
+          <div className="px-5 py-3 border-t border-[#F1F5F9] flex justify-end pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+            <button type="button" onClick={onRestoreAll} className="h-9 px-4 rounded-full border border-[#E2E8F0] text-[12.5px] font-semibold text-[#475569] hover:bg-[#F8FAFC]">Restore all</button>
+          </div>
+        )}
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
 function PriorityQueue({ calls, onUpdate, onViewAll, readOnly }: { calls: SalesCall[]; onUpdate: (c: SalesCall) => void; onViewAll: () => void; readOnly?: boolean }) {
   const [bucket, setBucket] = useState<'all' | DueBucket>('all');
   const [stage, setStage] = useState<'all' | LeadStage>('all');
   const [sort, setSort] = useState<'urgency' | 'priority' | 'name'>('urgency');
   const [query, setQuery] = useState('');
   const [expanded, setExpanded] = useState(false);
+  const junk = useJunk();
+  const [showJunk, setShowJunk] = useState(false);
+  const [lastJunked, setLastJunked] = useState<SalesCall | null>(null);
+  const junkLead = (c: SalesCall) => {
+    junk.add(c._id);
+    setLastJunked(c);
+    window.setTimeout(() => setLastJunked(cur => (cur?._id === c._id ? null : cur)), 5000);
+  };
+  const junkLeads = useMemo(() => calls.filter(c => junk.ids.includes(c._id)), [calls, junk.ids]);
 
-  const open = useMemo(() => calls.filter(c => c.status !== 'completed').map(c => ({ c, due: dueInfo(c.followUpAt), stage: leadStage(c) })), [calls]);
+  const open = useMemo(() => calls.filter(c => c.status !== 'completed' && !junk.ids.includes(c._id)).map(c => ({ c, due: dueInfo(c.followUpAt), stage: leadStage(c) })), [calls, junk.ids]);
   const counts = useMemo(() => {
     const k: Record<'all' | DueBucket, number> = { all: open.length, overdue: 0, today: 0, upcoming: 0, none: 0 };
     open.forEach(r => { k[r.due.bucket]++; });
@@ -207,6 +311,8 @@ function PriorityQueue({ calls, onUpdate, onViewAll, readOnly }: { calls: SalesC
         className="w-9 h-9 rounded-xl border border-[#E2E8F0] bg-white hover:border-[#00A86B]/40 hover:text-[#00A86B] text-[#475569] flex items-center justify-center transition-colors"><MessageCircle className="w-4 h-4" /></a>
       {!readOnly && <button type="button" onClick={() => onUpdate(c)} title="Log call outcome"
         className="h-9 px-3 rounded-xl border border-[#E2E8F0] text-[12px] font-semibold text-[#475569] hover:border-[#00A86B]/40 hover:text-[#00A86B]">Log</button>}
+      {!readOnly && <button type="button" onClick={() => junkLead(c)} title="Mark as spam (move to junk)" aria-label={`Mark ${c.leadName} as spam`}
+        className="w-9 h-9 rounded-xl border border-[#E2E8F0] text-[#94A3B8] hover:border-red-300 hover:text-red-500 hover:bg-red-50 flex items-center justify-center transition-colors"><ShieldBan className="w-4 h-4" /></button>}
     </div>
   );
   const seller = (c: SalesCall) => (
@@ -235,7 +341,13 @@ function PriorityQueue({ calls, onUpdate, onViewAll, readOnly }: { calls: SalesC
             </select>
             <ChevronDown className="w-3.5 h-3.5 text-[#94A3B8] absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
-          <button onClick={onViewAll} className="text-[12.5px] font-semibold text-[#00A86B] hover:underline">View all</button>
+          <div className="flex items-center gap-3">
+            <button type="button" onClick={() => setShowJunk(true)}
+              className="h-8 px-2.5 rounded-lg border border-[#E2E8F0] text-[12px] font-semibold text-[#475569] hover:border-[#CBD5E1] inline-flex items-center gap-1.5">
+              <Inbox className="w-3.5 h-3.5" /> Junk{junkLeads.length > 0 && <span className="tabular-nums text-[#94A3B8]">{junkLeads.length}</span>}
+            </button>
+            <button onClick={onViewAll} className="text-[12.5px] font-semibold text-[#00A86B] hover:underline">View all</button>
+          </div>
         </div>
       </div>
 
@@ -300,7 +412,9 @@ function PriorityQueue({ calls, onUpdate, onViewAll, readOnly }: { calls: SalesC
           {/* Mobile cards */}
           <ul className="md:hidden divide-y divide-[#F1F5F9] border-t border-[#F1F5F9]">
             {shown.map(({ c, due, stage: st }) => (
-              <li key={c._id} className={`px-4 py-3.5 ${due.bucket === 'overdue' ? 'shadow-[inset_3px_0_0_#EF4444]' : ''}`}>
+              <li key={c._id}>
+              <SwipeToJunk onJunk={() => junkLead(c)} disabled={readOnly}>
+              <div className={`px-4 py-3.5 ${due.bucket === 'overdue' ? 'shadow-[inset_3px_0_0_#EF4444]' : ''}`}>
                 <div className="flex items-start justify-between gap-3">
                   {seller(c)}
                   <span className={`px-2 py-1 rounded-md text-[11px] font-semibold whitespace-nowrap shrink-0 ${due.tone}`}>{due.label}</span>
@@ -317,6 +431,8 @@ function PriorityQueue({ calls, onUpdate, onViewAll, readOnly }: { calls: SalesC
                   <button type="button" onClick={() => onUpdate(c)}
                     className="h-9 px-3.5 rounded-lg border border-[#E2E8F0] text-[#334155] text-[12.5px] font-semibold active:bg-[#F8FAFC]">Log</button>
                 </div>
+              </div>
+              </SwipeToJunk>
               </li>
             ))}
           </ul>
@@ -326,7 +442,31 @@ function PriorityQueue({ calls, onUpdate, onViewAll, readOnly }: { calls: SalesC
               {expanded ? 'Show less' : `Show all ${rows.length}`}<ChevronDown className={`w-3.5 h-3.5 transition-transform ${expanded ? 'rotate-180' : ''}`} />
             </button>
           )}
+          {!readOnly && <p className="md:hidden px-4 py-2 border-t border-[#F1F5F9] text-[11px] text-[#94A3B8] text-center">Swipe a lead left to move it to junk</p>}
         </>
+      )}
+
+      {/* Undo after junking */}
+      <AnimatePresence>
+        {lastJunked && (
+          <motion.div
+            className="fixed left-1/2 bottom-[max(1rem,env(safe-area-inset-bottom))] z-[250] flex items-center gap-4 pl-4 pr-2 h-11 rounded-full bg-[#0F172A] text-white shadow-lg"
+            initial={{ opacity: 0, y: 20, x: '-50%' }} animate={{ opacity: 1, y: 0, x: '-50%' }} exit={{ opacity: 0, y: 20, x: '-50%' }}
+          >
+            <span className="text-[12.5px] whitespace-nowrap">Moved to junk</span>
+            <button type="button" onClick={() => { junk.remove(lastJunked._id); setLastJunked(null); }}
+              className="h-8 px-3 rounded-full text-[12.5px] font-semibold text-[#34D399] hover:bg-white/10">Undo</button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {showJunk && (
+        <JunkBoxDialog
+          leads={junkLeads}
+          onRestore={junk.remove}
+          onRestoreAll={junk.clear}
+          onClose={() => setShowJunk(false)}
+        />
       )}
     </div>
   );
@@ -627,6 +767,9 @@ function SalesDashboardBody({ viewAs }: { viewAs?: { id: string; name: string } 
   const [viewing, setViewing] = useState<string | null>(null);
   const referral = { referralId: me?.referralId, referralLink: referralLinkFor(me?.referralId) };
   const [callFilter, setCallFilter] = useState<'all' | CallStatus>('all');
+  // My Leads: filter by the date a lead was assigned (empty = all dates)
+  const [leadFrom, setLeadFrom] = useState('');
+  const [leadTo, setLeadTo] = useState('');
   const [sellerFilter, setSellerFilter] = useState<'all' | 'new' | 'kyc_pending' | 'onboarding' | 'active' | 'inactive' | 'no_first_order'>('all');
   const [q, setQ] = useState('');
   const [editing, setEditing] = useState<SalesCall | null>(null);
@@ -684,9 +827,15 @@ function SalesDashboardBody({ viewAs }: { viewAs?: { id: string; name: string } 
   ];
 
   const ql = q.trim().toLowerCase();
+  const inLeadRange = useCallback((c: SalesCall) => {
+    if (!leadFrom || !leadTo || !c.assignedAt) return true;
+    const d = new Date(c.assignedAt);
+    const day = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    return day >= leadFrom && day <= leadTo;
+  }, [leadFrom, leadTo]);
   const visibleCalls = useMemo(() => calls.filter(c =>
-    (callFilter === 'all' || c.status === callFilter) &&
-    (!ql || [c.leadName, c.businessName, c.phone].some(v => (v || '').toLowerCase().includes(ql)))), [calls, callFilter, ql]);
+    (callFilter === 'all' || c.status === callFilter) && inLeadRange(c) &&
+    (!ql || [c.leadName, c.businessName, c.phone].some(v => (v || '').toLowerCase().includes(ql)))), [calls, callFilter, ql, inLeadRange]);
   const visibleSellers = useMemo(() => sellers.filter(s => {
     const f = sellerFilter;
     const ok = f === 'all' || (f === 'new' && s.onboardingStatus === 'registered') || (f === 'kyc_pending' && s.kycStatus !== 'verified')
@@ -845,18 +994,26 @@ function SalesDashboardBody({ viewAs }: { viewAs?: { id: string; name: string } 
 
             {/* ── My Calls ── */}
             {tab === 'calls' && (
-              <div className={`${card} overflow-hidden`}>
-                <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-[#F1F5F9]">
+              /* overflow stays visible so the date picker's calendar is not clipped */
+              <div className={`${card} [&>*:last-child]:rounded-b-[inherit]`}>
+                <div className="relative z-30 flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-[#F1F5F9]">
                   <div className="flex items-center gap-1 overflow-x-auto">
                     {(['all', ...Object.keys(CALL_STATUS_LABEL)] as ('all' | CallStatus)[]).map(s => (
                       <button key={s} onClick={() => setCallFilter(s)}
                         className={`h-8 px-3 rounded-full text-[12.5px] font-semibold whitespace-nowrap ${callFilter === s ? 'bg-[#F0FDF4] text-[#00A86B]' : 'text-[#64748B] hover:bg-[#F8FAFC]'}`}>
-                        {s === 'all' ? 'All' : CALL_STATUS_LABEL[s]} <span className="ml-1 tabular-nums text-[#94A3B8]">{s === 'all' ? calls.length : calls.filter(c => c.status === s).length}</span>
+                        {s === 'all' ? 'All' : CALL_STATUS_LABEL[s]} <span className="ml-1 tabular-nums text-[#94A3B8]">{s === 'all' ? calls.filter(inLeadRange).length : calls.filter(c => c.status === s && inLeadRange(c)).length}</span>
                       </button>
                     ))}
                   </div>
-                  <div className="flex items-center gap-2 max-w-full">
-                    <div className="relative w-[240px] max-w-full">
+                  <div className="flex flex-wrap items-center gap-2 max-w-full w-full md:w-auto">
+                    <GlassDateFilter
+                      startDate={leadFrom}
+                      endDate={leadTo}
+                      onDateChange={(a, b) => { setLeadFrom(a); setLeadTo(b); }}
+                      align="right"
+                      className="w-full sm:w-[230px]"
+                    />
+                    <div className="relative flex-1 sm:flex-none sm:w-[240px] min-w-0">
                       <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8]" />
                       <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search name, business or phone"
                         className="w-full h-9 pl-10 pr-4 rounded-full border border-[#E2E8F0] text-[12.5px] focus:outline-none focus:border-[#00A86B]" />
@@ -869,7 +1026,7 @@ function SalesDashboardBody({ viewAs }: { viewAs?: { id: string; name: string } 
                 {visibleCalls.length === 0 ? (
                   <Empty icon={PhoneCall} title={calls.length ? 'No leads match' : 'No leads assigned yet'} body={calls.length ? 'Try a different status or search.' : 'Leads assigned to you will appear here with their status and follow-ups.'} />
                 ) : (
-                  <div className="overflow-x-auto">
+                  <div className="overflow-x-auto overscroll-x-contain touch-pan-x touch-pan-y [-webkit-overflow-scrolling:touch]">
                     <table className="w-full text-left min-w-[860px]">
                       <thead><tr className="bg-[#E6F9F2] text-xs font-medium text-[#64748B] uppercase tracking-wider">
                         {['Lead', 'Phone', 'Assigned', 'Status', 'Outcome', 'Follow-up', ''].map(h => <th key={h} className="py-2.5 px-4 whitespace-nowrap">{h}</th>)}

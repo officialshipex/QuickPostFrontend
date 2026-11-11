@@ -426,7 +426,7 @@ export function OffersTab({ people, notify, autoAdjust }: { people: TeamMember[]
       <div className="px-5 py-4 border-b border-[#F1F5F9] flex flex-wrap items-center justify-between gap-2">
         <div className="max-w-2xl">
           <h2 className="text-[14px] font-bold text-[#0F172A]">Commitment rates</h2>
-          <p className="text-[12px] text-[#94A3B8]">What sales people may pitch: "commit to N shipments a month, get this rate card". They can't edit rates — only choose one, so no approval is needed. Every month from the commitment date the seller moves to the rate their shipments earned{autoAdjust === false ? ' (auto-adjust is switched off in Settings)' : ''}, never above the committed one.</p>
+          <p className="text-[12px] text-[#94A3B8]">What sales people may pitch: "commit to N shipments a month, get this rate card". They can't edit rates — only choose one, so no approval is needed. Every month from the commitment date the seller moves to the rate their shipments earned{autoAdjust === ''}, never above the committed one.</p>
         </div>
         <button onClick={() => setEditing({})} className={primaryBtn}><Plus className="w-4 h-4" />Add rate</button>
       </div>

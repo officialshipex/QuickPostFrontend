@@ -231,7 +231,7 @@ export function AdminCustomers() {
 
   return (
     <AdminLayout>
-      <div className={`flex flex-col ${isImpersonating ? 'h-[calc(100vh-104px)]' : 'h-[calc(100vh-72px)]'} -m-4 md:-m-6 bg-white overflow-hidden`}>
+      <div className={`flex flex-col h-[calc(100vh-72px)] -m-4 md:-m-6 bg-white overflow-hidden`}>
 
         {/* Top bar — desktop */}
         <div className="hidden md:flex items-center justify-between gap-3 px-6 py-4 border-b border-[#E2E8F0] shrink-0">

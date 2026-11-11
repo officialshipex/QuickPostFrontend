@@ -1270,7 +1270,7 @@ export function CargoOrders() {
 
   return (
     <AdminLayout>
-      <div className={`flex flex-col ${isImpersonating ? 'h-[calc(100vh-104px)]' : 'h-[calc(100vh-72px)]'} -m-4 md:-m-6 bg-white ${!isAdminView ? 'overflow-hidden' : ''}`}>
+      <div className={`flex flex-col h-[calc(100vh-72px)] -m-4 md:-m-6 bg-white ${!isAdminView ? 'overflow-hidden' : ''}`}>
 
         {/* ── Mobile Search + Filter + Action + Add Order Row (matches Wallet page) ──
             Same hoisted row for every tab, including Pickup & Manifest — only the search

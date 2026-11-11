@@ -515,7 +515,7 @@ export function AdminNDR() {
 
   return (
     <AdminLayout>
-      <div className={`flex flex-col ${isImpersonating ? 'h-[calc(100vh-104px)]' : 'h-[calc(100vh-72px)]'} -m-4 md:-m-6 bg-white ${!isAdminView ? 'overflow-hidden' : ''}`}>
+      <div className={`flex flex-col h-[calc(100vh-72px)] -m-4 md:-m-6 bg-white ${!isAdminView ? 'overflow-hidden' : ''}`}>
 
         {/* ── Tab Bar ── */}
         <div className="bg-white relative z-50 shrink-0">

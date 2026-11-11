@@ -312,7 +312,7 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
   return (
     <>
       {/* Desktop Sidebar — hidden on mobile */}
-      <aside className={`hidden md:flex fixed left-0 w-[68px] bg-[#0F172A] z-[100] flex-col items-center py-4 border-r border-[#1E293B] ${isImpersonating ? 'top-8 h-[calc(100vh-2rem)]' : 'top-0 h-screen'}`}>
+      <aside className={`hidden md:flex fixed left-0 w-[68px] bg-[#0F172A] z-[100] flex-col items-center py-4 border-r border-[#1E293B] top-0 h-screen`}>
 
         {/* Logo */}
         <div className="w-full flex justify-center mb-8">
@@ -441,7 +441,7 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
 
       {/* Mobile Sidebar Drawer — visible only on mobile when toggled */}
       {isMobileOpen && (
-        <div className={`md:hidden fixed inset-x-0 bottom-0 z-[200] ${isImpersonating ? 'top-8' : 'top-0'}`}>
+        <div className={`md:hidden fixed inset-x-0 bottom-0 z-[200] top-0`}>
           {/* Backdrop */}
           <div
             className="absolute inset-0 bg-black/50 backdrop-blur-sm"

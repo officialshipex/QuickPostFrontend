@@ -1638,7 +1638,7 @@ export function AdminNotification() {
 
   return (
     <AdminLayout>
-      <div className={`flex flex-col ${isImpersonating ? 'h-[calc(100vh-104px)]' : 'h-[calc(100vh-72px)]'} -m-4 md:-m-6 overflow-hidden`}>
+      <div className={`flex flex-col h-[calc(100vh-72px)] -m-4 md:-m-6 overflow-hidden`}>
         <div className="px-4 md:px-6 pt-4 md:pt-6 shrink-0">
 
         {/* Header */}

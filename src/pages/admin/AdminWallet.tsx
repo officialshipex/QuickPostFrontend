@@ -1212,7 +1212,7 @@ export function AdminWallet() {
 
   return (
     <AdminLayout>
-      <div className={`flex flex-col ${isImpersonating ? 'h-[calc(100vh-104px)] md:h-[calc(100vh-104px)]' : 'h-[calc(100vh-72px)] md:h-[calc(100vh-72px)]'} -m-4 md:-m-6 bg-white ${!isAdminView ? 'overflow-hidden' : ''}`}>
+      <div className={`flex flex-col h-[calc(100vh-72px)] md:h-[calc(100vh-72px)] -m-4 md:-m-6 bg-white ${!isAdminView ? 'overflow-hidden' : ''}`}>
         <div className="bg-white relative z-50 shrink-0">
           {/* Mobile Search Bar */}
           <div className="md:hidden px-3 py-2.5 border-b border-[#E2E8F0] flex items-center gap-2">

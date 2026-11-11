@@ -1430,7 +1430,7 @@ export function AdminProfile() {
         />
       </div>
 
-      <div className={`-mx-4 px-2 md:mx-0 md:-m-6 md:px-2 md:py-2 pt-4 pb-4 ${isImpersonating ? 'md:h-[calc(100vh-120px)]' : 'md:h-[calc(100vh-88px)]'} flex flex-col min-h-0 md:overflow-hidden`}>
+      <div className={`-mx-4 px-2 md:mx-0 md:-m-6 md:px-2 md:py-2 pt-4 pb-4 md:h-[calc(100vh-88px)] flex flex-col min-h-0 md:overflow-hidden`}>
 
         <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-4 items-start flex-1 min-h-0">
 

@@ -98,7 +98,7 @@ export function AdminShell() {
           onMobileClose={() => setIsMobileSidebarOpen(false)}
         />
 
-        <div className={`flex-1 flex flex-col min-w-0 md:ml-[68px] ${isImpersonating ? 'pt-8' : ''}`}>
+        <div className={`flex-1 flex flex-col min-w-0 md:ml-[68px] `}>
           {showHeader && (
             <AdminHeader onMobileMenuToggle={() => setIsMobileSidebarOpen(true)} />
           )}
