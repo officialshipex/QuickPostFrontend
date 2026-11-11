@@ -162,11 +162,11 @@ export function AdminCouriers() {
       if (servicesRes.status === 'fulfilled') {
         const services: any[] = servicesRes.value.data || [];
         const accounts: any[] = providersRes.status === 'fulfilled' ? providersRes.value.data || [] : [];
-        // A Shiprocket service is stored as provider "Shiprocket" + courierName = the Shiprocket account it books
-        // with (a company may hold several), so list it under that account.
+        // A Shiprocket / Gati service is stored as provider "Shiprocket" / "Gati" + courierName = the account it
+        // books with (a company may hold several), so list it under that account.
         const groupKey = (s: any) =>
-          s.provider === 'Shiprocket' && s.courierName &&
-          accounts.some(a => a.courierName === s.courierName && a.courierProvider === 'Shiprocket')
+          (s.provider === 'Shiprocket' || s.provider === 'Gati') && s.courierName &&
+          accounts.some(a => a.courierName === s.courierName && a.courierProvider === s.provider)
             ? s.courierName
             : s.provider;
         const grouped: Record<string, any[]> = {};
@@ -291,7 +291,11 @@ export function AdminCouriers() {
       setProviders(prev =>
         prev.map(p => p._id === selectedCourier._id ? { ...p, ...data } : p)
       );
-    } catch {}
+    } catch (err: any) {
+      // e.g. Gati refuses a wrong customer code or another account's login: say so and keep the form open
+      window.alert(err?.response?.data?.message || 'Failed to save the courier settings');
+      return;
+    }
     setSelectedCourier(null);
   };
 

@@ -5,6 +5,7 @@ import { BrandedTrackingView } from './components/BrandedTrackingView';
 import type { SearchState } from './components/TrackingHero';
 import { brandedTrackingService, fetchShipmentTracking, type TrackingSearchMode } from './trackingService';
 import type { BrandedTrackingData, TrackingPageConfig } from './types';
+import { Track } from '../../Track';
 
 /**
  * Customer-facing branded tracking page: /track/:storeSlug
@@ -83,7 +84,15 @@ export function BrandedTrackingPublicPage() {
     runSearch(query, mode);
   }, [config, query, mode, runSearch]);
 
-  if (notFound) return <Navigate to={`/track${params.toString() ? `?${params}` : ''}`} replace />;
+  // Not a seller's live branded page. With ?awb= / ?order= the shipment is shown on the standard page; without, the
+  // path itself is an AWB — /track/<AWB> is the link email / SMS / WhatsApp messages carry — so it is tracked right
+  // here, keeping that address. (Before, it went to an empty /track and the AWB was lost.)
+  if (notFound) {
+    const awb = params.get('awb'), order = params.get('order');
+    if (awb) return <Navigate to={`/track/${encodeURIComponent(awb)}`} replace />;
+    if (order) return <Navigate to={`/track?order=${encodeURIComponent(order)}`} replace />;
+    return <Track pathAwb={storeSlug} />;
+  }
 
   if (!config) {
     return (

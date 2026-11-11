@@ -70,6 +70,8 @@ export function NdrActionModal({ isOpen, onClose, order, onSubmit }: Props) {
   const isXpressbees    = partner  === 'Xpressbees';
   // Xpressbees' API has no RTO request: re-attempt / change address / phone only.
   const actionOptions   = isXpressbees ? ACTIONS.filter(a => a.value !== 'RTO') : ACTIONS;
+  // Gati's API has no NDR / re-attempt / RTO request: the seller handles it with Gati directly
+  const isGati          = partner  === 'Gati';
 
   const isChangeAddress = action === 'CHANGE_ADDRESS';
   const isReattempt     = action === 'RE-ATTEMPT';
@@ -216,6 +218,13 @@ export function NdrActionModal({ isOpen, onClose, order, onSubmit }: Props) {
             <X className="w-4 h-4" />
           </button>
         </div>
+
+        {isGati && (
+          <div className="mx-5 mt-4 p-3 text-[12px] font-semibold bg-amber-50 border border-amber-200 text-amber-800 rounded-xl shrink-0">
+            Gati does not accept NDR actions (re-attempt, address / phone change, RTO) through its API.
+            Please contact Gati support for this shipment.
+          </div>
+        )}
 
         {/* ── Action selector — segmented pills on mobile, dropdown on desktop ── */}
         <div className="px-5 pt-4 pb-0 shrink-0">
@@ -374,8 +383,8 @@ export function NdrActionModal({ isOpen, onClose, order, onSubmit }: Props) {
           </button>
           <button
             onClick={handleSubmit}
-            disabled={loading || !action}
-            className={`flex-1 sm:flex-none h-11 sm:h-9 px-5 text-white font-bold text-[13px] sm:text-[12px] rounded-xl transition-all flex items-center justify-center gap-2 ${loading || !action ? 'bg-[#CBD5E1] cursor-not-allowed' : 'bg-[#00A86B] hover:bg-[#009B63] shadow-sm'}`}
+            disabled={loading || !action || isGati}
+            className={`flex-1 sm:flex-none h-11 sm:h-9 px-5 text-white font-bold text-[13px] sm:text-[12px] rounded-xl transition-all flex items-center justify-center gap-2 ${loading || !action || isGati ?'bg-[#CBD5E1] cursor-not-allowed' : 'bg-[#00A86B] hover:bg-[#009B63] shadow-sm'}`}
           >
             {loading && <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
             {loading ? 'Submitting…' : 'Submit Action'}
