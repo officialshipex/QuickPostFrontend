@@ -1187,14 +1187,38 @@ export function AdminWallet() {
     }
   };
 
-  const handleBulkDownloadPDF = () => {
+  // Several invoices = ONE merged PDF from the backend (sent with the login token). Opening one tab per invoice
+  // was cut down to a single tab by the browser's popup blocker.
+  const BULK_INVOICE_MAX = 100;
+  const handleBulkDownloadPDF = async () => {
     if (selectedInvoiceOrders.length === 0) { showToast('error', 'Select at least one invoice.'); return; }
-    const urls = selectedInvoiceOrders
-      .map(num => filteredInvoicesData.find((inv: any) => inv.invoiceNumber === num)?.invoiceUrl)
-      .filter(Boolean);
-    if (urls.length === 0) { showToast('error', 'No PDF URLs available for selected invoices.'); return; }
-    urls.forEach((url: string) => window.open(url, '_blank', 'noopener,noreferrer'));
-    showToast('success', `Opening ${urls.length} invoice PDF(s)…`);
+    const chosen = selectedInvoiceOrders
+      .map(num => filteredInvoicesData.find((inv: any) => inv.invoiceNumber === num))
+      .filter((inv: any) => inv && inv.invoiceUrl);
+    if (chosen.length === 0) { showToast('error', 'No PDF available yet for the selected invoices.'); return; }
+    if (chosen.length === 1) { handleDownloadInvoice(chosen[0]); return; }
+    if (chosen.length > BULK_INVOICE_MAX) { showToast('error', `Select at most ${BULK_INVOICE_MAX} invoices at a time.`); return; }
+    showToast('info', `Preparing ${chosen.length} invoices…`);
+    try {
+      const res = await apiClient.get('/invoice/bulk-download', {
+        params: { invoiceNumbers: chosen.map((inv: any) => inv.id).join(',') },
+        responseType: 'blob',
+      });
+      const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Invoices_${new Date().toISOString().slice(0, 10)}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      showToast('success', `${chosen.length} invoices downloaded as one PDF.`);
+    } catch (err: any) {
+      let message = 'Failed to download the invoices.';
+      const data = err?.response?.data;
+      if (data instanceof Blob) { try { message = JSON.parse(await data.text())?.message || message; } catch { /* not JSON */ } }
+      showToast('error', message);
+    }
   };
 
   // Selection state helpers
