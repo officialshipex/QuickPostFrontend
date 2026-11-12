@@ -7,7 +7,8 @@
     "dev": "vite --host",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:rate-comparison": "rolldown tests/rateComparison/engine.test.ts --file node_modules/.cache/rc.test.mjs --platform node --format esm --log-level warn && node node_modules/.cache/rc.test.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",

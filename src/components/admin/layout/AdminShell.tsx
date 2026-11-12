@@ -16,7 +16,7 @@ import { employeePanelMode, getToken } from '../../../utils/session';
 import { modeUrl } from '../../../utils/shippingMode';
 import { useApplyPanelTheme } from '../../../context/ThemeContext';
 
-const SALES_PATHS = ['/admin/sales', '/admin/tasks'];
+const SALES_PATHS = ['/admin/sales', '/admin/tasks', '/admin/rate-comparison'];
 
 // In Cargo mode only the sections in config/cargo.ts are reachable; anything else lands on Home.
 function CargoRouteGuard() {

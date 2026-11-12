@@ -108,6 +108,14 @@ const MENU_GROUPS: MenuGroup[] = [
     salesEmployeeOnly: true,
   },
   {
+    label: 'Rate Comparison',
+    icon: Scale,
+    path: '/admin/rate-comparison',
+    adminOnly: true,
+    permission: 'sales',
+    salesEmployeeOnly: true,
+  },
+  {
     label: 'Orders',
     icon: ShoppingCart,
     path: '/admin/orders',

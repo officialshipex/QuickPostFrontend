@@ -1,0 +1,8147 @@
+{
+ "meta": {
+  "generated_on": "2026-11-12",
+  "currency": "INR",
+  "zones": {
+   "A": "Within city",
+   "B": "Within state",
+   "C": "Metro to metro",
+   "D": "Rest of India",
+   "E": "Special destination (NE / J&K / islands)"
+  },
+  "notes": [
+   "rate_cards.json is SEED DATA built from the files supplied on 2026-11-12. Treat as versioned config, not code.",
+   "QuickPost: Silver.xlsx was a duplicate of Gold. Bronze.xlsx has Plan Name = Silver (exactly 1.04x Gold; Diamond is exactly 0.96x Gold). Silver is therefore included but verified=false; Bronze has no data.",
+   "QuickPost: on rows with Type=Additional, the weight column is read as the additional-weight step in kg and the price as the charge per step. Confirm.",
+   "QuickPost: RTO rates not provided (assumed equal to forward). COD rule assumed max(fixed, pct x order value).",
+   "Shiprocket: hyperlocal/ONDC listings and India Post and Shiprocket Cargo (per-kg freight) were excluded.",
+   "QuickPost Shree Maruti 2KG additional-weight prices (2.5 to 17.5 per step) look low against Shree Maruti 3KG (16 to 36). Confirm.",
+   "QuickPost: list prices are ex-GST (gst_included=false, confirmed by the business on 2026-11-12); the engine adds GST_RATE.",
+   "NimbusPost: enabled on the business's instruction (2026-11-12) with unnamed services; like-for-like by courier is not possible until names are re-captured."
+  ]
+ },
+ "sources": {
+  "quickpost": {
+   "label": "QuickPost",
+   "gst_included": false,
+   "cod_rule": "max",
+   "rto_rule": "mirror_forward",
+   "plans": {
+    "diamond": {
+     "label": "Diamond",
+     "verified": true,
+     "source_file": "Quickpost_Diamond_Nov26.xlsx",
+     "services": [
+      {
+       "service": "Delhivery Surface",
+       "courier": "Delhivery",
+       "mode": "surface",
+       "min_weight_kg": 0.5,
+       "base": [
+        27.6,
+        30,
+        32.4,
+        37.2,
+        44.64
+       ],
+       "cod_fixed": 26,
+       "cod_pct": 1.6,
+       "addl_step_kg": 0.5,
+       "addl": [
+        27.6,
+        30,
+        32.4,
+        37.2,
+        44.64
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Delhivery Surface 10KG",
+       "courier": "Delhivery",
+       "mode": "surface",
+       "min_weight_kg": 10,
+       "base": [
+        133.2,
+        154.8,
+        240,
+        278.4,
+        314.4
+       ],
+       "cod_fixed": 26,
+       "cod_pct": 1.6,
+       "addl_step_kg": 5,
+       "addl": [
+        66,
+        78,
+        120,
+        138,
+        162
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Delhivery Surface 1KG",
+       "courier": "Delhivery",
+       "mode": "surface",
+       "min_weight_kg": 1,
+       "base": [
+        33.6,
+        37.2,
+        43.44,
+        49.8,
+        57.6
+       ],
+       "cod_fixed": 26,
+       "cod_pct": 1.6,
+       "addl_step_kg": 4,
+       "addl": [
+        38.4,
+        43.2,
+        81.6,
+        93.6,
+        108
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Delhivery Surface 5KG",
+       "courier": "Delhivery",
+       "mode": "surface",
+       "min_weight_kg": 5,
+       "base": [
+        68.4,
+        78.24,
+        122.4,
+        140.4,
+        158.4
+       ],
+       "cod_fixed": 26,
+       "cod_pct": 1.6,
+       "addl_step_kg": 2,
+       "addl": [
+        33.6,
+        38.4,
+        57.6,
+        66,
+        74.4
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Bluedart Surface LM",
+       "courier": "Blue Dart",
+       "mode": "surface",
+       "min_weight_kg": 0.5,
+       "base": [
+        27.6,
+        32.4,
+        36,
+        38.4,
+        50.4
+       ],
+       "cod_fixed": 30,
+       "cod_pct": 1.5,
+       "addl_step_kg": 0.5,
+       "addl": [
+        27.6,
+        32.4,
+        36,
+        38.4,
+        50.4
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Shadowfax 1KG",
+       "courier": "Shadowfax",
+       "mode": "surface",
+       "min_weight_kg": 1,
+       "base": [
+        34.8,
+        46.8,
+        58.8,
+        70.8,
+        82.8
+       ],
+       "cod_fixed": 26,
+       "cod_pct": 1.6,
+       "addl_step_kg": 1,
+       "addl": [
+        34.8,
+        46.8,
+        58.8,
+        70.8,
+        82.8
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Shadowfax 2KG",
+       "courier": "Shadowfax",
+       "mode": "surface",
+       "min_weight_kg": 2,
+       "base": [
+        46.8,
+        58.8,
+        70.8,
+        82.8,
+        94.8
+       ],
+       "cod_fixed": 26,
+       "cod_pct": 1.6,
+       "addl_step_kg": 1,
+       "addl": [
+        34.8,
+        46.8,
+        58.8,
+        70.8,
+        82.8
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Shadowfax 5KG",
+       "courier": "Shadowfax",
+       "mode": "surface",
+       "min_weight_kg": 5,
+       "base": [
+        58.8,
+        82.8,
+        118.8,
+        118.8,
+        166.8
+       ],
+       "cod_fixed": 26,
+       "cod_pct": 1.6,
+       "addl_step_kg": 1,
+       "addl": [
+        34.8,
+        46.8,
+        58.8,
+        70.8,
+        82.8
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Shadowfax 10KG",
+       "courier": "Shadowfax",
+       "mode": "surface",
+       "min_weight_kg": 10,
+       "base": [
+        94.8,
+        130.8,
+        178.8,
+        178.8,
+        226.8
+       ],
+       "cod_fixed": 26,
+       "cod_pct": 1.6,
+       "addl_step_kg": 1,
+       "addl": [
+        10.8,
+        22.8,
+        34.8,
+        34.8,
+        46.8
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Shree Maruti",
+       "courier": "Shree Maruti",
+       "mode": "surface",
+       "min_weight_kg": 0.5,
+       "base": [
+        21.6,
+        26.4,
+        31.2,
+        34.8,
+        42
+       ],
+       "cod_fixed": 26,
+       "cod_pct": 1.6,
+       "addl_step_kg": 0.5,
+       "addl": [
+        21.6,
+        26.4,
+        31.2,
+        34.8,
+        42
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Shree Maruti 1KG",
+       "courier": "Shree Maruti",
+       "mode": "surface",
+       "min_weight_kg": 1,
+       "base": [
+        33.6,
+        38.4,
+        43.2,
+        50.4,
+        57.6
+       ],
+       "cod_fixed": 26,
+       "cod_pct": 1.6,
+       "addl_step_kg": 1,
+       "addl": [
+        33.6,
+        38.4,
+        43.2,
+        50.4,
+        57.6
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Shree Maruti 2KG",
+       "courier": "Shree Maruti",
+       "mode": "surface",
+       "min_weight_kg": 2,
+       "base": [
+        50.4,
+        56.4,
+        66,
+        72,
+        90
+       ],
+       "cod_fixed": 26,
+       "cod_pct": 1.6,
+       "addl_step_kg": 1,
+       "addl": [
+        2.4,
+        3.6,
+        7.2,
+        13.2,
+        16.8
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Shree Maruti 3KG",
+       "courier": "Shree Maruti",
+       "mode": "surface",
+       "min_weight_kg": 3,
+       "base": [
+        52.8,
+        60,
+        73.2,
+        85.2,
+        106.8
+       ],
+       "cod_fixed": 26,
+       "cod_pct": 1.6,
+       "addl_step_kg": 1,
+       "addl": [
+        15.6,
+        19.2,
+        22.8,
+        28.8,
+        34.8
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Xpressbees 10KG",
+       "courier": "Xpressbees",
+       "mode": "surface",
+       "min_weight_kg": 10,
+       "base": [
+        168,
+        180,
+        198,
+        228,
+        276
+       ],
+       "cod_fixed": 26,
+       "cod_pct": 1.6,
+       "addl_step_kg": 1,
+       "addl": [
+        14.4,
+        15.6,
+        16.8,
+        18,
+        21.6
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Xpressbees 1KG",
+       "courier": "Xpressbees",
+       "mode": "surface",
+       "min_weight_kg": 1,
+       "base": [
+        34.8,
+        43.2,
+        54,
+        54,
+        78
+       ],
+       "cod_fixed": 26,
+       "cod_pct": 1.6,
+       "addl_step_kg": 1,
+       "addl": [
+        34.8,
+        43.2,
+        54,
+        54,
+        78
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Xpressbees 2KG",
+       "courier": "Xpressbees",
+       "mode": "surface",
+       "min_weight_kg": 2,
+       "base": [
+        52.8,
+        63.6,
+        76.8,
+        79.2,
+        108
+       ],
+       "cod_fixed": 26,
+       "cod_pct": 1.6,
+       "addl_step_kg": 1,
+       "addl": [
+        18,
+        20.4,
+        22.8,
+        25.2,
+        30
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Xpressbees 5KG",
+       "courier": "Xpressbees",
+       "mode": "surface",
+       "min_weight_kg": 5,
+       "base": [
+        108,
+        114,
+        132,
+        144,
+        168
+       ],
+       "cod_fixed": 26,
+       "cod_pct": 1.6,
+       "addl_step_kg": 1,
+       "addl": [
+        18,
+        20.4,
+        22.8,
+        24,
+        28.8
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Xpressbees Surface",
+       "courier": "Xpressbees",
+       "mode": "surface",
+       "min_weight_kg": 0.5,
+       "base": [
+        24,
+        30,
+        32.4,
+        34.8,
+        43.2
+       ],
+       "cod_fixed": 26,
+       "cod_pct": 1.6,
+       "addl_step_kg": 0.5,
+       "addl": [
+        24,
+        30,
+        32.4,
+        34.8,
+        43.2
+       ],
+       "comparable": true
+      }
+     ]
+    },
+    "gold": {
+     "label": "Gold",
+     "verified": true,
+     "source_file": "Quickpost_Gold_Nov26.xlsx",
+     "services": [
+      {
+       "service": "Delhivery Surface",
+       "courier": "Delhivery",
+       "mode": "surface",
+       "min_weight_kg": 0.5,
+       "base": [
+        28.75,
+        31.25,
+        33.75,
+        38.75,
+        46.5
+       ],
+       "cod_fixed": 29,
+       "cod_pct": 1.6,
+       "addl_step_kg": 0.5,
+       "addl": [
+        28.75,
+        31.25,
+        33.75,
+        38.75,
+        46.5
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Delhivery Surface 10KG",
+       "courier": "Delhivery",
+       "mode": "surface",
+       "min_weight_kg": 10,
+       "base": [
+        138.75,
+        161.25,
+        250,
+        290,
+        327.5
+       ],
+       "cod_fixed": 29,
+       "cod_pct": 1.6,
+       "addl_step_kg": 5,
+       "addl": [
+        68.75,
+        81.25,
+        125,
+        143.75,
+        168.75
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Delhivery Surface 1KG",
+       "courier": "Delhivery",
+       "mode": "surface",
+       "min_weight_kg": 1,
+       "base": [
+        35,
+        38.75,
+        45.25,
+        51.875,
+        60
+       ],
+       "cod_fixed": 29,
+       "cod_pct": 1.6,
+       "addl_step_kg": 4,
+       "addl": [
+        40,
+        45,
+        85,
+        97.5,
+        112.5
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Delhivery Surface 5KG",
+       "courier": "Delhivery",
+       "mode": "surface",
+       "min_weight_kg": 5,
+       "base": [
+        71.25,
+        81.5,
+        127.5,
+        146.25,
+        165
+       ],
+       "cod_fixed": 29,
+       "cod_pct": 1.6,
+       "addl_step_kg": 2,
+       "addl": [
+        35,
+        40,
+        60,
+        68.75,
+        77.5
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Bluedart Surface LM",
+       "courier": "Blue Dart",
+       "mode": "surface",
+       "min_weight_kg": 0.5,
+       "base": [
+        28.75,
+        33.75,
+        37.5,
+        40,
+        52.5
+       ],
+       "cod_fixed": 36,
+       "cod_pct": 1.7,
+       "addl_step_kg": 0.5,
+       "addl": [
+        28.75,
+        33.75,
+        37.5,
+        40,
+        52.5
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Shadowfax 1KG",
+       "courier": "Shadowfax",
+       "mode": "surface",
+       "min_weight_kg": 1,
+       "base": [
+        36.25,
+        48.75,
+        61.25,
+        73.75,
+        86.25
+       ],
+       "cod_fixed": 29,
+       "cod_pct": 1.6,
+       "addl_step_kg": 1,
+       "addl": [
+        36.25,
+        48.75,
+        61.25,
+        73.75,
+        86.25
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Shadowfax 2KG",
+       "courier": "Shadowfax",
+       "mode": "surface",
+       "min_weight_kg": 2,
+       "base": [
+        48.75,
+        61.25,
+        73.75,
+        86.25,
+        98.75
+       ],
+       "cod_fixed": 29,
+       "cod_pct": 1.6,
+       "addl_step_kg": 1,
+       "addl": [
+        36.25,
+        48.75,
+        61.25,
+        73.75,
+        86.25
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Shadowfax 5KG",
+       "courier": "Shadowfax",
+       "mode": "surface",
+       "min_weight_kg": 5,
+       "base": [
+        61.25,
+        86.25,
+        123.75,
+        123.75,
+        173.75
+       ],
+       "cod_fixed": 29,
+       "cod_pct": 1.6,
+       "addl_step_kg": 1,
+       "addl": [
+        36.25,
+        48.75,
+        61.25,
+        73.75,
+        86.25
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Shadowfax 10KG",
+       "courier": "Shadowfax",
+       "mode": "surface",
+       "min_weight_kg": 10,
+       "base": [
+        98.75,
+        136.25,
+        186.25,
+        186.25,
+        236.25
+       ],
+       "cod_fixed": 29,
+       "cod_pct": 1.6,
+       "addl_step_kg": 1,
+       "addl": [
+        11.25,
+        23.75,
+        36.25,
+        36.25,
+        48.75
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Shree Maruti",
+       "courier": "Shree Maruti",
+       "mode": "surface",
+       "min_weight_kg": 0.5,
+       "base": [
+        22.5,
+        27.5,
+        32.5,
+        36.25,
+        43.75
+       ],
+       "cod_fixed": 29,
+       "cod_pct": 1.6,
+       "addl_step_kg": 0.5,
+       "addl": [
+        22.5,
+        27.5,
+        32.5,
+        36.25,
+        43.75
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Shree Maruti 1KG",
+       "courier": "Shree Maruti",
+       "mode": "surface",
+       "min_weight_kg": 1,
+       "base": [
+        35,
+        40,
+        45,
+        52.5,
+        60
+       ],
+       "cod_fixed": 29,
+       "cod_pct": 1.6,
+       "addl_step_kg": 1,
+       "addl": [
+        35,
+        40,
+        45,
+        52.5,
+        60
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Shree Maruti 2KG",
+       "courier": "Shree Maruti",
+       "mode": "surface",
+       "min_weight_kg": 2,
+       "base": [
+        52.5,
+        58.75,
+        68.75,
+        75,
+        93.75
+       ],
+       "cod_fixed": 29,
+       "cod_pct": 1.6,
+       "addl_step_kg": 1,
+       "addl": [
+        2.5,
+        3.75,
+        7.5,
+        13.75,
+        17.5
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Shree Maruti 3KG",
+       "courier": "Shree Maruti",
+       "mode": "surface",
+       "min_weight_kg": 3,
+       "base": [
+        55,
+        62.5,
+        76.25,
+        88.75,
+        111.25
+       ],
+       "cod_fixed": 29,
+       "cod_pct": 1.6,
+       "addl_step_kg": 1,
+       "addl": [
+        16.25,
+        20,
+        23.75,
+        30,
+        36.25
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Xpressbees 10KG",
+       "courier": "Xpressbees",
+       "mode": "surface",
+       "min_weight_kg": 10,
+       "base": [
+        175,
+        187.5,
+        206.25,
+        237.5,
+        287.5
+       ],
+       "cod_fixed": 29,
+       "cod_pct": 1.6,
+       "addl_step_kg": 1,
+       "addl": [
+        15,
+        16.25,
+        17.5,
+        18.75,
+        22.5
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Xpressbees 1KG",
+       "courier": "Xpressbees",
+       "mode": "surface",
+       "min_weight_kg": 1,
+       "base": [
+        36.25,
+        45,
+        56.25,
+        56.25,
+        81.25
+       ],
+       "cod_fixed": 29,
+       "cod_pct": 1.6,
+       "addl_step_kg": 1,
+       "addl": [
+        36.25,
+        45,
+        56.25,
+        56.25,
+        81.25
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Xpressbees 2KG",
+       "courier": "Xpressbees",
+       "mode": "surface",
+       "min_weight_kg": 2,
+       "base": [
+        55,
+        66.25,
+        80,
+        82.5,
+        112.5
+       ],
+       "cod_fixed": 29,
+       "cod_pct": 1.6,
+       "addl_step_kg": 1,
+       "addl": [
+        18.75,
+        21.25,
+        23.75,
+        26.25,
+        31.25
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Xpressbees 5KG",
+       "courier": "Xpressbees",
+       "mode": "surface",
+       "min_weight_kg": 5,
+       "base": [
+        112.5,
+        118.75,
+        137.5,
+        150,
+        175
+       ],
+       "cod_fixed": 29,
+       "cod_pct": 1.6,
+       "addl_step_kg": 1,
+       "addl": [
+        18.75,
+        21.25,
+        23.75,
+        25,
+        30
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Xpressbees Surface",
+       "courier": "Xpressbees",
+       "mode": "surface",
+       "min_weight_kg": 0.5,
+       "base": [
+        25,
+        31.25,
+        33.75,
+        36.25,
+        45
+       ],
+       "cod_fixed": 29,
+       "cod_pct": 1.6,
+       "addl_step_kg": 0.5,
+       "addl": [
+        25,
+        31.25,
+        33.75,
+        36.25,
+        45
+       ],
+       "comparable": true
+      }
+     ]
+    },
+    "silver": {
+     "label": "Silver",
+     "verified": true,
+     "note": "From 'Quickpost Bronze Nov26.xlsx', whose Plan Name column says Silver (prices are Gold x 1.04). 'Quickpost Silver Nov26.xlsx' is a duplicate of Gold. Enabled on the business's instruction, 2026-11-12.",
+     "source_file": "Quickpost_Bronze_Nov26.xlsx",
+     "services": [
+      {
+       "service": "Delhivery Surface",
+       "courier": "Delhivery",
+       "mode": "surface",
+       "min_weight_kg": 0.5,
+       "base": [
+        29.9,
+        32.5,
+        35.1,
+        40.3,
+        48.36
+       ],
+       "cod_fixed": 32,
+       "cod_pct": 1.8,
+       "addl_step_kg": 0.5,
+       "addl": [
+        29.9,
+        32.5,
+        35.1,
+        40.3,
+        48.36
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Delhivery Surface 10KG",
+       "courier": "Delhivery",
+       "mode": "surface",
+       "min_weight_kg": 10,
+       "base": [
+        144.3,
+        167.7,
+        260,
+        301.6,
+        340.6
+       ],
+       "cod_fixed": 32,
+       "cod_pct": 1.8,
+       "addl_step_kg": 5,
+       "addl": [
+        71.5,
+        84.5,
+        130,
+        149.5,
+        175.5
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Delhivery Surface 1KG",
+       "courier": "Delhivery",
+       "mode": "surface",
+       "min_weight_kg": 1,
+       "base": [
+        36.4,
+        40.3,
+        47.06,
+        53.95,
+        62.4
+       ],
+       "cod_fixed": 32,
+       "cod_pct": 1.8,
+       "addl_step_kg": 4,
+       "addl": [
+        41.6,
+        46.8,
+        88.4,
+        101.4,
+        117
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Delhivery Surface 5KG",
+       "courier": "Delhivery",
+       "mode": "surface",
+       "min_weight_kg": 5,
+       "base": [
+        74.1,
+        84.76,
+        132.6,
+        152.1,
+        171.6
+       ],
+       "cod_fixed": 32,
+       "cod_pct": 1.8,
+       "addl_step_kg": 2,
+       "addl": [
+        36.4,
+        41.6,
+        62.4,
+        71.5,
+        80.6
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Bluedart Surface LM",
+       "courier": "Blue Dart",
+       "mode": "surface",
+       "min_weight_kg": 0.5,
+       "base": [
+        29.9,
+        35.1,
+        39,
+        41.6,
+        54.6
+       ],
+       "cod_fixed": 37,
+       "cod_pct": 1.8,
+       "addl_step_kg": 0.5,
+       "addl": [
+        29.9,
+        35.1,
+        39,
+        41.6,
+        54.6
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Shadowfax 1KG",
+       "courier": "Shadowfax",
+       "mode": "surface",
+       "min_weight_kg": 1,
+       "base": [
+        37.7,
+        50.7,
+        63.7,
+        76.7,
+        89.7
+       ],
+       "cod_fixed": 32,
+       "cod_pct": 1.8,
+       "addl_step_kg": 1,
+       "addl": [
+        37.7,
+        50.7,
+        63.7,
+        76.7,
+        89.7
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Shadowfax 2KG",
+       "courier": "Shadowfax",
+       "mode": "surface",
+       "min_weight_kg": 2,
+       "base": [
+        50.7,
+        63.7,
+        76.7,
+        89.7,
+        102.7
+       ],
+       "cod_fixed": 32,
+       "cod_pct": 1.8,
+       "addl_step_kg": 1,
+       "addl": [
+        37.7,
+        50.7,
+        63.7,
+        76.7,
+        89.7
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Shadowfax 5KG",
+       "courier": "Shadowfax",
+       "mode": "surface",
+       "min_weight_kg": 5,
+       "base": [
+        63.7,
+        89.7,
+        128.7,
+        128.7,
+        180.7
+       ],
+       "cod_fixed": 32,
+       "cod_pct": 1.8,
+       "addl_step_kg": 1,
+       "addl": [
+        37.7,
+        50.7,
+        63.7,
+        76.7,
+        89.7
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Shadowfax 10KG",
+       "courier": "Shadowfax",
+       "mode": "surface",
+       "min_weight_kg": 10,
+       "base": [
+        102.7,
+        141.7,
+        193.7,
+        193.7,
+        245.7
+       ],
+       "cod_fixed": 32,
+       "cod_pct": 1.8,
+       "addl_step_kg": 1,
+       "addl": [
+        11.7,
+        24.7,
+        37.7,
+        37.7,
+        50.7
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Shree Maruti",
+       "courier": "Shree Maruti",
+       "mode": "surface",
+       "min_weight_kg": 0.5,
+       "base": [
+        23.4,
+        28.6,
+        33.8,
+        37.7,
+        45.5
+       ],
+       "cod_fixed": 32,
+       "cod_pct": 1.8,
+       "addl_step_kg": 0.5,
+       "addl": [
+        23.4,
+        28.6,
+        33.8,
+        37.7,
+        45.5
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Shree Maruti 1KG",
+       "courier": "Shree Maruti",
+       "mode": "surface",
+       "min_weight_kg": 1,
+       "base": [
+        36.4,
+        41.6,
+        46.8,
+        54.6,
+        62.4
+       ],
+       "cod_fixed": 32,
+       "cod_pct": 1.8,
+       "addl_step_kg": 1,
+       "addl": [
+        36.4,
+        41.6,
+        46.8,
+        54.6,
+        62.4
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Shree Maruti 2KG",
+       "courier": "Shree Maruti",
+       "mode": "surface",
+       "min_weight_kg": 2,
+       "base": [
+        54.6,
+        61.1,
+        71.5,
+        78,
+        97.5
+       ],
+       "cod_fixed": 32,
+       "cod_pct": 1.8,
+       "addl_step_kg": 1,
+       "addl": [
+        2.6,
+        3.9,
+        7.8,
+        14.3,
+        18.2
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Shree Maruti 3KG",
+       "courier": "Shree Maruti",
+       "mode": "surface",
+       "min_weight_kg": 3,
+       "base": [
+        57.2,
+        65,
+        79.3,
+        92.3,
+        115.7
+       ],
+       "cod_fixed": 32,
+       "cod_pct": 1.8,
+       "addl_step_kg": 1,
+       "addl": [
+        16.9,
+        20.8,
+        24.7,
+        31.2,
+        37.7
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Xpressbees 10KG",
+       "courier": "Xpressbees",
+       "mode": "surface",
+       "min_weight_kg": 10,
+       "base": [
+        182,
+        195,
+        214.5,
+        247,
+        299
+       ],
+       "cod_fixed": 32,
+       "cod_pct": 1.8,
+       "addl_step_kg": 1,
+       "addl": [
+        15.6,
+        16.9,
+        18.2,
+        19.5,
+        23.4
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Xpressbees 1KG",
+       "courier": "Xpressbees",
+       "mode": "surface",
+       "min_weight_kg": 1,
+       "base": [
+        37.7,
+        46.8,
+        58.5,
+        58.5,
+        84.5
+       ],
+       "cod_fixed": 32,
+       "cod_pct": 1.8,
+       "addl_step_kg": 1,
+       "addl": [
+        37.7,
+        46.8,
+        58.5,
+        58.5,
+        84.5
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Xpressbees 2KG",
+       "courier": "Xpressbees",
+       "mode": "surface",
+       "min_weight_kg": 2,
+       "base": [
+        57.2,
+        68.9,
+        83.2,
+        85.8,
+        117
+       ],
+       "cod_fixed": 32,
+       "cod_pct": 1.8,
+       "addl_step_kg": 1,
+       "addl": [
+        19.5,
+        22.1,
+        24.7,
+        27.3,
+        32.5
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Xpressbees 5KG",
+       "courier": "Xpressbees",
+       "mode": "surface",
+       "min_weight_kg": 5,
+       "base": [
+        117,
+        123.5,
+        143,
+        156,
+        182
+       ],
+       "cod_fixed": 32,
+       "cod_pct": 1.8,
+       "addl_step_kg": 1,
+       "addl": [
+        19.5,
+        22.1,
+        24.7,
+        26,
+        31.2
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Xpressbees Surface",
+       "courier": "Xpressbees",
+       "mode": "surface",
+       "min_weight_kg": 0.5,
+       "base": [
+        26,
+        32.5,
+        35.1,
+        37.7,
+        46.8
+       ],
+       "cod_fixed": 32,
+       "cod_pct": 1.8,
+       "addl_step_kg": 0.5,
+       "addl": [
+        26,
+        32.5,
+        35.1,
+        37.7,
+        46.8
+       ],
+       "comparable": true
+      }
+     ]
+    },
+    "bronze": {
+     "label": "Bronze",
+     "verified": false,
+     "note": "No distinct Bronze rate card received.",
+     "services": []
+    }
+   },
+   "captured_on": "2026-11-12",
+   "effective_from": "2026-11-12"
+  },
+  "shiprocket": {
+   "label": "Shiprocket",
+   "gst_included": true,
+   "cod_rule": "max",
+   "rto_rule": "explicit",
+   "plans": {
+    "basic": {
+     "label": "Basic",
+     "verified": true,
+     "source_file": "shiprocket_ratecard_Basic.csv",
+     "services": [
+      {
+       "service": "Amazon Cod Surface 500gm",
+       "courier": "Amazon Shipping",
+       "mode": "surface",
+       "min_weight_kg": 0.5,
+       "base": [
+        44.0,
+        50.0,
+        58.0,
+        65.0,
+        98.0
+       ],
+       "rto": [
+        44.0,
+        50.0,
+        58.0,
+        65.0,
+        98.0
+       ],
+       "cod_fixed": 49.0,
+       "cod_pct": 1.7,
+       "comparable": true
+      },
+      {
+       "service": "Amazon Prepaid Surface 500g",
+       "courier": "Amazon Shipping",
+       "mode": "surface",
+       "min_weight_kg": 0.5,
+       "base": [
+        44.0,
+        50.0,
+        58.0,
+        65.0,
+        98.0
+       ],
+       "rto": [
+        44.0,
+        50.0,
+        58.0,
+        65.0,
+        98.0
+       ],
+       "cod_fixed": 49.0,
+       "cod_pct": 1.7,
+       "comparable": true
+      },
+      {
+       "service": "Amazon Shipping Surface 10kg",
+       "courier": "Amazon Shipping",
+       "mode": "surface",
+       "min_weight_kg": 10.0,
+       "base": [
+        264.8,
+        329.6,
+        380.2,
+        439.2,
+        528.6
+       ],
+       "rto": [
+        264.8,
+        329.6,
+        380.2,
+        439.2,
+        528.6
+       ],
+       "cod_fixed": 47.2,
+       "cod_pct": 2.6,
+       "addl_step_kg": 1.0,
+       "addl": [
+        25.7,
+        31.8,
+        36.3,
+        42.4,
+        51.4
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Amazon Shipping Surface 1kg",
+       "courier": "Amazon Shipping",
+       "mode": "surface",
+       "min_weight_kg": 1.0,
+       "base": [
+        78.8,
+        92.2,
+        105.0,
+        115.0,
+        144.2
+       ],
+       "rto": [
+        78.8,
+        92.2,
+        105.0,
+        115.0,
+        144.2
+       ],
+       "cod_fixed": 29.1,
+       "cod_pct": 1.7,
+       "addl_step_kg": 1.0,
+       "addl": [
+        38.4,
+        41.5,
+        44.5,
+        51.4,
+        57.6
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Amazon Shipping Surface 2kg",
+       "courier": "Amazon Shipping",
+       "mode": "surface",
+       "min_weight_kg": 2.0,
+       "base": [
+        81.8,
+        108.5,
+        126.4,
+        153.1,
+        187.3
+       ],
+       "rto": [
+        81.8,
+        108.5,
+        126.4,
+        153.1,
+        187.3
+       ],
+       "cod_fixed": 35.0,
+       "cod_pct": 1.7,
+       "addl_step_kg": 1.0,
+       "addl": [
+        37.1,
+        52.1,
+        60.9,
+        72.9,
+        89.2
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Amazon Shipping Surface 5kg",
+       "courier": "Amazon Shipping",
+       "mode": "surface",
+       "min_weight_kg": 5.0,
+       "base": [
+        191.8,
+        209.1,
+        226.3,
+        260.8,
+        295.3
+       ],
+       "rto": [
+        191.8,
+        209.1,
+        226.3,
+        260.8,
+        295.3
+       ],
+       "cod_fixed": 47.2,
+       "cod_pct": 2.5,
+       "addl_step_kg": 1.0,
+       "addl": [
+        36.7,
+        38.8,
+        41.9,
+        48.8,
+        54.2
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Blue Dart Air",
+       "courier": "Blue Dart",
+       "mode": "air",
+       "min_weight_kg": 0.5,
+       "base": [
+        78.0,
+        90.0,
+        105.0,
+        119.0,
+        164.0
+       ],
+       "rto": [
+        78.0,
+        90.0,
+        105.0,
+        119.0,
+        164.0
+       ],
+       "cod_fixed": 51.0,
+       "cod_pct": 2.2,
+       "addl_step_kg": 0.5,
+       "addl": [
+        74.0,
+        82.0,
+        100.0,
+        107.0,
+        155.0
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Blue Dart Surface",
+       "courier": "Blue Dart",
+       "mode": "surface",
+       "min_weight_kg": 0.5,
+       "base": [
+        65.0,
+        68.0,
+        73.0,
+        82.0,
+        131.0
+       ],
+       "rto": [
+        65.0,
+        68.0,
+        73.0,
+        82.0,
+        131.0
+       ],
+       "cod_fixed": 51.0,
+       "cod_pct": 2.2,
+       "addl_step_kg": 0.5,
+       "addl": [
+        63.0,
+        66.0,
+        71.0,
+        74.0,
+        129.0
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Bluedart Surface 2kg",
+       "courier": "Blue Dart",
+       "mode": "surface",
+       "min_weight_kg": 2.0,
+       "base": [
+        120.0,
+        133.0,
+        157.0,
+        171.0,
+        216.0
+       ],
+       "rto": [
+        120.0,
+        133.0,
+        157.0,
+        171.0,
+        216.0
+       ],
+       "cod_fixed": 41.0,
+       "cod_pct": 2.5,
+       "addl_step_kg": 1.0,
+       "addl": [
+        40.0,
+        44.0,
+        53.0,
+        58.0,
+        76.0
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Delhivery Air",
+       "courier": "Delhivery",
+       "mode": "air",
+       "min_weight_kg": 0.5,
+       "base": [
+        45.0,
+        50.0,
+        76.0,
+        93.0,
+        117.0
+       ],
+       "rto": [
+        45.0,
+        50.0,
+        76.0,
+        93.0,
+        117.0
+       ],
+       "cod_fixed": 50.0,
+       "cod_pct": 2.8,
+       "addl_step_kg": 0.5,
+       "addl": [
+        41.0,
+        49.0,
+        74.0,
+        87.0,
+        110.0
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Delhivery Surface",
+       "courier": "Delhivery",
+       "mode": "surface",
+       "min_weight_kg": 0.5,
+       "base": [
+        45.0,
+        50.0,
+        59.0,
+        66.0,
+        99.0
+       ],
+       "rto": [
+        45.0,
+        50.0,
+        59.0,
+        66.0,
+        99.0
+       ],
+       "cod_fixed": 50.0,
+       "cod_pct": 2.8,
+       "addl_step_kg": 0.5,
+       "addl": [
+        38.0,
+        47.0,
+        56.0,
+        59.0,
+        84.0
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Delhivery Surface 10kg",
+       "courier": "Delhivery",
+       "mode": "surface",
+       "min_weight_kg": 10.0,
+       "base": [
+        259.0,
+        323.6,
+        374.2,
+        433.4,
+        522.6
+       ],
+       "rto": [
+        259.0,
+        323.6,
+        374.2,
+        433.4,
+        522.6
+       ],
+       "cod_fixed": 47.2,
+       "cod_pct": 2.6,
+       "addl_step_kg": 1.0,
+       "addl": [
+        25.7,
+        31.8,
+        36.3,
+        42.4,
+        51.4
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Delhivery Surface 2 Kgs",
+       "courier": "Delhivery",
+       "mode": "surface",
+       "min_weight_kg": 2.0,
+       "base": [
+        105.0,
+        117.0,
+        139.0,
+        152.0,
+        194.0
+       ],
+       "rto": [
+        105.0,
+        117.0,
+        139.0,
+        152.0,
+        194.0
+       ],
+       "cod_fixed": 42.1,
+       "cod_pct": 2.5,
+       "comparable": true
+      },
+      {
+       "service": "Delhivery Surface 20kg",
+       "courier": "Delhivery",
+       "mode": "surface",
+       "min_weight_kg": 20.0,
+       "base": [
+        465.6,
+        585.2,
+        677.2,
+        764.4,
+        936.0
+       ],
+       "rto": [
+        465.6,
+        585.2,
+        677.2,
+        764.4,
+        936.0
+       ],
+       "cod_fixed": 47.2,
+       "cod_pct": 2.6,
+       "addl_step_kg": 1.0,
+       "addl": [
+        24.3,
+        30.3,
+        34.9,
+        39.6,
+        48.6
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Delhivery Surface 5kg",
+       "courier": "Delhivery",
+       "mode": "surface",
+       "min_weight_kg": 5.0,
+       "base": [
+        185.9,
+        203.2,
+        220.4,
+        254.9,
+        289.4
+       ],
+       "rto": [
+        185.9,
+        203.2,
+        220.4,
+        254.9,
+        289.4
+       ],
+       "cod_fixed": 47.2,
+       "cod_pct": 2.5,
+       "addl_step_kg": 1.0,
+       "addl": [
+        36.7,
+        38.8,
+        41.9,
+        48.8,
+        54.2
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Dtdc Air 500gm",
+       "courier": "DTDC",
+       "mode": "air",
+       "min_weight_kg": 0.5,
+       "base": [
+        72.3,
+        83.6,
+        96.5,
+        108.9,
+        149.8
+       ],
+       "rto": [
+        72.3,
+        83.6,
+        96.5,
+        108.9,
+        149.8
+       ],
+       "cod_fixed": 54.0,
+       "cod_pct": 2.2,
+       "addl_step_kg": 0.5,
+       "addl": [
+        68.7,
+        76.1,
+        92.3,
+        98.6,
+        141.7
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Dtdc Surface",
+       "courier": "DTDC",
+       "mode": "surface",
+       "min_weight_kg": 0.5,
+       "base": [
+        63.1,
+        65.7,
+        70.5,
+        78.5,
+        124.4
+       ],
+       "rto": [
+        63.1,
+        65.7,
+        70.5,
+        78.5,
+        124.4
+       ],
+       "cod_fixed": 54.0,
+       "cod_pct": 2.2,
+       "addl_step_kg": 0.5,
+       "addl": [
+        61.7,
+        64.4,
+        68.5,
+        71.6,
+        122.3
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Dtdc Surface 10kg",
+       "courier": "DTDC",
+       "mode": "surface",
+       "min_weight_kg": 10.0,
+       "base": [
+        282.6,
+        347.2,
+        397.8,
+        457.0,
+        546.2
+       ],
+       "rto": [
+        282.6,
+        347.2,
+        397.8,
+        457.0,
+        546.2
+       ],
+       "cod_fixed": 48.5,
+       "cod_pct": 3.0,
+       "addl_step_kg": 1.0,
+       "addl": [
+        28.1,
+        34.1,
+        38.7,
+        44.7,
+        53.8
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Dtdc Surface 20kg",
+       "courier": "DTDC",
+       "mode": "surface",
+       "min_weight_kg": 20.0,
+       "base": [
+        512.8,
+        632.4,
+        724.4,
+        811.6,
+        983.2
+       ],
+       "rto": [
+        512.8,
+        632.4,
+        724.4,
+        811.6,
+        983.2
+       ],
+       "cod_fixed": 48.5,
+       "cod_pct": 3.0,
+       "addl_step_kg": 1.0,
+       "addl": [
+        26.7,
+        32.7,
+        37.3,
+        41.9,
+        51.0
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Dtdc Surface 2kg",
+       "courier": "DTDC",
+       "mode": "surface",
+       "min_weight_kg": 2.0,
+       "base": [
+        114.2,
+        126.2,
+        148.2,
+        161.0,
+        203.0
+       ],
+       "rto": [
+        114.2,
+        126.2,
+        148.2,
+        161.0,
+        203.0
+       ],
+       "cod_fixed": 44.0,
+       "cod_pct": 1.7,
+       "addl_step_kg": 1.0,
+       "addl": [
+        45.1,
+        49.6,
+        52.0,
+        60.3,
+        63.0
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Dtdc Surface 5kg",
+       "courier": "DTDC",
+       "mode": "surface",
+       "min_weight_kg": 5.0,
+       "base": [
+        209.5,
+        226.8,
+        244.0,
+        278.5,
+        313.0
+       ],
+       "rto": [
+        209.5,
+        226.8,
+        244.0,
+        278.5,
+        313.0
+       ],
+       "cod_fixed": 48.5,
+       "cod_pct": 2.9,
+       "addl_step_kg": 1.0,
+       "addl": [
+        38.2,
+        42.2,
+        44.3,
+        51.7,
+        54.2
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Ekart 10kg New",
+       "courier": "Ekart",
+       "mode": "surface",
+       "min_weight_kg": 10.0,
+       "base": [
+        259.0,
+        323.6,
+        374.2,
+        433.4,
+        522.6
+       ],
+       "rto": [
+        259.0,
+        323.6,
+        374.2,
+        433.4,
+        522.6
+       ],
+       "cod_fixed": 47.2,
+       "cod_pct": 2.6,
+       "addl_step_kg": 1.0,
+       "addl": [
+        25.7,
+        31.8,
+        36.3,
+        42.4,
+        51.4
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Ekart 5kg New",
+       "courier": "Ekart",
+       "mode": "surface",
+       "min_weight_kg": 5.0,
+       "base": [
+        185.9,
+        203.2,
+        220.4,
+        254.9,
+        289.4
+       ],
+       "rto": [
+        185.9,
+        203.2,
+        220.4,
+        254.9,
+        289.4
+       ],
+       "cod_fixed": 47.2,
+       "cod_pct": 2.5,
+       "addl_step_kg": 1.0,
+       "addl": [
+        36.7,
+        38.8,
+        41.9,
+        48.8,
+        54.2
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Ekart Logistics Air",
+       "courier": "Ekart",
+       "mode": "air",
+       "min_weight_kg": 0.5,
+       "base": [
+        43.0,
+        49.0,
+        75.0,
+        87.0,
+        115.0
+       ],
+       "rto": [
+        43.0,
+        49.0,
+        75.0,
+        87.0,
+        115.0
+       ],
+       "cod_fixed": 49.0,
+       "cod_pct": 2.2,
+       "addl_step_kg": 0.5,
+       "addl": [
+        39.0,
+        44.0,
+        68.0,
+        79.0,
+        104.0
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Ekart Logistics Surface",
+       "courier": "Ekart",
+       "mode": "surface",
+       "min_weight_kg": 0.5,
+       "base": [
+        44.0,
+        50.0,
+        58.0,
+        65.0,
+        98.0
+       ],
+       "rto": [
+        44.0,
+        50.0,
+        58.0,
+        65.0,
+        98.0
+       ],
+       "cod_fixed": 49.0,
+       "cod_pct": 2.7,
+       "addl_step_kg": 0.5,
+       "addl": [
+        41.0,
+        47.0,
+        56.0,
+        62.0,
+        93.0
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Ekart Surface 10kg",
+       "courier": "Ekart",
+       "mode": "surface",
+       "min_weight_kg": 10.0,
+       "base": [
+        259.0,
+        323.6,
+        374.2,
+        433.4,
+        522.6
+       ],
+       "rto": [
+        259.0,
+        323.6,
+        374.2,
+        433.4,
+        522.6
+       ],
+       "cod_fixed": 47.2,
+       "cod_pct": 2.6,
+       "addl_step_kg": 1.0,
+       "addl": [
+        25.7,
+        31.8,
+        36.3,
+        42.4,
+        51.4
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Ekart Surface 20kg",
+       "courier": "Ekart",
+       "mode": "surface",
+       "min_weight_kg": 20.0,
+       "base": [
+        522.8,
+        560.0,
+        683.6,
+        720.8,
+        816.8
+       ],
+       "rto": [
+        522.8,
+        560.0,
+        683.6,
+        720.8,
+        816.8
+       ],
+       "cod_fixed": 42.5,
+       "cod_pct": 2.1,
+       "addl_step_kg": 1.0,
+       "addl": [
+        26.0,
+        27.7,
+        30.6,
+        35.3,
+        40.9
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Ekart Surface 2kg",
+       "courier": "Ekart",
+       "mode": "surface",
+       "min_weight_kg": 2.0,
+       "base": [
+        79.5,
+        98.0,
+        119.9,
+        128.4,
+        176.6
+       ],
+       "rto": [
+        79.5,
+        98.0,
+        119.9,
+        128.4,
+        176.6
+       ],
+       "cod_fixed": 28.7,
+       "cod_pct": 1.6,
+       "addl_step_kg": 1.0,
+       "addl": [
+        38.2,
+        42.2,
+        44.3,
+        51.7,
+        54.1
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Ekart Surface 5kg",
+       "courier": "Ekart",
+       "mode": "surface",
+       "min_weight_kg": 5.0,
+       "base": [
+        185.9,
+        203.2,
+        220.4,
+        254.9,
+        289.4
+       ],
+       "rto": [
+        185.9,
+        203.2,
+        220.4,
+        254.9,
+        289.4
+       ],
+       "cod_fixed": 47.2,
+       "cod_pct": 2.5,
+       "addl_step_kg": 1.0,
+       "addl": [
+        36.7,
+        38.8,
+        41.9,
+        48.8,
+        54.2
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Rocket Xpress",
+       "courier": "Rocket Xpress",
+       "mode": "surface",
+       "min_weight_kg": 0.5,
+       "base": [
+        68.3,
+        71.4,
+        76.7,
+        86.1,
+        137.6
+       ],
+       "rto": [
+        68.3,
+        71.4,
+        76.7,
+        86.1,
+        137.6
+       ],
+       "cod_fixed": 53.6,
+       "cod_pct": 2.4,
+       "addl_step_kg": 0.5,
+       "addl": [
+        66.2,
+        69.3,
+        74.6,
+        77.7,
+        135.5
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Shadowfax Air",
+       "courier": "Shadowfax",
+       "mode": "air",
+       "min_weight_kg": 0.5,
+       "base": [
+        43.0,
+        49.0,
+        75.0,
+        87.0,
+        115.0
+       ],
+       "rto": [
+        43.0,
+        49.0,
+        75.0,
+        87.0,
+        115.0
+       ],
+       "cod_fixed": 49.0,
+       "cod_pct": 2.2,
+       "addl_step_kg": 0.5,
+       "addl": [
+        39.0,
+        44.0,
+        68.0,
+        79.0,
+        104.0
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Shadowfax Heavy 10kg",
+       "courier": "Shadowfax",
+       "mode": "surface",
+       "min_weight_kg": 10.0,
+       "base": [
+        259.0,
+        323.6,
+        374.2,
+        433.4,
+        522.6
+       ],
+       "rto": [
+        259.0,
+        323.6,
+        374.2,
+        433.4,
+        522.6
+       ],
+       "cod_fixed": 47.2,
+       "cod_pct": 2.6,
+       "addl_step_kg": 1.0,
+       "addl": [
+        25.7,
+        31.8,
+        36.3,
+        42.4,
+        51.4
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Shadowfax Heavy 5kg",
+       "courier": "Shadowfax",
+       "mode": "surface",
+       "min_weight_kg": 5.0,
+       "base": [
+        185.9,
+        203.2,
+        220.4,
+        254.9,
+        289.4
+       ],
+       "rto": [
+        185.9,
+        203.2,
+        220.4,
+        254.9,
+        289.4
+       ],
+       "cod_fixed": 47.2,
+       "cod_pct": 2.5,
+       "addl_step_kg": 1.0,
+       "addl": [
+        36.7,
+        38.8,
+        41.9,
+        48.8,
+        54.2
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Shadowfax Instant Express",
+       "courier": "Shadowfax",
+       "mode": "surface",
+       "min_weight_kg": 0.5,
+       "base": [
+        50.1,
+        53.6,
+        61.4,
+        68.3,
+        101.3
+       ],
+       "rto": [
+        45.8,
+        51.5,
+        61.4,
+        68.3,
+        90.3
+       ],
+       "cod_fixed": 44.8,
+       "cod_pct": 2.2,
+       "addl_step_kg": 0.5,
+       "addl": [
+        42.8,
+        50.0,
+        58.6,
+        61.7,
+        85.7
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Shadowfax Surface",
+       "courier": "Shadowfax",
+       "mode": "surface",
+       "min_weight_kg": 0.5,
+       "base": [
+        44.0,
+        50.0,
+        58.0,
+        65.0,
+        98.0
+       ],
+       "rto": [
+        44.0,
+        50.0,
+        58.0,
+        65.0,
+        98.0
+       ],
+       "cod_fixed": 49.0,
+       "cod_pct": 2.0,
+       "addl_step_kg": 0.5,
+       "addl": [
+        41.0,
+        47.0,
+        56.0,
+        62.0,
+        93.0
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Shadowfax Surface 2kg",
+       "courier": "Shadowfax",
+       "mode": "surface",
+       "min_weight_kg": 2.0,
+       "base": [
+        72.0,
+        84.0,
+        108.0,
+        120.0,
+        140.0
+       ],
+       "rto": [
+        72.0,
+        84.0,
+        108.0,
+        120.0,
+        140.0
+       ],
+       "cod_fixed": 42.9,
+       "cod_pct": 1.8,
+       "addl_step_kg": 1.0,
+       "addl": [
+        32.0,
+        36.0,
+        40.0,
+        44.0,
+        58.0
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Xpressbees Air",
+       "courier": "Xpressbees",
+       "mode": "air",
+       "min_weight_kg": 0.5,
+       "base": [
+        41.0,
+        48.0,
+        73.0,
+        85.0,
+        113.0
+       ],
+       "rto": [
+        41.0,
+        48.0,
+        73.0,
+        85.0,
+        113.0
+       ],
+       "cod_fixed": 47.0,
+       "cod_pct": 2.2,
+       "addl_step_kg": 0.5,
+       "addl": [
+        38.0,
+        46.0,
+        69.0,
+        77.0,
+        104.0
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Xpressbees Surface",
+       "courier": "Xpressbees",
+       "mode": "surface",
+       "min_weight_kg": 0.5,
+       "base": [
+        41.0,
+        47.0,
+        56.0,
+        63.0,
+        96.0
+       ],
+       "rto": [
+        41.0,
+        47.0,
+        56.0,
+        63.0,
+        96.0
+       ],
+       "cod_fixed": 47.0,
+       "cod_pct": 2.4,
+       "addl_step_kg": 0.5,
+       "addl": [
+        38.0,
+        46.0,
+        51.0,
+        58.0,
+        91.0
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Xpressbees Surface 10kg",
+       "courier": "Xpressbees",
+       "mode": "surface",
+       "min_weight_kg": 10.0,
+       "base": [
+        247.2,
+        311.8,
+        362.4,
+        421.6,
+        510.8
+       ],
+       "rto": [
+        247.2,
+        311.8,
+        362.4,
+        421.6,
+        510.8
+       ],
+       "cod_fixed": 47.2,
+       "cod_pct": 2.6,
+       "addl_step_kg": 1.0,
+       "addl": [
+        25.7,
+        31.8,
+        36.3,
+        42.4,
+        51.4
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Xpressbees Surface 20kg",
+       "courier": "Xpressbees",
+       "mode": "surface",
+       "min_weight_kg": 20.0,
+       "base": [
+        453.6,
+        573.2,
+        665.2,
+        752.4,
+        924.0
+       ],
+       "rto": [
+        453.6,
+        573.2,
+        665.2,
+        752.4,
+        924.0
+       ],
+       "cod_fixed": 47.2,
+       "cod_pct": 2.6,
+       "addl_step_kg": 1.0,
+       "addl": [
+        24.3,
+        30.3,
+        34.9,
+        39.6,
+        48.6
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Xpressbees Surface 2kg",
+       "courier": "Xpressbees",
+       "mode": "surface",
+       "min_weight_kg": 2.0,
+       "base": [
+        94.4,
+        111.2,
+        135.0,
+        145.0,
+        190.0
+       ],
+       "rto": [
+        75.5,
+        89.0,
+        108.0,
+        116.0,
+        152.0
+       ],
+       "cod_fixed": 42.1,
+       "cod_pct": 2.5,
+       "addl_step_kg": 1.0,
+       "addl": [
+        25.3,
+        28.7,
+        37.3,
+        42.2,
+        53.2
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Xpressbees Surface 5kg",
+       "courier": "Xpressbees",
+       "mode": "surface",
+       "min_weight_kg": 5.0,
+       "base": [
+        180.0,
+        197.3,
+        214.5,
+        249.0,
+        283.5
+       ],
+       "rto": [
+        180.0,
+        197.3,
+        214.5,
+        249.0,
+        283.5
+       ],
+       "cod_fixed": 47.2,
+       "cod_pct": 2.5,
+       "addl_step_kg": 1.0,
+       "addl": [
+        36.7,
+        38.8,
+        41.9,
+        48.8,
+        54.2
+       ],
+       "comparable": true
+      }
+     ]
+    },
+    "lite": {
+     "label": "Lite",
+     "verified": true,
+     "source_file": "shiprocket_ratecard_Lite.csv",
+     "services": [
+      {
+       "service": "Amazon Cod Surface 500gm",
+       "courier": "Amazon Shipping",
+       "mode": "surface",
+       "min_weight_kg": 0.5,
+       "base": [
+        51.0,
+        57.0,
+        65.0,
+        70.0,
+        102.0
+       ],
+       "rto": [
+        51.0,
+        57.0,
+        65.0,
+        70.0,
+        102.0
+       ],
+       "cod_fixed": 50.0,
+       "cod_pct": 1.8,
+       "comparable": true
+      },
+      {
+       "service": "Amazon Prepaid Surface 500g",
+       "courier": "Amazon Shipping",
+       "mode": "surface",
+       "min_weight_kg": 0.5,
+       "base": [
+        51.0,
+        57.0,
+        65.0,
+        70.0,
+        102.0
+       ],
+       "rto": [
+        51.0,
+        57.0,
+        65.0,
+        70.0,
+        102.0
+       ],
+       "cod_fixed": 50.0,
+       "cod_pct": 1.8,
+       "comparable": true
+      },
+      {
+       "service": "Amazon Shipping Surface 10kg",
+       "courier": "Amazon Shipping",
+       "mode": "surface",
+       "min_weight_kg": 10.0,
+       "base": [
+        288.4,
+        359.2,
+        414.8,
+        479.0,
+        576.6
+       ],
+       "rto": [
+        288.4,
+        359.2,
+        414.8,
+        479.0,
+        576.6
+       ],
+       "cod_fixed": 48.4,
+       "cod_pct": 2.9,
+       "addl_step_kg": 1.0,
+       "addl": [
+        28.1,
+        34.7,
+        39.6,
+        46.3,
+        56.2
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Amazon Shipping Surface 1kg",
+       "courier": "Amazon Shipping",
+       "mode": "surface",
+       "min_weight_kg": 1.0,
+       "base": [
+        78.8,
+        92.2,
+        105.0,
+        115.0,
+        144.2
+       ],
+       "rto": [
+        78.8,
+        92.2,
+        105.0,
+        115.0,
+        144.2
+       ],
+       "cod_fixed": 31.8,
+       "cod_pct": 1.8,
+       "addl_step_kg": 1.0,
+       "addl": [
+        42.0,
+        45.4,
+        48.5,
+        56.1,
+        62.8
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Amazon Shipping Surface 2kg",
+       "courier": "Amazon Shipping",
+       "mode": "surface",
+       "min_weight_kg": 2.0,
+       "base": [
+        88.0,
+        116.0,
+        134.8,
+        162.9,
+        198.8
+       ],
+       "rto": [
+        88.0,
+        116.0,
+        134.8,
+        162.9,
+        198.8
+       ],
+       "cod_fixed": 36.0,
+       "cod_pct": 1.8,
+       "addl_step_kg": 1.0,
+       "addl": [
+        39.0,
+        54.7,
+        63.9,
+        76.5,
+        93.7
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Amazon Shipping Surface 5kg",
+       "courier": "Amazon Shipping",
+       "mode": "surface",
+       "min_weight_kg": 5.0,
+       "base": [
+        209.0,
+        227.2,
+        245.3,
+        281.5,
+        317.7
+       ],
+       "rto": [
+        209.0,
+        227.2,
+        245.3,
+        281.5,
+        317.7
+       ],
+       "cod_fixed": 48.4,
+       "cod_pct": 2.8,
+       "addl_step_kg": 1.0,
+       "addl": [
+        39.5,
+        41.7,
+        45.0,
+        52.2,
+        58.0
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Blue Dart Air",
+       "courier": "Blue Dart",
+       "mode": "air",
+       "min_weight_kg": 0.5,
+       "base": [
+        77.0,
+        91.0,
+        105.0,
+        123.0,
+        167.0
+       ],
+       "rto": [
+        77.0,
+        91.0,
+        105.0,
+        123.0,
+        167.0
+       ],
+       "cod_fixed": 53.0,
+       "cod_pct": 2.6,
+       "addl_step_kg": 0.5,
+       "addl": [
+        73.0,
+        83.0,
+        100.0,
+        110.0,
+        157.0
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Blue Dart Surface",
+       "courier": "Blue Dart",
+       "mode": "surface",
+       "min_weight_kg": 0.5,
+       "base": [
+        68.0,
+        75.0,
+        82.0,
+        87.0,
+        136.0
+       ],
+       "rto": [
+        68.0,
+        75.0,
+        82.0,
+        87.0,
+        136.0
+       ],
+       "cod_fixed": 53.0,
+       "cod_pct": 2.6,
+       "addl_step_kg": 0.5,
+       "addl": [
+        66.0,
+        74.0,
+        79.0,
+        85.0,
+        133.0
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Bluedart Surface 2kg",
+       "courier": "Blue Dart",
+       "mode": "surface",
+       "min_weight_kg": 2.0,
+       "base": [
+        127.0,
+        143.0,
+        168.0,
+        184.0,
+        227.0
+       ],
+       "rto": [
+        127.0,
+        143.0,
+        168.0,
+        184.0,
+        227.0
+       ],
+       "cod_fixed": 44.2,
+       "cod_pct": 2.7,
+       "addl_step_kg": 1.0,
+       "addl": [
+        43.0,
+        49.0,
+        57.0,
+        64.0,
+        79.0
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Delhivery Air",
+       "courier": "Delhivery",
+       "mode": "air",
+       "min_weight_kg": 0.5,
+       "base": [
+        51.0,
+        58.0,
+        83.0,
+        97.0,
+        137.0
+       ],
+       "rto": [
+        51.0,
+        58.0,
+        83.0,
+        97.0,
+        137.0
+       ],
+       "cod_fixed": 52.0,
+       "cod_pct": 3.3,
+       "addl_step_kg": 0.5,
+       "addl": [
+        48.0,
+        56.0,
+        79.0,
+        89.0,
+        130.0
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Delhivery Surface",
+       "courier": "Delhivery",
+       "mode": "surface",
+       "min_weight_kg": 0.5,
+       "base": [
+        51.0,
+        57.0,
+        66.0,
+        71.0,
+        103.0
+       ],
+       "rto": [
+        51.0,
+        57.0,
+        66.0,
+        71.0,
+        103.0
+       ],
+       "cod_fixed": 52.0,
+       "cod_pct": 3.3,
+       "addl_step_kg": 0.5,
+       "addl": [
+        48.0,
+        56.0,
+        63.0,
+        66.0,
+        97.0
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Delhivery Surface 10kg",
+       "courier": "Delhivery",
+       "mode": "surface",
+       "min_weight_kg": 10.0,
+       "base": [
+        282.6,
+        353.2,
+        408.8,
+        473.2,
+        570.6
+       ],
+       "rto": [
+        282.6,
+        353.2,
+        408.8,
+        473.2,
+        570.6
+       ],
+       "cod_fixed": 48.4,
+       "cod_pct": 2.9,
+       "addl_step_kg": 1.0,
+       "addl": [
+        28.1,
+        34.7,
+        39.6,
+        46.3,
+        56.2
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Delhivery Surface 2 Kgs",
+       "courier": "Delhivery",
+       "mode": "surface",
+       "min_weight_kg": 2.0,
+       "base": [
+        112.0,
+        126.0,
+        149.0,
+        164.0,
+        204.0
+       ],
+       "rto": [
+        112.0,
+        126.0,
+        149.0,
+        164.0,
+        204.0
+       ],
+       "cod_fixed": 45.4,
+       "cod_pct": 2.7,
+       "comparable": true
+      },
+      {
+       "service": "Delhivery Surface 20kg",
+       "courier": "Delhivery",
+       "mode": "surface",
+       "min_weight_kg": 20.0,
+       "base": [
+        510.8,
+        641.6,
+        742.0,
+        839.6,
+        1027.2
+       ],
+       "rto": [
+        510.8,
+        641.6,
+        742.0,
+        839.6,
+        1027.2
+       ],
+       "cod_fixed": 48.4,
+       "cod_pct": 2.9,
+       "addl_step_kg": 1.0,
+       "addl": [
+        26.7,
+        33.3,
+        38.2,
+        43.4,
+        53.4
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Delhivery Surface 5kg",
+       "courier": "Delhivery",
+       "mode": "surface",
+       "min_weight_kg": 5.0,
+       "base": [
+        203.1,
+        221.3,
+        239.4,
+        275.6,
+        311.8
+       ],
+       "rto": [
+        203.1,
+        221.3,
+        239.4,
+        275.6,
+        311.8
+       ],
+       "cod_fixed": 48.4,
+       "cod_pct": 2.8,
+       "addl_step_kg": 1.0,
+       "addl": [
+        39.5,
+        41.7,
+        45.0,
+        52.2,
+        58.0
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Dtdc Air 500gm",
+       "courier": "DTDC",
+       "mode": "air",
+       "min_weight_kg": 0.5,
+       "base": [
+        72.0,
+        84.5,
+        97.1,
+        112.6,
+        152.1
+       ],
+       "rto": [
+        72.0,
+        84.5,
+        97.1,
+        112.6,
+        152.1
+       ],
+       "cod_fixed": 56.0,
+       "cod_pct": 2.6,
+       "addl_step_kg": 0.5,
+       "addl": [
+        68.4,
+        76.8,
+        92.3,
+        101.2,
+        143.0
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Dtdc Surface",
+       "courier": "DTDC",
+       "mode": "surface",
+       "min_weight_kg": 0.5,
+       "base": [
+        65.7,
+        72.6,
+        78.5,
+        83.5,
+        128.5
+       ],
+       "rto": [
+        65.7,
+        72.6,
+        78.5,
+        83.5,
+        128.5
+       ],
+       "cod_fixed": 56.0,
+       "cod_pct": 2.6,
+       "addl_step_kg": 0.5,
+       "addl": [
+        64.4,
+        71.3,
+        76.3,
+        81.5,
+        126.5
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Dtdc Surface 10kg",
+       "courier": "DTDC",
+       "mode": "surface",
+       "min_weight_kg": 10.0,
+       "base": [
+        306.2,
+        376.8,
+        432.4,
+        496.8,
+        594.2
+       ],
+       "rto": [
+        306.2,
+        376.8,
+        432.4,
+        496.8,
+        594.2
+       ],
+       "cod_fixed": 49.4,
+       "cod_pct": 3.3,
+       "addl_step_kg": 1.0,
+       "addl": [
+        30.4,
+        37.1,
+        42.0,
+        48.6,
+        58.5
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Dtdc Surface 20kg",
+       "courier": "DTDC",
+       "mode": "surface",
+       "min_weight_kg": 20.0,
+       "base": [
+        558.0,
+        688.8,
+        789.2,
+        886.8,
+        1074.4
+       ],
+       "rto": [
+        558.0,
+        688.8,
+        789.2,
+        886.8,
+        1074.4
+       ],
+       "cod_fixed": 49.4,
+       "cod_pct": 3.3,
+       "addl_step_kg": 1.0,
+       "addl": [
+        29.0,
+        35.6,
+        40.6,
+        45.8,
+        55.7
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Dtdc Surface 2kg",
+       "courier": "DTDC",
+       "mode": "surface",
+       "min_weight_kg": 2.0,
+       "base": [
+        121.0,
+        135.0,
+        158.2,
+        173.0,
+        213.0
+       ],
+       "rto": [
+        121.0,
+        135.0,
+        158.2,
+        173.0,
+        213.0
+       ],
+       "cod_fixed": 47.2,
+       "cod_pct": 1.9,
+       "addl_step_kg": 1.0,
+       "addl": [
+        52.8,
+        57.5,
+        75.2,
+        71.4,
+        74.0
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Dtdc Surface 5kg",
+       "courier": "DTDC",
+       "mode": "surface",
+       "min_weight_kg": 5.0,
+       "base": [
+        226.7,
+        244.9,
+        263.0,
+        299.2,
+        335.4
+       ],
+       "rto": [
+        226.7,
+        244.9,
+        263.0,
+        299.2,
+        335.4
+       ],
+       "cod_fixed": 49.4,
+       "cod_pct": 3.2,
+       "addl_step_kg": 1.0,
+       "addl": [
+        45.0,
+        49.2,
+        61.6,
+        61.6,
+        64.0
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Ekart 10kg New",
+       "courier": "Ekart",
+       "mode": "surface",
+       "min_weight_kg": 10.0,
+       "base": [
+        282.6,
+        353.2,
+        408.8,
+        473.2,
+        570.6
+       ],
+       "rto": [
+        282.6,
+        353.2,
+        408.8,
+        473.2,
+        570.6
+       ],
+       "cod_fixed": 48.4,
+       "cod_pct": 2.9,
+       "addl_step_kg": 1.0,
+       "addl": [
+        28.1,
+        34.7,
+        39.6,
+        46.3,
+        56.2
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Ekart 5kg New",
+       "courier": "Ekart",
+       "mode": "surface",
+       "min_weight_kg": 5.0,
+       "base": [
+        203.1,
+        221.3,
+        239.4,
+        275.6,
+        311.8
+       ],
+       "rto": [
+        203.1,
+        221.3,
+        239.4,
+        275.6,
+        311.8
+       ],
+       "cod_fixed": 48.4,
+       "cod_pct": 2.8,
+       "addl_step_kg": 1.0,
+       "addl": [
+        39.5,
+        41.7,
+        45.0,
+        52.2,
+        58.0
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Ekart Logistics Air",
+       "courier": "Ekart",
+       "mode": "air",
+       "min_weight_kg": 0.5,
+       "base": [
+        51.0,
+        57.0,
+        78.0,
+        92.0,
+        132.0
+       ],
+       "rto": [
+        51.0,
+        57.0,
+        78.0,
+        92.0,
+        132.0
+       ],
+       "cod_fixed": 50.0,
+       "cod_pct": 2.4,
+       "addl_step_kg": 0.5,
+       "addl": [
+        46.0,
+        51.0,
+        70.0,
+        83.0,
+        119.0
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Ekart Logistics Surface",
+       "courier": "Ekart",
+       "mode": "surface",
+       "min_weight_kg": 0.5,
+       "base": [
+        51.0,
+        57.0,
+        65.0,
+        70.0,
+        102.0
+       ],
+       "rto": [
+        51.0,
+        57.0,
+        65.0,
+        70.0,
+        102.0
+       ],
+       "cod_fixed": 50.0,
+       "cod_pct": 2.8,
+       "addl_step_kg": 0.5,
+       "addl": [
+        48.0,
+        54.0,
+        62.0,
+        66.0,
+        97.0
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Ekart Surface 10kg",
+       "courier": "Ekart",
+       "mode": "surface",
+       "min_weight_kg": 10.0,
+       "base": [
+        282.6,
+        353.2,
+        408.8,
+        473.2,
+        570.6
+       ],
+       "rto": [
+        282.6,
+        353.2,
+        408.8,
+        473.2,
+        570.6
+       ],
+       "cod_fixed": 48.4,
+       "cod_pct": 2.9,
+       "addl_step_kg": 1.0,
+       "addl": [
+        28.1,
+        34.7,
+        39.6,
+        46.3,
+        56.2
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Ekart Surface 20kg",
+       "courier": "Ekart",
+       "mode": "surface",
+       "min_weight_kg": 20.0,
+       "base": [
+        552.4,
+        629.2,
+        728.4,
+        784.0,
+        875.2
+       ],
+       "rto": [
+        552.4,
+        629.2,
+        728.4,
+        784.0,
+        875.2
+       ],
+       "cod_fixed": 44.8,
+       "cod_pct": 2.2,
+       "addl_step_kg": 1.0,
+       "addl": [
+        25.0,
+        29.7,
+        32.6,
+        38.4,
+        43.8
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Ekart Surface 2kg",
+       "courier": "Ekart",
+       "mode": "surface",
+       "min_weight_kg": 2.0,
+       "base": [
+        89.4,
+        110.0,
+        134.4,
+        145.0,
+        199.1
+       ],
+       "rto": [
+        89.4,
+        110.0,
+        134.4,
+        145.0,
+        199.1
+       ],
+       "cod_fixed": 33.8,
+       "cod_pct": 1.8,
+       "addl_step_kg": 1.0,
+       "addl": [
+        45.0,
+        49.2,
+        65.0,
+        61.6,
+        64.0
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Ekart Surface 5kg",
+       "courier": "Ekart",
+       "mode": "surface",
+       "min_weight_kg": 5.0,
+       "base": [
+        203.1,
+        221.3,
+        239.4,
+        275.6,
+        311.8
+       ],
+       "rto": [
+        203.1,
+        221.3,
+        239.4,
+        275.6,
+        311.8
+       ],
+       "cod_fixed": 48.4,
+       "cod_pct": 2.8,
+       "addl_step_kg": 1.0,
+       "addl": [
+        39.5,
+        41.7,
+        45.0,
+        52.2,
+        58.0
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Rocket Xpress",
+       "courier": "Rocket Xpress",
+       "mode": "surface",
+       "min_weight_kg": 0.5,
+       "base": [
+        71.4,
+        78.8,
+        86.1,
+        91.4,
+        142.8
+       ],
+       "rto": [
+        71.4,
+        78.8,
+        86.1,
+        91.4,
+        142.8
+       ],
+       "cod_fixed": 55.7,
+       "cod_pct": 2.7,
+       "addl_step_kg": 0.5,
+       "addl": [
+        69.3,
+        77.7,
+        83.0,
+        89.3,
+        139.7
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Shadowfax Air",
+       "courier": "Shadowfax",
+       "mode": "air",
+       "min_weight_kg": 0.5,
+       "base": [
+        51.0,
+        57.0,
+        78.0,
+        92.0,
+        132.0
+       ],
+       "rto": [
+        51.0,
+        57.0,
+        78.0,
+        92.0,
+        132.0
+       ],
+       "cod_fixed": 50.0,
+       "cod_pct": 2.6,
+       "addl_step_kg": 0.5,
+       "addl": [
+        46.0,
+        51.0,
+        70.0,
+        83.0,
+        119.0
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Shadowfax Heavy 10kg",
+       "courier": "Shadowfax",
+       "mode": "surface",
+       "min_weight_kg": 10.0,
+       "base": [
+        282.6,
+        353.2,
+        408.8,
+        473.2,
+        570.6
+       ],
+       "rto": [
+        282.6,
+        353.2,
+        408.8,
+        473.2,
+        570.6
+       ],
+       "cod_fixed": 48.4,
+       "cod_pct": 2.9,
+       "addl_step_kg": 1.0,
+       "addl": [
+        28.1,
+        34.7,
+        39.6,
+        46.3,
+        56.2
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Shadowfax Heavy 5kg",
+       "courier": "Shadowfax",
+       "mode": "surface",
+       "min_weight_kg": 5.0,
+       "base": [
+        203.1,
+        221.3,
+        239.4,
+        275.6,
+        311.8
+       ],
+       "rto": [
+        203.1,
+        221.3,
+        239.4,
+        275.6,
+        311.8
+       ],
+       "cod_fixed": 48.4,
+       "cod_pct": 2.8,
+       "addl_step_kg": 1.0,
+       "addl": [
+        39.5,
+        41.7,
+        45.0,
+        52.2,
+        58.0
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Shadowfax Instant Express",
+       "courier": "Shadowfax",
+       "mode": "surface",
+       "min_weight_kg": 0.5,
+       "base": [
+        54.2,
+        60.3,
+        68.9,
+        73.5,
+        105.5
+       ],
+       "rto": [
+        54.2,
+        60.3,
+        68.9,
+        73.5,
+        105.5
+       ],
+       "cod_fixed": 47.2,
+       "cod_pct": 2.3,
+       "addl_step_kg": 0.5,
+       "addl": [
+        50.8,
+        58.6,
+        65.8,
+        68.7,
+        100.2
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Shadowfax Surface",
+       "courier": "Shadowfax",
+       "mode": "surface",
+       "min_weight_kg": 0.5,
+       "base": [
+        51.0,
+        57.0,
+        65.0,
+        70.0,
+        102.0
+       ],
+       "rto": [
+        51.0,
+        57.0,
+        65.0,
+        70.0,
+        102.0
+       ],
+       "cod_fixed": 50.0,
+       "cod_pct": 2.1,
+       "addl_step_kg": 0.5,
+       "addl": [
+        48.0,
+        54.0,
+        62.0,
+        66.0,
+        97.0
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Shadowfax Surface 2kg",
+       "courier": "Shadowfax",
+       "mode": "surface",
+       "min_weight_kg": 2.0,
+       "base": [
+        80.0,
+        100.0,
+        124.0,
+        136.0,
+        160.0
+       ],
+       "rto": [
+        80.0,
+        100.0,
+        124.0,
+        136.0,
+        160.0
+       ],
+       "cod_fixed": 49.1,
+       "cod_pct": 1.8,
+       "addl_step_kg": 1.0,
+       "addl": [
+        34.0,
+        38.0,
+        42.0,
+        44.0,
+        62.0
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Xpressbees Air",
+       "courier": "Xpressbees",
+       "mode": "air",
+       "min_weight_kg": 0.5,
+       "base": [
+        45.0,
+        53.0,
+        74.0,
+        87.0,
+        120.0
+       ],
+       "rto": [
+        45.0,
+        53.0,
+        74.0,
+        87.0,
+        120.0
+       ],
+       "cod_fixed": 48.0,
+       "cod_pct": 2.4,
+       "addl_step_kg": 0.5,
+       "addl": [
+        42.0,
+        51.0,
+        71.0,
+        77.0,
+        112.0
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Xpressbees Surface",
+       "courier": "Xpressbees",
+       "mode": "surface",
+       "min_weight_kg": 0.5,
+       "base": [
+        45.0,
+        53.0,
+        61.0,
+        65.0,
+        97.0
+       ],
+       "rto": [
+        45.0,
+        53.0,
+        61.0,
+        65.0,
+        97.0
+       ],
+       "cod_fixed": 48.0,
+       "cod_pct": 2.5,
+       "addl_step_kg": 0.5,
+       "addl": [
+        42.0,
+        52.0,
+        55.0,
+        61.0,
+        91.0
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Xpressbees Surface 10kg",
+       "courier": "Xpressbees",
+       "mode": "surface",
+       "min_weight_kg": 10.0,
+       "base": [
+        270.8,
+        341.4,
+        397.0,
+        461.4,
+        558.8
+       ],
+       "rto": [
+        270.8,
+        341.4,
+        397.0,
+        461.4,
+        558.8
+       ],
+       "cod_fixed": 48.4,
+       "cod_pct": 2.9,
+       "addl_step_kg": 1.0,
+       "addl": [
+        28.1,
+        34.7,
+        39.6,
+        46.3,
+        56.2
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Xpressbees Surface 20kg",
+       "courier": "Xpressbees",
+       "mode": "surface",
+       "min_weight_kg": 20.0,
+       "base": [
+        498.8,
+        630.0,
+        730.0,
+        828.0,
+        1015.2
+       ],
+       "rto": [
+        498.8,
+        630.0,
+        730.0,
+        828.0,
+        1015.2
+       ],
+       "cod_fixed": 48.4,
+       "cod_pct": 2.9,
+       "addl_step_kg": 1.0,
+       "addl": [
+        26.7,
+        33.3,
+        38.2,
+        43.4,
+        53.4
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Xpressbees Surface 2kg",
+       "courier": "Xpressbees",
+       "mode": "surface",
+       "min_weight_kg": 2.0,
+       "base": [
+        101.7,
+        119.8,
+        145.0,
+        160.0,
+        200.0
+       ],
+       "rto": [
+        81.3,
+        95.8,
+        116.0,
+        128.0,
+        160.0
+       ],
+       "cod_fixed": 45.4,
+       "cod_pct": 2.7,
+       "addl_step_kg": 1.0,
+       "addl": [
+        27.2,
+        30.9,
+        40.1,
+        46.5,
+        56.0
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Xpressbees Surface 5kg",
+       "courier": "Xpressbees",
+       "mode": "surface",
+       "min_weight_kg": 5.0,
+       "base": [
+        197.2,
+        215.4,
+        233.5,
+        269.7,
+        305.9
+       ],
+       "rto": [
+        197.2,
+        215.4,
+        233.5,
+        269.7,
+        305.9
+       ],
+       "cod_fixed": 48.4,
+       "cod_pct": 2.8,
+       "addl_step_kg": 1.0,
+       "addl": [
+        39.5,
+        41.7,
+        45.0,
+        52.2,
+        58.0
+       ],
+       "comparable": true
+      }
+     ]
+    },
+    "advanced": {
+     "label": "Advanced",
+     "verified": true,
+     "source_file": "shiprocket_ratecard_Advanced.csv",
+     "services": [
+      {
+       "service": "Amazon Cod Surface 500gm",
+       "courier": "Amazon Shipping",
+       "mode": "surface",
+       "min_weight_kg": 0.5,
+       "base": [
+        42.0,
+        48.0,
+        50.0,
+        58.0,
+        94.0
+       ],
+       "rto": [
+        42.0,
+        48.0,
+        50.0,
+        58.0,
+        94.0
+       ],
+       "cod_fixed": 46.0,
+       "cod_pct": 1.6,
+       "comparable": true
+      },
+      {
+       "service": "Amazon Prepaid Surface 500g",
+       "courier": "Amazon Shipping",
+       "mode": "surface",
+       "min_weight_kg": 0.5,
+       "base": [
+        42.0,
+        48.0,
+        50.0,
+        58.0,
+        94.0
+       ],
+       "rto": [
+        42.0,
+        48.0,
+        50.0,
+        58.0,
+        94.0
+       ],
+       "cod_fixed": 46.0,
+       "cod_pct": 1.6,
+       "comparable": true
+      },
+      {
+       "service": "Amazon Shipping Surface 10kg",
+       "courier": "Amazon Shipping",
+       "mode": "surface",
+       "min_weight_kg": 10.0,
+       "base": [
+        249.2,
+        310.0,
+        357.6,
+        413.0,
+        497.2
+       ],
+       "rto": [
+        236.8,
+        294.6,
+        339.8,
+        392.4,
+        472.2
+       ],
+       "cod_fixed": 46.1,
+       "cod_pct": 2.4,
+       "addl_step_kg": 1.0,
+       "addl": [
+        24.2,
+        29.9,
+        34.1,
+        39.8,
+        48.3
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Amazon Shipping Surface 1kg",
+       "courier": "Amazon Shipping",
+       "mode": "surface",
+       "min_weight_kg": 1.0,
+       "base": [
+        72.8,
+        91.3,
+        105.0,
+        113.5,
+        133.2
+       ],
+       "rto": [
+        72.8,
+        91.3,
+        105.0,
+        113.5,
+        133.2
+       ],
+       "cod_fixed": 26.7,
+       "cod_pct": 1.6,
+       "addl_step_kg": 1.0,
+       "addl": [
+        35.4,
+        38.3,
+        41.1,
+        47.5,
+        53.2
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Amazon Shipping Surface 2kg",
+       "courier": "Amazon Shipping",
+       "mode": "surface",
+       "min_weight_kg": 2.0,
+       "base": [
+        78.8,
+        99.5,
+        115.8,
+        140.4,
+        171.7
+       ],
+       "rto": [
+        78.8,
+        99.5,
+        115.8,
+        140.4,
+        171.7
+       ],
+       "cod_fixed": 34.0,
+       "cod_pct": 1.6,
+       "addl_step_kg": 1.0,
+       "addl": [
+        34.0,
+        47.7,
+        55.9,
+        66.8,
+        81.8
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Amazon Shipping Surface 5kg",
+       "courier": "Amazon Shipping",
+       "mode": "surface",
+       "min_weight_kg": 5.0,
+       "base": [
+        182.7,
+        197.7,
+        213.8,
+        244.8,
+        275.9
+       ],
+       "rto": [
+        173.6,
+        187.8,
+        203.1,
+        232.6,
+        262.1
+       ],
+       "cod_fixed": 46.1,
+       "cod_pct": 2.4,
+       "addl_step_kg": 1.0,
+       "addl": [
+        34.7,
+        36.5,
+        39.4,
+        45.6,
+        50.5
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Blue Dart Air",
+       "courier": "Blue Dart",
+       "mode": "air",
+       "min_weight_kg": 0.5,
+       "base": [
+        73.0,
+        85.0,
+        91.0,
+        108.0,
+        152.0
+       ],
+       "rto": [
+        58.0,
+        68.0,
+        73.0,
+        86.0,
+        122.0
+       ],
+       "cod_fixed": 47.0,
+       "cod_pct": 2.2,
+       "addl_step_kg": 0.5,
+       "addl": [
+        69.0,
+        78.0,
+        85.0,
+        98.0,
+        143.0
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Blue Dart Surface",
+       "courier": "Blue Dart",
+       "mode": "surface",
+       "min_weight_kg": 0.5,
+       "base": [
+        60.0,
+        62.0,
+        65.0,
+        75.0,
+        127.0
+       ],
+       "rto": [
+        60.0,
+        62.0,
+        65.0,
+        75.0,
+        127.0
+       ],
+       "cod_fixed": 47.0,
+       "cod_pct": 2.2,
+       "addl_step_kg": 0.5,
+       "addl": [
+        59.0,
+        60.0,
+        63.0,
+        68.0,
+        124.0
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Bluedart Surface 2kg",
+       "courier": "Blue Dart",
+       "mode": "surface",
+       "min_weight_kg": 2.0,
+       "base": [
+        114.0,
+        125.0,
+        143.0,
+        157.0,
+        205.0
+       ],
+       "rto": [
+        114.0,
+        125.0,
+        143.0,
+        157.0,
+        205.0
+       ],
+       "cod_fixed": 38.2,
+       "cod_pct": 2.4,
+       "addl_step_kg": 1.0,
+       "addl": [
+        38.0,
+        42.0,
+        48.0,
+        53.0,
+        71.0
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Delhivery Air",
+       "courier": "Delhivery",
+       "mode": "air",
+       "min_weight_kg": 0.5,
+       "base": [
+        40.0,
+        47.0,
+        70.0,
+        83.0,
+        113.0
+       ],
+       "rto": [
+        40.0,
+        47.0,
+        70.0,
+        83.0,
+        113.0
+       ],
+       "cod_fixed": 47.0,
+       "cod_pct": 2.8,
+       "addl_step_kg": 0.5,
+       "addl": [
+        38.0,
+        45.0,
+        68.0,
+        78.0,
+        107.0
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Delhivery Surface",
+       "courier": "Delhivery",
+       "mode": "surface",
+       "min_weight_kg": 0.5,
+       "base": [
+        41.0,
+        46.0,
+        51.0,
+        60.0,
+        95.0
+       ],
+       "rto": [
+        41.0,
+        46.0,
+        51.0,
+        60.0,
+        95.0
+       ],
+       "cod_fixed": 47.0,
+       "cod_pct": 2.8,
+       "addl_step_kg": 0.5,
+       "addl": [
+        38.0,
+        45.0,
+        49.0,
+        54.0,
+        80.0
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Delhivery Surface 10kg",
+       "courier": "Delhivery",
+       "mode": "surface",
+       "min_weight_kg": 10.0,
+       "base": [
+        243.2,
+        304.2,
+        351.8,
+        407.2,
+        491.2
+       ],
+       "rto": [
+        231.2,
+        289.0,
+        334.2,
+        386.8,
+        466.6
+       ],
+       "cod_fixed": 46.1,
+       "cod_pct": 2.4,
+       "addl_step_kg": 1.0,
+       "addl": [
+        24.2,
+        29.9,
+        34.1,
+        39.8,
+        48.3
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Delhivery Surface 2 Kgs",
+       "courier": "Delhivery",
+       "mode": "surface",
+       "min_weight_kg": 2.0,
+       "base": [
+        99.0,
+        110.0,
+        126.0,
+        139.0,
+        184.0
+       ],
+       "rto": [
+        94.0,
+        104.0,
+        119.0,
+        132.0,
+        174.0
+       ],
+       "cod_fixed": 39.3,
+       "cod_pct": 2.4,
+       "comparable": true
+      },
+      {
+       "service": "Delhivery Surface 20kg",
+       "courier": "Delhivery",
+       "mode": "surface",
+       "min_weight_kg": 20.0,
+       "base": [
+        435.6,
+        548.4,
+        634.4,
+        714.8,
+        876.4
+       ],
+       "rto": [
+        414.0,
+        520.8,
+        602.8,
+        678.8,
+        832.8
+       ],
+       "cod_fixed": 46.1,
+       "cod_pct": 2.4,
+       "addl_step_kg": 1.0,
+       "addl": [
+        22.7,
+        28.4,
+        32.7,
+        37.0,
+        45.5
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Delhivery Surface 5kg",
+       "courier": "Delhivery",
+       "mode": "surface",
+       "min_weight_kg": 5.0,
+       "base": [
+        176.8,
+        191.8,
+        207.9,
+        238.9,
+        270.0
+       ],
+       "rto": [
+        176.8,
+        191.8,
+        207.9,
+        238.9,
+        270.0
+       ],
+       "cod_fixed": 46.1,
+       "cod_pct": 2.4,
+       "addl_step_kg": 1.0,
+       "addl": [
+        34.7,
+        36.5,
+        39.4,
+        45.6,
+        50.5
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Dtdc Air 500gm",
+       "courier": "DTDC",
+       "mode": "air",
+       "min_weight_kg": 0.5,
+       "base": [
+        67.9,
+        78.6,
+        84.4,
+        99.2,
+        139.1
+       ],
+       "rto": [
+        67.9,
+        78.6,
+        84.4,
+        99.2,
+        139.1
+       ],
+       "cod_fixed": 50.0,
+       "cod_pct": 1.9,
+       "addl_step_kg": 0.5,
+       "addl": [
+        64.2,
+        72.3,
+        78.9,
+        90.7,
+        130.4
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Dtdc Surface",
+       "courier": "DTDC",
+       "mode": "surface",
+       "min_weight_kg": 0.5,
+       "base": [
+        59.0,
+        60.4,
+        63.1,
+        72.6,
+        120.3
+       ],
+       "rto": [
+        59.0,
+        60.4,
+        63.1,
+        72.6,
+        120.3
+       ],
+       "cod_fixed": 50.0,
+       "cod_pct": 1.9,
+       "addl_step_kg": 0.5,
+       "addl": [
+        57.6,
+        59.0,
+        61.0,
+        66.1,
+        118.2
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Dtdc Surface 10kg",
+       "courier": "DTDC",
+       "mode": "surface",
+       "min_weight_kg": 10.0,
+       "base": [
+        266.8,
+        327.8,
+        375.4,
+        430.8,
+        514.8
+       ],
+       "rto": [
+        253.6,
+        311.4,
+        356.6,
+        409.2,
+        489.0
+       ],
+       "cod_fixed": 47.8,
+       "cod_pct": 2.8,
+       "addl_step_kg": 1.0,
+       "addl": [
+        26.5,
+        32.2,
+        36.5,
+        42.2,
+        50.7
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Dtdc Surface 20kg",
+       "courier": "DTDC",
+       "mode": "surface",
+       "min_weight_kg": 20.0,
+       "base": [
+        482.8,
+        595.6,
+        681.6,
+        762.0,
+        923.6
+       ],
+       "rto": [
+        458.8,
+        565.6,
+        647.6,
+        723.6,
+        877.6
+       ],
+       "cod_fixed": 47.8,
+       "cod_pct": 2.8,
+       "addl_step_kg": 1.0,
+       "addl": [
+        25.1,
+        30.8,
+        35.1,
+        39.4,
+        47.9
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Dtdc Surface 2kg",
+       "courier": "DTDC",
+       "mode": "surface",
+       "min_weight_kg": 2.0,
+       "base": [
+        108.2,
+        119.0,
+        135.0,
+        148.2,
+        193.0
+       ],
+       "rto": [
+        108.2,
+        119.0,
+        135.0,
+        148.2,
+        193.0
+       ],
+       "cod_fixed": 41.2,
+       "cod_pct": 1.5,
+       "addl_step_kg": 1.0,
+       "addl": [
+        39.8,
+        44.1,
+        45.1,
+        52.5,
+        55.2
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Dtdc Surface 5kg",
+       "courier": "DTDC",
+       "mode": "surface",
+       "min_weight_kg": 5.0,
+       "base": [
+        200.4,
+        215.4,
+        231.5,
+        262.5,
+        293.6
+       ],
+       "rto": [
+        190.4,
+        204.6,
+        219.9,
+        249.4,
+        278.9
+       ],
+       "cod_fixed": 47.8,
+       "cod_pct": 2.8,
+       "addl_step_kg": 1.0,
+       "addl": [
+        33.4,
+        37.3,
+        38.2,
+        44.8,
+        47.2
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Ekart 10kg New",
+       "courier": "Ekart",
+       "mode": "surface",
+       "min_weight_kg": 10.0,
+       "base": [
+        243.2,
+        304.2,
+        351.8,
+        407.2,
+        491.2
+       ],
+       "rto": [
+        231.2,
+        289.0,
+        334.2,
+        386.8,
+        466.6
+       ],
+       "cod_fixed": 46.1,
+       "cod_pct": 2.4,
+       "addl_step_kg": 1.0,
+       "addl": [
+        24.2,
+        29.9,
+        34.1,
+        39.8,
+        48.3
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Ekart 5kg New",
+       "courier": "Ekart",
+       "mode": "surface",
+       "min_weight_kg": 5.0,
+       "base": [
+        176.8,
+        191.8,
+        207.9,
+        238.9,
+        270.0
+       ],
+       "rto": [
+        168.0,
+        182.2,
+        197.5,
+        227.0,
+        256.5
+       ],
+       "cod_fixed": 46.1,
+       "cod_pct": 2.4,
+       "addl_step_kg": 1.0,
+       "addl": [
+        34.7,
+        36.5,
+        39.4,
+        45.6,
+        50.5
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Ekart Logistics Air",
+       "courier": "Ekart",
+       "mode": "air",
+       "min_weight_kg": 0.5,
+       "base": [
+        41.0,
+        47.0,
+        72.0,
+        82.0,
+        111.0
+       ],
+       "rto": [
+        41.0,
+        47.0,
+        72.0,
+        82.0,
+        111.0
+       ],
+       "cod_fixed": 46.0,
+       "cod_pct": 2.1,
+       "addl_step_kg": 0.5,
+       "addl": [
+        37.0,
+        43.0,
+        65.0,
+        74.0,
+        100.0
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Ekart Logistics Surface",
+       "courier": "Ekart",
+       "mode": "surface",
+       "min_weight_kg": 0.5,
+       "base": [
+        42.0,
+        48.0,
+        50.0,
+        58.0,
+        94.0
+       ],
+       "rto": [
+        42.0,
+        48.0,
+        50.0,
+        58.0,
+        94.0
+       ],
+       "cod_fixed": 46.0,
+       "cod_pct": 2.1,
+       "addl_step_kg": 0.5,
+       "addl": [
+        40.0,
+        45.0,
+        47.0,
+        55.0,
+        89.0
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Ekart Surface 10kg",
+       "courier": "Ekart",
+       "mode": "surface",
+       "min_weight_kg": 10.0,
+       "base": [
+        243.2,
+        304.2,
+        351.8,
+        407.2,
+        491.2
+       ],
+       "rto": [
+        231.2,
+        289.0,
+        334.2,
+        386.8,
+        466.6
+       ],
+       "cod_fixed": 46.1,
+       "cod_pct": 2.4,
+       "addl_step_kg": 1.0,
+       "addl": [
+        24.2,
+        29.9,
+        34.1,
+        39.8,
+        48.3
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Ekart Surface 20kg",
+       "courier": "Ekart",
+       "mode": "surface",
+       "min_weight_kg": 20.0,
+       "base": [
+        471.2,
+        526.8,
+        627.6,
+        665.6,
+        744.0
+       ],
+       "rto": [
+        471.2,
+        526.8,
+        627.6,
+        665.6,
+        744.0
+       ],
+       "cod_fixed": 40.1,
+       "cod_pct": 2.0,
+       "addl_step_kg": 1.0,
+       "addl": [
+        23.6,
+        25.1,
+        29.2,
+        32.6,
+        37.2
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Ekart Surface 2kg",
+       "courier": "Ekart",
+       "mode": "surface",
+       "min_weight_kg": 2.0,
+       "base": [
+        72.7,
+        89.9,
+        110.2,
+        117.2,
+        161.3
+       ],
+       "rto": [
+        54.5,
+        67.4,
+        82.7,
+        87.9,
+        121.0
+       ],
+       "cod_fixed": 26.6,
+       "cod_pct": 1.4,
+       "addl_step_kg": 1.0,
+       "addl": [
+        33.4,
+        37.3,
+        38.2,
+        44.8,
+        47.2
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Ekart Surface 5kg",
+       "courier": "Ekart",
+       "mode": "surface",
+       "min_weight_kg": 5.0,
+       "base": [
+        176.8,
+        191.8,
+        207.9,
+        238.9,
+        270.0
+       ],
+       "rto": [
+        168.0,
+        182.2,
+        197.5,
+        227.0,
+        256.5
+       ],
+       "cod_fixed": 46.1,
+       "cod_pct": 2.4,
+       "addl_step_kg": 1.0,
+       "addl": [
+        34.7,
+        36.5,
+        39.4,
+        45.6,
+        50.5
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Rocket Xpress",
+       "courier": "Rocket Xpress",
+       "mode": "surface",
+       "min_weight_kg": 0.5,
+       "base": [
+        63.0,
+        65.1,
+        68.3,
+        78.8,
+        133.4
+       ],
+       "rto": [
+        63.0,
+        65.1,
+        68.3,
+        78.8,
+        133.4
+       ],
+       "cod_fixed": 49.4,
+       "cod_pct": 2.4,
+       "addl_step_kg": 0.5,
+       "addl": [
+        62.0,
+        63.0,
+        66.2,
+        71.4,
+        130.2
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Shadowfax Air",
+       "courier": "Shadowfax",
+       "mode": "air",
+       "min_weight_kg": 0.5,
+       "base": [
+        41.0,
+        47.0,
+        72.0,
+        82.0,
+        111.0
+       ],
+       "rto": [
+        41.0,
+        47.0,
+        72.0,
+        82.0,
+        111.0
+       ],
+       "cod_fixed": 46.0,
+       "cod_pct": 1.9,
+       "addl_step_kg": 0.5,
+       "addl": [
+        37.0,
+        43.0,
+        65.0,
+        74.0,
+        100.0
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Shadowfax Heavy 10kg",
+       "courier": "Shadowfax",
+       "mode": "surface",
+       "min_weight_kg": 10.0,
+       "base": [
+        243.2,
+        304.2,
+        351.8,
+        407.2,
+        491.2
+       ],
+       "rto": [
+        231.2,
+        289.0,
+        334.2,
+        386.8,
+        466.6
+       ],
+       "cod_fixed": 46.1,
+       "cod_pct": 2.4,
+       "addl_step_kg": 1.0,
+       "addl": [
+        24.2,
+        29.9,
+        34.1,
+        39.8,
+        48.3
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Shadowfax Heavy 5kg",
+       "courier": "Shadowfax",
+       "mode": "surface",
+       "min_weight_kg": 5.0,
+       "base": [
+        176.8,
+        191.8,
+        207.9,
+        238.9,
+        270.0
+       ],
+       "rto": [
+        168.0,
+        182.2,
+        197.5,
+        227.0,
+        256.5
+       ],
+       "cod_fixed": 46.1,
+       "cod_pct": 2.4,
+       "addl_step_kg": 1.0,
+       "addl": [
+        34.7,
+        36.5,
+        39.4,
+        45.6,
+        50.5
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Shadowfax Instant Express",
+       "courier": "Shadowfax",
+       "mode": "surface",
+       "min_weight_kg": 0.5,
+       "base": [
+        42.9,
+        48.8,
+        53.5,
+        62.0,
+        97.7
+       ],
+       "rto": [
+        42.9,
+        48.8,
+        53.5,
+        62.0,
+        87.2
+       ],
+       "cod_fixed": 43.7,
+       "cod_pct": 2.2,
+       "addl_step_kg": 0.5,
+       "addl": [
+        39.9,
+        47.4,
+        51.2,
+        56.0,
+        82.7
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Shadowfax Surface",
+       "courier": "Shadowfax",
+       "mode": "surface",
+       "min_weight_kg": 0.5,
+       "base": [
+        42.0,
+        48.0,
+        50.0,
+        58.0,
+        94.0
+       ],
+       "rto": [
+        42.0,
+        48.0,
+        50.0,
+        58.0,
+        94.0
+       ],
+       "cod_fixed": 46.0,
+       "cod_pct": 1.9,
+       "addl_step_kg": 0.5,
+       "addl": [
+        40.0,
+        45.0,
+        47.0,
+        55.0,
+        89.0
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Shadowfax Surface 2kg",
+       "courier": "Shadowfax",
+       "mode": "surface",
+       "min_weight_kg": 2.0,
+       "base": [
+        64.0,
+        80.0,
+        100.0,
+        108.0,
+        128.0
+       ],
+       "rto": [
+        52.0,
+        64.0,
+        80.0,
+        88.0,
+        100.0
+       ],
+       "cod_fixed": 39.3,
+       "cod_pct": 1.6,
+       "addl_step_kg": 1.0,
+       "addl": [
+        30.0,
+        36.0,
+        38.0,
+        42.0,
+        56.0
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Xpressbees Air",
+       "courier": "Xpressbees",
+       "mode": "air",
+       "min_weight_kg": 0.5,
+       "base": [
+        39.0,
+        44.0,
+        68.0,
+        76.0,
+        111.0
+       ],
+       "rto": [
+        39.0,
+        44.0,
+        68.0,
+        76.0,
+        111.0
+       ],
+       "cod_fixed": 45.0,
+       "cod_pct": 2.1,
+       "addl_step_kg": 0.5,
+       "addl": [
+        36.0,
+        43.0,
+        63.0,
+        69.0,
+        102.0
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Xpressbees Surface",
+       "courier": "Xpressbees",
+       "mode": "surface",
+       "min_weight_kg": 0.5,
+       "base": [
+        39.0,
+        44.0,
+        48.0,
+        56.0,
+        92.0
+       ],
+       "rto": [
+        39.0,
+        44.0,
+        48.0,
+        56.0,
+        92.0
+       ],
+       "cod_fixed": 45.0,
+       "cod_pct": 2.1,
+       "addl_step_kg": 0.5,
+       "addl": [
+        37.0,
+        43.0,
+        46.0,
+        51.0,
+        90.0
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Xpressbees Surface 10kg",
+       "courier": "Xpressbees",
+       "mode": "surface",
+       "min_weight_kg": 10.0,
+       "base": [
+        231.4,
+        292.4,
+        340.0,
+        395.4,
+        479.4
+       ],
+       "rto": [
+        220.0,
+        277.6,
+        323.0,
+        375.6,
+        455.4
+       ],
+       "cod_fixed": 46.1,
+       "cod_pct": 2.4,
+       "addl_step_kg": 1.0,
+       "addl": [
+        24.2,
+        29.9,
+        34.1,
+        39.8,
+        48.3
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Xpressbees Surface 20kg",
+       "courier": "Xpressbees",
+       "mode": "surface",
+       "min_weight_kg": 20.0,
+       "base": [
+        424.0,
+        536.4,
+        622.8,
+        702.8,
+        864.8
+       ],
+       "rto": [
+        402.8,
+        509.6,
+        591.6,
+        667.6,
+        821.6
+       ],
+       "cod_fixed": 46.1,
+       "cod_pct": 2.4,
+       "addl_step_kg": 1.0,
+       "addl": [
+        22.7,
+        28.4,
+        32.7,
+        37.0,
+        45.5
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Xpressbees Surface 2kg",
+       "courier": "Xpressbees",
+       "mode": "surface",
+       "min_weight_kg": 2.0,
+       "base": [
+        88.1,
+        103.8,
+        122.0,
+        135.3,
+        180.0
+       ],
+       "rto": [
+        70.5,
+        83.1,
+        97.6,
+        108.2,
+        144.0
+       ],
+       "cod_fixed": 39.3,
+       "cod_pct": 2.4,
+       "addl_step_kg": 1.0,
+       "addl": [
+        23.6,
+        26.7,
+        33.7,
+        39.3,
+        50.4
+       ],
+       "comparable": true
+      },
+      {
+       "service": "Xpressbees Surface 5kg",
+       "courier": "Xpressbees",
+       "mode": "surface",
+       "min_weight_kg": 5.0,
+       "base": [
+        170.9,
+        185.9,
+        202.0,
+        233.0,
+        264.1
+       ],
+       "rto": [
+        162.4,
+        176.6,
+        191.9,
+        221.4,
+        250.9
+       ],
+       "cod_fixed": 46.1,
+       "cod_pct": 2.4,
+       "addl_step_kg": 1.0,
+       "addl": [
+        34.7,
+        36.5,
+        39.4,
+        45.6,
+        50.5
+       ],
+       "comparable": true
+      }
+     ]
+    }
+   },
+   "captured_on": "2026-11-12",
+   "effective_from": "2026-11-12"
+  },
+  "nimbuspost": {
+   "label": "NimbusPost",
+   "gst_included": true,
+   "cod_rule": "max",
+   "rto_rule": "mirror_forward",
+   "plans": {
+    "starter": {
+     "label": "Starter",
+     "verified": true,
+     "source_file": "nimbuspost_Starter_forward.csv",
+     "services": [
+      {
+       "service": "Service 1 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 1,
+       "min_weight_kg": 0.5,
+       "base": [
+        48.3,
+        57.75,
+        63.0,
+        68.25,
+        86.1
+       ],
+       "cod_fixed": 32.0,
+       "cod_pct": 2.4,
+       "comparable": true
+      },
+      {
+       "service": "Service 2 (1 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 2,
+       "min_weight_kg": 1.0,
+       "base": [
+        73.5,
+        92.93,
+        105.53,
+        113.93,
+        138.29
+       ],
+       "cod_fixed": 27.0,
+       "cod_pct": 2.4,
+       "comparable": true
+      },
+      {
+       "service": "Service 3 (2 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 3,
+       "min_weight_kg": 2.0,
+       "base": [
+        81.9,
+        108.15,
+        123.9,
+        151.19,
+        185.85
+       ],
+       "cod_fixed": 27.0,
+       "cod_pct": 2.4,
+       "comparable": true
+      },
+      {
+       "service": "Service 4 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 4,
+       "min_weight_kg": 0.5,
+       "base": [
+        72.1,
+        83.42,
+        89.08,
+        104.62,
+        147.05
+       ],
+       "cod_fixed": 44.0,
+       "cod_pct": 2.45,
+       "comparable": true
+      },
+      {
+       "service": "Service 5 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 5,
+       "min_weight_kg": 0.5,
+       "base": [
+        75.13,
+        87.17,
+        92.84,
+        109.14,
+        153.79
+       ],
+       "cod_fixed": 43.66,
+       "cod_pct": 2.36,
+       "comparable": true
+      },
+      {
+       "service": "Service 6 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 6,
+       "min_weight_kg": 0.5,
+       "base": [
+        96.51,
+        111.34,
+        117.29,
+        124.7,
+        173.68
+       ],
+       "cod_fixed": 44.0,
+       "cod_pct": 2.45,
+       "comparable": true
+      },
+      {
+       "service": "Service 7 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 7,
+       "min_weight_kg": 0.5,
+       "base": [
+        75.72,
+        87.58,
+        93.52,
+        109.86,
+        154.39
+       ],
+       "cod_fixed": 44.0,
+       "cod_pct": 2.45,
+       "comparable": true
+      },
+      {
+       "service": "Service 8 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 8,
+       "min_weight_kg": 0.5,
+       "base": [
+        68.08,
+        70.9,
+        73.71,
+        86.34,
+        139.67
+       ],
+       "cod_fixed": 43.66,
+       "cod_pct": 2.36,
+       "comparable": true
+      },
+      {
+       "service": "Service 9 (10 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 9,
+       "min_weight_kg": 10.0,
+       "base": [
+        498.75,
+        546.0,
+        624.75,
+        782.25,
+        871.5
+       ],
+       "cod_fixed": 0.0,
+       "cod_pct": 0.0,
+       "comparable": true
+      },
+      {
+       "service": "Service 10 (20 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 10,
+       "min_weight_kg": 20.0,
+       "base": [
+        723.45,
+        897.75,
+        1033.2,
+        1200.15,
+        1463.7
+       ],
+       "cod_fixed": 0.0,
+       "cod_pct": 0.0,
+       "comparable": true
+      },
+      {
+       "service": "Service 11 (5 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 11,
+       "min_weight_kg": 5.0,
+       "base": [
+        287.7,
+        304.5,
+        332.85,
+        378.0,
+        442.05
+       ],
+       "cod_fixed": 0.0,
+       "cod_pct": 0.0,
+       "comparable": true
+      },
+      {
+       "service": "Service 12 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 12,
+       "min_weight_kg": 0.5,
+       "base": [
+        52.04,
+        58.23,
+        85.49,
+        104.08,
+        123.9
+       ],
+       "cod_fixed": 49.56,
+       "cod_pct": 2.18,
+       "comparable": true
+      },
+      {
+       "service": "Service 13 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 13,
+       "min_weight_kg": 0.5,
+       "base": [
+        102.73,
+        114.95,
+        139.34,
+        158.69,
+        179.06
+       ],
+       "cod_fixed": 0.0,
+       "cod_pct": 0.0,
+       "comparable": true
+      },
+      {
+       "service": "Service 14 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 14,
+       "min_weight_kg": 0.5,
+       "base": [
+        40.89,
+        49.56,
+        58.23,
+        59.47,
+        91.69
+       ],
+       "cod_fixed": 47.2,
+       "cod_pct": 2.18,
+       "comparable": true
+      },
+      {
+       "service": "Service 15 (10 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 15,
+       "min_weight_kg": 10.0,
+       "base": [
+        247.26,
+        302.26,
+        346.06,
+        395.97,
+        493.74
+       ],
+       "cod_fixed": 49.0,
+       "cod_pct": 2.2,
+       "comparable": true
+      },
+      {
+       "service": "Service 16 (20 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 16,
+       "min_weight_kg": 20.0,
+       "base": [
+        525.0,
+        651.0,
+        749.7,
+        871.5,
+        1050.0
+       ],
+       "cod_fixed": 49.0,
+       "cod_pct": 2.16,
+       "comparable": true
+      },
+      {
+       "service": "Service 17 (5 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 17,
+       "min_weight_kg": 5.0,
+       "base": [
+        176.99,
+        187.17,
+        200.41,
+        224.86,
+        262.54
+       ],
+       "cod_fixed": 49.0,
+       "cod_pct": 2.2,
+       "comparable": true
+      },
+      {
+       "service": "Service 18 (1 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 18,
+       "min_weight_kg": 1.0,
+       "base": [
+        77.18,
+        80.85,
+        96.6,
+        110.25,
+        153.3
+       ],
+       "cod_fixed": 50.0,
+       "cod_pct": 2.2,
+       "comparable": true
+      },
+      {
+       "service": "Service 19 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 19,
+       "min_weight_kg": 0.5,
+       "base": [
+        132.78,
+        136.5,
+        147.65,
+        156.45,
+        179.55
+       ],
+       "cod_fixed": 0.0,
+       "cod_pct": 0.0,
+       "comparable": true
+      },
+      {
+       "service": "Service 20 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 20,
+       "min_weight_kg": 0.5,
+       "base": [
+        35.93,
+        44.6,
+        52.04,
+        61.95,
+        70.62
+       ],
+       "cod_fixed": 36.58,
+       "cod_pct": 2.24,
+       "comparable": true
+      },
+      {
+       "service": "Service 21 (1 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 21,
+       "min_weight_kg": 1.0,
+       "base": [
+        67.2,
+        78.75,
+        91.35,
+        105.0,
+        126.0
+       ],
+       "cod_fixed": 38.94,
+       "cod_pct": 2.36,
+       "comparable": true
+      },
+      {
+       "service": "Service 22 (10 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 22,
+       "min_weight_kg": 10.0,
+       "base": [
+        259.35,
+        352.8,
+        399.0,
+        467.25,
+        813.75
+       ],
+       "cod_fixed": 40.0,
+       "cod_pct": 2.35,
+       "comparable": true
+      },
+      {
+       "service": "Service 23 (2 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 23,
+       "min_weight_kg": 2.0,
+       "base": [
+        89.44,
+        109.98,
+        134.4,
+        145.02,
+        199.07
+       ],
+       "cod_fixed": 38.94,
+       "cod_pct": 2.36,
+       "comparable": true
+      },
+      {
+       "service": "Service 24 (3 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 24,
+       "min_weight_kg": 3.0,
+       "base": [
+        139.65,
+        166.95,
+        194.25,
+        222.6,
+        343.35
+       ],
+       "cod_fixed": 40.0,
+       "cod_pct": 2.35,
+       "comparable": true
+      },
+      {
+       "service": "Service 25 (5 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 25,
+       "min_weight_kg": 5.0,
+       "base": [
+        158.55,
+        210.0,
+        218.4,
+        256.2,
+        451.5
+       ],
+       "cod_fixed": 40.0,
+       "cod_pct": 2.35,
+       "comparable": true
+      },
+      {
+       "service": "Service 26 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 26,
+       "min_weight_kg": 0.5,
+       "base": [
+        46.71,
+        51.54,
+        61.2,
+        66.03,
+        96.64
+       ],
+       "cod_fixed": 41.42,
+       "cod_pct": 2.01,
+       "comparable": true
+      },
+      {
+       "service": "Service 27 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 27,
+       "min_weight_kg": 0.5,
+       "base": [
+        90.3,
+        96.6,
+        103.95,
+        110.25,
+        123.9
+       ],
+       "cod_fixed": 0.0,
+       "cod_pct": 0.0,
+       "comparable": true
+      },
+      {
+       "service": "Service 28 (1 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 28,
+       "min_weight_kg": 1.0,
+       "base": [
+        61.95,
+        68.25,
+        78.75,
+        88.2,
+        143.85
+       ],
+       "cod_fixed": 33.0,
+       "cod_pct": 2.1,
+       "comparable": true
+      },
+      {
+       "service": "Service 29 (2 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 29,
+       "min_weight_kg": 2.0,
+       "base": [
+        80.0,
+        89.25,
+        99.75,
+        109.2,
+        160.01
+       ],
+       "cod_fixed": 33.0,
+       "cod_pct": 2.1,
+       "comparable": true
+      },
+      {
+       "service": "Service 30 (3 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 30,
+       "min_weight_kg": 3.0,
+       "base": [
+        103.95,
+        110.25,
+        120.75,
+        130.2,
+        185.85
+       ],
+       "cod_fixed": 33.0,
+       "cod_pct": 2.1,
+       "comparable": true
+      },
+      {
+       "service": "Service 31 (30 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 31,
+       "min_weight_kg": 0.03,
+       "base": [
+        27.3,
+        35.7,
+        42.0,
+        48.3,
+        69.3
+       ],
+       "cod_fixed": 29.0,
+       "cod_pct": 1.8,
+       "comparable": true
+      },
+      {
+       "service": "Service 32 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 32,
+       "min_weight_kg": 0.5,
+       "base": [
+        29.4,
+        37.8,
+        44.1,
+        50.4,
+        71.4
+       ],
+       "cod_fixed": 29.0,
+       "cod_pct": 1.8,
+       "comparable": true
+      },
+      {
+       "service": "Service 33 (250 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 33,
+       "min_weight_kg": 0.25,
+       "base": [
+        28.35,
+        36.75,
+        43.05,
+        49.35,
+        70.35
+       ],
+       "cod_fixed": 29.0,
+       "cod_pct": 1.8,
+       "comparable": true
+      },
+      {
+       "service": null,
+       "courier": null,
+       "mode": null,
+       "row_index": 34,
+       "min_weight_kg": 0.5,
+       "base": [
+        42.48,
+        51.92,
+        51.92,
+        51.92,
+        51.92
+       ],
+       "cod_fixed": 11.8,
+       "cod_pct": 1.8,
+       "comparable": false,
+       "not_comparable_reason": "flat rate across zones (postal-style listing)"
+      },
+      {
+       "service": "Service 35 (1 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 35,
+       "min_weight_kg": 1.0,
+       "base": [
+        85.05,
+        97.65,
+        115.5,
+        127.05,
+        152.25
+       ],
+       "cod_fixed": 41.0,
+       "cod_pct": 2.2,
+       "comparable": true
+      },
+      {
+       "service": "Service 36 (10 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 36,
+       "min_weight_kg": 10.0,
+       "base": [
+        199.5,
+        247.8,
+        332.85,
+        393.75,
+        451.5
+       ],
+       "cod_fixed": 43.0,
+       "cod_pct": 2.3,
+       "comparable": true
+      },
+      {
+       "service": "Service 37 (2 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 37,
+       "min_weight_kg": 2.0,
+       "base": [
+        96.6,
+        119.77,
+        145.02,
+        160.01,
+        200.01
+       ],
+       "cod_fixed": 42.0,
+       "cod_pct": 2.2,
+       "comparable": true
+      },
+      {
+       "service": "Service 38 (5 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 38,
+       "min_weight_kg": 5.0,
+       "base": [
+        152.25,
+        182.7,
+        194.25,
+        204.75,
+        269.85
+       ],
+       "cod_fixed": 42.0,
+       "cod_pct": 2.2,
+       "comparable": true
+      },
+      {
+       "service": "Service 39 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 39,
+       "min_weight_kg": 0.5,
+       "base": [
+        38.41,
+        44.6,
+        69.21,
+        79.12,
+        88.91
+       ],
+       "cod_fixed": 44.84,
+       "cod_pct": 2.18,
+       "comparable": true
+      },
+      {
+       "service": "Service 40 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 40,
+       "min_weight_kg": 0.5,
+       "base": [
+        75.6,
+        88.2,
+        103.95,
+        110.25,
+        147.0
+       ],
+       "cod_fixed": 0.0,
+       "cod_pct": 0.0,
+       "comparable": true
+      },
+      {
+       "service": "Service 41 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 41,
+       "min_weight_kg": 0.5,
+       "base": [
+        98.7,
+        111.3,
+        127.05,
+        133.35,
+        170.1
+       ],
+       "cod_fixed": 0.0,
+       "cod_pct": 0.0,
+       "comparable": true
+      },
+      {
+       "service": "Service 42 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 42,
+       "min_weight_kg": 0.5,
+       "base": [
+        37.17,
+        42.13,
+        45.84,
+        53.9,
+        68.15
+       ],
+       "cod_fixed": 35.99,
+       "cod_pct": 1.95,
+       "comparable": true
+      }
+     ],
+     "note": "Courier names, additional-weight and RTO rates are not in the capture. Rows are enabled as unnamed services priced up to their first slab only; RTO mirrors forward. Flat-rate (postal-style) rows stay excluded."
+    },
+    "essential": {
+     "label": "Essential",
+     "verified": true,
+     "source_file": "nimbuspost_Essential_forward.csv",
+     "services": [
+      {
+       "service": "Service 1 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 1,
+       "min_weight_kg": 0.5,
+       "base": [
+        48.3,
+        57.75,
+        63.0,
+        68.25,
+        86.1
+       ],
+       "cod_fixed": 32.0,
+       "cod_pct": 2.4,
+       "comparable": true
+      },
+      {
+       "service": "Service 2 (1 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 2,
+       "min_weight_kg": 1.0,
+       "base": [
+        73.5,
+        92.93,
+        105.53,
+        113.93,
+        138.29
+       ],
+       "cod_fixed": 27.0,
+       "cod_pct": 2.4,
+       "comparable": true
+      },
+      {
+       "service": "Service 3 (2 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 3,
+       "min_weight_kg": 2.0,
+       "base": [
+        81.9,
+        108.15,
+        123.9,
+        151.2,
+        185.85
+       ],
+       "cod_fixed": 27.0,
+       "cod_pct": 2.4,
+       "comparable": true
+      },
+      {
+       "service": "Service 4 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 4,
+       "min_weight_kg": 0.5,
+       "base": [
+        72.1,
+        83.42,
+        89.08,
+        104.62,
+        147.05
+       ],
+       "cod_fixed": 44.0,
+       "cod_pct": 2.45,
+       "comparable": true
+      },
+      {
+       "service": "Service 5 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 5,
+       "min_weight_kg": 0.5,
+       "base": [
+        75.13,
+        87.17,
+        92.84,
+        109.14,
+        153.79
+       ],
+       "cod_fixed": 43.66,
+       "cod_pct": 2.36,
+       "comparable": true
+      },
+      {
+       "service": "Service 6 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 6,
+       "min_weight_kg": 0.5,
+       "base": [
+        96.51,
+        111.34,
+        117.29,
+        124.7,
+        173.68
+       ],
+       "cod_fixed": 44.0,
+       "cod_pct": 2.45,
+       "comparable": true
+      },
+      {
+       "service": "Service 7 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 7,
+       "min_weight_kg": 0.5,
+       "base": [
+        75.72,
+        87.58,
+        93.52,
+        109.86,
+        154.39
+       ],
+       "cod_fixed": 44.0,
+       "cod_pct": 2.45,
+       "comparable": true
+      },
+      {
+       "service": "Service 8 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 8,
+       "min_weight_kg": 0.5,
+       "base": [
+        68.08,
+        70.9,
+        73.71,
+        86.34,
+        139.67
+       ],
+       "cod_fixed": 43.66,
+       "cod_pct": 2.36,
+       "comparable": true
+      },
+      {
+       "service": "Service 9 (10 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 9,
+       "min_weight_kg": 10.0,
+       "base": [
+        498.75,
+        546.0,
+        624.75,
+        782.25,
+        871.5
+       ],
+       "cod_fixed": 0.0,
+       "cod_pct": 0.0,
+       "comparable": true
+      },
+      {
+       "service": "Service 10 (20 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 10,
+       "min_weight_kg": 20.0,
+       "base": [
+        723.45,
+        897.75,
+        1033.2,
+        1200.15,
+        1463.7
+       ],
+       "cod_fixed": 0.0,
+       "cod_pct": 0.0,
+       "comparable": true
+      },
+      {
+       "service": "Service 11 (5 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 11,
+       "min_weight_kg": 5.0,
+       "base": [
+        287.7,
+        304.5,
+        332.85,
+        378.0,
+        442.05
+       ],
+       "cod_fixed": 0.0,
+       "cod_pct": 0.0,
+       "comparable": true
+      },
+      {
+       "service": "Service 12 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 12,
+       "min_weight_kg": 0.5,
+       "base": [
+        52.04,
+        58.23,
+        85.49,
+        104.08,
+        123.9
+       ],
+       "cod_fixed": 49.56,
+       "cod_pct": 2.18,
+       "comparable": true
+      },
+      {
+       "service": "Service 13 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 13,
+       "min_weight_kg": 0.5,
+       "base": [
+        102.73,
+        114.95,
+        139.34,
+        158.69,
+        179.06
+       ],
+       "cod_fixed": 0.0,
+       "cod_pct": 0.0,
+       "comparable": true
+      },
+      {
+       "service": "Service 14 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 14,
+       "min_weight_kg": 0.5,
+       "base": [
+        40.89,
+        49.56,
+        58.23,
+        59.47,
+        91.69
+       ],
+       "cod_fixed": 47.2,
+       "cod_pct": 2.18,
+       "comparable": true
+      },
+      {
+       "service": "Service 15 (10 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 15,
+       "min_weight_kg": 10.0,
+       "base": [
+        247.26,
+        302.26,
+        346.06,
+        395.97,
+        493.74
+       ],
+       "cod_fixed": 49.0,
+       "cod_pct": 2.2,
+       "comparable": true
+      },
+      {
+       "service": "Service 16 (20 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 16,
+       "min_weight_kg": 20.0,
+       "base": [
+        525.0,
+        651.0,
+        749.7,
+        871.5,
+        1050.0
+       ],
+       "cod_fixed": 49.0,
+       "cod_pct": 2.16,
+       "comparable": true
+      },
+      {
+       "service": "Service 17 (5 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 17,
+       "min_weight_kg": 5.0,
+       "base": [
+        176.99,
+        187.17,
+        200.41,
+        224.86,
+        262.54
+       ],
+       "cod_fixed": 49.0,
+       "cod_pct": 2.2,
+       "comparable": true
+      },
+      {
+       "service": "Service 18 (1 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 18,
+       "min_weight_kg": 1.0,
+       "base": [
+        77.18,
+        80.85,
+        96.6,
+        110.25,
+        153.3
+       ],
+       "cod_fixed": 50.0,
+       "cod_pct": 2.2,
+       "comparable": true
+      },
+      {
+       "service": "Service 19 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 19,
+       "min_weight_kg": 0.5,
+       "base": [
+        132.78,
+        136.5,
+        147.65,
+        156.45,
+        179.55
+       ],
+       "cod_fixed": 0.0,
+       "cod_pct": 0.0,
+       "comparable": true
+      },
+      {
+       "service": "Service 20 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 20,
+       "min_weight_kg": 0.5,
+       "base": [
+        35.93,
+        44.6,
+        52.04,
+        61.95,
+        70.62
+       ],
+       "cod_fixed": 36.58,
+       "cod_pct": 2.24,
+       "comparable": true
+      },
+      {
+       "service": "Service 21 (1 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 21,
+       "min_weight_kg": 1.0,
+       "base": [
+        67.2,
+        78.75,
+        91.35,
+        105.0,
+        126.0
+       ],
+       "cod_fixed": 38.94,
+       "cod_pct": 2.36,
+       "comparable": true
+      },
+      {
+       "service": "Service 22 (10 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 22,
+       "min_weight_kg": 10.0,
+       "base": [
+        259.35,
+        352.8,
+        399.0,
+        467.25,
+        813.75
+       ],
+       "cod_fixed": 40.0,
+       "cod_pct": 2.35,
+       "comparable": true
+      },
+      {
+       "service": "Service 23 (2 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 23,
+       "min_weight_kg": 2.0,
+       "base": [
+        111.3,
+        138.6,
+        165.9,
+        194.25,
+        233.1
+       ],
+       "cod_fixed": 38.94,
+       "cod_pct": 2.36,
+       "comparable": true
+      },
+      {
+       "service": "Service 24 (3 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 24,
+       "min_weight_kg": 3.0,
+       "base": [
+        139.65,
+        166.95,
+        194.25,
+        222.6,
+        343.35
+       ],
+       "cod_fixed": 40.0,
+       "cod_pct": 2.35,
+       "comparable": true
+      },
+      {
+       "service": "Service 25 (5 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 25,
+       "min_weight_kg": 5.0,
+       "base": [
+        158.55,
+        210.0,
+        218.4,
+        256.2,
+        451.5
+       ],
+       "cod_fixed": 40.0,
+       "cod_pct": 2.35,
+       "comparable": true
+      },
+      {
+       "service": "Service 26 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 26,
+       "min_weight_kg": 0.5,
+       "base": [
+        46.71,
+        51.54,
+        61.2,
+        66.03,
+        96.64
+       ],
+       "cod_fixed": 41.42,
+       "cod_pct": 2.01,
+       "comparable": true
+      },
+      {
+       "service": "Service 27 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 27,
+       "min_weight_kg": 0.5,
+       "base": [
+        90.3,
+        96.6,
+        103.95,
+        110.25,
+        123.9
+       ],
+       "cod_fixed": 0.0,
+       "cod_pct": 0.0,
+       "comparable": true
+      },
+      {
+       "service": "Service 28 (1 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 28,
+       "min_weight_kg": 1.0,
+       "base": [
+        61.95,
+        68.25,
+        78.75,
+        88.2,
+        143.85
+       ],
+       "cod_fixed": 33.0,
+       "cod_pct": 2.1,
+       "comparable": true
+      },
+      {
+       "service": "Service 29 (2 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 29,
+       "min_weight_kg": 2.0,
+       "base": [
+        82.95,
+        89.25,
+        99.75,
+        109.2,
+        164.85
+       ],
+       "cod_fixed": 33.0,
+       "cod_pct": 2.1,
+       "comparable": true
+      },
+      {
+       "service": "Service 30 (3 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 30,
+       "min_weight_kg": 3.0,
+       "base": [
+        103.95,
+        110.25,
+        120.75,
+        130.2,
+        185.85
+       ],
+       "cod_fixed": 33.0,
+       "cod_pct": 2.1,
+       "comparable": true
+      },
+      {
+       "service": "Service 31 (30 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 31,
+       "min_weight_kg": 0.03,
+       "base": [
+        27.3,
+        35.7,
+        42.0,
+        48.3,
+        69.3
+       ],
+       "cod_fixed": 29.0,
+       "cod_pct": 1.8,
+       "comparable": true
+      },
+      {
+       "service": "Service 32 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 32,
+       "min_weight_kg": 0.5,
+       "base": [
+        29.4,
+        37.8,
+        44.1,
+        50.4,
+        71.4
+       ],
+       "cod_fixed": 29.0,
+       "cod_pct": 1.8,
+       "comparable": true
+      },
+      {
+       "service": "Service 33 (250 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 33,
+       "min_weight_kg": 0.25,
+       "base": [
+        28.35,
+        36.75,
+        43.05,
+        49.35,
+        70.35
+       ],
+       "cod_fixed": 29.0,
+       "cod_pct": 1.8,
+       "comparable": true
+      },
+      {
+       "service": null,
+       "courier": null,
+       "mode": null,
+       "row_index": 34,
+       "min_weight_kg": 0.5,
+       "base": [
+        42.48,
+        51.92,
+        51.92,
+        51.92,
+        51.92
+       ],
+       "cod_fixed": 11.8,
+       "cod_pct": 1.8,
+       "comparable": false,
+       "not_comparable_reason": "flat rate across zones (postal-style listing)"
+      },
+      {
+       "service": "Service 35 (1 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 35,
+       "min_weight_kg": 1.0,
+       "base": [
+        85.05,
+        97.65,
+        115.5,
+        127.05,
+        152.25
+       ],
+       "cod_fixed": 41.0,
+       "cod_pct": 2.2,
+       "comparable": true
+      },
+      {
+       "service": "Service 36 (10 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 36,
+       "min_weight_kg": 10.0,
+       "base": [
+        199.5,
+        247.8,
+        332.85,
+        393.75,
+        451.5
+       ],
+       "cod_fixed": 43.0,
+       "cod_pct": 2.3,
+       "comparable": true
+      },
+      {
+       "service": "Service 37 (2 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 37,
+       "min_weight_kg": 2.0,
+       "base": [
+        96.6,
+        129.15,
+        149.1,
+        178.5,
+        220.5
+       ],
+       "cod_fixed": 42.0,
+       "cod_pct": 2.2,
+       "comparable": true
+      },
+      {
+       "service": "Service 38 (5 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 38,
+       "min_weight_kg": 5.0,
+       "base": [
+        152.25,
+        182.7,
+        194.25,
+        204.75,
+        269.85
+       ],
+       "cod_fixed": 42.0,
+       "cod_pct": 2.2,
+       "comparable": true
+      },
+      {
+       "service": "Service 39 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 39,
+       "min_weight_kg": 0.5,
+       "base": [
+        38.41,
+        44.6,
+        69.21,
+        79.12,
+        88.91
+       ],
+       "cod_fixed": 44.84,
+       "cod_pct": 2.18,
+       "comparable": true
+      },
+      {
+       "service": "Service 40 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 40,
+       "min_weight_kg": 0.5,
+       "base": [
+        75.6,
+        88.2,
+        103.95,
+        110.25,
+        147.0
+       ],
+       "cod_fixed": 0.0,
+       "cod_pct": 0.0,
+       "comparable": true
+      },
+      {
+       "service": "Service 41 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 41,
+       "min_weight_kg": 0.5,
+       "base": [
+        98.7,
+        111.3,
+        127.05,
+        133.35,
+        170.1
+       ],
+       "cod_fixed": 0.0,
+       "cod_pct": 0.0,
+       "comparable": true
+      },
+      {
+       "service": "Service 42 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 42,
+       "min_weight_kg": 0.5,
+       "base": [
+        37.17,
+        42.13,
+        45.84,
+        53.9,
+        68.15
+       ],
+       "cod_fixed": 35.99,
+       "cod_pct": 1.95,
+       "comparable": true
+      }
+     ],
+     "note": "Courier names, additional-weight and RTO rates are not in the capture. Rows are enabled as unnamed services priced up to their first slab only; RTO mirrors forward. Flat-rate (postal-style) rows stay excluded."
+    },
+    "growth": {
+     "label": "Growth",
+     "verified": true,
+     "source_file": "nimbuspost_Growth_forward.csv",
+     "services": [
+      {
+       "service": "Service 1 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 1,
+       "min_weight_kg": 0.5,
+       "base": [
+        47.25,
+        56.7,
+        60.9,
+        67.2,
+        84.0
+       ],
+       "cod_fixed": 30.0,
+       "cod_pct": 2.4,
+       "comparable": true
+      },
+      {
+       "service": "Service 2 (1 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 2,
+       "min_weight_kg": 1.0,
+       "base": [
+        70.35,
+        88.73,
+        100.8,
+        109.2,
+        132.3
+       ],
+       "cod_fixed": 26.5,
+       "cod_pct": 2.4,
+       "comparable": true
+      },
+      {
+       "service": "Service 3 (2 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 3,
+       "min_weight_kg": 2.0,
+       "base": [
+        80.84,
+        106.58,
+        122.33,
+        149.1,
+        183.75
+       ],
+       "cod_fixed": 26.5,
+       "cod_pct": 2.4,
+       "comparable": true
+      },
+      {
+       "service": "Service 4 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 4,
+       "min_weight_kg": 0.5,
+       "base": [
+        73.0,
+        87.89,
+        90.01,
+        97.8,
+        140.32
+       ],
+       "cod_fixed": 42.48,
+       "cod_pct": 2.24,
+       "comparable": true
+      },
+      {
+       "service": "Service 5 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 5,
+       "min_weight_kg": 0.5,
+       "base": [
+        93.52,
+        109.85,
+        114.31,
+        120.25,
+        161.81
+       ],
+       "cod_fixed": 43.0,
+       "cod_pct": 2.42,
+       "comparable": true
+      },
+      {
+       "service": "Service 6 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 6,
+       "min_weight_kg": 0.5,
+       "base": [
+        64.58,
+        66.68,
+        68.09,
+        82.12,
+        126.35
+       ],
+       "cod_fixed": 42.48,
+       "cod_pct": 2.24,
+       "comparable": true
+      },
+      {
+       "service": "Service 7 (10 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 7,
+       "min_weight_kg": 10.0,
+       "base": [
+        488.25,
+        535.5,
+        609.0,
+        766.5,
+        855.75
+       ],
+       "cod_fixed": 0.0,
+       "cod_pct": 0.0,
+       "comparable": true
+      },
+      {
+       "service": "Service 8 (20 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 8,
+       "min_weight_kg": 20.0,
+       "base": [
+        702.45,
+        871.5,
+        1004.85,
+        1163.4,
+        1432.2
+       ],
+       "cod_fixed": 0.0,
+       "cod_pct": 0.0,
+       "comparable": true
+      },
+      {
+       "service": "Service 9 (5 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 9,
+       "min_weight_kg": 5.0,
+       "base": [
+        268.8,
+        288.75,
+        311.85,
+        357.0,
+        414.75
+       ],
+       "cod_fixed": 0.0,
+       "cod_pct": 0.0,
+       "comparable": true
+      },
+      {
+       "service": "Service 10 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 10,
+       "min_weight_kg": 0.5,
+       "base": [
+        49.56,
+        54.52,
+        82.39,
+        100.36,
+        121.42
+       ],
+       "cod_fixed": 47.2,
+       "cod_pct": 2.24,
+       "comparable": true
+      },
+      {
+       "service": "Service 11 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 11,
+       "min_weight_kg": 0.5,
+       "base": [
+        99.58,
+        111.8,
+        136.19,
+        155.54,
+        175.91
+       ],
+       "cod_fixed": 0.0,
+       "cod_pct": 0.0,
+       "comparable": true
+      },
+      {
+       "service": "Service 12 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 12,
+       "min_weight_kg": 0.5,
+       "base": [
+        38.41,
+        48.32,
+        55.76,
+        56.99,
+        87.97
+       ],
+       "cod_fixed": 44.84,
+       "cod_pct": 2.12,
+       "comparable": true
+      },
+      {
+       "service": "Service 13 (10 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 13,
+       "min_weight_kg": 10.0,
+       "base": [
+        245.16,
+        300.16,
+        343.96,
+        393.87,
+        491.64
+       ],
+       "cod_fixed": 47.0,
+       "cod_pct": 2.15,
+       "comparable": true
+      },
+      {
+       "service": "Service 14 (20 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 14,
+       "min_weight_kg": 20.0,
+       "base": [
+        465.63,
+        585.16,
+        677.2,
+        764.4,
+        935.98
+       ],
+       "cod_fixed": 47.0,
+       "cod_pct": 2.11,
+       "comparable": true
+      },
+      {
+       "service": "Service 15 (5 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 15,
+       "min_weight_kg": 5.0,
+       "base": [
+        174.89,
+        185.07,
+        198.31,
+        222.76,
+        260.44
+       ],
+       "cod_fixed": 47.0,
+       "cod_pct": 2.15,
+       "comparable": true
+      },
+      {
+       "service": "Service 16 (1 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 16,
+       "min_weight_kg": 1.0,
+       "base": [
+        75.6,
+        79.8,
+        95.55,
+        108.15,
+        151.2
+       ],
+       "cod_fixed": 48.0,
+       "cod_pct": 2.15,
+       "comparable": true
+      },
+      {
+       "service": "Service 17 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 17,
+       "min_weight_kg": 0.5,
+       "base": [
+        34.69,
+        43.37,
+        52.04,
+        56.99,
+        68.15
+       ],
+       "cod_fixed": 35.4,
+       "cod_pct": 2.24,
+       "comparable": true
+      },
+      {
+       "service": "Service 18 (1 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 18,
+       "min_weight_kg": 1.0,
+       "base": [
+        65.1,
+        76.65,
+        89.25,
+        102.9,
+        123.9
+       ],
+       "cod_fixed": 37.76,
+       "cod_pct": 2.24,
+       "comparable": true
+      },
+      {
+       "service": "Service 19 (10 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 19,
+       "min_weight_kg": 10.0,
+       "base": [
+        254.1,
+        331.8,
+        383.25,
+        451.5,
+        782.25
+       ],
+       "cod_fixed": 38.0,
+       "cod_pct": 2.3,
+       "comparable": true
+      },
+      {
+       "service": "Service 20 (2 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 20,
+       "min_weight_kg": 2.0,
+       "base": [
+        79.53,
+        98.06,
+        119.89,
+        128.38,
+        176.65
+       ],
+       "cod_fixed": 37.76,
+       "cod_pct": 2.24,
+       "comparable": true
+      },
+      {
+       "service": "Service 21 (3 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 21,
+       "min_weight_kg": 3.0,
+       "base": [
+        137.55,
+        164.85,
+        192.15,
+        220.5,
+        341.25
+       ],
+       "cod_fixed": 38.0,
+       "cod_pct": 2.3,
+       "comparable": true
+      },
+      {
+       "service": "Service 22 (5 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 22,
+       "min_weight_kg": 5.0,
+       "base": [
+        148.05,
+        195.3,
+        204.75,
+        240.45,
+        420.0
+       ],
+       "cod_fixed": 38.0,
+       "cod_pct": 2.3,
+       "comparable": true
+      },
+      {
+       "service": "Service 23 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 23,
+       "min_weight_kg": 0.5,
+       "base": [
+        45.1,
+        49.93,
+        57.18,
+        62.01,
+        93.42
+       ],
+       "cod_fixed": 39.88,
+       "cod_pct": 1.89,
+       "comparable": true
+      },
+      {
+       "service": "Service 24 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 24,
+       "min_weight_kg": 0.5,
+       "base": [
+        87.15,
+        93.45,
+        100.8,
+        107.1,
+        120.75
+       ],
+       "cod_fixed": 0.0,
+       "cod_pct": 0.0,
+       "comparable": true
+      },
+      {
+       "service": "Service 25 (1 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 25,
+       "min_weight_kg": 1.0,
+       "base": [
+        60.9,
+        67.2,
+        75.6,
+        85.05,
+        142.8
+       ],
+       "cod_fixed": 31.0,
+       "cod_pct": 2.0,
+       "comparable": true
+      },
+      {
+       "service": "Service 26 (2 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 26,
+       "min_weight_kg": 2.0,
+       "base": [
+        71.98,
+        84.02,
+        96.61,
+        106.05,
+        139.95
+       ],
+       "cod_fixed": 31.0,
+       "cod_pct": 2.0,
+       "comparable": true
+      },
+      {
+       "service": "Service 27 (3 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 27,
+       "min_weight_kg": 3.0,
+       "base": [
+        102.9,
+        109.2,
+        117.6,
+        127.05,
+        184.8
+       ],
+       "cod_fixed": 31.0,
+       "cod_pct": 2.0,
+       "comparable": true
+      },
+      {
+       "service": "Service 28 (5 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 28,
+       "min_weight_kg": 5.0,
+       "base": [
+        144.9,
+        151.2,
+        159.6,
+        169.05,
+        226.8
+       ],
+       "cod_fixed": 31.0,
+       "cod_pct": 2.0,
+       "comparable": true
+      },
+      {
+       "service": "Service 29 (30 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 29,
+       "min_weight_kg": 0.03,
+       "base": [
+        26.25,
+        32.55,
+        40.95,
+        45.15,
+        65.1
+       ],
+       "cod_fixed": 27.0,
+       "cod_pct": 1.7,
+       "comparable": true
+      },
+      {
+       "service": "Service 30 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 30,
+       "min_weight_kg": 0.5,
+       "base": [
+        27.3,
+        34.65,
+        43.05,
+        47.25,
+        67.2
+       ],
+       "cod_fixed": 27.0,
+       "cod_pct": 1.7,
+       "comparable": true
+      },
+      {
+       "service": "Service 31 (250 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 31,
+       "min_weight_kg": 0.25,
+       "base": [
+        27.3,
+        33.6,
+        42.0,
+        46.2,
+        66.15
+       ],
+       "cod_fixed": 27.0,
+       "cod_pct": 1.7,
+       "comparable": true
+      },
+      {
+       "service": null,
+       "courier": null,
+       "mode": null,
+       "row_index": 32,
+       "min_weight_kg": 0.5,
+       "base": [
+        42.48,
+        51.92,
+        51.92,
+        51.92,
+        51.92
+       ],
+       "cod_fixed": 11.8,
+       "cod_pct": 1.8,
+       "comparable": false,
+       "not_comparable_reason": "flat rate across zones (postal-style listing)"
+      },
+      {
+       "service": "Service 33 (1 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 33,
+       "min_weight_kg": 1.0,
+       "base": [
+        77.7,
+        79.8,
+        91.35,
+        96.6,
+        131.25
+       ],
+       "cod_fixed": 40.0,
+       "cod_pct": 2.05,
+       "comparable": true
+      },
+      {
+       "service": "Service 34 (10 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 34,
+       "min_weight_kg": 10.0,
+       "base": [
+        195.3,
+        243.6,
+        321.3,
+        386.4,
+        441.0
+       ],
+       "cod_fixed": 42.0,
+       "cod_pct": 2.2,
+       "comparable": true
+      },
+      {
+       "service": "Service 35 (2 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 35,
+       "min_weight_kg": 2.0,
+       "base": [
+        86.1,
+        111.27,
+        134.99,
+        145.02,
+        189.98
+       ],
+       "cod_fixed": 41.0,
+       "cod_pct": 2.05,
+       "comparable": true
+      },
+      {
+       "service": "Service 36 (5 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 36,
+       "min_weight_kg": 5.0,
+       "base": [
+        145.95,
+        173.25,
+        186.9,
+        201.6,
+        257.25
+       ],
+       "cod_fixed": 41.0,
+       "cod_pct": 2.05,
+       "comparable": true
+      },
+      {
+       "service": "Service 37 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 37,
+       "min_weight_kg": 0.5,
+       "base": [
+        37.17,
+        40.2,
+        62.09,
+        67.35,
+        86.44
+       ],
+       "cod_fixed": 34.81,
+       "cod_pct": 1.77,
+       "comparable": true
+      },
+      {
+       "service": "Service 38 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 38,
+       "min_weight_kg": 0.5,
+       "base": [
+        74.55,
+        84.0,
+        91.35,
+        103.95,
+        137.55
+       ],
+       "cod_fixed": 0.0,
+       "cod_pct": 0.0,
+       "comparable": true
+      },
+      {
+       "service": "Service 39 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 39,
+       "min_weight_kg": 0.5,
+       "base": [
+        97.65,
+        107.1,
+        114.45,
+        127.05,
+        160.65
+       ],
+       "cod_fixed": 0.0,
+       "cod_pct": 0.0,
+       "comparable": true
+      },
+      {
+       "service": "Service 40 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 40,
+       "min_weight_kg": 0.5,
+       "base": [
+        37.17,
+        40.2,
+        45.22,
+        50.18,
+        65.67
+       ],
+       "cod_fixed": 35.4,
+       "cod_pct": 1.89,
+       "comparable": true
+      }
+     ],
+     "note": "Courier names, additional-weight and RTO rates are not in the capture. Rows are enabled as unnamed services priced up to their first slab only; RTO mirrors forward. Flat-rate (postal-style) rows stay excluded."
+    },
+    "pro": {
+     "label": "Pro",
+     "verified": true,
+     "source_file": "nimbuspost_Pro_forward.csv",
+     "services": [
+      {
+       "service": "Service 1 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 1,
+       "min_weight_kg": 0.5,
+       "base": [
+        46.2,
+        55.65,
+        58.8,
+        65.1,
+        81.9
+       ],
+       "cod_fixed": 28.0,
+       "cod_pct": 2.3,
+       "comparable": true
+      },
+      {
+       "service": "Service 2 (1 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 2,
+       "min_weight_kg": 1.0,
+       "base": [
+        67.2,
+        85.58,
+        97.65,
+        106.05,
+        129.15
+       ],
+       "cod_fixed": 25.5,
+       "cod_pct": 2.3,
+       "comparable": true
+      },
+      {
+       "service": "Service 3 (2 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 3,
+       "min_weight_kg": 2.0,
+       "base": [
+        78.23,
+        103.95,
+        119.7,
+        146.48,
+        181.13
+       ],
+       "cod_fixed": 25.5,
+       "cod_pct": 2.3,
+       "comparable": true
+      },
+      {
+       "service": "Service 4 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 4,
+       "min_weight_kg": 0.5,
+       "base": [
+        66.44,
+        82.71,
+        83.42,
+        89.07,
+        124.43
+       ],
+       "cod_fixed": 40.5,
+       "cod_pct": 2.4,
+       "comparable": true
+      },
+      {
+       "service": "Service 5 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 5,
+       "min_weight_kg": 0.5,
+       "base": [
+        66.62,
+        82.22,
+        83.62,
+        87.89,
+        124.73
+       ],
+       "cod_fixed": 40.12,
+       "cod_pct": 2.01,
+       "comparable": true
+      },
+      {
+       "service": "Service 6 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 6,
+       "min_weight_kg": 0.5,
+       "base": [
+        89.07,
+        106.9,
+        109.84,
+        114.31,
+        152.9
+       ],
+       "cod_fixed": 40.5,
+       "cod_pct": 2.4,
+       "comparable": true
+      },
+      {
+       "service": "Service 7 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 7,
+       "min_weight_kg": 0.5,
+       "base": [
+        69.78,
+        86.84,
+        87.58,
+        93.51,
+        130.63
+       ],
+       "cod_fixed": 40.5,
+       "cod_pct": 2.4,
+       "comparable": true
+      },
+      {
+       "service": "Service 8 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 8,
+       "min_weight_kg": 0.5,
+       "base": [
+        60.36,
+        61.77,
+        63.17,
+        67.38,
+        109.49
+       ],
+       "cod_fixed": 40.12,
+       "cod_pct": 2.01,
+       "comparable": true
+      },
+      {
+       "service": "Service 9 (10 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 9,
+       "min_weight_kg": 10.0,
+       "base": [
+        477.75,
+        525.0,
+        593.25,
+        735.0,
+        829.5
+       ],
+       "cod_fixed": 0.0,
+       "cod_pct": 0.0,
+       "comparable": true
+      },
+      {
+       "service": "Service 10 (20 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 10,
+       "min_weight_kg": 20.0,
+       "base": [
+        691.95,
+        855.75,
+        987.0,
+        1147.65,
+        1405.95
+       ],
+       "cod_fixed": 0.0,
+       "cod_pct": 0.0,
+       "comparable": true
+      },
+      {
+       "service": "Service 11 (5 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 11,
+       "min_weight_kg": 5.0,
+       "base": [
+        262.5,
+        278.25,
+        301.35,
+        343.35,
+        399.0
+       ],
+       "cod_fixed": 0.0,
+       "cod_pct": 0.0,
+       "comparable": true
+      },
+      {
+       "service": "Service 12 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 12,
+       "min_weight_kg": 0.5,
+       "base": [
+        38.28,
+        44.35,
+        71.72,
+        89.78,
+        103.64
+       ],
+       "cod_fixed": 46.61,
+       "cod_pct": 2.12,
+       "comparable": true
+      },
+      {
+       "service": "Service 13 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 13,
+       "min_weight_kg": 0.5,
+       "base": [
+        97.48,
+        109.7,
+        133.04,
+        152.39,
+        172.76
+       ],
+       "cod_fixed": 0.0,
+       "cod_pct": 0.0,
+       "comparable": true
+      },
+      {
+       "service": "Service 14 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 14,
+       "min_weight_kg": 0.5,
+       "base": [
+        37.17,
+        40.89,
+        53.28,
+        54.52,
+        84.25
+       ],
+       "cod_fixed": 42.48,
+       "cod_pct": 2.12,
+       "comparable": true
+      },
+      {
+       "service": "Service 15 (10 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 15,
+       "min_weight_kg": 10.0,
+       "base": [
+        234.82,
+        293.58,
+        339.37,
+        393.06,
+        474.24
+       ],
+       "cod_fixed": 46.0,
+       "cod_pct": 2.12,
+       "comparable": true
+      },
+      {
+       "service": "Service 16 (20 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 16,
+       "min_weight_kg": 20.0,
+       "base": [
+        419.61,
+        528.05,
+        611.59,
+        688.06,
+        844.05
+       ],
+       "cod_fixed": 46.0,
+       "cod_pct": 2.08,
+       "comparable": true
+      },
+      {
+       "service": "Service 17 (5 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 17,
+       "min_weight_kg": 5.0,
+       "base": [
+        167.56,
+        182.55,
+        196.21,
+        220.66,
+        257.36
+       ],
+       "cod_fixed": 46.0,
+       "cod_pct": 2.12,
+       "comparable": true
+      },
+      {
+       "service": "Service 18 (1 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 18,
+       "min_weight_kg": 1.0,
+       "base": [
+        74.55,
+        78.75,
+        94.5,
+        106.05,
+        150.15
+       ],
+       "cod_fixed": 46.0,
+       "cod_pct": 2.12,
+       "comparable": true
+      },
+      {
+       "service": "Service 19 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 19,
+       "min_weight_kg": 0.5,
+       "base": [
+        126.48,
+        130.2,
+        141.35,
+        150.15,
+        173.25
+       ],
+       "cod_fixed": 0.0,
+       "cod_pct": 0.0,
+       "comparable": true
+      },
+      {
+       "service": "Service 20 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 20,
+       "min_weight_kg": 0.5,
+       "base": [
+        33.45,
+        38.41,
+        49.56,
+        56.37,
+        65.05
+       ],
+       "cod_fixed": 35.4,
+       "cod_pct": 1.77,
+       "comparable": true
+      },
+      {
+       "service": "Service 21 (1 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 21,
+       "min_weight_kg": 1.0,
+       "base": [
+        61.95,
+        73.5,
+        86.1,
+        99.75,
+        120.75
+       ],
+       "cod_fixed": 36.58,
+       "cod_pct": 2.17,
+       "comparable": true
+      },
+      {
+       "service": "Service 22 (10 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 22,
+       "min_weight_kg": 10.0,
+       "base": [
+        249.9,
+        310.8,
+        372.75,
+        435.75,
+        724.5
+       ],
+       "cod_fixed": 37.0,
+       "cod_pct": 2.25,
+       "comparable": true
+      },
+      {
+       "service": "Service 23 (2 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 23,
+       "min_weight_kg": 2.0,
+       "base": [
+        71.74,
+        85.79,
+        105.37,
+        111.51,
+        153.75
+       ],
+       "cod_fixed": 36.58,
+       "cod_pct": 2.17,
+       "comparable": true
+      },
+      {
+       "service": "Service 24 (3 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 24,
+       "min_weight_kg": 3.0,
+       "base": [
+        134.4,
+        161.7,
+        189.0,
+        217.35,
+        337.05
+       ],
+       "cod_fixed": 37.0,
+       "cod_pct": 2.25,
+       "comparable": true
+      },
+      {
+       "service": "Service 25 (5 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 25,
+       "min_weight_kg": 5.0,
+       "base": [
+        142.8,
+        181.65,
+        190.05,
+        222.6,
+        393.75
+       ],
+       "cod_fixed": 37.0,
+       "cod_pct": 2.25,
+       "comparable": true
+      },
+      {
+       "service": "Service 26 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 26,
+       "min_weight_kg": 0.5,
+       "base": [
+        30.61,
+        35.44,
+        53.96,
+        57.98,
+        87.78
+       ],
+       "cod_fixed": 26.85,
+       "cod_pct": 1.3,
+       "comparable": true
+      },
+      {
+       "service": "Service 27 (1 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 27,
+       "min_weight_kg": 1.0,
+       "base": [
+        75.08,
+        83.27,
+        95.55,
+        107.84,
+        181.55
+       ],
+       "cod_fixed": 36.4,
+       "cod_pct": 1.9,
+       "comparable": true
+      },
+      {
+       "service": "Service 28 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 28,
+       "min_weight_kg": 0.5,
+       "base": [
+        84.0,
+        90.3,
+        97.65,
+        103.95,
+        117.6
+       ],
+       "cod_fixed": 0.0,
+       "cod_pct": 0.0,
+       "comparable": true
+      },
+      {
+       "service": "Service 29 (1 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 29,
+       "min_weight_kg": 1.0,
+       "base": [
+        57.75,
+        64.05,
+        73.5,
+        82.95,
+        139.65
+       ],
+       "cod_fixed": 28.0,
+       "cod_pct": 1.9,
+       "comparable": true
+      },
+      {
+       "service": "Service 30 (2 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 30,
+       "min_weight_kg": 2.0,
+       "base": [
+        59.94,
+        71.98,
+        92.04,
+        103.96,
+        120.01
+       ],
+       "cod_fixed": 28.0,
+       "cod_pct": 1.9,
+       "comparable": true
+      },
+      {
+       "service": "Service 31 (3 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 31,
+       "min_weight_kg": 3.0,
+       "base": [
+        99.75,
+        106.05,
+        115.5,
+        124.95,
+        181.65
+       ],
+       "cod_fixed": 28.0,
+       "cod_pct": 1.9,
+       "comparable": true
+      },
+      {
+       "service": "Service 32 (4 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 32,
+       "min_weight_kg": 4.0,
+       "base": [
+        120.75,
+        127.05,
+        136.5,
+        145.95,
+        202.65
+       ],
+       "cod_fixed": 28.0,
+       "cod_pct": 1.9,
+       "comparable": true
+      },
+      {
+       "service": "Service 33 (5 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 33,
+       "min_weight_kg": 5.0,
+       "base": [
+        141.75,
+        148.05,
+        157.5,
+        166.95,
+        223.65
+       ],
+       "cod_fixed": 28.0,
+       "cod_pct": 1.9,
+       "comparable": true
+      },
+      {
+       "service": "Service 34 (30 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 34,
+       "min_weight_kg": 0.03,
+       "base": [
+        25.2,
+        30.45,
+        37.8,
+        42.0,
+        63.0
+       ],
+       "cod_fixed": 26.0,
+       "cod_pct": 1.5,
+       "comparable": true
+      },
+      {
+       "service": "Service 35 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 35,
+       "min_weight_kg": 0.5,
+       "base": [
+        26.25,
+        32.55,
+        39.9,
+        43.05,
+        65.1
+       ],
+       "cod_fixed": 26.0,
+       "cod_pct": 1.5,
+       "comparable": true
+      },
+      {
+       "service": "Service 36 (250 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 36,
+       "min_weight_kg": 0.25,
+       "base": [
+        25.2,
+        31.5,
+        38.85,
+        43.05,
+        64.05
+       ],
+       "cod_fixed": 26.0,
+       "cod_pct": 1.5,
+       "comparable": true
+      },
+      {
+       "service": null,
+       "courier": null,
+       "mode": null,
+       "row_index": 37,
+       "min_weight_kg": 0.5,
+       "base": [
+        42.48,
+        51.92,
+        51.92,
+        51.92,
+        51.92
+       ],
+       "cod_fixed": 11.8,
+       "cod_pct": 1.8,
+       "comparable": false,
+       "not_comparable_reason": "flat rate across zones (postal-style listing)"
+      },
+      {
+       "service": "Service 38 (1 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 38,
+       "min_weight_kg": 1.0,
+       "base": [
+        71.4,
+        75.6,
+        85.05,
+        92.4,
+        117.6
+       ],
+       "cod_fixed": 39.0,
+       "cod_pct": 2.0,
+       "comparable": true
+      },
+      {
+       "service": "Service 39 (10 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 39,
+       "min_weight_kg": 10.0,
+       "base": [
+        185.85,
+        239.4,
+        299.25,
+        367.5,
+        425.25
+       ],
+       "cod_fixed": 41.0,
+       "cod_pct": 2.1,
+       "comparable": true
+      },
+      {
+       "service": "Service 40 (2 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 40,
+       "min_weight_kg": 2.0,
+       "base": [
+        82.6,
+        97.35,
+        115.05,
+        126.85,
+        170.04
+       ],
+       "cod_fixed": 39.0,
+       "cod_pct": 2.0,
+       "comparable": true
+      },
+      {
+       "service": "Service 41 (5 kg)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 41,
+       "min_weight_kg": 5.0,
+       "base": [
+        141.75,
+        165.9,
+        183.75,
+        197.4,
+        252.0
+       ],
+       "cod_fixed": 39.0,
+       "cod_pct": 2.0,
+       "comparable": true
+      },
+      {
+       "service": "Service 42 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 42,
+       "min_weight_kg": 0.5,
+       "base": [
+        34.69,
+        39.65,
+        60.53,
+        65.49,
+        82.72
+       ],
+       "cod_fixed": 34.81,
+       "cod_pct": 1.65,
+       "comparable": true
+      },
+      {
+       "service": "Service 43 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 43,
+       "min_weight_kg": 0.5,
+       "base": [
+        71.4,
+        78.75,
+        88.2,
+        100.8,
+        132.3
+       ],
+       "cod_fixed": 0.0,
+       "cod_pct": 0.0,
+       "comparable": true
+      },
+      {
+       "service": "Service 44 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 44,
+       "min_weight_kg": 0.5,
+       "base": [
+        94.5,
+        101.85,
+        111.3,
+        123.9,
+        155.4
+       ],
+       "cod_fixed": 0.0,
+       "cod_pct": 0.0,
+       "comparable": true
+      },
+      {
+       "service": "Service 45 (500 g)",
+       "courier": "Courier not listed",
+       "mode": "surface",
+       "row_index": 45,
+       "min_weight_kg": 0.5,
+       "base": [
+        34.69,
+        39.65,
+        43.37,
+        48.32,
+        63.19
+       ],
+       "cod_fixed": 32.45,
+       "cod_pct": 1.77,
+       "comparable": true
+      }
+     ],
+     "note": "Courier names, additional-weight and RTO rates are not in the capture. Rows are enabled as unnamed services priced up to their first slab only; RTO mirrors forward. Flat-rate (postal-style) rows stay excluded."
+    }
+   },
+   "captured_on": "2026-11-12",
+   "effective_from": "2026-11-12"
+  }
+ },
+ "_excluded_shiprocket": [
+  "India Post / per-kg freight: not comparable",
+  "hyperlocal / ONDC flat RTO-only listing"
+ ]
+}

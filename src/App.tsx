@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { getToken, isTokenExpired, getRoleFromToken, isEmployeeToken } from './utils/session';
 import { isLandingDomain } from './utils/domainUrl';
@@ -116,6 +116,7 @@ import { AdminKycReview } from './pages/admin/AdminKycReview';
 import { AdminAgreement } from './pages/admin/AdminAgreement';
 import { AdminAgreementSettings } from './pages/admin/AdminAgreementSettings';
 import { AdminPickupAddress } from './pages/admin/AdminPickupAddress';
+const RateComparison = lazy(() => import('./pages/admin/rateComparison/RateComparison').then(m => ({ default: m.RateComparison })));
 import { AdminCustomers } from './pages/admin/customers/AdminCustomers';
 import { AddCustomer } from './pages/admin/customers/AddCustomer';
 import { AdminPickupManifestDetails } from './pages/admin/AdminPickupManifestDetails';
@@ -314,6 +315,7 @@ function App() {
               <Route path="/admin/companies" element={<AdminCompanies />} />
               <Route path="/admin/sales" element={<SalesDashboard />} />
               <Route path="/admin/tasks" element={<SalesTasks />} />
+              <Route path="/admin/rate-comparison" element={<Suspense fallback={null}><RateComparison /></Suspense>} />
               <Route path="/admin/sales-management" element={<SalesManagement />} />
               <Route path="/admin/audit" element={<AdminAuditLogs />} />
               <Route path="/admin/profile" element={<AdminProfile />} />

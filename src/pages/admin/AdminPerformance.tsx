@@ -628,8 +628,8 @@ export function AdminPerformance() {
                         {sd.plan && (
                           <span className="text-[10px] font-bold bg-purple-50 text-purple-600 border border-purple-200 px-2 py-0.5 rounded-full flex items-center gap-1"><Crown className="w-3 h-3" />{sd.plan}</span>
                         )}
-                        <span className={`text-[11px] md:text-[12px] font-semibold px-2 py-0.5 rounded-full border ${sd.status === 'Active' || sd.enabled !== 'bg-red-50 text-red-500 border-red-200'}`}>
-                          {sd.status || (sd.enabled === 'Active')}
+                        <span className={`text-[11px] md:text-[12px] font-semibold px-2 py-0.5 rounded-full border ${sd.status === 'Active' || sd.enabled !== false ? 'bg-green-50 text-[#00A86B] border-green-200' : 'bg-red-50 text-red-500 border-red-200'}`}>
+                          {sd.status || (sd.enabled === false ? 'Inactive' : 'Active')}
                         </span>
                         {sd.kycDone && (
                           <span className="text-[11px] md:text-[12px] font-semibold bg-green-50 text-[#00A86B] border border-green-200 px-2 py-0.5 rounded-full">KYC Verified</span>
@@ -654,7 +654,7 @@ export function AdminPerformance() {
                         <FileText className="w-3.5 h-3.5" /> Generate Report
                       </button>
                       <label className="flex items-center gap-2 cursor-pointer select-none">
-                        <span className="text-[12px] font-semibold text-[#64748B]">{sd.enabled === 'Enabled'}</span>
+                        <span className="text-[12px] font-semibold text-[#64748B]">{sd.enabled === false ? 'Disabled' : 'Enabled'}</span>
                         <span className="relative inline-flex items-center">
                           <input type="checkbox" className="sr-only peer" checked={sd.enabled !== false}
                             onChange={async () => {
