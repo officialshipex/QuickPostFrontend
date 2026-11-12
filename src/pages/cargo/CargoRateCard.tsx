@@ -651,10 +651,9 @@ function ZoneMatrixTab({ showToast }: { showToast: (t: 'success' | 'error' | 'in
   const [deleting, setDeleting] = useState(false);
   // matrix management
   const [showNew, setShowNew] = useState(false);
-  const [newName, setNewName] = useState('');
+  const [newCourier, setNewCourier] = useState(''); // the courier the new matrix is made for
   const [copyFrom, setCopyFrom] = useState('');
   const [creating, setCreating] = useState(false);
-  const [renaming, setRenaming] = useState<string | null>(null); // the new name being typed
   const [confirmDeleteMatrix, setConfirmDeleteMatrix] = useState(false);
   const [assigning, setAssigning] = useState<string | null>(null); // courier id
   const [ratesToUpdate, setRatesToUpdate] = useState<{ courier: string; matrix: string; cards: RatesToUpdate[] } | null>(null);
@@ -784,32 +783,22 @@ function ZoneMatrixTab({ showToast }: { showToast: (t: 'success' | 'error' | 'in
   };
 
   const createMatrix = async () => {
-    const name = newName.trim();
-    if (!name) return;
+    if (!newCourier) return;
     setCreating(true);
     try {
-      const res = await apiClient.post('/b2b/zonematrix/matrices', { name, ...(copyFrom ? { copyFromId: copyFrom } : {}) });
+      const res = await apiClient.post('/b2b/zonematrix/matrices', { courierId: newCourier, ...(copyFrom ? { copyFromId: copyFrom } : {}) });
+      const name = res.data?.matrix?.name || '';
+      const courierName = res.data?.courier?.courierName || '';
       const copied = res.data?.copiedZones || 0;
-      showToast('success', copied ? `Zone matrix "${name}" created with ${copied} zones copied` : `Zone matrix "${name}" created`);
-      setShowNew(false); setNewName(''); setCopyFrom('');
+      showToast('success', `Zone matrix "${name}" created${copied ? ` with ${copied} zones copied` : ''} and assigned to ${courierName}`);
+      const cards: RatesToUpdate[] = res.data?.ratesToUpdate || [];
+      setRatesToUpdate(cards.length ? { courier: courierName, matrix: name, cards } : null);
+      setShowNew(false); setNewCourier(''); setCopyFrom('');
       await loadMatrices(res.data?.matrix?._id);
     } catch (err: any) {
       showToast('error', errMsg(err, 'Failed to create zone matrix'));
     } finally {
       setCreating(false);
-    }
-  };
-
-  const renameMatrix = async () => {
-    const name = (renaming || '').trim();
-    if (!current || !name || name === current.name) { setRenaming(null); return; }
-    try {
-      await apiClient.put(`/b2b/zonematrix/matrices/${current._id}`, { name });
-      showToast('success', 'Zone matrix renamed');
-      setRenaming(null);
-      await loadMatrices();
-    } catch (err: any) {
-      showToast('error', errMsg(err, 'Failed to rename zone matrix'));
     }
   };
 
@@ -852,23 +841,14 @@ function ZoneMatrixTab({ showToast }: { showToast: (t: 'success' | 'error' | 'in
       <div className="px-4 md:px-6 py-3 border-b border-[#CBD5F5] bg-[#F8FAFC]/50 flex flex-wrap items-center gap-2.5">
         <Select label="Zone matrix" value={matrixId} onChange={setMatrixId}
           options={matrices.map(m => ({ label: `${m.name}${m.isDefault ? ' (default)' : ''} · ${m.zoneCount} zone${m.zoneCount === 1 ? '' : 's'}`, value: m._id }))} />
-        {current && renaming === null && !current.isDefault && (
+        {current && !current.isDefault && (
           <>
-            <button onClick={() => setRenaming(current.name)} className={btnGhost}><Edit2 className="w-4 h-4" /> Rename</button>
             <button onClick={() => setConfirmDeleteMatrix(true)} className="h-10 px-5 rounded-full border border-red-200 bg-white text-red-600 text-[13px] font-bold inline-flex items-center gap-1.5 hover:bg-red-50">
               <Trash2 className="w-4 h-4" /> Delete
             </button>
           </>
         )}
-        {renaming !== null && (
-          <div className="flex items-center gap-2">
-            <input autoFocus value={renaming} onChange={e => setRenaming(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') renameMatrix(); if (e.key === 'Escape') setRenaming(null); }}
-              aria-label="Zone matrix name" className={`${inputCls} w-48`} />
-            <button onClick={renameMatrix} className={btnPrimary}><Save className="w-4 h-4" /> Save</button>
-            <button onClick={() => setRenaming(null)} className={btnGhost}>Cancel</button>
-          </div>
-        )}
-        <button onClick={() => { setShowNew(true); setCopyFrom(''); }} className={`${btnPrimary} ml-auto`}><Plus className="w-4 h-4" /> New zone matrix</button>
+        <button onClick={() => { setShowNew(true); setCopyFrom(''); setNewCourier(courierList[0]?._id || ''); }} className={`${btnPrimary} ml-auto`}><Plus className="w-4 h-4" /> New zone matrix</button>
       </div>
 
       {current && (
@@ -1044,25 +1024,32 @@ function ZoneMatrixTab({ showToast }: { showToast: (t: 'success' | 'error' | 'in
               <h3 className="text-[15px] font-bold text-[#0F172A]">New zone matrix</h3>
               <button onClick={() => !creating && setShowNew(false)} className="w-7 h-7 rounded-full flex items-center justify-center text-[#94A3B8] hover:bg-[#F8FAFC]" aria-label="Close"><X className="w-4 h-4" /></button>
             </div>
-            <input autoFocus value={newName} onChange={e => setNewName(e.target.value)} onKeyDown={e => e.key === 'Enter' && createMatrix()}
-              placeholder="Name, e.g. Gati zones" maxLength={60} className={`${inputCls} w-full`} />
+            <p className="text-[12px] font-semibold text-[#475569] mb-2">Courier</p>
+            {courierList.length ? (
+              <Select label="Courier" value={newCourier} onChange={setNewCourier}
+                options={courierList.map(c => ({ label: c.courierName === c.courierProvider ? c.courierName : `${c.courierName} (${c.courierProvider})`, value: c._id }))} />
+            ) : (
+              <p className="text-[12px] text-[#94A3B8]">No B2B couriers yet — add them under Couriers first.</p>
+            )}
             <p className="text-[12px] font-semibold text-[#475569] mt-4 mb-2">Start with</p>
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-[12.5px] text-[#475569] cursor-pointer">
-                <input type="radio" checked={!copyFrom} onChange={() => setCopyFrom('')} className="accent-[#00A86B]" /> An empty zone matrix
+                <input type="radio" checked={!copyFrom} onChange={() => setCopyFrom('')} className="accent-[#00A86B]" /> New zones (empty)
               </label>
               <label className="flex items-center gap-2 text-[12.5px] text-[#475569] cursor-pointer">
-                <input type="radio" checked={!!copyFrom} onChange={() => setCopyFrom(current?._id || matrices[0]?._id || '')} className="accent-[#00A86B]" /> A copy of
+                <input type="radio" checked={!!copyFrom} onChange={() => setCopyFrom(current?._id || matrices[0]?._id || '')} className="accent-[#00A86B]" /> Copy of an existing zone matrix
               </label>
               {!!copyFrom && (
                 <Select label="Copy from" value={copyFrom} onChange={setCopyFrom}
                   options={matrices.map(m => ({ label: `${m.name} · ${m.zoneCount} zones`, value: m._id }))} />
               )}
             </div>
-            <button onClick={createMatrix} disabled={creating || !newName.trim()} className={`${btnPrimary} w-full justify-center mt-5`}>
+            <p className="text-[11.5px] text-[#64748B] mt-4">
+              Name: set automatically — <span className="font-semibold text-[#0F172A]">{(courierList.find(c => c._id === newCourier)?.courierName || 'Courier')} zones</span>. The courier starts using it straight away.
+            </p>
+            <button onClick={createMatrix} disabled={creating || !newCourier} className={`${btnPrimary} w-full justify-center mt-3`}>
               {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create zone matrix'}
             </button>
-            <p className="text-[11px] text-[#94A3B8] mt-2">Then assign it to couriers under "Courier zone matrices".</p>
           </div>
         </div>,
         document.body
