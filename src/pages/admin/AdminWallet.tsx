@@ -1212,7 +1212,12 @@ export function AdminWallet() {
       link.click();
       document.body.removeChild(link);
       setTimeout(() => URL.revokeObjectURL(url), 1000);
-      showToast('success', `${chosen.length} invoices downloaded as one PDF.`);
+      const included = Number(res.headers?.['x-invoices-included']);
+      if (Number.isFinite(included) && included > 0 && included < chosen.length) {
+        showToast('info', `${included} of ${chosen.length} invoices downloaded as one PDF; the others are not available to this login.`);
+      } else {
+        showToast('success', `${chosen.length} invoices downloaded as one PDF.`);
+      }
     } catch (err: any) {
       let message = 'Failed to download the invoices.';
       const data = err?.response?.data;
