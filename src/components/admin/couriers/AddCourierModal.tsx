@@ -6,13 +6,24 @@ import { apiClient } from '../../../services/apiClient';
 const PROVIDERS = [
   'Amazon Shipping', 'Delhivery', 'DTDC', 'EcomExpress', 'Ekart',
   'ShipMaxx', 'NimbusPost', 'Proship', 'Shadowfax', 'Shiprocket',
-  'Shree Maruti', 'Smartship', 'XpressBees', 'ZipyPost', 'BoxdLogistics', 'Jiffy',
+  'Shree Maruti', 'Smartship', 'XpressBees', 'ZipyPost', 'BoxdLogistics', 'Jiffy', 'Gati',
+];
+
+// B2C Gati has its own save route: the login is checked with Gati, and its codes are kept (never /allCourier/addCourier)
+const GATI_B2C_FIELDS: CredField[] = [
+  { id: 'username', label: 'User', type: 'text', placeholder: 'Gati API Username', icon: User },
+  { id: 'password', label: 'Password', type: 'password', placeholder: 'Password', icon: ShieldCheck },
+  { id: 'customerCode', label: 'Customer Code', type: 'text', placeholder: '8-digit customer code issued by Gati', icon: Hash },
+  { id: 'encryptedCustCode', label: 'Encrypted Customer Code', type: 'text', placeholder: 'Encrypted customer code issued by Gati', icon: Key },
+  { id: 'goodsCode', label: 'Default Goods Code (optional)', type: 'text', placeholder: 'Auto-detected from products; else this, else 401', icon: Hash, optional: true },
+  { id: 'trackingToken', label: 'Tracking Token', type: 'text', placeholder: 'Security token for tracking (16 characters)', icon: Key, optional: true },
 ];
 
 type CredField = { id: string; label: string; type: string; placeholder: string; icon: any; optional?: boolean };
 
 const getCredFields = (provider: string): CredField[] => {
   const p = provider.toLowerCase();
+  if (p === 'gati') return GATI_B2C_FIELDS;
   if (['delhivery', 'shadowfax', 'amazon shipping'].includes(p)) {
     return [{ id: 'apiKey', label: 'API Key', type: 'password', placeholder: 'Enter API Key', icon: Key }];
   }
@@ -88,6 +99,7 @@ const B2B_COURIER_CONFIGS: Record<string, { endpoint: string; fields: CredField[
       { id: 'customerCode', label: 'Customer Code', type: 'text', placeholder: '8-digit customer code issued by Gati', icon: Hash },
       { id: 'encryptedCustCode', label: 'Encrypted Customer Code', type: 'text', placeholder: 'Encrypted customer code issued by Gati', icon: Key },
       { id: 'goodsCode', label: 'Default Goods Code (optional)', type: 'text', placeholder: 'Auto-detected from products; else this, else 401', icon: Hash, optional: true },
+      { id: 'trackingToken', label: 'Tracking Token', type: 'text', placeholder: 'Security token for tracking (16 characters)', icon: Key, optional: true },
     ],
   },
 };
@@ -98,11 +110,9 @@ interface AddCourierModalProps {
   onSuccess: () => void;
   /** Cargo (B2B) courier — B2B providers, credentials and save routes. */
   cargo?: boolean;
-  /** Cargo: providers already added (one account per B2B provider). */
-  existingProviders?: string[];
 }
 
-export function AddCourierModal({ isOpen, onClose, onSuccess, cargo = false, existingProviders = [] }: AddCourierModalProps) {
+export function AddCourierModal({ isOpen, onClose, onSuccess, cargo = false }: AddCourierModalProps) {
   const [b2bProviders, setB2bProviders] = useState<string[]>([]);
   const [provider, setProvider] = useState('');
   const [courierName, setCourierName] = useState('');
@@ -137,9 +147,9 @@ export function AddCourierModal({ isOpen, onClose, onSuccess, cargo = false, exi
       .catch(() => setB2bProviders([]));
   }, [cargo, isOpen]);
 
-  const providerOptions = cargo
-    ? b2bProviders.filter(p => !existingProviders.includes(p))
-    : PROVIDERS;
+  // Several accounts of one cargo courier are allowed (each with its own name), so every enabled courier stays
+  // selectable; the backend refuses the SAME account twice.
+  const providerOptions = cargo ? b2bProviders : PROVIDERS;
   const b2bConfig = cargo ? B2B_COURIER_CONFIGS[provider] : undefined;
   const credFields = !provider ? [] : cargo ? (b2bConfig?.fields || []) : getCredFields(provider);
 
@@ -172,8 +182,32 @@ export function AddCourierModal({ isOpen, onClose, onSuccess, cargo = false, exi
       }
       return;
     }
-    if (provider === 'ShipMaxx' && !/^d+$/.test((creds.channelId || '').trim())) {
+    if (provider === 'ShipMaxx' && !/^\d+$/.test((creds.channelId || '').trim())) {
       setError('Channel ID is required (numeric)'); return;
+    }
+
+    if (provider === 'Gati') {
+      const missing = GATI_B2C_FIELDS.find(f => !f.optional && !(creds[f.id] || '').trim());
+      if (missing) { setError(`Please enter ${missing.label}`); return; }
+      setSaving(true);
+      try {
+        await apiClient.post('/Gati/getAuthToken', {
+          courierName: courierName.trim(),
+          courierProvider: 'Gati',
+          CODDays: codDays ? Number(codDays) : undefined,
+          status,
+          liabilityCharge: liabilityCharge ? Number(liabilityCharge) : 0,
+          liabilityPercent: liabilityPercent ? Number(liabilityPercent) : 0,
+          credentials: Object.fromEntries(Object.entries(creds).map(([k, v]) => [k, String(v).trim()])),
+        });
+        onSuccess();
+        onClose();
+      } catch (err: any) {
+        setError(err?.response?.data?.message || 'Failed to add courier');
+      } finally {
+        setSaving(false);
+      }
+      return;
     }
 
     setSaving(true);
@@ -253,9 +287,7 @@ export function AddCourierModal({ isOpen, onClose, onSuccess, cargo = false, exi
                   </select>
                   {cargo && providerOptions.length === 0 && (
                     <p className="text-[12px] text-[#64748B] mt-1.5 ml-1">
-                      {b2bProviders.length === 0
-                        ? 'No B2B couriers are enabled for your company yet.'
-                        : 'All enabled B2B couriers have already been added.'}
+                      No B2B couriers are enabled for your company yet.
                     </p>
                   )}
                 </div>

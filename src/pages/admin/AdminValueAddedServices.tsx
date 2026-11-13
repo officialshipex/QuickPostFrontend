@@ -9,7 +9,7 @@ import { TableLoader } from '../../components/ui/TableLoader';
 import { ShineButton } from '../../components/ui/ShineButton';
 import {
   ShieldCheck, BellRing, PackageCheck,
-  ChevronDown, CheckCircle2, Clock, Users, BadgeCheck, Wallet2, PlayCircle,
+  ChevronDown, CheckCircle2, Clock, BadgeCheck, Wallet2,
   ArrowRight, AlertTriangle, ShieldOff, Lock, Loader2, Zap, LayoutList, AlertCircle,
 } from 'lucide-react';
 import autoSecureHowItWorks from '../../assets/auto-secure-how-it-works.png';
@@ -20,7 +20,7 @@ import { invalidateRtoScoreAccess } from '../../services/rtoScoreAccess';
 import { SellerSecure } from './vas/secure/SellerSecure';
 import { secureApi, type SecureRules, type SecureServiceInfo } from './vas/secure/secureApi';
 import { useVasServices } from './vas/useVasServices';
-import { apiCode, apiMessage, fmtDate, fmtMoney, planLabel, vasApi, type VasAccess, type VasPlan } from './vas/vasApi';
+import { apiCode, apiMessage, fmtDate, fmtMoney, planLabel, vasApi, type RtoSummary, type VasAccess, type VasPlan } from './vas/vasApi';
 
 /* ── Left sub-nav — mirrors the sidebar's Value Added Services group ── */
 const VAS_NAV: { id: string; label: string; path: string; icon: typeof BellRing; isNew?: boolean }[] = [
@@ -120,12 +120,6 @@ const HOW_IT_WORKS_STEPS = [
   { icon: PackageCheck, title: 'Secure Package', desc: "Activate Auto Secure and we'll calculate your premium by shipment value." },
   { icon: BadgeCheck, title: 'Submit Claims', desc: 'Submit a claim if the Shipment is lost or damaged.' },
   { icon: Wallet2, title: 'Receive Reimbursement', desc: 'Receive money in your account.' },
-];
-
-const STATS = [
-  { icon: Users, value: '18,000+', label: 'Sellers monthly auto secure their shipment' },
-  { icon: CheckCircle2, value: '99.8%', label: 'Claim settled ratio' },
-  { icon: Wallet2, value: '200+ Crore', label: 'Monthly secured order value' },
 ];
 
 const SECURE_KEYS = INITIAL_PLANS.map((p) => p.key);
@@ -254,10 +248,8 @@ function AutoSecurePanel() {
                     <CheckCircle2 className="w-2.5 h-2.5 text-[#00A86B]" />
                   </span>
                   <p className="text-[12.5px] text-[#475569] leading-relaxed">
-                    {term.text}{' '}
-                    {term.hasLink && (
-                      <span className="text-[#6366F1] font-semibold underline underline-offset-2 cursor-pointer">View T&C</span>
-                    )}
+                    {/* "View T&C" was shown here (term.hasLink) but opened nothing; render it again once there is a T&C page */}
+                    {term.text}
                   </p>
                 </li>
               ))}
@@ -268,7 +260,9 @@ function AutoSecurePanel() {
                 <p className="text-[12px] text-[#64748B] mb-3">
                   {services[plan.key].status === 'active' && services[plan.key].entitledUntil
                     ? `Plan valid until ${fmtDate(services[plan.key].entitledUntil)}`
-                    : `Plans from ${fmtMoney(Math.min(...services[plan.key].plans.map((p) => p.price)))}`}
+                    : services[plan.key].plans.length
+                      ? `Plans from ${fmtMoney(Math.min(...services[plan.key].plans.map((p) => p.price)))}`
+                      : 'Plan required'}
                 </p>
               )}
               {services[plan.key] && !services[plan.key].enabled ? (
@@ -354,21 +348,6 @@ function AutoSecurePanel() {
         </AnimatePresence>
       </div>
 
-      {/* Trust stats */}
-      <div className="rounded-2xl border border-[#E2E8F0] bg-gradient-to-r from-[#F8FAFC] to-[#F0FDF4] px-6 py-6">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-center">
-          {STATS.map((stat) => (
-            <div key={stat.label}>
-              <div className="w-10 h-10 rounded-full bg-white border border-[#E2E8F0] flex items-center justify-center mx-auto mb-2.5 shadow-sm">
-                <stat.icon className="w-4.5 h-4.5 text-[#00A86B]" />
-              </div>
-              <p className="text-[22px] font-extrabold text-[#0F172A]">{stat.value}</p>
-              <p className="text-[12px] text-[#64748B] font-medium mt-0.5">{stat.label}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-
       {/* Deactivate confirmation */}
       <AnimatePresence>
         {confirmingDeactivate && (
@@ -436,16 +415,17 @@ const RTO_FAQS: { q: string; a: string }[] = [
   },
   {
     q: 'How much will RTO Score cost me?',
-    a: 'RTO Score feature will charge Rs. 3.49/- per order on all COD orders.',
+    // What the backend actually charges (vas/vasService.js): nothing per order — either free, or a plan paid from the wallet.
+    a: 'There is no per-order charge. RTO Score is either free on your account or available on a plan, paid once from your wallet for the plan period. The price that applies to you is shown on this page before you activate.',
   },
 ];
 
 const RTO_OVERVIEW = [
-  { label: 'Orders Scanned', icon: LayoutList, tone: 'bg-[#F0FDF4] text-[#00A86B]' },
-  { label: 'High Risk', icon: AlertTriangle, tone: 'bg-red-50 text-red-600' },
-  { label: 'Medium Risk', icon: AlertCircle, tone: 'bg-amber-50 text-amber-600' },
-  { label: 'Low Risk', icon: ShieldCheck, tone: 'bg-[#F0FDF4] text-[#16A34A]' },
-];
+  { label: 'Orders Scanned', field: 'scanned', icon: LayoutList, tone: 'bg-[#F0FDF4] text-[#00A86B]' },
+  { label: 'High Risk', field: 'high', icon: AlertTriangle, tone: 'bg-red-50 text-red-600' },
+  { label: 'Medium Risk', field: 'medium', icon: AlertCircle, tone: 'bg-amber-50 text-amber-600' },
+  { label: 'Low Risk', field: 'low', icon: ShieldCheck, tone: 'bg-[#F0FDF4] text-[#16A34A]' },
+] as const;
 
 /* Illustrative preview: a laser line sweeps a sample order list and stamps each row with its risk. */
 const SCAN_SAMPLE: { value: string; risk: 'Low' | 'Medium' | 'High' }[] = [
@@ -524,6 +504,19 @@ function RtoScorePanel() {
   const rto: VasAccess | undefined = services['rto-score'];
   const isActive = rto?.status === 'active';
   const [confirmOff, setConfirmOff] = useState(false);
+  // Overview counts from the backend (same scoring as the risk badges); loaded while the service is active.
+  // undefined = not answered yet, null = could not load
+  const [summary, setSummary] = useState<RtoSummary | null | undefined>(undefined);
+  useEffect(() => {
+    if (!isActive) return;
+    let alive = true;
+    vasApi.rtoSummary()
+      .then((s) => { if (alive) setSummary(s); })
+      .catch(() => { if (alive) setSummary(null); });
+    return () => { alive = false; };
+  }, [isActive]);
+  const counts = isActive && summary && !summary.locked ? summary : null;
+  const summaryLoading = isActive && summary === undefined;
 
   const runDeactivate = async () => {
     setConfirmOff(false);
@@ -592,7 +585,9 @@ function RtoScorePanel() {
       <div className="relative overflow-hidden rounded-2xl border border-[#E2E8F0] bg-gradient-to-r from-[#00A86B] via-[#34D399] to-[#ECFDF5] p-4 md:p-5">
         <div className="flex items-center justify-between mb-3.5">
           <h2 className="text-[16px] font-bold text-white">Overview</h2>
-          <span className="text-[12.5px] font-medium text-[#334155]">Last 30 days</span>
+          <span className="text-[12.5px] font-medium text-[#334155]">
+            {counts?.capped ? 'Last 30 days · newest 5,000 COD orders' : 'Last 30 days · COD orders'}
+          </span>
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {RTO_OVERVIEW.map((s, i) => (
@@ -600,7 +595,9 @@ function RtoScorePanel() {
               className="bg-white rounded-xl border border-white/60 px-3.5 py-3 md:px-4 md:py-3.5 flex items-center gap-3 shadow-[0_1px_2px_rgba(16,24,40,0.06)]">
               <span className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${s.tone}`}><s.icon className="w-[18px] h-[18px]" /></span>
               <span className="text-[13.5px] font-bold text-[#0F172A] truncate flex-1">{s.label}</span>
-              <span className="text-[18px] font-extrabold text-[#00A86B] tabular-nums" title={isActive ? 'Counts appear as your COD orders are scored' : 'Activate RTO Score to start scoring orders'}>—</span>
+              <span className="text-[18px] font-extrabold text-[#00A86B] tabular-nums" title={isActive ? undefined : 'Activate RTO Score to start scoring orders'}>
+                {counts ? counts[s.field].toLocaleString('en-IN') : summaryLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : '—'}
+              </span>
             </motion.div>
           ))}
         </div>
@@ -631,10 +628,11 @@ function RtoScorePanel() {
             {/* Pricing / activation card */}
             <div className="relative mt-7 max-w-[480px] mx-auto">
               <div className="rounded-2xl border-2 border-[#00A86B] bg-white/90 backdrop-blur px-5 py-5 shadow-[0_10px_30px_-12px_rgba(0,168,107,0.30)]">
-                {rto && !rto.charged && rto.enabled ? (
-                  <p className="text-[15px] text-[#94A3B8]"><span className="line-through">₹3.49</span> <span className="text-[26px] font-extrabold text-[#16A34A] align-middle">Free</span> / order</p>
+                {/* Only what is really charged: free, or the cheapest plan (never a per-order price — none is taken) */}
+                {rto?.charged && rto.plans.length > 0 ? (
+                  <p className="text-[15px] text-[#94A3B8]">From <span className="text-[26px] font-extrabold text-[#0F172A] align-middle">{fmtMoney(Math.min(...rto.plans.map((p) => p.price)))}</span> / plan</p>
                 ) : (
-                  <p className="text-[15px] text-[#94A3B8]"><span className="text-[26px] font-extrabold text-[#0F172A] align-middle">₹3.49</span> + GST / COD order</p>
+                  <p className="text-[15px] text-[#94A3B8]"><span className="text-[26px] font-extrabold text-[#16A34A] align-middle">Free</span> on your account</p>
                 )}
                 <div className="mt-4">
                   {rto && !rto.enabled ? (
@@ -660,7 +658,7 @@ function RtoScorePanel() {
                   {rto?.charged && (
                     <li className="text-[11.5px] text-[#64748B]">• {isActive && rto.entitledUntil ? `Plan valid until ${fmtDate(rto.entitledUntil)}` : `Plans: ${rto.plans.map((p) => `${planLabel(p)} ${fmtMoney(p.price)}`).join(' · ')}`}</li>
                   )}
-                  <li className="text-[11.5px] text-[#64748B]">• Charged only for High and Low predictions on COD orders, auto-deducted from wallet</li>
+                  <li className="text-[11.5px] text-[#64748B]">• No per-order charge — scores every COD order once activated</li>
                 </ul>
               </div>
             </div>
@@ -672,11 +670,9 @@ function RtoScorePanel() {
 
       {/* How does it work */}
       <div className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm p-6">
+        {/* (A "See Video" link sat here with no video behind it — add it back with a real link once there is one.) */}
         <div className="flex items-center gap-2 mb-4">
           <h3 className="text-[15px] font-bold text-[#0F172A]">How does it work?</h3>
-          <button type="button" className="text-[12.5px] font-semibold text-[#6366F1] hover:underline flex items-center gap-1">
-            See Video <PlayCircle className="w-3.5 h-3.5" />
-          </button>
         </div>
 
         {/* Full illustrated banner (desktop) */}

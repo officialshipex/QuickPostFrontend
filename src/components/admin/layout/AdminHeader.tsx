@@ -8,7 +8,7 @@ import { SalesNotificationBell } from './SalesNotificationBell';
 import { ThemeToggle } from '../../ui/ThemeToggle';
 import { isAdminPanelPath } from '../../../config/cargo';
 import { useShippingMode } from '../../../context/shippingMode';
-import { modeUrl } from '../../../utils/shippingMode';
+import { appPathname, modeUrl } from '../../../utils/shippingMode';
 import { apiClient } from '../../../services/apiClient';
 import { getToken, setToken } from '../../../utils/session';
 import { useAdminTab } from '../../../context/AdminUserContext';
@@ -229,6 +229,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
     '/admin/referral',
     '/admin/seller-feedback',
     '/admin/system-logs',
+    '/admin/audit',
     '/admin/accounts',
     '/admin/announcement',
     '/admin/notification',
@@ -288,6 +289,8 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
     'courier service name',
     'order ID',
     'AWB number',
+    ...(isCargo ? ['child AWB number'] : []),
+    'customer order ID',
     'pickup name',
     'pickup mobile',
     'pickup email',
@@ -319,12 +322,13 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
         const q = searchQuery.trim();
         if (isCargo) {
           // Cargo searches B2B orders only — never B2C ones. The B2B lists match a numeric order id
-          // (orderId), an AWB (awbNumber) and seller / buyer name-email-phone (searchQuery) separately,
-          // so ask for each that fits and merge.
+          // (orderId), the AWB / a child AWB / the Customer Order ID (orderRef) and seller / buyer
+          // name-email-phone (searchQuery) separately, so ask for each that fits and merge.
           const endpoint = isAdmin && adminTab ? '/b2b/getb2badminorder' : '/b2b/getb2buserorder';
           const lookups: Record<string, string>[] = [{ searchQuery: q }];
           if (/^\d+$/.test(q)) lookups.push({ orderId: q });
-          else if (!/\s/.test(q)) lookups.push({ awbNumber: q });
+          // AWBs and Customer Order IDs can be all digits too, so this runs for numbers as well
+          if (!/\s/.test(q)) lookups.push({ orderRef: q });
           const results = await Promise.allSettled(lookups.map(extra =>
             apiClient.get(endpoint, { params: { page: 1, limit: 8, ...extra } })));
           const seen = new Set<string>();
@@ -340,8 +344,16 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
         }
         const params: Record<string, any> = { page: 1, limit: 8, searchQuery: q };
         if (!isAdminView && currentUserId) params.userId = currentUserId;
-        const res = await apiClient.get('/admin/filterEmployeeOrders', { params });
-        setOrderSearchResults(res.data?.orders || []);
+        // A reference (AWB, child AWB, Customer Order ID) can belong to a Cargo order: look there too, so a
+        // child AWB — which only Cargo orders have — is found from the B2C panel as well.
+        const cargoEndpoint = isAdmin && adminTab ? '/b2b/getb2badminorder' : '/b2b/getb2buserorder';
+        const [b2c, cargo] = await Promise.allSettled([
+          apiClient.get('/admin/filterEmployeeOrders', { params }),
+          /\s/.test(q) ? Promise.reject() : apiClient.get(cargoEndpoint, { params: { page: 1, limit: 4, orderRef: q } }),
+        ]);
+        const b2cOrders = b2c.status === 'fulfilled' ? b2c.value.data?.orders || [] : [];
+        const cargoOrders = cargo.status === 'fulfilled' ? cargo.value.data?.orders || [] : [];
+        setOrderSearchResults([...cargoOrders, ...b2cOrders].slice(0, 8));
       } catch {
         setOrderSearchResults([]);
       } finally {
@@ -382,11 +394,34 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
     return () => document.removeEventListener('mousedown', handleOutside);
   }, [showDateDropdown]);
 
+  // Extra line on a search result: the child AWB that matched (else how many the B2B order has) and the
+  // seller's Customer Order ID, so a result found through either of them shows why it matched.
+  const renderOrderRefs = (o: any) => {
+    const q = searchQuery.trim().toLowerCase();
+    const kids: string[] = (o.child_awb_numbers || []).filter(Boolean).map(String);
+    const matchedKid = q ? kids.find((k) => k.toLowerCase().includes(q)) : undefined;
+    const cargoTag = o.orderType === 'B2B' && !isCargo; // found from the B2C panel, opens in Cargo
+    if (!matchedKid && !kids.length && !o.clientOrderId && !cargoTag) return null;
+    return (
+      <p className="text-[10px] text-[#94A3B8] truncate mt-0.5">
+        {cargoTag && <span className="font-bold text-[#00A86B] uppercase tracking-wider mr-1.5">Cargo</span>}
+        {matchedKid
+          ? <>Child AWB: <span className="font-mono font-semibold text-[#00A86B]">{matchedKid}</span></>
+          : kids.length > 0 && <span className="font-mono">+{kids.length} child AWB{kids.length > 1 ? 's' : ''}</span>}
+        {(matchedKid || kids.length > 0) && o.clientOrderId ? ' · ' : ''}
+        {o.clientOrderId && <>Customer Order ID: <span className="font-semibold text-[#475569]">{o.clientOrderId}</span></>}
+      </p>
+    );
+  };
+
   const goToOrder = (order: any) => {
     setShowOrderSearchResults(false);
     setSearchQuery('');
-    const panel = location.pathname.startsWith('/user/') ? '/user' : '/admin';
-    navigate(`${panel}/order-tracking?id=${encodeURIComponent(String(order._id))}`);
+    const panel = appPathname(location.pathname).startsWith('/user/') ? '/user' : '/admin';
+    const path = `${panel}/order-tracking?id=${encodeURIComponent(String(order._id))}`;
+    // A Cargo order found from the B2C panel opens in Cargo mode (the mode comes from the URL on load)
+    if (order.orderType === 'B2B' && !isCargo) window.location.assign(modeUrl('cargo', path));
+    else navigate(path);
   };
 
   const dropdownVariants: any = {
@@ -865,6 +900,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                         {o.receiverAddress?.contactName || o.userId?.fullname || '—'}
                         {o.receiverAddress?.email ? ` · ${o.receiverAddress.email}` : ''}
                       </p>
+                      {renderOrderRefs(o)}
                     </div>
                     <span className="text-[10px] font-semibold text-[#475569] bg-slate-100 px-2 py-0.5 rounded-full shrink-0">{o.status || 'New'}</span>
                   </button>
@@ -980,6 +1016,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                           {o.receiverAddress?.contactName || o.userId?.fullname || '—'}
                           {o.receiverAddress?.email ? ` · ${o.receiverAddress.email}` : ''}
                         </p>
+                        {renderOrderRefs(o)}
                       </div>
                       <span className="text-[10px] font-semibold text-[#475569] bg-slate-100 px-2 py-0.5 rounded-full shrink-0">{o.status || 'New'}</span>
                     </button>

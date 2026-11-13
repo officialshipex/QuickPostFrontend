@@ -36,7 +36,16 @@ export function apiCode(err: unknown): string | undefined {
   return (err as { response?: { data?: { code?: string } } })?.response?.data?.code;
 }
 
+/** RTO Score page "Overview": the seller's COD orders of the last `days` days by risk level. */
+export type RtoSummary =
+  | { locked: true }
+  | { locked: false; days: number; scanned: number; high: number; medium: number; low: number; capped: boolean };
+
 export const vasApi = {
+  async rtoSummary(): Promise<RtoSummary> {
+    const { data } = await apiClient.get('/rtoRisk/summary');
+    return data;
+  },
   async mine(key: string): Promise<VasAccess> {
     const { data } = await apiClient.get(`/vas/my/${key}`);
     return data.service;

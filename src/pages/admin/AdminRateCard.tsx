@@ -1,7 +1,10 @@
 ﻿import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
-import { Search, ChevronRight, Save, Filter, X, Upload, Download, Plus, Edit2, CheckCircle2, Truck, Hash, Layers } from 'lucide-react';
+import { Search, ChevronRight, Save, Filter, X, Upload, Download, Plus, Edit2, CheckCircle2, Truck, Hash, Layers, Crown } from 'lucide-react';
+import { RechargePlansDialog } from '../../components/ratePlans/RechargePlansDialog';
+import { Toast } from '../../components/ui/Toast';
+import { useToast } from '../../hooks/useToast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiClient } from '../../services/apiClient';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
@@ -150,6 +153,8 @@ export function AdminRateCard() {
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
 
   const [addPlanModal, setAddPlanModal] = useState(false);
+  const [showRechargePlans, setShowRechargePlans] = useState(false);
+  const { toast: rpToast, showToast: showRpToast, closeToast: closeRpToast } = useToast();
   const [newPlanName, setNewPlanName] = useState('');
   const [addingPlan, setAddingPlan] = useState(false);
   const [planError, setPlanError] = useState('');
@@ -812,6 +817,12 @@ export function AdminRateCard() {
               />
             </label>
             <button
+              onClick={() => setShowRechargePlans(true)}
+              className="flex items-center gap-1.5 h-9 px-4 shrink-0 rounded-full border border-[#E2E8F0] bg-white text-[#475569] text-xs font-bold hover:bg-[#F8FAFC] transition-colors shadow-sm"
+            >
+              <Crown className="w-3.5 h-3.5 text-amber-500" /> Automatic Plans
+            </button>
+            <button
               onClick={() => { setNewPlanName(''); setPlanError(''); setAddPlanModal(true); }}
               className="flex items-center gap-1.5 h-9 px-4 shrink-0 rounded-full border border-[#00A86B] text-[#00A86B] text-xs font-bold hover:bg-[#F0FDF4] transition-colors shadow-sm bg-white"
             >
@@ -858,6 +869,10 @@ export function AdminRateCard() {
             <input type="file" accept=".xlsx,.xls,.csv" className="hidden" disabled={uploading}
               onChange={(e) => { const f = e.target.files?.[0]; if (f) { handleUpload(f); e.target.value = ''; } }} />
           </label>
+          <button onClick={() => setShowRechargePlans(true)} title="Automatic Plans (recharge + shipment commitment)" aria-label="Automatic Plans"
+            className="w-9 h-9 rounded-full border border-[#E2E8F0] bg-white text-amber-500 flex items-center justify-center shrink-0">
+            <Crown className="w-4 h-4" />
+          </button>
           <button onClick={() => { setNewPlanName(''); setPlanError(''); setAddPlanModal(true); }} title="Add Plan"
             className="w-9 h-9 rounded-full border border-[#00A86B] text-[#00A86B] bg-white flex items-center justify-center shrink-0">
             <Plus className="w-4 h-4" />
@@ -2044,6 +2059,9 @@ export function AdminRateCard() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {showRechargePlans && <RechargePlansDialog onClose={() => setShowRechargePlans(false)} onSaved={msg => showRpToast('success', msg)} />}
+      <Toast toast={rpToast} onClose={closeRpToast} />
 
       {/* Add Rate Card Modal */}
       <AnimatePresence>

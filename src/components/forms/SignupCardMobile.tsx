@@ -10,14 +10,8 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { apiClient } from '../../services/apiClient';
 import { useAuth } from '../../hooks/useAuth';
 import { getRoleFromToken } from '../../utils/session';
-
-const MONTHLY_ORDER_OPTIONS = [
-  '0 - 500',
-  '500 - 1500',
-  '1500 - 3000',
-  '3000 - 5000',
-  '5000+',
-];
+import { useRegisterOtp, RegisterOtpFormBar } from './RegisterOtpStep';
+import { useMonthlyOrderOptions, commitmentPlanOf } from '../../services/monthlyOrderOptions';
 
 const formSchema = z.object({
   fullname: z.string().min(2, 'Full name is required'),
@@ -50,8 +44,11 @@ export function SignupCardMobile({ onBack }: SignupCardMobileProps) {
   const [referralCode, setReferralCode] = useState(() => searchParams.get('ref') || searchParams.get('code') || '');
   const [showReferral, setShowReferral] = useState(() => !!referralCode);
   const { login } = useAuth();
+  const registerOtp = useRegisterOtp();
+  // Monthly Orders = the shipment commitment (plan ranges from the company's settings)
+  const monthlyOrderOptions = useMonthlyOrderOptions();
 
-  const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
+  const { register, handleSubmit, watch, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       checked: false,
@@ -64,12 +61,17 @@ export function SignupCardMobile({ onBack }: SignupCardMobileProps) {
     setStatus('loading');
     setServerError(null);
     try {
+      // Company asks for OTP at registration: verify email + mobile first (closed = stay on the form)
+      const otpTokens = await registerOtp.verify(data.email, data.phone);
+      if (!otpTokens) { setStatus('idle'); return; }
       const response = await apiClient.post('/external/register', {
+        ...otpTokens,
         fullname: data.fullname,
         email: data.email,
         phoneNumber: data.phone,
         company: data.company,
         monthlyOrders: data.monthlyOrders,
+        commitmentPlan: commitmentPlanOf(monthlyOrderOptions, data.monthlyOrders),
         password: data.password,
         confirmedPassword: data.confirmedPassword,
         checked: data.checked,
@@ -134,6 +136,7 @@ export function SignupCardMobile({ onBack }: SignupCardMobileProps) {
             <Input type="tel" placeholder="9876543210" className="h-10 rounded-l-none bg-transparent border-[#E2E8F0] text-sm focus-visible:ring-[#00A86B]" {...register('phone')} error={errors.phone?.message} />
           </div>
         </div>
+        <RegisterOtpFormBar otp={registerOtp} email={watch('email')} phone={watch('phone')} />
 
         <div className="grid grid-cols-2 gap-2.5">
         <div className="min-w-0">
@@ -148,8 +151,8 @@ export function SignupCardMobile({ onBack }: SignupCardMobileProps) {
             className="h-10 w-full rounded-md border border-[#E2E8F0] bg-transparent px-3 text-sm text-[#0F172A] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B] font-sans"
           >
             <option value="">Select range</option>
-            {MONTHLY_ORDER_OPTIONS.map(opt => (
-              <option key={opt} value={opt}>{opt}</option>
+            {monthlyOrderOptions.map(opt => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
             ))}
           </select>
           {errors.monthlyOrders && <p className="mt-1 text-xs text-red-500 font-sans">{errors.monthlyOrders.message}</p>}
@@ -254,6 +257,7 @@ export function SignupCardMobile({ onBack }: SignupCardMobileProps) {
           Already have an account? <Link to="/login" className="text-[#00A86B] font-semibold hover:underline">Log in</Link>
         </p>
       </div>
+      {registerOtp.dialog}
     </div>
   );
 }

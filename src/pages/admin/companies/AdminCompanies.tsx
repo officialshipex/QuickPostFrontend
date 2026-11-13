@@ -1509,8 +1509,62 @@ function ContactVerificationSection({ company, onSaved, showToast }: {
           onToggle={() => save('autoVerifyPhone', !(company.autoVerifyPhone === true), 'Phone')}
         />
         <p className="text-[11px] text-[#94A3B8]">Applies to users who register after the change; existing users are not changed.</p>
+        <RegistrationOtpSwitch company={company} onSaved={onSaved} showToast={showToast} />
       </div>
     </SectionCard>
+  );
+}
+
+// OTP for email + mobile on the register page (stops bot sign-ups). Off = register as before, verify in KYC.
+function RegistrationOtpSwitch({ company, onSaved, showToast }: {
+  company: CompanySummary; onSaved: () => void; showToast: (t: 'success' | 'error', m: string) => void;
+}) {
+  const [saving, setSaving] = useState(false);
+  // an older backend does not know this setting: show nothing rather than a switch that cannot work
+  if (typeof company.registrationOtp !== 'boolean') return null;
+  const on = company.registrationOtp;
+
+  const toggle = async () => {
+    setSaving(true);
+    try {
+      await companiesApi.updateBasic(company.tenantKey, { registrationOtp: !on });
+      showToast('success', !on ? 'OTP at registration enabled' : 'OTP at registration disabled');
+      onSaved();
+    } catch (err) {
+      const message = (err as { response?: { data?: { message?: string } } }).response?.data?.message;
+      showToast('error', message || 'Failed to update OTP at registration');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="mt-1 flex items-start justify-between gap-4 rounded-[8px] border border-[#E2E8F0] p-3">
+      <div>
+        <p className="text-[13px] text-[#334155]">OTP at registration</p>
+        <p className="text-[11px] text-[#94A3B8] mt-0.5">
+          {on
+            ? 'Enabled: new users must verify their email and mobile number with an OTP before the account is created. Both then show as verified in KYC.'
+            : 'Disabled: users register without OTP; email and mobile are verified later in KYC.'}
+        </p>
+        {on && (
+          <p className="text-[11px] text-amber-700 mt-1">
+            Mobile OTPs are sent by SMS through this company&apos;s own SMS account (Notifications settings). Without it, nobody can register.
+          </p>
+        )}
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={on}
+        aria-label="OTP at registration"
+        disabled={saving}
+        onClick={toggle}
+        className={`relative w-10 h-6 rounded-full transition-colors shrink-0 disabled:opacity-50 ${on ? 'bg-[#00A86B]' : 'bg-[#CBD5E1]'}`}
+      >
+        <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${on ? 'translate-x-4' : ''}`} />
+      </button>
+    </div>
   );
 }
 

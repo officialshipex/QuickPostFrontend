@@ -9,6 +9,8 @@ import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { useAdminTab } from '../../context/AdminUserContext';
 import { AdminKYC } from './AdminKYC';
 import { UserPlanDialog } from './ReferralProgramDialogs';
+import { UpgradePlanDialog } from '../../components/ratePlans/UpgradePlanDialog';
+import { SellerAutoPlanDialog } from '../../components/ratePlans/SellerAutoPlanDialog';
 import { TwoFactorAdminCard, TwoFactorPanel } from '../../components/twoFactor/TwoFactorPanel';
 import { copyToClipboard } from '../../utils/clipboard';
 import {
@@ -1037,6 +1039,18 @@ export function AdminProfile() {
   const [editingRateCard, setEditingRateCard] = useState<any>(null);
   const [showCreditModal, setShowCreditModal] = useState(false);
   const [showReferralModal, setShowReferralModal] = useState(false);
+  const [showUpgradePlan, setShowUpgradePlan] = useState(false);
+  const [showAutoPlan, setShowAutoPlan] = useState(false); // admin: the seller's automatic plan + commitment
+  // "Upgrade plan" only where recharge plans are on and apply to this seller (no sales person, no admin-set plan)
+  const [canUpgradePlan, setCanUpgradePlan] = useState(false);
+  useEffect(() => {
+    if (isAdminView) return; // the admin's view shows the Edit button instead
+    let alive = true;
+    apiClient.get('/rate-plans/status')
+      .then(res => { if (alive) setCanUpgradePlan(res.data?.available === true && res.data?.managed === true); })
+      .catch(() => { if (alive) setCanUpgradePlan(false); });
+    return () => { alive = false; };
+  }, [isAdminView]);
   // The referral commission plan this user is on (admin view only)
   const [referralPlanName, setReferralPlanName] = useState('');
   useEffect(() => {
@@ -1331,6 +1345,8 @@ export function AdminProfile() {
       {showCreditModal && <CreditLimitModal userId={effectiveId} currentValue={userData.creditLimit} onClose={() => setShowCreditModal(false)} onSuccess={refreshUser} />}
       {showReferralModal && <UserPlanDialog userId={effectiveId} onClose={() => setShowReferralModal(false)} onSaved={name => setReferralPlanName(name)} />}
       {showKAMModal && <KAMModal userId={effectiveId} onClose={() => setShowKAMModal(false)} onSuccess={refreshUser} />}
+      {showUpgradePlan && <UpgradePlanDialog onClose={() => setShowUpgradePlan(false)} />}
+      {showAutoPlan && effectiveId && <SellerAutoPlanDialog userId={effectiveId} onClose={() => setShowAutoPlan(false)} />}
       {showPasswordModal && <ChangePasswordModal email={userData.email} onClose={() => setShowPasswordModal(false)} onSuccess={() => {}} />}
 
       {/* ── Mobile account header — banner with back, overlapping avatar, identity, wallet strip ── */}
@@ -1583,8 +1599,20 @@ export function AdminProfile() {
                     <Field
                       label="B2C Rate Card Plan"
                       value={userData.rateCard}
-                      action={isAdminView ? <EditBtn onClick={() => { setAssignRateCardType('B2C'); setShowAssignModal(true); }} /> : undefined}
+                      action={isAdminView
+                        ? <EditBtn onClick={() => { setAssignRateCardType('B2C'); setShowAssignModal(true); }} />
+                        : canUpgradePlan
+                          ? <button onClick={() => setShowUpgradePlan(true)} className="ml-1 h-7 px-2.5 rounded-full border border-[#00A86B]/40 text-[11.5px] font-semibold text-[#00A86B] hover:bg-[#ECFDF5] whitespace-nowrap">Upgrade plan</button>
+                          : undefined}
                     />
+
+                    {isAdminView && (
+                      <Field
+                        label="Automatic Plan"
+                        value="Recharge / shipment commitment"
+                        action={<button onClick={() => setShowAutoPlan(true)} className="ml-1 h-7 px-2.5 rounded-full border border-[#E2E8F0] text-[11.5px] font-semibold text-[#475569] hover:border-[#00A86B]/40 hover:text-[#00A86B] whitespace-nowrap">Manage</button>}
+                      />
+                    )}
 
                     <Field
                       label="B2B Rate Card Plan"

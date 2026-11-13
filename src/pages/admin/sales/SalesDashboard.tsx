@@ -21,7 +21,7 @@ import {
 } from '../../../services/salesApi';
 import { SalesKycGate, OfferLetterCard } from './SalesKycGate';
 import { SalesEarningsTab, BadgeChip } from './SalesEarningsTab';
-import { SalesRatesTab, AssignRateDialog, SellerDetailDialog } from './SalesRatesTab';
+import { SalesRatesTab, AssignRateDialog, SellerDetailDialog, TargetBar } from './SalesRatesTab';
 
 /* Sales module — one page, tabbed: Overview · My Leads · My Sellers · Earnings · Rates · Performance (+ Team for the owner).
    A sales person sees only their own leads and the sellers who registered with their referral code (read-only);
@@ -1070,9 +1070,9 @@ function SalesDashboardBody({ viewAs }: { viewAs?: { id: string; name: string } 
                   <Empty icon={UserPlus} title={sellers.length ? 'No sellers match' : 'No referred sellers yet'} body={sellers.length ? 'Try a different filter or search.' : 'Sellers who register with your referral ID will appear here.'} />
                 ) : (
                   <div className="overflow-x-auto">
-                    <table className="w-full text-left min-w-[1240px]">
+                    <table className="w-full text-left min-w-[1420px]">
                       <thead><tr className="bg-[#E6F9F2] text-xs font-medium text-[#64748B] uppercase tracking-wider">
-                        {['Seller', 'Phone', 'Registered', 'KYC', 'Onboarding', 'First order', 'Shipments', 'Last order', 'Activity', 'Rate', 'Bonus', ''].map(h => <th key={h} className="py-2.5 px-4 whitespace-nowrap">{h}</th>)}
+                        {['Seller', 'Phone', 'Registered', 'KYC', 'Onboarding', 'First order', 'Shipments', 'This month target', 'Last order', 'Activity', 'Rate', 'Bonus', ''].map(h => <th key={h} className="py-2.5 px-4 whitespace-nowrap">{h}</th>)}
                       </tr></thead>
                       <tbody className="text-[12.5px] text-[#475569]">
                         {visibleSellers.map(s => (
@@ -1084,6 +1084,7 @@ function SalesDashboardBody({ viewAs }: { viewAs?: { id: string; name: string } 
                             <td className="py-3 px-4 capitalize">{s.onboardingStatus.replace('_', ' ')}</td>
                             <td className="py-3 px-4 whitespace-nowrap">{fmtDate(s.firstOrderAt)}</td>
                             <td className="py-3 px-4 font-semibold text-[#0F172A] tabular-nums">{n(s.totalOrders)}</td>
+                            <td className="py-3 px-4"><TargetBar compact target={s.monthTarget?.target || 0} achieved={s.monthTarget?.achieved || 0} /></td>
                             <td className="py-3 px-4 whitespace-nowrap">{fmtDate(s.lastOrderAt)}</td>
                             <td className="py-3 px-4"><span className={`inline-flex items-center gap-1.5 text-[12px] font-semibold ${s.active ? 'text-[#00A86B]' : 'text-[#94A3B8]'}`}><span className={`w-1.5 h-1.5 rounded-full ${s.active ? 'bg-[#00A86B]' : 'bg-[#CBD5E1]'}`} />{s.active ? 'Active' : 'Inactive'}</span></td>
                             <td className="py-3 px-4 whitespace-nowrap">{s.rate
@@ -1210,7 +1211,8 @@ function SalesDashboardBody({ viewAs }: { viewAs?: { id: string; name: string } 
         <AssignRateDialog sellers={sellers} offers={offers} initialSellerId={assigning._id}
           onClose={() => setAssigning(null)} onDone={msg => { showToast('success', msg); load(); }} />
       )}
-      {viewing && <SellerDetailDialog sellerId={viewing} viewAsId={viewAsId} onClose={() => setViewing(null)} />}
+      {viewing && <SellerDetailDialog sellerId={viewing} viewAsId={viewAsId} canEdit={canAct} onClose={() => setViewing(null)}
+        onSaved={(msg, ok) => { showToast(ok ? 'success' : 'error', msg); load(); }} />}
     </>
   );
 }

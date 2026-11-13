@@ -109,6 +109,7 @@ export function AdminPickupManifest({
   const [selectedManifests, setSelectedManifests] = useState<string[]>([]);
   const [showActionMenu,    setShowActionMenu]     = useState(false);
   const actionMenuRef = useRef<HTMLDivElement>(null);
+  const actionMenuRefDesktop = useRef<HTMLDivElement>(null); // the desktop copy of the same menu (a ref can only point at one element)
   const [mobileActionMenuPos, setMobileActionMenuPos] = useState<{ top: number; right: number } | null>(null);
 
   // Tooltip
@@ -210,7 +211,7 @@ export function AdminPickupManifest({
   // Close action menu on outside click
   useEffect(() => {
     const h = (e: MouseEvent) => {
-      if (actionMenuRef.current && !actionMenuRef.current.contains(e.target as Node)) setShowActionMenu(false);
+      if (![actionMenuRef, actionMenuRefDesktop].some((r) => r.current && r.current.contains(e.target as Node))) setShowActionMenu(false);
     };
     document.addEventListener('mousedown', h);
     return () => document.removeEventListener('mousedown', h);
@@ -457,7 +458,7 @@ export function AdminPickupManifest({
           </button>
         )}
 
-        <div className="ml-auto relative shrink-0" ref={actionMenuRef}>
+        <div className="ml-auto relative shrink-0" ref={actionMenuRefDesktop}>
           <button
             onClick={() => selectedManifests.length > 0 && setShowActionMenu(v => !v)}
             disabled={selectedManifests.length === 0}

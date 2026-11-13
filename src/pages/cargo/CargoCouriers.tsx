@@ -304,7 +304,7 @@ export function CargoCouriers() {
     // Only the settings this B2B account actually has; a blank password keeps the saved one
     // (same payload rules as ShipexFrontend's EditB2BCourierModal).
     const payload: Record<string, unknown> = {};
-    ['CODDays', 'username', 'password', 'apiKey', 'clientId', 'refreshToken', 'authToken', 'customerCode', 'encryptedCustCode', 'goodsCode'].forEach(key => {
+    ['CODDays', 'username', 'password', 'apiKey', 'clientId', 'refreshToken', 'authToken', 'customerCode', 'encryptedCustCode', 'goodsCode', 'trackingToken'].forEach(key => {
       if (!(key in selectedCourier)) return;
       if (key === 'password') { if ((data.password || '').trim()) payload.password = data.password.trim(); return; }
       if (key === 'CODDays') { payload.CODDays = data.CODDays !== '' && data.CODDays != null ? Number(data.CODDays) : 0; return; }
@@ -1040,7 +1040,6 @@ export function CargoCouriers() {
 
       <AddCourierModal
         cargo
-        existingProviders={providers.map(p => p.courierProvider).filter(Boolean)}
         isOpen={showAddCourier}
         onClose={() => setShowAddCourier(false)}
         onSuccess={() => { fetchAll(); setShowAddCourier(false); }}

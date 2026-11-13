@@ -10,7 +10,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Edit2, Save, Trash2, Plus, X, Search, MapPin, Layers, Loader2, ChevronDown } from 'lucide-react';
+import { Edit2, Save, Trash2, Plus, X, Search, MapPin, Layers, Loader2, ChevronDown, Upload, Download } from 'lucide-react';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { apiClient } from '../../services/apiClient';
 import { TableLoader } from '../../components/ui/TableLoader';
@@ -18,10 +18,15 @@ import { Toast } from '../../components/ui/Toast';
 import { useToast } from '../../hooks/useToast';
 
 /* ─── Types ──────────────────────────────────────────────────────────────── */
+interface CourierAccount { _id: string; courierName: string; courierProvider: string; status?: string; zoneMatrixId?: string }
+interface ZoneMatrixInfo { _id: string; name: string; isDefault: boolean; zones: string[] }
 interface Meta {
-  couriers: { _id: string; name: string; provider?: string; courierType?: string }[];
+  // each service carries the zone matrix of its courier (absent from a backend that predates zone matrices)
+  couriers: { _id: string; name: string; provider?: string; courierType?: string; zoneMatrixId?: string; courierAccountName?: string }[];
   plans: { _id: string; name: string }[];
-  zones: string[];
+  zones: string[]; // the Default matrix's zones
+  zoneMatrices: ZoneMatrixInfo[];
+  courierAccounts: CourierAccount[];
   statuses: string[];
 }
 interface OverheadField { type?: string; value?: number | string; min?: number | string }
@@ -127,6 +132,146 @@ function ConfirmDialog({ title, body, confirmLabel, busy, onConfirm, onClose }: 
   );
 }
 
+/* ─── Upload rates (Excel) — zone prices only; overhead charges stay as set on this screen ─── */
+interface UploadResult { row: number; status: 'success' | 'skipped' | 'failed'; message: string }
+function UploadRatesModal({ planId, planName, couriers, onClose, onDone }: {
+  planId: string; planName: string; couriers: CourierAccount[]; onClose: () => void; onDone: () => void;
+}) {
+  const [scope, setScope] = useState<'plan' | 'all'>(planId ? 'plan' : 'all');
+  // every courier (one sheet per zone matrix) or one courier (its own zone matrix)
+  const [courierScope, setCourierScope] = useState<'all' | 'one'>('all');
+  const [courierId, setCourierId] = useState(couriers[0]?._id || '');
+  const courierName = couriers.find(c => c._id === courierId)?.courierName || '';
+  const [file, setFile] = useState<File | null>(null);
+  const [downloading, setDownloading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [outcome, setOutcome] = useState<{ ok: boolean; message: string; errors: string[]; results: UploadResult[] } | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const readBlobError = async (err: any, fallback: string) => {
+    const data = err?.response?.data;
+    if (data instanceof Blob) { try { return JSON.parse(await data.text())?.message || fallback; } catch { return fallback; } }
+    return data?.message || fallback;
+  };
+
+  const download = async () => {
+    setDownloading(true);
+    try {
+      const params: Record<string, string> = {};
+      if (scope === 'plan' && planId) params.planId = planId;
+      if (courierScope === 'one' && courierId) params.courierId = courierId;
+      const res = await apiClient.get('/b2b/ratecard/uploadTemplate', { params, responseType: 'blob' });
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `b2b-ratecard-${scope === 'plan' && planName ? planName : 'all-plans'}${courierScope === 'one' && courierName ? `-${courierName}` : ''}.xlsx`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (err) {
+      setOutcome({ ok: false, message: await readBlobError(err, 'Could not download the sample file'), errors: [], results: [] });
+    } finally { setDownloading(false); }
+  };
+
+  const upload = async () => {
+    if (!file) return;
+    setUploading(true); setOutcome(null);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const res = await apiClient.post('/b2b/ratecard/uploadRates', form, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const d = res.data || {};
+      setOutcome({ ok: !!d.success, message: d.message || '', errors: d.errors || [], results: d.results || [] });
+      if (d.success || (d.created || 0) + (d.updated || 0) > 0) onDone();
+    } catch (err: any) {
+      setOutcome({ ok: false, message: err?.response?.data?.message || 'Upload failed', errors: err?.response?.data?.errors || [], results: [] });
+    } finally { setUploading(false); }
+  };
+
+  const tone = (s: UploadResult['status']) => s === 'success' ? 'text-[#00A86B]' : s === 'failed' ? 'text-red-600' : 'text-[#64748B]';
+
+  return createPortal(
+    <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={() => !uploading && onClose()} />
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between px-6 pt-5 pb-3">
+          <h3 className="text-[15px] font-bold text-[#0F172A]">Upload B2B Rates</h3>
+          <button onClick={() => !uploading && onClose()} className="w-7 h-7 rounded-full flex items-center justify-center text-[#94A3B8] hover:bg-[#F8FAFC]" aria-label="Close"><X className="w-4 h-4" /></button>
+        </div>
+        <div className="px-6 pb-5 overflow-y-auto space-y-4">
+          <p className="text-[12px] text-[#64748B] leading-relaxed">
+            Only the zone prices (per kg, from zone → to zone) are uploaded. <span className="font-semibold text-[#0F172A]">Overhead charges are not changed</span> — set them on this screen with Edit. A new rate card created by the upload starts with the standard overhead charges.
+          </p>
+
+          <div className="rounded-xl border border-[#E2E8F0] p-3.5 space-y-2.5">
+            <p className="text-[12px] font-bold text-[#0F172A]">1. Download the sample file</p>
+            <div className="flex flex-wrap gap-4">
+              {planId && (
+                <label className="flex items-center gap-1.5 text-[12px] font-semibold text-[#475569] cursor-pointer">
+                  <input type="radio" checked={scope === 'plan'} onChange={() => setScope('plan')} className="accent-[#00A86B]" /> {planName || 'Selected plan'}
+                </label>
+              )}
+              <label className="flex items-center gap-1.5 text-[12px] font-semibold text-[#475569] cursor-pointer">
+                <input type="radio" checked={scope === 'all'} onChange={() => setScope('all')} className="accent-[#00A86B]" /> All plans
+              </label>
+            </div>
+            <div className="flex flex-wrap items-center gap-4 pt-1">
+              <label className="flex items-center gap-1.5 text-[12px] font-semibold text-[#475569] cursor-pointer">
+                <input type="radio" checked={courierScope === 'all'} onChange={() => setCourierScope('all')} className="accent-[#00A86B]" /> All couriers
+              </label>
+              <label className={`flex items-center gap-1.5 text-[12px] font-semibold cursor-pointer ${couriers.length ? 'text-[#475569]' : 'text-[#CBD5E1] cursor-not-allowed'}`}>
+                <input type="radio" disabled={!couriers.length} checked={courierScope === 'one'} onChange={() => setCourierScope('one')} className="accent-[#00A86B]" /> Courier-wise
+              </label>
+              {courierScope === 'one' && (
+                <Select label="Courier" value={courierId} onChange={setCourierId}
+                  options={couriers.map(c => ({ label: c.courierName === c.courierProvider ? c.courierName : `${c.courierName} (${c.courierProvider})`, value: c._id }))} />
+              )}
+            </div>
+            <p className="text-[11px] text-[#94A3B8]">
+              {courierScope === 'one'
+                ? `The file has ${courierName || 'this courier'}'s services with the zones of its own zone matrix.`
+                : 'Each courier uses its own zone matrix, so the file has one sheet per zone matrix.'}{' '}
+              Current prices are already filled in — change only what you need. Blank or 0 = lane not offered.
+            </p>
+            <button onClick={download} disabled={downloading} className={btnGhost}>
+              {downloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />} Download sample
+            </button>
+          </div>
+
+          <div className="rounded-xl border border-[#E2E8F0] p-3.5 space-y-2.5">
+            <p className="text-[12px] font-bold text-[#0F172A]">2. Upload the filled file (.xlsx)</p>
+            <input ref={fileRef} type="file" accept=".xlsx" className="hidden"
+              onChange={e => { setFile(e.target.files?.[0] || null); setOutcome(null); }} />
+            <div className="flex flex-wrap items-center gap-2">
+              <button onClick={() => fileRef.current?.click()} disabled={uploading} className={btnGhost}>Choose file</button>
+              <span className="text-[12px] text-[#475569] truncate max-w-[220px]">{file ? file.name : 'No file chosen'}</span>
+            </div>
+            <button onClick={upload} disabled={!file || uploading} className={btnPrimary}>
+              {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />} Upload
+            </button>
+          </div>
+
+          {outcome && (
+            <div className={`rounded-xl border p-3.5 ${outcome.ok ? 'border-[#BBF7D0] bg-[#F0FDF4]' : 'border-red-200 bg-red-50'}`}>
+              <p className={`text-[12.5px] font-bold ${outcome.ok ? 'text-[#00A86B]' : 'text-red-600'}`}>{outcome.message}</p>
+              {outcome.errors.length > 0 && (
+                <ul className="mt-2 space-y-1 max-h-48 overflow-y-auto text-[11.5px] text-red-700 list-disc pl-4">
+                  {outcome.errors.map((e, i) => <li key={i}>{e}</li>)}
+                </ul>
+              )}
+              {outcome.errors.length === 0 && outcome.results.length > 0 && (
+                <ul className="mt-2 space-y-1 max-h-48 overflow-y-auto text-[11.5px]">
+                  {outcome.results.map((r, i) => <li key={i} className={tone(r.status)}>{r.message}</li>)}
+                </ul>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 /* ═══════════════════════════════ Rate Card tab ═══════════════════════════════ */
 function RateCardTab({ showToast }: { showToast: (t: 'success' | 'error' | 'info', m: string) => void }) {
   const [meta, setMeta] = useState<Meta | null>(null);
@@ -145,8 +290,12 @@ function RateCardTab({ showToast }: { showToast: (t: 'success' | 'error' | 'info
   const [showAddPlan, setShowAddPlan] = useState(false);
   const [newPlanName, setNewPlanName] = useState('');
   const [addingPlan, setAddingPlan] = useState(false);
+  const [showUpload, setShowUpload] = useState(false);
 
-  const zones = meta?.zones || [];
+  // the zones of the selected service's courier zone matrix (each courier may use its own)
+  const selectedService = meta?.couriers.find(c => c._id === serviceId);
+  const serviceMatrix = meta?.zoneMatrices.find(z => z._id === selectedService?.zoneMatrixId);
+  const zones = serviceMatrix ? serviceMatrix.zones : (meta?.zones || []);
 
   const loadMeta = async (selectPlanName?: string) => {
     try {
@@ -155,6 +304,8 @@ function RateCardTab({ showToast }: { showToast: (t: 'success' | 'error' | 'info
         couriers: res.data?.couriers || [],
         plans: res.data?.plans || [],
         zones: res.data?.zones || [],
+        zoneMatrices: res.data?.zoneMatrices || [],
+        courierAccounts: res.data?.courierAccounts || [],
         statuses: res.data?.statuses || ['active', 'inactive'],
       };
       setMeta(m);
@@ -295,6 +446,11 @@ function RateCardTab({ showToast }: { showToast: (t: 'success' | 'error' | 'info
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} {mode === 'create' ? 'Create Rate Card' : 'Save'}
             </button>
           )}
+          {!editing || mode === 'create' ? (
+            <button onClick={() => setShowUpload(true)} className={btnGhost} title="Upload zone prices from Excel (overhead charges are not changed)">
+              <Upload className="w-4 h-4" /> Upload Rates
+            </button>
+          ) : null}
           <button onClick={() => setShowAddPlan(true)} className={btnGhost}><Plus className="w-4 h-4" /> Add Plan</button>
         </div>
       </div>
@@ -309,7 +465,9 @@ function RateCardTab({ showToast }: { showToast: (t: 'success' | 'error' | 'info
         )}
         {zones.length === 0 && (
           <p className="text-[13px] text-[#64748B] bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl px-4 py-3">
-            No zones yet — create zones in the Zone Matrix tab first.
+            {serviceMatrix
+              ? `The zone matrix "${serviceMatrix.name}" of this courier has no zones yet — add zones to it in the Zone Matrix tab first.`
+              : 'No zones yet — create zones in the Zone Matrix tab first.'}
           </p>
         )}
 
@@ -318,6 +476,11 @@ function RateCardTab({ showToast }: { showToast: (t: 'success' | 'error' | 'info
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="text-[14px] font-bold text-[#0F172A]">{planName} · {serviceName}</h2>
               <span className="text-[12px] text-[#64748B]">Price per 1 kg, from zone (row) to zone (column)</span>
+              {serviceMatrix && (
+                <span className="px-2 py-0.5 rounded-full bg-[#F1F5F9] border border-[#E2E8F0] text-[#475569] text-[11px] font-semibold inline-flex items-center gap-1">
+                  <MapPin className="w-3 h-3" /> Zones: {serviceMatrix.name}{selectedService?.courierAccountName ? ` (${selectedService.courierAccountName})` : ''}
+                </span>
+              )}
               {mode === 'create' && <span className="px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-[11px] font-semibold">No rate card yet — fill in and create</span>}
             </div>
 
@@ -440,6 +603,10 @@ function RateCardTab({ showToast }: { showToast: (t: 'success' | 'error' | 'info
         />
       )}
 
+      {showUpload && (
+        <UploadRatesModal planId={planId} planName={planName} couriers={meta.courierAccounts} onClose={() => setShowUpload(false)} onDone={() => { loadCard(); }} />
+      )}
+
       {showAddPlan && createPortal(
         <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={() => !addingPlan && setShowAddPlan(false)} />
@@ -462,7 +629,15 @@ function RateCardTab({ showToast }: { showToast: (t: 'success' | 'error' | 'info
 }
 
 /* ═══════════════════════════════ Zone Matrix tab ═══════════════════════════════ */
+/* Each courier prices with one zone matrix (a named set of zones). The Default matrix holds the zones made before
+   matrices existed and is used by every courier until it is assigned another. */
+interface MatrixRow { _id: string; name: string; isDefault: boolean; zoneCount: number; couriers: CourierAccount[] }
+interface RatesToUpdate { plan: string; service: string; missing: string[] }
+
 function ZoneMatrixTab({ showToast }: { showToast: (t: 'success' | 'error' | 'info', m: string) => void }) {
+  const [matrices, setMatrices] = useState<MatrixRow[]>([]);
+  const [courierList, setCourierList] = useState<CourierAccount[]>([]);
+  const [matrixId, setMatrixId] = useState('');
   const [zones, setZones] = useState<ZoneDoc[]>([]);
   const [loading, setLoading] = useState(true);
   const [zone, setZone] = useState('');
@@ -474,21 +649,50 @@ function ZoneMatrixTab({ showToast }: { showToast: (t: 'success' | 'error' | 'in
   const [submitting, setSubmitting] = useState(false);
   const [zoneToDelete, setZoneToDelete] = useState<ZoneDoc | null>(null);
   const [deleting, setDeleting] = useState(false);
+  // matrix management
+  const [showNew, setShowNew] = useState(false);
+  const [newCourier, setNewCourier] = useState(''); // the courier the new matrix is made for
+  const [copyFrom, setCopyFrom] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [confirmDeleteMatrix, setConfirmDeleteMatrix] = useState(false);
+  const [assigning, setAssigning] = useState<string | null>(null); // courier id
+  const [ratesToUpdate, setRatesToUpdate] = useState<{ courier: string; matrix: string; cards: RatesToUpdate[] } | null>(null);
   const searchRef = useRef<HTMLDivElement>(null);
 
-  const loadZones = async () => {
+  const current = matrices.find(m => m._id === matrixId);
+  const errMsg = (err: any, fallback: string) => err?.response?.data?.message || fallback;
+
+  const loadMatrices = async (select?: string) => {
+    try {
+      const res = await apiClient.get('/b2b/zonematrix/matrices');
+      const list: MatrixRow[] = res.data?.matrices || [];
+      setMatrices(list);
+      setCourierList(res.data?.couriers || []);
+      setMatrixId(prev => {
+        if (select && list.some(m => m._id === select)) return select;
+        if (list.some(m => m._id === prev)) return prev;
+        return (list.find(m => m.isDefault) || list[0])?._id || '';
+      });
+    } catch (err: any) {
+      showToast('error', errMsg(err, 'Failed to load zone matrices'));
+    }
+  };
+
+  const loadZones = async (id = matrixId) => {
+    if (!id) return;
     setLoading(true);
     try {
-      const res = await apiClient.get('/b2b/zonematrix/getAll');
+      const res = await apiClient.get('/b2b/zonematrix/getAll', { params: { matrixId: id } });
       setZones(Array.isArray(res.data) ? res.data : []);
     } catch (err: any) {
-      showToast('error', err?.response?.data?.message || 'Failed to load zones');
+      showToast('error', errMsg(err, 'Failed to load zones'));
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { loadZones(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { loadMatrices(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (matrixId) { setZone(''); setStaged([]); loadZones(matrixId); } }, [matrixId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Debounced search by city, state or pincode
   useEffect(() => {
@@ -538,14 +742,15 @@ function ZoneMatrixTab({ showToast }: { showToast: (t: 'success' | 'error' | 'in
     setSubmitting(true);
     try {
       await apiClient.post('/b2b/zonematrix/addLocation', {
+        matrixId,
         zone: zone.trim().toUpperCase(),
         locations: staged.map(s => ({ name: s.name })),
       });
       showToast('success', 'Locations added successfully');
       setZone(''); setStaged([]); setQuery('');
-      await loadZones();
+      await Promise.all([loadZones(), loadMatrices()]);
     } catch (err: any) {
-      showToast('error', err?.response?.data?.message || 'Failed to add locations');
+      showToast('error', errMsg(err, 'Failed to add locations'));
     } finally {
       setSubmitting(false);
     }
@@ -553,7 +758,7 @@ function ZoneMatrixTab({ showToast }: { showToast: (t: 'success' | 'error' | 'in
 
   const removeLocation = async (zoneName: string, name: string) => {
     try {
-      await apiClient.put('/b2b/zonematrix/removeLocation', { zone: zoneName, name });
+      await apiClient.put('/b2b/zonematrix/removeLocation', { matrixId, zone: zoneName, name });
       setZones(prev => prev.map(z => (z.zone === zoneName ? { ...z, locations: z.locations.filter(l => l.name !== name) } : z)));
       showToast('success', 'Location removed');
     } catch {
@@ -569,6 +774,7 @@ function ZoneMatrixTab({ showToast }: { showToast: (t: 'success' | 'error' | 'in
       setZones(prev => prev.filter(z => z._id !== zoneToDelete._id));
       showToast('success', 'Zone deleted');
       setZoneToDelete(null);
+      loadMatrices();
     } catch {
       showToast('error', 'Failed to delete zone');
     } finally {
@@ -576,10 +782,86 @@ function ZoneMatrixTab({ showToast }: { showToast: (t: 'success' | 'error' | 'in
     }
   };
 
+  const createMatrix = async () => {
+    if (!newCourier) return;
+    setCreating(true);
+    try {
+      const res = await apiClient.post('/b2b/zonematrix/matrices', { courierId: newCourier, ...(copyFrom ? { copyFromId: copyFrom } : {}) });
+      const name = res.data?.matrix?.name || '';
+      const courierName = res.data?.courier?.courierName || '';
+      const copied = res.data?.copiedZones || 0;
+      showToast('success', `Zone matrix "${name}" created${copied ? ` with ${copied} zones copied` : ''} and assigned to ${courierName}`);
+      const cards: RatesToUpdate[] = res.data?.ratesToUpdate || [];
+      setRatesToUpdate(cards.length ? { courier: courierName, matrix: name, cards } : null);
+      setShowNew(false); setNewCourier(''); setCopyFrom('');
+      await loadMatrices(res.data?.matrix?._id);
+    } catch (err: any) {
+      showToast('error', errMsg(err, 'Failed to create zone matrix'));
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const deleteMatrix = async () => {
+    if (!current) return;
+    setDeleting(true);
+    try {
+      await apiClient.delete(`/b2b/zonematrix/matrices/${current._id}`);
+      showToast('success', `Zone matrix "${current.name}" deleted`);
+      setConfirmDeleteMatrix(false);
+      await loadMatrices(matrices.find(m => m.isDefault)?._id);
+    } catch (err: any) {
+      showToast('error', errMsg(err, 'Failed to delete zone matrix'));
+      setConfirmDeleteMatrix(false);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const assign = async (courier: CourierAccount, toMatrix: string) => {
+    if (courier.zoneMatrixId === toMatrix) return;
+    setAssigning(courier._id);
+    try {
+      const res = await apiClient.put('/b2b/zonematrix/assign', { courierId: courier._id, matrixId: toMatrix });
+      const target = matrices.find(m => m._id === toMatrix)?.name || '';
+      const cards: RatesToUpdate[] = res.data?.ratesToUpdate || [];
+      showToast(cards.length ? 'info' : 'success', `${courier.courierName} now uses the zone matrix "${target}"`);
+      setRatesToUpdate(cards.length ? { courier: courier.courierName, matrix: target, cards } : null);
+      await loadMatrices();
+    } catch (err: any) {
+      showToast('error', errMsg(err, 'Failed to assign zone matrix'));
+    } finally {
+      setAssigning(null);
+    }
+  };
+
   return (
     <div className="flex-1 min-h-0 overflow-y-auto">
-      {/* Add locations to a zone — staged locally, saved together on Submit */}
-      <div className="px-4 md:px-6 py-4 border-b border-[#CBD5F5] bg-[#F8FAFC]/50 space-y-3">
+      {/* Zone matrix selector + management */}
+      <div className="px-4 md:px-6 py-3 border-b border-[#CBD5F5] bg-[#F8FAFC]/50 flex flex-wrap items-center gap-2.5">
+        <Select label="Zone matrix" value={matrixId} onChange={setMatrixId}
+          options={matrices.map(m => ({ label: `${m.name}${m.isDefault ? ' (default)' : ''} · ${m.zoneCount} zone${m.zoneCount === 1 ? '' : 's'}`, value: m._id }))} />
+        {current && !current.isDefault && (
+          <>
+            <button onClick={() => setConfirmDeleteMatrix(true)} className="h-10 px-5 rounded-full border border-red-200 bg-white text-red-600 text-[13px] font-bold inline-flex items-center gap-1.5 hover:bg-red-50">
+              <Trash2 className="w-4 h-4" /> Delete
+            </button>
+          </>
+        )}
+        <button onClick={() => { setShowNew(true); setCopyFrom(''); setNewCourier(courierList[0]?._id || ''); }} className={`${btnPrimary} ml-auto`}><Plus className="w-4 h-4" /> New zone matrix</button>
+      </div>
+
+      {current && (
+        <div className="px-4 md:px-6 pt-3 flex flex-wrap items-center gap-1.5 text-[12px] text-[#64748B]">
+          <span className="font-semibold text-[#0F172A]">Used by:</span>
+          {current.couriers.length ? current.couriers.map(c => (
+            <span key={c._id} className="px-2 py-0.5 rounded-full bg-[#00A86B]/10 text-[#00A86B] font-semibold text-[11.5px]">{c.courierName}</span>
+          )) : <span>no courier yet — assign it below</span>}
+        </div>
+      )}
+
+      {/* Add locations to a zone of the selected matrix — staged locally, saved together on Submit */}
+      <div className="px-4 md:px-6 py-4 border-b border-[#CBD5F5] space-y-3">
         <div className="flex flex-col sm:flex-row gap-2.5">
           <input value={zone} onChange={e => setZone(e.target.value.toUpperCase())} placeholder="Zone (e.g. N1)" aria-label="Zone"
             className={`${inputCls} sm:w-40`} />
@@ -610,10 +892,11 @@ function ZoneMatrixTab({ showToast }: { showToast: (t: 'success' | 'error' | 'in
               </div>
             )}
           </div>
-          <button onClick={handleSubmit} disabled={submitting} className={btnPrimary}>
+          <button onClick={handleSubmit} disabled={submitting || !matrixId} className={btnPrimary}>
             {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />} Submit
           </button>
         </div>
+        {current && <p className="text-[11px] text-[#94A3B8]">Adding to the zone matrix <span className="font-semibold text-[#475569]">{current.name}</span>. A city / state belongs to one zone per matrix.</p>}
         {staged.length > 0 && (
           <div>
             <p className="text-[11px] font-semibold text-[#64748B] mb-1.5">Locations to add ({staged.length})</p>
@@ -630,12 +913,12 @@ function ZoneMatrixTab({ showToast }: { showToast: (t: 'success' | 'error' | 'in
         )}
       </div>
 
-      {/* Zones */}
+      {/* Zones of the selected matrix */}
       <div className="px-4 md:px-6 py-4 relative min-h-[200px]">
         {loading ? <TableLoader /> : zones.length === 0 ? (
           <div className="text-center py-12">
             <MapPin className="w-8 h-8 text-[#CBD5E1] mx-auto" />
-            <p className="text-[13px] font-semibold text-[#64748B] mt-2">No zones yet</p>
+            <p className="text-[13px] font-semibold text-[#64748B] mt-2">No zones in this zone matrix yet</p>
             <p className="text-[12px] text-[#94A3B8]">Add a zone above — every pickup and delivery city / state must belong to one.</p>
           </div>
         ) : (
@@ -667,15 +950,109 @@ function ZoneMatrixTab({ showToast }: { showToast: (t: 'success' | 'error' | 'in
         )}
       </div>
 
+      {/* Which zone matrix each courier uses */}
+      <div className="px-4 md:px-6 pb-6">
+        <div className="rounded-2xl border border-[#E2E8F0] bg-white overflow-hidden">
+          <div className="px-4 py-3 border-b border-[#E2E8F0] bg-[#F8FAFC]">
+            <h3 className="text-[13px] font-bold text-[#0F172A]">Courier zone matrices</h3>
+            <p className="text-[11.5px] text-[#64748B] mt-0.5">Each courier prices B2B shipments with the zones of its zone matrix. Several couriers can share one.</p>
+          </div>
+          {courierList.length === 0 ? (
+            <p className="px-4 py-4 text-[12px] text-[#94A3B8]">No B2B couriers yet — add them under Couriers first.</p>
+          ) : (
+            <div className="divide-y divide-[#F1F5F9]">
+              {courierList.map(c => (
+                <div key={c._id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-4 py-2.5">
+                  <div className="min-w-0">
+                    <div className="text-[12.5px] font-semibold text-[#0F172A]">{c.courierName}</div>
+                    <div className="text-[11px] text-[#94A3B8]">{c.courierProvider}{c.status && c.status !== 'Enable' ? ' · disabled' : ''}</div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {assigning === c._id && <Loader2 className="w-4 h-4 animate-spin text-[#94A3B8]" />}
+                    <Select label={`Zone matrix of ${c.courierName}`} value={c.zoneMatrixId || ''} onChange={v => assign(c, v)} disabled={assigning !== null}
+                      options={matrices.map(m => ({ label: m.name, value: m._id }))} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        {ratesToUpdate && (
+          <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-[12px] font-semibold text-amber-800">
+                {ratesToUpdate.courier} now uses "{ratesToUpdate.matrix}". These rate cards have prices for zones that matrix does not have — update them in the Rate Card tab (or with Upload Rates):
+              </p>
+              <button onClick={() => setRatesToUpdate(null)} aria-label="Close" className="text-amber-700 hover:text-amber-900 shrink-0"><X className="w-4 h-4" /></button>
+            </div>
+            <ul className="mt-1.5 text-[11.5px] text-amber-800 list-disc pl-4 space-y-0.5">
+              {ratesToUpdate.cards.map((c, i) => <li key={i}>{c.plan} · {c.service}: {c.missing.join(', ')}</li>)}
+            </ul>
+          </div>
+        )}
+      </div>
+
       {zoneToDelete && (
         <ConfirmDialog
           title={`Delete zone ${zoneToDelete.zone}?`}
-          body="The zone and all its locations are removed. Rate cards keep their prices for it, but shipments from or to its cities can no longer be priced until they are mapped again."
+          body={`The zone and all its locations are removed from the zone matrix "${current?.name || ''}". Rate cards keep their prices for it, but shipments from or to its cities can no longer be priced by the couriers using this matrix until they are mapped again.`}
           confirmLabel="Delete zone"
           busy={deleting}
           onConfirm={deleteZone}
           onClose={() => setZoneToDelete(null)}
         />
+      )}
+
+      {confirmDeleteMatrix && current && (
+        <ConfirmDialog
+          title={`Delete zone matrix "${current.name}"?`}
+          body={current.couriers.length
+            ? `It is used by ${current.couriers.map(c => c.courierName).join(', ')}. Assign another zone matrix to ${current.couriers.length === 1 ? 'it' : 'them'} first.`
+            : 'The zone matrix and all its zones are deleted. No courier uses it.'}
+          confirmLabel="Delete"
+          busy={deleting}
+          onConfirm={deleteMatrix}
+          onClose={() => setConfirmDeleteMatrix(false)}
+        />
+      )}
+
+      {showNew && createPortal(
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={() => !creating && setShowNew(false)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-[15px] font-bold text-[#0F172A]">New zone matrix</h3>
+              <button onClick={() => !creating && setShowNew(false)} className="w-7 h-7 rounded-full flex items-center justify-center text-[#94A3B8] hover:bg-[#F8FAFC]" aria-label="Close"><X className="w-4 h-4" /></button>
+            </div>
+            <p className="text-[12px] font-semibold text-[#475569] mb-2">Courier</p>
+            {courierList.length ? (
+              <Select label="Courier" value={newCourier} onChange={setNewCourier}
+                options={courierList.map(c => ({ label: c.courierName === c.courierProvider ? c.courierName : `${c.courierName} (${c.courierProvider})`, value: c._id }))} />
+            ) : (
+              <p className="text-[12px] text-[#94A3B8]">No B2B couriers yet — add them under Couriers first.</p>
+            )}
+            <p className="text-[12px] font-semibold text-[#475569] mt-4 mb-2">Start with</p>
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-[12.5px] text-[#475569] cursor-pointer">
+                <input type="radio" checked={!copyFrom} onChange={() => setCopyFrom('')} className="accent-[#00A86B]" /> New zones (empty)
+              </label>
+              <label className="flex items-center gap-2 text-[12.5px] text-[#475569] cursor-pointer">
+                <input type="radio" checked={!!copyFrom} onChange={() => setCopyFrom(current?._id || matrices[0]?._id || '')} className="accent-[#00A86B]" /> Copy of an existing zone matrix
+              </label>
+              {!!copyFrom && (
+                <Select label="Copy from" value={copyFrom} onChange={setCopyFrom}
+                  options={matrices.map(m => ({ label: `${m.name} · ${m.zoneCount} zones`, value: m._id }))} />
+              )}
+            </div>
+            <p className="text-[11.5px] text-[#64748B] mt-4">
+              Name: set automatically — <span className="font-semibold text-[#0F172A]">{(courierList.find(c => c._id === newCourier)?.courierName || 'Courier')} zones</span>. The courier starts using it straight away.
+            </p>
+            <button onClick={createMatrix} disabled={creating || !newCourier} className={`${btnPrimary} w-full justify-center mt-3`}>
+              {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create zone matrix'}
+            </button>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   );

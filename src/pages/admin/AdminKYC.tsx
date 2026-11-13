@@ -17,6 +17,7 @@ import {
   type ManualKycData, type ManualStep,
 } from './kyc/manualKycData';
 import { loadDraft, SELLER_DRAFT_URL, useDraftAutosave } from './kyc/kycDraft';
+import { useDigilocker, type DigilockerPhase } from './kyc/useDigilocker';
 import { DocumentUpload, ManualAadhaarStep, ManualBankStep, ManualPanStep, ManualReviewStep, ManualStepper } from './kyc/ManualKycSteps';
 import {
   Check,
@@ -490,6 +491,7 @@ function AadhaarVerificationModal({
   sendingAadhaarOtp, aadhaarOtpTimer,
   aadhaarData,
   onSendOtp,
+  digilockerPhase, digilockerLink, onDigilocker, onDigilockerCheck, onDigilockerCancel,
   onContinue, continueLabel,
 }: {
   open: boolean;
@@ -499,6 +501,11 @@ function AadhaarVerificationModal({
   sendingAadhaarOtp: boolean; aadhaarOtpTimer: number;
   aadhaarData: { name: string; guardianName: string; address: string; state: string; city: string };
   onSendOtp: () => void;
+  digilockerPhase: DigilockerPhase;
+  digilockerLink: string;
+  onDigilocker: () => void;
+  onDigilockerCheck: () => void;
+  onDigilockerCancel: () => void;
   onContinue?: () => void;
   continueLabel?: string;
 }) {
@@ -660,36 +667,58 @@ function AadhaarVerificationModal({
                       maxLength={12}
                       value={aadhaarNumber}
                       onChange={(e) => setAadhaarNumber(e.target.value.replace(/\D/g, ''))}
-                      disabled={sendingAadhaarOtp}
+                      disabled={sendingAadhaarOtp || digilockerPhase !== 'idle'}
                       placeholder="XXXX XXXX XXXX"
                       aria-label="Aadhaar number"
                       className="w-full bg-transparent border-0 p-0 tracking-[0.2em] font-bold text-[17px] text-[#0F172A] placeholder:text-[#CBD5E1] placeholder:tracking-[0.2em] placeholder:font-bold focus:outline-none disabled:opacity-50"
                     />
                   </div>
-                  <ShineButton
-                    type="button"
-                    onClick={onSendOtp}
-                    disabled={sendingAadhaarOtp || aadhaarOtpTimer > 0 || aadhaarNumber.length < 12}
-                    className="relative w-full h-[52px] rounded-full bg-gradient-to-r from-[#00E08A] to-[#00C97B] hover:from-[#00C97B] hover:to-[#00B36D] disabled:opacity-40 disabled:pointer-events-none text-white text-[14px] font-extrabold shadow-[0_18px_45px_-14px_rgba(0,201,123,0.7)] transition-all overflow-hidden flex items-center justify-center gap-2"
-                  >
-                    {sendingAadhaarOtp ? (
-                      <>
-                        <ScanLine className="w-4 h-4" />
-                        Sending OTP
-                        {!prefersReducedMotion && (
-                          <motion.span
-                            className="absolute inset-y-0 left-0 w-1/3 bg-black/10"
-                            animate={{ x: ['-100%', '300%'] }}
-                            transition={{ duration: 1.1, repeat: Infinity, ease: 'linear' }}
-                          />
+
+                  {digilockerPhase === 'waiting' ? (
+                    <div className="rounded-[16px] bg-white/95 p-4 text-center shadow-[0_18px_45px_-14px_rgba(0,0,0,0.5)]">
+                      <p className="flex items-center justify-center gap-2 text-[14px] font-bold text-[#0F172A]">
+                        <motion.span
+                          className="inline-block w-3 h-3 rounded-full border-2 border-[#00C97B] border-t-transparent"
+                          animate={prefersReducedMotion ? undefined : { rotate: 360 }}
+                          transition={{ duration: 0.9, repeat: Infinity, ease: 'linear' }}
+                        />
+                        Waiting for DigiLocker…
+                      </p>
+                      <p className="mt-1.5 text-[12.5px] leading-relaxed text-[#475569]">
+                        Log in to DigiLocker in the new window and click <b>Allow</b> to share your Aadhaar. This page updates by itself.
+                      </p>
+                      <div className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[12.5px] font-bold">
+                        {digilockerLink && (
+                          <a href={digilockerLink} target="_blank" rel="noopener" className="text-[#00A86B] hover:underline">Open DigiLocker again</a>
                         )}
-                      </>
-                    ) : aadhaarOtpTimer > 0 ? (
-                      `Resend in ${aadhaarOtpTimer}s`
-                    ) : (
-                      'Send OTP to Verify'
-                    )}
-                  </ShineButton>
+                        <button type="button" onClick={onDigilockerCheck} className="text-[#00A86B] hover:underline">I have finished</button>
+                        <button type="button" onClick={onDigilockerCancel} className="text-[#64748B] hover:underline">Cancel</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <ShineButton
+                        type="button"
+                        onClick={onDigilocker}
+                        disabled={digilockerPhase !== 'idle' || sendingAadhaarOtp || aadhaarNumber.length < 12}
+                        className="relative w-full h-[52px] rounded-full bg-gradient-to-r from-[#00E08A] to-[#00C97B] hover:from-[#00C97B] hover:to-[#00B36D] disabled:opacity-40 disabled:pointer-events-none text-white text-[14px] font-extrabold shadow-[0_18px_45px_-14px_rgba(0,201,123,0.7)] transition-all overflow-hidden flex items-center justify-center gap-2"
+                      >
+                        <ScanLine className="w-4 h-4" />
+                        {digilockerPhase === 'starting' ? 'Opening DigiLocker…' : 'Verify with DigiLocker'}
+                      </ShineButton>
+                      <button
+                        type="button"
+                        onClick={onSendOtp}
+                        disabled={digilockerPhase !== 'idle' || sendingAadhaarOtp || aadhaarOtpTimer > 0 || aadhaarNumber.length < 12}
+                        className="w-full h-11 rounded-full border border-white/30 bg-white/10 hover:bg-white/20 disabled:opacity-40 disabled:pointer-events-none text-white text-[13px] font-bold transition-colors"
+                      >
+                        {sendingAadhaarOtp ? 'Sending OTP…' : aadhaarOtpTimer > 0 ? `Resend OTP in ${aadhaarOtpTimer}s` : 'Verify with OTP instead'}
+                      </button>
+                      <p className="text-center text-[11.5px] text-white/60">
+                        DigiLocker is quicker and works even when the Aadhaar OTP does not arrive.
+                      </p>
+                    </>
+                  )}
                 </div>
               )}
 
@@ -1735,6 +1764,32 @@ export function AdminKYC({ embedded = false }: { embedded?: boolean } = {}) {
     }
   };
 
+  // Aadhaar through DigiLocker: the main way (the OTP above is kept as the fallback)
+  const aadhaarDigilocker = useDigilocker({
+    startUrl: '/merchant/verfication/digilocker/start',
+    statusUrl: '/merchant/verfication/digilocker/status',
+    onVerified: (body) => {
+      const d = body?.data || {};
+      setIsAadhaarVerified(true);
+      setAadhaarData({ name: d.name || '', guardianName: d.sonOf || '', address: d.address || '', state: d.state || '', city: d.city || '' });
+      showToast('success', body?.alreadyVerified ? 'Aadhaar already verified' : 'Aadhaar verified through DigiLocker!');
+      refreshEditsLeft();
+    },
+    onFailed: (message) => showToast('error', message),
+  });
+
+  const startAadhaarDigilocker = async () => {
+    if (aadhaarNumber.length < 12) return;
+    if (KYC_USE_MOCK_API) {
+      await mockDelay(900);
+      setIsAadhaarVerified(true);
+      setAadhaarData({ name: 'Test User (Dev Mode)', guardianName: 'Dev Guardian', address: '123 Mock Street, Sample Layout', state: 'KARNATAKA', city: 'BENGALURU' });
+      showToast('success', 'Aadhaar verified through DigiLocker! (mock)');
+      return;
+    }
+    void aadhaarDigilocker.start(aadhaarNumber);
+  };
+
   const handleVerifyBank = async () => {
     if (!accountNumber || !ifscCode || ifscCode.length < 11) return;
     if (!accountNumbersMatch) {
@@ -2630,6 +2685,11 @@ export function AdminKYC({ embedded = false }: { embedded?: boolean } = {}) {
           aadhaarOtpTimer={aadhaarOtpTimer}
           aadhaarData={aadhaarData}
           onSendOtp={sendAadhaarOtpAndOpen}
+          digilockerPhase={aadhaarDigilocker.phase}
+          digilockerLink={aadhaarDigilocker.link}
+          onDigilocker={startAadhaarDigilocker}
+          onDigilockerCheck={() => void aadhaarDigilocker.checkNow()}
+          onDigilockerCancel={aadhaarDigilocker.cancel}
           onContinue={afterAadhaar}
           continueLabel={!isBankVerified ? 'Continue to Bank Details' : 'Back to Review & Submit'}
         />

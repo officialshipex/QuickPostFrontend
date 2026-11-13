@@ -16,6 +16,8 @@ interface AddServiceModalProps {
 const DTDC_SERVICES = ['B2C SMART EXPRESS', 'B2C PRIORITY', 'B2C GROUND ECONOMY'];
 const DELHIVERY_B2B_SERVICES = ['Delhivery-surface', 'Delhivery-air'];
 const GATI_B2B_SERVICES = ['Gati-surface', 'Gati-air'];
+// B2C Gati books surface or air (its prodServCode); pick the one matching the service's mode
+const GATI_B2C_SERVICES = ['Gati Surface', 'Gati Air'];
 
 export function AddServiceModal({ isOpen, onClose, courier, onSuccess, editData, cargo = false }: AddServiceModalProps) {
   const [courier_field, setCourierField] = useState('');
@@ -105,6 +107,8 @@ export function AddServiceModal({ isOpen, onClose, courier, onSuccess, editData,
         setProviderServices(res.data || []);
       } else if (p === 'dtdc') {
         setProviderServices(DTDC_SERVICES.map(s => ({ service: s })));
+      } else if (p === 'gati') {
+        setProviderServices(GATI_B2C_SERVICES.map(s => ({ service: s })));
       }
     } catch {
       // If API fails, fall back to empty (user can still type name manually)

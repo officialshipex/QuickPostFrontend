@@ -5,6 +5,8 @@ import { X, Key, Mail, User, Clock, ShieldCheck, ArrowRight, Hash, IndianRupee, 
 interface Courier {
   _id: string;
   name: string;
+  /** the account's courier type ("Gati"); `name` is the account's own name, which may be anything */
+  courierProvider?: string;
   logo: string;
   email?: string;
   apiKey?: string;
@@ -25,6 +27,7 @@ interface Courier {
   customerCode?: string;
   encryptedCustCode?: string;
   goodsCode?: string;
+  trackingToken?: string;
 }
 
 interface ConfigureCourierModalProps {
@@ -49,7 +52,10 @@ const B2B_FIELDS = [
   { id: 'customerCode', label: 'Customer Code', type: 'text', placeholder: '8-digit Gati customer code', icon: Hash },
   { id: 'encryptedCustCode', label: 'Encrypted Customer Code', type: 'text', placeholder: 'Encrypted customer code issued by Gati', icon: Key },
   { id: 'goodsCode', label: 'Default Goods Code (optional)', type: 'text', placeholder: 'Auto-detected from products; else this, else 401', icon: Hash },
+  { id: 'trackingToken', label: 'Tracking Token', type: 'text', placeholder: 'Security token for tracking (16 characters)', icon: Key },
 ];
+
+const isGatiAccount = (c: Courier) => /^\s*gati\s*$/i.test(c.courierProvider || '');
 
 const getFieldsForCourier = (name: string, cargo = false) => {
   if (cargo) return B2B_FIELDS;
@@ -61,6 +67,17 @@ const getFieldsForCourier = (name: string, cargo = false) => {
     { id: 'liabilityPercent', label: 'Liability %', type: 'number', placeholder: 'e.g. 70', icon: Percent },
   ];
 
+  if (n === 'gati') {
+    return [
+      ...defaultFields,
+      { id: 'username', label: 'User', type: 'text', placeholder: 'Gati API Username', icon: User },
+      { id: 'password', label: 'Password', type: 'password', placeholder: 'Leave blank to keep unchanged', icon: ShieldCheck },
+      { id: 'customerCode', label: 'Customer Code', type: 'text', placeholder: '8-digit Gati customer code', icon: Hash },
+      { id: 'encryptedCustCode', label: 'Encrypted Customer Code', type: 'text', placeholder: 'Encrypted customer code issued by Gati', icon: Key },
+      { id: 'goodsCode', label: 'Default Goods Code (optional)', type: 'text', placeholder: 'Auto-detected from products; else this, else 401', icon: Hash },
+      { id: 'trackingToken', label: 'Tracking Token', type: 'text', placeholder: 'Security token for tracking (16 characters)', icon: Key },
+    ];
+  }
   if (['delhivery', 'shadowfax', 'amazon shipping'].includes(n)) {
     return [
       ...defaultFields,
@@ -130,7 +147,7 @@ export function ConfigureCourierModal({ isOpen, onClose, courier, onSave, cargo 
         carrierId: courier.carrierId || '',
         carrierName: courier.carrierName || '',
         channelId: courier.channelId || '',
-        ...(cargo ? {
+        ...(cargo || isGatiAccount(courier) ? {
           username: courier.username || '',
           clientId: courier.clientId || '',
           refreshToken: courier.refreshToken || '',
@@ -138,6 +155,7 @@ export function ConfigureCourierModal({ isOpen, onClose, courier, onSave, cargo 
           customerCode: courier.customerCode || '',
           encryptedCustCode: courier.encryptedCustCode || '',
           goodsCode: courier.goodsCode || '',
+          trackingToken: courier.trackingToken || '',
         } : {}),
       });
     }
@@ -145,7 +163,8 @@ export function ConfigureCourierModal({ isOpen, onClose, courier, onSave, cargo 
 
   if (!courier) return null;
 
-  const fields = getFieldsForCourier(courier.name, cargo).filter((f) => f.id in courier);
+  // B2C fields follow the account's courier type when known (a Gati account may be named "Gati Main")
+  const fields = getFieldsForCourier(isGatiAccount(courier) ? 'gati' : courier.name, cargo).filter((f) => f.id in courier);
 
   const handleConnect = async () => {
     setSaving(true);

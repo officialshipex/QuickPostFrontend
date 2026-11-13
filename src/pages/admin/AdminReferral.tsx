@@ -269,6 +269,7 @@ export function AdminReferral() {
   // Bulk actions dropdown
   const [actionOpen, setActionOpen] = useState(false);
   const actionRef = useRef<HTMLDivElement>(null);
+  const actionRefDesktop = useRef<HTMLDivElement>(null); // the desktop copy of the same menu (a ref can only point at one element)
 
   // Per-row actions dropdown ("..." menu)
   const [rowActionOpenId, setRowActionOpenId] = useState<string | null>(null);
@@ -343,7 +344,7 @@ export function AdminReferral() {
   // Close bulk actions dropdown on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (actionRef.current && !actionRef.current.contains(e.target as Node)) setActionOpen(false);
+      if (![actionRef, actionRefDesktop].some((r) => r.current && r.current.contains(e.target as Node))) setActionOpen(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
@@ -713,7 +714,7 @@ export function AdminReferral() {
             )}
 
             {/* Bulk Actions Dropdown */}
-            <div className="relative shrink-0 ml-auto" ref={actionRef}>
+            <div className="relative shrink-0 ml-auto" ref={actionRefDesktop}>
               <button
                 onClick={() => setActionOpen(v => !v)}
                 className={`py-2 px-4 rounded-[32px] border text-xs leading-[18px] flex items-center gap-1.5 font-medium transition-colors ${

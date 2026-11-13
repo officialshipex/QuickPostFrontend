@@ -8,8 +8,9 @@ import { AnimatePresence, motion } from 'framer-motion';
 import {
   Bell, MessageSquare, Smartphone, Mail, History,
   RefreshCw, CreditCard, X, Send, Search,
-  AlertTriangle, CheckCircle, Plus, PhoneCall, Copy, Filter, Users,
+  AlertTriangle, CheckCircle, Plus, PhoneCall, Copy, Filter, Users, CalendarClock,
 } from 'lucide-react';
+import { ScheduleEmailModal } from './ScheduleEmailModal';
 import { MobilePaginationBar } from '../../hooks/useMobilePaginationBar';
 import { Toast } from '../../components/ui/Toast';
 import { useToast } from '../../hooks/useToast';
@@ -1562,6 +1563,7 @@ export function AdminNotification() {
   const [buyOpen, setBuyOpen] = useState(false);
   const [alertOpen, setAlertOpen] = useState(false);
   const [bulkNotifyOpen, setBulkNotifyOpen] = useState(false);
+  const [scheduleEmailOpen, setScheduleEmailOpen] = useState(false);
   const { toast, showToast: _pageShowToast, closeToast: closePageToast } = useToast();
   const showToast = (t: string) => _pageShowToast('success', t);
 
@@ -1695,6 +1697,12 @@ export function AdminNotification() {
                 <button onClick={() => setBulkNotifyOpen(true)} title="Bulk Notify"
                   className="h-8 w-8 md:h-9 md:w-auto md:px-4 rounded-xl border border-[#00A86B] text-[#00A86B] text-xs font-bold hover:bg-[#F0FDF4] transition-colors flex items-center justify-center gap-1.5 shrink-0">
                   <Users className="w-3.5 h-3.5" /> <span className="hidden md:inline">Bulk Notify</span>
+                </button>
+              )}
+              {isAdminView && (
+                <button onClick={() => setScheduleEmailOpen(true)} title="Schedule Email"
+                  className="h-8 w-8 md:h-9 md:w-auto md:px-4 rounded-xl border border-[#00A86B] text-[#00A86B] text-xs font-bold hover:bg-[#F0FDF4] transition-colors flex items-center justify-center gap-1.5 shrink-0">
+                  <CalendarClock className="w-3.5 h-3.5" /> <span className="hidden md:inline">Schedule Email</span>
                 </button>
               )}
             </div>
@@ -1865,6 +1873,11 @@ export function AdminNotification() {
         <AnimatePresence>
           {bulkNotifyOpen && (
             <BulkNotifyModal open onClose={() => setBulkNotifyOpen(false)} />
+          )}
+        </AnimatePresence>
+        <AnimatePresence>
+          {scheduleEmailOpen && (
+            <ScheduleEmailModal onClose={() => setScheduleEmailOpen(false)} />
           )}
         </AnimatePresence>
 

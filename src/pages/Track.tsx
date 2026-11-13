@@ -399,7 +399,12 @@ function RoutePreview({ pickup, destination }: { pickup: string; destination: st
   );
 }
 
-export function Track() {
+/**
+ * Public tracking page. Shareable addresses: /track/<AWB> (what the email / SMS / WhatsApp links use) and
+ * /track?order=<order id>; /track?awb=<AWB> still works. `pathAwb` is the <AWB> of /track/<AWB>, handed over by
+ * BrandedTrackingPublicPage when that path is not a seller's branded page.
+ */
+export function Track({ pathAwb }: { pathAwb?: string } = {}) {
   const navigate = useNavigate();
   const [searchMode, setSearchMode] = useState<'order' | 'awb'>('awb');
   const [query, setQuery] = useState('');
@@ -410,7 +415,8 @@ export function Track() {
   const [showAllEvents, setShowAllEvents] = useState(false);
   const resultRef = useRef<HTMLDivElement>(null);
 
-  const runSearch = async (value: string) => {
+  const runSearch = async (value: string, mode: 'order' | 'awb' = searchMode) => {
+    const searchMode = mode;
     if (!value.trim()) {
       setError(`Please enter a valid ${searchMode === 'awb' ? 'AWB number' : 'Order ID'}.`);
       return;
@@ -433,6 +439,11 @@ export function Track() {
         : `/orders/GetTrackingByAwb/${encodeURIComponent(value.trim())}`;
       const res = await apiClient.get(endpoint);
       setResult(mapApiToResult(res.data, value.trim()));
+      // Put what was found in the address bar so the page can be shared / reloaded. replaceState (not navigate):
+      // /track/<AWB> is a different route, and navigating there would reload this page and search again.
+      const v = encodeURIComponent(value.trim());
+      const url = searchMode === 'awb' ? `/track/${v}` : `/track?order=${v}`;
+      if (window.location.pathname + window.location.search !== url) window.history.replaceState(window.history.state, '', url);
       setTimeout(() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
     } catch (err: any) {
       setError(err?.response?.status === 404 ? 'Order not found. Please check and try again.' : 'Failed to fetch tracking info. Please try again.');
@@ -441,17 +452,18 @@ export function Track() {
     }
   };
 
-  // Deep link from the landing page's tracking dock: /track?awb=… or /track?order=… searches straight away.
+  // Deep links search straight away: /track/<AWB> (email / SMS / WhatsApp), /track?awb=… or /track?order=…
+  // (landing page's tracking dock).
   const [searchParams] = useSearchParams();
   const [pendingSearch, setPendingSearch] = useState<string | null>(null);
   useEffect(() => {
-    const awb = searchParams.get('awb'), order = searchParams.get('order');
+    const awb = searchParams.get('awb') || pathAwb, order = searchParams.get('order');
     const v = (awb || order || '').trim();
     if (!v) return;
     setSearchMode(awb ? 'awb' : 'order');
     setQuery(v);
     setPendingSearch(v);
-  }, [searchParams]);
+  }, [searchParams, pathAwb]);
   useEffect(() => {
     if (!pendingSearch) return;
     setPendingSearch(null);
