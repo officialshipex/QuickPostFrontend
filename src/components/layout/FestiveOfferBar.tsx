@@ -8,6 +8,8 @@ import { ArrowRight, X } from 'lucide-react';
    skips straight to the line. */
 
 export const FESTIVE_BAR_HEIGHT = 76;
+/** Desktop: one line, so the strip is shorter. */
+export const FESTIVE_BAR_HEIGHT_DESKTOP = 52;
 const INTRO_MS = 2200;
 const MESSAGE_MS = 4000;
 
@@ -78,8 +80,21 @@ function Crackers({ intro }: { intro: boolean }) {
   return <canvas ref={ref} aria-hidden className="absolute inset-0 w-full h-full pointer-events-none" />;
 }
 
+function useIsDesktop() {
+  const q = '(min-width: 768px)';
+  const [is, setIs] = useState(() => typeof window !== 'undefined' && window.matchMedia(q).matches);
+  useEffect(() => {
+    const m = window.matchMedia(q);
+    const on = () => setIs(m.matches);
+    m.addEventListener('change', on);
+    return () => m.removeEventListener('change', on);
+  }, []);
+  return is;
+}
+
 export function FestiveOfferBar({ hidden, onClose }: { hidden: boolean; onClose: () => void }) {
   const reduced = useReducedMotion() ?? false;
+  const desktop = useIsDesktop();
   const [intro, setIntro] = useState(!reduced);
   useEffect(() => {
     if (!intro) return;
@@ -97,14 +112,14 @@ export function FestiveOfferBar({ hidden, onClose }: { hidden: boolean; onClose:
 
   return (
     <motion.div
-      className="md:hidden relative overflow-hidden bg-[#0B1F4D]"
+      className="relative overflow-hidden bg-[#0B1F4D]"
       initial={false}
-      animate={{ height: hidden ? 0 : FESTIVE_BAR_HEIGHT }}
+      animate={{ height: hidden ? 0 : desktop ? FESTIVE_BAR_HEIGHT_DESKTOP : FESTIVE_BAR_HEIGHT }}
       transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
       role="region"
       aria-label="Offers"
     >
-      <div className="relative h-[76px]" style={{ fontFamily: 'Roboto, sans-serif' }}>
+      <div className="relative h-[76px] md:h-[52px]" style={{ fontFamily: 'Roboto, sans-serif' }}>
         {/* Blooming warm light */}
         {!reduced && (
           <motion.div
@@ -117,6 +132,56 @@ export function FestiveOfferBar({ hidden, onClose }: { hidden: boolean; onClose:
         )}
         {!reduced && <Crackers intro={intro} />}
 
+        {desktop ? (
+        <>
+        <AnimatePresence>
+          {!intro && (
+            <motion.div
+              className="relative h-full max-w-7xl mx-auto flex items-center justify-center gap-5 px-12"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+            >
+              <div className="relative h-full min-w-0 overflow-hidden flex items-center">
+                <AnimatePresence mode="wait" initial={false}>
+                  {msg === 0 ? (
+                    <motion.p
+                      key="diwali"
+                      className="whitespace-nowrap text-[14.5px] text-white/95"
+                      initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }}
+                      transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                    >
+                      <span className="font-extrabold text-[#FBBF24]">Is Diwali, sirf ghar nahi.</span>
+                      <span className="mx-2.5 text-white/30">|</span>
+                      Shipping bhi sorted rakho. 🪔
+                    </motion.p>
+                  ) : (
+                    <motion.p
+                      key="vas"
+                      className="whitespace-nowrap text-[14.5px] text-white/95"
+                      initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }}
+                      transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                    >
+                      <span className="font-extrabold text-[#FBBF24]">VAS ke bhi paise? Seriously? 👀</span>
+                      <span className="mx-2.5 text-white/30">|</span>
+                      QuickPost pe toh <span className="font-bold text-white">FREE</span> hai! 💚
+                      <span className="ml-2 align-super text-[9px] text-white/50 tracking-wide">*T&amp;C Apply.</span>
+                    </motion.p>
+                  )}
+                </AnimatePresence>
+              </div>
+              <Link
+                to="/#signup"
+                className="shrink-0 h-8 px-4 rounded-full bg-gradient-to-b from-[#FBBF24] to-[#F59E0B] text-[#0B1F4D] text-[12.5px] font-bold inline-flex items-center gap-1 shadow-[0_6px_16px_-6px_rgba(245,158,11,0.7)] hover:brightness-105 transition"
+              >
+                Get Started <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            </motion.div>
+          )}
+        </AnimatePresence>
+        </>
+        ) : (
+        <>
         <AnimatePresence>
           {!intro && (
             <motion.div
@@ -160,6 +225,8 @@ export function FestiveOfferBar({ hidden, onClose }: { hidden: boolean; onClose:
             </motion.div>
           )}
         </AnimatePresence>
+        </>
+        )}
 
         <button type="button" onClick={onClose} aria-label="Close offer" className="absolute right-0.5 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center text-white/55 active:text-white">
           <X className="w-4 h-4" />

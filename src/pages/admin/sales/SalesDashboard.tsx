@@ -260,10 +260,10 @@ function JunkBoxDialog({ leads, onRestore, onRestoreAll, onClose }: { leads: Sal
   );
 }
 
-function PriorityQueue({ calls, onUpdate, onViewAll, readOnly }: { calls: SalesCall[]; onUpdate: (c: SalesCall) => void; onViewAll: () => void; readOnly?: boolean }) {
+function PriorityQueue({ calls, onUpdate, onViewAll, readOnly, from, to, rangeLabel }: { calls: SalesCall[]; onUpdate: (c: SalesCall) => void; onViewAll: () => void; readOnly?: boolean; from: string; to: string; rangeLabel: string }) {
   const [bucket, setBucket] = useState<'all' | DueBucket>('all');
   const [stage, setStage] = useState<'all' | LeadStage>('all');
-  const [sort, setSort] = useState<'urgency' | 'priority' | 'name'>('urgency');
+  const [sort, setSort] = useState<'latest' | 'urgency' | 'priority' | 'name'>('latest');
   const [query, setQuery] = useState('');
   const [expanded, setExpanded] = useState(false);
   const junk = useJunk();
@@ -287,15 +287,17 @@ function PriorityQueue({ calls, onUpdate, onViewAll, readOnly }: { calls: SalesC
     const BUCKET_RANK: Record<DueBucket, number> = { overdue: 0, today: 1, upcoming: 2, none: 3 };
     const time = (iso?: string) => (iso ? new Date(iso).getTime() : Infinity);
     return open
+      .filter(r => sort !== 'latest' || (!!r.c.assignedAt && r.c.assignedAt >= from && r.c.assignedAt <= to))
       .filter(r => (bucket === 'all' || r.due.bucket === bucket) && (stage === 'all' || r.stage === stage)
         && (!ql || [r.c.leadName, r.c.businessName, r.c.city, r.c.category, r.c.phone, r.c.lastNote].some(v => (v || '').toLowerCase().includes(ql))))
       .sort((a, b) => {
+        if (sort === 'latest') return (b.c.assignedAt ? new Date(b.c.assignedAt).getTime() : 0) - (a.c.assignedAt ? new Date(a.c.assignedAt).getTime() : 0);
         if (sort === 'name') return (a.c.businessName || a.c.leadName).localeCompare(b.c.businessName || b.c.leadName);
         const pa = PRIORITY_RANK[a.c.priority || 'medium'], pb = PRIORITY_RANK[b.c.priority || 'medium'];
         if (sort === 'priority' && pa !== pb) return pa - pb;
         return BUCKET_RANK[a.due.bucket] - BUCKET_RANK[b.due.bucket] || time(a.c.followUpAt) - time(b.c.followUpAt) || pa - pb;
       });
-  }, [open, bucket, stage, sort, query]);
+  }, [open, bucket, stage, sort, query, from, to]);
   const shown = expanded ? rows : rows.slice(0, 6);
 
   const chips: { key: 'all' | DueBucket; label: string; dot?: string }[] = [
@@ -335,6 +337,7 @@ function PriorityQueue({ calls, onUpdate, onViewAll, readOnly }: { calls: SalesC
         <div className="flex items-center justify-between md:justify-start gap-3 w-full md:w-auto">
           <div className="relative">
             <select value={sort} onChange={e => setSort(e.target.value as typeof sort)} className={select} aria-label="Sort queue">
+              <option value="latest">Latest leads ({rangeLabel.toLowerCase()})</option>
               <option value="urgency">Sorted by urgency</option>
               <option value="priority">Sorted by priority</option>
               <option value="name">Sorted by name</option>
@@ -379,7 +382,7 @@ function PriorityQueue({ calls, onUpdate, onViewAll, readOnly }: { calls: SalesC
 
       {rows.length === 0 ? (
         <div className="border-t border-[#F1F5F9]">
-          <Empty icon={PhoneCall} title={open.length ? 'Nothing matches these filters' : 'Your queue is clear'}
+          <Empty icon={PhoneCall} title={sort === 'latest' && open.length ? `No new leads ${rangeLabel.toLowerCase()}` : open.length ? 'Nothing matches these filters' : 'Your queue is clear'}
             body={open.length ? 'Try another due filter, stage or search.' : 'Assigned leads and follow-ups will be ranked here by urgency.'} />
         </div>
       ) : (
@@ -750,7 +753,19 @@ function SalesDashboardBody({ viewAs }: { viewAs?: { id: string; name: string } 
   const { toast, showToast, closeToast } = useToast();
   const [tab, setTab] = useState<Tab>('overview');
   // Date range comes from the navbar date filter (shared dashboard filter).
-  const { filters } = useDashboardFilters();
+  const { filters, setFilters } = useDashboardFilters();
+  // The Sales dashboard opens on Today; the range the user had before is put back when they leave.
+  useEffect(() => {
+    let previous: typeof filters.dateRange | null = null;
+    setFilters(f => {
+      previous = f.dateRange;
+      const start = new Date(); start.setHours(0, 0, 0, 0);
+      const end = new Date(); end.setHours(23, 59, 59, 999);
+      return { ...f, dateRange: { start, end, label: 'Today' } };
+    });
+    return () => { if (previous) { const p = previous; setFilters(f => ({ ...f, dateRange: p })); } };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const fromISO = filters.dateRange.start.toISOString();
   const toISO = filters.dateRange.end.toISOString();
   const [loading, setLoading] = useState(true);
@@ -919,7 +934,7 @@ function SalesDashboardBody({ viewAs }: { viewAs?: { id: string; name: string } 
 
                 <SellerFunnel funnel={ov.funnel} rangeLabel={rangeLabel} />
 
-                {!isSalesAdmin && <PriorityQueue calls={calls} readOnly={!canAct} onUpdate={setEditing} onViewAll={() => { setTab('calls'); setCallFilter('all'); }} />}
+                {!isSalesAdmin && <PriorityQueue calls={calls} from={fromISO} to={toISO} rangeLabel={rangeLabel} readOnly={!canAct} onUpdate={setEditing} onViewAll={() => { setTab('calls'); setCallFilter('all'); }} />}
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-5 items-start">
                   {/* Targets */}

@@ -39,7 +39,7 @@ function MobileFooter() {
     </div>
   );
   return (
-    <div className="md:hidden bg-[#0D1F1A] px-6 pt-12 pb-[max(1.75rem,env(safe-area-inset-bottom))]">
+    <div className="md:hidden bg-[#0A0F0D] rounded-t-[32px] px-6 pt-12 pb-[max(1.75rem,env(safe-area-inset-bottom))]">
       <img src="/logo-white.png" alt="QuickPost" className="h-[64px] w-auto object-contain scale-[1.5] origin-left" />
       <p className="mt-5 text-[15.5px] text-white/70 leading-[1.75]">
         QuickPost is a multi-courier shipping platform built for Indian eCommerce. Compare live rates across leading couriers,
@@ -123,7 +123,7 @@ export function Footer({ hideCta = false }: { hideCta?: boolean }) {
   }, []);
 
   return (
-    <footer ref={footerRef} className="overflow-hidden" style={{ fontFamily: 'Roboto, sans-serif' }}>
+    <footer ref={footerRef} className="overflow-hidden bg-transparent" style={{ fontFamily: 'Roboto, sans-serif' }}>
       
       {/* ================= ZONE 1: CTA STRIP ================= */}
       {!hideCta && <div className="bg-[#1D9E75] footer-zone-1 relative z-10 border-b border-white/15">
@@ -153,125 +153,69 @@ export function Footer({ hideCta = false }: { hideCta?: boolean }) {
       {/* ================= ZONE 2: MAIN FOOTER COLUMNS ================= */}
       <MobileFooter />
 
-      <div className="hidden md:block bg-[#0D1F1A] footer-zone-2">
-        <div className="max-w-[1200px] mx-auto px-5 md:px-0 pt-[36px] pb-[28px] md:pt-[64px] md:pb-[48px]">
-          
-          {/* Grid Layout */}
-          <div className="grid grid-cols-2 md:grid-cols-[30%_1fr_1fr_1fr] gap-x-[20px] gap-y-[28px] md:gap-[40px]">
+      <div className="hidden md:block bg-[#0A0F0D] rounded-t-[40px] footer-zone-2">
+        <div className="max-w-[1240px] mx-auto px-10 pt-[72px] pb-[56px]">
+          <div className="grid grid-cols-[1.35fr_1fr_1fr_1fr] gap-12">
 
-            {/* COLUMN 1: BRAND */}
-            <div className="footer-col col-span-2 md:col-span-1 mb-2 md:mb-0 text-center md:text-left flex flex-col items-center md:items-start">
-              <img
-                src="/logo-color.png"
-                alt="QuickPost"
-                className="h-[28px] md:h-[32px] mb-[16px] brightness-0 invert"
-                onError={(e) => { e.currentTarget.style.display='none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }}
-              />
-              <span className="hidden text-white font-bold text-2xl mb-[16px] block tracking-tight">QuickPost</span>
-
-              <p className="text-[13px] md:text-[14px] font-normal text-white/55 leading-[1.6] max-w-[220px] mb-[24px]">
-                Shipping infrastructure for India's growing brands.
+            {/* Brand + reach us */}
+            <div className="footer-col">
+              <img src="/logo-white.png" alt="QuickPost" className="h-[56px] w-auto object-contain scale-[1.45] origin-left" />
+              <p className="mt-5 max-w-[300px] text-[14px] leading-[1.7] text-white/60">
+                Multi-courier shipping for Indian eCommerce, from booking to COD remittance, in one dashboard.
               </p>
-
-              <div className="flex flex-row gap-[10px]">
+              <div className="mt-6 flex items-center gap-2.5">
                 {[IconLinkedIn, IconInstagram, IconX, IconYouTube].map((Icon, idx) => (
-                  <span key={idx} className="w-[36px] h-[36px] rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white/60 cursor-default">
+                  <span key={idx} className="w-10 h-10 rounded-full bg-white text-[#0A0F0D] flex items-center justify-center transition-transform duration-200 hover:-translate-y-0.5">
                     <Icon />
                   </span>
                 ))}
               </div>
 
-              {/* Contact Nudge */}
-              <div className="mt-[28px]">
-                <div className="flex flex-row items-center gap-[8px] mb-[10px]">
-                  <IconMail />
-                  <span className="text-[13px] font-normal text-white/55">support@quickpost.in</span>
-                </div>
-                <div className="flex flex-row items-center gap-[8px]">
-                  <IconClock />
-                  <span className="text-[13px] font-normal text-white/55">Mon–Sat, 9am–7pm IST</span>
-                </div>
-              </div>
+              <h4 className="mt-10 text-[20px] font-semibold text-white">Reach Us At</h4>
+              <ul className="mt-4 space-y-3.5">
+                <li>
+                  <a href="mailto:support@quickpost.in" className="group flex items-center gap-3 text-[15px] text-white/80 hover:text-white">
+                    <span className="w-8 h-8 rounded-lg bg-white/[0.06] flex items-center justify-center shrink-0"><IconMail size={16} color="#FFFFFF" /></span>
+                    support@quickpost.in
+                  </a>
+                </li>
+                <li className="flex items-center gap-3 text-[15px] text-white/80">
+                  <span className="w-8 h-8 rounded-lg bg-white/[0.06] flex items-center justify-center shrink-0"><IconClock size={16} color="#FFFFFF" /></span>
+                  Mon–Sat, 9am–7pm IST
+                </li>
+              </ul>
             </div>
 
-            {/* COLUMN 2: PRODUCT */}
-            <div className="footer-col flex flex-col col-span-1">
-              <h4 className="text-[12px] font-medium uppercase tracking-[0.1em] text-white/35 mb-[20px] m-0">Product</h4>
-              <div className="flex flex-col gap-[12px]">
-                {['Order Management', 'Rate Calculator', 'Courier Comparison', 'NDR Management', 'COD Remittance', 'Tracking Page'].map((link) => (
-                  <span key={link} className="text-[14px] font-normal text-white/65 cursor-default">
-                    {link}
-                  </span>
-                ))}
+            {/* Link groups */}
+            {FOOTER_GROUPS.map(g => (
+              <div key={g.title} className="footer-col">
+                <h4 className="text-[20px] font-semibold text-white">{g.title}</h4>
+                <ul className="mt-5 space-y-3.5">
+                  {g.links.map(l => (
+                    <li key={l.label}>
+                      {l.to ? (
+                        <Link to={l.to} className="relative text-[15px] text-white/75 hover:text-white transition-colors after:absolute after:left-0 after:-bottom-0.5 after:h-px after:w-0 after:bg-[#34D399] after:transition-all hover:after:w-full">{l.label}</Link>
+                      ) : (
+                        <span className="text-[15px] text-white/75">{l.label}</span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
               </div>
-            </div>
-
-            {/* COLUMN 3: COMPANY */}
-            <div className="footer-col flex flex-col col-span-1">
-              <h4 className="text-[12px] font-medium uppercase tracking-[0.1em] text-white/35 mb-[20px] m-0">Company</h4>
-              <div className="flex flex-col gap-[12px]">
-                {['About Us', 'Careers', 'Partner Program', 'Contact Us'].map((link) => (
-                  link === 'Careers' ? (
-                    <Link key={link} to="/careers" className="text-[14px] font-normal text-white/65 hover:text-white transition-colors">
-                      {link}
-                    </Link>
-                  ) : (
-                    <span key={link} className="text-[14px] font-normal text-white/65 cursor-default">
-                      {link}
-                    </span>
-                  )
-                ))}
-              </div>
-            </div>
-
-            {/* COLUMN 4: INTEGRATIONS */}
-            <div className="footer-col flex flex-col col-span-2 md:col-span-1 mt-4 md:mt-0">
-              <h4 className="text-[12px] font-medium uppercase tracking-[0.1em] text-white/35 mb-[20px] m-0">Integrations</h4>
-              <div className="flex flex-col gap-[12px]">
-                {['Shopify', 'WooCommerce', 'API Documentation'].map((link) => (
-                  <span key={link} className="text-[14px] font-normal text-white/65 cursor-default">
-                    {link}
-                  </span>
-                ))}
-              </div>
-            </div>
-
+            ))}
           </div>
         </div>
 
-        {/* Divider above Zone 3 */}
-        <div className="w-full max-w-[1200px] mx-auto border-t border-white/5"></div>
-
-        {/* ================= ZONE 3: BOTTOM BAR ================= */}
-        <div className="footer-zone-3 max-w-[1200px] mx-auto px-5 md:px-0 py-[20px] flex flex-col md:flex-row justify-between items-center gap-4 md:gap-0">
-          
-          <div className="text-[13px] font-normal text-white/35 text-center md:text-left">
-            © 2026 Quickpost. All rights reserved.
+        {/* Bottom bar */}
+        <div className="footer-zone-3 border-t border-white/10">
+          <div className="max-w-[1240px] mx-auto px-10 py-6 flex items-center justify-between gap-6">
+            <p className="text-[13.5px] text-white/50">© 2026 Quickpost. All rights reserved.</p>
+            <div className="flex items-center gap-6">
+              {LEGAL_LINKS.map(l => (
+                <Link key={l.label} to={l.to} className="text-[13.5px] text-white/60 hover:text-white transition-colors">{l.label}</Link>
+              ))}
+            </div>
           </div>
-
-          <div className="flex flex-wrap items-center justify-center gap-x-[10px] gap-y-2">
-            {[
-              { label: 'Terms & Conditions', to: '/terms-and-conditions' },
-              { label: 'Privacy Policy', to: '/privacy-policy' },
-              { label: 'Refund & Cancellation Policy', to: '/refund-and-cancellation-policy' },
-            ].map((link, idx, arr) => (
-              <React.Fragment key={link.label}>
-                {link.to ? (
-                  <Link to={link.to} className="text-[13px] font-normal text-white/35 hover:text-white/70 transition-colors">
-                    {link.label}
-                  </Link>
-                ) : (
-                  <span className="text-[13px] font-normal text-white/35 cursor-default">
-                    {link.label}
-                  </span>
-                )}
-                {idx < arr.length - 1 && (
-                  <span className="text-white/20">·</span>
-                )}
-              </React.Fragment>
-            ))}
-          </div>
-
         </div>
       </div>
 

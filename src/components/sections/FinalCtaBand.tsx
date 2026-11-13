@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Check } from 'lucide-react';
 
 /* Landing page — closing call-to-action. A delivery cycle drawn in the hero van's dashed-line style rides
    across the band towing a "Get Started" ribbon. */
@@ -57,20 +57,27 @@ export function FinalCtaBand() {
       <div className="relative max-w-[1200px] mx-auto rounded-[28px] md:rounded-[36px] bg-[#00A86B] overflow-hidden">
         <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(70%_80%_at_80%_0%,#00C47A_0%,transparent_60%),linear-gradient(180deg,#00A86B_0%,#008F5B_100%)]" />
 
-        <div className="relative px-6 md:px-14 pt-10 md:pt-14 text-center md:text-left md:flex md:items-end md:justify-between gap-8">
+        <div className="relative px-6 md:px-16 pt-10 md:pt-16 text-center md:text-left md:flex md:items-end md:justify-between gap-8">
           <div className="max-w-[560px] mx-auto md:mx-0">
-            <h2 className="text-white text-[28px] md:text-[42px] font-bold leading-[1.12] tracking-tight">
+            <h2 className="text-white text-[28px] md:text-[48px] font-bold leading-[1.08] tracking-[-0.025em]">
               Start shipping in minutes
             </h2>
-            <p className="mt-3 text-white/85 text-[15px] md:text-[17px] leading-relaxed">
+            <p className="mt-3 text-white/85 text-[15px] md:text-[18px] leading-relaxed">
               Create your account, connect your store and book your first pickup today.
             </p>
+            <ul className="hidden md:flex flex-wrap gap-x-6 gap-y-2 mt-6">
+              {['Multi-courier rates', 'Shopify, WooCommerce, Amazon & Flipkart', 'NDR & COD remittance'].map(t => (
+                <li key={t} className="inline-flex items-center gap-2 text-[14px] font-medium text-white/90">
+                  <span className="w-5 h-5 rounded-full bg-white/15 flex items-center justify-center"><Check className="w-3 h-3 text-white" strokeWidth={3} /></span>{t}
+                </li>
+              ))}
+            </ul>
           </div>
-          <div className="mt-6 md:mt-0 flex flex-col sm:flex-row items-center justify-center gap-3 shrink-0">
-            <Link to="/#signup" className="w-full sm:w-auto h-12 px-7 rounded-full bg-white text-[#00A86B] text-[15px] font-bold inline-flex items-center justify-center gap-2 shadow-[0_10px_24px_-10px_rgba(0,0,0,0.35)] hover:bg-[#F0FAF5] transition-colors">
+          <div className="mt-6 md:mt-0 flex flex-col sm:flex-row items-center justify-center gap-3 shrink-0 md:pb-1">
+            <Link to="/#signup" className="w-full sm:w-auto h-12 md:h-14 px-7 md:px-8 rounded-full bg-white text-[#00A86B] text-[15px] md:text-[16px] font-bold inline-flex items-center justify-center gap-2 shadow-[0_10px_24px_-10px_rgba(0,0,0,0.35)] hover:bg-[#F0FAF5] transition-colors">
               Sign up free <ArrowRight className="w-4 h-4" />
             </Link>
-            <Link to="/rate-calculator" className="w-full sm:w-auto h-12 px-7 rounded-full border border-white/50 text-white text-[15px] font-semibold inline-flex items-center justify-center hover:bg-white/10 transition-colors">
+            <Link to="/rate-calculator" className="w-full sm:w-auto h-12 md:h-14 px-7 md:px-8 rounded-full border border-white/50 text-white text-[15px] font-semibold inline-flex items-center justify-center hover:bg-white/10 transition-colors">
               Calculate rates
             </Link>
           </div>

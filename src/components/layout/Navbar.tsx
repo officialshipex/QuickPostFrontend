@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { Menu, X, ChevronRight } from 'lucide-react';
 import { appUrl } from '../../utils/domainUrl';
-import { FestiveOfferBar, FESTIVE_BAR_HEIGHT } from './FestiveOfferBar';
+import { FestiveOfferBar, FESTIVE_BAR_HEIGHT, FESTIVE_BAR_HEIGHT_DESKTOP } from './FestiveOfferBar';
 
 const navLinks = [
   { label: 'Platform', href: '#features', badge: null },
@@ -21,8 +21,11 @@ export function Navbar() {
   const [offerClosed, setOfferClosed] = useState(() => { try { return sessionStorage.getItem('qp_festive_bar_closed') === '1'; } catch { return false; } });
   const closeOffer = () => { setOfferClosed(true); try { sessionStorage.setItem('qp_festive_bar_closed', '1'); } catch { /* ignore */ } };
 
+  // Desktop: once the hero is behind us the bar turns into a floating capsule
+  const [floating, setFloating] = useState(false);
   useMotionValueEvent(scrollY, "change", (latest) => {
     setIsScrolled(latest > 60);
+    setFloating(latest > window.innerHeight * 0.75);
   });
 
   // Full-screen mobile menu: lock page scroll and close on Esc while it is open.
@@ -81,6 +84,9 @@ export function Navbar() {
           transform: translateY(0);
         }
 
+        @media only screen and (max-width: 992px) {
+          .qp-nav-logo-sm { width: 130px; height: auto; }
+        }
         .qp-logo-white {
           filter: drop-shadow(0 1px 4px rgba(0,0,0,0.18)) brightness(1.1);
         }
@@ -88,7 +94,7 @@ export function Navbar() {
 
       <motion.header
         style={{ fontFamily: 'Roboto, sans-serif' }}
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-350 max-lg:!bg-transparent max-lg:!shadow-none max-lg:!border-0 max-lg:!backdrop-blur-none ${
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-350 max-lg:!bg-transparent max-lg:!shadow-none max-lg:!border-0 max-lg:!backdrop-blur-none lg:!bg-transparent lg:!shadow-none lg:!border-transparent lg:!backdrop-blur-none ${
           isScrolled
             ? 'bg-white shadow-[0_2px_24px_rgba(0,0,0,0.07)] border-b border-slate-100'
             : 'bg-black/10 backdrop-blur-md'
@@ -99,21 +105,25 @@ export function Navbar() {
       >
         <FestiveOfferBar hidden={offerClosed || isScrolled} onClose={closeOffer} />
         {/* Phones: the bar is a floating white capsule; from lg it is the full-width bar */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-10 h-[78px] flex items-center justify-between gap-3 sm:gap-6 max-lg:mx-3 max-lg:mt-2 max-lg:h-16 max-lg:px-2 max-lg:pl-4 max-lg:rounded-full max-lg:bg-white max-lg:border max-lg:border-slate-200/80 max-lg:shadow-[0_8px_24px_-12px_rgba(15,23,42,0.25)]">
+        <div className={`max-w-7xl mx-auto px-4 sm:px-6 md:px-10 h-[78px] flex items-center justify-between gap-3 sm:gap-6 lg:transition-all lg:duration-500 lg:ease-[cubic-bezier(0.16,1,0.3,1)] ${floating
+          ? 'lg:mt-3 lg:max-w-[1180px] lg:h-[66px] lg:!pl-7 lg:!pr-2.5'
+          : 'lg:mt-0 lg:max-w-7xl lg:h-[92px]'} lg:relative lg:rounded-full max-lg:mx-3 max-lg:mt-2 max-lg:h-16 max-lg:px-2 max-lg:pl-4 max-lg:rounded-full max-lg:bg-white max-lg:border max-lg:border-slate-200/80 max-lg:shadow-[0_8px_24px_-12px_rgba(15,23,42,0.25)]`}>
+
+          {/* Desktop capsule surface: fades in after the hero, no hard border */}
+          <span aria-hidden className={`hidden lg:block absolute inset-0 rounded-full pointer-events-none transition-[opacity,transform] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] bg-[linear-gradient(100deg,rgba(236,253,245,0.9)_0%,rgba(255,255,255,0.92)_45%,rgba(240,249,255,0.9)_100%)] backdrop-blur-xl shadow-[0_20px_44px_-22px_rgba(15,23,42,0.38),0_0_0_1px_rgba(15,23,42,0.04),inset_0_1px_0_rgba(255,255,255,0.95)] ${floating ? 'opacity-100 scale-100' : 'opacity-0 scale-[0.98]'}`} />
 
           {/* ── Logo ── */}
           <Link to="/" className="flex-shrink-0 flex items-center">
             <img
               src="/logo-color.png"
               alt="QuickPost"
-              className="lg:hidden object-contain scale-[1.7] origin-left"
-              style={{ height: '56px', width: 'auto' }}
+              className="qp-nav-logo-sm lg:hidden object-contain"
             />
             <img
-              src={isScrolled ? '/logo-color.png' : '/logo-white.png'}
+              src={floating ? '/logo-color.png' : '/logo-white.png'}
               alt=""
               aria-hidden
-              className={`hidden lg:block object-contain transition-all duration-300 scale-[1.5] origin-left ml-2 ${isScrolled ? '' : 'qp-logo-white'}`}
+              className={`hidden lg:block relative object-contain transition-all duration-500 origin-left ml-2 ${floating ? 'scale-[1.5]' : 'scale-[2.5] translate-x-[48px] qp-logo-white'}`}
               style={{
                 height: '64px',
                 width: 'auto',
@@ -123,10 +133,10 @@ export function Navbar() {
           </Link>
 
           {/* ── Desktop Nav ── */}
-          <nav className="hidden lg:flex items-center gap-0.5 flex-1 justify-center">
+          <nav className={`hidden lg:flex relative items-center gap-0.5 flex-1 transition-[padding] duration-500 justify-center ${floating ? 'pl-0' : 'pl-[150px]'}`}>
             {navLinks.map((link) => {
-              const navLinkClass = `qp-nav-link flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-[13.5px] font-medium tracking-[-0.01em] transition-colors duration-200 ${
-                isScrolled
+              const navLinkClass = `qp-nav-link flex items-center gap-1.5 rounded-full ${floating ? 'px-4 py-2.5 text-[13.5px]' : 'px-5 py-3 text-[15.5px]'} font-medium tracking-[-0.01em] transition-colors duration-200 ${
+                floating
                   ? 'qp-nav-link-dark text-[#4A5568] hover:text-[#0F172A] hover:bg-slate-50'
                   : 'qp-nav-link-light text-white/85 hover:text-white hover:bg-white/10'
               }`;
@@ -158,14 +168,14 @@ export function Navbar() {
           </nav>
 
           {/* ── Desktop CTAs ── */}
-          <div className="hidden lg:flex items-center gap-3 flex-shrink-0">
+          <div className="hidden lg:flex relative items-center gap-3 flex-shrink-0">
             {/* Vertical separator */}
-            <div className={`w-px h-5 ${isScrolled ? 'bg-slate-200' : 'bg-white/20'}`} />
+            {!floating && <div className="w-px h-5 bg-white/20" />}
 
             <a
               href={appUrl('/login')}
-              className={`px-5 py-[9px] rounded-xl text-[13.5px] font-semibold border transition-all duration-200 ${
-                isScrolled
+              className={`rounded-full ${floating ? 'px-5 py-[9px] text-[13.5px]' : 'px-6 py-[11px] text-[15px]'} font-semibold border transition-all duration-200 ${
+                floating
                   ? 'border-[#D1D5DB] text-[#374151] hover:border-slate-400 hover:bg-slate-50'
                   : 'border-white/35 text-white hover:bg-white/10 hover:border-white/65'
               }`}
@@ -175,7 +185,7 @@ export function Navbar() {
 
             <Link
               to="/#signup"
-              className="qp-cta-primary px-5 py-[9px] rounded-xl text-[13.5px] font-bold text-white tracking-[-0.01em]"
+              className={`qp-cta-primary rounded-full ${floating ? 'px-6 py-[10px] text-[13.5px]' : 'px-7 py-[12px] text-[15px]'} font-bold text-white tracking-[-0.01em]`}
             >
               Get Started&nbsp;→
             </Link>
@@ -213,6 +223,7 @@ export function Navbar() {
 
       {/* Pushes the page down by the festive strip's height on phones (the header itself is fixed) */}
       {!offerClosed && <div aria-hidden className="md:hidden" style={{ height: FESTIVE_BAR_HEIGHT }} />}
+      {!offerClosed && <div aria-hidden className="hidden md:block" style={{ height: FESTIVE_BAR_HEIGHT_DESKTOP }} />}
 
       {/* ── Mobile Menu — full-screen sheet ── */}
       {createPortal(

@@ -250,6 +250,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
   // Quick Actions or the global search, which should stay available everywhere.
   const isDateFilterHiddenPage = [
     '/admin/orders', '/user/orders',
+    '/admin/tracking', '/user/tracking',
     '/admin/ndr', '/user/ndr',
     '/admin/wallet', '/user/wallet',
     '/admin/cod', '/user/cod',
@@ -1033,7 +1034,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
       <div className="flex items-center gap-3 shrink-0">
         
         {/* B2C ⇄ Cargo — admin panel (sits before the date filter) */}
-        {isAdminPanelPath(location.pathname) && !isSalesEmployee && <AdminCargoSwitch />}
+        {isAdminPanelPath(location.pathname) && !isSalesEmployee && !location.pathname.endsWith('/tracking') && <AdminCargoSwitch />}
 
         {/* Date Filter — also hidden while the user-side account setup / onboarding screen is showing */}
         {!isDateFilterHiddenPage && !showOnboarding && (

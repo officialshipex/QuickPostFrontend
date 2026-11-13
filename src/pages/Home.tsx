@@ -40,9 +40,11 @@ export function Home() {
         <ProfitsSection />
         <HowItWorks />
         <ValueAddedServicesSection />
-        <FinalCtaBand />
+        {/* Phones: after Value Added Services. Desktop: last thing before the footer (below). */}
+        <div className="md:hidden"><FinalCtaBand /></div>
         <ServicesPortfolioSection />
         <StatsSection />
+        <div className="hidden md:block"><FinalCtaBand /></div>
       </main>
       <Footer hideCta />
       <OfferPopup />

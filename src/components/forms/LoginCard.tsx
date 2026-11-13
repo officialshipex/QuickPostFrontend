@@ -202,7 +202,7 @@ export function LoginCard() {
                   <Input
                     type="email"
                     placeholder="abc@gmail.com"
-                    className="h-11 bg-transparent border-[#E2E8F0] text-sm focus-visible:ring-[#00A86B]"
+                    className="h-11 bg-transparent border-[#E2E8F0] text-sm focus-visible:ring-[#00A86B] !rounded-full !px-5 focus-visible:!ring-offset-0 focus-visible:!ring-4 focus-visible:!ring-[#00A86B]/15 focus-visible:border-[#00A86B]"
                     {...register('email')}
                     error={errors.email?.message}
                   />
@@ -215,14 +215,14 @@ export function LoginCard() {
                   <Input
                     type={showPassword ? 'text' : 'password'}
                     placeholder="Create a password"
-                    className="h-11 bg-transparent border-[#E2E8F0] text-sm pr-10 focus-visible:ring-[#00A86B]"
+                    className="h-11 bg-transparent border-[#E2E8F0] text-sm pr-12 focus-visible:ring-[#00A86B] !rounded-full !px-5 focus-visible:!ring-offset-0 focus-visible:!ring-4 focus-visible:!ring-[#00A86B]/15 focus-visible:border-[#00A86B] !pr-12"
                     {...register('password')}
                     error={errors.password?.message}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-3.5 text-[#94A3B8] hover:text-[#475569] transition-colors"
+                    className="absolute right-4 top-3.5 text-[#94A3B8] hover:text-[#475569] transition-colors"
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
@@ -240,21 +240,21 @@ export function LoginCard() {
               </div>
 
               {forgotSent && (
-                <div className="flex items-start gap-2 p-3 bg-[#10B981]/10 text-[#00A86B] rounded-md text-xs font-medium">
+                <div className="flex items-start gap-2 p-3 bg-[#10B981]/10 text-[#00A86B] rounded-xl text-xs font-medium">
                   <CheckCircle2 className="w-4 h-4 mt-0.5 flex-shrink-0" />
                   <span>{forgotSent}</span>
                 </div>
               )}
 
               {status === 'error' && (
-                <div className="flex items-start gap-2 p-3 bg-red-50 text-red-600 rounded-md text-xs font-medium">
+                <div className="flex items-start gap-2 p-3 bg-red-50 text-red-600 rounded-xl text-xs font-medium">
                   <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
                   <span>{serverError}</span>
                 </div>
               )}
 
               {status === 'success' && (
-                <div className="flex items-start gap-2 p-3 bg-[#10B981]/10 text-[#00A86B] rounded-md text-xs font-medium">
+                <div className="flex items-start gap-2 p-3 bg-[#10B981]/10 text-[#00A86B] rounded-xl text-xs font-medium">
                   <CheckCircle2 className="w-4 h-4 mt-0.5 flex-shrink-0" />
                   <span>Login successful! Redirecting...</span>
                 </div>
@@ -262,7 +262,7 @@ export function LoginCard() {
 
               <Button
                 type="submit"
-                className="w-full h-11 bg-[#00A86B] hover:bg-[#009B63] text-sm font-semibold rounded-md shadow-none transition-colors"
+                className="w-full h-11 bg-[#00A86B] hover:bg-[#009B63] text-[15px] font-semibold rounded-full shadow-[0_10px_24px_-12px_rgba(0,168,107,0.9)] transition-colors"
                 disabled={status === 'loading' || status === 'success'}
               >
                 {status === 'loading' ? (
@@ -319,21 +319,21 @@ export function LoginCard() {
               />
 
               {otpError && (
-                <div className="flex items-start gap-2 p-3 bg-red-50 text-red-600 rounded-md text-xs font-medium">
+                <div className="flex items-start gap-2 p-3 bg-red-50 text-red-600 rounded-xl text-xs font-medium">
                   <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
                   <span>{otpError}</span>
                 </div>
               )}
 
               {!otpError && otpNotice && otpStatus === 'idle' && (
-                <div className="flex items-start gap-2 p-3 bg-[#10B981]/10 text-[#00A86B] rounded-md text-xs font-medium">
+                <div className="flex items-start gap-2 p-3 bg-[#10B981]/10 text-[#00A86B] rounded-xl text-xs font-medium">
                   <CheckCircle2 className="w-4 h-4 mt-0.5 flex-shrink-0" />
                   <span>{otpNotice}</span>
                 </div>
               )}
 
               {otpStatus === 'success' && (
-                <div className="flex items-start gap-2 p-3 bg-[#10B981]/10 text-[#00A86B] rounded-md text-xs font-medium">
+                <div className="flex items-start gap-2 p-3 bg-[#10B981]/10 text-[#00A86B] rounded-xl text-xs font-medium">
                   <CheckCircle2 className="w-4 h-4 mt-0.5 flex-shrink-0" />
                   <span>OTP verified. Login successful! Redirecting...</span>
                 </div>
@@ -342,7 +342,7 @@ export function LoginCard() {
               <Button
                 type="button"
                 onClick={() => verifyOtp(otp)}
-                className="w-full h-11 bg-[#00A86B] hover:bg-[#009B63] text-sm font-semibold rounded-md shadow-none transition-colors"
+                className="w-full h-11 bg-[#00A86B] hover:bg-[#009B63] text-[15px] font-semibold rounded-full shadow-[0_10px_24px_-12px_rgba(0,168,107,0.9)] transition-colors"
                 disabled={otp.length !== OTP_LENGTH || otpStatus !== 'idle'}
               >
                 {otpStatus === 'verifying' ? 'Verifying...' : 'Verify & Login'}

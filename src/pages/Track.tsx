@@ -13,6 +13,11 @@ import {
   PackageCheck,
   Copy,
   Zap,
+  ArrowRight,
+  Check,
+  Headset,
+  Share2,
+  ExternalLink,
   Bell,
   Target,
   ShieldCheck,
@@ -31,6 +36,7 @@ import {
 import { Navbar } from '../components/layout/Navbar';
 import { Footer } from '../components/layout/Footer';
 import { apiClient } from '../services/apiClient';
+import { TrackRunOverlay, type RunPhase } from '../components/track/TrackRunOverlay';
 
 /* ── Easing curve used site-wide ── */
 const EASE = [0.16, 1, 0.3, 1] as const;
@@ -43,6 +49,7 @@ interface TimelineEvent {
   location: string;
   description: string;
   done: boolean;
+  iso?: string;
 }
 
 interface TrackingResult {
@@ -63,8 +70,15 @@ interface TrackingResult {
   currentHub: string;
   customerRef: string;
   timeline: TimelineEvent[];
+  destCity: string;
+  destState: string;
+  destPin: string;
+  placedOn: string;
+  eddIso: string | null;
+  deliveredIso: string | null;
 }
 
+const RECENT_KEY = 'qp_track_recent';
 const STATUS_STEP_ICONS = [Package, Truck, ScanLine, Warehouse, Zap, PackageCheck];
 
 const fmtEvt = (dateStr?: string): { date: string; time: string } => {
@@ -112,6 +126,7 @@ const mapApiToResult = (d: any, query: string): TrackingResult => {
       location: t.StatusLocation || '',
       description: t.Instructions || t.status || '',
       done: true,
+      iso: t.StatusDateTime,
     };
   });
 
@@ -126,7 +141,7 @@ const mapApiToResult = (d: any, query: string): TrackingResult => {
     courierName,
     courierLogo: getCourierLogoPublic(courierName),
     awb: d.awb_number || query,
-    orderId: d.orderId || '—',
+    orderId: String(d.orderId || '—'),
     pickup,
     destination,
     expectedDelivery: fmtEvt(d.estimatedDeliveryDate).date,
@@ -139,6 +154,12 @@ const mapApiToResult = (d: any, query: string): TrackingResult => {
     currentHub: deduped[0]?.StatusLocation || '—',
     customerRef: d.channelId || d.orderId || '—',
     timeline,
+    destCity: d.receiverAddress?.city || '',
+    destState: d.receiverAddress?.state || '',
+    destPin: String(d.receiverAddress?.pinCode || d.receiverAddress?.pincode || ''),
+    placedOn: fmtEvt(d.createdAt || d.shipmentCreatedAt).date,
+    eddIso: d.estimatedDeliveryDate || null,
+    deliveredIso: (d.status === 'Delivered' || d.status === 'RTO Delivered') && deduped[0] ? deduped[0].StatusDateTime : null,
   };
 };
 
@@ -272,6 +293,253 @@ const resolveCityCoords = (place: string): [number, number] | null => {
   const key = place.split(',')[0].trim().toLowerCase();
   return CITY_COORDS[key] || null;
 };
+
+/* ── Status + tracking history, laid out like the branded tracking page ── */
+const STEP_LABELS = ['Booked', 'Picked up', 'In transit', 'Out for delivery', 'Delivered'];
+function stepOf(status: string): { step: number; exception: boolean } {
+  const s = (status || '').toLowerCase();
+  if (s.includes('rto') || s.includes('cancel') || s.includes('lost')) return { step: 2, exception: true };
+  if (s.includes('undelivered')) return { step: 3, exception: true };
+  if (s.includes('delivered')) return { step: 4, exception: false };
+  if (s.includes('out for delivery')) return { step: 3, exception: false };
+  if (s.includes('transit') || s.includes('hub') || s.includes('dispatch')) return { step: 2, exception: false };
+  if (s.includes('picked')) return { step: 1, exception: false };
+  return { step: 0, exception: false };
+}
+/** "Shadowfax 1KG" / "Delhivery Surface 5KG" → the courier's name only. */
+function courierBrand(name: string) {
+  const n = (name || '').trim();
+  const known = ['Delhivery', 'Blue Dart', 'Bluedart', 'DTDC', 'Ekart', 'Shadowfax', 'Xpressbees', 'Amazon Shipping', 'Amazon', 'Shree Maruti', 'Shiprocket', 'Losung'];
+  const hit = known.find(k => n.toLowerCase().startsWith(k.toLowerCase()));
+  if (hit) return hit === 'Bluedart' ? 'Blue Dart' : hit;
+  return n.replace(/\s+\d+(\.\d+)?\s*(kg|g)\b.*$/i, '') || 'Courier';
+}
+function titleCase(s: string) {
+  return (s || '').toLowerCase().replace(/(^|[\s-])([a-z])/g, (_, a, b) => a + b.toUpperCase()).replace(/\bRto\b/g, 'RTO');
+}
+function bigDate(iso: string | null) {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return null;
+  return { weekday: d.toLocaleDateString('en-IN', { weekday: 'long' }), month: d.toLocaleDateString('en-IN', { month: 'long' }), day: d.getDate() };
+}
+function stamp(e: TimelineEvent) {
+  const d = e.iso ? new Date(e.iso) : null;
+  if (!d || isNaN(d.getTime())) return { day: e.date, time: e.time };
+  return {
+    day: `${String(d.getDate()).padStart(2, '0')} ${d.toLocaleDateString('en-IN', { month: 'short' }).slice(0, 3).toUpperCase()}`,
+    time: d.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true }).toUpperCase(),
+  };
+}
+
+function StatusAndHistory({ result, onShare, onCopyAwb, copied }: { result: TrackingResult; onShare: () => void; onCopyAwb: () => void; copied: boolean }) {
+  const [showAll, setShowAll] = useState(false);
+  const { step, exception } = stepOf(result.status);
+  const delivered = step === 4 && !exception;
+  const date = bigDate(delivered ? result.deliveredIso : result.eddIso);
+  const last = result.timeline[0];
+  const accent = exception ? '#D97706' : delivered ? '#00A86B' : '#2563EB';
+  const events = showAll ? result.timeline : result.timeline.slice(0, 5);
+
+  return (
+    <div className="bg-white rounded-[24px] border border-[#E0EDE8] shadow-sm overflow-hidden grid grid-cols-1 lg:grid-cols-[380px_minmax(0,1fr)]">
+      {/* Left: date + status */}
+      <div className="p-6 sm:p-7 flex flex-col">
+        <div className="flex items-start justify-between gap-3">
+          <p className="text-[13px] font-semibold text-[#0F172A]">{delivered ? 'Delivered On' : date ? 'Estimated Delivery Date' : 'Shipment Status'}</p>
+          <button type="button" onClick={onShare} aria-label="Share tracking" title="Share tracking" className="w-8 h-8 -mt-1 -mr-1 rounded-full flex items-center justify-center text-[#0F172A] hover:bg-[#F1F5F9]"><Share2 className="w-4 h-4" /></button>
+        </div>
+        {date ? (
+          <div className="mt-2">
+            <div className="text-[22px] font-bold text-[#0F172A] leading-tight">{date.weekday}</div>
+            <div className="text-[15px] font-semibold text-[#0F172A]">{date.month}</div>
+            <motion.div className="text-[88px] leading-[0.95] font-light tracking-[-0.04em] text-[#00A86B] tabular-nums"
+              initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: EASE }}>{date.day}</motion.div>
+          </div>
+        ) : (
+          <div className="mt-2">
+            <div className="text-[30px] leading-tight font-bold text-[#0F172A] tracking-[-0.02em]">To be confirmed</div>
+            <p className="mt-1 text-[12.5px] text-[#64748B]">The date appears once the courier picks up the parcel.</p>
+          </div>
+        )}
+        <div className="mt-4 inline-flex items-center gap-2 self-start">
+          <span className="relative flex w-2.5 h-2.5">
+            {!delivered && <span className="absolute inset-0 rounded-full animate-ping opacity-50" style={{ backgroundColor: accent }} />}
+            <span className="relative w-2.5 h-2.5 rounded-full" style={{ backgroundColor: accent }} />
+          </span>
+          <span className="text-[24px] font-semibold tracking-[-0.015em] leading-tight" style={{ color: accent }}>{titleCase(result.status)}</span>
+        </div>
+        {last && <p className="mt-1 text-[12.5px] text-[#64748B]">Last updated {last.date.slice(0, 6)}, {last.time}</p>}
+
+        <div className="mt-5">
+          <div className="h-1.5 rounded-full bg-[#E9EEF3] overflow-hidden">
+            <motion.div className="h-full rounded-full" style={{ backgroundColor: exception ? '#D97706' : '#00A86B' }}
+              initial={{ width: 0 }} animate={{ width: `${((step + 1) / STEP_LABELS.length) * 100}%` }} transition={{ duration: 0.8, ease: EASE }} />
+          </div>
+          <p className="mt-2 text-[12px] font-semibold text-[#475569]">{STEP_LABELS[step]} · Step {step + 1} of {STEP_LABELS.length}</p>
+        </div>
+
+        <a href="#help" className="mt-5 inline-flex items-center gap-2 text-[14px] font-semibold text-[#00A86B] hover:underline self-start"><Headset className="w-4 h-4" />Need help with delivery?</a>
+
+        <div className="mt-6 pt-5 border-t border-[#F1F5F9] flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="w-16 h-16 rounded-2xl border border-[#E2E8F0] bg-white flex items-center justify-center shrink-0 overflow-hidden shadow-[0_1px_2px_rgba(15,23,42,0.05)]">
+              {result.courierLogo && !result.courierLogo.endsWith('default.png')
+                ? <img src={result.courierLogo} alt="" className="max-w-[48px] max-h-[40px] object-contain" />
+                : <Truck className="w-6 h-6 text-[#94A3B8]" />}
+            </span>
+            <div className="min-w-0">
+              <div className="text-[16px] font-bold text-[#0F172A] truncate">{courierBrand(result.courierName)}</div>
+              <div className="text-[12px] text-[#94A3B8]">Courier partner</div>
+            </div>
+          </div>
+          <div className="text-right min-w-0">
+            <div className="text-[12.5px] font-bold text-[#0F172A]">Tracking ID</div>
+            <button type="button" onClick={onCopyAwb} className="inline-flex items-center gap-1 text-[13.5px] font-bold text-[#00A86B] hover:underline max-w-full">
+              <span className="truncate">{result.awb}</span>{copied ? <Check className="w-3.5 h-3.5 shrink-0" /> : <Copy className="w-3.5 h-3.5 shrink-0" />}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Right: history */}
+      <div className="bg-[#F4F6F5] p-6 sm:p-7 border-t lg:border-t-0 lg:border-l border-[#EEF2F6]">
+        <div className="flex items-center justify-between">
+          <h3 className="text-[16px] font-bold text-[#0F172A]">Tracking History</h3>
+          <span className="text-[12px] font-semibold text-[#64748B]">{result.timeline.length} update{result.timeline.length === 1 ? '' : 's'}</span>
+        </div>
+        {result.timeline.length === 0 ? (
+          <p className="mt-8 text-[13px] text-[#64748B]">No scans yet. Updates appear here once the parcel is picked up.</p>
+        ) : (
+          <ol className="mt-5">
+            {events.map((e, i) => {
+              const st = stamp(e);
+              const first = i === 0;
+              const lastRow = i === events.length - 1;
+              return (
+                <motion.li key={`${e.iso || e.date}-${i}`} className="grid grid-cols-[72px_24px_minmax(0,1fr)] gap-x-3"
+                  initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: Math.min(i, 6) * 0.05 }}>
+                  <div className="pt-0.5">
+                    <div className="text-[13px] font-bold text-[#0F172A] whitespace-nowrap">{st.day}</div>
+                    <div className="text-[11.5px] text-[#64748B] whitespace-nowrap">{st.time}</div>
+                  </div>
+                  <div className="relative flex justify-center">
+                    <span className={`relative z-[1] mt-1 rounded-full ${first ? 'w-[18px] h-[18px] bg-[#00A86B] ring-[5px] ring-[#00A86B]/20' : 'w-[14px] h-[14px] bg-[#F4F6F5] border-2 border-[#00A86B]'}`} />
+                    {!lastRow && <span className="absolute top-6 bottom-0 border-l-2 border-dashed border-[#00A86B]/50" />}
+                  </div>
+                  <div className={`pb-5 ${lastRow ? '' : 'mb-4 border-b border-[#E5EAE7]'}`}>
+                    <div className="grid grid-cols-[64px_10px_minmax(0,1fr)] gap-y-1.5 text-[13px]">
+                      <span className="text-[#64748B]">Activity</span><span className="text-[#64748B]">:</span>
+                      <span className="font-bold text-[#0F172A]">{e.description || e.status}</span>
+                      {e.location && <><span className="text-[#64748B]">Location</span><span className="text-[#64748B]">:</span><span className="text-[#334155]">{e.location}</span></>}
+                    </div>
+                  </div>
+                </motion.li>
+              );
+            })}
+          </ol>
+        )}
+        {result.timeline.length > 5 && (
+          <button type="button" onClick={() => setShowAll(v => !v)} className="mt-1 mx-auto flex items-center gap-1 h-8 px-3.5 rounded-full border border-[#DCE3DF] bg-white text-[12px] font-semibold text-[#475569] hover:border-[#00A86B] hover:text-[#00A86B]">
+            {showAll ? 'Show less' : `Show ${result.timeline.length - 5} more`}<ChevronDown className={`w-3.5 h-3.5 transition-transform ${showAll ? 'rotate-180' : ''}`} />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ── Delivery region map (Leaflet from index.html). Shows only the area the parcel is going to: the point is looked
+   up from the pincode and city (never the street address), with a 100 m boundary drawn around it. ── */
+const REGION_RADIUS_M = 100;
+const regionCache = new Map<string, [number, number] | null>();
+
+async function locateRegion(pin: string, city: string, state: string): Promise<[number, number] | null> {
+  const key = `${pin}|${city}|${state}`;
+  if (regionCache.has(key)) return regionCache.get(key)!;
+  let found: [number, number] | null = null;
+  try {
+    const q = new URLSearchParams({ format: 'json', limit: '1', countrycodes: 'in' });
+    if (pin) q.set('postalcode', pin);
+    if (city) q.set('city', city);
+    if (state) q.set('state', state);
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?${q.toString()}`, { headers: { 'Accept-Language': 'en' } });
+    const rows = await res.json();
+    if (Array.isArray(rows) && rows[0]) found = [Number(rows[0].lat), Number(rows[0].lon)];
+  } catch { /* fall back to the city */ }
+  if (!found) found = resolveCityCoords(city);
+  regionCache.set(key, found);
+  return found;
+}
+
+function DeliveryRegionMap({ city, state, pin }: { city: string; state: string; pin: string }) {
+  const boxRef = useRef<HTMLDivElement>(null);
+  const [center, setCenter] = useState<[number, number] | null>(null);
+  const [state2, setState2] = useState<'loading' | 'ready' | 'none'>('loading');
+
+  useEffect(() => {
+    let alive = true;
+    setState2('loading');
+    locateRegion(pin, city, state).then(c => { if (!alive) return; setCenter(c); setState2(c ? 'ready' : 'none'); });
+    return () => { alive = false; };
+  }, [pin, city, state]);
+
+  useEffect(() => {
+    if (!center) return;
+    let map: any = null; // eslint-disable-line @typescript-eslint/no-explicit-any
+    let timer: number | undefined;
+    let ro: ResizeObserver | null = null;
+    const init = () => {
+      const L = (window as any).L; // eslint-disable-line @typescript-eslint/no-explicit-any
+      if (!L || !boxRef.current) return false;
+      map = L.map(boxRef.current, { zoomControl: false, attributionControl: true, scrollWheelZoom: false });
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(map);
+      // Set the view first: a circle cannot measure itself on a map that has no view yet
+      map.fitBounds(L.latLng(center).toBounds(REGION_RADIUS_M * 2), { padding: [40, 40] });
+      L.circle(center, { radius: REGION_RADIUS_M, color: '#00A86B', weight: 2, dashArray: '6 6', fillColor: '#00A86B', fillOpacity: 0.12 }).addTo(map);
+      L.marker(center, {
+        icon: L.divIcon({ className: '', iconSize: [18, 18], iconAnchor: [9, 9],
+          html: '<div style="width:18px;height:18px;border-radius:9999px;background:#00A86B;border:3px solid #fff;box-shadow:0 0 0 6px rgba(0,168,107,0.18),0 2px 6px rgba(15,23,42,0.3)"></div>' }),
+      }).addTo(map);
+      L.control.zoom({ position: 'bottomright' }).addTo(map);
+      requestAnimationFrame(() => map && map.invalidateSize());
+      if (typeof ResizeObserver !== 'undefined') { ro = new ResizeObserver(() => map && map.invalidateSize()); ro.observe(boxRef.current); }
+      return true;
+    };
+    if (!init()) {
+      let n = 0;
+      timer = window.setInterval(() => { n += 1; if (init() || n > 50) window.clearInterval(timer); }, 100);
+    }
+    return () => { if (timer) window.clearInterval(timer); ro?.disconnect(); map?.remove(); };
+  }, [center]);
+
+  const label = [city, state].filter(Boolean).join(', ') + (pin ? ` – ${pin}` : '');
+  const mapsUrl = center ? `https://www.google.com/maps/search/?api=1&query=${center[0]},${center[1]}` : '';
+
+  return (
+    <div className="relative isolate z-0 h-[300px] lg:h-[330px] rounded-2xl border border-[#E0EDE8] overflow-hidden bg-[#EEF5F1]">
+      <div ref={boxRef} className="absolute inset-0" />
+      {state2 !== 'ready' && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-6">
+          {state2 === 'loading'
+            ? <span className="w-6 h-6 border-2 border-[#00A86B]/30 border-t-[#00A86B] rounded-full animate-spin" />
+            : <><MapPin className="w-6 h-6 text-[#94A3B8]" /><p className="mt-2 text-[12.5px] text-[#64748B]">Map is not available for this delivery area.</p></>}
+        </div>
+      )}
+      {state2 === 'ready' && (
+        <>
+          <a href={mapsUrl} target="_blank" rel="noopener noreferrer"
+            className="absolute z-[500] top-3 left-3 h-9 px-3.5 rounded-lg bg-white shadow-[0_2px_8px_rgba(15,23,42,0.18)] text-[13px] font-semibold text-[#2563EB] inline-flex items-center gap-1.5 hover:bg-[#F8FAFC]">
+            Open in Maps <ExternalLink className="w-3.5 h-3.5" />
+          </a>
+          <div className="absolute z-[500] bottom-3 left-3 max-w-[70%] px-3 py-1.5 rounded-lg bg-white/95 shadow-[0_2px_8px_rgba(15,23,42,0.15)] text-[11.5px] text-[#334155]">
+            <span className="font-semibold text-[#0F172A]">Delivery region</span> · {label}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 /* ── Live route map, rendered with Leaflet (loaded via CDN script tags in index.html) ── */
 function RoutePreview({ pickup, destination }: { pickup: string; destination: string }) {
@@ -414,6 +682,10 @@ export function Track({ pathAwb }: { pathAwb?: string } = {}) {
   const [copied, setCopied] = useState<'awb' | 'order' | null>(null);
   const [showAllEvents, setShowAllEvents] = useState(false);
   const resultRef = useRef<HTMLDivElement>(null);
+  const [runPhase, setRunPhase] = useState<RunPhase>(null);
+  const [runQuery, setRunQuery] = useState('');
+  const RUN_MS = 3000;
+  const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
   const runSearch = async (value: string, mode: 'order' | 'awb' = searchMode) => {
     const searchMode = mode;
@@ -425,11 +697,17 @@ export function Track({ pathAwb }: { pathAwb?: string } = {}) {
     setLoading(true);
     setResult(null);
     setShowAllEvents(false);
+    // The truck drives for RUN_MS while the lookup runs; the result shows once both are done.
+    const started = Date.now();
+    setRunQuery(value.trim());
+    setRunPhase('driving');
+    const waitRun = () => sleep(Math.max(0, RUN_MS - (Date.now() - started)));
     try {
       // A shipment of a seller with a live branded tracking page is shown on that seller's page instead.
       try {
         const { data: found } = await apiClient.get('/branded-tracking/lookup', { params: { [searchMode]: value.trim() } });
         if (found?.slug) {
+          setRunPhase(null);
           navigate(`/track/${found.slug}?${searchMode}=${encodeURIComponent(value.trim())}`, { replace: true });
           return;
         }
@@ -438,7 +716,11 @@ export function Track({ pathAwb }: { pathAwb?: string } = {}) {
         ? `/orders/GetTrackingByOrderId/${encodeURIComponent(value.trim())}`
         : `/orders/GetTrackingByAwb/${encodeURIComponent(value.trim())}`;
       const res = await apiClient.get(endpoint);
-      setResult(mapApiToResult(res.data, value.trim()));
+      const mapped = mapApiToResult(res.data, value.trim());
+      await waitRun();
+      setRunPhase(null);
+      setResult(mapped);
+      rememberSearch(searchMode, value.trim());
       // Put what was found in the address bar so the page can be shared / reloaded. replaceState (not navigate):
       // /track/<AWB> is a different route, and navigating there would reload this page and search again.
       const v = encodeURIComponent(value.trim());
@@ -446,7 +728,16 @@ export function Track({ pathAwb }: { pathAwb?: string } = {}) {
       if (window.location.pathname + window.location.search !== url) window.history.replaceState(window.history.state, '', url);
       setTimeout(() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
     } catch (err: any) {
-      setError(err?.response?.status === 404 ? 'Order not found. Please check and try again.' : 'Failed to fetch tracking info. Please try again.');
+      const notFound = !err?.response || err.response.status === 404 || err.response.status === 400;
+      if (notFound) {
+        // Short drive, then the crash scene with the message; it stays until the visitor retries
+        await sleep(Math.max(0, 900 - (Date.now() - started)));
+        setRunPhase('crash');
+        setError(`No shipment found for this ${searchMode === 'awb' ? 'AWB number' : 'Order ID'}.`);
+      } else {
+        setRunPhase(null);
+        setError('Tracking is not available right now. Please try again in a moment.');
+      }
     } finally {
       setLoading(false);
     }
@@ -456,6 +747,25 @@ export function Track({ pathAwb }: { pathAwb?: string } = {}) {
   // (landing page's tracking dock).
   const [searchParams] = useSearchParams();
   const [pendingSearch, setPendingSearch] = useState<string | null>(null);
+  // Last few lookups on this device, so a buyer or seller can re-check a parcel in one tap
+  const [recent, setRecent] = useState<{ mode: 'order' | 'awb'; value: string }[]>(() => {
+    try { const v = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]'); return Array.isArray(v) ? v.slice(0, 3) : []; } catch { return []; }
+  });
+  function rememberSearch(mode: 'order' | 'awb', value: string) {
+    setRecent(prev => {
+      const next = [{ mode, value }, ...prev.filter(r => r.value !== value)].slice(0, 3);
+      try { localStorage.setItem(RECENT_KEY, JSON.stringify(next)); } catch { /* storage blocked */ }
+      return next;
+    });
+  }
+  // Recent chip: put the number in the search field (and the matching tab) so it can be checked or edited, then Track
+  const searchRecent = (r: { mode: 'order' | 'awb'; value: string }) => {
+    setSearchMode(r.mode); setQuery(r.value); setError('');
+    setTimeout(() => {
+      const el = document.querySelector<HTMLInputElement>(`input[aria-label="${r.mode === 'awb' ? 'AWB number' : 'Order ID'}"]`);
+      el?.focus(); el?.setSelectionRange(r.value.length, r.value.length);
+    }, 0);
+  };
   useEffect(() => {
     const awb = searchParams.get('awb') || pathAwb, order = searchParams.get('order');
     const v = (awb || order || '').trim();
@@ -472,6 +782,103 @@ export function Track({ pathAwb }: { pathAwb?: string } = {}) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingSearch]);
 
+
+  /** AWB / Order ID lookup. `hero` = the large desktop version in the hero's left column. */
+  const trackForm = (hero: boolean) => (
+    <>
+      <div role="radiogroup" aria-label="Search by" className={`grid grid-cols-2 p-1 rounded-full bg-[#F1F5F9] border border-[#E2E8F0] ${hero ? 'mb-4' : 'mb-5 sm:inline-grid'}`}>
+        {([
+          { key: 'awb', label: 'AWB Number' },
+          { key: 'order', label: 'Order ID' },
+        ] as const).map((tab) => (
+          <button
+            key={tab.key}
+            type="button"
+            role="radio"
+            aria-checked={searchMode === tab.key}
+            onClick={() => { setSearchMode(tab.key); setError(''); }}
+            className={`h-9 px-5 rounded-full text-[13px] font-semibold transition-all duration-200 ${
+              searchMode === tab.key ? 'bg-white text-[#0F172A] shadow-sm' : 'text-[#64748B] hover:text-[#0F172A]'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      <form
+        onSubmit={(e) => { e.preventDefault(); runSearch(query); }}
+        className={hero ? 'flex flex-col gap-3' : 'flex flex-col sm:flex-row gap-3'}
+      >
+        <div className="relative flex-1 group">
+          <Search className={`${hero ? 'w-5 h-5 left-5' : 'w-[18px] h-[18px] left-4'} absolute top-1/2 -translate-y-1/2 text-[#94A3B8] transition-colors group-focus-within:text-[#00A86B]`} />
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={searchMode === 'order' ? 'Enter your Order ID' : 'Enter your AWB number'}
+            aria-label={searchMode === 'order' ? 'Order ID' : 'AWB number'}
+            autoFocus={hero}
+            className={`w-full ${hero ? 'h-[60px] pl-14 text-[16px]' : 'h-[52px] pl-12 text-[14.5px]'} pr-4 rounded-full border border-[#E2E8F0] bg-white font-medium text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-4 focus:ring-[#00A86B]/10 transition-all duration-200`}
+          />
+        </div>
+        <button
+          type="submit"
+          disabled={loading}
+          className={`${hero ? 'h-[56px] text-[15.5px]' : 'h-[52px] px-7 text-[14.5px]'} rounded-full bg-[#00A86B] hover:bg-[#009B63] font-semibold text-white tracking-[-0.01em] flex items-center justify-center gap-2 shadow-[0_10px_24px_-12px_rgba(0,168,107,0.9)] transition-colors disabled:opacity-70`}
+        >
+          {loading ? (
+            <>
+              <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+              Searching…
+            </>
+          ) : (
+            <>Track shipment <ArrowRight className="w-4 h-4" /></>
+          )}
+        </button>
+      </form>
+
+      {error && (
+        <p role="alert" className="mt-3 text-[12.5px] font-semibold text-[#DC2626]">{error}</p>
+      )}
+
+      <AnimatePresence>
+        {loading && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="mt-4 overflow-hidden"
+          >
+            <div className="h-1 w-full bg-[#F1F5F9] rounded-full overflow-hidden">
+              <motion.div
+                className="h-full rounded-full bg-[#00A86B]"
+                initial={{ x: '-100%' }}
+                animate={{ x: ['-100%', '10%', '120%'] }}
+                transition={{ duration: 1.3, ease: 'easeInOut', repeat: Infinity }}
+              />
+            </div>
+            <p className="mt-2.5 text-[12px] font-semibold text-[#64748B] flex items-center gap-1.5">
+              <ScanLine className="w-3.5 h-3.5 text-[#00A86B]" /> Searching courier network…
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {recent.length > 0 && (
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <span className="text-[12px] font-semibold text-[#94A3B8]">Recent</span>
+          {recent.map(r => (
+            <button key={r.value} type="button" onClick={() => searchRecent(r)}
+              className="h-7 px-3 rounded-full border border-[#E2E8F0] bg-white text-[12px] font-medium text-[#475569] hover:border-[#00A86B] hover:text-[#00A86B] font-mono">
+              {r.value}
+            </button>
+          ))}
+        </div>
+      )}
+    </>
+  );
+
   const copyValue = (value: string, key: 'awb' | 'order') => {
     navigator.clipboard.writeText(value);
     setCopied(key);
@@ -484,42 +891,32 @@ export function Track({ pathAwb }: { pathAwb?: string } = {}) {
   return (
     <div className="min-h-screen flex flex-col bg-white font-sans text-[#0F172A] selection:bg-[#00A86B]/20 selection:text-[#00A86B]" style={{ fontFamily: 'Roboto, sans-serif' }}>
       <Navbar />
+      <TrackRunOverlay
+        phase={runPhase}
+        query={runQuery}
+        mode={searchMode}
+        onRetry={() => { setRunPhase(null); setQuery(''); setTimeout(() => document.querySelector<HTMLInputElement>('input[aria-label="AWB number"], input[aria-label="Order ID"]')?.focus(), 50); }}
+      />
 
       <main className="flex-1">
 
         {/* ═══════════════════════ HERO ═══════════════════════ */}
-        <section className="relative overflow-hidden pt-[96px] pb-16 md:pt-[150px] md:pb-24 bg-[#F8FAFC]">
+        <section className="relative overflow-hidden pt-[96px] pb-16 md:pt-[150px] md:pb-24 lg:pt-[132px] lg:pb-20 bg-[#F8FAFC]">
           <DotGrid />
           <div className="absolute top-24 -right-24 w-[420px] h-[420px] rounded-full bg-[#00A86B]/[0.05] blur-3xl pointer-events-none" />
 
           <div className="relative max-w-7xl mx-auto px-6 md:px-10 grid grid-cols-1 lg:grid-cols-2 gap-0 md:gap-12 lg:gap-16 items-center">
-            {/* Left — copy */}
+            {/* Left — lookup (desktop). Phones and tablets use the card below the hero. */}
             <motion.div
+              className="hidden lg:block"
               initial={{ opacity: 0, y: 24 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, ease: EASE }}
             >
-              <h1 className="hidden md:block text-[34px] leading-[1.15] md:text-[52px] md:leading-[1.1] font-bold text-[#0F172A] tracking-tight">
-                Track Every Shipment
-                <br />
-                <span className="text-[#00A86B]">Real-Time. Accurate. Transparent.</span>
-              </h1>
-
-              <p className="hidden md:block mt-5 text-[15px] md:text-[16px] text-[#5F5E5A] leading-relaxed max-w-[520px]">
-                Track your courier across all courier partners using Order ID or AWB Number. Get live shipment updates, courier information, estimated delivery, and complete tracking history.
-              </p>
-
-              <div className="hidden md:flex mt-9 flex-wrap items-center gap-x-8 gap-y-3">
-                {[
-                  { icon: Truck, label: '25+ Courier Partners' },
-                  { icon: Zap, label: 'Real-Time Updates' },
-                  { icon: ShieldCheck, label: '99.2% Accuracy' },
-                ].map((item) => (
-                  <div key={item.label} className="flex items-center gap-2 text-[12.5px] font-semibold text-[#475569]">
-                    <item.icon className="w-4 h-4 text-[#00A86B]" />
-                    {item.label}
-                  </div>
-                ))}
+              <div className="relative max-w-[520px] bg-white rounded-[28px] border border-[#E2E8F0] p-8 shadow-[0_30px_70px_-32px_rgba(15,23,42,0.35)]">
+                <h1 className="text-[32px] leading-[1.1] font-bold text-[#0F172A] tracking-[-0.025em]">Track your shipment</h1>
+                <p className="mt-2 mb-6 text-[14.5px] text-[#64748B]">Enter the AWB number from the shipping label, or your Order ID.</p>
+                {trackForm(true)}
               </div>
             </motion.div>
 
@@ -535,7 +932,7 @@ export function Track({ pathAwb }: { pathAwb?: string } = {}) {
         </section>
 
         {/* ═══════════════════════ TRACKING CARD ═══════════════════════ */}
-        <section id="track-card" className="relative -mt-8 md:-mt-14 px-6 md:px-10 z-20">
+        <section id="track-card" className="lg:hidden relative -mt-8 md:-mt-14 px-6 md:px-10 z-20">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -543,86 +940,7 @@ export function Track({ pathAwb }: { pathAwb?: string } = {}) {
             transition={{ duration: 0.55, ease: EASE }}
             className="max-w-3xl mx-auto bg-white rounded-[24px] border border-[#E0EDE8] shadow-[0_20px_60px_-20px_rgba(0,0,0,0.15)] p-6 md:p-8"
           >
-            {/* Tabs */}
-            <div className="inline-flex items-center gap-1 bg-[#F1F5F9] rounded-xl p-1 mb-5">
-              {([
-                { key: 'order', label: 'Order ID' },
-                { key: 'awb', label: 'AWB Number' },
-              ] as const).map((tab) => (
-                <button
-                  key={tab.key}
-                  onClick={() => { setSearchMode(tab.key); setError(''); }}
-                  className={`px-4 py-2 rounded-lg text-[13px] font-bold transition-all duration-200 ${
-                    searchMode === tab.key ? 'bg-white text-[#00A86B] shadow-sm' : 'text-[#64748B] hover:text-[#0F172A]'
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-
-            <form
-              onSubmit={(e) => { e.preventDefault(); runSearch(query); }}
-              className="flex flex-col sm:flex-row gap-3"
-            >
-              <div className="relative flex-1 group">
-                <Search className="w-[18px] h-[18px] absolute left-4 top-1/2 -translate-y-1/2 text-[#94A3B8] transition-colors group-focus-within:text-[#00A86B]" />
-                <input
-                  type="text"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder={searchMode === 'order' ? 'Enter Order ID (e.g. QP2408417)' : 'Enter AWB Number'}
-                  className="w-full h-[52px] pl-12 pr-4 rounded-full border border-[#E2E8F0] bg-[#F8FAFC] text-[14.5px] font-medium text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-4 focus:ring-[#00A86B]/10 focus:bg-white transition-all duration-200"
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={loading}
-                className="qp-cta-track h-[52px] px-7 rounded-full text-[14.5px] font-bold text-white tracking-[-0.01em] flex items-center justify-center gap-2 disabled:opacity-70"
-                style={{
-                  background: 'linear-gradient(135deg, #00A86B 0%, #00C47A 100%)',
-                  boxShadow: '0 2px 14px rgba(0, 168, 107, 0.38)',
-                }}
-              >
-                {loading ? (
-                  <>
-                    <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                    Searching…
-                  </>
-                ) : (
-                  <>Track Shipment</>
-                )}
-              </button>
-            </form>
-
-            {error && (
-              <p className="mt-3 text-[12.5px] font-semibold text-[#DC2626]">{error}</p>
-            )}
-
-            {/* Loading progress line */}
-            <AnimatePresence>
-              {loading && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="mt-5 overflow-hidden"
-                >
-                  <div className="h-1 w-full bg-[#F1F5F9] rounded-full overflow-hidden">
-                    <motion.div
-                      className="h-full rounded-full"
-                      style={{ background: 'linear-gradient(90deg, #00A86B, #00C47A)' }}
-                      initial={{ x: '-100%' }}
-                      animate={{ x: ['-100%', '10%', '120%'] }}
-                      transition={{ duration: 1.3, ease: 'easeInOut', repeat: Infinity }}
-                    />
-                  </div>
-                  <p className="mt-2.5 text-[12px] font-semibold text-[#64748B] flex items-center gap-1.5">
-                    <ScanLine className="w-3.5 h-3.5 text-[#00A86B]" /> Searching courier network…
-                  </p>
-                </motion.div>
-              )}
-            </AnimatePresence>
+            {trackForm(false)}
           </motion.div>
         </section>
 
@@ -636,157 +954,68 @@ export function Track({ pathAwb }: { pathAwb?: string } = {}) {
               transition={{ duration: 0.5, ease: EASE }}
               className="relative px-4 sm:px-6 md:px-10 pt-10 sm:pt-14 md:pt-20 pb-4 max-w-7xl mx-auto"
             >
-              {/* Header status card */}
-              <div className="bg-white rounded-2xl border border-[#E0EDE8] shadow-sm p-4 sm:p-5 md:p-7 mb-5 md:mb-6">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div className="flex items-center gap-3 sm:gap-4">
-                    <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-[#F8FAFC] border border-[#E0EDE8] flex items-center justify-center shrink-0 overflow-hidden">
-                      <img src={result.courierLogo} alt={result.courierName} className="max-w-[32px] max-h-[32px] sm:max-w-[38px] sm:max-h-[38px] object-contain" />
-                    </div>
-                    <div className="min-w-0">
-                      <div className={`inline-flex items-center gap-1.5 text-[11px] sm:text-[11.5px] font-bold px-2.5 sm:px-3 py-1 rounded-full border ${statusStyle.bg} ${statusStyle.text} ${statusStyle.border} mb-1.5`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${statusStyle.dot} shrink-0`} />
-                        {result.status}
-                      </div>
-                      <h2 className="text-[15.5px] sm:text-[17px] md:text-[19px] font-bold text-[#0F172A] truncate">{result.courierName}</h2>
-                      <p className="text-[12px] sm:text-[12.5px] text-[#64748B] truncate">{result.serviceType}</p>
-                    </div>
-                  </div>
+              <StatusAndHistory
+                result={result}
+                copied={copied === 'awb'}
+                onCopyAwb={() => copyValue(result.awb, 'awb')}
+                onShare={() => {
+                  const url = window.location.href;
+                  if (navigator.share) navigator.share({ title: 'Track shipment', url }).catch(() => { /* dismissed */ });
+                  else copyValue(url, 'awb');
+                }}
+              />
 
-                  <div className="grid grid-cols-2 md:flex md:items-center gap-3 sm:gap-4 md:gap-8 pt-3 md:pt-0 border-t md:border-t-0 border-dashed border-[#E2E8F0]">
-                    <div className="min-w-0">
-                      <div className="text-[9.5px] sm:text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider mb-0.5">AWB Number</div>
-                      <button onClick={() => copyValue(result.awb, 'awb')} className="flex items-center gap-1.5 text-[12.5px] sm:text-[13px] font-bold text-[#0F172A] hover:text-[#00A86B] transition-colors max-w-full">
-                        <span className="truncate">{result.awb}</span> <Copy className="w-3 h-3 shrink-0" />
-                      </button>
-                      {copied === 'awb' && <span className="text-[10px] font-semibold text-[#00A86B]">Copied!</span>}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="text-[9.5px] sm:text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider mb-0.5">Order ID</div>
-                      <button onClick={() => copyValue(result.orderId, 'order')} className="flex items-center gap-1.5 text-[12.5px] sm:text-[13px] font-bold text-[#0F172A] hover:text-[#00A86B] transition-colors max-w-full">
-                        <span className="truncate">{result.orderId}</span> <Copy className="w-3 h-3 shrink-0" />
-                      </button>
-                      {copied === 'order' && <span className="text-[10px] font-semibold text-[#00A86B]">Copied!</span>}
-                    </div>
+              <div className="mt-5 sm:mt-6 bg-white rounded-[24px] border border-[#E0EDE8] shadow-sm overflow-hidden grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_380px]">
+                {/* Map */}
+                <div className="p-4 sm:p-5 lg:pr-0">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-[16px] font-bold text-[#0F172A]">Delivery region</h3>
                   </div>
+                  <DeliveryRegionMap city={result.destCity} state={result.destState} pin={result.destPin} />
                 </div>
 
-                <div className="mt-4 sm:mt-5 pt-4 sm:pt-5 border-t border-dashed border-[#E2E8F0] grid grid-cols-2 md:grid-cols-4 gap-x-3 gap-y-4 sm:gap-5">
-                  {[
-                    { icon: MapPin, label: 'Pickup', value: result.pickup },
-                    { icon: Target, label: 'Destination', value: result.destination },
-                    { icon: Clock, label: result.deliveredOn ? 'Delivered On' : 'Expected Delivery', value: result.deliveredOn || result.expectedDelivery },
-                    { icon: result.paymentMode === 'COD' ? Wallet : CreditCard, label: 'Payment Mode', value: result.paymentMode === 'COD' ? `COD · ₹${result.codAmount?.toLocaleString('en-IN')}` : 'Prepaid' },
-                  ].map((item) => (
-                    <div key={item.label} className="flex items-start gap-2 sm:gap-2.5 min-w-0">
-                      <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-[#F0FDF4] flex items-center justify-center shrink-0 mt-0.5">
-                        <item.icon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#00A86B]" />
-                      </div>
-                      <div className="min-w-0">
-                        <div className="text-[9.5px] sm:text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider">{item.label}</div>
-                        <div className="text-[12.5px] sm:text-[13px] font-bold text-[#0F172A] truncate">{item.value}</div>
-                      </div>
+                {/* Order details */}
+                <div className="p-5 sm:p-6 lg:border-l border-t lg:border-t-0 border-[#EEF2F6]">
+                  <h3 className="text-[16px] font-bold text-[#0F172A] flex items-center gap-2"><Package className="w-[18px] h-[18px] text-[#00A86B]" />Order details</h3>
+
+                  <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-4">
+                    <div>
+                      <dt className="text-[11.5px] font-semibold text-[#94A3B8] uppercase tracking-wider">Order ID</dt>
+                      <dd className="mt-0.5 text-[14px] font-bold text-[#0F172A] font-mono">{result.orderId.length > 3 ? `${'•'.repeat(Math.min(6, result.orderId.length - 3))}${result.orderId.slice(-3)}` : result.orderId}</dd>
                     </div>
-                  ))}
-                </div>
-              </div>
+                    <div>
+                      <dt className="text-[11.5px] font-semibold text-[#94A3B8] uppercase tracking-wider">Placed on</dt>
+                      <dd className="mt-0.5 text-[14px] font-bold text-[#0F172A]">{result.placedOn}</dd>
+                    </div>
+                    <div className="col-span-2">
+                      <dt className="text-[11.5px] font-semibold text-[#94A3B8] uppercase tracking-wider">Payment</dt>
+                      <dd className="mt-1">
+                        <span className={`inline-flex items-center gap-1.5 h-7 px-3 rounded-full text-[12.5px] font-semibold ${result.paymentMode === 'COD' ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-[#F0FDF4] text-[#00A86B] border border-[#00A86B]/20'}`}>
+                          {result.paymentMode === 'COD' ? <Wallet className="w-3.5 h-3.5" /> : <CreditCard className="w-3.5 h-3.5" />}
+                          {result.paymentMode === 'COD' ? `Cash on delivery${result.codAmount ? ` · ₹${result.codAmount.toLocaleString('en-IN')}` : ''}` : 'Prepaid'}
+                        </span>
+                      </dd>
+                    </div>
+                  </dl>
 
-              {/* Timeline + Map + Courier details grid */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-
-                {/* Timeline */}
-                <div className="lg:col-span-2 bg-white rounded-2xl border border-[#E0EDE8] shadow-sm p-4 sm:p-5 md:p-7 flex flex-col">
-                  <div className="flex items-center justify-between mb-5 sm:mb-6">
-                    <h3 className="text-[14px] sm:text-[15px] font-bold text-[#0F172A]">Tracking History</h3>
-                    <span className="text-[10.5px] sm:text-[11px] font-bold text-[#64748B] bg-[#F1F5F9] px-2 sm:px-2.5 py-1 rounded-full whitespace-nowrap">
-                      {doneCount}/{result.timeline.length} completed
-                    </span>
-                  </div>
-
-                  <div className="relative">
-                    {(showAllEvents ? result.timeline : result.timeline.slice(0, 5)).map((event, idx) => {
-                      const Icon = STATUS_STEP_ICONS[idx] || CheckCircle2;
-                      const visibleCount = showAllEvents ? result.timeline.length : Math.min(5, result.timeline.length);
-                      const isLast = idx === visibleCount - 1;
-                      return (
-                        <motion.div
-                          key={event.status}
-                          initial={{ opacity: 0, x: -10 }}
-                          whileInView={{ opacity: 1, x: 0 }}
-                          viewport={{ once: true, margin: '-20px' }}
-                          transition={{ duration: 0.4, delay: idx * 0.08, ease: EASE }}
-                          className="relative flex gap-3 sm:gap-4 pb-6 sm:pb-8 last:pb-0"
-                        >
-                          {!isLast && (
-                            <div
-                              className={`absolute left-4 sm:left-[19px] top-9 sm:top-10 bottom-0 w-[2px] ${event.done ? 'bg-[#00A86B]' : 'bg-[#E2E8F0]'}`}
-                            />
-                          )}
-                          <div
-                            className={`relative z-10 w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shrink-0 border-2 ${
-                              event.done
-                                ? 'bg-[#00A86B] border-[#00A86B] text-white'
-                                : 'bg-white border-[#E2E8F0] text-[#CBD5E1]'
-                            }`}
-                          >
-                            <Icon className="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5" />
-                          </div>
-                          <div className="flex-1 min-w-0 pt-1 sm:pt-1.5">
-                            <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-x-2 gap-y-0.5 sm:gap-y-1">
-                              <h4 className={`text-[13px] sm:text-[13.5px] font-bold ${event.done ? 'text-[#0F172A]' : 'text-[#94A3B8]'}`}>{event.status}</h4>
-                              {event.done && (
-                                <span className="text-[10px] sm:text-[10.5px] font-semibold text-[#64748B]">
-                                  {event.date} · {event.time}
-                                </span>
-                              )}
-                            </div>
-                            <p className={`text-[12px] sm:text-[12.5px] mt-0.5 ${event.done ? 'text-[#475569]' : 'text-[#94A3B8]'}`}>{event.description}</p>
-                            {event.done && event.location && (
-                              <p className="text-[11px] sm:text-[11.5px] text-[#94A3B8] mt-0.5 flex items-center gap-1">
-                                <MapPin className="w-3 h-3 shrink-0" /> <span className="truncate">{event.location}</span>
-                              </p>
-                            )}
-                          </div>
-                        </motion.div>
-                      );
-                    })}
-                  </div>
-
-                  {result.timeline.length > 4 && (
-                    <button
-                      onClick={() => setShowAllEvents(v => !v)}
-                      className="w-full mt-auto pt-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[12px] sm:text-[12.5px] font-bold text-[#00A86B] hover:bg-[#F0FDF4] transition-colors"
-                    >
-                      {showAllEvents ? 'Show less' : `View ${result.timeline.length - 5} more`}
-                      <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${showAllEvents ? 'rotate-180' : ''}`} />
-                    </button>
-                  )}
-                </div>
-
-                {/* Right column — Map + Courier details */}
-                <div className="space-y-4 sm:space-y-6">
-                  <RoutePreview pickup={result.pickup} destination={result.destination} />
-
-                  <div className="bg-white rounded-2xl border border-[#E0EDE8] shadow-sm p-4 sm:p-5 md:p-6">
-                    <h3 className="text-[13px] font-bold text-[#0F172A] mb-3.5 sm:mb-4">Courier Details</h3>
-                    <div className="space-y-3 sm:space-y-3.5">
-                      {[
-                        { icon: Truck, label: 'Courier Partner', value: result.courierName },
-                        { icon: Hash, label: 'Tracking Number', value: result.awb },
-                        { icon: ScanLine, label: 'Service Type', value: result.serviceType },
-                        { icon: Building2, label: 'Current Hub', value: result.currentHub },
-                        { icon: Weight, label: 'Shipment Weight', value: result.weight },
-                        { icon: Ruler, label: 'Dimensions', value: result.dimensions },
-                        { icon: Hash, label: 'Customer Reference', value: result.customerRef },
-                      ].map((row) => (
-                        <div key={row.label} className="flex items-center justify-between gap-2.5 sm:gap-3">
-                          <div className="flex items-center gap-1.5 sm:gap-2 text-[#64748B] shrink-0">
-                            <row.icon className="w-3.5 h-3.5 shrink-0" />
-                            <span className="text-[11.5px] sm:text-[12px] font-semibold whitespace-nowrap">{row.label}</span>
-                          </div>
-                          <span className="text-[12px] sm:text-[12.5px] font-bold text-[#0F172A] text-right truncate">{row.value}</span>
+                  {/* Route */}
+                  <div className="mt-5 rounded-2xl bg-[#F8FAFC] border border-[#EEF2F6] p-4">
+                    <div className="flex gap-3">
+                      <div className="flex flex-col items-center pt-1">
+                        <span className="w-2.5 h-2.5 rounded-full bg-[#00A86B] ring-4 ring-[#00A86B]/15" />
+                        <span className="flex-1 my-1 border-l-2 border-dashed border-[#CBD5E1] min-h-[28px]" />
+                        <span className="w-2.5 h-2.5 rounded-full bg-[#0F172A] ring-4 ring-[#0F172A]/10" />
+                      </div>
+                      <div className="flex-1 min-w-0 space-y-4">
+                        <div>
+                          <div className="text-[11px] font-semibold text-[#94A3B8] uppercase tracking-wider">Shipped from</div>
+                          <div className="text-[13.5px] font-semibold text-[#0F172A] truncate">{result.pickup}</div>
                         </div>
-                      ))}
+                        <div>
+                          <div className="text-[11px] font-semibold text-[#94A3B8] uppercase tracking-wider">Delivering to</div>
+                          <div className="text-[13.5px] font-semibold text-[#0F172A] truncate">{result.destination}{result.destPin ? ` – ${result.destPin}` : ''}</div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -796,7 +1025,7 @@ export function Track({ pathAwb }: { pathAwb?: string } = {}) {
         </AnimatePresence>
 
         {/* ═══════════════════════ HELP ═══════════════════════ */}
-        <section className="relative px-6 md:px-10 py-16 md:py-20 max-w-7xl mx-auto">
+        <section id="help" className="relative scroll-mt-24 px-6 md:px-10 py-16 md:py-20 max-w-7xl mx-auto">
           <div className="bg-[#F8FAFC] rounded-[24px] border border-[#E0EDE8] p-7 md:p-10">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 mb-7">
               <div>

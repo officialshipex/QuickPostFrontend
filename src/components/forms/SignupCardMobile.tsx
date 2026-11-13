@@ -119,21 +119,21 @@ export function SignupCardMobile({ onBack }: SignupCardMobileProps) {
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
         <div>
           <label className="block text-xs font-semibold text-[#475569] mb-1 font-sans">Full Name<span className="text-red-500">*</span></label>
-          <Input placeholder="Enter your full name" className="h-10 bg-transparent border-[#E2E8F0] text-sm focus-visible:ring-[#00A86B]" {...register('fullname')} error={errors.fullname?.message} />
+          <Input placeholder="Enter your full name" className="h-10 bg-transparent border-[#E2E8F0] text-sm focus-visible:ring-[#00A86B] !rounded-full !px-5 focus-visible:!ring-offset-0 focus-visible:!ring-4 focus-visible:!ring-[#00A86B]/15 focus-visible:border-[#00A86B]" {...register('fullname')} error={errors.fullname?.message} />
         </div>
 
         <div>
           <label className="block text-xs font-semibold text-[#475569] mb-1 font-sans">Email<span className="text-red-500">*</span></label>
-          <Input type="email" placeholder="abc@gmail.com" className="h-10 bg-transparent border-[#E2E8F0] text-sm focus-visible:ring-[#00A86B]" {...register('email')} error={errors.email?.message} />
+          <Input type="email" placeholder="abc@gmail.com" className="h-10 bg-transparent border-[#E2E8F0] text-sm focus-visible:ring-[#00A86B] !rounded-full !px-5 focus-visible:!ring-offset-0 focus-visible:!ring-4 focus-visible:!ring-[#00A86B]/15 focus-visible:border-[#00A86B]" {...register('email')} error={errors.email?.message} />
         </div>
 
         <div>
           <label className="block text-xs font-semibold text-[#475569] mb-1 font-sans">Phone Number<span className="text-red-500">*</span></label>
           <div className="flex">
-            <div className="flex items-center border border-r-0 border-[#E2E8F0] rounded-l-md px-2 bg-transparent text-sm text-[#475569] font-sans">
+            <div className="flex items-center border border-r-0 border-[#E2E8F0] rounded-l-full pl-4 pr-2 bg-transparent text-sm text-[#475569] font-sans">
               +91 <ChevronDown className="w-3 h-3 ml-1" />
             </div>
-            <Input type="tel" placeholder="9876543210" className="h-10 rounded-l-none bg-transparent border-[#E2E8F0] text-sm focus-visible:ring-[#00A86B]" {...register('phone')} error={errors.phone?.message} />
+            <Input type="tel" placeholder="9876543210" className="h-10 !rounded-l-none !rounded-r-full !pl-3 !pr-5 focus-visible:!ring-offset-0 focus-visible:!ring-4 focus-visible:!ring-[#00A86B]/15 focus-visible:border-[#00A86B] bg-transparent border-[#E2E8F0] text-sm focus-visible:ring-[#00A86B]" {...register('phone')} error={errors.phone?.message} />
           </div>
         </div>
         <RegisterOtpFormBar otp={registerOtp} email={watch('email')} phone={watch('phone')} />
@@ -141,14 +141,14 @@ export function SignupCardMobile({ onBack }: SignupCardMobileProps) {
         <div className="grid grid-cols-2 gap-2.5">
         <div className="min-w-0">
           <label className="block text-xs font-semibold text-[#475569] mb-1 font-sans">Company Name<span className="text-red-500">*</span></label>
-          <Input placeholder="Your company name" className="h-10 bg-transparent border-[#E2E8F0] text-sm focus-visible:ring-[#00A86B]" {...register('company')} error={errors.company?.message} />
+          <Input placeholder="Your company name" className="h-10 bg-transparent border-[#E2E8F0] text-sm focus-visible:ring-[#00A86B] !rounded-full !px-5 focus-visible:!ring-offset-0 focus-visible:!ring-4 focus-visible:!ring-[#00A86B]/15 focus-visible:border-[#00A86B]" {...register('company')} error={errors.company?.message} />
         </div>
 
         <div className="min-w-0">
           <label className="block text-xs font-semibold text-[#475569] mb-1 font-sans">Monthly Orders<span className="text-red-500">*</span></label>
           <select
             {...register('monthlyOrders')}
-            className="h-10 w-full rounded-md border border-[#E2E8F0] bg-transparent px-3 text-sm text-[#0F172A] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B] font-sans"
+            className="h-10 w-full rounded-full border border-[#E2E8F0] bg-transparent px-5 text-sm text-[#0F172A] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B] font-sans"
           >
             <option value="">Select range</option>
             {monthlyOrderOptions.map(opt => (
@@ -172,8 +172,8 @@ export function SignupCardMobile({ onBack }: SignupCardMobileProps) {
         <div className="min-w-0">
           <label className="block text-xs font-semibold text-[#475569] mb-1 font-sans">Password<span className="text-red-500">*</span></label>
           <div className="relative">
-            <Input type={showPassword ? 'text' : 'password'} placeholder="Min. 8 characters" className="h-10 bg-transparent border-[#E2E8F0] text-sm pr-10 focus-visible:ring-[#00A86B]" {...register('password')} error={errors.password?.message} />
-            <button type="button" onClick={() => setShowPassword(p => !p)} className="absolute right-3 top-3 text-[#94A3B8] hover:text-[#475569]">
+            <Input type={showPassword ? 'text' : 'password'} placeholder="Min. 8 characters" className="h-10 bg-transparent border-[#E2E8F0] text-sm pr-12 focus-visible:ring-[#00A86B] !rounded-full !px-5 focus-visible:!ring-offset-0 focus-visible:!ring-4 focus-visible:!ring-[#00A86B]/15 focus-visible:border-[#00A86B] !pr-12" {...register('password')} error={errors.password?.message} />
+            <button type="button" onClick={() => setShowPassword(p => !p)} className="absolute right-4 top-3 text-[#94A3B8] hover:text-[#475569]">
               {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
           </div>
@@ -182,8 +182,8 @@ export function SignupCardMobile({ onBack }: SignupCardMobileProps) {
         <div className="min-w-0">
           <label className="block text-xs font-semibold text-[#475569] mb-1 font-sans">Confirm Password<span className="text-red-500">*</span></label>
           <div className="relative">
-            <Input type={showConfirm ? 'text' : 'password'} placeholder="Re-enter" className="h-10 bg-transparent border-[#E2E8F0] text-sm pr-10 focus-visible:ring-[#00A86B]" {...register('confirmedPassword')} error={errors.confirmedPassword?.message} />
-            <button type="button" onClick={() => setShowConfirm(p => !p)} className="absolute right-3 top-3 text-[#94A3B8] hover:text-[#475569]">
+            <Input type={showConfirm ? 'text' : 'password'} placeholder="Re-enter" className="h-10 bg-transparent border-[#E2E8F0] text-sm pr-12 focus-visible:ring-[#00A86B] !rounded-full !px-5 focus-visible:!ring-offset-0 focus-visible:!ring-4 focus-visible:!ring-[#00A86B]/15 focus-visible:border-[#00A86B] !pr-12" {...register('confirmedPassword')} error={errors.confirmedPassword?.message} />
+            <button type="button" onClick={() => setShowConfirm(p => !p)} className="absolute right-4 top-3 text-[#94A3B8] hover:text-[#475569]">
               {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
           </div>
@@ -204,14 +204,14 @@ export function SignupCardMobile({ onBack }: SignupCardMobileProps) {
         {errors.checked && <p className="text-xs text-red-500 font-sans -mt-2">{errors.checked.message}</p>}
 
         {status === 'error' && (
-          <div className="flex items-start gap-2 p-3 bg-red-50 text-red-600 rounded-md text-xs font-medium font-sans">
+          <div className="flex items-start gap-2 p-3 bg-red-50 text-red-600 rounded-xl text-xs font-medium font-sans">
             <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
             <span>{serverError}</span>
           </div>
         )}
 
         {status === 'success' && (
-          <div className="flex items-start gap-2 p-3 bg-[#10B981]/10 text-[#00A86B] rounded-md text-xs font-medium font-sans">
+          <div className="flex items-start gap-2 p-3 bg-[#10B981]/10 text-[#00A86B] rounded-xl text-xs font-medium font-sans">
             <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" />
             <span>Account created! Redirecting...</span>
           </div>
@@ -219,7 +219,7 @@ export function SignupCardMobile({ onBack }: SignupCardMobileProps) {
 
         <ShineButton
           type="submit"
-          className="inline-flex items-center justify-center whitespace-nowrap w-full h-11 bg-[#00A86B] hover:bg-[#009B63] text-white text-sm font-semibold rounded-md transition-colors disabled:opacity-50 disabled:pointer-events-none cursor-pointer font-sans"
+          className="inline-flex items-center justify-center whitespace-nowrap w-full h-11 bg-[#00A86B] hover:bg-[#009B63] text-white text-[15px] font-semibold rounded-full shadow-[0_10px_24px_-12px_rgba(0,168,107,0.9)] transition-colors disabled:opacity-50 disabled:pointer-events-none cursor-pointer font-sans"
           disabled={status === 'loading' || status === 'success'}
         >
           {status === 'loading' ? (
