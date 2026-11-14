@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowRight, Loader2, MapPin, Plus, Trash2, Truck } from 'lucide-react';
+import { ArrowRight, Clock, Loader2, MapPin, Plane, Plus, Scale, Trash2, Truck, Zap, BadgeIndianRupee } from 'lucide-react';
+import { getCourierBrandLogo } from '../../utils/courierLogo';
 import { Link } from 'react-router-dom';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { apiClient } from '../../services/apiClient';
@@ -84,6 +85,44 @@ function Toggle({ on, onChange, label }: { on: boolean; onChange: () => void; la
   );
 }
 
+const inr2 = (v: number) => `₹${v.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const total = (q: CargoQuote) => Number(q.working?.grand_total) || 0;
+function CarrierRow({ q, cheapest, fastest, delta, index }: { q: CargoQuote; cheapest: boolean; fastest: boolean; delta: number; index: number }) {
+  const logo = getCourierBrandLogo(q.courierServiceName || q.provider || '');
+  const air = (q.mode_name || '').toLowerCase() === 'air';
+  return (
+    <motion.li
+      initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: Math.min(index, 8) * 0.04 }}
+      className={`rounded-2xl border bg-white transition-shadow hover:shadow-[0_10px_28px_-18px_rgba(15,23,42,0.35)] ${cheapest ? 'border-[#00A86B]/40 ring-1 ring-[#00A86B]/15' : 'border-[#E2E8F0]'}`}
+    >
+      <div className="p-4 grid grid-cols-[56px_minmax(0,1fr)] md:grid-cols-[56px_minmax(0,1fr)_auto] gap-x-4 gap-y-3 items-center">
+        <span className="w-14 h-14 rounded-xl border border-[#EEF2F6] bg-white flex items-center justify-center overflow-hidden">
+          {logo ? <img src={logo} alt="" className="max-w-[44px] max-h-[34px] object-contain" /> : <Truck className="w-6 h-6 text-[#94A3B8]" />}
+        </span>
+
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-[14.5px] font-bold text-[#0F172A] truncate">{q.courierServiceName || 'Carrier'}</span>
+            {cheapest && <span className="inline-flex items-center gap-1 h-5 px-2 rounded-full bg-[#F0FDF4] text-[10.5px] font-bold text-[#00A86B]"><BadgeIndianRupee className="w-3 h-3" />Cheapest</span>}
+            {fastest && <span className="inline-flex items-center gap-1 h-5 px-2 rounded-full bg-sky-50 text-[10.5px] font-bold text-sky-700"><Zap className="w-3 h-3" />Fastest</span>}
+          </div>
+          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-[#64748B]">
+            <span className="inline-flex items-center gap-1">{air ? <Plane className="w-3.5 h-3.5" /> : <Truck className="w-3.5 h-3.5" />}{air ? 'Air' : 'Surface'}</span>
+            {q.tat != null && q.tat > 0 && <span className="inline-flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{q.tat} day{q.tat > 1 ? 's' : ''}</span>}
+            {q.working?.billable_weight != null && <span className="inline-flex items-center gap-1"><Scale className="w-3.5 h-3.5" />{q.working.billable_weight} kg chargeable</span>}
+          </div>
+        </div>
+
+        <div className="col-span-2 md:col-span-1 flex md:block items-baseline justify-between md:text-right">
+          <div className="text-[20px] font-bold text-[#0F172A] tabular-nums leading-tight">{inr2(total(q))}</div>
+          <div className="text-[11.5px] text-[#94A3B8]">{cheapest ? 'Lowest price' : `+${inr2(delta)} vs cheapest`}</div>
+        </div>
+
+      </div>
+    </motion.li>
+  );
+}
+
 export function CargoRateCalculator() {
   const [fromPin, setFromPin] = useState('');
   const [toPin, setToPin] = useState('');
@@ -95,6 +134,7 @@ export function CargoRateCalculator() {
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState('');
   const [quotes, setQuotes] = useState<CargoQuote[] | null>(null);
+  const [sortBy, setSortBy] = useState<'price' | 'speed'>('price');
 
   const from = usePincodePlace(fromPin);
   const to = usePincodePlace(toPin);
@@ -341,31 +381,48 @@ export function CargoRateCalculator() {
           {(apiError || quotes) && (
             <motion.section initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
               className="bg-white rounded-2xl p-5 md:p-6 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_2px_8px_rgba(16,24,40,0.05)]">
-              <h2 className={sectionTitle}>Available Carriers</h2>
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                <div>
+                  <h2 className="text-[16px] font-bold text-[#0F172A]">Available carriers</h2>
+                  {quotes && quotes.length > 0 && (
+                    <p className="text-[12px] text-[#64748B]">{quotes.length} option{quotes.length > 1 ? 's' : ''} for {totals.chargeable.toFixed(2)} kg · {from.city || fromPin} → {to.city || toPin}</p>
+                  )}
+                </div>
+                {quotes && quotes.length > 1 && (
+                  <div role="radiogroup" aria-label="Sort carriers" className="grid grid-cols-2 p-0.5 h-9 rounded-full bg-[#F1F5F9] border border-[#E2E8F0]">
+                    {([['price', 'Cheapest'], ['speed', 'Fastest']] as const).map(([k, l]) => (
+                      <button key={k} type="button" role="radio" aria-checked={sortBy === k} onClick={() => setSortBy(k)}
+                        className={`px-4 rounded-full text-[12.5px] font-semibold transition-all ${sortBy === k ? 'bg-white text-[#0F172A] shadow-sm' : 'text-[#64748B]'}`}>{l}</button>
+                    ))}
+                  </div>
+                )}
+              </div>
               {apiError ? (
                 <p className="text-[12.5px] text-red-500 bg-red-50 border border-red-100 rounded-xl px-3.5 py-2.5">{apiError}</p>
-              ) : (
-                <div className="divide-y divide-[#F1F5F9]">
-                  {quotes!.map((q, i) => (
-                    <div key={i} className="flex items-center justify-between gap-3 py-3">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <span className="w-9 h-9 rounded-lg bg-[#F1F5F9] flex items-center justify-center shrink-0"><Truck className="w-4 h-4 text-[#475569]" /></span>
-                        <div className="min-w-0">
-                          <div className="text-[13px] font-semibold text-[#0F172A] truncate">{q.courierServiceName || 'Carrier'}</div>
-                          <div className="text-[11.5px] text-[#64748B]">
-                            {q.mode_name === 'air' ? 'Air' : 'Surface'}
-                            {q.working?.billable_weight != null ? ` · Chargeable ${q.working.billable_weight} kg` : ''}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-[15px] font-bold text-[#0F172A] tabular-nums">₹{Number(q.working?.grand_total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                        <div className="text-[11px] text-[#94A3B8] tabular-nums">Freight ₹{Number(q.working?.freight || 0).toFixed(2)} · GST ₹{Number(q.working?.gst || 0).toFixed(2)}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+              ) : (() => {
+                const list = quotes!;
+                const minPrice = Math.min(...list.map(total));
+                const tatOf = (q: CargoQuote) => (typeof q.tat === 'number' && q.tat > 0 ? q.tat : Infinity);
+                // Exactly one Cheapest (lowest price; on a tie, the faster one) and one Fastest (shortest TAT; on a tie, the cheaper one)
+                const cheapestQ = [...list].sort((a, b) => total(a) - total(b) || tatOf(a) - tatOf(b))[0];
+                const timed = list.filter(q => tatOf(q) !== Infinity);
+                const fastestQ = timed.length > 1 && new Set(timed.map(tatOf)).size > 1
+                  ? [...timed].sort((a, b) => tatOf(a) - tatOf(b) || total(a) - total(b))[0]
+                  : null;
+                const sorted = [...list].sort((a, b) => sortBy === 'price'
+                  ? total(a) - total(b)
+                  : ((a.tat ?? 999) - (b.tat ?? 999)) || total(a) - total(b));
+                return (
+                  <ul className="space-y-3">
+                    {sorted.map((q, i) => (
+                      <CarrierRow key={`${q.courierServiceName}-${i}`} q={q} index={i}
+                        cheapest={q === cheapestQ}
+                        fastest={q === fastestQ}
+                        delta={total(q) - minPrice} />
+                    ))}
+                  </ul>
+                );
+              })()}
             </motion.section>
           )}
         </AnimatePresence>
