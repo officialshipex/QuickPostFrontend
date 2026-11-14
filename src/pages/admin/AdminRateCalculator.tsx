@@ -3,24 +3,15 @@ import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { Truck, Plane, Loader2, Info, Sparkles, ArrowRight, MapPin } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../../services/apiClient';
+import { getCourierBrandLogo } from '../../utils/courierLogo';
 import { ParcelPreview } from '../../components/ui/ParcelPreview';
 import { RouteSummary } from '../../components/ui/RouteSummary';
 import { ShineButton } from '../../components/ui/ShineButton';
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-// ─── Carrier Logo ──────────────────────────────────────────────────────────────
-const getCarrierLogo = (name = '') => {
-  const n = name.toLowerCase();
-  if (n.includes('delhivery')) return '/brands/delhivery.png';
-  if (n.includes('bluedart')) return '/brands/bluedart.png';
-  if (n.includes('shadowfax')) return '/brands/shadowfax.png';
-  if (n.includes('xpressbees')) return '/brands/xpressbees.png';
-  if (n.includes('dtdc')) return '/brands/dtdc.png';
-  if (n.includes('amazon')) return '/brands/amazon.png';
-  if (n.includes('ekart')) return '/brands/ekart.png';
-  return null;
-};
+// ─── Carrier Logo (shared with the Cargo calculator) ─────────────────────────
+const getCarrierLogo = getCourierBrandLogo;
 
 // ─── Date formatting ─────────────────────────────────────────────────────────
 const formatPickupDate = (date?: string | null): string => {
