@@ -143,6 +143,8 @@ export function AdminAddOrder() {
 
   // ── Other Details ──
   const [customerOrderId, setCustomerOrderId] = useState('');
+  // the order's value when editing — an id saved before the rules below can be kept unchanged
+  const [savedCustomerOrderId, setSavedCustomerOrderId] = useState('');
   const [resellerName, setResellerName] = useState('');
   const [gstin, setGstin] = useState('');
   const [ewaybill, setEwaybill] = useState('');
@@ -284,6 +286,7 @@ export function AdminAddOrder() {
 
         const od = order.otherDetails || {};
         setCustomerOrderId(order.clientOrderId || '');
+        setSavedCustomerOrderId(String(order.clientOrderId ?? ''));
         setResellerName(od.resellerName || '');
         setGstin(od.gstin || '');
         setEwaybill(od.ewaybill || '');
@@ -626,6 +629,13 @@ export function AdminAddOrder() {
     }
     if (!paymentMode) e.paymentMode = 'Select payment mode';
     if (totalOrderValue >= 50000 && !ewaybill.trim()) e.ewaybill = 'E-Waybill is required for orders ≥ ₹50,000';
+    // Customer Order ID (optional): no spaces, max 10 characters, must include a number (duplicates: server)
+    const coid = customerOrderId.trim();
+    if (coid && coid !== savedCustomerOrderId) {
+      if (/\s/.test(coid)) e.customerOrderId = 'No spaces allowed';
+      else if (coid.length > 10) e.customerOrderId = 'Maximum 10 characters';
+      else if (!/\d/.test(coid)) e.customerOrderId = 'Must include at least one number';
+    }
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -1378,8 +1388,13 @@ export function AdminAddOrder() {
                   <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">
                     Customer Order ID <span className="font-medium text-[#94A3B8]">(Optional)</span>
                   </label>
-                  <input type="text" value={customerOrderId} onChange={e => setCustomerOrderId(e.target.value)} maxLength={100}
-                    placeholder="Your own order ID" className={fieldCls()} />
+                  <input type="text" value={customerOrderId}
+                    onChange={e => setCustomerOrderId(e.target.value.replace(/\s/g, ''))}
+                    maxLength={customerOrderId === savedCustomerOrderId && savedCustomerOrderId.length > 10 ? 100 : 10}
+                    placeholder="e.g. ORD-1001" className={fieldCls(errors.customerOrderId)} />
+                  {errors.customerOrderId
+                    ? <p className="text-[11px] text-red-500 mt-1">{errors.customerOrderId}</p>
+                    : <p className="text-[11px] text-[#94A3B8] mt-1">Max 10 characters, no spaces, must include a number</p>}
                 </div>
                 <div>
                   <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Reseller Name</label>

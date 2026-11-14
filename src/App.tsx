@@ -49,6 +49,8 @@ import { AdminCOD } from './pages/admin/AdminCOD';
 import { AdminSettings } from './pages/admin/AdminSettings';
 import { AdminCompanies } from './pages/admin/companies/AdminCompanies';
 import { AdminAuditLogs } from './pages/admin/AdminAuditLogs';
+import { SensitiveGate } from './components/security/SensitiveGate';
+import { SensitiveOtpListener } from './components/security/SensitiveOtpListener';
 import { AdminWeightDiscrepancy } from './pages/admin/AdminWeightDiscrepancy';
 import { AdminAnnouncements } from './pages/admin/AdminAnnouncements';
 import { AdminManageVas } from './pages/admin/AdminManageVas';
@@ -255,6 +257,8 @@ function App() {
       <OfflineOverlay />
       <Router basename={isCargoUrl() ? CARGO_BASE : undefined}>
         <GlobalOrderClickInterceptor />
+        {/* OTP popup when a protected action is refused on this computer (backend SENSITIVE_OTP_ENABLED) */}
+        <SensitiveOtpListener />
         <Routes>
           {/* Dev-only: preview every transactional email template with sample data.
               import.meta.env.DEV is statically replaced by Vite at build time, so this
@@ -288,23 +292,23 @@ function App() {
             <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
               <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
               <Route path="/admin/dashboard" element={<ModeRoute b2c={<AdminDashboard />} cargo={<CargoDashboard />} />} />
-              <Route path="/admin/users" element={<AdminUsers />} />
-              <Route path="/admin/roles" element={<AdminRoles />} />
+              <Route path="/admin/users" element={<SensitiveGate><AdminUsers /></SensitiveGate>} />
+              <Route path="/admin/roles" element={<SensitiveGate><AdminRoles /></SensitiveGate>} />
               <Route path="/admin/allocate-sellers" element={<AdminAllocateSellers />} />
               <Route path="/admin/status-map" element={<AdminStatusMap />} />
               <Route path="/admin/edd-mapping" element={<AdminEDDMapping />} />
               <Route path="/admin/epd-mapping" element={<AdminEPDMapping />} />
               <Route path="/admin/vendors" element={<AdminVendors />} />
-              <Route path="/admin/couriers" element={<ModeRoute b2c={<AdminCouriers />} cargo={<CargoCouriers />} />} />
-              <Route path="/admin/couriers/:tabSlug" element={<ModeRoute b2c={<AdminCouriers />} cargo={<CargoCouriers />} />} />
+              <Route path="/admin/couriers" element={<SensitiveGate><ModeRoute b2c={<AdminCouriers />} cargo={<CargoCouriers />} /></SensitiveGate>} />
+              <Route path="/admin/couriers/:tabSlug" element={<SensitiveGate><ModeRoute b2c={<AdminCouriers />} cargo={<CargoCouriers />} /></SensitiveGate>} />
               <Route path="/admin/orders" element={<ModeRoute b2c={<AdminOrders />} cargo={<CargoOrders />} />} />
               <Route path="/admin/orders/:tabSlug" element={<ModeRoute b2c={<AdminOrders />} cargo={<CargoOrders />} />} />
               <Route path="/admin/shipments" element={<AdminShipments />} />
               <Route path="/admin/ndr" element={<ModeRoute b2c={<AdminNDR />} cargo={<CargoNDR />} />} />
               <Route path="/admin/ndr/:tabSlug" element={<ModeRoute b2c={<AdminNDR />} cargo={<CargoNDR />} />} />
-              <Route path="/admin/cod" element={<AdminCOD />} />
-              <Route path="/admin/cod/:tabSlug" element={<AdminCOD />} />
-              <Route path="/admin/wallet" element={<AdminWallet />} />
+              <Route path="/admin/cod" element={<SensitiveGate><AdminCOD /></SensitiveGate>} />
+              <Route path="/admin/cod/:tabSlug" element={<SensitiveGate><AdminCOD /></SensitiveGate>} />
+              <Route path="/admin/wallet" element={<SensitiveGate><AdminWallet /></SensitiveGate>} />
               <Route path="/admin/reports" element={<AdminReportsHub />} />
               <Route path="/admin/performance" element={<AdminPerformance />} />
               <Route path="/admin/support" element={<AdminSupport />} />
@@ -312,30 +316,30 @@ function App() {
               {/* <Route path="/admin/settings" element={<AdminSettings />} /> */}
               {/* Old "System → Admin Accounts" link: same page as Setup & Manage → Employees */}
               <Route path="/admin/accounts" element={<Navigate to="/admin/roles" replace />} />
-              <Route path="/admin/companies" element={<AdminCompanies />} />
+              <Route path="/admin/companies" element={<SensitiveGate><AdminCompanies /></SensitiveGate>} />
               <Route path="/admin/sales" element={<SalesDashboard />} />
               <Route path="/admin/tasks" element={<SalesTasks />} />
-              <Route path="/admin/rate-comparison" element={<Suspense fallback={null}><RateComparison /></Suspense>} />
-              <Route path="/admin/sales-management" element={<SalesManagement />} />
-              <Route path="/admin/audit" element={<AdminAuditLogs />} />
-              <Route path="/admin/profile" element={<AdminProfile />} />
+              <Route path="/admin/rate-comparison" element={<SensitiveGate><Suspense fallback={null}><RateComparison /></Suspense></SensitiveGate>} />
+              <Route path="/admin/sales-management" element={<SensitiveGate><SalesManagement /></SensitiveGate>} />
+              <Route path="/admin/audit" element={<SensitiveGate><AdminAuditLogs /></SensitiveGate>} />
+              <Route path="/admin/profile" element={<SensitiveGate><AdminProfile /></SensitiveGate>} />
               <Route path="/admin/company" element={<AdminSettings />} />
               <Route path="/admin/weight-discrepancy" element={<ModeRoute b2c={<AdminWeightDiscrepancy />} cargo={<CargoWeightDiscrepancy />} />} />
               <Route path="/admin/weight-discrepancy/:tabSlug" element={<ModeRoute b2c={<AdminWeightDiscrepancy />} cargo={<CargoWeightDiscrepancy />} />} />
               <Route path="/admin/announcement" element={<ModeRoute b2c={<AdminAnnouncements />} cargo={<CargoAnnouncements />} />} />
-              <Route path="/admin/vas" element={<AdminManageVas />} />
+              <Route path="/admin/vas" element={<SensitiveGate><AdminManageVas /></SensitiveGate>} />
               <Route path="/admin/notification" element={<AdminNotification />} />
               <Route path="/admin/notification/:tabSlug" element={<AdminNotification />} />
               <Route path="/admin/rate-calculator" element={<AdminRateCalculator />} />
               <Route path="/admin/add-order" element={<AdminAddOrder />} />
               <Route path="/admin/tracking" element={<AdminTracking />} />
-              <Route path="/admin/referral" element={<AdminReferral />} />
+              <Route path="/admin/referral" element={<SensitiveGate><AdminReferral /></SensitiveGate>} />
               <Route path="/admin/seller-feedback" element={<AdminSellerFeedback />} />
-              <Route path="/admin/system-logs" element={<AdminSystemLogs />} />
-              <Route path="/admin/rate-card" element={<ModeRoute b2c={<AdminRateCard />} cargo={<CargoRateCard />} />} />
+              <Route path="/admin/system-logs" element={<SensitiveGate><AdminSystemLogs /></SensitiveGate>} />
+              <Route path="/admin/rate-card" element={<SensitiveGate><ModeRoute b2c={<AdminRateCard />} cargo={<CargoRateCard />} /></SensitiveGate>} />
               <Route path="/admin/order-tracking" element={<AdminOrderTracking />} />
               <Route path="/admin/kyc" element={<AdminKYC />} />
-              <Route path="/admin/kyc-review" element={<AdminKycReview />} />
+              <Route path="/admin/kyc-review" element={<SensitiveGate><AdminKycReview /></SensitiveGate>} />
               <Route path="/admin/agreement" element={<AdminAgreement />} />
               <Route path="/admin/settings/pickup-address" element={<ModeRoute b2c={<AdminPickupAddress />} cargo={<CargoPickupAddress />} />} />
               <Route path="/admin/pickup-manifest/:pickupId" element={<AdminPickupManifestDetails />} />
@@ -355,15 +359,15 @@ function App() {
               <Route path="/user/orders/:tabSlug" element={<ModeRoute b2c={<AdminOrders />} cargo={<CargoOrders />} />} />
               <Route path="/user/ndr" element={<ModeRoute b2c={<AdminNDR />} cargo={<CargoNDR />} />} />
               <Route path="/user/ndr/:tabSlug" element={<ModeRoute b2c={<AdminNDR />} cargo={<CargoNDR />} />} />
-              <Route path="/user/wallet" element={<AdminWallet />} />
-              <Route path="/user/cod" element={<AdminCOD />} />
+              <Route path="/user/wallet" element={<SensitiveGate><AdminWallet /></SensitiveGate>} />
+              <Route path="/user/cod" element={<SensitiveGate><AdminCOD /></SensitiveGate>} />
               <Route path="/user/reports" element={<AdminReportsHub />} />
               <Route path="/user/weight-discrepancy" element={<ModeRoute b2c={<AdminWeightDiscrepancy />} cargo={<CargoWeightDiscrepancy />} />} />
               <Route path="/user/weight-discrepancy/:tabSlug" element={<ModeRoute b2c={<AdminWeightDiscrepancy />} cargo={<CargoWeightDiscrepancy />} />} />
               <Route path="/user/notification" element={<AdminNotification />} />
               <Route path="/user/notification/:tabSlug" element={<AdminNotification />} />
               <Route path="/user/kyc" element={<Navigate to="/user/profile?tab=kyc" replace />} />
-              <Route path="/user/referral" element={<UserReferral />} />
+              <Route path="/user/referral" element={<SensitiveGate><UserReferral /></SensitiveGate>} />
               <Route path="/user/support" element={<AdminSupport />} />
               <Route path="/user/support/:tabSlug" element={<AdminSupport />} />
               <Route path="/user/rate-calculator" element={<ModeRoute b2c={<AdminRateCalculator />} cargo={<CargoRateCalculator />} />} />
@@ -382,11 +386,11 @@ function App() {
               <Route path="/user/pickup-manifest/:pickupId" element={<AdminPickupManifestDetails />} />
               <Route path="/user/employees" element={<AdminRoles />} />
               <Route path="/user/channels" element={<AdminChannels />} />
-              <Route path="/user/courier-setup" element={<AdminCourierSetup />} />
+              <Route path="/user/courier-setup" element={<SensitiveGate><AdminCourierSetup /></SensitiveGate>} />
               <Route path="/user/customers" element={<AdminCustomers />} />
               <Route path="/user/customers/new" element={<AddCustomer />} />
               <Route path="/user/customers/:id/edit" element={<AddCustomer />} />
-              <Route path="/user/seller-remittance/early-cod" element={<AdminEarlyCodRemittance />} />
+              <Route path="/user/seller-remittance/early-cod" element={<SensitiveGate><AdminEarlyCodRemittance /></SensitiveGate>} />
               <Route path="/user/vas" element={<VasHub />} />
               <Route path="/user/vas/ndr-followups" element={<NdrFollowups />} />
               <Route path="/user/vas/auto-secure" element={<AdminAutoSecure />} />

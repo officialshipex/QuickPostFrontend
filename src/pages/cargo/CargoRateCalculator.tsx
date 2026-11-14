@@ -157,7 +157,8 @@ export function CargoRateCalculator() {
       });
       const list: CargoQuote[] = res.data?.rates || [];
       setQuotes(list);
-      if (list.length === 0) setApiError('No carrier is serviceable for this route on your rate card.');
+      // the backend says why when the plan itself has nothing to price with (e.g. no rates assigned yet)
+      if (list.length === 0) setApiError(res.data?.message || 'No carrier is serviceable for this route on your rate card.');
     } catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
       // e.g. "Plan not found" (no B2B rate card assigned yet) or "Invalid pickup pincode: …"
       setApiError(err?.response?.data?.error || err?.response?.data?.message || 'Failed to calculate rates. Please try again.');

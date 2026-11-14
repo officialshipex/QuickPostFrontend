@@ -1952,7 +1952,8 @@ export function AdminProfile() {
                     </div>
                     <div className="flex justify-between items-center gap-3 py-2.5 md:py-0 border-b border-[#F1F5F9] md:border-0">
                       <span className={`${TXT.value} text-[#1E293B]`}>API Access</span>
-                      <Toggle on={apiAccess} onClick={handleApiToggle} />
+                      {/* the admin's switch (adminApiAccess): only the admin can change it, like Active / KYC above */}
+                      <Toggle on={apiAccess} onClick={handleApiToggle} disabled={!isAdminView} />
                     </div>
                     {userData.publicKey && userData.publicKey !== '—' && (
                       <div className="flex justify-between items-center gap-3 py-2.5 md:py-0 border-b border-[#F1F5F9] md:border-0 last:border-b-0">
