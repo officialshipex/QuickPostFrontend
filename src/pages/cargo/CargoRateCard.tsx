@@ -29,8 +29,10 @@ interface Meta {
   courierAccounts: CourierAccount[];
   statuses: string[];
 }
-interface OverheadField { type?: string; value?: number | string; min?: number | string }
+interface OverheadField { type?: string; value?: number | string; min?: number | string; delhiOnly?: boolean }
 type Overheads = Record<string, OverheadField>;
+/** ROV owner-risk band by invoice value: up to `upto` ₹ (blank = above the previous band) */
+interface OwnerSlab { upto: string; value: string; min: string }
 interface RateCardDoc {
   _id: string;
   rates: { fromZone: string; toZone: string; price: number }[];
@@ -56,36 +58,128 @@ const DEFAULT_OVERHEADS: Overheads = {
   divisor: { type: 'formula', value: 4500 },
   minimumFreight: { type: 'flat', value: 220 },
   gst: { type: 'percentage', value: 18 },
+  // carrier "unit charges" (e.g. Gati) — all 0 = not charged, so older cards price exactly as before
+  odaCharges50to150: { type: 'perKg', value: 0, min: 0 },
+  odaCharges150plus: { type: 'perKg', value: 0, min: 0 },
+  packageHandling0to250: { type: 'perKg', value: 0, min: 0 },
+  packageHandling250to400: { type: 'perKg', value: 0, min: 0 },
+  packageHandling400plus: { type: 'perKg', value: 0, min: 0 },
+  minChargeableWeight: { type: 'flat', value: 0 },
+  minimumBilling: { type: 'flat', value: 0 },
+  csdDelivery: { type: 'perKg', value: 0, min: 0 },
+  floorDelivery: { type: 'perKg', value: 0, min: 0 },
+  demurrage: { type: 'perKg', value: 0, min: 0 },
+  reattemptCharge: { type: 'perKg', value: 0, min: 0 },
+  reattemptFreeCount: { type: 'flat', value: 0 },
 };
 
-type RowKind = 'pctMin' | 'perKgMin' | 'flat' | 'pct' | 'plain';
-const OVERHEAD_ROWS: { key: string; label: string; desc: string; kind: RowKind }[] = [
-  { key: 'pickupCharge', label: 'Pickup Charge', desc: '% of freight or minimum ₹ (whichever is higher)', kind: 'pctMin' },
-  { key: 'handlingCharge', label: 'Handling Charge', desc: 'Flat ₹ per shipment for cargo handling', kind: 'flat' },
-  { key: 'codCharges', label: 'COD Charges', desc: '% of invoice value or minimum ₹ (whichever is higher)', kind: 'pctMin' },
-  { key: 'fodCharges', label: 'To Pay Charges (FOD)', desc: 'Flat ₹ when freight is collected at destination', kind: 'flat' },
-  { key: 'rovOwner', label: 'ROV Owner Risk', desc: '% of declared value or minimum ₹ (whichever is higher)', kind: 'pctMin' },
-  { key: 'rovCarrier', label: 'ROV Carrier Risk', desc: '% of declared value or minimum ₹ (whichever is higher)', kind: 'pctMin' },
-  { key: 'odaCharges', label: 'ODA Charge (Out of Area)', desc: '₹/kg on billable weight or minimum ₹ (whichever is higher)', kind: 'perKgMin' },
-  { key: 'fuelCharge', label: 'Fuel Surcharge (FSC)', desc: '% of base freight', kind: 'pct' },
-  { key: 'docketCharge', label: 'Docket Charge', desc: 'Flat ₹ per LR / waybill', kind: 'flat' },
-  { key: 'appointmentDelivery', label: 'Appointment Delivery', desc: 'Flat ₹ for time-slot scheduled delivery', kind: 'flat' },
-  { key: 'greenTax', label: 'Green Tax', desc: 'Flat ₹ environmental surcharge', kind: 'flat' },
-  { key: 'divisor', label: 'Volumetric Divisor', desc: 'Volumetric weight = L × W × H ÷ divisor', kind: 'plain' },
-  { key: 'minimumFreight', label: 'Minimum Freight', desc: 'Minimum base freight per booking', kind: 'flat' },
-  { key: 'gst', label: 'GST Rate', desc: 'GST % on the final subtotal', kind: 'pct' },
+// Owner-risk bands (Gati): up to ₹10K, up to ₹25K, up to ₹50L, above ₹50L
+const DEFAULT_OWNER_SLABS: OwnerSlab[] = [
+  { upto: '10000', value: '0', min: '0' },
+  { upto: '25000', value: '0', min: '0' },
+  { upto: '5000000', value: '0', min: '0' },
+  { upto: '', value: '0', min: '0' },
+];
+
+/* Row kinds:
+   any   — pick % of freight / ₹ per kg / flat ₹, plus a minimum ₹ (higher of the two is charged)
+   pctMin — % (of the base named in desc) plus a minimum ₹
+   pct / flat / kg / count / plain — one number */
+type RowKind = 'any' | 'pctMin' | 'pct' | 'flat' | 'kg' | 'count' | 'plain';
+interface OverheadRow { key: string; label: string; desc: string; kind: RowKind; types?: string[] }
+const BOX_TYPES = ['perKg', 'flat']; // package handling is per box: no freight to take a % of
+const OVERHEAD_SECTIONS: { title: string; note: string; rows: OverheadRow[] }[] = [
+  {
+    title: 'Weight & freight rules',
+    note: 'How the chargeable weight and base freight are worked out.',
+    rows: [
+      { key: 'divisor', label: 'Volumetric Divisor', desc: 'Volumetric weight = L × W × H ÷ divisor', kind: 'plain' },
+      { key: 'minChargeableWeight', label: 'Min. Chargeable Weight', desc: 'kg; 0 = use the service’s minimum weight', kind: 'kg' },
+      { key: 'minimumFreight', label: 'Minimum Freight', desc: 'Minimum base freight per booking', kind: 'flat' },
+      { key: 'minimumBilling', label: 'Min. LR Billing', desc: 'Freight + LR + ROV topped up to this ₹ (0 = off)', kind: 'flat' },
+      { key: 'fuelCharge', label: 'Fuel Surcharge (FSC)', desc: '% of base freight', kind: 'pct' },
+      { key: 'gst', label: 'GST Rate', desc: 'GST % on the final subtotal', kind: 'pct' },
+    ],
+  },
+  {
+    title: 'Charged on every shipment',
+    note: 'Added to every quote and booking when set.',
+    rows: [
+      { key: 'docketCharge', label: 'Docket / LR Charge', desc: 'Per LR (waybill)', kind: 'any' },
+      { key: 'pickupCharge', label: 'Pickup (FM) Charge', desc: 'First-mile pickup', kind: 'any' },
+      { key: 'handlingCharge', label: 'Handling Charge', desc: 'Cargo handling per shipment', kind: 'any' },
+      { key: 'codCharges', label: 'COD Charges', desc: '% of invoice value or minimum ₹ — COD orders only', kind: 'pctMin' },
+      { key: 'greenTax', label: 'Green Tax', desc: 'Environmental surcharge', kind: 'any' },
+      { key: 'appointmentDelivery', label: 'Appointment Delivery', desc: 'Only when the order is booked as appointment delivery', kind: 'any' },
+    ],
+  },
+  {
+    title: 'Risk (ROV)',
+    note: 'ROV is a % of the declared invoice value, at least the minimum ₹.',
+    rows: [
+      { key: 'rovOwner', label: 'ROV Owner Risk', desc: 'Used when no owner-risk slabs are set below', kind: 'pctMin' },
+      { key: 'rovCarrier', label: 'ROV Carrier Risk', desc: '% of invoice value or minimum ₹', kind: 'pctMin' },
+    ],
+  },
+  {
+    title: 'ODA (out of delivery area)',
+    note: 'Only when the courier marks the pin as ODA. The distance tier uses the courier’s distance (Gati); without a distance, the first row applies.',
+    rows: [
+      { key: 'odaCharges', label: 'ODA 0–50 km', desc: 'Also used when the courier gives no distance', kind: 'any' },
+      { key: 'odaCharges50to150', label: 'ODA 50–150 km', desc: '0 = use the 0–50 km row', kind: 'any' },
+      { key: 'odaCharges150plus', label: 'ODA above 150 km', desc: '0 = use the rows above', kind: 'any' },
+    ],
+  },
+  {
+    title: 'Package handling',
+    note: 'Per box, by that box’s weight. ₹/kg uses the box weight.',
+    rows: [
+      { key: 'packageHandling0to250', label: 'Box up to 250 kg', desc: 'Per box', kind: 'any', types: BOX_TYPES },
+      { key: 'packageHandling250to400', label: 'Box 250–400 kg', desc: 'Per box', kind: 'any', types: BOX_TYPES },
+      { key: 'packageHandling400plus', label: 'Box 400 kg and above', desc: 'Per box', kind: 'any', types: BOX_TYPES },
+    ],
+  },
+  {
+    title: 'If applicable (never added to the quote)',
+    note: 'Billed only if it happens. Shown to the seller under the price breakup.',
+    rows: [
+      { key: 'fodCharges', label: 'To-Pay (FOD)', desc: 'Freight collected at destination', kind: 'any' },
+      { key: 'csdDelivery', label: 'CSD / Army Delivery', desc: 'Delivery to CSD / army locations', kind: 'any' },
+      { key: 'floorDelivery', label: 'Floor Delivery', desc: 'Delivery above ground floor', kind: 'any' },
+      { key: 'demurrage', label: 'Demurrage', desc: 'Storage when the consignee delays', kind: 'any' },
+      { key: 'reattemptCharge', label: 'Re-attempt', desc: 'Each extra delivery attempt', kind: 'any' },
+      { key: 'reattemptFreeCount', label: 'Free Re-attempts', desc: 'Attempts not charged', kind: 'count' },
+    ],
+  },
+];
+
+const TYPE_OPTIONS: { value: string; label: string; unit: string }[] = [
+  { value: 'percentage', label: '% of freight', unit: '%' },
+  { value: 'perKg', label: '₹ per kg', unit: '₹/kg' },
+  { value: 'flat', label: 'Flat ₹', unit: '₹' },
 ];
 
 const viewOverhead = (kind: RowKind, f: OverheadField = {}) => {
   const v = f.value ?? 0;
-  const m = f.min ?? 0;
+  const m = Number(f.min ?? 0);
+  const minTxt = m > 0 ? ` (min ₹${m})` : '';
   switch (kind) {
+    case 'any':
+      if (f.type === 'percentage') return `${v}% of freight${minTxt}`;
+      if (f.type === 'perKg') return `₹${v}/kg${minTxt}`;
+      return `₹${v}${minTxt}`;
     case 'pctMin': return `${v}% or min ₹${m}`;
-    case 'perKgMin': return `₹${v}/kg or min ₹${m}`;
     case 'flat': return `₹${v}`;
     case 'pct': return `${v}%`;
+    case 'kg': return Number(v) > 0 ? `${v} kg` : 'Service minimum';
     default: return String(v);
   }
+};
+
+const viewSlabs = (slabs: OwnerSlab[]) => {
+  const set = slabs.filter(s => Number(s.value) > 0 || Number(s.min) > 0);
+  if (!set.length) return 'Not set — ROV Owner Risk row applies';
+  return set.map(s => `${s.upto ? `≤ ₹${Number(s.upto).toLocaleString('en-IN')}` : 'Above'}: ${s.value}% (min ₹${s.min})`).join(' · ');
 };
 
 const cellKey = (from: string, to: string) => `${from}|${to}`;
@@ -283,6 +377,7 @@ function RateCardTab({ showToast }: { showToast: (t: 'success' | 'error' | 'info
   const [status, setStatus] = useState('active');
   const [matrix, setMatrix] = useState<Record<string, string>>({});
   const [overheads, setOverheads] = useState<Overheads>(DEFAULT_OVERHEADS);
+  const [ownerSlabs, setOwnerSlabs] = useState<OwnerSlab[]>(DEFAULT_OWNER_SLABS);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -329,7 +424,17 @@ function RateCardTab({ showToast }: { showToast: (t: 'success' | 'error' | 'info
     const next: Record<string, string> = {};
     (doc?.rates || []).forEach(r => { next[cellKey(r.fromZone, r.toZone)] = r.price != null ? String(r.price) : ''; });
     setMatrix(next);
-    setOverheads({ ...DEFAULT_OVERHEADS, ...(doc?.overheadCharges || {}) });
+    // owner-risk slabs are an array, kept apart from the { type, value, min } rows
+    const raw: Record<string, unknown> = { ...(doc?.overheadCharges || {}) };
+    const savedSlabs = Array.isArray(raw.rovOwnerSlabs) ? (raw.rovOwnerSlabs as { upto?: number; value?: number; min?: number }[]) : [];
+    delete raw.rovOwnerSlabs;
+    setOverheads({ ...DEFAULT_OVERHEADS, ...(raw as Overheads) });
+    // always at least 4 rows, so a band can be added back later (blank rows are ignored on save)
+    const shown = savedSlabs.length
+      ? savedSlabs.map(s => ({ upto: s.upto ? String(s.upto) : '', value: String(s.value ?? 0), min: String(s.min ?? 0) }))
+      : DEFAULT_OWNER_SLABS.map(s => ({ ...s }));
+    while (shown.length < DEFAULT_OWNER_SLABS.length) shown.push({ upto: '', value: '0', min: '0' });
+    setOwnerSlabs(shown);
     setStatus(doc?.status || 'active');
     setMode(doc ? 'view' : 'create');
   };
@@ -354,11 +459,22 @@ function RateCardTab({ showToast }: { showToast: (t: 'success' | 'error' | 'info
 
   const handleSave = async () => {
     const rates = zones.flatMap(from => zones.map(to => ({ fromZone: from, toZone: to, price: toNumber(matrix[cellKey(from, to)]) })));
-    const overheadCharges: Overheads = Object.fromEntries(Object.entries(overheads).map(([k, f]) => [k, {
+    const overheadCharges: Record<string, unknown> = Object.fromEntries(Object.entries(overheads).map(([k, f]) => [k, {
       ...f,
       ...(f.value !== undefined ? { value: toNumber(f.value) } : {}),
       ...(f.min !== undefined ? { min: toNumber(f.min) } : {}),
     }]));
+    // a row's type is what its dropdown shows (an old/unknown type is saved as the first option shown)
+    for (const row of OVERHEAD_SECTIONS.flatMap(s => s.rows)) {
+      if (row.kind !== 'any') continue;
+      const allowed = TYPE_OPTIONS.filter(t => !row.types || row.types.includes(t.value)).map(t => t.value);
+      const f = overheadCharges[row.key] as OverheadField | undefined;
+      if (f && !allowed.includes(f.type || '')) overheadCharges[row.key] = { ...f, type: allowed[0] };
+    }
+    // only bands with a % or a minimum are kept; none = the single ROV Owner Risk row applies
+    overheadCharges.rovOwnerSlabs = ownerSlabs
+      .filter(s => toNumber(s.value) > 0 || toNumber(s.min) > 0)
+      .map(s => ({ ...(toNumber(s.upto) > 0 ? { upto: toNumber(s.upto) } : {}), value: toNumber(s.value), min: toNumber(s.min) }));
     setSaving(true);
     try {
       if (mode === 'create') {
@@ -411,6 +527,14 @@ function RateCardTab({ showToast }: { showToast: (t: 'success' | 'error' | 'info
   const setOverhead = (key: string, field: 'value' | 'min', v: string) => {
     if (!/^\d*\.?\d*$/.test(v)) return;
     setOverheads(prev => ({ ...prev, [key]: { ...(prev[key] || {}), [field]: v } }));
+  };
+  const setOverheadType = (key: string, type: string) =>
+    setOverheads(prev => ({ ...prev, [key]: { ...(prev[key] || {}), type } }));
+  const setDelhiOnly = (on: boolean) =>
+    setOverheads(prev => ({ ...prev, greenTax: { ...(prev.greenTax || {}), delhiOnly: on } }));
+  const setSlab = (i: number, field: keyof OwnerSlab, v: string) => {
+    if (!/^\d*\.?\d*$/.test(v)) return;
+    setOwnerSlabs(prev => prev.map((s, j) => (j === i ? { ...s, [field]: v } : s)));
   };
 
   const planName = meta?.plans.find(p => p._id === planId)?.name || '';
@@ -548,45 +672,99 @@ function RateCardTab({ showToast }: { showToast: (t: 'success' | 'error' | 'info
               <div className="px-4 py-3 border-b border-[#E2E8F0] bg-[#F8FAFC]">
                 <h3 className="text-[13px] font-bold text-[#0F172A]">Overhead Charges &amp; Calculation Rules</h3>
                 <p className="text-[11.5px] text-[#64748B] mt-0.5">
-                  Where both a % (or ₹/kg) and a minimum ₹ are set, the higher of the two is charged. Percentages apply to base freight (pickup, FSC) or invoice value (COD, ROV).
+                  Where both a rate and a minimum ₹ are set, the higher of the two is charged. A charge left at 0 is not charged.
                 </p>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 md:divide-x divide-[#F1F5F9]">
-                {[OVERHEAD_ROWS.slice(0, 7), OVERHEAD_ROWS.slice(7)].map((col, ci) => (
-                  <div key={ci} className="divide-y divide-[#F1F5F9]">
-                    {col.map(row => {
-                      const f = overheads[row.key] || {};
-                      const hasMin = row.kind === 'pctMin' || row.kind === 'perKgMin';
-                      const unit = row.kind === 'pctMin' || row.kind === 'pct' ? '%' : row.kind === 'perKgMin' ? '₹/kg' : row.kind === 'flat' ? '₹' : '';
-                      return (
-                        <div key={row.key} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-4 py-2.5">
-                          <div className="min-w-0">
-                            <div className="text-[12.5px] font-semibold text-[#0F172A]">{row.label}</div>
-                            <div className="text-[11px] text-[#94A3B8] leading-tight">{row.desc}</div>
-                          </div>
-                          {editing ? (
-                            <div className="flex items-center gap-1.5 shrink-0">
-                              <input inputMode="decimal" value={f.value ?? ''} onChange={e => setOverhead(row.key, 'value', e.target.value)}
-                                className="w-20 h-8 px-2 text-center border border-[#E2E8F0] rounded-lg text-[12px] focus:outline-none focus:border-[#00A86B]" aria-label={`${row.label} value`} />
-                              {unit && <span className="text-[11px] text-[#64748B]">{unit}</span>}
-                              {hasMin && (
-                                <>
-                                  <span className="text-[11px] text-[#CBD5E1] mx-0.5">|</span>
-                                  <span className="text-[11px] text-[#64748B]">min ₹</span>
-                                  <input inputMode="decimal" value={f.min ?? ''} onChange={e => setOverhead(row.key, 'min', e.target.value)}
-                                    className="w-20 h-8 px-2 text-center border border-[#E2E8F0] rounded-lg text-[12px] focus:outline-none focus:border-[#00A86B]" aria-label={`${row.label} minimum`} />
-                                </>
+              {OVERHEAD_SECTIONS.map(section => (
+                <div key={section.title} className="border-t border-[#E2E8F0] first:border-t-0">
+                  <div className="px-4 pt-3 pb-1">
+                    <div className="text-[12px] font-bold text-[#0F172A] uppercase tracking-wide">{section.title}</div>
+                    <div className="text-[11px] text-[#64748B]">{section.note}</div>
+                  </div>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 lg:divide-x divide-[#F1F5F9]">
+                    {[section.rows.slice(0, Math.ceil(section.rows.length / 2)), section.rows.slice(Math.ceil(section.rows.length / 2))].map((col, ci) => (
+                      <div key={ci} className="divide-y divide-[#F1F5F9]">
+                        {col.map(row => {
+                          const f = overheads[row.key] || {};
+                          const hasMin = row.kind === 'pctMin' || row.kind === 'any';
+                          const typeOpts = TYPE_OPTIONS.filter(t => !row.types || row.types.includes(t.value));
+                          const unit = row.kind === 'any'
+                            ? (TYPE_OPTIONS.find(t => t.value === f.type)?.unit || '₹')
+                            : row.kind === 'pctMin' || row.kind === 'pct' ? '%' : row.kind === 'flat' ? '₹' : row.kind === 'kg' ? 'kg' : '';
+                          return (
+                            <div key={row.key} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-4 py-2.5">
+                              <div className="min-w-0">
+                                <div className="text-[12.5px] font-semibold text-[#0F172A]">{row.label}</div>
+                                <div className="text-[11px] text-[#94A3B8] leading-tight">{row.desc}</div>
+                                {row.key === 'greenTax' && (
+                                  editing ? (
+                                    <label className="mt-1 inline-flex items-center gap-1.5 text-[11px] text-[#475569] cursor-pointer select-none">
+                                      <input type="checkbox" checked={Boolean(f.delhiOnly)} onChange={e => setDelhiOnly(e.target.checked)} className="accent-[#00A86B]" />
+                                      Only when pickup or delivery is in Delhi
+                                    </label>
+                                  ) : f.delhiOnly ? <div className="text-[11px] text-[#00A86B] font-semibold">Delhi shipments only</div> : null
+                                )}
+                              </div>
+                              {editing ? (
+                                <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+                                  {row.kind === 'any' && (
+                                    <select value={typeOpts.some(t => t.value === f.type) ? f.type : typeOpts[0].value}
+                                      onChange={e => setOverheadType(row.key, e.target.value)}
+                                      className="h-8 px-2 border border-[#E2E8F0] rounded-lg text-[12px] bg-white focus:outline-none focus:border-[#00A86B]" aria-label={`${row.label} type`}>
+                                      {typeOpts.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                                    </select>
+                                  )}
+                                  <input inputMode="decimal" value={f.value ?? ''} onChange={e => setOverhead(row.key, 'value', e.target.value)}
+                                    className="w-20 h-8 px-2 text-center border border-[#E2E8F0] rounded-lg text-[12px] focus:outline-none focus:border-[#00A86B]" aria-label={`${row.label} value`} />
+                                  {unit && <span className="text-[11px] text-[#64748B]">{unit}</span>}
+                                  {hasMin && (
+                                    <>
+                                      <span className="text-[11px] text-[#CBD5E1] mx-0.5">|</span>
+                                      <span className="text-[11px] text-[#64748B]">min ₹</span>
+                                      <input inputMode="decimal" value={f.min ?? ''} onChange={e => setOverhead(row.key, 'min', e.target.value)}
+                                        className="w-20 h-8 px-2 text-center border border-[#E2E8F0] rounded-lg text-[12px] focus:outline-none focus:border-[#00A86B]" aria-label={`${row.label} minimum`} />
+                                    </>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-[12.5px] font-semibold text-[#0F172A] shrink-0">{viewOverhead(row.kind, f)}</span>
                               )}
                             </div>
-                          ) : (
-                            <span className="text-[12.5px] font-semibold text-[#0F172A] shrink-0">{viewOverhead(row.kind, f)}</span>
-                          )}
-                        </div>
-                      );
-                    })}
+                          );
+                        })}
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                  {section.title === 'Risk (ROV)' && (
+                    <div className="px-4 py-2.5 border-t border-[#F1F5F9]">
+                      <div className="text-[12.5px] font-semibold text-[#0F172A]">Owner Risk by invoice value (slabs)</div>
+                      <div className="text-[11px] text-[#94A3B8] leading-tight mb-2">
+                        The first band whose “up to ₹” covers the invoice value applies; leave “up to” blank for the last band (above). Bands at 0% and min ₹0 are ignored.
+                      </div>
+                      {editing ? (
+                        <div className="space-y-1.5">
+                          {ownerSlabs.map((s, i) => (
+                            <div key={i} className="flex flex-wrap items-center gap-1.5">
+                              <span className="text-[11px] text-[#64748B] w-14">up to ₹</span>
+                              <input inputMode="decimal" value={s.upto} placeholder="above" onChange={e => setSlab(i, 'upto', e.target.value)}
+                                className="w-28 h-8 px-2 text-center border border-[#E2E8F0] rounded-lg text-[12px] focus:outline-none focus:border-[#00A86B]" aria-label={`Owner slab ${i + 1} up to`} />
+                              <input inputMode="decimal" value={s.value} onChange={e => setSlab(i, 'value', e.target.value)}
+                                className="w-20 h-8 px-2 text-center border border-[#E2E8F0] rounded-lg text-[12px] focus:outline-none focus:border-[#00A86B]" aria-label={`Owner slab ${i + 1} percent`} />
+                              <span className="text-[11px] text-[#64748B]">% of invoice</span>
+                              <span className="text-[11px] text-[#CBD5E1] mx-0.5">|</span>
+                              <span className="text-[11px] text-[#64748B]">min ₹</span>
+                              <input inputMode="decimal" value={s.min} onChange={e => setSlab(i, 'min', e.target.value)}
+                                className="w-20 h-8 px-2 text-center border border-[#E2E8F0] rounded-lg text-[12px] focus:outline-none focus:border-[#00A86B]" aria-label={`Owner slab ${i + 1} minimum`} />
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-[12.5px] font-semibold text-[#0F172A]">{viewSlabs(ownerSlabs)}</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           </>
         )}

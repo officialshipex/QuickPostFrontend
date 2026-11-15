@@ -5,7 +5,7 @@ import { getCourierBrandLogo } from '../../utils/courierLogo';
 import { Link } from 'react-router-dom';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { apiClient } from '../../services/apiClient';
-import { b2bBreakupRows, type B2BWorking } from '../../utils/b2bPriceBreakup';
+import { b2bBreakupRows, b2bIfApplicable, type B2BWorking } from '../../utils/b2bPriceBreakup';
 
 /* QuickPost Cargo — Shipment Rate Calculator (B2B / multi-box), single column.
    Pincodes resolve city/state underneath; service options are compact toggles; box rows carry
@@ -106,6 +106,12 @@ function PriceBreakup({ w }: { w: B2BWorking }) {
         <span>Total</span>
         <span className="tabular-nums">{inr2(Number(w.grand_total) || 0)}</span>
       </div>
+      {b2bIfApplicable(w).length > 0 && (
+        <div className="border-t border-dashed border-[#E2E8F0] mt-2 pt-1.5">
+          <p className="font-semibold text-[#475569] mb-0.5">If applicable (not in total)</p>
+          {b2bIfApplicable(w).map((t) => <p key={t} className="text-[11.5px] text-[#64748B] leading-snug">{t}</p>)}
+        </div>
+      )}
     </div>
   );
 }

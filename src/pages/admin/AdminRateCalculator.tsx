@@ -4,6 +4,7 @@ import { Truck, Plane, Loader2, Info, Sparkles, ArrowRight, MapPin } from 'lucid
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../../services/apiClient';
 import { getCourierBrandLogo } from '../../utils/courierLogo';
+import { b2bBreakupRows, b2bIfApplicable, type B2BWorking } from '../../utils/b2bPriceBreakup';
 import { ParcelPreview } from '../../components/ui/ParcelPreview';
 import { RouteSummary } from '../../components/ui/RouteSummary';
 import { ShineButton } from '../../components/ui/ShineButton';
@@ -49,7 +50,7 @@ interface CourierResult {
   estimatedDeliveryDate?: string | null;
   cod?: number;
   forward: { finalCharges: number | null; charges?: number; gst?: number | string };
-  working?: {
+  working?: B2BWorking & {
     freight: number;
     docket_charges: number;
     pickup_charge: number;
@@ -245,10 +246,13 @@ export function AdminRateCalculator() {
 
   const openB2BPopup = (e: React.MouseEvent, working: CourierResult['working']) => {
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    const popupWidth = 230;
+    const popupWidth = 270;
+    const popupHeight = 420 + b2bIfApplicable(working).length * 16;
     let left = rect.left + rect.width / 2 - popupWidth / 2;
     left = Math.max(10, Math.min(window.innerWidth - popupWidth - 10, left));
-    setPopupPos({ top: rect.bottom + 10, left });
+    let top = rect.bottom + 10;
+    if (top + popupHeight > window.innerHeight - 10) top = Math.max(10, rect.top - popupHeight - 10);
+    setPopupPos({ top, left });
     setB2bPopup(working);
   };
 
@@ -774,31 +778,25 @@ export function AdminRateCalculator() {
       {/* B2B breakdown popup */}
       {b2bPopup && (
         <div
-          className="b2b-popup fixed z-[9999] bg-white border border-[#E2E8F0] shadow-xl rounded-xl p-4 text-[12px] w-[230px]"
+          className="b2b-popup fixed z-[9999] bg-white border border-[#E2E8F0] shadow-xl rounded-xl p-4 text-[12px] w-[270px]"
           style={{ top: popupPos.top, left: popupPos.left }}
         >
-          {([
-            ['Freight', b2bPopup.freight],
-            ['Docket Charges', b2bPopup.docket_charges],
-            ['Pickup Charges', b2bPopup.pickup_charge],
-            ['Handling Charges', b2bPopup.handling_charge],
-            ['Appointment Charges', b2bPopup.appointment_charge],
-            ['COD Charges', b2bPopup.cod_charges],
-            ['ROV', b2bPopup.rov],
-            ['FSC', b2bPopup.fsc],
-            ['ODA', b2bPopup.oda],
-            ['Green Tax', b2bPopup.green_tax],
-            ['GST', b2bPopup.gst],
-          ] as [string, number][]).map(([k, v]) => (
-            <div key={k} className="flex justify-between py-[2px]">
+          {b2bBreakupRows(b2bPopup).map(([k, v]) => (
+            <div key={k} className="flex justify-between gap-3 py-[2px]">
               <span className="text-[#64748B] font-semibold">{k}</span>
-              <span className="font-semibold text-[#0F172A]">₹{v}</span>
+              <span className="font-semibold text-[#0F172A] tabular-nums">{v}</span>
             </div>
           ))}
           <div className="border-t border-[#E2E8F0] mt-2 pt-2 flex justify-between font-bold text-[#0F172A]">
             <span>Total</span>
-            <span>₹{b2bPopup.grand_total}</span>
+            <span>₹{Number(b2bPopup.grand_total || 0).toFixed(2)}</span>
           </div>
+          {b2bIfApplicable(b2bPopup).length > 0 && (
+            <div className="border-t border-dashed border-[#E2E8F0] mt-2 pt-1.5">
+              <p className="font-semibold text-[#475569] mb-0.5">If applicable (not in total)</p>
+              {b2bIfApplicable(b2bPopup).map((t) => <p key={t} className="text-[11px] text-[#64748B] leading-snug">{t}</p>)}
+            </div>
+          )}
         </div>
       )}
 
