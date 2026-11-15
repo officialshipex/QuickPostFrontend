@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowRight, Clock, Loader2, MapPin, Plane, Plus, Scale, Trash2, Truck, Zap, BadgeIndianRupee } from 'lucide-react';
+import { ArrowRight, ChevronDown, Clock, Loader2, MapPin, Plane, Plus, Scale, Trash2, Truck, Zap, BadgeIndianRupee } from 'lucide-react';
 import { getCourierBrandLogo } from '../../utils/courierLogo';
 import { Link } from 'react-router-dom';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
@@ -25,7 +25,7 @@ interface CargoQuote {
   provider?: string;
   mode_name?: string;
   tat?: number;
-  working?: { billable_weight?: number; freight?: number; gst?: number; grand_total?: number; [k: string]: unknown };
+  working?: { billable_weight?: number; rate?: number; fsc_percent?: number | null; freight?: number; subtotal?: number; gst?: number; grand_total?: number; [k: string]: unknown };
 }
 
 const newBox = (): BoxRow => ({ id: Math.random().toString(36).slice(2), count: '', weight: '', length: '', width: '', height: '' });
@@ -87,9 +87,53 @@ function Toggle({ on, onChange, label }: { on: boolean; onChange: () => void; la
 
 const inr2 = (v: number) => `₹${v.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const total = (q: CargoQuote) => Number(q.working?.grand_total) || 0;
+
+// The charges of one rate, from the backend's `working` (B2B/utils/b2bRateEngine.js calculateB2BCargoRate — the
+// same numbers the booking charges). Freight, GST and total always show; other charges only when they apply.
+const BREAKUP_ROWS: { key: string; label: string }[] = [
+  { key: 'docket_charges', label: 'Docket charges' },
+  { key: 'pickup_charge', label: 'Pickup charges' },
+  { key: 'handling_charge', label: 'Handling charges' },
+  { key: 'appointment_charge', label: 'Appointment charges' },
+  { key: 'cod_charges', label: 'COD charges' },
+  { key: 'rov', label: 'ROV (risk cover)' },
+  { key: 'fsc', label: 'Fuel surcharge' },
+  { key: 'oda', label: 'ODA charges' },
+  { key: 'green_tax', label: 'Green tax' },
+];
+function PriceBreakup({ w }: { w: NonNullable<CargoQuote['working']> }) {
+  const n = (k: string) => Number(w[k]) || 0;
+  const fscPct = w.fsc_percent != null ? ` (${w.fsc_percent}%)` : '';
+  const line = (label: string, value: number, strong = false) => (
+    <div key={label} className={`flex justify-between gap-4 py-1 ${strong ? 'font-bold text-[#0F172A]' : 'text-[#475569]'}`}>
+      <span>{label}</span>
+      <span className="tabular-nums">{inr2(value)}</span>
+    </div>
+  );
+  // freight = chargeable kg × rate, unless the rate card's minimum freight applied
+  const byWeight = n('billable_weight') * n('rate');
+  const freightNote = w.rate == null || w.billable_weight == null
+    ? ''
+    : Math.abs(byWeight - n('freight')) < 0.01
+      ? ` (${w.billable_weight} kg × ${inr2(n('rate'))}/kg)`
+      : ' (minimum freight)';
+  return (
+    <div className="text-[12.5px]">
+      {line(`Freight${freightNote}`, n('freight'))}
+      {BREAKUP_ROWS.filter((r) => n(r.key) > 0).map((r) => line(r.key === 'fsc' ? `${r.label}${fscPct}` : r.label, n(r.key)))}
+      <div className="border-t border-dashed border-[#E2E8F0] mt-1 pt-1">
+        {line('Subtotal', n('subtotal'))}
+        {line('GST', n('gst'))}
+      </div>
+      <div className="border-t border-[#E2E8F0] mt-1 pt-1">{line('Total', n('grand_total'), true)}</div>
+    </div>
+  );
+}
+
 function CarrierRow({ q, cheapest, fastest, delta, index }: { q: CargoQuote; cheapest: boolean; fastest: boolean; delta: number; index: number }) {
   const logo = getCourierBrandLogo(q.courierServiceName || q.provider || '');
   const air = (q.mode_name || '').toLowerCase() === 'air';
+  const [showBreakup, setShowBreakup] = useState(false);
   return (
     <motion.li
       initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: Math.min(index, 8) * 0.04 }}
@@ -116,9 +160,21 @@ function CarrierRow({ q, cheapest, fastest, delta, index }: { q: CargoQuote; che
         <div className="col-span-2 md:col-span-1 flex md:block items-baseline justify-between md:text-right">
           <div className="text-[20px] font-bold text-[#0F172A] tabular-nums leading-tight">{inr2(total(q))}</div>
           <div className="text-[11.5px] text-[#94A3B8]">{cheapest ? 'Lowest price' : `+${inr2(delta)} vs cheapest`}</div>
+          {q.working && (
+            <button type="button" onClick={() => setShowBreakup((v) => !v)} aria-expanded={showBreakup}
+              className="mt-1 inline-flex items-center gap-1 text-[12px] font-semibold text-[#00A86B] hover:underline">
+              {showBreakup ? 'Hide' : 'View'} price breakup
+              <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showBreakup ? 'rotate-180' : ''}`} />
+            </button>
+          )}
         </div>
 
       </div>
+      {showBreakup && q.working && (
+        <div className="mx-4 mb-4 p-3 rounded-xl bg-[#F8FAFC] border border-[#EEF2F6]">
+          <PriceBreakup w={q.working} />
+        </div>
+      )}
     </motion.li>
   );
 }
