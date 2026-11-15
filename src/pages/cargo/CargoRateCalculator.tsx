@@ -5,6 +5,7 @@ import { getCourierBrandLogo } from '../../utils/courierLogo';
 import { Link } from 'react-router-dom';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { apiClient } from '../../services/apiClient';
+import { b2bBreakupRows, type B2BWorking } from '../../utils/b2bPriceBreakup';
 
 /* QuickPost Cargo — Shipment Rate Calculator (B2B / multi-box), single column.
    Pincodes resolve city/state underneath; service options are compact toggles; box rows carry
@@ -25,7 +26,7 @@ interface CargoQuote {
   provider?: string;
   mode_name?: string;
   tat?: number;
-  working?: { billable_weight?: number; rate?: number; fsc_percent?: number | null; freight?: number; subtotal?: number; gst?: number; grand_total?: number; [k: string]: unknown };
+  working?: B2BWorking;
 }
 
 const newBox = (): BoxRow => ({ id: Math.random().toString(36).slice(2), count: '', weight: '', length: '', width: '', height: '' });
@@ -89,43 +90,22 @@ const inr2 = (v: number) => `₹${v.toLocaleString('en-IN', { minimumFractionDig
 const total = (q: CargoQuote) => Number(q.working?.grand_total) || 0;
 
 // The charges of one rate, from the backend's `working` (B2B/utils/b2bRateEngine.js calculateB2BCargoRate — the
-// same numbers the booking charges). Freight, GST and total always show; other charges only when they apply.
-const BREAKUP_ROWS: { key: string; label: string }[] = [
-  { key: 'docket_charges', label: 'Docket charges' },
-  { key: 'pickup_charge', label: 'Pickup charges' },
-  { key: 'handling_charge', label: 'Handling charges' },
-  { key: 'appointment_charge', label: 'Appointment charges' },
-  { key: 'cod_charges', label: 'COD charges' },
-  { key: 'rov', label: 'ROV (risk cover)' },
-  { key: 'fsc', label: 'Fuel surcharge' },
-  { key: 'oda', label: 'ODA charges' },
-  { key: 'green_tax', label: 'Green tax' },
-];
-function PriceBreakup({ w }: { w: NonNullable<CargoQuote['working']> }) {
-  const n = (k: string) => Number(w[k]) || 0;
-  const fscPct = w.fsc_percent != null ? ` (${w.fsc_percent}%)` : '';
-  const line = (label: string, value: number, strong = false) => (
-    <div key={label} className={`flex justify-between gap-4 py-1 ${strong ? 'font-bold text-[#0F172A]' : 'text-[#475569]'}`}>
-      <span>{label}</span>
-      <span className="tabular-nums">{inr2(value)}</span>
-    </div>
-  );
-  // freight = chargeable kg × rate, unless the rate card's minimum freight applied
-  const byWeight = n('billable_weight') * n('rate');
-  const freightNote = w.rate == null || w.billable_weight == null
-    ? ''
-    : Math.abs(byWeight - n('freight')) < 0.01
-      ? ` (${w.billable_weight} kg × ${inr2(n('rate'))}/kg)`
-      : ' (minimum freight)';
+// same numbers the booking charges). Exactly the rows Cargo Ship Now shows (utils/b2bPriceBreakup.ts), every
+// charge line even when ₹0, then the total.
+function PriceBreakup({ w }: { w: B2BWorking }) {
+  const rows = b2bBreakupRows(w);
   return (
     <div className="text-[12.5px]">
-      {line(`Freight${freightNote}`, n('freight'))}
-      {BREAKUP_ROWS.filter((r) => n(r.key) > 0).map((r) => line(r.key === 'fsc' ? `${r.label}${fscPct}` : r.label, n(r.key)))}
-      <div className="border-t border-dashed border-[#E2E8F0] mt-1 pt-1">
-        {line('Subtotal', n('subtotal'))}
-        {line('GST', n('gst'))}
+      {rows.map(([label, value]) => (
+        <div key={label} className={`flex justify-between gap-4 py-1 text-[#475569] ${label === 'GST' ? 'border-t border-dashed border-[#E2E8F0] mt-1 pt-1.5' : ''}`}>
+          <span>{label}</span>
+          <span className="tabular-nums font-medium text-[#0F172A]">{value}</span>
+        </div>
+      ))}
+      <div className="flex justify-between gap-4 border-t border-[#E2E8F0] mt-1 pt-1.5 font-bold text-[#0F172A]">
+        <span>Total</span>
+        <span className="tabular-nums">{inr2(Number(w.grand_total) || 0)}</span>
       </div>
-      <div className="border-t border-[#E2E8F0] mt-1 pt-1">{line('Total', n('grand_total'), true)}</div>
     </div>
   );
 }

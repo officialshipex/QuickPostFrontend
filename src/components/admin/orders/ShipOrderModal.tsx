@@ -6,6 +6,8 @@ import { apiClient } from '../../../services/apiClient';
 import { TableLoader } from '../../ui/TableLoader';
 import { NetworkError } from '../../ui/NetworkError';
 import noCourierImg from '../../../assets/no-courier.jpg';
+// B2B price breakup rows: shared with the Cargo rate calculator so both show the same lines
+import { b2bBreakupRows, type B2BWorking } from '../../../utils/b2bPriceBreakup';
 
 const TXT = {
   label: 'text-[12px] font-semibold',
@@ -79,44 +81,6 @@ interface RateItem {
   serviceId?: string | number | null;
   modeId?: string | number | null;
 }
-
-/** One B2B rate's computation, as returned by GET /b2b/shipNow/:id (rates[].working). */
-interface B2BWorking {
-  zone?: string;
-  billable_weight?: number;
-  rate?: number;
-  freight?: number;
-  docket_charges?: number;
-  pickup_charge?: number;
-  handling_charge?: number;
-  appointment_charge?: number;
-  cod_charges?: number;
-  rov?: number;
-  fsc?: number;
-  fsc_percent?: number;
-  oda?: number;
-  green_tax?: number;
-  gst?: number;
-  grand_total?: number;
-}
-
-/** Price breakup rows of a B2B rate (same rows as ShipexFrontend's B2B courier selection). */
-const b2bBreakupRows = (w: B2BWorking = {}): [string, string][] => [
-  ['Zone', w.zone || '—'],
-  ['Chargeable Weight', `${w.billable_weight || 0} kg`],
-  ['Freight / Kg', `₹${Number(w.rate ?? 0).toFixed(2)}`],
-  ['Freight Charges', `₹${Number(w.freight || 0).toFixed(2)}`],
-  ['Docket Charges', `₹${Number(w.docket_charges || 0).toFixed(2)}`],
-  ['Pickup Charges', `₹${Number(w.pickup_charge || 0).toFixed(2)}`],
-  ['Handling Charges', `₹${Number(w.handling_charge || 0).toFixed(2)}`],
-  ['Appointment Charges', `₹${Number(w.appointment_charge || 0).toFixed(2)}`],
-  ['COD Charges', `₹${Number(w.cod_charges || 0).toFixed(2)}`],
-  ['ROV', `₹${Number(w.rov || 0).toFixed(2)}`],
-  [w.fsc_percent != null ? `FSC (${w.fsc_percent}%)` : 'FSC', `₹${Number(w.fsc || 0).toFixed(2)}`],
-  ['ODA', `₹${Number(w.oda || 0).toFixed(2)}`],
-  ['Green Tax', `₹${Number(w.green_tax || 0).toFixed(2)}`],
-  ['GST', `₹${Number(w.gst || 0).toFixed(2)}`],
-];
 
 /** GET /b2b/shipNow/:id rate → the row shape this modal renders. */
 const fromB2BRate = (r: any): RateItem => ({
