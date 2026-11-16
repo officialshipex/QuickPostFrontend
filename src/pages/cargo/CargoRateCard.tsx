@@ -33,6 +33,49 @@ interface OverheadField { type?: string; value?: number | string; min?: number |
 type Overheads = Record<string, OverheadField>;
 /** ROV owner-risk band by invoice value: up to `upto` ₹ (blank = above the previous band) */
 interface OwnerSlab { upto: string; value: string; min: string }
+/** Package handling by box weight: from kg (included) – to kg (not included; blank = no upper limit), charged per
+ *  box as max(box kg × perKg, min) */
+interface PkgSlab { from: string; to: string; min: string; perKg: string }
+type StoredPkgSlab = { from?: number; to?: number; perKg?: number; min?: number };
+const OLD_PKG_KEYS = ['packageHandling0to250', 'packageHandling250to400', 'packageHandling400plus'] as const;
+const DEFAULT_PKG_SLABS: PkgSlab[] = [
+  { from: '0', to: '250', min: '0', perKg: '0' },
+  { from: '250', to: '400', min: '0', perKg: '0' },
+  { from: '400', to: '', min: '0', perKg: '0' },
+];
+
+// Slabs to show for a stored card: its own, else the three earlier fixed rows (≤250 / 250–400 / ≥400 kg) as slabs
+const pkgSlabsOf = (raw: Record<string, unknown>): PkgSlab[] => {
+  const saved = Array.isArray(raw.packageHandlingSlabs) ? (raw.packageHandlingSlabs as StoredPkgSlab[]) : [];
+  if (saved.length) {
+    return saved.map(s => ({ from: String(s.from ?? 0), to: Number(s.to) > 0 ? String(s.to) : '', min: String(s.min ?? 0), perKg: String(s.perKg ?? 0) }));
+  }
+  return DEFAULT_PKG_SLABS.map((d, i) => {
+    const old = (raw[OLD_PKG_KEYS[i]] || {}) as OverheadField;
+    const v = Number(old.value || 0), m = Number(old.min || 0);
+    // a flat ₹ per box is the same as a minimum with no per-kg rate
+    return old.type === 'flat' ? { ...d, perKg: '0', min: String(Math.max(v, m)) } : { ...d, perKg: String(v), min: String(m) };
+  });
+};
+
+// Same rules the server checks: To above From, only the last slab open-ended, no overlaps
+const pkgSlabProblem = (slabs: StoredPkgSlab[]): string | null => {
+  const sorted = [...slabs].sort((a, b) => Number(a.from) - Number(b.from));
+  for (let i = 0; i < sorted.length; i++) {
+    const s = sorted[i], next = sorted[i + 1];
+    const name = `${s.from}–${s.to ?? 'above'} kg`;
+    if (s.to != null && s.to <= Number(s.from)) return `Package handling slab ${name}: "To" must be more than "From".`;
+    if (next && s.to == null) return `Package handling slab ${name}: only the last slab can be left without a "To" weight.`;
+    if (next && s.to != null && Number(next.from) < s.to) return `Package handling slabs ${name} and ${next.from}–${next.to ?? 'above'} kg overlap.`;
+  }
+  return null;
+};
+
+const viewPkgSlabs = (slabs: PkgSlab[]) => {
+  const charged = slabs.filter(s => Number(s.perKg) > 0 || Number(s.min) > 0);
+  if (!charged.length) return 'Not charged';
+  return charged.map(s => `${s.from}–${s.to ? `${s.to} kg` : 'above'}: ₹${s.perKg}/kg (min ₹${s.min})`).join(' · ');
+};
 interface RateCardDoc {
   _id: string;
   rates: { fromZone: string; toZone: string; price: number }[];
@@ -56,7 +99,7 @@ const DEFAULT_OVERHEADS: Overheads = {
   appointmentDelivery: { type: 'flat', value: 0 },
   greenTax: { type: 'flat', value: 0 },
   divisor: { type: 'formula', value: 4500 },
-  minimumFreight: { type: 'flat', value: 220 },
+  minimumFreight: { type: 'flat', value: 0 }, // replaced by Min. LR Billing; always saved as 0
   gst: { type: 'percentage', value: 18 },
   // carrier "unit charges" (e.g. Gati) — all 0 = not charged, so older cards price exactly as before
   odaCharges50to150: { type: 'perKg', value: 0, min: 0 },
@@ -87,7 +130,6 @@ const DEFAULT_OWNER_SLABS: OwnerSlab[] = [
    pct / flat / kg / count / plain — one number */
 type RowKind = 'any' | 'pctMin' | 'pct' | 'flat' | 'kg' | 'count' | 'plain';
 interface OverheadRow { key: string; label: string; desc: string; kind: RowKind; types?: string[] }
-const BOX_TYPES = ['perKg', 'flat']; // package handling is per box: no freight to take a % of
 const OVERHEAD_SECTIONS: { title: string; note: string; rows: OverheadRow[] }[] = [
   {
     title: 'Weight & freight rules',
@@ -95,8 +137,7 @@ const OVERHEAD_SECTIONS: { title: string; note: string; rows: OverheadRow[] }[] 
     rows: [
       { key: 'divisor', label: 'Volumetric Divisor', desc: 'Volumetric weight = L × W × H ÷ divisor', kind: 'plain' },
       { key: 'minChargeableWeight', label: 'Min. Chargeable Weight', desc: 'kg; 0 = use the service’s minimum weight', kind: 'kg' },
-      { key: 'minimumFreight', label: 'Minimum Freight', desc: 'Minimum base freight per booking', kind: 'flat' },
-      { key: 'minimumBilling', label: 'Min. LR Billing', desc: 'Freight + LR + ROV topped up to this ₹ (0 = off)', kind: 'flat' },
+      { key: 'minimumBilling', label: 'Min. LR Billing', desc: 'Minimum per LR: freight + LR + ROV are topped up to this ₹ (0 = off)', kind: 'flat' },
       { key: 'fuelCharge', label: 'Fuel Surcharge (FSC)', desc: '% of base freight', kind: 'pct' },
       { key: 'gst', label: 'GST Rate', desc: 'GST % on the final subtotal', kind: 'pct' },
     ],
@@ -132,12 +173,8 @@ const OVERHEAD_SECTIONS: { title: string; note: string; rows: OverheadRow[] }[] 
   },
   {
     title: 'Package handling',
-    note: 'Per box, by that box’s weight. ₹/kg uses the box weight.',
-    rows: [
-      { key: 'packageHandling0to250', label: 'Box up to 250 kg', desc: 'Per box', kind: 'any', types: BOX_TYPES },
-      { key: 'packageHandling250to400', label: 'Box 250–400 kg', desc: 'Per box', kind: 'any', types: BOX_TYPES },
-      { key: 'packageHandling400plus', label: 'Box 400 kg and above', desc: 'Per box', kind: 'any', types: BOX_TYPES },
-    ],
+    note: 'Per box, by that box’s weight: the higher of (box kg × ₹ per kg) and the minimum ₹. A box weighing exactly a slab’s “To” weight goes to the next slab. Leave the last “To” blank for no upper limit.',
+    rows: [],
   },
   {
     title: 'If applicable (never added to the quote)',
@@ -378,6 +415,8 @@ function RateCardTab({ showToast }: { showToast: (t: 'success' | 'error' | 'info
   const [matrix, setMatrix] = useState<Record<string, string>>({});
   const [overheads, setOverheads] = useState<Overheads>(DEFAULT_OVERHEADS);
   const [ownerSlabs, setOwnerSlabs] = useState<OwnerSlab[]>(DEFAULT_OWNER_SLABS);
+  const [pkgSlabs, setPkgSlabs] = useState<PkgSlab[]>(DEFAULT_PKG_SLABS);
+  const [legacyMinFreight, setLegacyMinFreight] = useState(0); // the card's old Minimum Freight, until saved
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -428,7 +467,17 @@ function RateCardTab({ showToast }: { showToast: (t: 'success' | 'error' | 'info
     const raw: Record<string, unknown> = { ...(doc?.overheadCharges || {}) };
     const savedSlabs = Array.isArray(raw.rovOwnerSlabs) ? (raw.rovOwnerSlabs as { upto?: number; value?: number; min?: number }[]) : [];
     delete raw.rovOwnerSlabs;
-    setOverheads({ ...DEFAULT_OVERHEADS, ...(raw as Overheads) });
+    setPkgSlabs(pkgSlabsOf(raw));
+    delete raw.packageHandlingSlabs;
+    // Minimum Freight is no longer on the screen: a card that still has one shows it as its Min. LR Billing
+    // (when that is not set) and saving moves it there for good
+    const loaded: Overheads = { ...DEFAULT_OVERHEADS, ...(raw as Overheads) };
+    const oldMinFreight = Number(loaded.minimumFreight?.value || 0);
+    setLegacyMinFreight(oldMinFreight);
+    if (oldMinFreight > 0 && !(Number(loaded.minimumBilling?.value || 0) > 0)) {
+      loaded.minimumBilling = { type: 'flat', ...(loaded.minimumBilling || {}), value: oldMinFreight };
+    }
+    setOverheads(loaded);
     // always at least 4 rows, so a band can be added back later (blank rows are ignored on save)
     const shown = savedSlabs.length
       ? savedSlabs.map(s => ({ upto: s.upto ? String(s.upto) : '', value: String(s.value ?? 0), min: String(s.min ?? 0) }))
@@ -475,6 +524,18 @@ function RateCardTab({ showToast }: { showToast: (t: 'success' | 'error' | 'info
     overheadCharges.rovOwnerSlabs = ownerSlabs
       .filter(s => toNumber(s.value) > 0 || toNumber(s.min) > 0)
       .map(s => ({ ...(toNumber(s.upto) > 0 ? { upto: toNumber(s.upto) } : {}), value: toNumber(s.value), min: toNumber(s.min) }));
+    // package handling = the slab table only (fully blank rows dropped); the three earlier fixed rows are cleared
+    // so they can never apply alongside the slabs
+    const slabs: StoredPkgSlab[] = pkgSlabs
+      .filter(s => s.from.trim() !== '' || s.to.trim() !== '' || toNumber(s.perKg) > 0 || toNumber(s.min) > 0)
+      .map(s => ({ from: toNumber(s.from), ...(toNumber(s.to) > 0 ? { to: toNumber(s.to) } : {}), perKg: toNumber(s.perKg), min: toNumber(s.min) }))
+      .sort((a, b) => Number(a.from) - Number(b.from));
+    const problem = pkgSlabProblem(slabs);
+    if (problem) { showToast('error', problem); return; }
+    overheadCharges.packageHandlingSlabs = slabs;
+    for (const k of OLD_PKG_KEYS) overheadCharges[k] = { type: 'perKg', value: 0, min: 0 };
+    // one minimum only: Min. LR Billing (the old Minimum Freight was moved into it when the card was opened)
+    overheadCharges.minimumFreight = { type: 'flat', value: 0 };
     setSaving(true);
     try {
       if (mode === 'create') {
@@ -536,6 +597,16 @@ function RateCardTab({ showToast }: { showToast: (t: 'success' | 'error' | 'info
     if (!/^\d*\.?\d*$/.test(v)) return;
     setOwnerSlabs(prev => prev.map((s, j) => (j === i ? { ...s, [field]: v } : s)));
   };
+  const setPkgSlab = (i: number, field: keyof PkgSlab, v: string) => {
+    if (!/^\d*\.?\d*$/.test(v)) return;
+    setPkgSlabs(prev => prev.map((s, j) => (j === i ? { ...s, [field]: v } : s)));
+  };
+  // a new slab starts where the last one ends
+  const addPkgSlab = () => setPkgSlabs(prev => {
+    const last = prev[prev.length - 1];
+    return [...prev, { from: last?.to || '', to: '', min: '0', perKg: '0' }];
+  });
+  const removePkgSlab = (i: number) => setPkgSlabs(prev => prev.filter((_, j) => j !== i));
 
   const planName = meta?.plans.find(p => p._id === planId)?.name || '';
   const serviceName = meta?.couriers.find(c => c._id === serviceId)?.name || '';
@@ -696,6 +767,11 @@ function RateCardTab({ showToast }: { showToast: (t: 'success' | 'error' | 'info
                               <div className="min-w-0">
                                 <div className="text-[12.5px] font-semibold text-[#0F172A]">{row.label}</div>
                                 <div className="text-[11px] text-[#94A3B8] leading-tight">{row.desc}</div>
+                                {row.key === 'minimumBilling' && legacyMinFreight > 0 && (
+                                  <div className="mt-1 text-[11px] text-[#B45309] leading-snug">
+                                    This card still has the old Minimum Freight ₹{legacyMinFreight}. It applies until you save; saving keeps only Min. LR Billing{Number(overheads.minimumBilling?.value || 0) > 0 ? ` (₹${overheads.minimumBilling?.value})` : ''}.
+                                  </div>
+                                )}
                                 {row.key === 'greenTax' && (
                                   editing ? (
                                     <label className="mt-1 inline-flex items-center gap-1.5 text-[11px] text-[#475569] cursor-pointer select-none">
@@ -735,6 +811,35 @@ function RateCardTab({ showToast }: { showToast: (t: 'success' | 'error' | 'info
                       </div>
                     ))}
                   </div>
+                  {section.title === 'Package handling' && (
+                    <div className="px-4 py-2.5">
+                      {editing ? (
+                        <div className="space-y-1.5">
+                          <div className="hidden sm:grid grid-cols-[repeat(4,6.5rem)_auto] gap-1.5 text-[11px] font-semibold text-[#64748B]">
+                            <span>From weight (kg)</span><span>To weight (kg)</span><span>Minimum charge ₹</span><span>Per kg charge ₹</span><span />
+                          </div>
+                          {pkgSlabs.map((s, i) => (
+                            <div key={i} className="grid grid-cols-2 sm:grid-cols-[repeat(4,6.5rem)_auto] gap-1.5 items-center">
+                              {([['from', 'From kg', ''], ['to', 'To kg', 'above'], ['min', 'Min ₹', ''], ['perKg', '₹ / kg', '']] as [keyof PkgSlab, string, string][]).map(([field, label, ph]) => (
+                                <input key={field} inputMode="decimal" value={s[field]} placeholder={ph || label} onChange={e => setPkgSlab(i, field, e.target.value)}
+                                  className="h-8 px-2 text-center border border-[#E2E8F0] rounded-lg text-[12px] focus:outline-none focus:border-[#00A86B]" aria-label={`Package slab ${i + 1} ${label}`} />
+                              ))}
+                              <button type="button" onClick={() => removePkgSlab(i)}
+                                className="h-8 px-2 text-[11.5px] font-semibold text-[#DC2626] hover:bg-[#FEF2F2] rounded-lg justify-self-start" aria-label={`Remove package slab ${i + 1}`}>
+                                Remove
+                              </button>
+                            </div>
+                          ))}
+                          <button type="button" onClick={addPkgSlab}
+                            className="h-8 px-3 text-[12px] font-semibold text-[#00A86B] border border-dashed border-[#00A86B] rounded-lg hover:bg-[#F0FDF4]">
+                            + Add slab
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-[12.5px] font-semibold text-[#0F172A]">{viewPkgSlabs(pkgSlabs)}</span>
+                      )}
+                    </div>
+                  )}
                   {section.title === 'Risk (ROV)' && (
                     <div className="px-4 py-2.5 border-t border-[#F1F5F9]">
                       <div className="text-[12.5px] font-semibold text-[#0F172A]">Owner Risk by invoice value (slabs)</div>
