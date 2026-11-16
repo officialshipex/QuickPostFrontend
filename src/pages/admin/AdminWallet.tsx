@@ -24,6 +24,8 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { WalletEmptyState } from '../../components/ui/WalletEmptyState';
 import { TruncatedText } from '../../components/ui/TruncatedText';
 import { RechargeWalletModal } from '../../components/ui/RechargeWalletModal';
+import { TransferWalletModal } from '../../components/ui/TransferWalletModal';
+import { isCargoUrl } from '../../utils/shippingMode';
 import { StatusRibbon } from '../../components/ui/StatusRibbon';
 import { ProtectedAdImage } from '../../components/ui/ProtectedAdImage';
 import walletReferAdImg from '../../assets/wallet-refer-ad.png';
@@ -129,8 +131,20 @@ const mapPassbookItem = (item: any) => ({
   balance: item.balanceAfterTransaction || 0,
   description: item.description || '',
   priceBreakup: item.priceBreakup || null,
+  // Cargo panel: a B2B row paid from the B2C (main) wallet before the Cargo wallet existed
+  oldWallet: Boolean(item.oldWallet),
+  walletKind: item.walletKind || 'main',
   _raw: item,
 });
+
+/** Tag on a Cargo passbook row that was paid from the B2C wallet (before the Cargo wallet existed). */
+const OldWalletTag = ({ show }: { show: boolean }) =>
+  show ? (
+    <span title="Paid from the B2C wallet before the Cargo wallet existed — not part of the Cargo wallet balance"
+      className="ml-1.5 inline-block align-middle px-1.5 py-0.5 rounded-md text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 whitespace-nowrap">
+      Old wallet
+    </span>
+  ) : null;
 
 const mapRechargeItem = (item: any) => ({
   id: item._id || '',
@@ -202,8 +216,11 @@ const getStatusBadgeClass = (status: string) => {
 
 export function AdminWallet() {
   const navigate = useNavigate();
-  const { isAdmin, adminTab, loadingAdminTab, currentUserId, walletBalance: ctxWalletBalance, walletHold, creditLimit } = useAdminTab();
+  const { isAdmin, adminTab, loadingAdminTab, currentUserId, walletBalance: ctxWalletBalance, walletHold, creditLimit, mainWalletBalance, refetchUser } = useAdminTab();
   const isAdminView = isAdmin && adminTab;
+  // Cargo panel, seller's own wallet: money comes in by transfer from the B2C wallet
+  const cargoSeller = isCargoUrl() && !isAdminView;
+  const [rechargeFromCargo, setRechargeFromCargo] = useState(false);
   // AdminLayout adds a 32px impersonation banner (pt-8) above the page when an
   // admin is impersonating a user — the page height calc must account for it too,
   // otherwise the extra 32px overflows the viewport and the whole page scrolls.
@@ -2354,7 +2371,7 @@ export function AdminWallet() {
                           <div className="text-[#64748B] text-[12px] font-normal font-sans">₹{order.balance.toFixed(2)}</div>
                         </td>
                         <td className="p-4">
-                          <div className="text-[#64748B] text-[12px] font-normal font-sans">{order.description}</div>
+                          <div className="text-[#64748B] text-[12px] font-normal font-sans">{order.description}<OldWalletTag show={order.oldWallet} /></div>
                         </td>
                         {isAdminView && (
                           <td className="p-4 text-center align-middle">
@@ -2511,6 +2528,7 @@ export function AdminWallet() {
                               <span className="text-[12px] font-sans truncate">
                                 <span className="font-medium text-[#64748B]">Description: </span>
                                 <span className="font-normal text-[#0F172A]">{order.description}</span>
+                                <OldWalletTag show={order.oldWallet} />
                               </span>
                               {isAdminView && isDebit && (
                                 <button
@@ -3035,11 +3053,19 @@ export function AdminWallet() {
 
       <Toast toast={toast} onClose={closeToast} />
 
-        <RechargeWalletModal
-          open={isRechargeModalOpen}
+        {/* Cargo panel (a seller's own wallet): "+" = transfer from the B2C wallet, where every recharge lands */}
+        <TransferWalletModal
+          open={isRechargeModalOpen && cargoSeller}
           onClose={() => setIsRechargeModalOpen(false)}
-          walletBalance={walletBalance}
-          onSuccess={(amount) => setWalletBalance(prev => prev + amount)}
+          defaultDirection="toCargo"
+          onRecharge={() => { setIsRechargeModalOpen(false); setRechargeFromCargo(true); }}
+          onSuccess={({ cargo }) => { setWalletBalance(cargo); refetchUser(); }}
+        />
+        <RechargeWalletModal
+          open={(isRechargeModalOpen && !cargoSeller) || rechargeFromCargo}
+          onClose={() => { setIsRechargeModalOpen(false); setRechargeFromCargo(false); }}
+          walletBalance={cargoSeller ? mainWalletBalance : walletBalance}
+          onSuccess={(amount) => { if (!cargoSeller) setWalletBalance(prev => prev + amount); }}
         />
 
         {isUpdateModalOpen && (
