@@ -609,6 +609,8 @@ function CompanyDetail({ tenantKey, onBack }: { tenantKey: string; onBack: () =>
   // the exact fields the backend expects per group (courier groups today); empty against an older backend
   const [fieldCatalog, setFieldCatalog] = useState<Record<string, ConfigFieldHint[]>>({});
   const [courierLabels, setCourierLabels] = useState<Record<string, string>>({});
+  // couriers a company gets only when switched on here (ShipexIndia B2B): off while the company has no courier list
+  const [optInCouriers, setOptInCouriers] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingGroup, setEditingGroup] = useState<{ category: string; key: string; groupKey: string } | null>(null);
   const [editingDetails, setEditingDetails] = useState(false);
@@ -622,6 +624,7 @@ function CompanyDetail({ tenantKey, onBack }: { tenantKey: string; onBack: () =>
       setGroups(groupsRes.data.groups);
       setFieldCatalog(groupsRes.data.fields || {});
       setCourierLabels(groupsRes.data.courierLabels || {});
+      setOptInCouriers(groupsRes.data.optInCouriers || []);
     } catch {
       showToast('error', 'Failed to load company');
     } finally {
@@ -741,6 +744,7 @@ function CompanyDetail({ tenantKey, onBack }: { tenantKey: string; onBack: () =>
                   tenantKey={tenantKey}
                   allCourierKeys={groups.couriers}
                   courierLabels={courierLabels}
+                  optInCouriers={optInCouriers}
                   enabledCouriers={company.enabledCouriers}
                   onSaved={load}
                 />
@@ -1084,11 +1088,12 @@ function EditableDomainRow({ label, hint, value, placeholder, allowBlank, onSave
 // validate a seller's submitted credentials against the real courier's own API) still need a company-level
 // credential value set SOMEWHERE for a new company -- that configuration path no longer exists on this screen
 // as of this change; flagged to the user, who chose to drop it here anyway.
-function CourierMultiSelect({ tenantKey, allCourierKeys, courierLabels, enabledCouriers, onSaved }: {
-  tenantKey: string; allCourierKeys: string[]; courierLabels: Record<string, string>; enabledCouriers?: string[]; onSaved: () => void;
+function CourierMultiSelect({ tenantKey, allCourierKeys, courierLabels, optInCouriers = [], enabledCouriers, onSaved }: {
+  tenantKey: string; allCourierKeys: string[]; courierLabels: Record<string, string>; optInCouriers?: string[]; enabledCouriers?: string[]; onSaved: () => void;
 }) {
   const [saving, setSaving] = useState(false);
-  const effective = enabledCouriers ?? allCourierKeys;
+  // no list yet = every courier except the opt-in ones (same rule as the backend's utils/courierAvailability.js)
+  const effective = enabledCouriers ?? allCourierKeys.filter(k => !optInCouriers.includes(k));
   const available = allCourierKeys.filter(k => !effective.includes(k));
 
   const update = async (next: string[]) => {

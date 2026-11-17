@@ -102,6 +102,14 @@ const B2B_COURIER_CONFIGS: Record<string, { endpoint: string; fields: CredField[
       { id: 'trackingToken', label: 'Tracking Token', type: 'text', placeholder: 'Security token for tracking (16 characters)', icon: Key, optional: true },
     ],
   },
+  // ShipexIndia (B2B): books through ShipexIndia's B2B API with the account's B2B API key. Offered only where the
+  // platform admin switched "ShipexIndia (B2B)" on for the company (the providers list comes from the backend).
+  ShipexIndia: {
+    endpoint: '/b2b/shipexindia/getToken',
+    fields: [
+      { id: 'apiKey', label: 'B2B API Key', type: 'password', placeholder: 'b2b_live_...', icon: Key },
+    ],
+  },
 };
 
 interface AddCourierModalProps {
