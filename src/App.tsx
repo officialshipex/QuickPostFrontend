@@ -95,6 +95,7 @@ import { CargoOrders } from './pages/cargo/CargoOrders';
 import { CargoNDR } from './pages/cargo/CargoNDR';
 import { CargoWeightDiscrepancy } from './pages/cargo/CargoWeightDiscrepancy';
 import { CargoLabelSettings } from './pages/cargo/CargoLabelSettings';
+import { CargoApiWebhooks } from './pages/cargo/CargoApiWebhooks';
 import { AdminSettingsHub } from './pages/admin/AdminSettingsHub';
 import { AdminChannels } from './pages/admin/AdminChannels';
 import { AdminEarlyCodRemittance } from './pages/admin/AdminSellerRemittance';
@@ -380,7 +381,8 @@ function App() {
               <Route path="/user/settings/two-factor" element={<AdminTwoFactor />} />
               <Route path="/user/settings/label" element={<ModeRoute b2c={<AdminLabelSettings />} cargo={<CargoLabelSettings />} />} />
               <Route path="/user/settings/invoice" element={<AdminSettingsPlaceholder title="Invoice" description="Manage your invoice preferences and billing settings." />} />
-              <Route path="/user/settings/webhook" element={<AdminWebhookSettings />} />
+              {/* Cargo: B2B API key + B2B webhooks (separate from the B2C webhooks) */}
+              <Route path="/user/settings/webhook" element={<ModeRoute b2c={<AdminWebhookSettings />} cargo={<CargoApiWebhooks />} />} />
               <Route path="/user/settings/agreement" element={<AdminAgreementSettings />} />
               <Route path="/user/settings/pickup-address" element={<ModeRoute b2c={<AdminPickupAddress />} cargo={<CargoPickupAddress />} />} />
               <Route path="/user/pickup-manifest/:pickupId" element={<AdminPickupManifestDetails />} />

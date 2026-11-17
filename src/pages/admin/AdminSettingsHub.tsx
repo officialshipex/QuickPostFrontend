@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
+import { useShippingMode } from '../../context/shippingMode';
 import {
   User, ShieldCheck, Smartphone, Lock, Tag, CreditCard, Users, MessageCircle, Activity, FileText, MapPin, ChevronRight, ShoppingCart, Truck,
 } from 'lucide-react';
@@ -28,8 +29,15 @@ const SETTINGS_CARDS: SettingsCard[] = [
   { title: 'Agreement', description: 'Read and accept platform agreements', icon: FileText, path: '/user/settings/agreement' },
 ];
 
+// In the Cargo panel the Webhook page is the B2B API key + B2B webhooks page (pages/cargo/CargoApiWebhooks.tsx)
+const CARGO_CARD_OVERRIDES: Record<string, Partial<SettingsCard>> = {
+  '/user/settings/webhook': { title: 'API & Webhooks', description: 'B2B API key, shipment details and tracking webhooks' },
+};
+
 export function AdminSettingsHub() {
   const navigate = useNavigate();
+  const { isCargo } = useShippingMode();
+  const cards = isCargo ? SETTINGS_CARDS.map(c => ({ ...c, ...(CARGO_CARD_OVERRIDES[c.path] || {}) })) : SETTINGS_CARDS;
 
   return (
     <AdminLayout>
@@ -37,7 +45,7 @@ export function AdminSettingsHub() {
         <h1 className="text-[20px] font-bold text-[#0F172A] mb-4">Settings</h1>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {SETTINGS_CARDS.map((card, i) => {
+          {cards.map((card, i) => {
             const Icon = card.icon;
             return (
               <motion.button
