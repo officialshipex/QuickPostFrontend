@@ -61,6 +61,24 @@ export function RechargeWalletModal({ open, onClose, walletBalance, onSuccess, d
       document.body.appendChild(script);
     });
 
+  // Razorpay's checkout runs in an https iframe; a plain URL to our own image fails there on
+  // http/localhost (mixed content) and on any host it cannot reach. A data URL always shows.
+  const loadCheckoutLogo = async (): Promise<string | undefined> => {
+    try {
+      const res = await fetch('/icon-color.png');
+      if (!res.ok) return undefined;
+      const blob = await res.blob();
+      return await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    } catch {
+      return undefined;
+    }
+  };
+
   const handleRazorpayPayment = async () => {
     if (rechargeAmount < 1000) {
       showToast('Minimum recharge amount is ₹1000', 'error');
@@ -69,6 +87,7 @@ export function RechargeWalletModal({ open, onClose, walletBalance, onSuccess, d
     setLoading(true);
     try {
       await loadRazorpayScript();
+      const logo = await loadCheckoutLogo();
       const { data } = await apiClient.post('/recharge/create-order', { amount: rechargeAmount });
       if (!data.order) throw new Error('Order creation failed');
       const { id: order_id, amount: orderAmount, currency } = data.order;
@@ -76,7 +95,10 @@ export function RechargeWalletModal({ open, onClose, walletBalance, onSuccess, d
         key: import.meta.env.VITE_RAZORPAY_KEY_ID,
         amount: orderAmount,
         currency,
-        name: 'Shipex India',
+        // Without `name`/`image` Razorpay falls back to the account's dashboard branding
+        // (Shipex India), so both are set explicitly to QuickPost.
+        name: 'QuickPost 360',
+        ...(logo ? { image: logo } : {}),
         description: 'Wallet Recharge',
         order_id,
         theme: { color: '#00A86B' },
