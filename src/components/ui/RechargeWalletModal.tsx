@@ -15,8 +15,8 @@ interface Props {
   defaultAmount?: number;
 }
 
-// TEMP for payment testing: minimum online recharge lowered to ₹1. Set back to 1000 after testing.
-const MIN_RECHARGE = 1;
+// Minimum online (Razorpay) recharge.
+const MIN_RECHARGE = 1000;
 
 export function RechargeWalletModal({ open, onClose, walletBalance, onSuccess, defaultAmount = 0 }: Props) {
   const [rechargeAmount, setRechargeAmount] = useState(defaultAmount);
