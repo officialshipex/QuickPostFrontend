@@ -543,51 +543,107 @@ function RateCardTab({ showToast }: { showToast: (t: 'success' | 'error' | 'info
               ))}
             </div>
 
-            {/* Overhead charges */}
-            <div className="rounded-2xl border border-[#E2E8F0] bg-white overflow-hidden">
-              <div className="px-4 py-3 border-b border-[#E2E8F0] bg-[#F8FAFC]">
-                <h3 className="text-[13px] font-bold text-[#0F172A]">Overhead Charges &amp; Calculation Rules</h3>
-                <p className="text-[11.5px] text-[#64748B] mt-0.5">
-                  Where both a % (or ₹/kg) and a minimum ₹ are set, the higher of the two is charged. Percentages apply to base freight (pickup, FSC) or invoice value (COD, ROV).
-                </p>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 md:divide-x divide-[#F1F5F9]">
-                {[OVERHEAD_ROWS.slice(0, 7), OVERHEAD_ROWS.slice(7)].map((col, ci) => (
-                  <div key={ci} className="divide-y divide-[#F1F5F9]">
-                    {col.map(row => {
-                      const f = overheads[row.key] || {};
-                      const hasMin = row.kind === 'pctMin' || row.kind === 'perKgMin';
-                      const unit = row.kind === 'pctMin' || row.kind === 'pct' ? '%' : row.kind === 'perKgMin' ? '₹/kg' : row.kind === 'flat' ? '₹' : '';
-                      return (
-                        <div key={row.key} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-4 py-2.5">
-                          <div className="min-w-0">
-                            <div className="text-[12.5px] font-semibold text-[#0F172A]">{row.label}</div>
-                            <div className="text-[11px] text-[#94A3B8] leading-tight">{row.desc}</div>
-                          </div>
-                          {editing ? (
-                            <div className="flex items-center gap-1.5 shrink-0">
-                              <input inputMode="decimal" value={f.value ?? ''} onChange={e => setOverhead(row.key, 'value', e.target.value)}
-                                className="w-20 h-8 px-2 text-center border border-[#E2E8F0] rounded-lg text-[12px] focus:outline-none focus:border-[#00A86B]" aria-label={`${row.label} value`} />
-                              {unit && <span className="text-[11px] text-[#64748B]">{unit}</span>}
-                              {hasMin && (
-                                <>
-                                  <span className="text-[11px] text-[#CBD5E1] mx-0.5">|</span>
-                                  <span className="text-[11px] text-[#64748B]">min ₹</span>
-                                  <input inputMode="decimal" value={f.min ?? ''} onChange={e => setOverhead(row.key, 'min', e.target.value)}
-                                    className="w-20 h-8 px-2 text-center border border-[#E2E8F0] rounded-lg text-[12px] focus:outline-none focus:border-[#00A86B]" aria-label={`${row.label} minimum`} />
-                                </>
-                              )}
-                            </div>
-                          ) : (
-                            <span className="text-[12.5px] font-semibold text-[#0F172A] shrink-0">{viewOverhead(row.kind, f)}</span>
-                          )}
-                        </div>
-                      );
-                    })}
+            {/* Overhead charges — grouped rate table */}
+            {(() => {
+              const GROUPS: { title: string; keys: string[] }[] = [
+                { title: 'Freight & weight rules', keys: ['minimumFreight', 'divisor', 'fuelCharge', 'docketCharge', 'gst'] },
+                { title: 'Pickup & handling', keys: ['pickupCharge', 'handlingCharge', 'appointmentDelivery', 'greenTax'] },
+                { title: 'Payment & risk cover', keys: ['codCharges', 'fodCharges', 'rovOwner', 'rovCarrier'] },
+                { title: 'Delivery surcharges', keys: ['odaCharges'] },
+              ];
+              const byKey = Object.fromEntries(OVERHEAD_ROWS.map(r => [r.key, r]));
+              const listed = new Set(GROUPS.flatMap(g => g.keys));
+              const rest = OVERHEAD_ROWS.filter(r => !listed.has(r.key)).map(r => r.key);
+              if (rest.length) GROUPS.push({ title: 'Other', keys: rest });
+              const TYPE: Record<string, { label: string; cls: string }> = {
+                pctMin: { label: '% · Min ₹', cls: 'bg-violet-50 text-violet-700' },
+                perKgMin: { label: '₹/kg · Min ₹', cls: 'bg-sky-50 text-sky-700' },
+                pct: { label: 'Percent', cls: 'bg-amber-50 text-amber-700' },
+                flat: { label: 'Flat ₹', cls: 'bg-[#F0FDF4] text-[#047857]' },
+                plain: { label: 'Rule', cls: 'bg-slate-100 text-slate-600' },
+              };
+              const unitOf = (k: RowKind) => (k === 'pctMin' || k === 'pct' ? '%' : k === 'perKgMin' ? '₹/kg' : k === 'flat' ? '₹' : '');
+              const fmtVal = (k: RowKind, v: any) => {
+                const x = v === undefined || v === '' ? null : Number(v);
+                if (x == null || Number.isNaN(x)) return <span className="text-[#CBD5E1]">—</span>;
+                const num = x.toLocaleString('en-IN', { minimumFractionDigits: k === 'plain' ? 0 : 2, maximumFractionDigits: 2 });
+                return k === 'flat' ? `₹${num}` : k === 'perKgMin' ? `₹${num} / kg` : k === 'plain' ? num : `${num}%`;
+              };
+              const basis = (k: RowKind) => (k === 'pctMin' || k === 'perKgMin' ? 'Higher of rate or minimum' : k === 'pct' ? 'On base amount' : k === 'flat' ? 'Per shipment' : 'Calculation rule');
+              const field = ({ value, onChange, suffix, prefix, label }: { value: any; onChange: (v: string) => void; suffix?: string; prefix?: string; label: string }) => (
+                <div className="inline-flex items-center h-9 w-[132px] rounded-lg border border-[#E2E8F0] bg-white focus-within:border-[#00A86B] focus-within:ring-2 focus-within:ring-[#00A86B]/10 transition-all overflow-hidden">
+                  {prefix && <span className="pl-2.5 text-[12px] text-[#94A3B8]">{prefix}</span>}
+                  <input inputMode="decimal" value={value ?? ''} onChange={e => onChange(e.target.value)} aria-label={label} placeholder="0"
+                    className="flex-1 min-w-0 h-full px-2 text-right text-[13px] font-medium text-[#0F172A] tabular-nums bg-transparent focus:outline-none" />
+                  {suffix && <span className="pr-2.5 text-[12px] text-[#94A3B8]">{suffix}</span>}
+                </div>
+              );
+              return (
+                <section className="rounded-2xl border border-[#E2E8F0] bg-white overflow-hidden shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
+                  <header className="px-5 py-4 border-b border-[#E2E8F0] flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                    <div>
+                      <h3 className="text-[15px] font-bold text-[#0F172A]">Overhead Charges &amp; Calculation Rules</h3>
+                      <p className="text-[12px] text-[#64748B] mt-0.5">Charges added on top of base freight for {serviceName || 'this service'}.</p>
+                    </div>
+                    <div className="flex flex-wrap gap-2 text-[11.5px] text-[#475569]">
+                      <span className="inline-flex items-center gap-1.5 h-7 px-3 rounded-full bg-[#F8FAFC] border border-[#EEF2F6]">Rate + minimum → <b className="font-semibold text-[#0F172A]">higher is charged</b></span>
+                      <span className="inline-flex items-center gap-1.5 h-7 px-3 rounded-full bg-[#F8FAFC] border border-[#EEF2F6]">% on freight: pickup, FSC</span>
+                      <span className="inline-flex items-center gap-1.5 h-7 px-3 rounded-full bg-[#F8FAFC] border border-[#EEF2F6]">% on invoice: COD, ROV</span>
+                    </div>
+                  </header>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[760px] text-[13px]">
+                      <thead>
+                        <tr className="bg-[#F8FAFC] text-[11.5px] uppercase tracking-wide text-[#64748B]">
+                          <th className="text-left font-semibold px-5 py-3 w-[38%]">Charge</th>
+                          <th className="text-left font-semibold px-4 py-3">Type</th>
+                          <th className="text-right font-semibold px-4 py-3">Value</th>
+                          <th className="text-right font-semibold px-4 py-3">Minimum</th>
+                          <th className="text-left font-semibold px-5 py-3">Applied as</th>
+                        </tr>
+                      </thead>
+                      {GROUPS.map(g => (
+                        <tbody key={g.title}>
+                          <tr>
+                            <td colSpan={5} className="px-5 pt-4 pb-2 text-[11.5px] font-bold uppercase tracking-wider text-[#00A86B] border-t border-[#EEF2F6] first:border-0">{g.title}</td>
+                          </tr>
+                          {g.keys.map(k => byKey[k]).filter(Boolean).map(row => {
+                            const f = overheads[row.key] || {};
+                            const hasMin = row.kind === 'pctMin' || row.kind === 'perKgMin';
+                            const t = TYPE[row.kind] || TYPE.plain;
+                            return (
+                              <tr key={row.key} className="border-t border-[#F1F5F9] hover:bg-[#FAFBFC] transition-colors">
+                                <td className="px-5 py-3 align-middle">
+                                  <div className="font-semibold text-[#0F172A]">{row.label}</div>
+                                  <div className="text-[11.5px] text-[#94A3B8] leading-snug mt-0.5">{row.desc}</div>
+                                </td>
+                                <td className="px-4 py-3 align-middle">
+                                  <span className={`inline-flex items-center h-6 px-2.5 rounded-full text-[11px] font-semibold whitespace-nowrap ${t.cls}`}>{t.label}</span>
+                                </td>
+                                <td className="px-4 py-3 align-middle text-right">
+                                  {editing
+                                    ? field({ label: `${row.label} value`, value: f.value, onChange: v => setOverhead(row.key, 'value', v), prefix: row.kind === 'flat' || row.kind === 'perKgMin' ? '₹' : undefined, suffix: row.kind === 'perKgMin' ? '/kg' : unitOf(row.kind) === '%' ? '%' : undefined })
+                                    : <span className="font-semibold text-[#0F172A] tabular-nums">{fmtVal(row.kind, f.value)}</span>}
+                                </td>
+                                <td className="px-4 py-3 align-middle text-right">
+                                  {hasMin
+                                    ? (editing
+                                        ? field({ label: `${row.label} minimum`, value: f.min, onChange: v => setOverhead(row.key, 'min', v), prefix: '₹' })
+                                        : <span className="font-semibold text-[#0F172A] tabular-nums">{fmtVal('flat', f.min)}</span>)
+                                    : <span className="text-[#CBD5E1]">—</span>}
+                                </td>
+                                <td className="px-5 py-3 align-middle text-[12px] text-[#64748B] whitespace-nowrap">{basis(row.kind)}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      ))}
+                    </table>
                   </div>
-                ))}
-              </div>
-            </div>
+                </section>
+              );
+            })()}
           </>
         )}
       </div>
