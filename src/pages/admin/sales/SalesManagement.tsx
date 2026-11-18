@@ -1,17 +1,22 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Search, X, ArrowLeft, Users, ShieldCheck, Award, BadgePercent, Receipt, Settings2, type LucideIcon } from 'lucide-react';
+import { Search, X, ArrowLeft, Users, ShieldCheck, Award, BadgePercent, Receipt, Settings2, Lock, type LucideIcon } from 'lucide-react';
 import { AdminLayout } from '../../../components/admin/layout/AdminLayout';
 import { Toast } from '../../../components/ui/Toast';
+import { TableLoader } from '../../../components/ui/TableLoader';
 import { useToast } from '../../../hooks/useToast';
-import { salesApiClient, type TeamMember } from '../../../services/salesApi';
+import { useAdminTab } from '../../../context/AdminUserContext';
+import { hasPermission } from '../../../utils/permissions';
+import { salesApiClient, apiError, type TeamMember } from '../../../services/salesApi';
+import type { SalesAccess } from './salesUi';
 import { SalesDashboard } from './SalesDashboard';
 import { SalesPersonPanel } from './SalesPersonPanel';
 import { TeamTab, KycTab, PlansTab, OffersTab, PayoutsTab, SettingsTab, type SalesCandidate } from './SalesManagementTabs';
 
-/* System → Sales Management (owner only). The whole sales programme in one place: the team, KYC review,
-   commission plans and badges, commitment rates, payouts with UTR, and letter / rate settings. Picking a sales
-   person (search or the team table) opens their panel and their own Sales Dashboard, read-only. */
+/* System → Sales Management. The whole sales programme in one place: the team, KYC review, commission plans and
+   badges, commitment rates, payouts with UTR, and letter / rate settings. Picking a sales person (search or the team
+   table) opens their panel and their own Sales Dashboard, read-only. The owner sees everything; an employee given
+   "Team" and / or "KYC review" (e.g. HR) sees only those tabs (backend /sales/admin/access). */
 
 type Section = 'team' | 'kyc' | 'plans' | 'rates' | 'payouts' | 'settings';
 const SECTIONS: { key: Section; label: string; icon: LucideIcon }[] = [
@@ -26,10 +31,21 @@ const SECTIONS: { key: Section; label: string; icon: LucideIcon }[] = [
 export function SalesManagement() {
   const [params, setParams] = useSearchParams();
   const selectedId = params.get('emp') || '';
-  const section = (SECTIONS.find(s => s.key === params.get('tab'))?.key || 'team') as Section;
   const payoutFor = params.get('pay') || '';
   const { toast, showToast, closeToast } = useToast();
   const notify = useCallback((ok: boolean, msg: string) => showToast(ok ? 'success' : 'error', msg), [showToast]);
+  const { isEmployee, employeeAccessRights } = useAdminTab();
+
+  // What this viewer may do: the owner everything; an employee (e.g. HR) only "Team" and / or "KYC review"
+  const [access, setAccess] = useState<SalesAccess | null>(null);
+  const [accessError, setAccessError] = useState('');
+  useEffect(() => {
+    salesApiClient.get('/admin/access')
+      .then(r => setAccess({ owner: r.data?.owner === true, team: r.data?.team || { view: false, edit: false }, kyc: r.data?.kyc || { view: false, edit: false } }))
+      .catch(e => setAccessError(apiError(e, 'Could not open Sales Management.')));
+  }, []);
+  const allowed = useMemo(() => SECTIONS.filter(s => access && (access.owner || (s.key === 'team' && access.team.view) || (s.key === 'kyc' && access.kyc.view))), [access]);
+  const section = (allowed.find(s => s.key === params.get('tab'))?.key || allowed[0]?.key || 'team') as Section;
 
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [candidates, setCandidates] = useState<SalesCandidate[]>([]);
@@ -40,14 +56,20 @@ export function SalesManagement() {
   const [open, setOpen] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
 
+  const teamView = !!access && (access.owner || access.team.view);
+  // the team list is the "Team" part (a KYC-only viewer never loads it, and never sees the Team tab)
   const loadTeam = useCallback(() => {
+    if (!teamView) return;
     salesApiClient.get('/admin/team')
       .then(r => { setMembers(r.data?.members || []); setCandidates(r.data?.candidates || []); })
       .catch(() => setMembers([]))
       .finally(() => setLoading(false));
-  }, []);
-  useEffect(() => { loadTeam(); }, [loadTeam]);
-  useEffect(() => { salesApiClient.get('/admin/settings').then(r => setAutoAdjust(r.data?.rateAutoAdjust !== false)).catch(() => {}); }, []);
+  }, [teamView]);
+  useEffect(() => { if (access) loadTeam(); }, [access, loadTeam]);
+  useEffect(() => {
+    if (!access?.owner) return; // settings are the owner's
+    salesApiClient.get('/admin/settings').then(r => setAutoAdjust(r.data?.rateAutoAdjust !== false)).catch(() => {});
+  }, [access]);
 
   useEffect(() => {
     if (!open) return;
@@ -66,6 +88,21 @@ export function SalesManagement() {
   const goSection = (s: Section, extra: Record<string, string> = {}) => setParams({ tab: s, ...extra });
   const changed = () => { loadTeam(); setRefresh(r => r + 1); };
 
+  if (accessError || (access && !allowed.length)) {
+    return (
+      <AdminLayout>
+        <div className="flex flex-col items-center justify-center h-[60vh] gap-3 text-center px-4">
+          <Lock className="w-12 h-12 text-[#E2E8F0]" />
+          <h2 className="text-lg font-bold text-[#0F172A]">Access Restricted</h2>
+          <p className="text-sm text-[#64748B]">{accessError || "You don't have access to Sales Management. Please contact your administrator."}</p>
+        </div>
+      </AdminLayout>
+    );
+  }
+  if (!access) return <AdminLayout><div className="relative h-[60vh]"><TableLoader /></div></AdminLayout>;
+  // an employee with "Employees" Edit can hire from here too
+  const canAddPeople = access.owner || (isEmployee && hasPermission(employeeAccessRights, 'employees', 'edit'));
+
   return (
     <AdminLayout>
       <Toast toast={toast} onClose={closeToast} />
@@ -75,10 +112,11 @@ export function SalesManagement() {
             {selectedId && <button onClick={clear} aria-label="Back to Sales Management" className="w-9 h-9 rounded-full border border-[#E2E8F0] bg-white flex items-center justify-center text-[#64748B] hover:text-[#00A86B] shrink-0"><ArrowLeft className="w-4 h-4" /></button>}
             <div className="min-w-0">
               <h1 className="text-[18px] font-bold text-[#0F172A]">Sales Management</h1>
-              <p className="text-[12.5px] text-[#64748B] truncate">{selected ? `Managing ${selected.name}` : 'Sales team, KYC, commissions, rates and payouts.'}</p>
+              <p className="text-[12.5px] text-[#64748B] truncate">{selected ? `Managing ${selected.name}` : access.owner ? 'Sales team, KYC, commissions, rates and payouts.' : `Your access: ${allowed.map(s => s.label).join(' and ')}. Everything you do is recorded in the Audit Logs.`}</p>
             </div>
           </div>
 
+          {teamView && (
           <div ref={boxRef} className="relative w-full sm:w-[300px] sm:shrink-0">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8] pointer-events-none" />
             <input type="text" placeholder="Search sales person..." value={selected && !open ? selected.name : query}
@@ -100,9 +138,11 @@ export function SalesManagement() {
               </div>
             )}
           </div>
+          )}
         </div>
 
-        {selectedId ? (
+        {/* a person's panel and dashboard: the "Team" part */}
+        {selectedId && teamView ? (
           <>
             <SalesPersonPanel key={`p-${selectedId}`} employeeId={selectedId} notify={notify} onChanged={changed}
               onPayout={() => goSection('payouts', { pay: selectedId })} />
@@ -111,7 +151,7 @@ export function SalesManagement() {
         ) : (
           <>
             <div className="flex items-center gap-1 overflow-x-auto border-b border-[#E2E8F0]">
-              {SECTIONS.map(s => (
+              {allowed.map(s => (
                 <button key={s.key} onClick={() => goSection(s.key)}
                   className={`relative h-10 px-3.5 inline-flex items-center gap-1.5 text-[13px] font-semibold whitespace-nowrap transition-colors ${section === s.key ? 'text-[#00A86B]' : 'text-[#64748B] hover:text-[#0F172A]'}`}>
                   <s.icon className="w-4 h-4" />{s.label}
@@ -120,7 +160,7 @@ export function SalesManagement() {
                 </button>
               ))}
             </div>
-            {section === 'team' && <TeamTab members={members} loading={loading} onOpen={m => pick(m._id)} candidates={candidates} notify={notify} onMoved={loadTeam} />}
+            {section === 'team' && <TeamTab members={members} loading={loading} onOpen={m => pick(m._id)} candidates={candidates} notify={notify} onMoved={loadTeam} canEdit={access.owner || access.team.edit} canAddPeople={canAddPeople} />}
             {section === 'kyc' && <KycTab notify={(ok, msg) => { notify(ok, msg); loadTeam(); }} />}
             {section === 'plans' && <PlansTab people={members} notify={(ok, msg) => { notify(ok, msg); loadTeam(); }} />}
             {section === 'rates' && <OffersTab people={members} notify={notify} autoAdjust={autoAdjust} />}

@@ -4,7 +4,7 @@ import { TableLoader } from '../../../components/ui/TableLoader';
 import { copyToClipboard } from '../../../utils/clipboard';
 import { salesApiClient, apiError, referralLinkFor, downloadOfferLetter } from '../../../services/salesApi';
 import { Modal, ErrorLine, KycChip, KycReviewDialog } from './SalesManagementTabs';
-import { card, fieldCls, labelCls, primaryBtn, ghostBtn, fmtDate, loadPerson, type PersonDetail } from './salesUi';
+import { card, fieldCls, labelCls, primaryBtn, ghostBtn, fmtDate, loadPerson, OWNER_ACCESS, type PersonDetail } from './salesUi';
 
 /* Sales Management > one sales person: who they are, KYC, offer letter details, targets, and the admin's actions
    for them (assign a lead, link an existing seller, pay out). Their own dashboard is shown below this panel. */
@@ -240,7 +240,12 @@ export function SalesPersonPanel({ employeeId, notify, onPayout, onChanged }: { 
   if (error) return <div className={`${card} p-5`}><ErrorLine text={error} /></div>;
   if (!d) return <div className={`${card} relative h-48`}><TableLoader /></div>;
   const k = d.kyc;
-  const small = 'w-full h-9 px-3 rounded-lg border border-[#E2E8F0] text-[12.5px] focus:outline-none focus:border-[#00A86B]';
+  const small = 'w-full h-9 px-3 rounded-lg border border-[#E2E8F0] text-[12.5px] focus:outline-none focus:border-[#00A86B] disabled:bg-[#F8FAFC] disabled:text-[#64748B]';
+  // What this viewer may do (an employee given "Team" / "KYC review"; the owner everything)
+  const a = d.access || OWNER_ACCESS;
+  const teamEdit = a.owner || a.team.edit;
+  const kycView = a.owner || a.kyc.view;
+  const kycEdit = a.owner || a.kyc.edit;
 
   return (
     <div className={`${card} p-5 flex flex-col gap-5`}>
@@ -262,10 +267,10 @@ export function SalesPersonPanel({ employeeId, notify, onPayout, onChanged }: { 
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <button onClick={() => setDialog('kyc')} className={k.status === 'pending' ? primaryBtn : ghostBtn}><ShieldCheck className="w-4 h-4" />{k.status === 'pending' ? 'Review KYC' : 'View KYC'}</button>
-        <button onClick={() => setDialog('details')} className={ghostBtn}><Pencil className="w-4 h-4" />Edit details</button>
+        {kycView && <button onClick={() => setDialog('kyc')} className={k.status === 'pending' && kycEdit ? primaryBtn : ghostBtn}><ShieldCheck className="w-4 h-4" />{k.status === 'pending' && kycEdit ? 'Review KYC' : 'View KYC'}</button>}
+        {kycEdit && <button onClick={() => setDialog('details')} className={ghostBtn}><Pencil className="w-4 h-4" />Edit details</button>}
         {d.offer.issuedAt && <button onClick={() => downloadOfferLetter(employeeId).catch((e) => notify(false, e.message))} className={ghostBtn}><Download className="w-4 h-4" />Offer letter {d.offer.letterNumber}</button>}
-        {d.offer.downloadedAt && (
+        {d.offer.downloadedAt && teamEdit && (
           <button
             title={`Downloaded by the sales person on ${fmtDate(d.offer.downloadedAt)}`}
             onClick={async () => {
@@ -275,19 +280,24 @@ export function SalesPersonPanel({ employeeId, notify, onPayout, onChanged }: { 
             className={ghostBtn}
           ><RotateCcw className="w-4 h-4" />Allow download again</button>
         )}
-        <button onClick={() => setDialog('lead')} className={ghostBtn}><PhoneCall className="w-4 h-4" />Assign leads</button>
-        <button onClick={() => setDialog('seller')} className={ghostBtn}><Link2 className="w-4 h-4" />Link existing seller</button>
-        <button onClick={onPayout} className={ghostBtn}><Receipt className="w-4 h-4" />Pay out</button>
+        {teamEdit && <button onClick={() => setDialog('lead')} className={ghostBtn}><PhoneCall className="w-4 h-4" />Assign leads</button>}
+        {teamEdit && <button onClick={() => setDialog('seller')} className={ghostBtn}><Link2 className="w-4 h-4" />Link existing seller</button>}
+        {a.owner && <button onClick={onPayout} className={ghostBtn}><Receipt className="w-4 h-4" />Pay out</button>}
       </div>
+      {!a.owner && (
+        <p className="text-[11.5px] text-[#94A3B8] -mt-2">
+          {teamEdit ? 'You can assign leads, link sellers and set targets.' : 'View only.'} Commission, payouts and settings are managed by the admin. Everything you do here is recorded in the Audit Logs.
+        </p>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <div>
           <h3 className="text-[13px] font-bold text-[#0F172A] mb-1">Offer letter details</h3>
           <p className="text-[11.5px] text-[#94A3B8] mb-2">{d.offer.issuedAt ? `Issued ${fmtDate(d.offer.issuedAt)} — changes show in the next download.` : 'The letter is issued when KYC is verified.'}</p>
           <div className="grid grid-cols-3 gap-2">
-            <div><label className="block text-[11px] font-semibold text-[#64748B] mb-1">Joining date</label><input type="date" value={offer.joiningDate} onChange={e => setOffer({ ...offer, joiningDate: e.target.value })} className={small} /></div>
-            <div><label className="block text-[11px] font-semibold text-[#64748B] mb-1">Monthly CTC (₹)</label><input type="number" min={0} value={offer.monthlyCtc} onChange={e => setOffer({ ...offer, monthlyCtc: e.target.value })} className={small} /></div>
-            <div><label className="block text-[11px] font-semibold text-[#64748B] mb-1">Location</label><input value={offer.location} onChange={e => setOffer({ ...offer, location: e.target.value })} className={small} /></div>
+            <div><label className="block text-[11px] font-semibold text-[#64748B] mb-1">Joining date</label><input type="date" disabled={!teamEdit} value={offer.joiningDate} onChange={e => setOffer({ ...offer, joiningDate: e.target.value })} className={small} /></div>
+            <div><label className="block text-[11px] font-semibold text-[#64748B] mb-1">Monthly CTC (₹)</label><input type="number" min={0} disabled={!teamEdit} value={offer.monthlyCtc} onChange={e => setOffer({ ...offer, monthlyCtc: e.target.value })} className={small} /></div>
+            <div><label className="block text-[11px] font-semibold text-[#64748B] mb-1">Location</label><input disabled={!teamEdit} value={offer.location} onChange={e => setOffer({ ...offer, location: e.target.value })} className={small} /></div>
           </div>
         </div>
         <div>
@@ -295,12 +305,12 @@ export function SalesPersonPanel({ employeeId, notify, onPayout, onChanged }: { 
           <p className="text-[11.5px] text-[#94A3B8] mb-2">Sellers registered with their code — shown as progress on their dashboard.</p>
           <div className="grid grid-cols-3 gap-2">
             {(['daily', 'weekly', 'monthly'] as const).map(t => (
-              <div key={t}><label className="block text-[11px] font-semibold text-[#64748B] mb-1 capitalize">{t}</label><input type="number" min={0} value={targets[t]} onChange={e => setTargets({ ...targets, [t]: e.target.value })} className={small} /></div>
+              <div key={t}><label className="block text-[11px] font-semibold text-[#64748B] mb-1 capitalize">{t}</label><input type="number" min={0} disabled={!teamEdit} value={targets[t]} onChange={e => setTargets({ ...targets, [t]: e.target.value })} className={small} /></div>
             ))}
           </div>
         </div>
       </div>
-      <div className="flex justify-end -mt-1"><button disabled={saving} onClick={save} className={primaryBtn}><Save className="w-4 h-4" />{saving ? 'Saving…' : 'Save details'}</button></div>
+      {teamEdit && <div className="flex justify-end -mt-1"><button disabled={saving} onClick={save} className={primaryBtn}><Save className="w-4 h-4" />{saving ? 'Saving…' : 'Save details'}</button></div>}
 
       {dialog === 'kyc' && <KycReviewDialog employeeId={employeeId} onClose={() => setDialog(null)} onDone={(ok, msg) => { notify(ok, msg); load(); onChanged(); }} />}
       {dialog === 'details' && <EditDetailsDialog d={d} employeeId={employeeId} onClose={() => setDialog(null)} onSaved={(msg) => { notify(true, msg); load(); onChanged(); }} />}

@@ -70,9 +70,13 @@ function PeoplePicker({ people, value, onChange, emptyLabel }: { people: TeamMem
 // ── Team ─────────────────────────────────────────────────────────────────────
 export interface SalesCandidate { _id: string; fullName: string; email: string; employeeId: string; role: string; isEmpActive: boolean; createdAt: string }
 
-export function TeamTab({ members, loading, onOpen, candidates = [], notify, onMoved }: {
+export function TeamTab({ members, loading, onOpen, candidates = [], notify, onMoved, canEdit = true, canAddPeople = true }: {
   members: TeamMember[]; loading: boolean; onOpen: (m: TeamMember) => void;
   candidates?: SalesCandidate[]; notify: Notify; onMoved: () => void;
+  /** "Team" Edit (move someone onto the Sales team) */
+  canEdit?: boolean;
+  /** may open Employees to hire (the owner, or "Employees" Edit) */
+  canAddPeople?: boolean;
 }) {
   const [moving, setMoving] = useState<SalesCandidate | null>(null);
   const [busy, setBusy] = useState(false);
@@ -88,7 +92,7 @@ export function TeamTab({ members, loading, onOpen, candidates = [], notify, onM
   };
   return (
     <div className="flex flex-col gap-4">
-    {candidates.length > 0 && (
+    {candidates.length > 0 && canEdit && (
       <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4">
         <div className="flex items-start gap-2">
           <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
@@ -126,7 +130,7 @@ export function TeamTab({ members, loading, onOpen, candidates = [], notify, onM
           <h2 className="text-[14px] font-bold text-[#0F172A]">Sales team</h2>
           <p className="text-[12px] text-[#94A3B8]">Hire a sales person in Employees (team "Sales"); they get a referral code and log in to the Sales panel.</p>
         </div>
-        <Link to="/admin/roles" className={ghostBtn}><UserPlus className="w-4 h-4" />Add sales person</Link>
+        {canAddPeople && <Link to="/admin/roles" className={ghostBtn}><UserPlus className="w-4 h-4" />Add sales person</Link>}
       </div>
       {members.length === 0 ? <p className="px-5 py-12 text-center text-[12.5px] text-[#94A3B8]">{candidates.length ? 'No one is on the Sales team yet — move your sales people above.' : 'No sales people yet.'}</p> : (
         <div className="overflow-x-auto">
@@ -177,10 +181,12 @@ export function KycReviewDialog({ employeeId, onClose, onDone }: { employeeId: s
     } catch (e) { setError(apiError(e)); } finally { setBusy(false); }
   };
   const k = d?.kyc;
+  // approve / reject: the owner, or an employee with "KYC review" Edit
+  const canDecide = !d?.access || d.access.owner || d.access.kyc.edit;
   const row = (l: string, v?: string) => <div className="flex justify-between gap-3 py-1.5 text-[12.5px]"><span className="text-[#64748B]">{l}</span><span className="font-medium text-[#0F172A] text-right break-all">{v || '—'}</span></div>;
   return (
     <Modal title={d ? `KYC — ${d.person.fullName}` : 'KYC'} onClose={onClose} wide
-      footer={k?.status === 'pending' ? (rejecting ? (
+      footer={k?.status === 'pending' && canDecide ? (rejecting ? (
         <>
           <button onClick={() => setRejecting(false)} className={ghostBtn}>Back</button>
           <button disabled={busy || reason.trim().length < 3} onClick={() => act('reject')} className="h-10 px-5 rounded-full bg-red-500 hover:bg-red-600 text-white text-[13px] font-semibold disabled:opacity-50">{busy ? 'Saving…' : 'Reject KYC'}</button>
@@ -196,11 +202,16 @@ export function KycReviewDialog({ employeeId, onClose, onDone }: { employeeId: s
           <ErrorLine text={error} />
           <div className="flex flex-wrap items-center gap-2"><KycChip status={k!.status} method={k!.method} />{k!.submittedAt && <span className="text-[12px] text-[#64748B]">Submitted {fmtDate(k!.submittedAt)}</span>}{k!.verifiedAt && <span className="text-[12px] text-[#64748B]">· verified {fmtDate(k!.verifiedAt)}</span>}</div>
           {k!.status === 'rejected' && k!.rejectionReason && <p className="text-[12.5px] text-red-600">Rejected: {k!.rejectionReason}</p>}
+          {k!.status === 'pending' && !canDecide && <p className="text-[12px] text-[#64748B] bg-[#F8FAFC] border border-[#EEF2F6] rounded-xl px-3 py-2">You can view this KYC. Approving or rejecting needs the "KYC Review" Edit access.</p>}
+          {k!.hidden ? (
+            <p className="text-[12.5px] text-[#64748B] bg-[#F8FAFC] border border-[#EEF2F6] rounded-xl px-3 py-2">KYC numbers and documents need the "KYC Review" access.</p>
+          ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="rounded-xl border border-[#EEF2F6] px-3.5 py-2.5"><div className="text-[12px] font-bold text-[#0F172A] mb-1">PAN</div>{row('Number', k!.pan.number)}{row('Name', k!.pan.name)}</div>
             <div className="rounded-xl border border-[#EEF2F6] px-3.5 py-2.5"><div className="text-[12px] font-bold text-[#0F172A] mb-1">Aadhaar</div>{row('Number', k!.aadhaar.number)}{row('Name', k!.aadhaar.name)}{row('DOB', k!.aadhaar.dob)}{row('Address', k!.aadhaar.address)}</div>
             <div className="rounded-xl border border-[#EEF2F6] px-3.5 py-2.5"><div className="text-[12px] font-bold text-[#0F172A] mb-1">Bank</div>{row('Holder', k!.bank.holderName)}{row('Account', k!.bank.accountNumber)}{row('IFSC', k!.bank.ifsc)}{row('Bank', k!.bank.bankName)}</div>
           </div>
+          )}
           {Object.values(k!.documents).some(Boolean) && (
             <div className="flex flex-wrap gap-2">
               {Object.entries(k!.documents).filter(([, url]) => url).map(([key, url]) => (

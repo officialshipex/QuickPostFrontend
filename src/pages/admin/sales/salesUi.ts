@@ -9,13 +9,22 @@ export const primaryBtn = 'h-10 px-5 rounded-full bg-[#00A86B] hover:bg-[#009B63
 export const ghostBtn = 'h-10 px-4 rounded-full border border-[#E2E8F0] text-[13px] font-semibold text-[#475569] hover:border-[#00A86B]/40 hover:text-[#00A86B] inline-flex items-center justify-center gap-2 disabled:opacity-50';
 export const fmtDate = (iso?: string | null) => (iso ? new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—');
 
+/** What the viewer may do in Sales Management: the owner everything; an employee (e.g. HR) only "Team" and / or
+ *  "KYC review", as given (backend salesShared.salesAccessOf; GET /sales/admin/access) */
+export interface SalesAccess { owner: boolean; team: { view: boolean; edit: boolean }; kyc: { view: boolean; edit: boolean } }
+export const OWNER_ACCESS: SalesAccess = { owner: true, team: { view: true, edit: true }, kyc: { view: true, edit: true } };
+
 export interface PersonDetail {
+  /** null / missing: the owner (older backend) */
+  access?: SalesAccess | null;
   person: { _id: string; fullName: string; email: string; employeeId: string; role: string; referralCode?: string; contactNumber: string; isEmpActive: boolean };
   kyc: {
     status: KycStatus; method: 'ekyc' | 'manual' | null; submittedAt?: string; verifiedAt?: string; rejectionReason?: string;
     pan: { number?: string; name?: string; verified: boolean }; aadhaar: { number?: string; name?: string; dob?: string; address?: string; verified: boolean };
     bank: { accountNumber?: string; ifsc?: string; holderName?: string; bankName?: string; branch?: string; verified: boolean };
     documents: Record<string, string | null>;
+    /** KYC details left out: the viewer has "Team" but not "KYC review" */
+    hidden?: boolean;
   };
   offer: { letterNumber?: string; issuedAt?: string; downloadedAt?: string | null; joiningDate?: string; monthlyCtc?: number; location?: string };
   targets: { daily: number; weekly: number; monthly: number };

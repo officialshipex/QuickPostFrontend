@@ -137,6 +137,10 @@ export const companiesApi = {
   updateBasic: (tenantKey: string, payload: Record<string, unknown>) =>
     apiClient.patch(`/platform-admin/companies/${tenantKey}`, payload),
 
+  // Notification groups only: the saved non-secret values + which secret fields are already set.
+  configGroupValues: (tenantKey: string, groupKey: string) =>
+    apiClient.get<{ success: boolean; values: Record<string, string>; secretSet: Record<string, boolean> }>(`/platform-admin/companies/${tenantKey}/config/${groupKey}/values`),
+
   updateConfigGroup: (tenantKey: string, groupKey: string, payload: Record<string, unknown>) =>
     apiClient.patch(`/platform-admin/companies/${tenantKey}/config/${groupKey}`, payload),
 
