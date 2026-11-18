@@ -19,6 +19,8 @@ export interface B2BWorking {
   oda_label?: string;
   oda_distance_km?: number;
   green_tax?: number;
+  /** per kg / minimum, only for deliveries to the places listed on the card (e.g. NE states) */
+  delivery_charge?: number;
   min_billing_topup?: number;
   subtotal?: number;
   gst?: number;
@@ -50,6 +52,7 @@ export const b2bBreakupRows = (w: B2BWorking = {}): [string, string][] => {
     ['Appointment Charges', money(w.appointment_charge), false],
     ['COD Charges', money(w.cod_charges), false],
     ['Green Tax', money(w.green_tax), false],
+    ['Delivery Charges', money(w.delivery_charge), false],
     ['Min. LR Billing Top-up', money(w.min_billing_topup), false],
     ['GST', money(w.gst), true],
   ];
@@ -59,6 +62,7 @@ export const b2bBreakupRows = (w: B2BWorking = {}): [string, string][] => {
     'Appointment Charges': w.appointment_charge,
     'COD Charges': w.cod_charges,
     'Green Tax': w.green_tax,
+    'Delivery Charges': w.delivery_charge,
     'Min. LR Billing Top-up': w.min_billing_topup,
   };
   return rows.filter(([label, , always]) => always || Number(amountOf[label] || 0) !== 0).map(([l, v]) => [l, v]);

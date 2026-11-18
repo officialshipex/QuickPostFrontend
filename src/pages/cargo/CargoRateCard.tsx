@@ -29,7 +29,7 @@ interface Meta {
   courierAccounts: CourierAccount[];
   statuses: string[];
 }
-interface OverheadField { type?: string; value?: number | string; min?: number | string; delhiOnly?: boolean }
+interface OverheadField { type?: string; value?: number | string; min?: number | string; delhiOnly?: boolean; places?: string[] }
 type Overheads = Record<string, OverheadField>;
 /** ROV owner-risk band by invoice value: up to `upto` ₹ (blank = above the previous band) */
 interface OwnerSlab { upto: string; value: string; min: string }
@@ -85,19 +85,21 @@ interface RateCardDoc {
 interface ZoneDoc { _id: string; zone: string; locations: { name: string }[] }
 interface LocationSuggestion { name: string; label?: string; detail?: string }
 
-/* ─── Overhead charges — same defaults and rows as ShipexFrontend's B2B rate card ─── */
+/* ─── Overhead charges — same defaults and rows as ShipexFrontend's B2B rate card (src/B2B/RateCard/OverheadCharges.jsx)
+   and the backend's defaults (B2B/controller/RateCard/ratecard.controller.js). Each charge has ONE type. ─── */
 const DEFAULT_OVERHEADS: Overheads = {
-  pickupCharge: { type: 'percentage', value: 4, min: 0 },
-  handlingCharge: { type: 'flat', value: 0 },
+  pickupCharge: { type: 'perKg', value: 0, min: 0 },
+  handlingCharge: { type: 'perKg', value: 0, min: 0 },
   codCharges: { type: 'percentage', value: 0, min: 0 },
-  fodCharges: { type: 'flat', value: 0 },
+  fodCharges: { type: 'percentage', value: 0, min: 0 },
   rovOwner: { type: 'percentage', value: 0, min: 70 },
   rovCarrier: { type: 'percentage', value: 0, min: 50 },
   odaCharges: { type: 'perKg', value: 10, min: 1000 },
   fuelCharge: { type: 'percentage', value: 20 },
   docketCharge: { type: 'flat', value: 0 },
-  appointmentDelivery: { type: 'flat', value: 0 },
-  greenTax: { type: 'flat', value: 0 },
+  appointmentDelivery: { type: 'perKg', value: 0, min: 0 },
+  greenTax: { type: 'perKg', value: 0, min: 0, delhiOnly: true },
+  deliveryCharge: { type: 'perKg', value: 0, min: 0, places: [] },
   divisor: { type: 'formula', value: 4500 },
   minimumFreight: { type: 'flat', value: 0 }, // replaced by Min. LR Billing; always saved as 0
   gst: { type: 'percentage', value: 18 },
@@ -124,94 +126,119 @@ const DEFAULT_OWNER_SLABS: OwnerSlab[] = [
   { upto: '', value: '0', min: '0' },
 ];
 
-/* Row kinds:
-   any   — pick % of freight / ₹ per kg / flat ₹, plus a minimum ₹ (higher of the two is charged)
-   pctMin — % (of the base named in desc) plus a minimum ₹
-   pct / flat / kg / count / plain — one number */
-type RowKind = 'any' | 'pctMin' | 'pct' | 'flat' | 'kg' | 'count' | 'plain';
-interface OverheadRow { key: string; label: string; desc: string; kind: RowKind; types?: string[] }
-const OVERHEAD_SECTIONS: { title: string; note: string; rows: OverheadRow[] }[] = [
+/* Row kinds — each charge has ONE type (no type dropdown):
+   perKgMin — ₹ per kg of chargeable weight, at least the minimum ₹ (higher is charged; a minimum alone = fixed ₹)
+   pctMin   — % of the base named in desc, at least the minimum ₹
+   pct      — % only;  flat — ₹;  kg — weight;  count — a number;  plain — calculation rule (divisor) */
+type RowKind = 'perKgMin' | 'pctMin' | 'pct' | 'flat' | 'kg' | 'count' | 'plain';
+interface OverheadRow { key: string; label: string; desc: string; kind: RowKind; ifApplicable?: boolean }
+// the type saved for each kind (the rate engine reads it)
+const STORED_TYPE: Record<RowKind, string> = { perKgMin: 'perKg', pctMin: 'percentage', pct: 'percentage', flat: 'flat', kg: 'flat', count: 'flat', plain: 'formula' };
+const OVERHEAD_SECTIONS: { title: string; note: string; rows: OverheadRow[]; pkgSlabs?: boolean; ownerSlabs?: boolean }[] = [
   {
-    title: 'Weight & freight rules',
-    note: 'How the chargeable weight and base freight are worked out.',
+    title: 'Per kg / minimum',
+    note: '₹ per kg of the chargeable weight, at least the minimum ₹ — the higher is charged. A minimum alone is a fixed charge. 0 = not charged.',
     rows: [
-      { key: 'divisor', label: 'Volumetric Divisor', desc: 'Volumetric weight = L × W × H ÷ divisor', kind: 'plain' },
-      { key: 'minChargeableWeight', label: 'Min. Chargeable Weight', desc: 'kg; 0 = use the service’s minimum weight', kind: 'kg' },
+      { key: 'pickupCharge', label: 'FM (Pickup) Charges', desc: 'First-mile pickup', kind: 'perKgMin' },
+      { key: 'handlingCharge', label: 'Handling Charges', desc: 'Cargo handling per shipment', kind: 'perKgMin' },
+      { key: 'greenTax', label: 'Green Tax', desc: 'Environmental surcharge', kind: 'perKgMin' },
+      { key: 'deliveryCharge', label: 'Delivery Charges (specific places)', desc: 'Only for deliveries to the cities / states / zones listed (e.g. NE states)', kind: 'perKgMin' },
+      { key: 'appointmentDelivery', label: 'Appointment Delivery', desc: 'Delivery by appointment', kind: 'perKgMin', ifApplicable: true },
+      { key: 'csdDelivery', label: 'CSD / Army Delivery', desc: 'Delivery to CSD / army locations', kind: 'perKgMin', ifApplicable: true },
+      { key: 'floorDelivery', label: 'Floor Delivery', desc: 'Delivery above ground floor', kind: 'perKgMin', ifApplicable: true },
+      { key: 'demurrage', label: 'Demurrage', desc: 'Storage when the consignee delays', kind: 'perKgMin', ifApplicable: true },
+      { key: 'reattemptCharge', label: 'Re-attempt Charges', desc: 'Each extra delivery attempt', kind: 'perKgMin', ifApplicable: true },
+    ],
+    pkgSlabs: true,
+  },
+  {
+    title: 'Fixed',
+    note: 'One fixed amount or number each.',
+    rows: [
+      { key: 'docketCharge', label: 'LR Charges (per LR)', desc: 'Per LR (waybill)', kind: 'flat' },
       { key: 'minimumBilling', label: 'Min. LR Billing', desc: 'Minimum per LR: freight + LR + ROV are topped up to this ₹ (0 = off)', kind: 'flat' },
+      { key: 'minChargeableWeight', label: 'Min. Chargeable Weight', desc: '0 = use the service’s minimum weight', kind: 'kg' },
+      { key: 'divisor', label: 'Volumetric Divisor', desc: 'Volumetric weight = L × W × H ÷ divisor', kind: 'plain' },
+      { key: 'reattemptFreeCount', label: 'Re-attempt Free Count', desc: 'Delivery attempts not charged', kind: 'count' },
+    ],
+  },
+  {
+    title: 'Percentage',
+    note: 'A % of the base named, at least the minimum ₹ where there is one.',
+    rows: [
       { key: 'fuelCharge', label: 'Fuel Surcharge (FSC)', desc: '% of base freight', kind: 'pct' },
+      { key: 'codCharges', label: 'COD Charges', desc: '% of invoice value — COD orders only', kind: 'pctMin' },
+      { key: 'rovOwner', label: 'Risk Charges — Owner', desc: '% of invoice value; used when no owner-risk slabs are set below', kind: 'pctMin' },
+      { key: 'rovCarrier', label: 'Risk Charges — Carrier', desc: '% of invoice value', kind: 'pctMin' },
+      { key: 'fodCharges', label: 'To Pay', desc: '% of invoice value — freight collected at destination', kind: 'pctMin', ifApplicable: true },
       { key: 'gst', label: 'GST Rate', desc: 'GST % on the final subtotal', kind: 'pct' },
     ],
-  },
-  {
-    title: 'Charged on every shipment',
-    note: 'Added to every quote and booking when set.',
-    rows: [
-      { key: 'docketCharge', label: 'Docket / LR Charge', desc: 'Per LR (waybill)', kind: 'any' },
-      { key: 'pickupCharge', label: 'Pickup (FM) Charge', desc: 'First-mile pickup', kind: 'any' },
-      { key: 'handlingCharge', label: 'Handling Charge', desc: 'Cargo handling per shipment', kind: 'any' },
-      { key: 'codCharges', label: 'COD Charges', desc: '% of invoice value or minimum ₹ — COD orders only', kind: 'pctMin' },
-      { key: 'greenTax', label: 'Green Tax', desc: 'Environmental surcharge', kind: 'any' },
-      { key: 'appointmentDelivery', label: 'Appointment Delivery', desc: 'Only when the order is booked as appointment delivery', kind: 'any' },
-    ],
-  },
-  {
-    title: 'Risk (ROV)',
-    note: 'ROV is a % of the declared invoice value, at least the minimum ₹.',
-    rows: [
-      { key: 'rovOwner', label: 'ROV Owner Risk', desc: 'Used when no owner-risk slabs are set below', kind: 'pctMin' },
-      { key: 'rovCarrier', label: 'ROV Carrier Risk', desc: '% of invoice value or minimum ₹', kind: 'pctMin' },
-    ],
-  },
-  {
-    title: 'ODA (out of delivery area)',
-    note: 'Only when the courier marks the pin as ODA. The distance tier uses the courier’s distance (Gati); without a distance, the first row applies.',
-    rows: [
-      { key: 'odaCharges', label: 'ODA 0–50 km', desc: 'Also used when the courier gives no distance', kind: 'any' },
-      { key: 'odaCharges50to150', label: 'ODA 50–150 km', desc: '0 = use the 0–50 km row', kind: 'any' },
-      { key: 'odaCharges150plus', label: 'ODA above 150 km', desc: '0 = use the rows above', kind: 'any' },
-    ],
-  },
-  {
-    title: 'Package handling',
-    note: 'Per box, by that box’s weight: the higher of (box kg × ₹ per kg) and the minimum ₹. A box weighing exactly a slab’s “To” weight goes to the next slab. Leave the last “To” blank for no upper limit.',
-    rows: [],
-  },
-  {
-    title: 'If applicable (never added to the quote)',
-    note: 'Billed only if it happens. Shown to the seller under the price breakup.',
-    rows: [
-      { key: 'fodCharges', label: 'To-Pay (FOD)', desc: 'Freight collected at destination', kind: 'any' },
-      { key: 'csdDelivery', label: 'CSD / Army Delivery', desc: 'Delivery to CSD / army locations', kind: 'any' },
-      { key: 'floorDelivery', label: 'Floor Delivery', desc: 'Delivery above ground floor', kind: 'any' },
-      { key: 'demurrage', label: 'Demurrage', desc: 'Storage when the consignee delays', kind: 'any' },
-      { key: 'reattemptCharge', label: 'Re-attempt', desc: 'Each extra delivery attempt', kind: 'any' },
-      { key: 'reattemptFreeCount', label: 'Free Re-attempts', desc: 'Attempts not charged', kind: 'count' },
-    ],
+    ownerSlabs: true,
   },
 ];
-
-const TYPE_OPTIONS: { value: string; label: string; unit: string }[] = [
-  { value: 'percentage', label: '% of freight', unit: '%' },
-  { value: 'perKg', label: '₹ per kg', unit: '₹/kg' },
-  { value: 'flat', label: 'Flat ₹', unit: '₹' },
-];
-
-const viewOverhead = (kind: RowKind, f: OverheadField = {}) => {
-  const v = f.value ?? 0;
-  const m = Number(f.min ?? 0);
-  const minTxt = m > 0 ? ` (min ₹${m})` : '';
-  switch (kind) {
-    case 'any':
-      if (f.type === 'percentage') return `${v}% of freight${minTxt}`;
-      if (f.type === 'perKg') return `₹${v}/kg${minTxt}`;
-      return `₹${v}${minTxt}`;
-    case 'pctMin': return `${v}% or min ₹${m}`;
-    case 'flat': return `₹${v}`;
-    case 'pct': return `${v}%`;
-    case 'kg': return Number(v) > 0 ? `${v} kg` : 'Service minimum';
-    default: return String(v);
-  }
+const ALL_ROWS = OVERHEAD_SECTIONS.flatMap(s => s.rows);
+// Rows whose saved TYPE changes the price (the engine computes them by type). A stored card set with another type
+// (e.g. pickup saved as "% of freight") is flagged until an admin checks the value — never silently re-priced.
+const TYPE_MATTERS = new Set(ALL_ROWS.filter(r => r.kind === 'perKgMin' || (r.kind === 'pct' && r.key === 'fuelCharge') || r.key === 'docketCharge' || r.key === 'rovOwner' || r.key === 'rovCarrier' || r.key === 'fodCharges').map(r => r.key));
+const isSetField = (f?: OverheadField) => Boolean(f) && (Number(f?.value || 0) > 0 || Number(f?.min || 0) > 0);
+const typeWords = (f: OverheadField) => {
+  const v = f.value ?? 0, m = Number(f.min || 0) > 0 ? ` (min ₹${f.min})` : '';
+  if (f.type === 'percentage') return `${v}%${m}`;
+  if (f.type === 'perKg') return `₹${v} per kg${m}`;
+  return `₹${v} flat${m}`;
 };
+/* ODA by the courier's distance, in admin-set bands: each band = "above From km" up to the next band's From (the first
+   band also covers 0 km and an unknown distance); charged max(kg × ₹/kg, minimum). A band at 0 / 0 falls back to the
+   charged band below it (backend B2B/utils/b2bRateEngine.js odaSlabRuleFor). */
+interface OdaBand { from: string; perKg: string; min: string }
+type StoredOdaBand = { from: number; perKg: number; min: number };
+const OLD_ODA_KEYS = ['odaCharges', 'odaCharges50to150', 'odaCharges150plus'] as const;
+const OLD_ODA_FROM = [0, 50, 150];
+const OLD_ODA_LABEL: Record<string, string> = { odaCharges: 'ODA 0–50 km', odaCharges50to150: 'ODA 50–150 km', odaCharges150plus: 'ODA above 150 km' };
+const odaBandsCharged = (raw: Record<string, unknown>) =>
+  Array.isArray(raw.odaSlabs) && (raw.odaSlabs as StoredOdaBand[]).some(s => Number(s?.perKg) > 0 || Number(s?.min) > 0);
+// Bands to show for a stored card: its own, else its three earlier fixed rows (0 / 50 / 150 km) as bands —
+// ₹/kg as is; a flat ₹ is the same charge as ₹0/kg with that minimum; a % row is shown as entered (flagged to check)
+const odaBandsOf = (raw: Record<string, unknown>): OdaBand[] => {
+  const saved = Array.isArray(raw.odaSlabs) ? (raw.odaSlabs as StoredOdaBand[]) : [];
+  if (saved.length) return [...saved].sort((a, b) => Number(a.from) - Number(b.from)).map(s => ({ from: String(s.from ?? 0), perKg: String(s.perKg ?? 0), min: String(s.min ?? 0) }));
+  return OLD_ODA_KEYS.map((k, i) => {
+    const o = (raw[k] || {}) as OverheadField;
+    const v = Number(o.value || 0), m = Number(o.min || 0);
+    return o.type === 'flat'
+      ? { from: String(OLD_ODA_FROM[i]), perKg: '0', min: String(Math.max(v, m)) }
+      : { from: String(OLD_ODA_FROM[i]), perKg: String(v), min: String(m) };
+  });
+};
+const odaBandProblem = (bands: StoredOdaBand[]): string | null => {
+  if (bands.some(b => b.from < 0)) return 'ODA distance bands: a band cannot start below 0 km.';
+  const froms = bands.map(b => b.from).sort((a, b) => a - b);
+  for (let i = 1; i < froms.length; i++) if (froms[i] === froms[i - 1]) return `ODA distance bands: two bands start at ${froms[i]} km.`;
+  return null;
+};
+// "0–50 km" / "150+ km" for each band, by the next band's From
+const odaRangeOf = (bands: OdaBand[], i: number) => {
+  const sorted = bands.map((b, j) => ({ ...b, j })).filter(b => b.from.trim() !== '').sort((a, b) => Number(a.from) - Number(b.from));
+  const at = sorted.findIndex(b => b.j === i);
+  if (at < 0) return '';
+  const next = sorted[at + 1];
+  return `${Number(sorted[at].from)}${next ? `–${Number(next.from)}` : '+'} km`;
+};
+const viewOdaBands = (bands: OdaBand[]) => {
+  const charged = bands.map((b, i) => ({ b, i })).filter(({ b }) => Number(b.perKg) > 0 || Number(b.min) > 0);
+  if (!charged.length) return 'Not charged';
+  return charged.map(({ b, i }) => `${odaRangeOf(bands, i)}: ₹${b.perKg}/kg (min ₹${b.min})`).join(' · ');
+};
+
+/** keys of a loaded card whose saved type is not the row's type, while that charge is set */
+const typeMismatchesOf = (oh: Overheads, bandsCharged = odaBandsCharged(oh as Record<string, unknown>)): string[] => [
+  ...ALL_ROWS.filter(r => TYPE_MATTERS.has(r.key)).filter(r => {
+    const f = oh[r.key];
+    return isSetField(f) && Boolean(f?.type) && f?.type !== STORED_TYPE[r.kind];
+  }).map(r => r.key),
+  // ODA rows saved as "% of freight" can't become ₹/kg by themselves (₹/kg and flat convert exactly)
+  ...(bandsCharged ? [] : OLD_ODA_KEYS.filter(k => isSetField(oh[k]) && oh[k]?.type === 'percentage')),
+];
 
 const viewSlabs = (slabs: OwnerSlab[]) => {
   const set = slabs.filter(s => Number(s.value) > 0 || Number(s.min) > 0);
@@ -416,7 +443,13 @@ function RateCardTab({ showToast }: { showToast: (t: 'success' | 'error' | 'info
   const [overheads, setOverheads] = useState<Overheads>(DEFAULT_OVERHEADS);
   const [ownerSlabs, setOwnerSlabs] = useState<OwnerSlab[]>(DEFAULT_OWNER_SLABS);
   const [pkgSlabs, setPkgSlabs] = useState<PkgSlab[]>(DEFAULT_PKG_SLABS);
+  const [odaBands, setOdaBands] = useState<OdaBand[]>(() => odaBandsOf(DEFAULT_OVERHEADS as Record<string, unknown>));
   const [legacyMinFreight, setLegacyMinFreight] = useState(0); // the card's old Minimum Freight, until saved
+  // charges this card saved with another type than their row's (shown as they were saved, until checked)
+  const [savedAs, setSavedAs] = useState<Record<string, OverheadField>>({});
+  const [checkedTypes, setCheckedTypes] = useState<string[]>([]);
+  // delivery charge places as typed (comma-separated); split into a list when saving
+  const [placesText, setPlacesText] = useState('');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -469,6 +502,10 @@ function RateCardTab({ showToast }: { showToast: (t: 'success' | 'error' | 'info
     delete raw.rovOwnerSlabs;
     setPkgSlabs(pkgSlabsOf(raw));
     delete raw.packageHandlingSlabs;
+    // ODA distance bands are an array too (shown as its own table)
+    const hadOdaBands = odaBandsCharged(raw);
+    setOdaBands(odaBandsOf(raw));
+    delete raw.odaSlabs;
     // Minimum Freight is no longer on the screen: a card that still has one shows it as its Min. LR Billing
     // (when that is not set) and saving moves it there for good
     const loaded: Overheads = { ...DEFAULT_OVERHEADS, ...(raw as Overheads) };
@@ -478,6 +515,11 @@ function RateCardTab({ showToast }: { showToast: (t: 'success' | 'error' | 'info
       loaded.minimumBilling = { type: 'flat', ...(loaded.minimumBilling || {}), value: oldMinFreight };
     }
     setOverheads(loaded);
+    // a charge saved with another type than its row's is kept as saved (it prices that way until this card is saved)
+    // and flagged for the admin to check
+    setSavedAs(Object.fromEntries(typeMismatchesOf(loaded, hadOdaBands).map(k => [k, { ...loaded[k] }])));
+    setCheckedTypes([]);
+    setPlacesText((Array.isArray(loaded.deliveryCharge?.places) ? loaded.deliveryCharge!.places! : []).join(', '));
     // always at least 4 rows, so a band can be added back later (blank rows are ignored on save)
     const shown = savedSlabs.length
       ? savedSlabs.map(s => ({ upto: s.upto ? String(s.upto) : '', value: String(s.value ?? 0), min: String(s.min ?? 0) }))
@@ -513,12 +555,24 @@ function RateCardTab({ showToast }: { showToast: (t: 'success' | 'error' | 'info
       ...(f.value !== undefined ? { value: toNumber(f.value) } : {}),
       ...(f.min !== undefined ? { min: toNumber(f.min) } : {}),
     }]));
-    // a row's type is what its dropdown shows (an old/unknown type is saved as the first option shown)
-    for (const row of OVERHEAD_SECTIONS.flatMap(s => s.rows)) {
-      if (row.kind !== 'any') continue;
-      const allowed = TYPE_OPTIONS.filter(t => !row.types || row.types.includes(t.value)).map(t => t.value);
-      const f = overheadCharges[row.key] as OverheadField | undefined;
-      if (f && !allowed.includes(f.type || '')) overheadCharges[row.key] = { ...f, type: allowed[0] };
+    // a charge saved with another type must be checked first: saving re-prices it with its row's type
+    const unchecked = Object.keys(savedAs).filter(k => !checkedTypes.includes(k));
+    if (unchecked.length) {
+      const names = unchecked.map(k => ALL_ROWS.find(r => r.key === k)?.label || OLD_ODA_LABEL[k] || k).join(', ');
+      showToast('error', `Check these charges first (they were saved with another type): ${names}. Tick "Checked" on each.`);
+      return;
+    }
+    // every row is saved with its own type (one type per charge)
+    for (const row of ALL_ROWS) {
+      const f = (overheadCharges[row.key] || {}) as OverheadField;
+      overheadCharges[row.key] = { ...f, type: STORED_TYPE[row.kind] };
+    }
+    // delivery charge: only for the places listed; a charge with no place would never apply
+    const places = placesText.split(',').map(p => p.trim()).filter(Boolean);
+    overheadCharges.deliveryCharge = { ...(overheadCharges.deliveryCharge as OverheadField), places };
+    if (isSetField(overheadCharges.deliveryCharge as OverheadField) && !places.length) {
+      showToast('error', 'Delivery Charges: add at least one city, state or zone it applies to (or set it to 0).');
+      return;
     }
     // only bands with a % or a minimum are kept; none = the single ROV Owner Risk row applies
     overheadCharges.rovOwnerSlabs = ownerSlabs
@@ -534,6 +588,16 @@ function RateCardTab({ showToast }: { showToast: (t: 'success' | 'error' | 'info
     if (problem) { showToast('error', problem); return; }
     overheadCharges.packageHandlingSlabs = slabs;
     for (const k of OLD_PKG_KEYS) overheadCharges[k] = { type: 'perKg', value: 0, min: 0 };
+    // ODA = the distance bands only (fully blank rows dropped); the three earlier fixed rows are cleared so they can
+    // never apply alongside the bands
+    const bands: StoredOdaBand[] = odaBands
+      .filter(b => b.from.trim() !== '' || toNumber(b.perKg) > 0 || toNumber(b.min) > 0)
+      .map(b => ({ from: toNumber(b.from), perKg: toNumber(b.perKg), min: toNumber(b.min) }))
+      .sort((a, b) => a.from - b.from);
+    const odaProblem = odaBandProblem(bands);
+    if (odaProblem) { showToast('error', odaProblem); return; }
+    overheadCharges.odaSlabs = bands;
+    for (const k of OLD_ODA_KEYS) overheadCharges[k] = { type: 'perKg', value: 0, min: 0 };
     // one minimum only: Min. LR Billing (the old Minimum Freight was moved into it when the card was opened)
     overheadCharges.minimumFreight = { type: 'flat', value: 0 };
     setSaving(true);
@@ -589,8 +653,6 @@ function RateCardTab({ showToast }: { showToast: (t: 'success' | 'error' | 'info
     if (!/^\d*\.?\d*$/.test(v)) return;
     setOverheads(prev => ({ ...prev, [key]: { ...(prev[key] || {}), [field]: v } }));
   };
-  const setOverheadType = (key: string, type: string) =>
-    setOverheads(prev => ({ ...prev, [key]: { ...(prev[key] || {}), type } }));
   const setDelhiOnly = (on: boolean) =>
     setOverheads(prev => ({ ...prev, greenTax: { ...(prev.greenTax || {}), delhiOnly: on } }));
   const setSlab = (i: number, field: keyof OwnerSlab, v: string) => {
@@ -607,6 +669,16 @@ function RateCardTab({ showToast }: { showToast: (t: 'success' | 'error' | 'info
     return [...prev, { from: last?.to || '', to: '', min: '0', perKg: '0' }];
   });
   const removePkgSlab = (i: number) => setPkgSlabs(prev => prev.filter((_, j) => j !== i));
+  const setOdaBand = (i: number, field: keyof OdaBand, v: string) => {
+    if (!/^\d*\.?\d*$/.test(v)) return;
+    setOdaBands(prev => prev.map((b, j) => (j === i ? { ...b, [field]: v } : b)));
+  };
+  // a new band starts 50 km after the highest one
+  const addOdaBand = () => setOdaBands(prev => {
+    const top = Math.max(0, ...prev.map(b => toNumber(b.from)));
+    return [...prev, { from: String(prev.length ? top + 50 : 0), perKg: '0', min: '0' }];
+  });
+  const removeOdaBand = (i: number) => setOdaBands(prev => prev.filter((_, j) => j !== i));
 
   const planName = meta?.plans.find(p => p._id === planId)?.name || '';
   const serviceName = meta?.couriers.find(c => c._id === serviceId)?.name || '';
@@ -738,139 +810,276 @@ function RateCardTab({ showToast }: { showToast: (t: 'success' | 'error' | 'info
               ))}
             </div>
 
-            {/* Overhead charges */}
-            <div className="rounded-2xl border border-[#E2E8F0] bg-white overflow-hidden">
-              <div className="px-4 py-3 border-b border-[#E2E8F0] bg-[#F8FAFC]">
-                <h3 className="text-[13px] font-bold text-[#0F172A]">Overhead Charges &amp; Calculation Rules</h3>
-                <p className="text-[11.5px] text-[#64748B] mt-0.5">
-                  Where both a rate and a minimum ₹ are set, the higher of the two is charged. A charge left at 0 is not charged.
-                </p>
-              </div>
-              {OVERHEAD_SECTIONS.map(section => (
-                <div key={section.title} className="border-t border-[#E2E8F0] first:border-t-0">
-                  <div className="px-4 pt-3 pb-1">
-                    <div className="text-[12px] font-bold text-[#0F172A] uppercase tracking-wide">{section.title}</div>
-                    <div className="text-[11px] text-[#64748B]">{section.note}</div>
-                  </div>
-                  <div className="grid grid-cols-1 lg:grid-cols-2 lg:divide-x divide-[#F1F5F9]">
-                    {[section.rows.slice(0, Math.ceil(section.rows.length / 2)), section.rows.slice(Math.ceil(section.rows.length / 2))].map((col, ci) => (
-                      <div key={ci} className="divide-y divide-[#F1F5F9]">
-                        {col.map(row => {
-                          const f = overheads[row.key] || {};
-                          const hasMin = row.kind === 'pctMin' || row.kind === 'any';
-                          const typeOpts = TYPE_OPTIONS.filter(t => !row.types || row.types.includes(t.value));
-                          const unit = row.kind === 'any'
-                            ? (TYPE_OPTIONS.find(t => t.value === f.type)?.unit || '₹')
-                            : row.kind === 'pctMin' || row.kind === 'pct' ? '%' : row.kind === 'flat' ? '₹' : row.kind === 'kg' ? 'kg' : '';
-                          return (
-                            <div key={row.key} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-4 py-2.5">
-                              <div className="min-w-0">
-                                <div className="text-[12.5px] font-semibold text-[#0F172A]">{row.label}</div>
-                                <div className="text-[11px] text-[#94A3B8] leading-tight">{row.desc}</div>
-                                {row.key === 'minimumBilling' && legacyMinFreight > 0 && (
-                                  <div className="mt-1 text-[11px] text-[#B45309] leading-snug">
-                                    This card still has the old Minimum Freight ₹{legacyMinFreight}. It applies until you save; saving keeps only Min. LR Billing{Number(overheads.minimumBilling?.value || 0) > 0 ? ` (₹${overheads.minimumBilling?.value})` : ''}.
-                                  </div>
-                                )}
-                                {row.key === 'greenTax' && (
-                                  editing ? (
-                                    <label className="mt-1 inline-flex items-center gap-1.5 text-[11px] text-[#475569] cursor-pointer select-none">
-                                      <input type="checkbox" checked={Boolean(f.delhiOnly)} onChange={e => setDelhiOnly(e.target.checked)} className="accent-[#00A86B]" />
-                                      Only when pickup or delivery is in Delhi
-                                    </label>
-                                  ) : f.delhiOnly ? <div className="text-[11px] text-[#00A86B] font-semibold">Delhi shipments only</div> : null
-                                )}
-                              </div>
-                              {editing ? (
-                                <div className="flex flex-wrap items-center gap-1.5 shrink-0">
-                                  {row.kind === 'any' && (
-                                    <select value={typeOpts.some(t => t.value === f.type) ? f.type : typeOpts[0].value}
-                                      onChange={e => setOverheadType(row.key, e.target.value)}
-                                      className="h-8 px-2 border border-[#E2E8F0] rounded-lg text-[12px] bg-white focus:outline-none focus:border-[#00A86B]" aria-label={`${row.label} type`}>
-                                      {typeOpts.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                                    </select>
-                                  )}
-                                  <input inputMode="decimal" value={f.value ?? ''} onChange={e => setOverhead(row.key, 'value', e.target.value)}
-                                    className="w-20 h-8 px-2 text-center border border-[#E2E8F0] rounded-lg text-[12px] focus:outline-none focus:border-[#00A86B]" aria-label={`${row.label} value`} />
-                                  {unit && <span className="text-[11px] text-[#64748B]">{unit}</span>}
-                                  {hasMin && (
-                                    <>
-                                      <span className="text-[11px] text-[#CBD5E1] mx-0.5">|</span>
-                                      <span className="text-[11px] text-[#64748B]">min ₹</span>
-                                      <input inputMode="decimal" value={f.min ?? ''} onChange={e => setOverhead(row.key, 'min', e.target.value)}
-                                        className="w-20 h-8 px-2 text-center border border-[#E2E8F0] rounded-lg text-[12px] focus:outline-none focus:border-[#00A86B]" aria-label={`${row.label} minimum`} />
-                                    </>
-                                  )}
-                                </div>
-                              ) : (
-                                <span className="text-[12.5px] font-semibold text-[#0F172A] shrink-0">{viewOverhead(row.kind, f)}</span>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ))}
-                  </div>
-                  {section.title === 'Package handling' && (
-                    <div className="px-4 py-2.5">
-                      {editing ? (
-                        <div className="space-y-1.5">
-                          <div className="hidden sm:grid grid-cols-[repeat(4,6.5rem)_auto] gap-1.5 text-[11px] font-semibold text-[#64748B]">
-                            <span>From weight (kg)</span><span>To weight (kg)</span><span>Minimum charge ₹</span><span>Per kg charge ₹</span><span />
-                          </div>
-                          {pkgSlabs.map((s, i) => (
-                            <div key={i} className="grid grid-cols-2 sm:grid-cols-[repeat(4,6.5rem)_auto] gap-1.5 items-center">
-                              {([['from', 'From kg', ''], ['to', 'To kg', 'above'], ['min', 'Min ₹', ''], ['perKg', '₹ / kg', '']] as [keyof PkgSlab, string, string][]).map(([field, label, ph]) => (
-                                <input key={field} inputMode="decimal" value={s[field]} placeholder={ph || label} onChange={e => setPkgSlab(i, field, e.target.value)}
-                                  className="h-8 px-2 text-center border border-[#E2E8F0] rounded-lg text-[12px] focus:outline-none focus:border-[#00A86B]" aria-label={`Package slab ${i + 1} ${label}`} />
-                              ))}
-                              <button type="button" onClick={() => removePkgSlab(i)}
-                                className="h-8 px-2 text-[11.5px] font-semibold text-[#DC2626] hover:bg-[#FEF2F2] rounded-lg justify-self-start" aria-label={`Remove package slab ${i + 1}`}>
-                                Remove
-                              </button>
-                            </div>
-                          ))}
-                          <button type="button" onClick={addPkgSlab}
-                            className="h-8 px-3 text-[12px] font-semibold text-[#00A86B] border border-dashed border-[#00A86B] rounded-lg hover:bg-[#F0FDF4]">
-                            + Add slab
-                          </button>
-                        </div>
-                      ) : (
-                        <span className="text-[12.5px] font-semibold text-[#0F172A]">{viewPkgSlabs(pkgSlabs)}</span>
-                      )}
-                    </div>
-                  )}
-                  {section.title === 'Risk (ROV)' && (
-                    <div className="px-4 py-2.5 border-t border-[#F1F5F9]">
-                      <div className="text-[12.5px] font-semibold text-[#0F172A]">Owner Risk by invoice value (slabs)</div>
-                      <div className="text-[11px] text-[#94A3B8] leading-tight mb-2">
-                        The first band whose “up to ₹” covers the invoice value applies; leave “up to” blank for the last band (above). Bands at 0% and min ₹0 are ignored.
-                      </div>
-                      {editing ? (
-                        <div className="space-y-1.5">
-                          {ownerSlabs.map((s, i) => (
-                            <div key={i} className="flex flex-wrap items-center gap-1.5">
-                              <span className="text-[11px] text-[#64748B] w-14">up to ₹</span>
-                              <input inputMode="decimal" value={s.upto} placeholder="above" onChange={e => setSlab(i, 'upto', e.target.value)}
-                                className="w-28 h-8 px-2 text-center border border-[#E2E8F0] rounded-lg text-[12px] focus:outline-none focus:border-[#00A86B]" aria-label={`Owner slab ${i + 1} up to`} />
-                              <input inputMode="decimal" value={s.value} onChange={e => setSlab(i, 'value', e.target.value)}
-                                className="w-20 h-8 px-2 text-center border border-[#E2E8F0] rounded-lg text-[12px] focus:outline-none focus:border-[#00A86B]" aria-label={`Owner slab ${i + 1} percent`} />
-                              <span className="text-[11px] text-[#64748B]">% of invoice</span>
-                              <span className="text-[11px] text-[#CBD5E1] mx-0.5">|</span>
-                              <span className="text-[11px] text-[#64748B]">min ₹</span>
-                              <input inputMode="decimal" value={s.min} onChange={e => setSlab(i, 'min', e.target.value)}
-                                className="w-20 h-8 px-2 text-center border border-[#E2E8F0] rounded-lg text-[12px] focus:outline-none focus:border-[#00A86B]" aria-label={`Owner slab ${i + 1} minimum`} />
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="text-[12.5px] font-semibold text-[#0F172A]">{viewSlabs(ownerSlabs)}</span>
-                      )}
-                    </div>
-                  )}
+            {/* Overhead charges — grouped rate table */}
+            {(() => {
+              // Rows come from OVERHEAD_SECTIONS (one table group per section); each row has ONE type (its kind).
+              const TYPE: Record<RowKind, { label: string; cls: string }> = {
+                perKgMin: { label: '₹/kg · Min ₹', cls: 'bg-sky-50 text-sky-700' },
+                pctMin: { label: '% · Min ₹', cls: 'bg-violet-50 text-violet-700' },
+                pct: { label: 'Percent', cls: 'bg-amber-50 text-amber-700' },
+                flat: { label: 'Fixed ₹', cls: 'bg-[#F0FDF4] text-[#047857]' },
+                kg: { label: 'Weight', cls: 'bg-slate-100 text-slate-600' },
+                count: { label: 'Count', cls: 'bg-slate-100 text-slate-600' },
+                plain: { label: 'Rule', cls: 'bg-slate-100 text-slate-600' },
+              };
+              const hasMinOf = (row: OverheadRow) => row.kind === 'perKgMin' || row.kind === 'pctMin';
+              const fmtVal = (k: RowKind, v: number | string | undefined | null) => {
+                const x = v === undefined || v === '' || v === null ? null : Number(v);
+                if (x == null || Number.isNaN(x)) return <span className="text-[#CBD5E1]">—</span>;
+                if (k === 'kg') return x > 0 ? `${x} kg` : 'Service minimum';
+                const num = x.toLocaleString('en-IN', { minimumFractionDigits: k === 'plain' || k === 'count' ? 0 : 2, maximumFractionDigits: 2 });
+                return k === 'flat' ? `₹${num}` : k === 'perKgMin' ? `₹${num} / kg` : k === 'pct' || k === 'pctMin' ? `${num}%` : num;
+              };
+              const basis = (row: OverheadRow) => {
+                if (row.ifApplicable) return 'Only if it happens';
+                if (row.key === 'minimumBilling') return 'Tops up freight + LR + ROV';
+                if (row.key === 'deliveryCharge') return 'Listed places only';
+                if (row.key === 'greenTax' && overheads.greenTax?.delhiOnly) return 'Delhi pickup / delivery only';
+                if (row.kind === 'perKgMin') return 'Higher of ₹/kg or minimum';
+                if (row.kind === 'pctMin') return 'Higher of % of invoice or minimum';
+                if (row.key === 'fuelCharge') return '% of base freight';
+                if (row.key === 'gst') return 'On the subtotal';
+                if (row.key === 'docketCharge') return 'Per LR';
+                return 'Calculation rule';
+              };
+              const field = ({ value, onChange, suffix, prefix, label }: { value: number | string | undefined; onChange: (v: string) => void; suffix?: string; prefix?: string; label: string }) => (
+                <div className="inline-flex items-center h-9 w-[132px] rounded-lg border border-[#E2E8F0] bg-white focus-within:border-[#00A86B] focus-within:ring-2 focus-within:ring-[#00A86B]/10 transition-all overflow-hidden">
+                  {prefix && <span className="pl-2.5 text-[12px] text-[#94A3B8]">{prefix}</span>}
+                  <input inputMode="decimal" value={value ?? ''} onChange={e => onChange(e.target.value)} aria-label={label} placeholder="0"
+                    className="flex-1 min-w-0 h-full px-2 text-right text-[13px] font-medium text-[#0F172A] tabular-nums bg-transparent focus:outline-none" />
+                  {suffix && <span className="pr-2.5 text-[12px] text-[#94A3B8]">{suffix}</span>}
                 </div>
-              ))}
-            </div>
+              );
+              return (
+                <section className="rounded-2xl border border-[#E2E8F0] bg-white overflow-hidden shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
+                  <header className="px-5 py-4 border-b border-[#E2E8F0] flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                    <div>
+                      <h3 className="text-[15px] font-bold text-[#0F172A]">Overhead Charges &amp; Calculation Rules</h3>
+                      <p className="text-[12px] text-[#64748B] mt-0.5">Charges added on top of base freight for {serviceName || 'this service'}.</p>
+                    </div>
+                    <div className="flex flex-wrap gap-2 text-[11.5px] text-[#475569]">
+                      <span className="inline-flex items-center gap-1.5 h-7 px-3 rounded-full bg-[#F8FAFC] border border-[#EEF2F6]">Rate + minimum → <b className="font-semibold text-[#0F172A]">higher is charged</b></span>
+                      <span className="inline-flex items-center gap-1.5 h-7 px-3 rounded-full bg-[#F8FAFC] border border-[#EEF2F6]">% on freight: FSC</span>
+                      <span className="inline-flex items-center gap-1.5 h-7 px-3 rounded-full bg-[#F8FAFC] border border-[#EEF2F6]">% on invoice: COD, Risk, To Pay</span>
+                      <span className="inline-flex items-center gap-1.5 h-7 px-3 rounded-full bg-[#F8FAFC] border border-[#EEF2F6]">0 = not charged</span>
+                    </div>
+                  </header>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[760px] text-[13px]">
+                      <thead>
+                        <tr className="bg-[#F8FAFC] text-[11.5px] uppercase tracking-wide text-[#64748B]">
+                          <th className="text-left font-semibold px-5 py-3 w-[38%]">Charge</th>
+                          <th className="text-left font-semibold px-4 py-3">Type</th>
+                          <th className="text-right font-semibold px-4 py-3">Value</th>
+                          <th className="text-right font-semibold px-4 py-3">Minimum</th>
+                          <th className="text-left font-semibold px-5 py-3">Applied as</th>
+                        </tr>
+                      </thead>
+                      {OVERHEAD_SECTIONS.map(section => (
+                        <tbody key={section.title}>
+                          <tr>
+                            <td colSpan={5} className="px-5 pt-4 pb-1 border-t border-[#EEF2F6]">
+                              <div className="text-[11.5px] font-bold uppercase tracking-wider text-[#00A86B]">{section.title}</div>
+                              <div className="text-[11.5px] text-[#94A3B8] mt-0.5 normal-case tracking-normal">{section.note}</div>
+                            </td>
+                          </tr>
+                          {section.rows.map(row => {
+                            const f: OverheadField = overheads[row.key] || {};
+                            const k = row.kind;
+                            const hasMin = hasMinOf(row);
+                            const t = TYPE[k];
+                            const oldType = savedAs[row.key];
+                            return (
+                              <tr key={row.key} className="border-t border-[#F1F5F9] hover:bg-[#FAFBFC] transition-colors">
+                                <td className="px-5 py-3 align-middle">
+                                  <div className="font-semibold text-[#0F172A]">
+                                    {row.label}
+                                    {row.ifApplicable && (
+                                      <span className="ml-1.5 inline-flex items-center h-5 px-2 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-600 align-middle">If applicable</span>
+                                    )}
+                                  </div>
+                                  <div className="text-[11.5px] text-[#94A3B8] leading-snug mt-0.5">{row.desc}</div>
+                                  {oldType && (
+                                    <div className="mt-1.5 p-2 rounded-lg bg-amber-50 border border-amber-200 text-[11px] text-amber-800 leading-snug">
+                                      Saved earlier as <b>{typeWords(oldType)}</b>, and charged that way until this card is saved. This charge is now <b>{t.label}</b>: check the value and minimum{editing ? ', then tick Checked.' : ' (Edit).'}
+                                      {editing && (
+                                        <label className="mt-1 flex items-center gap-1.5 font-semibold cursor-pointer select-none">
+                                          <input type="checkbox" className="accent-[#00A86B]" checked={checkedTypes.includes(row.key)}
+                                            onChange={e => setCheckedTypes(prev => (e.target.checked ? [...prev, row.key] : prev.filter(x => x !== row.key)))} />
+                                          Checked
+                                        </label>
+                                      )}
+                                    </div>
+                                  )}
+                                  {row.key === 'deliveryCharge' && (
+                                    editing ? (
+                                      <input value={placesText} onChange={e => setPlacesText(e.target.value)} placeholder="e.g. Assam, Meghalaya, Tripura or NE"
+                                        aria-label="Delivery charge places"
+                                        className="mt-1.5 w-full max-w-[360px] h-9 px-2.5 border border-[#E2E8F0] rounded-lg text-[12px] focus:outline-none focus:border-[#00A86B]" />
+                                    ) : (
+                                      <div className="text-[11px] text-[#00A86B] font-semibold mt-0.5">
+                                        {(f.places || []).length ? `Only: ${(f.places || []).join(', ')}` : 'No places set — not charged'}
+                                      </div>
+                                    )
+                                  )}
+                                  {row.key === 'minimumBilling' && legacyMinFreight > 0 && (
+                                    <div className="mt-1 text-[11px] text-[#B45309] leading-snug">
+                                      This card still has the old Minimum Freight ₹{legacyMinFreight}. It applies until you save; saving keeps only Min. LR Billing{Number(overheads.minimumBilling?.value || 0) > 0 ? ` (₹${overheads.minimumBilling?.value})` : ''}.
+                                    </div>
+                                  )}
+                                  {row.key === 'greenTax' && (
+                                    editing ? (
+                                      <label className="mt-1 inline-flex items-center gap-1.5 text-[11px] text-[#475569] cursor-pointer select-none">
+                                        <input type="checkbox" checked={Boolean(f.delhiOnly)} onChange={e => setDelhiOnly(e.target.checked)} className="accent-[#00A86B]" />
+                                        Only when pickup or delivery is in Delhi
+                                      </label>
+                                    ) : f.delhiOnly ? <div className="text-[11px] text-[#00A86B] font-semibold">Delhi shipments only</div> : null
+                                  )}
+                                </td>
+                                <td className="px-4 py-3 align-middle">
+                                  <span className={`inline-flex items-center h-6 px-2.5 rounded-full text-[11px] font-semibold whitespace-nowrap ${t.cls}`}>{t.label}</span>
+                                </td>
+                                <td className="px-4 py-3 align-middle text-right">
+                                  {editing
+                                    ? field({
+                                        label: `${row.label} value`, value: f.value, onChange: v => setOverhead(row.key, 'value', v),
+                                        prefix: k === 'flat' || k === 'perKgMin' ? '₹' : undefined,
+                                        suffix: k === 'perKgMin' ? '/kg' : k === 'pct' || k === 'pctMin' ? '%' : k === 'kg' ? 'kg' : undefined,
+                                      })
+                                    : <span className="font-semibold text-[#0F172A] tabular-nums">{fmtVal(k, f.value)}</span>}
+                                </td>
+                                <td className="px-4 py-3 align-middle text-right">
+                                  {hasMin
+                                    ? (editing
+                                        ? field({ label: `${row.label} minimum`, value: f.min, onChange: v => setOverhead(row.key, 'min', v), prefix: '₹' })
+                                        : <span className="font-semibold text-[#0F172A] tabular-nums">{fmtVal('flat', f.min ?? 0)}</span>)
+                                    : <span className="text-[#CBD5E1]">—</span>}
+                                </td>
+                                <td className="px-5 py-3 align-middle text-[12px] text-[#64748B] whitespace-nowrap">{basis(row)}</td>
+                              </tr>
+                            );
+                          })}
+
+                          {/* ROV: owner risk by invoice value — when any band is set, it replaces the ROV Owner Risk row */}
+                          {section.ownerSlabs && (
+                            <tr className="border-t border-[#F1F5F9]">
+                              <td colSpan={5} className="px-5 py-3">
+                                <div className="font-semibold text-[#0F172A]">Risk Charges — Owner, by invoice value (slabs)</div>
+                                <div className="text-[11.5px] text-[#94A3B8] leading-snug mt-0.5 mb-2">
+                                  The first band whose “up to ₹” covers the invoice value applies; leave “up to” blank for the last band (above). Bands at 0% and min ₹0 are ignored.
+                                </div>
+                                {editing ? (
+                                  <div className="space-y-1.5">
+                                    {ownerSlabs.map((s, i) => (
+                                      <div key={i} className="flex flex-wrap items-center gap-2">
+                                        {field({ label: `Owner slab ${i + 1} up to`, value: s.upto, onChange: v => setSlab(i, 'upto', v), prefix: 'up to ₹' })}
+                                        {field({ label: `Owner slab ${i + 1} percent`, value: s.value, onChange: v => setSlab(i, 'value', v), suffix: '% of invoice' })}
+                                        {field({ label: `Owner slab ${i + 1} minimum`, value: s.min, onChange: v => setSlab(i, 'min', v), prefix: 'min ₹' })}
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <span className="text-[12.5px] font-semibold text-[#0F172A]">{viewSlabs(ownerSlabs)}</span>
+                                )}
+                              </td>
+                            </tr>
+                          )}
+
+                          {/* Package handling: per box, by box weight */}
+                          {/* ODA: per kg / minimum in distance bands the admin sets (km is not fixed) */}
+                          {section.pkgSlabs && (
+                            <tr className="border-t border-[#F1F5F9]">
+                              <td colSpan={5} className="px-5 py-3">
+                                <div className="font-semibold text-[#0F172A]">ODA Charges (by the courier’s distance)</div>
+                                <div className="text-[11.5px] text-[#94A3B8] leading-snug mt-0.5 mb-2">
+                                  Only when the courier marks the pin as ODA. Each band starts above its “From km” and runs to the next band’s From; the first band also covers 0 km and an unknown distance.
+                                  Charge = the higher of (chargeable kg × ₹ per kg) and the minimum ₹. A band left at 0 / 0 uses the charged band below it.
+                                </div>
+                                {OLD_ODA_KEYS.filter(k => savedAs[k]).map(k => (
+                                  <div key={k} className="mb-2 p-2 rounded-lg bg-amber-50 border border-amber-200 text-[11px] text-amber-800 leading-snug">
+                                    {OLD_ODA_LABEL[k]} was saved as <b>{typeWords(savedAs[k])}</b> (of freight), and is charged that way until this card is saved. ODA is now ₹ per kg + minimum: check that band{editing ? ', then tick Checked.' : ' (Edit).'}
+                                    {editing && (
+                                      <label className="mt-1 flex items-center gap-1.5 font-semibold cursor-pointer select-none">
+                                        <input type="checkbox" className="accent-[#00A86B]" checked={checkedTypes.includes(k)}
+                                          onChange={e => setCheckedTypes(prev => (e.target.checked ? [...prev, k] : prev.filter(x => x !== k)))} />
+                                        Checked
+                                      </label>
+                                    )}
+                                  </div>
+                                ))}
+                                {editing ? (
+                                  <div className="space-y-1.5">
+                                    <div className="hidden sm:grid grid-cols-[repeat(3,8.5rem)_7rem_auto] gap-2 text-[11px] font-semibold text-[#64748B]">
+                                      <span>From (above) km</span><span>Per kg charge ₹</span><span>Minimum charge ₹</span><span>Band</span><span />
+                                    </div>
+                                    {odaBands.map((b, i) => (
+                                      <div key={i} className="grid grid-cols-2 sm:grid-cols-[repeat(3,8.5rem)_7rem_auto] gap-2 items-center">
+                                        {([['from', 'From km'], ['perKg', '₹ / kg'], ['min', 'Min ₹']] as [keyof OdaBand, string][]).map(([fieldKey, label]) => (
+                                          <input key={fieldKey} inputMode="decimal" value={b[fieldKey]} placeholder={label} onChange={e => setOdaBand(i, fieldKey, e.target.value)}
+                                            className="h-9 px-2 text-center border border-[#E2E8F0] rounded-lg text-[12px] focus:outline-none focus:border-[#00A86B]" aria-label={`ODA band ${i + 1} ${label}`} />
+                                        ))}
+                                        <span className="text-[11.5px] text-[#64748B]">{odaRangeOf(odaBands, i)}</span>
+                                        <button type="button" onClick={() => removeOdaBand(i)}
+                                          className="h-9 px-2 text-[11.5px] font-semibold text-[#DC2626] hover:bg-[#FEF2F2] rounded-lg justify-self-start" aria-label={`Remove ODA band ${i + 1}`}>
+                                          Remove
+                                        </button>
+                                      </div>
+                                    ))}
+                                    <button type="button" onClick={addOdaBand}
+                                      className="h-9 px-3 text-[12px] font-semibold text-[#00A86B] border border-dashed border-[#00A86B] rounded-lg hover:bg-[#F0FDF4]">
+                                      + Add distance band
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <span className="text-[12.5px] font-semibold text-[#0F172A]">{viewOdaBands(odaBands)}</span>
+                                )}
+                              </td>
+                            </tr>
+                          )}
+
+                          {section.pkgSlabs && (
+                            <tr className="border-t border-[#F1F5F9]">
+                              <td colSpan={5} className="px-5 py-3">
+                                <div className="font-semibold text-[#0F172A]">Package Handling (per box, by box weight)</div>
+                                <div className="text-[11.5px] text-[#94A3B8] leading-snug mt-0.5 mb-2">
+                                  Each box: the higher of (box kg × ₹ per kg) and the minimum ₹ of its slab. A box weighing exactly a slab’s “To” weight goes to the next slab; leave the last “To” blank for no upper limit.
+                                </div>
+                                {editing ? (
+                                  <div className="space-y-1.5">
+                                    <div className="hidden sm:grid grid-cols-[repeat(4,8.5rem)_auto] gap-2 text-[11px] font-semibold text-[#64748B]">
+                                      <span>From weight (kg)</span><span>To weight (kg)</span><span>Minimum charge ₹</span><span>Per kg charge ₹</span><span />
+                                    </div>
+                                    {pkgSlabs.map((s, i) => (
+                                      <div key={i} className="grid grid-cols-2 sm:grid-cols-[repeat(4,8.5rem)_auto] gap-2 items-center">
+                                        {([['from', 'From kg', ''], ['to', 'To kg', 'above'], ['min', 'Min ₹', ''], ['perKg', '₹ / kg', '']] as [keyof PkgSlab, string, string][]).map(([fieldKey, label, ph]) => (
+                                          <input key={fieldKey} inputMode="decimal" value={s[fieldKey]} placeholder={ph || label} onChange={e => setPkgSlab(i, fieldKey, e.target.value)}
+                                            className="h-9 px-2 text-center border border-[#E2E8F0] rounded-lg text-[12px] focus:outline-none focus:border-[#00A86B]" aria-label={`Package slab ${i + 1} ${label}`} />
+                                        ))}
+                                        <button type="button" onClick={() => removePkgSlab(i)}
+                                          className="h-9 px-2 text-[11.5px] font-semibold text-[#DC2626] hover:bg-[#FEF2F2] rounded-lg justify-self-start" aria-label={`Remove package slab ${i + 1}`}>
+                                          Remove
+                                        </button>
+                                      </div>
+                                    ))}
+                                    <button type="button" onClick={addPkgSlab}
+                                      className="h-9 px-3 text-[12px] font-semibold text-[#00A86B] border border-dashed border-[#00A86B] rounded-lg hover:bg-[#F0FDF4]">
+                                      + Add slab
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <span className="text-[12.5px] font-semibold text-[#0F172A]">{viewPkgSlabs(pkgSlabs)}</span>
+                                )}
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      ))}
+                    </table>
+                  </div>
+                </section>
+              );
+            })()}
           </>
         )}
       </div>
