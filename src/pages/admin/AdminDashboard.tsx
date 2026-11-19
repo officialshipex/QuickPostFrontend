@@ -55,6 +55,9 @@ const courierIcon = (name: string) => {
 const initials = (name: string) =>
   (name || '?').split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase();
 
+/** One icon size/style for every dashboard card (duotone, brand green). */
+const DASH_ICON = 'w-7 h-7 md:w-8 md:h-8 text-[#00A86B]';
+
 /* ─── sub-components ──────────────────────────────────────────────── */
 function StatCardWithTrend({ title, value, trend, isUp, icon: Icon }: any) {
   // isUp true/false → coloured growth chip; undefined → neutral period label.
@@ -64,9 +67,7 @@ function StatCardWithTrend({ title, value, trend, isUp, icon: Icon }: any) {
       <div className="flex items-center justify-between gap-2">
         <div className="text-[12px] md:text-[13px] font-medium text-[#64748B] truncate">{title}</div>
         {Icon && (
-          <span className="w-7 h-7 rounded-lg bg-[#F0FDF4] flex items-center justify-center shrink-0">
-            <Icon className="w-3.5 h-3.5 text-[#00A86B]" />
-          </span>
+          <Icon className={`${DASH_ICON} shrink-0`} strokeWidth={1.4} fill="currentColor" fillOpacity={0.12} />
         )}
       </div>
       <div className="mt-2 text-[18px] md:text-[22px] font-bold text-[#0F172A] tabular-nums leading-tight truncate">{value}</div>
@@ -115,16 +116,18 @@ function DashboardTabs({ value, onChange }: { value: DashTab; onChange: (t: Dash
   );
 }
 
-function MiniStatCard({ title, value, icon: Icon, to: toProp, className = '', smallIcon = false }: any) {
+function MiniStatCard({ title, value, icon: Icon, to: toProp, className = '' }: any) {
   const to = useCardLinks() ? toProp : undefined;   // seller side: cards are not clickable
   // Duotone line icon (outline + soft tinted fill), one brand colour across all cards.
   const inner = (
-    <div className={`min-w-0 h-full bg-white rounded-xl border border-[#E2E8F0] p-3 md:p-4 shadow-sm group ${to ? 'cursor-pointer hover:border-[#00A86B]/60 hover:shadow-md transition-all duration-150' : ''}`}>
-      {Icon && (
-        <Icon className={`${smallIcon ? 'w-6 h-6 md:w-7 md:h-7' : 'w-7 h-7 md:w-9 md:h-9'} mb-2 md:mb-2.5 text-[#00A86B]`} strokeWidth={1.4} fill="currentColor" fillOpacity={0.12} />
-      )}
-      <div className={`text-[11px] md:text-[13px] font-medium mb-0.5 leading-tight break-words transition-colors ${to ? 'text-[#475569] group-hover:text-[#00A86B]' : 'text-[#475569]'}`}>{title}</div>
-      <div className="text-[15px] md:text-xl font-bold text-[#0F172A] truncate">{value}</div>
+    <div className={`min-w-0 h-full bg-white rounded-xl border border-[#EEF2F6] px-3.5 py-3 md:px-4 md:py-3.5 shadow-[0_1px_2px_rgba(16,24,40,0.03),0_4px_16px_-6px_rgba(16,24,40,0.06)] group ${to ? 'cursor-pointer hover:border-[#00A86B]/50 hover:shadow-md transition-all duration-150' : ''}`}>
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className={`text-[12px] md:text-[13px] font-medium leading-tight truncate transition-colors ${to ? 'text-[#64748B] group-hover:text-[#00A86B]' : 'text-[#64748B]'}`}>{title}</div>
+          <div className="mt-1.5 text-[18px] md:text-[22px] font-bold text-[#0F172A] tabular-nums leading-tight truncate">{value}</div>
+        </div>
+        {Icon && <Icon className={`${DASH_ICON} shrink-0`} strokeWidth={1.4} fill="currentColor" fillOpacity={0.12} />}
+      </div>
     </div>
   );
   if (to) return <Link to={to} className={`block ${className}`}>{inner}</Link>;

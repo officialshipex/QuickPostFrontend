@@ -270,9 +270,7 @@ export function ShipmentsTab({ ship = {}, fmt, weightSplit = [], couriersSplit =
               <h3 className="text-[14px] font-medium text-[#475569]">Total Shipments</h3>
               <div className="mt-1.5 text-[28px] font-semibold text-[#0F172A] tabular-nums leading-tight tracking-[-0.02em]">{total.toLocaleString('en-IN')}</div>
             </div>
-            <span className="w-12 h-12 rounded-2xl bg-[#EEF4FF] flex items-center justify-center shrink-0">
-              <Boxes className="w-6 h-6 text-[#2F80ED]" strokeWidth={1.6} />
-            </span>
+            <Boxes className="w-7 h-7 md:w-8 md:h-8 text-[#00A86B] shrink-0" strokeWidth={1.4} fill="currentColor" fillOpacity={0.12} />
           </div>
           <div className="text-[12px] text-[#94A3B8]">in selected range</div>
         </section>
@@ -282,9 +280,7 @@ export function ShipmentsTab({ ship = {}, fmt, weightSplit = [], couriersSplit =
               <h3 className="text-[14px] font-medium text-[#475569]">Delivery Metrics</h3>
               <div className="mt-1.5 text-[28px] font-semibold text-[#0F172A] tabular-nums leading-tight tracking-[-0.02em]">{delivered.toLocaleString('en-IN')}</div>
             </div>
-            <span className="w-12 h-12 rounded-2xl bg-[#ECFDF5] flex items-center justify-center shrink-0">
-              <BadgeCheck className="w-6 h-6 text-[#0DB25B]" strokeWidth={1.6} />
-            </span>
+            <BadgeCheck className="w-7 h-7 md:w-8 md:h-8 text-[#00A86B] shrink-0" strokeWidth={1.4} fill="currentColor" fillOpacity={0.12} />
           </div>
           <div className="flex items-center justify-between text-[12px]">
             <span className="text-[#64748B]">Delivery rate</span>
