@@ -193,18 +193,16 @@ function SendAlertModal({ open, onClose, targetUserId, targetUserName }: {
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
   const [email, setEmail] = useState('');
-  const [imageUrl, setImageUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
   useEffect(() => {
-    if (open) { setRecipientType(targetUserId ? 'specific' : 'all'); setTitle(''); setMessage(''); setEmail(''); setImageUrl(''); setResult(null); }
+    if (open) { setRecipientType(targetUserId ? 'specific' : 'all'); setTitle(''); setMessage(''); setEmail(''); setResult(null); }
   }, [open, targetUserId]);
   const handleSend = async () => {
     if (!title.trim() || !message.trim()) { setResult({ ok: false, text: 'Title and message are required' }); return; }
     setLoading(true); setResult(null);
     try {
       const body: any = { channel, title, message, recipientType };
-      if (channel === 'WhatsApp' && imageUrl.trim()) body.imageUrl = imageUrl.trim();
       if (recipientType === 'specific') { if (targetUserId) body.targetUserId = targetUserId; else body.targetEmail = email; }
       const res = await apiClient.post('/notification/sendCustomAlert', body);
       setResult({ ok: true, text: res.data?.message || 'Alert sent!' });
@@ -247,7 +245,6 @@ function SendAlertModal({ open, onClose, targetUserId, targetUserName }: {
               <select value={channel} onChange={e => setChannel(e.target.value)}
                 className="w-full h-10 px-3 rounded-lg border border-[#E2E8F0] text-xs focus:outline-none focus:border-[#00A86B] bg-white">
                 <option value="Email">Email (Free)</option>
-                <option value="WhatsApp">WhatsApp</option>
                 <option value="SMS">SMS</option>
               </select>
             </div>
@@ -262,9 +259,6 @@ function SendAlertModal({ open, onClose, targetUserId, targetUserName }: {
             <textarea value={message} onChange={e => setMessage(e.target.value)} rows={4} placeholder="Write your alert message here…"
               className="w-full p-3 rounded-xl border border-[#E2E8F0] text-xs focus:outline-none focus:border-[#00A86B] resize-none" />
           </div>
-          {channel === 'WhatsApp' && (
-            <ImageUploadField value={imageUrl} onChange={setImageUrl} />
-          )}
           {result && (
             <div className={`flex items-center gap-2 text-xs font-semibold p-3 rounded-xl ${result.ok ? 'bg-green-50 text-[#00A86B]' : 'bg-red-50 text-red-600'}`}>
               {result.ok ? <CheckCircle className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
@@ -284,12 +278,291 @@ function SendAlertModal({ open, onClose, targetUserId, targetUserName }: {
   );
 }
 
+// ─── WhatsAppTemplateForm ────────────────────────────────────────────────────
+// Send ANY approved WhatsApp template (festival, offer, KYC ...) without a code change.
+// Staff paste the template's text as it appears in the WhatsApp account; the {{1}}, {{2}} ... in it
+// become the rows to fill, in the right order, and a preview shows the message for a real user.
+type TplVar = { label: string; value: string };
+type TplState = {
+  templateName: string; language: string; templateText: string; variables: TplVar[];
+  hasImage: boolean; imageUrl: string; hasButton: boolean; buttonLabel: string; buttonValue: string;
+};
+type WaPreset = {
+  _id: string; label: string; templateName: string; language: string; templateText?: string; variables: TplVar[];
+  hasImage: boolean; hasButton: boolean; buttonLabel: string; buttonValue: string;
+};
+const EMPTY_TPL: TplState = {
+  templateName: '', language: 'en', templateText: '', variables: [], hasImage: false, imageUrl: '', hasButton: false, buttonLabel: '', buttonValue: '',
+};
+const tplReady = (t: TplState) =>
+  !!t.templateName.trim()
+  && t.variables.every(v => v.value.trim())
+  && (!t.hasImage || !!t.imageUrl)
+  && (!t.hasButton || !!t.buttonValue.trim());
+
+// {{1}} {{2}} ... found in pasted template text. named = it uses {{name}}-style variables instead.
+const parseTemplateVars = (text: string) => {
+  const nums = new Set<number>();
+  let named = false;
+  for (const m of text.matchAll(/\{\{\s*([^{}\s]+)\s*\}\}/g)) {
+    if (/^\d+$/.test(m[1])) nums.add(Number(m[1])); else named = true;
+  }
+  const list = [...nums].sort((x, y) => x - y);
+  const contiguous = list.length > 0 && list.every((n, i) => n === i + 1);
+  return { count: list.length, contiguous, named };
+};
+// A short label for {{n}} taken from the words just before it ("User ID: {{2}}" -> "User ID").
+const guessVarLabel = (text: string, n: number) => {
+  const idx = text.indexOf(`{{${n}}}`);
+  if (idx < 0) return `Variable ${n}`;
+  const line = text.slice(0, idx).split('\n').pop() || '';
+  const words = line.replace(/\{\{[^}]*\}\}/g, ' ').replace(/[:\-–—,.!?*_]+/g, ' ').trim().split(/\s+/).filter(Boolean).slice(-3).join(' ');
+  if (/^(hi|hello|dear|hey|namaste)$/i.test(words)) return 'Name'; // "Hi {{1}}" is almost always the customer's name
+  return words || `Variable ${n}`;
+};
+// Same placeholders as the server: each user's own details.
+const fillPlaceholders = (text: string, u: { fullname?: string; phoneNumber?: string; email?: string; userId?: string | number; company?: string; walletBalance?: number; kycDone?: boolean }) =>
+  String(text ?? '')
+    .replace(/\{name\}/gi, u.fullname || 'Customer')
+    .replace(/\{phone\}/gi, u.phoneNumber || '')
+    .replace(/\{email\}/gi, u.email || '')
+    .replace(/\{userId\}/gi, u.userId != null ? String(u.userId) : '')
+    .replace(/\{company\}/gi, u.company || '')
+    .replace(/\{balance\}/gi, Number.isFinite(Number(u.walletBalance)) ? String(Math.round(Number(u.walletBalance) * 100) / 100) : '0')
+    .replace(/\{kyc\}/gi, u.kycDone ? 'verified' : 'pending');
+
+function WhatsAppTemplateForm({ tpl, setTpl, sampleUser }: { tpl: TplState; setTpl: (t: TplState) => void; sampleUser?: BulkPreviewUser }) {
+  const [presets, setPresets] = useState<WaPreset[]>([]);
+  const [presetId, setPresetId] = useState('');
+  const [presetLabel, setPresetLabel] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [testPhone, setTestPhone] = useState('');
+  const [testBusy, setTestBusy] = useState(false);
+  const [testMsg, setTestMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const loadPresets = useCallback(async () => {
+    try { const res = await apiClient.get('/notification/whatsappPresets'); setPresets(res.data?.presets || []); }
+    catch { /* presets are optional */ }
+  }, []);
+  useEffect(() => { loadPresets(); }, [loadPresets]);
+
+  const parsed = parseTemplateVars(tpl.templateText);
+  const auto = parsed.contiguous && !parsed.named; // variables come from the pasted text
+
+  const changeText = (text: string) => {
+    const r = parseTemplateVars(text);
+    if (r.contiguous && !r.named) {
+      const variables = Array.from({ length: r.count }, (_, i) => ({
+        label: tpl.variables[i]?.label || guessVarLabel(text, i + 1),
+        value: tpl.variables[i]?.value || '',
+      }));
+      setTpl({ ...tpl, templateText: text, variables });
+    } else {
+      setTpl({ ...tpl, templateText: text });
+    }
+  };
+
+  const choosePreset = (id: string) => {
+    setPresetId(id); setMsg(null); setTestMsg(null); setConfirmDelete(false);
+    const pr = presets.find(x => x._id === id);
+    if (!pr) { setPresetLabel(''); setTpl(EMPTY_TPL); return; }
+    setPresetLabel(pr.label);
+    setTpl({
+      templateName: pr.templateName, language: pr.language || 'en', templateText: pr.templateText || '',
+      variables: (pr.variables || []).map(v => ({ label: v.label || '', value: v.value || '' })),
+      hasImage: pr.hasImage, imageUrl: '', hasButton: pr.hasButton, buttonLabel: pr.buttonLabel || '', buttonValue: pr.buttonValue || '',
+    });
+  };
+
+  const savePreset = async () => {
+    if (!presetLabel.trim()) { setMsg({ ok: false, text: 'Give this setup a name first' }); return; }
+    setBusy(true); setMsg(null);
+    try {
+      const res = await apiClient.post('/notification/whatsappPresets', {
+        _id: presetId || undefined, label: presetLabel, templateName: tpl.templateName, language: tpl.language, templateText: tpl.templateText,
+        variables: tpl.variables, hasImage: tpl.hasImage, hasButton: tpl.hasButton, buttonLabel: tpl.buttonLabel, buttonValue: tpl.buttonValue,
+      });
+      setPresetId(res.data?.preset?._id || presetId);
+      await loadPresets();
+      setMsg({ ok: true, text: 'Saved. You can pick it from the list next time.' });
+    } catch (e: any) { setMsg({ ok: false, text: e?.response?.data?.error || 'Could not save' }); }
+    finally { setBusy(false); }
+  };
+
+  const deletePreset = async () => {
+    if (!presetId) return;
+    setConfirmDelete(false);
+    setBusy(true); setMsg(null);
+    try {
+      await apiClient.delete(`/notification/whatsappPresets/${presetId}`);
+      setPresetId(''); setPresetLabel(''); setTpl(EMPTY_TPL);
+      await loadPresets();
+    } catch (e: any) { setMsg({ ok: false, text: e?.response?.data?.error || 'Could not delete' }); }
+    finally { setBusy(false); }
+  };
+
+  const sendTest = async () => {
+    setTestBusy(true); setTestMsg(null);
+    try {
+      const res = await apiClient.post('/notification/whatsappTemplateTest', {
+        phone: testPhone,
+        template: {
+          templateName: tpl.templateName.trim(), language: tpl.language.trim() || 'en', variables: tpl.variables.map(v => v.value),
+          ...(tpl.hasButton && tpl.buttonValue.trim() ? { buttonValue: tpl.buttonValue.trim() } : {}),
+          ...(tpl.hasImage && tpl.imageUrl ? { imageUrl: tpl.imageUrl } : {}),
+        },
+      });
+      setTestMsg({ ok: true, text: res.data?.message || 'Test sent' });
+    } catch (e: any) { setTestMsg({ ok: false, text: e?.response?.data?.error || 'Test failed' }); }
+    finally { setTestBusy(false); }
+  };
+
+  const setVar = (i: number, patch: Partial<TplVar>) =>
+    setTpl({ ...tpl, variables: tpl.variables.map((v, idx) => idx === i ? { ...v, ...patch } : v) });
+  const input = 'w-full h-9 px-3 rounded-lg border border-[#E2E8F0] text-xs focus:outline-none focus:border-[#00A86B]';
+  const lbl = 'block text-[11px] font-bold text-[#475569] mb-1 uppercase tracking-wide';
+
+  // Preview: the pasted text with each {{n}} replaced by that row's value for a real user from the list.
+  const previewUser = sampleUser || { fullname: 'Rahul', email: 'rahul@example.com', phoneNumber: '9876543210', userId: 100245, company: 'Sample Co', walletBalance: 0, kycDone: false };
+  const previewText = tpl.templateText.replace(/\{\{\s*(\d+)\s*\}\}/g, (_m, n) => {
+    const v = tpl.variables[Number(n) - 1];
+    const filled = v ? fillPlaceholders(v.value, previewUser) : '';
+    return filled.trim() ? filled : `[${v?.label || 'Variable ' + n}]`;
+  });
+
+  return (
+    <div className="space-y-3 rounded-xl border border-[#E2E8F0] p-3 bg-[#FCFDFE]">
+      <p className="text-[11px] text-[#64748B]">
+        Create the template in your WhatsApp account first and wait for it to be approved. Then fill in the steps below.
+      </p>
+
+      <div className="flex gap-2 items-end">
+        <div className="flex-1 min-w-0">
+          <label className={lbl}>Saved setup</label>
+          <select value={presetId} onChange={e => choosePreset(e.target.value)} className={input}>
+            <option value="">— New / one-off —</option>
+            {presets.map(pr => <option key={pr._id} value={pr._id}>{pr.label}</option>)}
+          </select>
+        </div>
+        {presetId && !confirmDelete && (
+          <button type="button" onClick={() => setConfirmDelete(true)} disabled={busy} className="h-9 px-3 rounded-lg text-xs font-bold text-red-600 border border-red-200 hover:bg-red-50 disabled:opacity-60">Delete</button>
+        )}
+        {presetId && confirmDelete && (
+          <div className="flex items-center gap-1.5 h-9">
+            <span className="text-[11px] font-semibold text-red-600">Delete this setup?</span>
+            <button type="button" onClick={deletePreset} disabled={busy} className="h-8 px-2.5 rounded-lg text-xs font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-60">Yes</button>
+            <button type="button" onClick={() => setConfirmDelete(false)} className="h-8 px-2.5 rounded-lg text-xs font-bold text-[#64748B] border border-[#E2E8F0] hover:bg-[#F8FAFC]">No</button>
+          </div>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+        <div className="sm:col-span-2">
+          <label className={lbl}>1. Template name</label>
+          <input value={tpl.templateName} onChange={e => setTpl({ ...tpl, templateName: e.target.value.trim() })} placeholder="exactly as approved, e.g. diwali_offer" className={input} />
+        </div>
+        <div>
+          <label className={lbl}>Language</label>
+          <input value={tpl.language} onChange={e => setTpl({ ...tpl, language: e.target.value.trim() })} placeholder="en" className={input} />
+        </div>
+      </div>
+
+      <div>
+        <label className={lbl}>2. Paste the template text <span className="normal-case font-medium text-[#94A3B8]">(copy it from the WhatsApp account)</span></label>
+        <textarea value={tpl.templateText} onChange={e => changeText(e.target.value)} rows={4}
+          placeholder={'Hi {{1}}, welcome to QuickPost!\nUser ID: {{2}}\nEmail: {{3}}'}
+          className="w-full p-3 rounded-xl border border-[#E2E8F0] text-xs focus:outline-none focus:border-[#00A86B] resize-none" />
+        {tpl.templateText.trim() && parsed.named && (
+          <p className="text-[11px] font-semibold text-amber-700 mt-1">This template uses named variables like {'{{name}}'}. Create it with numbered variables ({'{{1}}, {{2}}'}) so they can be filled in order.</p>
+        )}
+        {tpl.templateText.trim() && !parsed.named && parsed.count > 0 && !parsed.contiguous && (
+          <p className="text-[11px] font-semibold text-amber-700 mt-1">The variables must be numbered 1, 2, 3 … without gaps. Check the pasted text.</p>
+        )}
+        {tpl.templateText.trim() && !parsed.named && parsed.count === 0 && (
+          <p className="text-[11px] text-[#64748B] mt-1">No variables found, so this template is sent exactly as written.</p>
+        )}
+      </div>
+
+      <div>
+        <label className={lbl}>3. Fill each variable <span className="normal-case font-medium text-[#94A3B8]">
+          {auto ? '(found from the text above)' : '(in the order {{1}}, {{2}} … appear; or paste the text above to find them automatically)'}</span></label>
+        <div className="space-y-2">
+          {tpl.variables.map((v, i) => (
+            <div key={i} className="flex flex-wrap sm:flex-nowrap gap-2 items-center">
+              <span className="text-[11px] font-bold text-[#64748B] w-9 shrink-0">{'{{'}{i + 1}{'}}'}</span>
+              <input value={v.label} onChange={e => setVar(i, { label: e.target.value })} placeholder="What is this?" className={`${input} sm:w-36 sm:shrink-0`} />
+              <input value={v.value} onChange={e => setVar(i, { value: e.target.value })} placeholder="Text, or {name} {email} {userId} …" className={`${input} flex-1 min-w-[10rem]`} />
+              {!auto && (
+                <button type="button" onClick={() => setTpl({ ...tpl, variables: tpl.variables.filter((_, idx) => idx !== i) })} className="text-[#94A3B8] hover:text-red-600" aria-label="Remove variable"><X className="w-4 h-4" /></button>
+              )}
+            </div>
+          ))}
+          {!auto && tpl.variables.length < 10 && (
+            <button type="button" onClick={() => setTpl({ ...tpl, variables: [...tpl.variables, { label: '', value: '' }] })}
+              className="text-xs font-bold text-[#00A86B] flex items-center gap-1"><Plus className="w-3.5 h-3.5" /> Add variable</button>
+          )}
+        </div>
+        <p className="text-[11px] text-[#64748B] mt-1.5">
+          Type plain text to send the same to everyone, or use <b>{'{name}'}</b> <b>{'{email}'}</b> <b>{'{phone}'}</b> <b>{'{userId}'}</b> <b>{'{company}'}</b> <b>{'{balance}'}</b> <b>{'{kyc}'}</b> to fill in each user's own details.
+        </p>
+      </div>
+
+      <label className="flex items-center gap-2 text-xs font-semibold text-[#475569] cursor-pointer">
+        <input type="checkbox" checked={tpl.hasImage} onChange={e => setTpl({ ...tpl, hasImage: e.target.checked, imageUrl: '' })} className="accent-[#00A86B]" />
+        This template has an image at the top
+      </label>
+      {tpl.hasImage && <ImageUploadField value={tpl.imageUrl} onChange={url => setTpl({ ...tpl, imageUrl: url })} />}
+
+      <label className="flex items-center gap-2 text-xs font-semibold text-[#475569] cursor-pointer">
+        <input type="checkbox" checked={tpl.hasButton} onChange={e => setTpl({ ...tpl, hasButton: e.target.checked, buttonValue: '' })} className="accent-[#00A86B]" />
+        This template has a button whose link changes per message
+      </label>
+      {tpl.hasButton && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <input value={tpl.buttonLabel} onChange={e => setTpl({ ...tpl, buttonLabel: e.target.value })} placeholder="What is it? (e.g. Offer code)" className={input} />
+          <input value={tpl.buttonValue} onChange={e => setTpl({ ...tpl, buttonValue: e.target.value })} placeholder="Value added to the end of the link" className={`${input} sm:col-span-2`} />
+        </div>
+      )}
+
+      {tpl.templateText.trim() && parsed.count > 0 && (
+        <div>
+          <label className={lbl}>Preview <span className="normal-case font-medium text-[#94A3B8]">(for {sampleUser ? sampleUser.fullname : 'a sample user'}; [brackets] = not filled yet)</span></label>
+          <div className="rounded-xl bg-[#E7F8EE] border border-[#CDEFD9] p-3 text-xs text-[#0F172A] whitespace-pre-wrap break-words">{previewText}</div>
+        </div>
+      )}
+
+      <div className="pt-2 border-t border-[#EEF2F6] space-y-2">
+        <label className={lbl}>Send a test first <span className="normal-case font-medium text-[#94A3B8]">(one message to your own number, using your own details)</span></label>
+        <div className="flex gap-2">
+          <input value={testPhone} onChange={e => setTestPhone(e.target.value)} placeholder="Your 10-digit mobile number" className={input} inputMode="numeric" />
+          <button type="button" onClick={sendTest} disabled={testBusy || !tplReady(tpl) || testPhone.replace(/\D/g, '').length < 10}
+            className="h-9 px-3 shrink-0 rounded-lg text-xs font-bold text-white bg-[#0F172A] hover:bg-[#1E293B] disabled:opacity-50">{testBusy ? 'Sending…' : 'Send test'}</button>
+        </div>
+        {testMsg && <p className={`text-xs font-semibold ${testMsg.ok ? 'text-[#00A86B]' : 'text-red-600'}`}>{testMsg.text}</p>}
+      </div>
+
+      <div className="flex gap-2 items-end pt-2 border-t border-[#EEF2F6]">
+        <div className="flex-1 min-w-0">
+          <label className={lbl}>Save this setup as <span className="normal-case font-medium text-[#94A3B8]">(so you can pick it next time)</span></label>
+          <input value={presetLabel} onChange={e => setPresetLabel(e.target.value)} placeholder="e.g. Diwali offer" className={input} />
+        </div>
+        <button type="button" onClick={savePreset} disabled={busy || !tpl.templateName.trim()} className="h-9 px-3 rounded-lg text-xs font-bold text-[#00A86B] border border-[#00A86B] hover:bg-[#F0FDF4] disabled:opacity-50">
+          {presetId ? 'Update' : 'Save'}
+        </button>
+      </div>
+      {msg && <p className={`text-xs font-semibold ${msg.ok ? 'text-[#00A86B]' : 'text-red-600'}`}>{msg.text}</p>}
+    </div>
+  );
+}
+
 // ─── BulkNotifyModal ──────────────────────────────────────────────────────────
 // Admin broadcast to many sellers at once, by filter or explicit selection.
 // Free for the seller — no credit deduction — this is an admin-initiated
 // blast, not a per-order transactional notification.
 type BulkTarget = 'all' | 'filtered' | 'selected';
-interface BulkPreviewUser { id: string; fullname: string; email: string; phoneNumber: string; kycDone: boolean; walletBalance: number }
+interface BulkPreviewUser { id: string; fullname: string; email: string; phoneNumber: string; kycDone: boolean; walletBalance: number; userId?: number | string; company?: string }
 
 function BulkNotifyModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [target, setTarget] = useState<BulkTarget>('all');
@@ -307,9 +580,8 @@ function BulkNotifyModal({ open, onClose }: { open: boolean; onClose: () => void
   const [channels, setChannels] = useState<{ email: boolean; whatsapp: boolean }>({ email: true, whatsapp: false });
   const [emailSubject, setEmailSubject] = useState('');
   const [emailBody, setEmailBody] = useState('');
-  const [whatsappBody, setWhatsappBody] = useState('');
-  const [whatsappTitle, setWhatsappTitle] = useState('');
-  const [whatsappImageUrl, setWhatsappImageUrl] = useState('');
+  const [tpl, setTpl] = useState<TplState>(EMPTY_TPL);
+  const [confirmSend, setConfirmSend] = useState(false);
 
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
@@ -320,7 +592,8 @@ function BulkNotifyModal({ open, onClose }: { open: boolean; onClose: () => void
     setUserQuery(''); setUserSuggestions([]); setSelectedUsers([]);
     setPreviewCount(null); setPreviewUsers([]);
     setChannels({ email: true, whatsapp: false });
-    setEmailSubject(''); setEmailBody(''); setWhatsappBody(''); setWhatsappTitle(''); setWhatsappImageUrl('');
+    setEmailSubject(''); setEmailBody('');
+    setTpl(EMPTY_TPL); setConfirmSend(false);
     setResult(null);
   }, [open]);
 
@@ -369,11 +642,12 @@ function BulkNotifyModal({ open, onClose }: { open: boolean; onClose: () => void
 
   const canSend = (channels.email || channels.whatsapp)
     && (!channels.email || (emailSubject.trim() && emailBody.trim()))
-    && (!channels.whatsapp || whatsappBody.trim())
+    && (!channels.whatsapp || tplReady(tpl))
     && (previewCount ?? 0) > 0;
 
   const handleSend = async () => {
     if (!canSend) return;
+    setConfirmSend(false);
     setSending(true); setResult(null);
     try {
       const body: any = { target, channels: [channels.email && 'email', channels.whatsapp && 'whatsapp'].filter(Boolean) };
@@ -381,9 +655,13 @@ function BulkNotifyModal({ open, onClose }: { open: boolean; onClose: () => void
       if (target === 'selected') { body.userIds = selectedUsers.map(u => u._id); }
       if (channels.email) { body.emailSubject = emailSubject; body.emailBody = emailBody; }
       if (channels.whatsapp) {
-        body.whatsappBody = whatsappBody;
-        if (whatsappTitle.trim()) body.whatsappTitle = whatsappTitle.trim();
-        if (whatsappImageUrl.trim()) body.imageUrl = whatsappImageUrl.trim();
+        body.whatsappTemplate = {
+          templateName: tpl.templateName.trim(),
+          language: tpl.language.trim() || 'en',
+          variables: tpl.variables.map(v => v.value),
+          ...(tpl.hasButton && tpl.buttonValue.trim() ? { buttonValue: tpl.buttonValue.trim() } : {}),
+          ...(tpl.hasImage && tpl.imageUrl ? { imageUrl: tpl.imageUrl } : {}),
+        };
       }
 
       const res = await apiClient.post('/notification/bulkNotify/send', body);
@@ -492,10 +770,10 @@ function BulkNotifyModal({ open, onClose }: { open: boolean; onClose: () => void
                 <Mail className="w-3.5 h-3.5" /> Email
               </label>
               <label className={`flex items-center gap-1.5 text-xs font-semibold ${whatsappEnabled ? 'text-[#475569] cursor-pointer' : 'text-[#CBD5E1] cursor-not-allowed'}`}
-                title={whatsappEnabled ? undefined : 'WhatsApp broadcast template not approved yet'}>
+                title={whatsappEnabled ? undefined : 'WhatsApp messages are turned off for this company (Companies > Notification > WhatsApp)'}>
                 <input type="checkbox" checked={channels.whatsapp} disabled={!whatsappEnabled}
                   onChange={e => setChannels(c => ({ ...c, whatsapp: e.target.checked }))} className="accent-[#00A86B]" />
-                <MessageSquare className="w-3.5 h-3.5" /> WhatsApp {!whatsappEnabled && '(pending template approval)'}
+                <MessageSquare className="w-3.5 h-3.5" /> WhatsApp {!whatsappEnabled && '(turned off for this company)'}
               </label>
             </div>
           </div>
@@ -515,21 +793,7 @@ function BulkNotifyModal({ open, onClose }: { open: boolean; onClose: () => void
             </div>
           )}
 
-          {channels.whatsapp && (
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-bold text-[#475569] mb-1.5 uppercase tracking-wide">WhatsApp Title</label>
-                <input value={whatsappTitle} onChange={e => setWhatsappTitle(e.target.value)} placeholder="e.g. Recharge Offer (defaults to the email subject)"
-                  className="w-full h-10 px-3 rounded-xl border border-[#E2E8F0] text-xs focus:outline-none focus:border-[#00A86B]" />
-              </div>
-              <div>
-              <label className="block text-xs font-bold text-[#475569] mb-1.5 uppercase tracking-wide">WhatsApp Message</label>
-              <textarea value={whatsappBody} onChange={e => setWhatsappBody(e.target.value)} rows={3} placeholder="Write the WhatsApp message…"
-                className="w-full p-3 rounded-xl border border-[#E2E8F0] text-xs focus:outline-none focus:border-[#00A86B] resize-none" />
-              </div>
-              <ImageUploadField value={whatsappImageUrl} onChange={setWhatsappImageUrl} />
-            </div>
-          )}
+          {channels.whatsapp && <WhatsAppTemplateForm tpl={tpl} setTpl={setTpl} sampleUser={previewUsers[0]} />}
 
           {result && (
             <div className={`flex items-center gap-2 text-xs font-semibold p-3 rounded-xl ${result.ok ? 'bg-green-50 text-[#00A86B]' : 'bg-red-50 text-red-600'}`}>
@@ -539,13 +803,29 @@ function BulkNotifyModal({ open, onClose }: { open: boolean; onClose: () => void
           )}
         </div>
 
-        <div className="flex justify-end gap-3 p-5 border-t border-[#E2E8F0] bg-[#F8FAFC] shrink-0">
-          <button onClick={onClose} className="px-4 py-2 rounded-xl text-xs font-bold text-[#64748B] hover:bg-[#E2E8F0] transition-colors">Cancel</button>
-          <button onClick={handleSend} disabled={!canSend || sending}
-            className="px-4 py-2 rounded-xl bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors disabled:opacity-50 flex items-center gap-1.5">
-            <Send className="w-3.5 h-3.5" />{sending ? 'Sending…' : `Send to ${previewCount ?? 0} User(s)`}
-          </button>
-        </div>
+        {confirmSend ? (
+          <div className="flex items-center justify-between gap-3 flex-wrap p-5 border-t border-[#FDE68A] bg-[#FFFBEB] shrink-0" role="alertdialog" aria-label="Confirm sending">
+            <p className="text-xs font-semibold text-[#92400E] flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 shrink-0" />
+              Send this message to {previewCount ?? 0} user(s)? This cannot be undone.
+            </p>
+            <div className="flex gap-2">
+              <button onClick={() => setConfirmSend(false)} className="px-4 py-2 rounded-xl text-xs font-bold text-[#64748B] bg-white border border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors">Go back</button>
+              <button onClick={handleSend} disabled={sending}
+                className="px-4 py-2 rounded-xl bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors disabled:opacity-50 flex items-center gap-1.5">
+                <Send className="w-3.5 h-3.5" />{sending ? 'Sending…' : 'Yes, send'}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex justify-end gap-3 p-5 border-t border-[#E2E8F0] bg-[#F8FAFC] shrink-0">
+            <button onClick={onClose} className="px-4 py-2 rounded-xl text-xs font-bold text-[#64748B] hover:bg-[#E2E8F0] transition-colors">Cancel</button>
+            <button onClick={() => setConfirmSend(true)} disabled={!canSend || sending}
+              className="px-4 py-2 rounded-xl bg-[#00A86B] text-white text-xs font-bold hover:bg-[#009B63] transition-colors disabled:opacity-50 flex items-center gap-1.5">
+              <Send className="w-3.5 h-3.5" />{sending ? 'Sending…' : `Send to ${previewCount ?? 0} User(s)`}
+            </button>
+          </div>
+        )}
       </motion.div>
     </div>
   );
