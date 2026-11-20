@@ -973,6 +973,15 @@ function ChannelTab({ channelCfg, settings, targetUserId, onUpdate }: {
   const { label, Icon, color, masterField, adminField, togglePrefix, dataPrefix, hasSubject, paid } = channelCfg;
   const [saving, setSaving] = useState<string | null>(null);
   const [testOpen, setTestOpen] = useState(false);
+  // What the backend really sends for this company (true wording and brand), keyed by the status key.
+  const [previews, setPreviews] = useState<Record<string, any>>({});
+  useEffect(() => {
+    let cancelled = false;
+    apiClient.get('/notification/messagePreviews')
+      .then(res => { if (cancelled) return; const m: Record<string, any> = {}; (res.data?.items || []).forEach((i: any) => { m[i.key] = i; }); setPreviews(m); })
+      .catch(() => { /* the built-in wording below is the fallback */ });
+    return () => { cancelled = true; };
+  }, []);
   const { toast: localToast, showToast: _localShowToast, closeToast: closeLocalToast } = useToast(2500);
   const showToast = (ok: boolean, text: string) => _localShowToast(ok ? 'success' : 'error', text);
   const masterEnabled: boolean = settings[masterField] ?? false;
@@ -988,10 +997,12 @@ function ChannelTab({ channelCfg, settings, targetUserId, onUpdate }: {
     finally { setSaving(null); }
   };
 
+  const BACKEND_STATUS: Record<string, string> = { PickupPending: 'Ready To Ship', Intransit: 'In-transit', OutForDelivery: 'Out for Delivery', Delivered: 'Delivered', Undelivered: 'Undelivered', RTO: 'RTO', Cancelled: 'Cancelled' };
+  const previewFor = (key: StatusKey) => previews[BACKEND_STATUS[key as string]];
   const toggleField = (key: StatusKey) => `is${togglePrefix}${key}Enable` as string;
   const isEnabled = (key: StatusKey) => !!settings[toggleField(key)];
-  const getTpl = (key: StatusKey) => (STATUSES.find(s => s.fieldKey === key)?.tpl[dataPrefix as 'whatsapp' | 'sms' | 'email'] ?? '');
-  const getSubj = (key: StatusKey) => (STATUSES.find(s => s.fieldKey === key)?.subject ?? '');
+  const getTpl = (key: StatusKey) => previewFor(key)?.[dataPrefix === 'whatsapp' ? 'whatsapp' : dataPrefix === 'sms' ? 'sms' : 'emailBody'] ?? (STATUSES.find(s => s.fieldKey === key)?.tpl[dataPrefix as 'whatsapp' | 'sms' | 'email'] ?? '');
+  const getSubj = (key: StatusKey) => previewFor(key)?.emailSubject ?? (STATUSES.find(s => s.fieldKey === key)?.subject ?? '');
 
   const handleMaster = (v: boolean) => putSetting(masterField, { value: v });
   const handleStatusToggle = (key: StatusKey) => {

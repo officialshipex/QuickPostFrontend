@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ExternalLink, Loader2, X } from 'lucide-react';
-import { apiMessage, fmtDate, fmtDateTime, fmtMoney } from '../vasApi';
+import { apiMessage, fmtDate, fmtDateTime, fmtMoney, NDR_MODE_LABEL } from '../vasApi';
 import { getPublicTrackingUrl } from '../../brandedTracking/trackingService';
 import { adminVasApi, type AdminService, type FollowUpStatus } from './adminVasApi';
 import { FOLLOW_LABEL, FollowBadge, StatusBadge, inputCls } from './adminShared';
@@ -119,8 +119,10 @@ export function UserDrawer({ service, userId, onClose, onChanged, notify }: Prop
                       <Info label="First activated">{fmtDate(sub.firstActivatedAt)}</Info>
                       <Info label="Last activated">{fmtDate(sub.lastActivatedAt)}</Info>
                       <Info label="Last deactivated">{sub.lastDeactivatedAt ? `${fmtDate(sub.lastDeactivatedAt)}${sub.deactivatedBy ? ` (${sub.deactivatedBy === 'user' ? 'by seller' : sub.deactivatedBy === 'admin' ? 'by admin' : 'plan expired'})` : ''}` : '—'}</Info>
-                      <Info label="Plan valid until">{sub.entitledUntil ? fmtDate(sub.entitledUntil) : 'No end date'}</Info>
-                      <Info label="Total paid">{fmtMoney(sub.totalPaid)}</Info>
+                      {service.billing === 'usage'
+                        ? <Info label="Mode">{sub.ndrMode ? NDR_MODE_LABEL[sub.ndrMode] : '—'}</Info>
+                        : <Info label="Plan valid until">{sub.entitledUntil ? fmtDate(sub.entitledUntil) : 'No end date'}</Info>}
+                      <Info label={service.billing === 'usage' ? 'Total charged' : 'Total paid'}>{fmtMoney(sub.totalPaid)}</Info>
                       <Info label="Follow-up"><FollowBadge status={sub.followUp?.status || 'none'} /></Info>
                     </div>
                   )}
@@ -172,8 +174,8 @@ export function UserDrawer({ service, userId, onClose, onChanged, notify }: Prop
                     </section>
                   )}
 
-                  {/* Give / extend a plan */}
-                  <section>
+                  {/* Give / extend a plan (not for a per-response service: it has no plans) */}
+                  {service.billing !== 'usage' && <section>
                     <h3 className="text-[13px] font-bold text-[#0F172A] mb-1">Give or extend a plan</h3>
                     <p className="text-[12px] text-[#64748B] mb-2">Does not touch the seller's wallet. Enter an amount only to record a payment received outside the wallet.</p>
                     <div className="grid grid-cols-2 gap-2 mb-2">
@@ -190,7 +192,7 @@ export function UserDrawer({ service, userId, onClose, onChanged, notify }: Prop
                       }}
                       className="h-9 px-4 rounded-lg bg-[#00A86B] hover:bg-[#009B63] text-white text-[12.5px] font-bold disabled:opacity-60"
                     >Give plan</button>
-                  </section>
+                  </section>}
 
                   {/* Deactivate */}
                   {status === 'active' && (

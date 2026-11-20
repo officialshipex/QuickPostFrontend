@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ExternalLink, Search } from 'lucide-react';
-import { apiMessage, fmtDate, fmtMoney } from '../vasApi';
+import { apiMessage, fmtDate, fmtMoney, NDR_MODE_LABEL } from '../vasApi';
 import { getPublicTrackingUrl } from '../../brandedTracking/trackingService';
 import { adminVasApi, type AdminService, type SubscriptionRow } from './adminVasApi';
 import { FollowBadge, StatusBadge, inputCls } from './adminShared';
@@ -84,7 +84,7 @@ export function ServiceUsers({ service, refreshKey, onOpen, notify }: Props) {
               <th className="p-3 pl-4">Seller</th>
               <th className="p-3">Status</th>
               {isBranded && <th className="p-3">Page</th>}
-              <th className="p-3">Plan until</th>
+              <th className="p-3">{service.billing === 'usage' ? 'Mode' : 'Plan until'}</th>
               <th className="p-3 text-right">Paid</th>
               <th className="p-3">First activated</th>
               <th className="p-3">Last stopped</th>
@@ -119,7 +119,9 @@ export function ServiceUsers({ service, refreshKey, onOpen, notify }: Props) {
                     ) : '—'}
                   </td>
                 )}
-                <td className="p-3 whitespace-nowrap">{r.entitledUntil ? fmtDate(r.entitledUntil) : 'No end date'}</td>
+                <td className="p-3 whitespace-nowrap">
+                  {service.billing === 'usage' ? (r.ndrMode ? NDR_MODE_LABEL[r.ndrMode] : '—') : r.entitledUntil ? fmtDate(r.entitledUntil) : 'No end date'}
+                </td>
                 <td className="p-3 text-right whitespace-nowrap">{r.totalPaid ? fmtMoney(r.totalPaid) : '—'}</td>
                 <td className="p-3 whitespace-nowrap">{fmtDate(r.firstActivatedAt)}</td>
                 <td className="p-3 whitespace-nowrap">{r.status === 'active' ? '—' : fmtDate(r.lastDeactivatedAt)}</td>

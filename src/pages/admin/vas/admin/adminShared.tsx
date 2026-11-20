@@ -49,6 +49,43 @@ export function FollowBadge({ status }: { status: FollowUpStatus }) {
   return <span className={`inline-flex items-center h-6 px-2.5 rounded-full border text-[11px] font-bold whitespace-nowrap ${FOLLOW_STYLE[status]}`}>{FOLLOW_LABEL[status]}</span>;
 }
 
+/** Per-response prices of a usage service (NDR Follow-ups), kept as strings while typing. */
+export interface UsageDraft { whatsapp: string; call: string }
+export const toUsageDraft = (u?: { whatsapp: number; call: number }): UsageDraft => ({ whatsapp: String(u?.whatsapp ?? 0), call: String(u?.call ?? 0) });
+
+export function parseUsage(d: UsageDraft): { usage: { whatsapp: number; call: number }; error?: string } {
+  const whatsapp = Number(d.whatsapp);
+  const call = Number(d.call);
+  const usage = { whatsapp, call };
+  for (const [v, raw] of [[whatsapp, d.whatsapp], [call, d.call]] as const) {
+    if (raw.trim() === '' || !Number.isFinite(v) || v < 0 || v > 1000) return { usage, error: 'Each price must be between ₹0 and ₹1000.' };
+  }
+  return { usage: { whatsapp: Math.round(whatsapp * 100) / 100, call: Math.round(call * 100) / 100 } };
+}
+
+export function UsagePriceEditor({ value, onChange, disabled }: { value: UsageDraft; onChange: (v: UsageDraft) => void; disabled?: boolean }) {
+  const field = (k: keyof UsageDraft, label: string, hint: string) => (
+    <label className="block">
+      <span className="text-[12px] font-bold text-[#475569]">{label}</span>
+      <div className="relative mt-1.5">
+        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-[#64748B]">₹</span>
+        <input
+          type="number" min={0} max={1000} step="0.01" inputMode="decimal" value={value[k]} disabled={disabled}
+          onChange={(e) => onChange({ ...value, [k]: e.target.value })}
+          className={`${inputCls} w-full pl-7`} aria-label={label}
+        />
+      </div>
+      <span className="block text-[11.5px] text-[#94A3B8] mt-1">{hint}</span>
+    </label>
+  );
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      {field('whatsapp', 'Per WhatsApp delivered', 'Charged only when WhatsApp confirms delivery. Failed / not confirmed = free.')}
+      {field('call', 'Per call answered', 'Charged only when the customer answers. Unanswered / failed = free.')}
+    </div>
+  );
+}
+
 /** Editable list of "N months → ₹price" rows. Values are kept as strings while typing. */
 export interface PlanDraft { months: string; price: string }
 

@@ -14,8 +14,9 @@ import { SecureRulesTab } from './vas/admin/SecureRulesTab';
 import { SecurePoliciesTab } from './vas/admin/SecurePoliciesTab';
 import { SecureClaimsTab } from './vas/admin/SecureClaimsTab';
 import { secureAdminApi, type SecureSummaryRow } from './vas/secure/secureApi';
+import { NdrFollowupList } from './vas/NdrFollowupList';
 
-type Tab = 'sellers' | 'policies' | 'claims' | 'cover' | 'settings' | 'rules';
+type Tab = 'sellers' | 'policies' | 'claims' | 'cover' | 'followups' | 'settings' | 'rules';
 const SECURE_KEYS = ['auto-secure-above-2500', 'auto-secure-india-post'];
 
 /**
@@ -67,6 +68,7 @@ export function AdminManageVas() {
 
   const sec = service ? secure[service.key] : undefined;
   const isSecure = !!service && SECURE_KEYS.includes(service.key);
+  const isNdr = service?.key === 'ndr-followups';
   const TABS: { id: Tab; label: string }[] = [
     { id: 'sellers', label: 'Sellers' },
     ...(isSecure ? [
@@ -74,6 +76,7 @@ export function AdminManageVas() {
       { id: 'claims' as Tab, label: `Claims${sec?.claimsAwaitingReview ? ` (${sec.claimsAwaitingReview} to review)` : ''}` },
       { id: 'cover' as Tab, label: 'Cover rules' },
     ] : []),
+    ...(isNdr ? [{ id: 'followups' as Tab, label: 'Follow-ups & charges' }] : []),
     { id: 'settings', label: 'Availability & charges' },
     { id: 'rules', label: `Special rules${service?.stats.overrides ? ` (${service.stats.overrides})` : ''}` },
   ];
@@ -155,6 +158,7 @@ export function AdminManageVas() {
               {tab === 'policies' && isSecure && <SecurePoliciesTab service={service} refreshKey={refreshKey} onChanged={changed} notify={notify} />}
               {tab === 'claims' && isSecure && <SecureClaimsTab service={service} refreshKey={refreshKey} onChanged={changed} notify={notify} />}
               {tab === 'cover' && isSecure && <SecureRulesTab service={service} onChanged={changed} notify={notify} />}
+              {tab === 'followups' && isNdr && <NdrFollowupList load={adminVasApi.ndrActivity} showSeller refreshKey={refreshKey} />}
               {tab === 'settings' && <ServiceSettings service={service} onChanged={changed} notify={notify} />}
               {tab === 'rules' && <ServiceRules service={service} onChanged={changed} notify={notify} />}
             </div>

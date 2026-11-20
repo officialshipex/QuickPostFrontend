@@ -63,6 +63,8 @@ export interface CompanySummary {
   kycMethods?: { ekyc: boolean; manual: boolean };
   // which shipping-label design this company's sellers download; absent from a backend that predates the setting
   labelTemplate?: 'classic' | 'modern';
+  // which gateway this company's wallet recharges go through; absent from a backend that predates the setting
+  paymentGateway?: 'razorpay' | 'cashfree';
   // whether this company's sellers are offered two-factor login; absent from a backend that predates the setting
   twoFactorEnabled?: boolean;
   createdAt: string;

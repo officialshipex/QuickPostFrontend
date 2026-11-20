@@ -49,6 +49,7 @@ import { useNotificationList } from '../../../context/NotificationListContext';
 import { JobDetailModal } from '../notifications/JobDetailModal';
 import { NotificationHistoryModal } from '../notifications/NotificationHistoryModal';
 import { OPEN_RECHARGE_EVENT } from '../../../utils/walletEvents';
+import { CASHFREE_RETURN_PARAM, confirmCashfreeOrder } from '../../../services/cashfreeCheckout';
 
 interface AdminHeaderProps {
   onMobileMenuToggle?: () => void;
@@ -104,6 +105,30 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
     window.addEventListener(OPEN_RECHARGE_EVENT, open);
     return () => window.removeEventListener(OPEN_RECHARGE_EVENT, open);
   }, [isCargo, canTransfer]);
+
+  // Back from Cashfree's own payment page (its popup could not open, e.g. an in-app browser): the address carries
+  // ?cf_order_id=..., so confirm that payment once, say how it went, and take the parameter off the address.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const orderId = params.get(CASHFREE_RETURN_PARAM);
+    if (!orderId) return;
+    params.delete(CASHFREE_RETURN_PARAM);
+    const rest = params.toString();
+    // through the router (its path is without the /cargo basename), so the page's own idea of the address loses it too
+    navigate(`${location.pathname}${rest ? `?${rest}` : ''}${location.hash}`, { replace: true });
+    confirmCashfreeOrder(orderId)
+      .then((check) => {
+        if (check.status === 'credited' || check.status === 'already_credited') {
+          _showToast('success', `₹${(check.amount ?? 0).toLocaleString('en-IN')} added to your wallet.`);
+          refetchUser?.();
+        } else if (check.status === 'pending') {
+          _showToast('success', 'Payment is being confirmed. Your wallet will be credited automatically once it is.');
+        } else {
+          _showToast('error', check.message || 'Payment was not completed.');
+        }
+      })
+      .catch(() => _showToast('error', 'Could not confirm the payment yet. If money was deducted, it will be credited automatically.'));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Bulk Import modal
   const [showBulkModal, setShowBulkModal] = useState(false);
