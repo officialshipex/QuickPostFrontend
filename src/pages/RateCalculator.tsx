@@ -317,7 +317,7 @@ const IMPORTANT_TERMS = [
   'Volumetric weight is calculated L × W × H (in cms) / 5000 for all courier companies.',
   'RTO (return to origin) shipment will be charged differently from the forward delivery rate.',
   'Additional government rules and norms can be applicable while shipping to certain states and are subject to change without prior intimation.',
-  'For any queries reach out to us at support@shipexindia.com.',
+  'For any queries reach out to us at support@quickpost.in.',
 ];
 
 export function RateCalculator() {
