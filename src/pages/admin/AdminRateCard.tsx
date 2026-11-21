@@ -1,7 +1,7 @@
 ﻿import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
-import { Search, ChevronRight, Save, Filter, X, Upload, Download, Plus, Edit2, CheckCircle2, Truck, Hash, Layers, Crown } from 'lucide-react';
+import { Search, ChevronRight, Save, Filter, X, Upload, Download, Plus, Edit2, CheckCircle2, Truck, Hash, Layers, Crown, Star } from 'lucide-react';
 import { RechargePlansDialog } from '../../components/ratePlans/RechargePlansDialog';
 import { Toast } from '../../components/ui/Toast';
 import { useToast } from '../../hooks/useToast';
@@ -126,6 +126,9 @@ export function AdminRateCard() {
   const [activeTab, setActiveTab] = useState<'management' | 'costing'>('management');
 
   const [plans, setPlans] = useState<string[]>([]);
+  // The plan every newly registered seller gets ("Set as default"; none marked = Bronze)
+  const [defaultPlan, setDefaultPlan] = useState('');
+  const [settingDefault, setSettingDefault] = useState(false);
   const [providers, setProviders] = useState<any[]>([]);
   const [services, setServices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -438,6 +441,7 @@ export function AdminRateCard() {
       const fetchedPlans: string[] = [...new Set([...cardPlans, ...namedPlans])];
 
       setPlans(fetchedPlans);
+      if (plansRes.status === 'fulfilled') setDefaultPlan(plansRes.value.data.defaultPlan || '');
       setProviders(fetchedProviders);
       setServices(fetchedServices);
       if (fetchedPlans.length > 0) setSelectedPlan(fetchedPlans[0]);
@@ -534,6 +538,7 @@ export function AdminRateCard() {
       const namedPlans: string[] = res.data.planNames || [];
       const cardPlans = [...new Set(Object.keys(ratesMap))] as string[];
       setPlans([...new Set([...cardPlans, ...namedPlans])]);
+      setDefaultPlan(res.data.defaultPlan || '');
       setNewPlanName('');
       setAddPlanModal(false);
     } catch (err: any) {
@@ -542,6 +547,30 @@ export function AdminRateCard() {
       setAddingPlan(false);
     }
   };
+
+  // Make `plan` the one new sellers get at registration. Existing sellers keep their plans.
+  const handleSetDefaultPlan = async (plan: string) => {
+    if (!plan || plan === defaultPlan || settingDefault) return;
+    if (!window.confirm(`Give every newly registered seller the "${plan}" plan?\n\nExisting sellers keep their current plans.`)) return;
+    setSettingDefault(true);
+    setSaveError('');
+    setUploadSuccess('');
+    try {
+      const res = await apiClient.post('/saveRate/setDefaultPlan', { planName: plan });
+      setDefaultPlan(res.data?.defaultPlan || plan);
+      setUploadSuccess(res.data?.message || `New sellers will now get the "${plan}" plan.`);
+    } catch (err: any) {
+      setSaveError(err?.response?.data?.message || 'Could not set the default plan.');
+    } finally {
+      setSettingDefault(false);
+    }
+  };
+
+  const DefaultBadge = () => (
+    <span className="ml-2 shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-[10px] font-bold">
+      <Star className="w-2.5 h-2.5 fill-current" /> Default
+    </span>
+  );
 
   const handleUpload = async (file: File) => {
     setUploading(true);
@@ -773,7 +802,7 @@ export function AdminRateCard() {
                       {plans.map(plan => (
                         <button key={plan} onClick={() => { setSelectedPlan(plan); setIsPlanDropdownOpen(false); }}
                           className={`w-full text-left px-4 py-2.5 text-[13px] transition-colors flex items-center justify-between ${selectedPlan === plan ? 'bg-[#F0FDF4] text-[#00A86B] font-bold' : 'text-[#475569] font-semibold hover:bg-[#F8FAFC] hover:text-[#0F172A]'}`}>
-                          <span className="truncate">{plan}</span>
+                          <span className="truncate flex items-center">{plan}{plan === defaultPlan && <DefaultBadge />}</span>
                           {selectedPlan === plan && <svg className="w-4 h-4 text-[#00A86B] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>}
                         </button>
                       ))}
@@ -783,6 +812,20 @@ export function AdminRateCard() {
               )}
             </AnimatePresence>
           </div>
+
+          {/* Default plan for new sellers */}
+          {selectedPlan && (selectedPlan === defaultPlan ? (
+            <span title="Every newly registered seller gets this plan"
+              className="h-9 px-3 shrink-0 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-xs font-bold inline-flex items-center gap-1.5">
+              <Star className="w-3.5 h-3.5 fill-current" /> Default for new sellers
+            </span>
+          ) : (
+            <button onClick={() => handleSetDefaultPlan(selectedPlan)} disabled={settingDefault}
+              title={`Give every newly registered seller the "${selectedPlan}" plan`}
+              className="h-9 px-3 shrink-0 rounded-full border border-[#E2E8F0] bg-white text-[#475569] text-xs font-bold hover:border-amber-300 hover:text-amber-700 transition-colors inline-flex items-center gap-1.5 disabled:opacity-60">
+              {settingDefault ? <Spinner /> : <Star className="w-3.5 h-3.5" />} Set as default
+            </button>
+          ))}
 
           <button
             onClick={applyFilters}
@@ -869,6 +912,14 @@ export function AdminRateCard() {
             <input type="file" accept=".xlsx,.xls,.csv" className="hidden" disabled={uploading}
               onChange={(e) => { const f = e.target.files?.[0]; if (f) { handleUpload(f); e.target.value = ''; } }} />
           </label>
+          {selectedPlan && (
+            <button onClick={() => handleSetDefaultPlan(selectedPlan)} disabled={settingDefault || selectedPlan === defaultPlan}
+              title={selectedPlan === defaultPlan ? 'Default plan for new sellers' : `Set "${selectedPlan}" as the default plan for new sellers`}
+              aria-label="Default plan for new sellers"
+              className={`w-9 h-9 rounded-full border flex items-center justify-center shrink-0 ${selectedPlan === defaultPlan ? 'border-amber-200 bg-amber-50 text-amber-600' : 'border-[#E2E8F0] bg-white text-[#94A3B8]'}`}>
+              <Star className={`w-4 h-4 ${selectedPlan === defaultPlan ? 'fill-current' : ''}`} />
+            </button>
+          )}
           <button onClick={() => setShowRechargePlans(true)} title="Automatic Plans (recharge + shipment commitment)" aria-label="Automatic Plans"
             className="w-9 h-9 rounded-full border border-[#E2E8F0] bg-white text-amber-500 flex items-center justify-center shrink-0">
             <Crown className="w-4 h-4" />
@@ -912,7 +963,7 @@ export function AdminRateCard() {
                     {plans.map(plan => (
                       <button key={plan} onClick={() => { setSelectedPlan(plan); setIsPlanDropdownOpen(false); }}
                         className={`w-full text-left px-4 py-2.5 text-[13px] transition-colors flex items-center justify-between ${selectedPlan === plan ? 'bg-[#F0FDF4] text-[#00A86B] font-bold' : 'text-[#475569] font-semibold hover:bg-[#F8FAFC]'}`}>
-                        <span className="truncate">{plan}</span>
+                        <span className="truncate flex items-center">{plan}{plan === defaultPlan && <DefaultBadge />}</span>
                         {selectedPlan === plan && <svg className="w-4 h-4 text-[#00A86B] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>}
                       </button>
                     ))}
