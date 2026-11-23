@@ -12,10 +12,17 @@ import { ProtectedAdImage } from '../../components/ui/ProtectedAdImage';
 import { useUserSearchFilter } from '../../hooks/filters/useUserSearchFilter';
 import { UserOnboarding } from '../../components/admin/dashboard/UserOnboarding';
 import { MobileDateFilter } from '../../components/admin/dashboard/MobileDateFilter';
+import { OverviewInsights } from '../../components/admin/dashboard/OverviewInsights';
+import { ShipmentsTab } from '../../components/admin/dashboard/ShipmentsTab';
+import { SummaryTab } from '../../components/admin/dashboard/SummaryTab';
+import { DashboardSkeleton, DashboardPageSkeleton } from '../../components/admin/dashboard/DashboardSkeleton';
+import { useSkeletonReveal } from '../../hooks/useSkeletonReveal';
+import { CardLinksContext, useCardLinks } from '../../components/admin/dashboard/cardLinks';
 import {
   RefreshCcw, Package, IndianRupee, Users, CreditCard, Search, X,
   ShoppingCart, Clock, AlertTriangle, CheckCircle2, RotateCcw,
   ShieldAlert, Truck, FileText, ArrowRight, Percent,
+  LayoutDashboard, ShoppingBag, PackageCheck, ClipboardList,
 } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -48,53 +55,79 @@ const courierIcon = (name: string) => {
 const initials = (name: string) =>
   (name || '?').split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase();
 
+/** One icon size/style for every dashboard card (duotone, brand green). */
+const DASH_ICON = 'w-7 h-7 md:w-8 md:h-8 text-[#00A86B]';
+
 /* ─── sub-components ──────────────────────────────────────────────── */
-function StatCardWithTrend({ title, value, trend, isUp, isPrimary = false, icon: Icon }: any) {
-  if (isPrimary) {
-    return (
-      <div className="min-w-0 bg-gradient-to-br from-[#00A86B] to-[#007047] rounded-xl p-3 md:p-4 text-white shadow-sm flex flex-col justify-between">
-        <div className="flex justify-between items-start gap-2 mb-2">
-          <div className="text-[11px] md:text-[12px] font-semibold opacity-90 truncate">{title}</div>
-          {Icon && <Icon className="w-4 h-4 opacity-80 shrink-0" />}
-        </div>
-        <div className="min-w-0">
-          <div className="text-lg md:text-2xl font-bold mb-1 truncate">{value}</div>
-          <div className="flex items-center gap-1 text-[10px] font-medium opacity-90 truncate">
-            {isUp ? '↑' : '↓'} {trend}
-          </div>
-        </div>
-      </div>
-    );
-  }
+function StatCardWithTrend({ title, value, trend, isUp, icon: Icon }: any) {
+  // isUp true/false → coloured growth chip; undefined → neutral period label.
+  const neutral = isUp === undefined;
   return (
-    <div className="min-w-0 bg-white rounded-xl border border-[#E2E8F0] p-3 md:p-4 shadow-sm flex flex-col justify-between">
-      <div className="flex justify-between items-start gap-2 mb-2">
-        <div className="text-[11px] md:text-[12px] font-semibold text-[#64748B] truncate">{title}</div>
-        {Icon && <Icon className="w-4 h-4 text-[#94A3B8] shrink-0" />}
+    <div className="group min-w-0 bg-white rounded-xl border border-[#EEF2F6] p-3.5 md:p-4 shadow-[0_1px_2px_rgba(16,24,40,0.03),0_4px_16px_-6px_rgba(16,24,40,0.06)] hover:shadow-md hover:border-[#CBD5E1] transition-all flex flex-col">
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-[12px] md:text-[13px] font-medium text-[#64748B] truncate">{title}</div>
+        {Icon && (
+          <Icon className={`${DASH_ICON} shrink-0`} strokeWidth={1.4} fill="currentColor" fillOpacity={0.12} />
+        )}
       </div>
-      <div className="min-w-0">
-        <div className="text-lg md:text-2xl font-bold text-[#0F172A] mb-1 truncate">{value}</div>
-        <div className={`flex items-center gap-1 text-[10px] font-medium truncate ${isUp ? 'text-green-600' : 'text-red-500'}`}>
-          {isUp ? '↑' : '↓'} {trend}
-        </div>
+      <div className="mt-2 text-[18px] md:text-[22px] font-bold text-[#0F172A] tabular-nums leading-tight truncate">{value}</div>
+      <div className="mt-1.5 min-w-0">
+        {neutral ? (
+          <span className="text-[11px] text-[#94A3B8] truncate">{trend}</span>
+        ) : (
+          <span className={`inline-flex items-center gap-0.5 h-5 px-1.5 rounded-md text-[11px] font-semibold tabular-nums ${isUp ? 'bg-[#F0FDF4] text-[#047857]' : 'bg-red-50 text-red-600'}`}>
+            {isUp ? '↑' : '↓'} {trend}
+          </span>
+        )}
       </div>
     </div>
   );
 }
 
-function MiniStatCard({ title, value, icon: Icon, iconColor, iconBg, to, className = '' }: any) {
+const DASH_TABS = [
+  { key: 'overview', label: 'Overview', icon: LayoutDashboard },
+  { key: 'orders', label: 'Orders', icon: ShoppingBag },
+  { key: 'shipments', label: 'Shipments', icon: PackageCheck },
+  { key: 'summary', label: 'Summary', icon: ClipboardList },
+] as const;
+type DashTab = typeof DASH_TABS[number]['key'];
+/** Tabs hidden for now (kept in DASH_TABS so they can be switched back on). */
+const HIDDEN_TABS: DashTab[] = ['orders'];
+
+function DashboardTabs({ value, onChange }: { value: DashTab; onChange: (t: DashTab) => void }) {
+  return (
+    <div role="tablist" aria-label="Dashboard sections"
+      className="relative mb-2 border-b border-[#E2E8F0] flex items-end gap-5 md:gap-8 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      {DASH_TABS.filter(t => !HIDDEN_TABS.includes(t.key)).map(t => {
+        const active = value === t.key;
+        return (
+          <button key={t.key} type="button" role="tab" aria-selected={active} onClick={() => onChange(t.key)}
+            className={`group relative shrink-0 h-12 inline-flex items-center gap-2 text-[14px] md:text-[14.5px] tracking-[-0.005em] transition-colors focus-visible:outline-none ${active ? 'font-semibold text-[#0F172A]' : 'font-medium text-[#64748B] hover:text-[#0F172A]'}`}>
+            <span className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${active ? 'bg-[#E8F7F0] text-[#00A86B]' : 'text-[#94A3B8] group-hover:bg-[#F1F5F9] group-hover:text-[#475569]'}`}>
+              <t.icon className="w-4 h-4" strokeWidth={active ? 2.2 : 1.8} />
+            </span>
+            {t.label}
+            {!active && <span aria-hidden className="absolute inset-x-0 -bottom-px h-[2px] rounded-full bg-[#CBD5E1] scale-x-0 group-hover:scale-x-100 transition-transform origin-left duration-200" />}
+            {active && <motion.span layoutId="dash-tab-underline" className="absolute inset-x-0 -bottom-px h-[3px] rounded-t-full bg-[#00A86B]" transition={{ type: 'spring', stiffness: 500, damping: 40 }} />}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function MiniStatCard({ title, value, icon: Icon, to: toProp, className = '' }: any) {
+  const to = useCardLinks() ? toProp : undefined;   // seller side: cards are not clickable
+  // Duotone line icon (outline + soft tinted fill), one brand colour across all cards.
   const inner = (
-    <div className={`min-w-0 bg-white rounded-xl border border-[#E2E8F0] p-2.5 md:p-4 shadow-sm flex items-start justify-between gap-1.5 group ${to ? 'cursor-pointer hover:border-[#00A86B]/60 hover:shadow-md transition-all duration-150' : ''}`}>
-      <div className="min-w-0 flex-1">
-        <div className={`text-[10px] md:text-[11px] font-semibold mb-1 leading-tight break-words transition-colors ${to ? 'text-[#64748B] group-hover:text-[#00A86B]' : 'text-[#64748B]'}`}>{title}</div>
-        <div className="text-sm md:text-xl font-bold text-[#0F172A] truncate">{value}</div>
-        {to && <div className="text-[9px] font-semibold text-[#00A86B] opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">View details →</div>}
-      </div>
-      {Icon && (
-        <div className={`w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center shrink-0 ${iconBg}`}>
-          <Icon className={`w-3.5 h-3.5 md:w-4 md:h-4 ${iconColor}`} />
+    <div className={`min-w-0 h-full bg-white rounded-xl border border-[#EEF2F6] px-3.5 py-3 md:px-4 md:py-3.5 shadow-[0_1px_2px_rgba(16,24,40,0.03),0_4px_16px_-6px_rgba(16,24,40,0.06)] group ${to ? 'cursor-pointer hover:border-[#00A86B]/50 hover:shadow-md transition-all duration-150' : ''}`}>
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className={`text-[12px] md:text-[13px] font-medium leading-tight truncate transition-colors ${to ? 'text-[#64748B] group-hover:text-[#00A86B]' : 'text-[#64748B]'}`}>{title}</div>
+          <div className="mt-1.5 text-[18px] md:text-[22px] font-bold text-[#0F172A] tabular-nums leading-tight truncate">{value}</div>
         </div>
-      )}
+        {Icon && <Icon className={`${DASH_ICON} shrink-0`} strokeWidth={1.4} fill="currentColor" fillOpacity={0.12} />}
+      </div>
     </div>
   );
   if (to) return <Link to={to} className={`block ${className}`}>{inner}</Link>;
@@ -138,7 +171,7 @@ function MobileDonut({ data, centerLabel }: { data: { name: string; value: numbe
 
 function SectionHeading({ title, rightText }: any) {
   return (
-    <div className="flex justify-between items-center mt-6 mb-3">
+    <div className="flex justify-between items-center mt-4 mb-2.5">
       <h3 className="text-[13px] font-bold text-[#0F172A]">{title}</h3>
       {rightText && <span className="hidden md:inline text-[11px] font-medium text-[#94A3B8]">{rightText}</span>}
     </div>
@@ -166,6 +199,7 @@ export function AdminDashboard() {
   const { isAdmin, adminTab, loadingAdminTab, isEmployee, setShowOnboarding } = useAdminTab();
   const { filters } = useDashboardFilters();
   const isAdminView = isAdmin && adminTab;
+  const [dashTab, setDashTab] = useState<DashTab>('overview');
   const location = useLocation();
   const navigate = useNavigate();
   const isUserRoute = location.pathname === '/user/dashboard';
@@ -192,6 +226,8 @@ export function AdminDashboard() {
   };
 
   const { isLoading: loading, setIsLoading: setLoading } = useTableLoader(0);
+  // Shimmer templates on first load and on every tab switch (1–1.8 s) — see hooks/useSkeletonReveal.
+  const { showSkeleton } = useSkeletonReveal(dashTab, loading || loadingAdminTab);
   const [overview,    setOverview]    = useState<any>(null);
   const [insights,    setInsights]    = useState<any>(null);
   const [graphs,      setGraphs]      = useState<any>(null);
@@ -294,21 +330,21 @@ export function AdminDashboard() {
   const courierChartData = (graphs?.couriersSplit || []).map((c: any, i: number) => ({
     name: c.name, value: c.value, color: CHART_COLORS[i % CHART_COLORS.length],
   }));
-  const maxCourierVal = Math.max(...courierChartData.map((c: any) => c.value), 1);
+  void courierChartData;
 
-  const paymentChartData = (graphs?.paymentMode || []).map((p: any, i: number) => ({
+  const _paymentChartData = (graphs?.paymentMode || []).map((p: any, i: number) => ({
     name: p.name, value: p.value,
     color: (p.name || '').toLowerCase().includes('cod') ? '#00A86B' : '#1D4ED8',
   }));
 
-  const zoneChartData = (cardData?.ordersByZone || []).map((z: any, i: number) => ({
+  const _zoneChartData = (cardData?.ordersByZone || []).map((z: any, i: number) => ({
     name: zoneLabel(z.zone), value: z.percentage, color: ZONE_COLORS[i % ZONE_COLORS.length],
   }));
 
   const weightChartData = (cardData?.weightSplit || []).map((w: any, i: number) => ({
     name: w.range, value: w.count, color: CHART_COLORS[i % CHART_COLORS.length],
   }));
-  const maxWeightVal = Math.max(...weightChartData.map((w: any) => w.value), 1);
+  void weightChartData; void _zoneChartData;
 
   /* delivered vs rto vs undelivered */
   const druDelivered   = ship.delivered || 0;
@@ -318,12 +354,14 @@ export function AdminDashboard() {
   const dPct = druTotal > 0 ? Math.round((druDelivered / druTotal) * 100) : 0;
   const rPct = druTotal > 0 ? Math.round((druRto       / druTotal) * 100) : 0;
   const uPct = druTotal > 0 ? 100 - dPct - rPct : 0; // ensure always sums to 100
+  void uPct; void druUndelivered;
 
   /* pickup & delivery performance (derived from existing shipment data) */
   const pickedUp   = totalShip > 0 ? totalShip - (ship.readyToShip || 0) : 0;
   const notPicked  = ship.readyToShip || 0;
   const pickupRate = totalShip > 0 ? ((pickedUp / totalShip) * 100).toFixed(1) : '0';
   const deliveryRate = totalShip > 0 ? ((delivered / totalShip) * 100).toFixed(1) : '0';
+  void pickedUp; void notPicked; void pickupRate; void deliveryRate;
 
   /* date label */
   const fd = (d: Date) => d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
@@ -344,14 +382,8 @@ export function AdminDashboard() {
   if (loading || loadingAdminTab) {
     return (
       <AdminLayout>
-        <div className="max-w-[1400px] mx-auto pb-16">
-          <div className="flex flex-col items-center justify-center min-h-[70vh] gap-4">
-            <div className="relative w-32 h-32">
-              <TableLoader />
-            </div>
-            <p className="text-sm font-bold text-[#0F172A]">Loading your dashboard</p>
-            <p className="text-xs text-slate-400">Just a moment while we fetch the latest data…</p>
-          </div>
+        <div className="max-w-[1400px] mx-auto pb-16 min-w-0 overflow-x-hidden">
+          <DashboardPageSkeleton isAdminView={!!isAdminView} />
         </div>
       </AdminLayout>
     );
@@ -383,20 +415,23 @@ export function AdminDashboard() {
 
   return (
     <AdminLayout>
+      <CardLinksContext.Provider value={!!isAdminView}>
       <div className="max-w-[1400px] mx-auto text-[#0F172A] pb-10 min-w-0 overflow-x-hidden">
 
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-3 mb-4">
+        <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-3 mb-3 lg:mb-4 lg:pt-1">
           <div className="flex items-center justify-between gap-3 lg:contents">
             {/* Mobile — short title with the active range */}
             <div className="lg:hidden min-w-0">
               <p className="text-[15px] font-bold text-[#0F172A] leading-5">My Dashboard</p>
               <p className="text-[11px] font-medium text-[#94A3B8] leading-4 truncate">{fd(filters.dateRange.start)} – {fd(filters.dateRange.end)}</p>
             </div>
-            {/* Dashboard name + range label — desktop only */}
-            <div className="hidden lg:flex items-center gap-2 text-[11px] font-medium text-[#64748B] min-w-0">
-              {isUserRoute ? 'My Dashboard' : userMongoId ? `${userQuery.split(' (')[0]}'s Dashboard` : 'Platform Dashboard'}
-              {' — '}{filters.dateRange.label} ({fd(filters.dateRange.start)} – {fd(filters.dateRange.end)})
+            {/* Page title — desktop only (the date range lives in the navbar filter) */}
+            <div className="hidden lg:block min-w-0">
+              <h1 className="text-[25.0186px] leading-[1.2] font-semibold tracking-[-0.02em] text-[#0F172A] truncate">
+                {isUserRoute ? 'Dashboard' : userMongoId ? `${userQuery.split(' (')[0]}'s Dashboard` : 'Platform Dashboard'}
+              </h1>
+              <p className="mt-1 text-[13px] text-[#64748B]">Orders, shipments and returns at a glance</p>
             </div>
 
             {/* Below lg the navbar has no date filter — show it here with refresh on the right */}
@@ -436,7 +471,7 @@ export function AdminDashboard() {
                 {userSuggestions.length > 0 && !userMongoId && (
                   <>
                     <div className="fixed inset-0 z-40 bg-slate-900/10" onClick={() => setUserSuggestions([])} />
-                    <div className="absolute left-0 top-full mt-1.5 bg-white border border-[#E2E8F0] rounded-2xl shadow-xl z-50 w-full max-h-60 overflow-y-auto py-1.5">
+                    <div className="absolute left-0 top-full mt-1.5 bg-white border border-[#EEF2F6] rounded-2xl shadow-xl z-50 w-full max-h-60 overflow-y-auto py-1.5">
                       {userSuggestions.map((u) => (
                         <button key={u._id} type="button"
                           onClick={() => selectUserSuggestion(u)}
@@ -466,16 +501,65 @@ export function AdminDashboard() {
           )}
 
           {!isAdminView && (
-            <RefreshCcw
-              className="hidden lg:block w-3 h-3 cursor-pointer hover:text-[#0F172A] transition-colors text-[#64748B]"
-              onClick={fetchAll}
-            />
+            <button type="button" onClick={fetchAll} title="Refresh data"
+              className="hidden lg:inline-flex items-center gap-2 h-9 px-4 rounded-full border border-[#E2E8F0] bg-white text-[13px] font-medium text-[#475569] hover:text-[#0F172A] hover:border-[#CBD5E1] hover:shadow-sm active:scale-[0.98] transition-all">
+              <RefreshCcw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+              Refresh
+            </button>
           )}
         </div>
 
+        <DashboardTabs value={dashTab} onChange={setDashTab} />
+
+        {/* Cross-fade: content stays mounted (no remount jank, no height jump) under a skeleton overlay that fades out. */}
+        <div className="relative">
+        <AnimatePresence>
+          {showSkeleton && (
+            <motion.div key={`sk-${dashTab}`} className="absolute inset-x-0 top-0 z-10 bg-[#F8FAFC]"
+              initial={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.4, ease: 'easeOut' }}>
+              <DashboardSkeleton tab={dashTab} isAdminView={!!isAdminView} />
+            </motion.div>
+          )}
+        </AnimatePresence>
+        <motion.div
+          initial={false}
+          animate={showSkeleton ? { opacity: 0, y: 6 } : { opacity: 1, y: 0 }}
+          transition={showSkeleton ? { duration: 0 } : { duration: 0.5, ease: [0.22, 1, 0.36, 1], delay: 0.08 }}
+          className={showSkeleton ? 'pointer-events-none min-h-[70vh]' : ''}
+          aria-busy={showSkeleton}>
+        {dashTab === 'shipments' && (
+          <>
+            <ShipmentsTab ship={ship} fmt={fmt} weightSplit={cardData?.weightSplit || []} couriersSplit={graphs?.couriersSplit || []} courierIcon={courierIcon} />
+        {/* ── Row 3: Shipments Details ───────────────────────────────── */}
+        <SectionHeading title="Shipments Details" />
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+          <MiniStatCard title="Total Shipments"   value={fmtN(ship.total)}           icon={Package}       iconColor="text-blue-500"    iconBg="bg-blue-50"    to={`${navBase}/orders/all${rangeQ}`} className="hidden md:block" />
+          <MiniStatCard title="Pending Pickups"   value={fmtN(ship.readyToShip)}     icon={ShoppingCart}  iconColor="text-purple-500"  iconBg="bg-purple-50"  to={`${navBase}/orders/ready-to-ship${rangeQ}`} />
+          <MiniStatCard title="In-Transit"        value={fmtN(ship.inTransit)}       icon={RefreshCcw}    iconColor="text-amber-500"   iconBg="bg-amber-50"   to={`${navBase}/orders/in-transit${rangeQ}`} />
+          <MiniStatCard title="Out For Delivery"  value={fmtN(ship.outForDelivery)}  icon={Truck}         iconColor="text-emerald-500" iconBg="bg-emerald-50" to={`${navBase}/orders/out-for-delivery${rangeQ}`} />
+          <MiniStatCard title="Delivered"         value={fmtN(ship.delivered)}       icon={CheckCircle2}  iconColor="text-purple-400"  iconBg="bg-purple-50"  to={`${navBase}/orders/delivered${rangeQ}`} />
+          <MiniStatCard title="Un-Delivered"      value={fmtN(ndr.undelivered)}         icon={AlertTriangle} iconColor="text-rose-500"    iconBg="bg-rose-50"    to={`${navBase}/ndr/undelivered${rangeQ}`} />
+          <MiniStatCard title="RTO In-Transit"    value={fmtN(ship.rtoInTransit)}    icon={RotateCcw}     iconColor="text-emerald-500" iconBg="bg-emerald-50" to={`${navBase}/orders/rto-in-transit${allTimeQ}`} />
+        </div>
+          </>
+        )}
+
+        {dashTab === 'summary' && (
+          <SummaryTab isAdminView={!!isAdminView} topSellers={topSellers} topSellersErr={topSellersErr} couriers={couriers}
+            fmt={fmt} fmtN={fmtN} courierIcon={courierIcon} initials={initials} />
+        )}
+
+        {dashTab !== 'overview' && dashTab !== 'shipments' && dashTab !== 'summary' && (
+          <div className="rounded-xl border border-dashed border-[#EEF2F6] bg-white py-16 text-center">
+            <p className="text-[14px] font-semibold text-[#0F172A]">{DASH_TABS.find(t => t.key === dashTab)?.label} insights are coming soon</p>
+            <p className="mt-1 text-[12.5px] text-[#64748B]">For now, everything is available under Overview.</p>
+          </div>
+        )}
+
+        <div className={dashTab === 'overview' ? '' : 'hidden'}>
         {/* KYC Banner — never shown to employees (they're linked to parent user, not themselves) */}
         {!kycComplete && !isEmployee && (
-          <div className="mb-6 bg-amber-50 border border-amber-200/80 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
+          <div className="mb-3 bg-amber-50 border border-amber-200/80 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
             <div className="flex items-start sm:items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center shrink-0 text-amber-600">
                 <ShieldAlert className="w-5 h-5" />
@@ -497,9 +581,19 @@ export function AdminDashboard() {
         )}
 
         {/* ── Row 1: Top Metrics ─────────────────────────────────────── */}
-        <div className={`grid gap-3 mb-6 ${isAdminView ? 'grid-cols-2 md:grid-cols-3 lg:grid-cols-6' : 'grid-cols-2 md:grid-cols-3 lg:grid-cols-5'}`}>
+        {/* Parked (removed for now, same logic when re-added):
+            Delivery %  → value={`${deliveryPct}%`} icon={Percent} trend="Last 30 days" isUp
+                          deliveryPct = delivered / totalShip * 100 (from /dashboard shipment overview)
+            Total Orders Value → value={fmt(monthValue)} icon={IndianRupee}
+                          trend={`${monthValueGrowth}% vs last month`} isUp={parseFloat(monthValueGrowth) >= 0}
+            Avg. Ship Cost → value={fmt(overview?.avgShippingCost)} icon={Truck} trend="Last 30 days" isUp
+            Total Shipments (orig. "Total Orders") → value={fmtN(monthOrders)} icon={CheckCircle2}
+                          trend={`${monthGrowth}% vs last month`} isUp={parseFloat(monthGrowth) >= 0}
+            Total Revenue → value={fmt(overview?.todaysRevenue)} icon={IndianRupee} trend="Last 30 days" isUp */}
+        {/* ── Row 1b: Key metrics (seller 5 · admin 6, one row on desktop) ── */}
+        <div className={`grid gap-3 mb-3 grid-cols-2 md:grid-cols-3 ${isAdminView ? 'lg:grid-cols-6' : 'lg:grid-cols-5'}`}>
           <StatCardWithTrend
-            title="Total Orders" isPrimary icon={CheckCircle2}
+            title="Total Orders" icon={CheckCircle2}
             value={fmtN(monthOrders)}
             trend={`${monthGrowth}% vs last month`}
             isUp={parseFloat(monthGrowth) >= 0}
@@ -513,23 +607,23 @@ export function AdminDashboard() {
           <StatCardWithTrend
             title="Total Revenue" icon={IndianRupee}
             value={fmt(overview?.todaysRevenue)}
-            trend="Last 30 days" isUp={true}
+            trend="Last 30 days"
           />
           <StatCardWithTrend
             title="Avg. Ship Cost" icon={Truck}
             value={fmt(overview?.avgShippingCost)}
-            trend="Last 30 days" isUp={true}
+            trend="Last 30 days"
           />
           <StatCardWithTrend
             title="Delivery %" icon={Percent}
             value={`${deliveryPct}%`}
-            trend="Last 30 days" isUp={true}
+            trend="Last 30 days"
           />
           {isAdminView && (
             <StatCardWithTrend
               title="New Users" icon={Users}
               value={fmtN(actionCards?.newUsers)}
-              trend="This month" isUp={true}
+              trend="This month"
             />
           )}
         </div>
@@ -573,17 +667,25 @@ export function AdminDashboard() {
           />
         </div>
 
-        {/* ── Row 3: Shipments Details ───────────────────────────────── */}
-        <SectionHeading title="Shipments Details" />
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
-          <MiniStatCard title="Total Shipments"   value={fmtN(ship.total)}           icon={Package}       iconColor="text-blue-500"    iconBg="bg-blue-50"    to={`${navBase}/orders/all${rangeQ}`} className="hidden md:block" />
-          <MiniStatCard title="Pending Pickups"   value={fmtN(ship.readyToShip)}     icon={ShoppingCart}  iconColor="text-purple-500"  iconBg="bg-purple-50"  to={`${navBase}/orders/ready-to-ship${rangeQ}`} />
-          <MiniStatCard title="In-Transit"        value={fmtN(ship.inTransit)}       icon={RefreshCcw}    iconColor="text-amber-500"   iconBg="bg-amber-50"   to={`${navBase}/orders/in-transit${rangeQ}`} />
-          <MiniStatCard title="Out For Delivery"  value={fmtN(ship.outForDelivery)}  icon={Truck}         iconColor="text-emerald-500" iconBg="bg-emerald-50" to={`${navBase}/orders/out-for-delivery${rangeQ}`} />
-          <MiniStatCard title="Delivered"         value={fmtN(ship.delivered)}       icon={CheckCircle2}  iconColor="text-purple-400"  iconBg="bg-purple-50"  to={`${navBase}/orders/delivered${rangeQ}`} />
-          <MiniStatCard title="Un-Delivered"      value={fmtN(ndr.undelivered)}         icon={AlertTriangle} iconColor="text-rose-500"    iconBg="bg-rose-50"    to={`${navBase}/ndr/undelivered${rangeQ}`} />
-          <MiniStatCard title="RTO In-Transit"    value={fmtN(ship.rtoInTransit)}    icon={RotateCcw}     iconColor="text-emerald-500" iconBg="bg-emerald-50" to={`${navBase}/orders/rto-in-transit${allTimeQ}`} />
+        {/* ── Overview analytics ─────────────────────────────────────── */}
+        <OverviewInsights
+          ship={ship} ndr={ndr} overview={overview}
+          zones={(cardData?.ordersByZone || []).map((z: any) => ({ zone: z.zone, label: zoneLabel(z.zone), count: z.count, percentage: z.percentage }))}
+          navBase={navBase} rangeQ={rangeQ} fmt={fmt} isAdminView={!!isAdminView}
+          paymentMode={graphs?.paymentMode || []}
+          codSlot={(
+          <div>
+                <SectionHeading title="COD Status" rightText="Last 30 days" />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <MiniStatCard smallIcon title="Total COD"          value={fmt(overview?.codTotal)}        icon={FileText}   iconColor="text-purple-500"  iconBg="bg-purple-50"  to={isAdminView ? `${navBase}/cod/all-cod-orders` : `${navBase}/cod`} />
+          <MiniStatCard smallIcon title="Last COD Remitted"  value={fmt(overview?.lastCODRemitted)} icon={RefreshCcw} iconColor="text-emerald-500" iconBg="bg-emerald-50" to={isAdminView ? `${navBase}/cod/seller-cod-remittance` : `${navBase}/cod`} />
+          <MiniStatCard smallIcon title="COD Initiated"      value={fmt(overview?.codAvailable)}    icon={FileText}   iconColor="text-sky-500"     iconBg="bg-sky-50"     to={isAdminView ? `${navBase}/cod/all-cod-orders` : `${navBase}/cod`} />
+          <MiniStatCard smallIcon title="COD To Be Remitted" value={fmt(overview?.codPending)}      icon={Clock}      iconColor="text-rose-400"    iconBg="bg-rose-50"    to={isAdminView ? `${navBase}/cod/seller-cod-remittance` : `${navBase}/cod`} />
         </div>
+
+          </div>
+          )}
+        />
 
         {/* ── Row 4: NDR Details ────────────────────────────────────── */}
         <SectionHeading title="NDR Details" />
@@ -604,470 +706,17 @@ export function AdminDashboard() {
           <MiniStatCard title="Discrepancy Raised"   value={fmtN(weightData.counts?.DiscrepancyRaised || 0)} icon={AlertTriangle} iconColor="text-rose-500"  iconBg="bg-rose-50"   to={`${navBase}/weight-discrepancy/dispute${allTimeQ}`} />
         </div>
 
-        {/* ── Row 6: COD Status ─────────────────────────────────────── */}
-        <SectionHeading title="COD Status" rightText="Last 30 days" />
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <MiniStatCard title="Total COD"          value={fmt(overview?.codTotal)}        icon={FileText}   iconColor="text-purple-500"  iconBg="bg-purple-50"  to={isAdminView ? `${navBase}/cod/all-cod-orders` : `${navBase}/cod`} />
-          <MiniStatCard title="Last COD Remitted"  value={fmt(overview?.lastCODRemitted)} icon={RefreshCcw} iconColor="text-emerald-500" iconBg="bg-emerald-50" to={isAdminView ? `${navBase}/cod/seller-cod-remittance` : `${navBase}/cod`} />
-          <MiniStatCard title="COD Initiated"      value={fmt(overview?.codAvailable)}    icon={FileText}   iconColor="text-sky-500"     iconBg="bg-sky-50"     to={isAdminView ? `${navBase}/cod/all-cod-orders` : `${navBase}/cod`} />
-          <MiniStatCard title="COD To Be Remitted" value={fmt(overview?.codPending)}      icon={Clock}      iconColor="text-rose-400"    iconBg="bg-rose-50"    to={isAdminView ? `${navBase}/cod/seller-cod-remittance` : `${navBase}/cod`} />
+        {/* Row 7 (Couriers Split / Payment Mode / Pickup & Delivery Performance) → moved: courier split + pickup & delivery to Shipments tab, payment mode into OverviewInsights */}
+
+        {/* Row 8 (Zone / Weight / Delivered vs RTO vs Undelivered) → all moved: zone + DRU live in OverviewInsights, weight in Shipments tab */}
+
+        {/* Top Performing Sellers + Couriers Summary → Summary tab (SummaryTab.tsx) */}
+
         </div>
-
-        {/* ── Row 7: Charts Row 1 ───────────────────────────────────── */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mt-6">
-
-          {/* Couriers Split */}
-          <div className="bg-white rounded-xl border border-[#E2E8F0] p-4 shadow-sm">
-            <h4 className="text-[13px] md:text-[12px] font-bold mb-3 md:mb-4">Couriers Split</h4>
-            {courierChartData.length > 0 ? (
-              <div className="flex flex-col gap-3">
-                {courierChartData.map((d: any, i: number) => (
-                  <BarRow key={i} name={d.name} value={d.value} maxValue={maxCourierVal} color={d.color} />
-                ))}
-              </div>
-            ) : (
-              <p className="text-[11px] text-[#94A3B8] text-center py-6">No shipment data yet</p>
-            )}
-          </div>
-
-          {/* Payment Mode */}
-          <div className="bg-white rounded-xl border border-[#E2E8F0] p-4 shadow-sm flex flex-col">
-            <h4 className="text-[13px] md:text-[12px] font-bold mb-3 md:mb-4">Payment Mode</h4>
-            {paymentChartData.length > 0 && (
-              <div className="md:hidden"><MobileDonut data={paymentChartData} centerLabel="Orders" /></div>
-            )}
-            {paymentChartData.length > 0 ? (
-              <div className="hidden md:flex flex-1 items-center justify-center gap-8 min-w-0">
-                <div className="w-32 h-32 shrink-0">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie data={paymentChartData} cx="50%" cy="50%" innerRadius={40} outerRadius={55} dataKey="value" stroke="none">
-                        {paymentChartData.map((d: any, i: number) => <Cell key={i} fill={d.color} />)}
-                      </Pie>
-                      <Tooltip contentStyle={{ borderRadius: '8px', fontSize: '10px', padding: '4px 8px', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="flex flex-col gap-4 min-w-0">
-                  {paymentChartData.map((d: any, i: number) => (
-                    <div key={i} className="min-w-0">
-                      <div className="text-[11px] font-bold truncate" style={{ color: d.color }}>{d.name}</div>
-                      <div className="text-[11px] font-bold text-[#64748B] mt-0.5 border-b border-gray-200 pb-1 truncate">{d.value}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <p className="text-[11px] text-[#94A3B8] text-center py-6">No payment data yet</p>
-            )}
-          </div>
-
-          {/* Pickup & Delivery Performance */}
-          <div className="bg-white rounded-xl border border-[#E2E8F0] p-4 shadow-sm flex flex-col">
-            <h4 className="text-[12px] font-bold mb-4">Pickup & Delivery Performance</h4>
-            <div className="flex-1 grid grid-cols-2 gap-px bg-[#E2E8F0] border border-[#E2E8F0] rounded-lg overflow-hidden">
-              {[
-                { label: 'Shipments Picked Up', value: fmtN(pickedUp),   green: true },
-                { label: 'Delivery Rate',        value: `${deliveryRate}%`, green: true },
-                { label: 'Not Yet Picked',       value: fmtN(notPicked),  green: false },
-                { label: 'Pickup Rate',          value: `${pickupRate}%`, green: false },
-              ].map((item, i) => (
-                <div key={i} className="bg-white p-4 flex items-center gap-3">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${item.green ? 'bg-teal-50 text-teal-600' : 'bg-amber-50 text-amber-500'}`}>
-                    {item.green ? <CheckCircle2 className="w-4 h-4" /> : <Clock className="w-4 h-4" />}
-                  </div>
-                  <div>
-                    <div className="text-sm font-bold text-[#0F172A]">{item.value}</div>
-                    <div className="text-[10px] font-semibold text-[#64748B]">{item.label}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+        </motion.div>
         </div>
-
-        {/* ── Row 8: Charts Row 2 ───────────────────────────────────── */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mt-3">
-
-          {/* Zone Distribution */}
-          <div className="bg-white rounded-xl border border-[#E2E8F0] p-4 shadow-sm flex flex-col">
-            <h4 className="text-[12px] font-bold mb-4">Shipments by Zone</h4>
-            {zoneChartData.length > 0 ? (
-              <div className="flex-1 flex items-center justify-between gap-2">
-                <div className="w-24 h-24 relative flex items-center justify-center shrink-0">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie data={zoneChartData} cx="50%" cy="50%" innerRadius={28} outerRadius={42} dataKey="value" stroke="none">
-                        {zoneChartData.map((d: any, i: number) => <Cell key={i} fill={d.color} />)}
-                      </Pie>
-                      <Tooltip contentStyle={{ borderRadius: '8px', fontSize: '10px', padding: '4px 8px', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                    <div className="text-[8px] font-semibold text-[#64748B]">Zone</div>
-                    <div className="text-[8px] font-semibold text-[#64748B]">Split</div>
-                  </div>
-                </div>
-                <div className="flex flex-col gap-2 flex-1 pl-2">
-                  {zoneChartData.map((d: any, i: number) => (
-                    <div key={i} className="flex items-center justify-between text-[10px]">
-                      <div className="font-semibold" style={{ color: d.color }}>{d.name}</div>
-                      <div className="font-bold text-[#0F172A]">{d.value}%</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <p className="text-[11px] text-[#94A3B8] text-center py-6">No zone data yet</p>
-            )}
-          </div>
-
-          {/* Weight Split */}
-          <div className="bg-white rounded-xl border border-[#E2E8F0] p-4 shadow-sm">
-            <h4 className="text-[12px] font-bold mb-4">Shipment Split by Weight</h4>
-            {weightChartData.length > 0 ? (
-              <div className="flex flex-col gap-2.5">
-                {weightChartData.map((d: any, i: number) => (
-                  <BarRow key={i} name={d.name} value={d.value} maxValue={maxWeightVal} color={d.color} />
-                ))}
-              </div>
-            ) : (
-              <p className="text-[11px] text-[#94A3B8] text-center py-6">No weight data yet</p>
-            )}
-          </div>
-
-          {/* Delivered vs RTO vs Undelivered */}
-          <div className="bg-white rounded-xl border border-[#E2E8F0] p-4 shadow-sm flex flex-col justify-between">
-            <h4 className="text-[12px] font-bold mb-4">Delivered vs RTO vs Undelivered</h4>
-            <div className="flex items-center justify-between mb-4">
-              <div className="text-center">
-                <div className="text-[10px] font-semibold text-[#64748B] mb-1">Delivered</div>
-                <div className="text-xl font-bold text-[#0F172A]">{fmtN(druDelivered)}</div>
-                <div className="text-[10px] font-semibold text-[#64748B] mt-1">{dPct}%</div>
-              </div>
-              <div className="text-[10px] text-[#94A3B8] font-medium">vs</div>
-              <div className="text-center">
-                <div className="text-[10px] font-semibold text-[#64748B] mb-1">RTO</div>
-                <div className="text-xl font-bold text-[#0F172A]">{fmtN(druRto)}</div>
-                <div className="text-[10px] font-semibold text-[#64748B] mt-1">{rPct}%</div>
-              </div>
-              <div className="text-[10px] text-[#94A3B8] font-medium">vs</div>
-              <div className="text-center">
-                <div className="text-[10px] font-semibold text-[#64748B] mb-1">Undelivered</div>
-                <div className="text-xl font-bold text-[#0F172A]">{fmtN(druUndelivered)}</div>
-                <div className="text-[10px] font-semibold text-[#64748B] mt-1">{uPct}%</div>
-              </div>
-            </div>
-            <div className="flex items-center gap-0.5 rounded-full overflow-hidden h-2">
-              <div className="h-full bg-[#1D4ED8] transition-all" style={{ width: `${dPct}%` }} />
-              <div className="h-full bg-[#00A86B] transition-all" style={{ width: `${rPct}%` }} />
-              <div className="h-full bg-[#F1F5F9] flex-1" />
-            </div>
-            <div className="flex items-center gap-4 mt-2 text-[9px] font-semibold text-[#64748B]">
-              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#1D4ED8] inline-block" />Delivered</span>
-              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#00A86B] inline-block" />RTO</span>
-              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#F1F5F9] border inline-block" />Undelivered</span>
-            </div>
-          </div>
-        </div>
-
-        {/* ── Top Performing Sellers (admin view only) ──────────────── */}
-        {isAdminView && (
-          <>
-            <h3 className="text-[13px] font-bold text-[#0F172A] mt-6 mb-3">Top Performing Sellers</h3>
-
-            {/* Desktop table */}
-            <div className="hidden md:block bg-white rounded-xl border border-[#E2E8F0] shadow-sm overflow-hidden overflow-x-auto mb-6">
-              <table className="w-full text-left border-collapse min-w-[960px]">
-                <thead>
-                  <tr className="bg-[#E6F9F2] border-b border-[#E2E8F0] text-[12px] uppercase tracking-wider font-medium text-[#64748B]">
-                    <th className="p-3 pl-4 w-8">#</th>
-                    <th className="p-3">Seller Details</th>
-                    <th className="p-3 text-center">Total Orders</th>
-                    <th className="p-3 text-center">Revenue</th>
-                    <th className="p-3 text-center">Delivery Rate</th>
-                    <th className="p-3 text-center">COD Amount</th>
-                    <th className="p-3 text-center">RTO Rate</th>
-                    <th className="p-3 text-center">Wallet Balance</th>
-                  </tr>
-                </thead>
-                <tbody className="text-[10px] font-semibold text-[#475569]">
-                  {topSellers.length > 0 ? topSellers.map((s, i) => {
-                    const rto = parseFloat(s.rtoRate || '0');
-                    const rtoColor = rto < 5 ? 'text-emerald-600 bg-emerald-50' : rto < 15 ? 'text-amber-600 bg-amber-50' : 'text-red-600 bg-red-50';
-                    const delivery = parseFloat(s.deliveryRate || '0');
-                    const deliveryColor = delivery >= 80 ? 'text-emerald-600 bg-emerald-50' : delivery >= 50 ? 'text-amber-600 bg-amber-50' : 'text-red-600 bg-red-50';
-                    const rankColors = ['bg-yellow-400 text-white', 'bg-slate-400 text-white', 'bg-amber-600 text-white'];
-                    return (
-                      <tr key={i} className="border-b border-[#F1F5F9] hover:bg-[#F8FAFC]">
-                        <td className="p-3 pl-4">
-                          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${rankColors[i] || 'bg-[#E2E8F0] text-[#475569]'}`}>
-                            {i + 1}
-                          </div>
-                        </td>
-                        <td className="p-3">
-                          <div className="flex items-center gap-3">
-                            {s.profileImage ? (
-                              <img src={s.profileImage} alt={s.name} className="w-9 h-9 rounded-full object-cover shrink-0 border border-[#E2E8F0]" />
-                            ) : (
-                              <div className="w-9 h-9 rounded-full bg-[#E6F5F1] text-[#00A86B] flex items-center justify-center shrink-0 font-bold text-xs border border-[#00A86B]/20">
-                                {initials(s.name)}
-                              </div>
-                            )}
-                            <div>
-                              <div className="font-semibold text-[#0F172A] text-[14px] leading-tight">{s.name}</div>
-                              <div className="text-[12px] text-[#94A3B8] font-normal mt-0.5">{s.company !== '—' ? s.company : s.email}</div>
-                              {s.company !== '—' && <div className="text-[12px] text-[#CBD5E1] font-normal mt-0.5">{s.email}</div>}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="p-3 text-center text-[#0F172A] font-normal text-[13px]">{fmtN(s.totalOrders)}</td>
-                        <td className="p-3 text-center text-emerald-600 font-normal text-[13px]">{fmt(s.totalRevenue)}</td>
-                        <td className="p-3 text-center">
-                          <span className={`inline-block px-2 py-0.5 rounded-full text-[13px] font-normal ${deliveryColor}`}>{s.deliveryRate}%</span>
-                        </td>
-                        <td className="p-3 text-center text-[#0F172A] font-normal text-[13px]">{fmt(s.codAmount)}</td>
-                        <td className="p-3 text-center">
-                          <span className={`inline-block px-2 py-0.5 rounded-full text-[13px] font-normal ${rtoColor}`}>{s.rtoRate}%</span>
-                        </td>
-                        <td className="p-3 text-center font-normal text-[#00A86B] text-[13px]">{fmt(s.walletBalance)}</td>
-                      </tr>
-                    );
-                  }) : (
-                    <tr>
-                      <td colSpan={8} className="p-8 text-center text-[12px]">
-                        {topSellersErr
-                          ? <span className="text-red-500 font-medium">{topSellersErr}</span>
-                          : <span className="text-[#94A3B8]">No seller data available</span>}
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Mobile cards — bounded to ~3 cards tall by default; the rest scroll
-                inside this container instead of pushing the whole page down. */}
-            <div className="md:hidden mb-6 relative">
-              <div className="max-h-[560px] overflow-y-auto space-y-3 pr-0.5 rounded-xl">
-              {topSellers.length > 0 ? topSellers.map((s, i) => {
-                const rto = parseFloat(s.rtoRate || '0');
-                const rtoColor = rto < 5 ? 'text-emerald-600 bg-emerald-50' : rto < 15 ? 'text-amber-600 bg-amber-50' : 'text-red-600 bg-red-50';
-                const delivery = parseFloat(s.deliveryRate || '0');
-                const deliveryColor = delivery >= 80 ? 'text-emerald-600 bg-emerald-50' : delivery >= 50 ? 'text-amber-600 bg-amber-50' : 'text-red-600 bg-red-50';
-                const rankColors = ['bg-yellow-400 text-white', 'bg-slate-400 text-white', 'bg-amber-600 text-white'];
-                return (
-                  <div key={i} className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm p-3.5">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${rankColors[i] || 'bg-[#E2E8F0] text-[#475569]'}`}>
-                        {i + 1}
-                      </div>
-                      {s.profileImage ? (
-                        <img src={s.profileImage} alt={s.name} className="w-9 h-9 rounded-full object-cover shrink-0 border border-[#E2E8F0]" />
-                      ) : (
-                        <div className="w-9 h-9 rounded-full bg-[#E6F5F1] text-[#00A86B] flex items-center justify-center shrink-0 font-bold text-xs border border-[#00A86B]/20">
-                          {initials(s.name)}
-                        </div>
-                      )}
-                      <div className="min-w-0 flex-1">
-                        <div className="font-semibold text-[#0F172A] text-[14px] leading-tight truncate">{s.name}</div>
-                        {s.company !== '—' && (
-                          <TruncatedText text={s.company} maxLength={20} className="text-[12px] text-[#94A3B8] font-normal mt-0.5" />
-                        )}
-                        <TruncatedText text={s.email} maxLength={22} className="text-[12px] text-[#CBD5E1] font-normal mt-0.5" />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-[#F1F5F9]">
-                      <div className="min-w-0">
-                        <div className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider truncate">Orders</div>
-                        <div className="text-[13px] font-normal text-[#0F172A] truncate mt-0.5">{fmtN(s.totalOrders)}</div>
-                      </div>
-                      <div className="min-w-0">
-                        <div className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider truncate">Revenue</div>
-                        <div className="text-[13px] font-normal text-emerald-600 truncate mt-0.5">{fmt(s.totalRevenue)}</div>
-                      </div>
-                      <div className="min-w-0">
-                        <div className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider truncate">COD</div>
-                        <div className="text-[13px] font-normal text-[#0F172A] truncate mt-0.5">{fmt(s.codAmount)}</div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 mt-3 flex-wrap">
-                      <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-normal ${deliveryColor}`}>Delivery {s.deliveryRate}%</span>
-                      <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-normal ${rtoColor}`}>RTO {s.rtoRate}%</span>
-                      <span className="ml-auto text-[12px] font-normal text-[#00A86B] shrink-0">{fmt(s.walletBalance)}</span>
-                    </div>
-                  </div>
-                );
-              }) : (
-                <div className="bg-white rounded-xl border border-[#E2E8F0] p-6 text-center text-[12px]">
-                  {topSellersErr
-                    ? <span className="text-red-500 font-medium">{topSellersErr}</span>
-                    : <span className="text-[#94A3B8]">No seller data available</span>}
-                </div>
-              )}
-              </div>
-              {topSellers.length > 3 && (
-                <>
-                  <div className="pointer-events-none absolute bottom-0 left-0 right-0.5 h-8 bg-gradient-to-t from-[#F8FAFC] to-transparent rounded-b-xl" />
-                  <div className="text-center text-[10px] font-semibold text-[#94A3B8] mt-1.5">Scroll for {topSellers.length - 3} more</div>
-                </>
-              )}
-            </div>
-          </>
-        )}
-
-        {/* ── Couriers Summary ──────────────────────────────────────── */}
-        <h3 className="text-[13px] font-bold text-[#0F172A] mt-6 mb-3">Couriers Summary</h3>
-
-        {/* Desktop table */}
-        <div className="hidden md:block bg-white rounded-xl border border-[#E2E8F0] shadow-sm overflow-hidden overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[1000px]">
-            <thead>
-              <tr className="bg-[#E6F9F2] border-b border-[#E2E8F0] text-[12px] uppercase tracking-wider font-medium text-[#166534]">
-                <th className="p-3 pl-4">Courier</th>
-                <th className="p-3 text-center">Shipments</th>
-                <th className="p-3 text-center">COD</th>
-                <th className="p-3 text-center">Prepaid</th>
-                <th className="p-3 text-center">Delivered</th>
-                <th className="p-3 text-center">NDR Delivered</th>
-                <th className="p-3 text-center">NDR Raised</th>
-                <th className="p-3 text-center">RTO</th>
-                <th className="p-3 text-center">Lost/Damaged</th>
-                <th className="p-3 text-center">Zone A</th>
-                <th className="p-3 text-center">Zone B</th>
-                <th className="p-3 text-center">Zone C</th>
-                <th className="p-3 text-center">Zone D</th>
-                <th className="p-3 text-center">Zone E</th>
-              </tr>
-            </thead>
-            <tbody className="text-[10px] font-semibold text-[#475569]">
-              {couriers.length > 0 ? couriers.map((c, i) => {
-                const icon = courierIcon(c.courier);
-                return (
-                  <tr key={i} className="border-b border-[#F1F5F9] hover:bg-[#F8FAFC]">
-                    <td className="p-3 pl-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-white flex items-center justify-center shrink-0 shadow-sm border border-[#E2E8F0] p-1 overflow-hidden">
-                          {icon
-                            ? <img src={icon} alt={c.courier} className="w-full h-full object-contain" />
-                            : <span className="text-[10px] font-bold text-[#475569]">{initials(c.courier)}</span>
-                          }
-                        </div>
-                        <div>
-                          <div className="font-semibold text-[#0F172A] text-[14px] leading-tight">{c.courier}</div>
-                          <div className="text-[12px] text-[#94A3B8] font-normal mt-0.5">{c.courierServiceName}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="p-3 text-center text-[13px] font-normal text-[#0F172A]">{c.shipmentCount ?? '—'}</td>
-                    <td className="p-3 text-center text-[13px] font-normal text-[#0F172A]">{c.codOrders ?? '—'}</td>
-                    <td className="p-3 text-center text-[13px] font-normal text-[#0F172A]">{c.prepaidOrders ?? '—'}</td>
-                    <td className="p-3 text-center text-[13px] font-normal text-[#0F172A]">{c.delivered ?? '—'}</td>
-                    <td className="p-3 text-center text-[13px] font-normal text-[#0F172A]">{c.ndrDelivered ?? '—'}</td>
-                    <td className="p-3 text-center text-[13px] font-normal text-[#94A3B8]">{c.ndrRaised ?? '—'}</td>
-                    <td className="p-3 text-center text-[13px] font-normal text-[#94A3B8]">{c.rto ?? '—'}</td>
-                    <td className="p-3 text-center text-[13px] font-normal text-[#94A3B8]">{c['Lost/Damaged'] ?? '—'}</td>
-                    <td className="p-3 text-center text-[13px] font-normal text-[#0F172A]">{c['Zone A'] ?? 0}</td>
-                    <td className="p-3 text-center text-[13px] font-normal text-[#0F172A]">{c['Zone B'] ?? 0}</td>
-                    <td className="p-3 text-center text-[13px] font-normal text-[#0F172A]">{c['Zone C'] ?? 0}</td>
-                    <td className="p-3 text-center text-[13px] font-normal text-[#0F172A]">{c['Zone D'] ?? 0}</td>
-                    <td className="p-3 text-center text-[13px] font-normal text-[#0F172A]">{c['Zone E'] ?? 0}</td>
-                  </tr>
-                );
-              }) : (
-                <tr>
-                  <td colSpan={14} className="p-8 text-center text-[#94A3B8] text-[12px]">
-                    No courier data for the last 30 days
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Mobile cards — bounded to ~3 cards tall by default; the rest scroll
-            inside this container instead of pushing the whole page down. */}
-        <div className="md:hidden relative">
-          <div className="max-h-[560px] overflow-y-auto space-y-3 pr-0.5 rounded-xl">
-          {couriers.length > 0 ? couriers.map((c, i) => {
-            const icon = courierIcon(c.courier);
-            return (
-              <div key={i} className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm p-3.5">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 rounded-lg bg-white flex items-center justify-center shrink-0 shadow-sm border border-[#E2E8F0] p-1 overflow-hidden">
-                    {icon
-                      ? <img src={icon} alt={c.courier} className="w-full h-full object-contain" />
-                      : <span className="text-[10px] font-bold text-[#475569]">{initials(c.courier)}</span>
-                    }
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="font-semibold text-[#0F172A] text-[14px] leading-tight truncate">{c.courier}</div>
-                    <div className="text-[12px] text-[#94A3B8] font-normal mt-0.5 truncate">{c.courierServiceName}</div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-4 gap-x-2 gap-y-3 mt-3 pt-3 border-t border-[#F1F5F9]">
-                  <div className="min-w-0">
-                    <div className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider truncate">Shipments</div>
-                    <div className="text-[13px] font-normal text-[#0F172A] truncate mt-0.5">{c.shipmentCount ?? '—'}</div>
-                  </div>
-                  <div className="min-w-0">
-                    <div className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider truncate">COD</div>
-                    <div className="text-[13px] font-normal text-[#0F172A] truncate mt-0.5">{c.codOrders ?? '—'}</div>
-                  </div>
-                  <div className="min-w-0">
-                    <div className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider truncate">Prepaid</div>
-                    <div className="text-[13px] font-normal text-[#0F172A] truncate mt-0.5">{c.prepaidOrders ?? '—'}</div>
-                  </div>
-                  <div className="min-w-0">
-                    <div className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider truncate">Delivered</div>
-                    <div className="text-[13px] font-normal text-[#0F172A] truncate mt-0.5">{c.delivered ?? '—'}</div>
-                  </div>
-                  <div className="min-w-0">
-                    <div className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider truncate">NDR Delvd</div>
-                    <div className="text-[13px] font-normal text-[#0F172A] truncate mt-0.5">{c.ndrDelivered ?? '—'}</div>
-                  </div>
-                  <div className="min-w-0">
-                    <div className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider truncate">NDR Raised</div>
-                    <div className="text-[13px] font-normal text-[#94A3B8] truncate mt-0.5">{c.ndrRaised ?? '—'}</div>
-                  </div>
-                  <div className="min-w-0">
-                    <div className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider truncate">RTO</div>
-                    <div className="text-[13px] font-normal text-[#94A3B8] truncate mt-0.5">{c.rto ?? '—'}</div>
-                  </div>
-                  <div className="min-w-0">
-                    <div className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider truncate">Lost/Dmgd</div>
-                    <div className="text-[13px] font-normal text-[#94A3B8] truncate mt-0.5">{c['Lost/Damaged'] ?? '—'}</div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-5 gap-x-2 mt-3 pt-3 border-t border-[#F1F5F9]">
-                  {(['Zone A', 'Zone B', 'Zone C', 'Zone D', 'Zone E'] as const).map((zone) => (
-                    <div key={zone} className="min-w-0 text-center">
-                      <div className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider truncate">{zone.replace('Zone ', 'Z')}</div>
-                      <div className="text-[13px] font-normal text-[#0F172A] truncate mt-0.5">{c[zone] ?? 0}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            );
-          }) : (
-            <div className="bg-white rounded-xl border border-[#E2E8F0] p-6 text-center text-[#94A3B8] text-[12px]">
-              No courier data for the last 30 days
-            </div>
-          )}
-          </div>
-          {couriers.length > 3 && (
-            <>
-              <div className="pointer-events-none absolute bottom-0 left-0 right-0.5 h-8 bg-gradient-to-t from-[#F8FAFC] to-transparent rounded-b-xl" />
-              <div className="text-center text-[10px] font-semibold text-[#94A3B8] mt-1.5">Scroll for {couriers.length - 3} more</div>
-            </>
-          )}
-        </div>
-
       </div>
+      </CardLinksContext.Provider>
 
       {/* ── Wallet Recharge ad — user side only, floating bottom-right, first time per login session ── */}
       {!isAdminView && (
@@ -1086,7 +735,7 @@ export function AdminDashboard() {
                 whileHover={{ scale: 1.015, y: -2 }}
                 whileTap={{ scale: 0.98 }}
                 transition={{ type: 'spring', stiffness: 400, damping: 20 }}
-                className="relative rounded-xl overflow-hidden border border-[#E2E8F0] shadow-[0_12px_40px_-8px_rgba(0,0,0,0.25)] bg-white"
+                className="relative rounded-xl overflow-hidden border border-[#EEF2F6] shadow-[0_12px_40px_-8px_rgba(0,0,0,0.25)] bg-white"
               >
                 <motion.button
                   type="button"

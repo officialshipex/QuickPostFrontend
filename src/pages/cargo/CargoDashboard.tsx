@@ -88,23 +88,17 @@ function StatCardWithTrend({ title, value, trend, isUp, isPrimary = false, icon:
 }
 
 // `href` = a page outside the Cargo panel (full page load), e.g. the shared seller list in B2C admin
-function MiniStatCard({ title, value, icon: Icon, iconColor, iconBg, to, href, className = '' }: any) {
-  to = to || href;
+function MiniStatCard({ title, value, icon: Icon, to, className = '' }: any) {
+  // Duotone line icon (outline + soft tinted fill), one brand colour across all cards.
   const inner = (
-    <div className={`min-w-0 bg-white rounded-xl border border-[#E2E8F0] p-2.5 md:p-4 shadow-sm flex items-start justify-between gap-1.5 group ${to ? 'cursor-pointer hover:border-[#00A86B]/60 hover:shadow-md transition-all duration-150' : ''}`}>
-      <div className="min-w-0 flex-1">
-        <div className={`text-[10px] md:text-[11px] font-semibold mb-1 leading-tight break-words transition-colors ${to ? 'text-[#64748B] group-hover:text-[#00A86B]' : 'text-[#64748B]'}`}>{title}</div>
-        <div className="text-sm md:text-xl font-bold text-[#0F172A] truncate">{value}</div>
-        {to && <div className="text-[9px] font-semibold text-[#00A86B] opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">View details →</div>}
-      </div>
+    <div className={`min-w-0 h-full bg-white rounded-xl border border-[#E2E8F0] p-3 md:p-4 shadow-sm group ${to ? 'cursor-pointer hover:border-[#00A86B]/60 hover:shadow-md transition-all duration-150' : ''}`}>
       {Icon && (
-        <div className={`w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center shrink-0 ${iconBg}`}>
-          <Icon className={`w-3.5 h-3.5 md:w-4 md:h-4 ${iconColor}`} />
-        </div>
+        <Icon className="w-7 h-7 md:w-9 md:h-9 mb-2 md:mb-2.5 text-[#00A86B]" strokeWidth={1.4} fill="currentColor" fillOpacity={0.12} />
       )}
+      <div className={`text-[11px] md:text-[13px] font-medium mb-0.5 leading-tight break-words transition-colors ${to ? 'text-[#475569] group-hover:text-[#00A86B]' : 'text-[#475569]'}`}>{title}</div>
+      <div className="text-[15px] md:text-xl font-bold text-[#0F172A] truncate">{value}</div>
     </div>
   );
-  if (href) return <a href={href} className={`block ${className}`}>{inner}</a>;
   if (to) return <Link to={to} className={`block ${className}`}>{inner}</Link>;
   return className ? <div className={className}>{inner}</div> : inner;
 }

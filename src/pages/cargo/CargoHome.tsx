@@ -24,6 +24,7 @@ import { NotificationHistoryModal } from '../../components/admin/notifications/N
 import walletReferAdImg from '../../assets/wallet-refer-ad.png';
 import noPendingActionsImg from '../../assets/no-pending-actions.png';
 import noUpcomingPickupsImg from '../../assets/no-upcoming-pickups.png';
+import { CargoTruckBanner } from '../../components/promo/CargoTruckBanner';
 
 // Account-level endpoints (offers/announcements) stay on the main API; shipment data uses Cargo.
 const ACCOUNT_BASE = (import.meta.env.VITE_API_URL as string) || 'http://localhost:5000/v1';
@@ -479,6 +480,7 @@ export function CargoHome() {
             {hasAnyOrder ? "Here's a quick look at your shipping activity today." : "You're few steps away from shipping your first order."}
           </p>
         </div>
+        <CargoTruckBanner className="hidden lg:block mb-5 md:mb-7" />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 md:gap-7">
 
