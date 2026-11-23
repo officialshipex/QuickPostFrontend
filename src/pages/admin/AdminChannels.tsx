@@ -91,23 +91,20 @@ interface Channel {
   syncInventory?: boolean;
   syncFromDate?: string;
   lastSync?: string;
+  importStatuses?: string[];
 }
 
-const PAYMENT_STATUS_OPTIONS = [
-  'Ready To Ship', 'Pickup Scheduled', 'In-transit', 'Delivered',
-];
-
-// Backend enum: daily | weekly | monthly
-const SYNC_FREQUENCY_OPTIONS: PillOption[] = [
-  { label: 'Daily',   value: 'daily'   },
-  { label: 'Weekly',  value: 'weekly'  },
-  { label: 'Monthly', value: 'monthly' },
+// WooCommerce order statuses that can be imported (backend: Channels/WooCommerce/wooOrderSync.js). "Pending payment"
+// is deliberately not offered: that order has not been paid yet.
+const WOO_IMPORT_STATUSES: { value: string; label: string; hint: string }[] = [
+  { value: 'processing', label: 'Processing', hint: 'COD orders and paid online orders — recommended' },
+  { value: 'on-hold', label: 'On hold', hint: 'e.g. bank transfer / cheque not confirmed yet' },
+  { value: 'completed', label: 'Completed', hint: 'orders the store already marked complete' },
 ];
 
 const emptyForm = {
   storeName: '', storeURL: '', storeClientId: '', storeClientSecret: '',
-  storeAccessToken: '', orderSyncFrequency: '', paymentStatusCOD: '',
-  paymentStatusPrepaid: '', multiSeller: false, syncInventory: false, syncDate: '',
+  storeAccessToken: '', syncDate: '', importStatuses: ['processing'] as string[],
 };
 
 const VIEW_PARAM_TO_VIEW: Record<string, ChannelView> = {
@@ -248,12 +245,8 @@ export function AdminChannels() {
           storeClientId:      ch.storeClientId || '',
           storeClientSecret:  ch.storeClientSecret || '',
           storeAccessToken:   ch.storeAccessToken || '',
-          orderSyncFrequency: ch.orderSyncFrequency || '',
-          paymentStatusCOD:   ch.paymentStatus?.COD || '',
-          paymentStatusPrepaid: ch.paymentStatus?.Prepaid || '',
-          multiSeller:        ch.multiSeller ?? false,
-          syncInventory:      ch.syncInventory ?? false,
           syncDate:           ch.syncFromDate ? ch.syncFromDate.slice(0, 10) : '',
+          importStatuses:     ch.importStatuses?.length ? ch.importStatuses : ['processing'],
         });
       })
       .catch(() => {})
@@ -278,13 +271,12 @@ export function AdminChannels() {
         storeURL:         form.storeURL.trim(),
         storeClientId:    form.storeClientId.trim(),
         storeClientSecret: form.storeClientSecret.trim(),
-        multiSeller:      form.multiSeller,
-        syncInventory:    form.syncInventory,
       };
-      if (form.orderSyncFrequency)   body.orderSyncFrequency = form.orderSyncFrequency;
-      if (form.paymentStatusCOD)     body.paymentStatusCOD   = form.paymentStatusCOD;
-      if (form.paymentStatusPrepaid) body.paymentStatusPrepaid = form.paymentStatusPrepaid;
-      if (form.syncDate)             body.syncDate           = form.syncDate;
+      if (isWoo) {
+        body.importStatuses = form.importStatuses.length ? form.importStatuses : ['processing'];
+        // past orders are imported once, when the store is connected
+        if (form.syncDate && !isEditing) body.syncDate = form.syncDate;
+      }
 
       if (isEditing) {
         await apiClient.put(`/channel/updateChannel/${editId}`, body);
@@ -308,13 +300,22 @@ export function AdminChannels() {
     finally { setDeletingId(null); setConfirmDeleteId(null); }
   };
 
-  // ── Sync existing orders from the connected store
-  const handleSync = async (id: string) => {
-    setSyncingId(id);
+  // ── Sync existing orders from the connected store (WooCommerce: its own pull; Shopify: as before)
+  const [syncMsg, setSyncMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const handleSync = async (ch: Channel) => {
+    setSyncingId(ch._id);
+    setSyncMsg(null);
     try {
-      await apiClient.post('/channel/fetchOrder', {});
-    } catch {}
-    finally { setSyncingId(null); }
+      if (ch.channel === 'WooCommerce') {
+        const res = await apiClient.post(`/channel/syncWooCommerce/${ch._id}`, {});
+        setSyncMsg({ ok: true, text: `${ch.storeName}: ${res.data?.message || 'Synced.'}` });
+      } else {
+        await apiClient.post('/channel/fetchOrder', {});
+        setSyncMsg({ ok: true, text: `${ch.storeName}: orders synced.` });
+      }
+    } catch (err: any) {
+      setSyncMsg({ ok: false, text: `${ch.storeName}: ${err?.response?.data?.message || 'Sync failed. Please try again.'}` });
+    } finally { setSyncingId(null); }
   };
 
   const inputCls = (err?: string) =>
@@ -357,6 +358,13 @@ export function AdminChannels() {
             <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-4">
               <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />
               <p className="text-[13px] text-red-600">{listError}</p>
+            </div>
+          )}
+          {syncMsg && (
+            <div role="status" className={`flex items-center gap-2 rounded-xl px-4 py-3 mb-4 border ${syncMsg.ok ? 'bg-[#F0FDF4] border-[#BBF7D0]' : 'bg-red-50 border-red-200'}`}>
+              {syncMsg.ok ? <RefreshCw className="w-4 h-4 text-[#00A86B] shrink-0" /> : <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />}
+              <p className={`text-[13px] flex-1 ${syncMsg.ok ? 'text-[#166534]' : 'text-red-600'}`}>{syncMsg.text}</p>
+              <button type="button" onClick={() => setSyncMsg(null)} className="text-[12px] font-semibold text-[#64748B] hover:text-[#0F172A]">Dismiss</button>
             </div>
           )}
 
@@ -481,7 +489,7 @@ export function AdminChannels() {
                     <div className="flex items-center gap-1 shrink-0">
                       {/* Sync */}
                       <button
-                        onClick={() => handleSync(ch._id)}
+                        onClick={() => handleSync(ch)}
                         disabled={syncingId === ch._id}
                         title="Sync orders"
                         className="w-8 h-8 flex items-center justify-center rounded-full text-[#64748B] hover:bg-[#F0FDF4] hover:text-[#00A86B] transition-colors"
@@ -757,60 +765,44 @@ export function AdminChannels() {
                   {formErrors.storeClientSecret && <p className={errCls}>{formErrors.storeClientSecret}</p>}
                 </div>
 
-                <div>
-                  <label className={labelCls}>Order Sync Frequency</label>
-                  <PillSelect
-                    value={form.orderSyncFrequency}
-                    onChange={v => setForm(f => ({ ...f, orderSyncFrequency: v }))}
-                    options={SYNC_FREQUENCY_OPTIONS}
-                    placeholder="Please Select"
-                  />
-                </div>
-
-                <div className="md:col-span-2">
-                  <div className="text-[13px] font-bold text-[#0F172A] mb-2">Map Payment Statuses</div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-                    <div>
-                      <label className={labelCls}>COD</label>
-                      <PillSelect
-                        value={form.paymentStatusCOD}
-                        onChange={v => setForm(f => ({ ...f, paymentStatusCOD: v }))}
-                        options={PAYMENT_STATUS_OPTIONS.map(o => ({ label: o, value: o }))}
-                        placeholder="Payment Status"
-                      />
+                {isWoo && (
+                  <div className="md:col-span-2">
+                    <div className="text-[13px] font-bold text-[#0F172A]">Import orders with status</div>
+                    <p className="text-[12px] text-[#64748B] mt-0.5 mb-2.5">
+                      Orders come in when they reach one of these WooCommerce statuses. <b>Pending payment</b> orders (not paid yet) are never imported.
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      {WOO_IMPORT_STATUSES.map(s => {
+                        const on = form.importStatuses.includes(s.value);
+                        const onlyOne = on && form.importStatuses.length === 1;
+                        return (
+                          <label key={s.value} className={`flex items-start gap-2 rounded-xl border px-3 py-2.5 cursor-pointer transition-colors ${on ? 'border-[#00A86B]/40 bg-[#F0FDF4]' : 'border-[#E2E8F0] hover:bg-[#F8FAFC]'}`}>
+                            <input type="checkbox" checked={on} disabled={onlyOne}
+                              onChange={e => setForm(f => ({ ...f, importStatuses: e.target.checked ? [...f.importStatuses, s.value] : f.importStatuses.filter(x => x !== s.value) }))}
+                              className="mt-0.5 w-4 h-4 rounded border-[#CBD5E1] text-[#00A86B] focus:ring-[#00A86B]/30" />
+                            <span className="min-w-0">
+                              <span className="block text-[13px] font-semibold text-[#0F172A]">{s.label}</span>
+                              <span className="block text-[11px] text-[#64748B] leading-snug">{s.hint}</span>
+                            </span>
+                          </label>
+                        );
+                      })}
                     </div>
-                    <div>
-                      <label className={labelCls}>Prepaid</label>
-                      <PillSelect
-                        value={form.paymentStatusPrepaid}
-                        onChange={v => setForm(f => ({ ...f, paymentStatusPrepaid: v }))}
-                        options={PAYMENT_STATUS_OPTIONS.map(o => ({ label: o, value: o }))}
-                        placeholder="Payment Status"
-                      />
-                    </div>
+                    <p className="text-[11.5px] text-[#94A3B8] mt-2">
+                      COD or prepaid is taken from the order's payment method. An order cancelled in WooCommerce before you ship it is removed here automatically.
+                    </p>
                   </div>
-                </div>
+                )}
 
-                <div className="md:col-span-2 flex items-center gap-2 pt-1">
-                  <input type="checkbox" id="multiSeller" checked={form.multiSeller}
-                    onChange={e => setForm(f => ({ ...f, multiSeller: e.target.checked }))}
-                    className="w-4 h-4 rounded border-[#CBD5E1] text-[#00A86B] focus:ring-[#00A86B]/30" />
-                  <label htmlFor="multiSeller" className="text-[13px] font-semibold text-[#334155]">Enable Multi Seller</label>
-                </div>
-
-                <div className="md:col-span-2">
-                  <div className="text-[13px] font-bold text-[#0F172A] mb-2">Inventory</div>
-                  <div className="flex items-center gap-2 mb-3">
-                    <input type="checkbox" id="inventorySync" checked={form.syncInventory}
-                      onChange={e => setForm(f => ({ ...f, syncInventory: e.target.checked }))}
-                      className="w-4 h-4 rounded border-[#CBD5E1] text-[#00A86B] focus:ring-[#00A86B]/30" />
-                    <label htmlFor="inventorySync" className="text-[13px] font-semibold text-[#334155]">Enable Inventory Sync</label>
+                {isWoo && !isEditing && (
+                  <div className="md:col-span-2">
+                    <label className={labelCls}>Import past orders from <span className="font-normal text-[#94A3B8]">(optional)</span></label>
+                    <input type="date" value={form.syncDate} max={new Date().toISOString().slice(0, 10)}
+                      onChange={e => setForm(f => ({ ...f, syncDate: e.target.value }))}
+                      className={`${inputCls()} md:w-[280px]`} />
+                    <p className="text-[11.5px] text-[#94A3B8] mt-1.5">Leave empty to bring in only new orders from now on.</p>
                   </div>
-                  <label className={labelCls}>Sync From Date</label>
-                  <input type="date" value={form.syncDate}
-                    onChange={e => setForm(f => ({ ...f, syncDate: e.target.value }))}
-                    className={`${inputCls()} md:w-[280px]`} />
-                </div>
+                )}
               </div>
 
               <div className="flex items-center gap-3 mt-6">
