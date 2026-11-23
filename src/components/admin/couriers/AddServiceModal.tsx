@@ -83,6 +83,11 @@ export function AddServiceModal({ isOpen, onClose, courier, onSuccess, editData,
           setProviderServices(DELHIVERY_B2B_SERVICES.map(s => ({ service: s })));
         } else if (p === 'gati') {
           setProviderServices(GATI_B2B_SERVICES.map(s => ({ service: s })));
+        } else if (p === 'shipexindia') {
+          // the B2B services active on THIS ShipexIndia account
+          const res = await apiClient.get('/b2b/couriers/getShipexIndiaCourierServices', { params: { account: providerName } });
+          const keys: string[] = (res.data?.data || []).flatMap((i: any) => i.service || []);
+          setProviderServices([...new Set(keys)].map(s => ({ service: s })));
         }
         return;
       }

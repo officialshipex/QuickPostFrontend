@@ -6,6 +6,8 @@ import { apiClient } from '../../../services/apiClient';
 import { TableLoader } from '../../ui/TableLoader';
 import { NetworkError } from '../../ui/NetworkError';
 import noCourierImg from '../../../assets/no-courier.jpg';
+// B2B price breakup rows: shared with the Cargo rate calculator so both show the same lines
+import { b2bBreakupRows, b2bIfApplicable, type B2BWorking } from '../../../utils/b2bPriceBreakup';
 
 const TXT = {
   label: 'text-[12px] font-semibold',
@@ -79,44 +81,6 @@ interface RateItem {
   serviceId?: string | number | null;
   modeId?: string | number | null;
 }
-
-/** One B2B rate's computation, as returned by GET /b2b/shipNow/:id (rates[].working). */
-interface B2BWorking {
-  zone?: string;
-  billable_weight?: number;
-  rate?: number;
-  freight?: number;
-  docket_charges?: number;
-  pickup_charge?: number;
-  handling_charge?: number;
-  appointment_charge?: number;
-  cod_charges?: number;
-  rov?: number;
-  fsc?: number;
-  fsc_percent?: number;
-  oda?: number;
-  green_tax?: number;
-  gst?: number;
-  grand_total?: number;
-}
-
-/** Price breakup rows of a B2B rate (same rows as ShipexFrontend's B2B courier selection). */
-const b2bBreakupRows = (w: B2BWorking = {}): [string, string][] => [
-  ['Zone', w.zone || '—'],
-  ['Chargeable Weight', `${w.billable_weight || 0} kg`],
-  ['Freight / Kg', `₹${Number(w.rate ?? 0).toFixed(2)}`],
-  ['Freight Charges', `₹${Number(w.freight || 0).toFixed(2)}`],
-  ['Docket Charges', `₹${Number(w.docket_charges || 0).toFixed(2)}`],
-  ['Pickup Charges', `₹${Number(w.pickup_charge || 0).toFixed(2)}`],
-  ['Handling Charges', `₹${Number(w.handling_charge || 0).toFixed(2)}`],
-  ['Appointment Charges', `₹${Number(w.appointment_charge || 0).toFixed(2)}`],
-  ['COD Charges', `₹${Number(w.cod_charges || 0).toFixed(2)}`],
-  ['ROV', `₹${Number(w.rov || 0).toFixed(2)}`],
-  [w.fsc_percent != null ? `FSC (${w.fsc_percent}%)` : 'FSC', `₹${Number(w.fsc || 0).toFixed(2)}`],
-  ['ODA', `₹${Number(w.oda || 0).toFixed(2)}`],
-  ['Green Tax', `₹${Number(w.green_tax || 0).toFixed(2)}`],
-  ['GST', `₹${Number(w.gst || 0).toFixed(2)}`],
-];
 
 /** GET /b2b/shipNow/:id rate → the row shape this modal renders. */
 const fromB2BRate = (r: any): RateItem => ({
@@ -650,8 +614,9 @@ export function ShipOrderModal({ order, onClose, onShipped, cargo = false }: Shi
               const item = tabFilteredRates[Number(hoveredInfo.id)];
               if (!item) return null;
               const rect = hoveredInfo.rect;
-              const TIP_H = cargo ? 380 : 140;
-              const TIP_W = cargo ? 240 : 208;
+              const ifApplicable = cargo ? b2bIfApplicable(item.working) : [];
+              const TIP_H = cargo ? 470 + ifApplicable.length * 18 : 140;
+              const TIP_W = cargo ? 270 : 208;
               const showBelow = rect.top < TIP_H + 16;
               const rows: [string, string][] = cargo
                 ? b2bBreakupRows(item.working)
@@ -685,6 +650,12 @@ export function ShipOrderModal({ order, onClose, onShipped, cargo = false }: Shi
                     <span className={`${TXT.label} text-slate-300`}>Total</span>
                     <span className={`${TXT.label} text-[#00A86B]`}>₹{Number(item.forward?.finalCharges || 0).toFixed(2)}</span>
                   </div>
+                  {ifApplicable.length > 0 && (
+                    <div className="border-t border-slate-700 mt-1.5 pt-1.5">
+                      <p className={`${TXT.label} text-slate-300 mb-0.5`}>If applicable (not in total)</p>
+                      {ifApplicable.map((t) => <p key={t} className="text-[11px] text-slate-400 leading-snug">{t}</p>)}
+                    </div>
+                  )}
                 </motion.div>,
                 document.body
               );
@@ -959,6 +930,12 @@ export function ShipOrderModal({ order, onClose, onShipped, cargo = false }: Shi
                             <div key={String(k)} className="flex justify-between py-1.5 border-b border-[#EEF2F6]"><span className="text-[#64748B]">{k}</span><span className="font-semibold text-[#0F172A] tabular-nums">{v}</span></div>
                           ))}
                           <div className="flex justify-between py-1.5"><span className="font-semibold text-[#0F172A]">Total</span><span className="font-bold text-[#00A86B] tabular-nums">₹{Number(mobileSheet.item.forward?.finalCharges || 0).toFixed(2)}</span></div>
+                          {cargo && b2bIfApplicable(mobileSheet.item.working).length > 0 && (
+                            <div className="border-t border-[#E2E8F0] py-1.5">
+                              <p className="font-semibold text-[#475569] mb-0.5">If applicable (not in total)</p>
+                              {b2bIfApplicable(mobileSheet.item.working).map((t) => <p key={t} className="text-[11.5px] text-[#64748B] leading-snug">{t}</p>)}
+                            </div>
+                          )}
                         </div>
                         <button
                           type="button"

@@ -22,11 +22,12 @@ import {
 } from 'lucide-react';
 import { Navbar } from '../components/layout/Navbar';
 import { Footer } from '../components/layout/Footer';
+import { b2bBreakupRows, b2bIfApplicable, type B2BWorking } from '../utils/b2bPriceBreakup';
 
 /* ── Easing curve used site-wide ── */
 const EASE = [0.16, 1, 0.3, 1] as const;
 
-interface CourierWorking {
+interface CourierWorking extends B2BWorking {
   freight: number;
   docket_charges: number;
   pickup_charge: number;
@@ -405,10 +406,13 @@ export function RateCalculator() {
   const openB2BPopup = (e: React.MouseEvent, working?: CourierWorking) => {
     if (!working) return;
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    const popupWidth = 236;
+    const popupWidth = 270;
+    const popupHeight = 420 + b2bIfApplicable(working).length * 16;
     let left = rect.left + rect.width / 2 - popupWidth / 2;
     left = Math.max(10, Math.min(window.innerWidth - popupWidth - 10, left));
-    setB2bPopup({ working, top: rect.bottom + 10, left });
+    let top = rect.bottom + 10;
+    if (top + popupHeight > window.innerHeight - 10) top = Math.max(10, rect.top - popupHeight - 10);
+    setB2bPopup({ working, top, left });
   };
 
   return (
@@ -816,31 +820,25 @@ export function RateCalculator() {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -6, scale: 0.97 }}
               transition={{ duration: 0.15 }}
-              className="fixed z-[999] bg-white border border-[#E2E8F0] shadow-xl rounded-xl p-4 text-[12px] w-[236px]"
+              className="fixed z-[999] bg-white border border-[#E2E8F0] shadow-xl rounded-xl p-4 text-[12px] w-[270px]"
               style={{ top: b2bPopup.top, left: b2bPopup.left }}
             >
-              {([
-                ['Freight', b2bPopup.working.freight],
-                ['Docket Charges', b2bPopup.working.docket_charges],
-                ['Pickup Charges', b2bPopup.working.pickup_charge],
-                ['Handling Charges', b2bPopup.working.handling_charge],
-                ['Appointment Charges', b2bPopup.working.appointment_charge],
-                ['COD Charges', b2bPopup.working.cod_charges],
-                ['ROV', b2bPopup.working.rov],
-                ['FSC', b2bPopup.working.fsc],
-                ['ODA', b2bPopup.working.oda],
-                ['Green Tax', b2bPopup.working.green_tax],
-                ['GST', b2bPopup.working.gst],
-              ] as [string, number][]).map(([k, v]) => (
-                <div key={k} className="flex justify-between py-[2px]">
+              {b2bBreakupRows(b2bPopup.working).map(([k, v]) => (
+                <div key={k} className="flex justify-between gap-3 py-[2px]">
                   <span className="text-[#64748B] font-semibold">{k}</span>
-                  <span className="font-semibold text-[#0F172A]">₹{v}</span>
+                  <span className="font-semibold text-[#0F172A] tabular-nums">{v}</span>
                 </div>
               ))}
               <div className="border-t border-[#E2E8F0] mt-2 pt-2 flex justify-between font-bold text-[#0F172A]">
                 <span>Total</span>
-                <span>₹{b2bPopup.working.grand_total}</span>
+                <span>₹{Number(b2bPopup.working.grand_total || 0).toFixed(2)}</span>
               </div>
+              {b2bIfApplicable(b2bPopup.working).length > 0 && (
+                <div className="border-t border-dashed border-[#E2E8F0] mt-2 pt-1.5">
+                  <p className="font-semibold text-[#475569] mb-0.5">If applicable (not in total)</p>
+                  {b2bIfApplicable(b2bPopup.working).map((t) => <p key={t} className="text-[11px] text-[#64748B] leading-snug">{t}</p>)}
+                </div>
+              )}
             </motion.div>
           </>
         )}

@@ -20,6 +20,9 @@ export function TransferCODModal({ userId, selectedRemittanceIds, type = 'seller
   const [balance, setBalance] = useState(0);
   const [holdAmount, setHoldAmount] = useState(0);
   const [creditLimit, setCreditLimit] = useState(0);
+  // A seller with a Cargo wallet: `balance` above is the total NEGATIVE of both wallets to clear (the backend
+  // splits the top-up back: B2C first, then Cargo); these are the two real balances, shown for clarity.
+  const [walletSplit, setWalletSplit] = useState<{ main: number; cargo: number } | null>(null);
   const [utr, setUtr] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -45,6 +48,9 @@ export function TransferCODModal({ userId, selectedRemittanceIds, type = 'seller
         setBalance(Number(res.data.walletBalance ?? res.data.balance ?? 0));
         setHoldAmount(Number(res.data.holdAmount ?? res.data.holdamount ?? 0));
         setCreditLimit(Number(res.data.creditLimit ?? 0));
+        setWalletSplit(res.data.hasCargoWallet
+          ? { main: Number(res.data.mainWalletBalance ?? 0), cargo: Number(res.data.cargoWalletBalance ?? 0) }
+          : null);
       } catch (err: any) {
         // show the reason instead of leaving an empty loading box
         const msg = err?.response?.data?.message || 'Failed to load transfer data.';
@@ -186,8 +192,13 @@ export function TransferCODModal({ userId, selectedRemittanceIds, type = 'seller
                     <Wallet className={`w-4.5 h-4.5 sm:w-6 sm:h-6 ${balance >= 0 ? 'text-[#10B981]' : 'text-[#EF4444]'}`} />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[11px] sm:text-[13px] font-medium text-[#64748B] mb-0.5 truncate">Wallet Balance</p>
+                    <p className="text-[11px] sm:text-[13px] font-medium text-[#64748B] mb-0.5 truncate">{walletSplit && balance < 0 ? 'Negative to Clear' : 'Wallet Balance'}</p>
                     <p className={`text-[14px] sm:text-[18px] font-bold truncate ${balance >= 0 ? 'text-[#10B981]' : 'text-[#EF4444]'}`}>{fmt(balance)}</p>
+                    {walletSplit && (
+                      <p className="text-[10px] sm:text-[11px] font-semibold text-[#64748B] mt-0.5 truncate">
+                        B2C {fmt(walletSplit.main)} · Cargo {fmt(walletSplit.cargo)}
+                      </p>
+                    )}
                   </div>
                 </div>
                 <div className={`bg-white rounded-2xl p-3 sm:p-5 border shadow-sm flex items-center gap-2.5 sm:gap-4 ${holdAmount <= 0 ? 'border-[#BBF7D0]' : 'border-[#FECACA]'}`}>
@@ -241,6 +252,11 @@ export function TransferCODModal({ userId, selectedRemittanceIds, type = 'seller
               {balance < 0 && (
                 <div className="mb-5 sm:mb-6 p-3 sm:p-4 bg-red-50 border border-red-200 rounded-2xl">
                   <div className="text-[13px] sm:text-[14px] font-bold text-red-600 mb-1">Wallet is negative: {fmt(balance)}</div>
+                  {walletSplit && (
+                    <div className="text-[11px] sm:text-[12px] font-semibold text-[#64748B] mb-2">
+                      B2C wallet {fmt(walletSplit.main)} · Cargo wallet {fmt(walletSplit.cargo)} — the top-up clears the B2C wallet first, then the Cargo wallet; anything left goes to the B2C wallet.
+                    </div>
+                  )}
                   <div className="text-[12px] sm:text-[13px] font-semibold text-[#0F172A] mb-2">Top-up Required:</div>
                   <input
                     readOnly

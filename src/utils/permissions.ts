@@ -57,6 +57,12 @@ export const ADMIN_MODULES: PermModule[] = [
   { key: 'rateCard', label: 'Rate Card', desc: 'Rate cards', section: 'Courier', group: 'courier' },
   { key: 'support', label: 'Support Tickets', desc: 'Manage support tickets', section: 'Support' },
   { key: 'referral', label: 'Referral', desc: 'Referral programme', section: 'Support' },
+  // Admin powers for e.g. HR. They can only give access they have themselves, can't change their own account or
+  // anyone with more access than them, and everything they do is in the Audit Logs (backend rolesController).
+  { key: 'employees', label: 'Employees', desc: 'See employees (View), add / change them and their access, activate / deactivate (Edit), remove them (Delete)', section: 'Employee Access' },
+  // Sales Management: only these two parts (commission plans, rate offers, payouts, settings stay with the admin)
+  { key: 'salesTeam', label: 'Team', desc: 'Sales team, each person\'s work (their panel, read-only), assign leads, targets (Edit)', section: 'Sales Management' },
+  { key: 'salesKyc', label: 'KYC Review', desc: 'Sales people\'s KYC details and documents, approve / reject and correct them (Edit)', section: 'Sales Management' },
 ];
 
 export const USER_MODULES: PermModule[] = [
@@ -132,6 +138,16 @@ export function toStoredRights(form: AccessRights, panel: PanelType): AccessRigh
   return { ...stored, ...groups };
 }
 
+// ─── An employee managing employees (e.g. HR) ─────────────────────────────────────────────────────
+// They can only give access they hold themselves, and can't change someone holding access they don't have
+// (the backend enforces the same: utils/employeeAccess.rightsNotHeld).
+/** The modules in `wanted` with a right `holder` does not have (labels) */
+export function rightsBeyond(holder: Record<string, any> | undefined | null, wanted: Record<string, any> | undefined | null, panel: PanelType = 'admin'): string[] { // eslint-disable-line @typescript-eslint/no-explicit-any
+  return modulesFor(panel)
+    .filter(m => PERM_TYPES.some(p => getModuleRights(wanted, m.key)[p.key] && !getModuleRights(holder, m.key)[p.key]))
+    .map(m => m.label);
+}
+
 // ─── Route -> module (used by the route guard) ────────────────────────────────────────────────────
 // Longest prefix wins, after stripping the /admin or /user prefix. `null` = owner only: never open
 // to employees. A path not listed is not restricted by employee rights.
@@ -172,12 +188,13 @@ const ROUTE_MODULES: [string, string | null][] = [
   ['/referral', 'referral'],
   ['/internal-crm', 'internalCrm'],
   ['/sales', 'sales'],
-  ['/sales-management', null],
+  // either Sales Management part opens the page (it then shows only the tabs given)
+  ['/sales-management', 'salesTeam|salesKyc'],
   ['/tasks', 'sales'],
   // Owner-managed: employees never open these (the backend is the real boundary for /companies)
   ['/kyc', null],
-  ['/employees', null],
-  ['/roles', null],
+  ['/employees', null], // a merchant's own staff (user panel): the merchant only
+  ['/roles', 'employees'], // the admin panel's employees: the admin, or an employee with "Employees"
   ['/allocate-sellers', null],
   ['/accounts', null],
   ['/companies', null],
@@ -197,11 +214,16 @@ export function resolveRouteModule(pathname: string): RouteRule {
   return best ? { restricted: true, module: best[1] } : { restricted: false };
 }
 
+/** View on any of "a|b" (a page several modules open) */
+export function hasAnyView(accessRights: Record<string, any> | undefined | null, modules: string): boolean { // eslint-disable-line @typescript-eslint/no-explicit-any
+  return modules.split('|').some(m => hasPermission(accessRights, m, 'view') || hasPermission(accessRights, m, 'edit'));
+}
+
 export function canAccessRoute(accessRights: Record<string, any> | undefined | null, pathname: string): boolean {
   const rule = resolveRouteModule(pathname);
   if (!rule.restricted) return true;
   if (rule.module === null) return false;
-  return hasPermission(accessRights, rule.module, 'view');
+  return hasAnyView(accessRights, rule.module);
 }
 
 /** Landing page for an admin-panel employee: the first module they may view (main dashboard only if permitted). */
@@ -210,9 +232,10 @@ const ADMIN_LANDING: [string, string][] = [
   ['internalCrm', '/internal-crm/shipments'], ['wallet', '/admin/wallet'], ['cod', '/admin/cod'], ['reportsHub', '/admin/reports'],
   ['weightDiscrepancy', '/admin/weight-discrepancy'], ['users', '/admin/users'], ['couriers', '/admin/couriers'],
   ['rateCard', '/admin/rate-card'], ['support', '/admin/support'],
+  ['employees', '/admin/roles'], ['salesTeam|salesKyc', '/admin/sales-management'],
 ];
 export function adminEmployeeLanding(accessRights: Record<string, any> | undefined | null): string { // eslint-disable-line @typescript-eslint/no-explicit-any
-  const hit = ADMIN_LANDING.find(([key]) => hasPermission(accessRights, key, 'view'));
+  const hit = ADMIN_LANDING.find(([key]) => hasAnyView(accessRights, key));
   return hit ? hit[1] : '/admin/profile';
 }
 

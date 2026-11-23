@@ -1,5 +1,6 @@
 import axios, { AxiosError, type AxiosAdapter } from 'axios';
 import { getToken, removeToken } from '../utils/session';
+import { getDeviceId } from '../utils/deviceId';
 
 /* Offline API client for the Cargo screens that have no B2B backend yet.
    Cargo is the B2B flow and the live Cargo screens call the main apiClient against the backend's /b2b
@@ -37,6 +38,8 @@ cargoApiClient.interceptors.request.use((config) => {
   if (token) config.headers.Authorization = `Bearer ${token}`;
   const devTenant = localStorage.getItem('dev_tenant_key') || localStorage.getItem('dev_tenant');
   if (devTenant) config.headers['x-tenant-key'] = devTenant;
+  // This computer, for the backend's OTP check on protected sections (see apiClient.ts)
+  config.headers['x-device-id'] = getDeviceId();
   return config;
 });
 
@@ -51,6 +54,9 @@ cargoApiClient.interceptors.response.use(
       window.dispatchEvent(new CustomEvent('access-denied', {
         detail: error.response?.data?.message || 'You do not have permission to perform this action.',
       }));
+    }
+    if (error.response?.status === 428 && error.response?.data?.code === 'SENSITIVE_OTP_REQUIRED') {
+      window.dispatchEvent(new CustomEvent('sensitive-otp-required', { detail: error.response.data.message }));
     }
     return Promise.reject(error);
   }

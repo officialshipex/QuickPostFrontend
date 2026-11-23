@@ -18,6 +18,30 @@ import { SpectateFloat } from './SpectateEye';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BulkUploadModal } from '../../ui/BulkUploadModal';
 import { RechargeWalletModal } from '../../ui/RechargeWalletModal';
+import { TransferWalletModal } from '../../ui/TransferWalletModal';
+
+/** Both wallets under the wallet summary: B2C (every recharge) and Cargo (B2B shipments), with the transfer. */
+function WalletSplitBlock({ isCargo, hasCargoWallet, split, onTransfer }: {
+  isCargo: boolean; hasCargoWallet: boolean; split: { main: number; cargo: number }; onTransfer: () => void;
+}) {
+  const inr = (n: number) => `₹${(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+  return (
+    <div className="mt-3 pt-3 border-t border-slate-100 space-y-1.5">
+      <div className="flex justify-between items-center gap-2">
+        <span className={`text-[12px] font-semibold ${!isCargo ? 'text-slate-800' : 'text-[#64748B]'}`}>B2C Wallet</span>
+        <span className={`text-[12px] font-bold ${split.main < 0 ? 'text-red-500' : 'text-slate-800'}`}>{inr(split.main)}</span>
+      </div>
+      <div className="flex justify-between items-center gap-2">
+        <span className={`text-[12px] font-semibold ${isCargo ? 'text-slate-800' : 'text-[#64748B]'}`}>Cargo Wallet</span>
+        <span className={`text-[12px] font-bold ${split.cargo < 0 ? 'text-red-500' : 'text-slate-800'}`}>{hasCargoWallet ? inr(split.cargo) : '₹0'}</span>
+      </div>
+      <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={onTransfer}
+        className="w-full mt-1 py-1.5 rounded-full border border-[#00A86B]/30 text-[#00A86B] text-[11px] font-bold hover:bg-[#00A86B]/5 transition-colors cursor-pointer">
+        Transfer between wallets
+      </button>
+    </div>
+  );
+}
 import { Toast } from '../../ui/Toast';
 import { ShineBox } from '../../ui/ShineButton';
 import { useToast } from '../../../hooks/useToast';
@@ -33,7 +57,14 @@ interface AdminHeaderProps {
 export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
   const { logout } = useAuth();
   const { isCargo } = useShippingMode();
-  const { isAdmin, adminTab, toggleAdminTab, userName, userEmail, businessName, profileImage, walletBalance: ctxWalletBalance, walletHold, creditLimit, isEmployee, parentEmail, currentUserId, showOnboarding, isSalesEmployee } = useAdminTab();
+  const { isAdmin, adminTab, toggleAdminTab, userName, userEmail, businessName, profileImage, walletBalance: ctxWalletBalance, walletHold, creditLimit, isEmployee, parentEmail, currentUserId, showOnboarding, isSalesEmployee, mainWalletBalance, cargoWalletBalance, hasCargoWallet, refetchUser } = useAdminTab();
+  // B2C <-> Cargo wallet transfer: a seller's own wallets (not the admin's all-sellers overview)
+  const canTransfer = !(isAdmin && adminTab);
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [walletSplit, setWalletSplit] = useState({ main: 0, cargo: 0 });
+  React.useEffect(() => { setWalletSplit({ main: mainWalletBalance, cargo: cargoWalletBalance }); }, [mainWalletBalance, cargoWalletBalance]);
+  // "+" next to the balance: the Cargo panel transfers from B2C (every recharge lands in the B2C wallet)
+  const openWalletPlus = () => (isCargo && canTransfer ? setShowTransferModal(true) : setShowRechargeModal(true));
   const { filters, updateFilter } = useDashboardFilters();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -64,13 +95,15 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
   // Any page can open the recharge popup: window.dispatchEvent(new CustomEvent(OPEN_RECHARGE_EVENT, { detail: { amount } }))
   useEffect(() => {
     const open = (e: Event) => {
+      // Cargo panel: money for a Cargo booking comes from the B2C wallet by transfer
+      if (isCargo && canTransfer) { setShowTransferModal(true); return; }
       const amount = (e as CustomEvent<{ amount?: number }>).detail?.amount;
       setRechargeDefault(amount && amount > 0 ? amount : 1000);
       setShowRechargeModal(true);
     };
     window.addEventListener(OPEN_RECHARGE_EVENT, open);
     return () => window.removeEventListener(OPEN_RECHARGE_EVENT, open);
-  }, []);
+  }, [isCargo, canTransfer]);
 
   // Bulk Import modal
   const [showBulkModal, setShowBulkModal] = useState(false);
@@ -707,9 +740,9 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                     <span>₹{walletBalance.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
                   </button>
                   <button
-                    onClick={() => setShowRechargeModal(true)}
+                    onClick={openWalletPlus}
                     className="text-white/80 hover:text-white px-1.5 focus:outline-none cursor-pointer"
-                    aria-label="Recharge wallet"
+                    aria-label={isCargo && canTransfer ? 'Transfer to Cargo wallet' : 'Recharge wallet'}
                   >
                     +
                   </button>
@@ -742,6 +775,10 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                           <span className="text-[13px] font-extrabold text-[#00A86B]">₹{Math.max(0, walletBalance - walletHold).toLocaleString('en-IN')}</span>
                         </div>
                       </div>
+                      {canTransfer && (
+                        <WalletSplitBlock isCargo={isCargo} hasCargoWallet={hasCargoWallet} split={walletSplit}
+                          onTransfer={() => { setShowMobileWalletSummary(false); setShowTransferModal(true); }} />
+                      )}
                     </div>
                   </>
                 )}
@@ -1169,8 +1206,8 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              onClick={() => setShowRechargeModal(true)}
-              aria-label="Recharge wallet"
+              onClick={openWalletPlus}
+              aria-label={isCargo && canTransfer ? 'Transfer to Cargo wallet' : 'Recharge wallet'}
               className={`w-7 h-7 rounded-full flex items-center justify-center text-white text-base leading-none font-medium transition-colors focus:outline-none cursor-pointer ${walletBalance < 0 ? 'bg-[#DC2626] hover:bg-[#B91C1C]' : 'bg-[#008757] hover:bg-[#00754a]'}`}
             >
               +
@@ -1215,8 +1252,15 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                   </div>
                 </div>
 
+                {canTransfer && (
+                  <WalletSplitBlock isCargo={isCargo} hasCargoWallet={hasCargoWallet} split={walletSplit}
+                    onTransfer={() => { setShowWalletHover(false); setShowTransferModal(true); }} />
+                )}
+
                 <div className="mt-3 pt-2.5 border-t border-slate-100 text-center">
-                  <p className="text-[10px] text-slate-400 font-semibold">Click wallet to Recharge</p>
+                  <p className="text-[10px] text-slate-400 font-semibold">
+                    {isCargo && canTransfer ? 'Click + to transfer from your B2C wallet' : 'Click + to Recharge'}
+                  </p>
                 </div>
               </motion.div>
             )}
@@ -1530,9 +1574,24 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
       <RechargeWalletModal
         open={showRechargeModal}
         onClose={() => { setShowRechargeModal(false); setRechargeDefault(1000); }}
-        walletBalance={walletBalance}
+        // a recharge always lands in the B2C wallet: in the Cargo panel show (and add to) that one, not Cargo's
+        walletBalance={isCargo && canTransfer ? walletSplit.main : walletBalance}
         defaultAmount={rechargeDefault}
-        onSuccess={(amount) => setWalletBalance(prev => prev + amount)}
+        onSuccess={(amount) => {
+          if (isCargo && canTransfer) setWalletSplit((s) => ({ ...s, main: s.main + amount }));
+          else setWalletBalance(prev => prev + amount);
+        }}
+      />
+      <TransferWalletModal
+        open={showTransferModal}
+        onClose={() => setShowTransferModal(false)}
+        defaultDirection={isCargo ? 'toCargo' : 'toMain'}
+        onRecharge={() => { setShowTransferModal(false); setShowRechargeModal(true); }}
+        onSuccess={({ main, cargo }) => {
+          setWalletSplit({ main, cargo });
+          setWalletBalance(isCargo ? cargo : main);
+          refetchUser();
+        }}
       />
       </header>
 

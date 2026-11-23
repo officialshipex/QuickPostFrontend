@@ -5,7 +5,7 @@ import { useShippingMode } from '../../../context/shippingMode';
 import { isAdminPanelPath, isCargoAllowedPath } from '../../../config/cargo';
 import { ModeSwitch } from './ModeSwitch';
 import { AdminCargoSwitch } from './AdminCargoSwitch';
-import { hasPermission, showAccessDenied } from '../../../utils/permissions';
+import { hasPermission, hasAnyView, showAccessDenied } from '../../../utils/permissions';
 import {
   Home,
   Wallet,
@@ -179,7 +179,7 @@ const MENU_GROUPS: MenuGroup[] = [
     items: [
       { name: 'Users', path: '/admin/users', icon: Users, adminOnly: true, permission: 'users' },
       { name: 'KYC Review', path: '/admin/kyc-review', icon: ShieldCheck, adminOnly: true, permission: 'users' },
-      { name: 'Employees', path: '/admin/roles', icon: Users, adminOnly: true, noEmployee: true },
+      { name: 'Employees', path: '/admin/roles', icon: Users, adminOnly: true, permission: 'employees' },
       { name: 'Status Map', path: '/admin/status-map', icon: Route, adminOnly: true, permission: 'statusMap' },
       { name: 'EDD Mapping', path: '/admin/edd-mapping', icon: Calendar, adminOnly: true, permission: 'eddMapping' },
       { name: 'EPD Mapping', path: '/admin/epd-mapping', icon: Calendar, adminOnly: true, permission: 'epdMapping' },
@@ -210,7 +210,7 @@ const MENU_GROUPS: MenuGroup[] = [
       { name: 'Support Tickets', path: '/admin/support', icon: Mail, permission: 'support' },
       // { name: 'System Settings', path: '/admin/settings', icon: Settings, noEmployee: true },
       { name: 'Companies', path: '/admin/companies', icon: Building2, noEmployee: true },
-      { name: 'Sales Management', path: '/admin/sales-management', icon: Target, noEmployee: true },
+      { name: 'Sales Management', path: '/admin/sales-management', icon: Target, permission: 'salesTeam|salesKyc' },
       { name: 'Seller Feedback', path: '/admin/seller-feedback', icon: MessageSquare, noEmployee: true },
       { name: 'System Logs', path: '/admin/system-logs', icon: ScrollText, noEmployee: true },
       { name: 'Audit Logs', path: '/admin/audit', icon: History, noEmployee: true },
@@ -254,9 +254,9 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
     return path;
   };
 
-  // Visible to the employee but not permitted
+  // Visible to the employee but not permitted ("a|b": either module opens it)
   const isLocked = (permission?: string) =>
-    isEmployee && !!permission && !hasPermission(employeeAccessRights, permission, 'view');
+    isEmployee && !!permission && !hasAnyView(employeeAccessRights, permission);
 
   // Admin-panel employees only see the modules they were given View access to (no locked items).
   const hideLocked = isEmployee && isAdminView;

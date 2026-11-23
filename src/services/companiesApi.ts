@@ -119,7 +119,7 @@ export const companiesApi = {
   // courierLabels: courier key -> ShipexFrontend's exact dropdown label (e.g. "shreeMaruti" -> "Shree Maruti"),
   // the single source of truth for display names now — covers all 16, including the 5 added after
   // GROUP_LABELS was last updated (ecomExpress, nimbus, losung360, vamaship, xpressbees).
-  configGroups: () => apiClient.get<{ success: boolean; groups: ConfigGroups; fields?: Record<string, ConfigFieldHint[]>; courierLabels?: Record<string, string> }>('/platform-admin/companies/config-groups'),
+  configGroups: () => apiClient.get<{ success: boolean; groups: ConfigGroups; fields?: Record<string, ConfigFieldHint[]>; courierLabels?: Record<string, string>; optInCouriers?: string[] }>('/platform-admin/companies/config-groups'),
 
   webhookUrls: (tenantKey: string) =>
     apiClient.get<{ success: boolean; tenantKey: string; baseUrl: string; urls: WebhookAddress[] }>(`/platform-admin/companies/${tenantKey}/webhook-urls`),
@@ -136,6 +136,10 @@ export const companiesApi = {
 
   updateBasic: (tenantKey: string, payload: Record<string, unknown>) =>
     apiClient.patch(`/platform-admin/companies/${tenantKey}`, payload),
+
+  // Notification groups only: the saved non-secret values + which secret fields are already set.
+  configGroupValues: (tenantKey: string, groupKey: string) =>
+    apiClient.get<{ success: boolean; values: Record<string, string>; secretSet: Record<string, boolean> }>(`/platform-admin/companies/${tenantKey}/config/${groupKey}/values`),
 
   updateConfigGroup: (tenantKey: string, groupKey: string, payload: Record<string, unknown>) =>
     apiClient.patch(`/platform-admin/companies/${tenantKey}/config/${groupKey}`, payload),

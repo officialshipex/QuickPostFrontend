@@ -1,10 +1,11 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowRight, Clock, Loader2, MapPin, Plane, Plus, Scale, Trash2, Truck, Zap, BadgeIndianRupee } from 'lucide-react';
+import { ArrowRight, ChevronDown, Clock, Loader2, MapPin, Plane, Plus, Scale, Trash2, Truck, Zap, BadgeIndianRupee } from 'lucide-react';
 import { getCourierBrandLogo } from '../../utils/courierLogo';
 import { Link } from 'react-router-dom';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { apiClient } from '../../services/apiClient';
+import { b2bBreakupRows, b2bIfApplicable, type B2BWorking } from '../../utils/b2bPriceBreakup';
 
 /* QuickPost Cargo — Shipment Rate Calculator (B2B / multi-box), single column.
    Pincodes resolve city/state underneath; service options are compact toggles; box rows carry
@@ -25,7 +26,7 @@ interface CargoQuote {
   provider?: string;
   mode_name?: string;
   tat?: number;
-  working?: { billable_weight?: number; freight?: number; gst?: number; grand_total?: number; [k: string]: unknown };
+  working?: B2BWorking;
 }
 
 const newBox = (): BoxRow => ({ id: Math.random().toString(36).slice(2), count: '', weight: '', length: '', width: '', height: '' });
@@ -87,9 +88,38 @@ function Toggle({ on, onChange, label }: { on: boolean; onChange: () => void; la
 
 const inr2 = (v: number) => `₹${v.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const total = (q: CargoQuote) => Number(q.working?.grand_total) || 0;
+
+// The charges of one rate, from the backend's `working` (B2B/utils/b2bRateEngine.js calculateB2BCargoRate — the
+// same numbers the booking charges). Exactly the rows Cargo Ship Now shows (utils/b2bPriceBreakup.ts), every
+// charge line even when ₹0, then the total.
+function PriceBreakup({ w }: { w: B2BWorking }) {
+  const rows = b2bBreakupRows(w);
+  return (
+    <div className="text-[12.5px]">
+      {rows.map(([label, value]) => (
+        <div key={label} className={`flex justify-between gap-4 py-1 text-[#475569] ${label === 'GST' ? 'border-t border-dashed border-[#E2E8F0] mt-1 pt-1.5' : ''}`}>
+          <span>{label}</span>
+          <span className="tabular-nums font-medium text-[#0F172A]">{value}</span>
+        </div>
+      ))}
+      <div className="flex justify-between gap-4 border-t border-[#E2E8F0] mt-1 pt-1.5 font-bold text-[#0F172A]">
+        <span>Total</span>
+        <span className="tabular-nums">{inr2(Number(w.grand_total) || 0)}</span>
+      </div>
+      {b2bIfApplicable(w).length > 0 && (
+        <div className="border-t border-dashed border-[#E2E8F0] mt-2 pt-1.5">
+          <p className="font-semibold text-[#475569] mb-0.5">If applicable (not in total)</p>
+          {b2bIfApplicable(w).map((t) => <p key={t} className="text-[11.5px] text-[#64748B] leading-snug">{t}</p>)}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function CarrierRow({ q, cheapest, fastest, delta, index }: { q: CargoQuote; cheapest: boolean; fastest: boolean; delta: number; index: number }) {
   const logo = getCourierBrandLogo(q.courierServiceName || q.provider || '');
   const air = (q.mode_name || '').toLowerCase() === 'air';
+  const [showBreakup, setShowBreakup] = useState(false);
   return (
     <motion.li
       initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: Math.min(index, 8) * 0.04 }}
@@ -116,9 +146,21 @@ function CarrierRow({ q, cheapest, fastest, delta, index }: { q: CargoQuote; che
         <div className="col-span-2 md:col-span-1 flex md:block items-baseline justify-between md:text-right">
           <div className="text-[20px] font-bold text-[#0F172A] tabular-nums leading-tight">{inr2(total(q))}</div>
           <div className="text-[11.5px] text-[#94A3B8]">{cheapest ? 'Lowest price' : `+${inr2(delta)} vs cheapest`}</div>
+          {q.working && (
+            <button type="button" onClick={() => setShowBreakup((v) => !v)} aria-expanded={showBreakup}
+              className="mt-1 inline-flex items-center gap-1 text-[12px] font-semibold text-[#00A86B] hover:underline">
+              {showBreakup ? 'Hide' : 'View'} price breakup
+              <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showBreakup ? 'rotate-180' : ''}`} />
+            </button>
+          )}
         </div>
 
       </div>
+      {showBreakup && q.working && (
+        <div className="mx-4 mb-4 p-3 rounded-xl bg-[#F8FAFC] border border-[#EEF2F6]">
+          <PriceBreakup w={q.working} />
+        </div>
+      )}
     </motion.li>
   );
 }
@@ -197,7 +239,8 @@ export function CargoRateCalculator() {
       });
       const list: CargoQuote[] = res.data?.rates || [];
       setQuotes(list);
-      if (list.length === 0) setApiError('No carrier is serviceable for this route on your rate card.');
+      // the backend says why when the plan itself has nothing to price with (e.g. no rates assigned yet)
+      if (list.length === 0) setApiError(res.data?.message || 'No carrier is serviceable for this route on your rate card.');
     } catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
       // e.g. "Plan not found" (no B2B rate card assigned yet) or "Invalid pickup pincode: …"
       setApiError(err?.response?.data?.error || err?.response?.data?.message || 'Failed to calculate rates. Please try again.');

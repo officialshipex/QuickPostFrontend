@@ -9,7 +9,7 @@ import { TableLoader } from '../../components/ui/TableLoader';
 import { getToken, setToken } from '../../utils/session';
 import { modeUrl } from '../../utils/shippingMode';
 import {
-  PERM_TYPES, modulesFor, emptyAccessRights, toFormRights, toStoredRights, hasPermission,
+  PERM_TYPES, modulesFor, emptyAccessRights, toFormRights, toStoredRights, hasPermission, hasAnyView, rightsBeyond,
   type AccessRights, type PanelType, type PermKey,
 } from '../../utils/permissions';
 import {
@@ -55,9 +55,11 @@ interface PermissionMatrixProps {
   accessRights: AccessRights;
   onChange: (rights: AccessRights) => void;
   panel: PanelType;
+  /** An employee managing employees (HR): only the rights they hold themselves can be switched on */
+  grantable?: (moduleKey: string, perm: PermKey) => boolean;
 }
 
-function PermissionMatrix({ accessRights, onChange, panel }: PermissionMatrixProps) {
+function PermissionMatrix({ accessRights, onChange, panel, grantable }: PermissionMatrixProps) {
   const modules = modulesFor(panel);
 
   const toggle = (moduleKey: string, perm: PermKey) => {
@@ -105,7 +107,9 @@ function PermissionMatrix({ accessRights, onChange, panel }: PermissionMatrixPro
             </div>
             {PERM_TYPES.map(p => {
               const checked = rights[p.key] === true;
-              const disabled = (p.key === 'edit' || p.key === 'delete') && !rights.view;
+              // not held by the person giving it (HR): can't be switched on (switching off is always fine)
+              const notHeld = !!grantable && !checked && !grantable(mod.key, p.key);
+              const disabled = ((p.key === 'edit' || p.key === 'delete') && !rights.view) || notHeld;
               if (mod.viewOnly && p.key !== 'view') {
                 return <div key={p.key} className="w-[52px] sm:w-[72px] flex justify-center items-center py-3 text-[13px] text-[#CBD5E1]" aria-label="Not applicable">—</div>;
               }
@@ -118,6 +122,7 @@ function PermissionMatrix({ accessRights, onChange, panel }: PermissionMatrixPro
                     aria-label={`${mod.label} — ${p.label}`}
                     onClick={() => !disabled && toggle(mod.key, p.key)}
                     disabled={disabled}
+                    title={notHeld ? "You don't have this access yourself, so you can't give it" : undefined}
                     className={`w-[22px] h-[22px] rounded-md border-2 flex items-center justify-center transition-all ${
                       checked
                         ? 'bg-[#00A86B] border-[#00A86B] shadow-[0_1px_4px_rgba(0,168,107,0.35)]'
@@ -151,6 +156,9 @@ interface EmployeeModalProps {
 function EmployeeModal({ employee, onClose, onSaved, panel }: EmployeeModalProps) {
   const isAdminView = panel === 'admin';
   const isEdit = !!employee;
+  // An employee given "Employees" (e.g. HR) can only switch on access they hold themselves
+  const { isEmployee: viewerIsEmployee, employeeAccessRights: myRights } = useAdminTab();
+  const grantable = viewerIsEmployee ? (key: string, perm: PermKey) => hasPermission(myRights, key, perm) : undefined;
 
   const [fullName, setFullName]     = useState(employee?.fullName || '');
   const [email, setEmail]           = useState(employee?.email || '');
@@ -367,7 +375,12 @@ function EmployeeModal({ employee, onClose, onSaved, panel }: EmployeeModalProps
                   ? 'The employee only sees the modules you give View access to — everything else is hidden from their sidebar.'
                   : 'The employee sees every menu item; items without View access are locked and show a "no access" message when clicked.'}
               </p>
-              <PermissionMatrix accessRights={accessRights} onChange={setAccessRights} panel={panel} />
+              {grantable && (
+                <p className="text-[12px] text-amber-800 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2 mb-3">
+                  You can only give access you have yourself — the other boxes are locked. Everything you change here is recorded in the Audit Logs.
+                </p>
+              )}
+              <PermissionMatrix accessRights={accessRights} onChange={setAccessRights} panel={panel} grantable={grantable} />
             </section>}
           </div>
 
@@ -403,7 +416,7 @@ function formatDate(iso: string) {
 }
 
 export function AdminRoles() {
-  const { isEmployee, isAdmin } = useAdminTab();
+  const { isEmployee, isAdmin, employeeAccessRights: myRights, employeeId: myEmployeeId } = useAdminTab();
   const [loginAsId, setLoginAsId] = useState('');
   // Like "login as user": same tab, and "Return to admin" in the header comes back.
   const loginAs = async (emp: { _id: string }) => {
@@ -476,8 +489,8 @@ export function AdminRoles() {
       await apiClient.patch(`/staffRole/toggleStatus/${emp._id}`);
       setEmployees(prev => prev.map(e => e._id === emp._id ? { ...e, isEmpActive: !e.isEmpActive } : e));
       showToast('success', `Employee ${emp.isEmpActive ? 'deactivated' : 'activated'} successfully`);
-    } catch {
-      showToast('error', 'Failed to update status');
+    } catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+      showToast('error', err?.response?.data?.message || 'Failed to update status');
     } finally {
       setTogglingId(null);
     }
@@ -491,8 +504,8 @@ export function AdminRoles() {
       setEmployees(prev => prev.filter(e => e._id !== deleteTarget._id));
       showToast('success', 'Employee deleted successfully');
       setDeleteTarget(null);
-    } catch {
-      showToast('error', 'Failed to delete employee');
+    } catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+      showToast('error', err?.response?.data?.message || 'Failed to delete employee');
     } finally {
       setDeletingId(null);
     }
@@ -525,8 +538,19 @@ export function AdminRoles() {
   const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?';
   const softCard = 'bg-white rounded-2xl border border-[#EEF2F6] shadow-[0_1px_2px_rgba(16,24,40,0.04),0_2px_8px_rgba(16,24,40,0.05)]';
 
-  // Employees themselves cannot manage employees
-  if (isEmployee) {
+  // The owner manages everyone. An admin-panel employee given "Employees" (e.g. HR): View = see the list,
+  // Edit = add / change / activate, Delete = remove; never their own account, nor anyone holding access they
+  // don't have (the backend enforces the same, and records everything in the Audit Logs).
+  const staffManager = isEmployee && !isUserPanel && hasAnyView(myRights, 'employees');
+  const canEdit = !isEmployee || hasPermission(myRights, 'employees', 'edit');
+  const canDelete = !isEmployee || hasPermission(myRights, 'employees', 'delete');
+  const canChange = (emp: Employee) =>
+    !isEmployee || (emp.employeeId !== myEmployeeId && (emp.team === 'sales' || rightsBeyond(myRights, emp.accessRights, panel).length === 0));
+  const whyLocked = (emp: Employee) =>
+    emp.employeeId === myEmployeeId ? 'Your own account: ask the admin to change it' : 'This employee has access you don\'t have: only the admin can change them';
+
+  // Other employees (and a merchant's staff) cannot manage employees
+  if (isEmployee && !staffManager) {
     return (
       <AdminLayout>
         <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
@@ -559,12 +583,14 @@ export function AdminRoles() {
                 <p className="md:hidden mt-0.5 text-[12px] text-[#64748B]">Role-based access for your team</p>
               </div>
             </div>
+            {canEdit && (
             <button
               onClick={() => { setEditEmployee(null); setShowModal(true); }}
               className="shrink-0 h-9 pl-3 pr-3.5 md:h-10 md:px-5 rounded-full bg-[#00A86B] text-white text-[13px] font-semibold shadow-sm hover:bg-[#009B63] active:bg-[#009B63] flex items-center gap-1.5 transition-colors"
             >
               <Plus className="w-4 h-4" strokeWidth={2.5} /> <span className="md:hidden">Add</span><span className="hidden md:inline">Add Employee</span>
             </button>
+            )}
           </div>
 
           {/* Stats */}
@@ -636,7 +662,7 @@ export function AdminRoles() {
                   <span className="w-12 h-12 rounded-2xl bg-[#F1F5F9] flex items-center justify-center"><Users className="w-6 h-6 text-[#94A3B8]" /></span>
                   <p className="text-[13px] font-semibold text-[#0F172A]">{searchTerm ? 'No employees match your search' : 'No employees yet'}</p>
                   <p className="text-[12px] text-[#94A3B8]">{searchTerm ? 'Try a different name, email or role.' : 'Add your first employee to share the workload.'}</p>
-                  {!searchTerm && (
+                  {!searchTerm && canEdit && (
                     <button onClick={() => { setEditEmployee(null); setShowModal(true); }}
                       className="mt-2 h-9 px-4 rounded-full border border-[#00A86B] text-[#00A86B] text-[12.5px] font-semibold inline-flex items-center gap-1.5 hover:bg-[#F0FDF4]">
                       <Plus className="w-4 h-4" /> Add Employee
@@ -664,10 +690,11 @@ export function AdminRoles() {
                               </div>
                               <button
                                 onClick={() => handleToggleStatus(emp)}
-                                disabled={togglingId === emp._id}
+                                disabled={togglingId === emp._id || !canEdit || !canChange(emp)}
                                 role="switch"
                                 aria-checked={emp.isEmpActive}
                                 aria-label={emp.isEmpActive ? 'Deactivate employee' : 'Activate employee'}
+                                title={canEdit && !canChange(emp) ? whyLocked(emp) : undefined}
                                 className="shrink-0 inline-flex items-center gap-1.5 disabled:opacity-60 pt-0.5"
                               >
                                 <span className={`text-[11.5px] font-semibold ${emp.isEmpActive ? 'text-[#00A86B]' : 'text-[#94A3B8]'}`}>
@@ -713,12 +740,15 @@ export function AdminRoles() {
                               <LogIn className="w-3.5 h-3.5" /> {loginAsId === emp._id ? 'Opening…' : 'Login'}
                             </button>
                           )}
+                          {canEdit && canChange(emp) && (
                           <button
                             onClick={() => { setEditEmployee(emp); setShowModal(true); }}
                             className="flex-1 h-9 rounded-full border border-[#00A86B]/40 text-[#00A86B] inline-flex items-center justify-center gap-1.5 text-[12.5px] font-semibold active:bg-[#F0FDF4]"
                           >
                             <Edit2 className="w-3.5 h-3.5" /> Edit
                           </button>
+                          )}
+                          {canDelete && canChange(emp) && (
                           <button
                             onClick={() => setDeleteTarget(emp)}
                             aria-label={`Delete ${emp.fullName}`}
@@ -726,6 +756,10 @@ export function AdminRoles() {
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
+                          )}
+                          {isEmployee && !canChange(emp) && (
+                            <span className="flex-1 text-center text-[11.5px] text-[#94A3B8]" title={whyLocked(emp)}><Lock className="inline w-3 h-3 mr-1" />View only</span>
+                          )}
                         </div>
                       </li>
                     );
@@ -786,11 +820,11 @@ export function AdminRoles() {
                           <td className="py-3 px-4">
                             <button
                               onClick={() => handleToggleStatus(emp)}
-                              disabled={togglingId === emp._id}
+                              disabled={togglingId === emp._id || !canEdit || !canChange(emp)}
                               role="switch"
                               aria-checked={emp.isEmpActive}
                               className="inline-flex items-center gap-2 disabled:opacity-60"
-                              title={emp.isEmpActive ? 'Click to deactivate' : 'Click to activate'}
+                              title={!canEdit ? undefined : !canChange(emp) ? whyLocked(emp) : emp.isEmpActive ? 'Click to deactivate' : 'Click to activate'}
                             >
                               <span className={`relative w-9 h-5 rounded-full transition-colors ${emp.isEmpActive ? 'bg-[#00A86B]' : 'bg-[#CBD5E1]'}`}>
                                 <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-all ${emp.isEmpActive ? 'left-[18px]' : 'left-0.5'}`} />
@@ -813,6 +847,7 @@ export function AdminRoles() {
                                   <LogIn className="w-3.5 h-3.5" /> {loginAsId === emp._id ? 'Opening…' : 'Login'}
                                 </button>
                               )}
+                              {canEdit && canChange(emp) && (
                               <button
                                 onClick={() => { setEditEmployee(emp); setShowModal(true); }}
                                 className="h-8 px-3 rounded-full border border-[#E2E8F0] inline-flex items-center gap-1.5 text-[12px] font-semibold text-[#475569] hover:bg-[#F0FDF4] hover:text-[#00A86B] hover:border-[#00A86B]/40 transition-colors"
@@ -820,6 +855,8 @@ export function AdminRoles() {
                               >
                                 <Edit2 className="w-3.5 h-3.5" /> Edit
                               </button>
+                              )}
+                              {canDelete && canChange(emp) && (
                               <button
                                 onClick={() => setDeleteTarget(emp)}
                                 aria-label={`Delete ${emp.fullName}`}
@@ -828,6 +865,10 @@ export function AdminRoles() {
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
+                              )}
+                              {isEmployee && !canChange(emp) && (
+                                <span className="inline-flex items-center gap-1 text-[11.5px] text-[#94A3B8]" title={whyLocked(emp)}><Lock className="w-3 h-3" />View only</span>
+                              )}
                             </div>
                           </td>
                         </tr>

@@ -15,6 +15,9 @@ interface Props {
   defaultAmount?: number;
 }
 
+// Minimum online (Razorpay) recharge.
+const MIN_RECHARGE = 1000;
+
 export function RechargeWalletModal({ open, onClose, walletBalance, onSuccess, defaultAmount = 0 }: Props) {
   const [rechargeAmount, setRechargeAmount] = useState(defaultAmount);
   const [rechargeMode, setRechargeMode] = useState<'Payment' | 'COD'>('Payment');
@@ -61,14 +64,33 @@ export function RechargeWalletModal({ open, onClose, walletBalance, onSuccess, d
       document.body.appendChild(script);
     });
 
+  // Razorpay's checkout runs in an https iframe; a plain URL to our own image fails there on
+  // http/localhost (mixed content) and on any host it cannot reach. A data URL always shows.
+  const loadCheckoutLogo = async (): Promise<string | undefined> => {
+    try {
+      const res = await fetch('/icon-color.png');
+      if (!res.ok) return undefined;
+      const blob = await res.blob();
+      return await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    } catch {
+      return undefined;
+    }
+  };
+
   const handleRazorpayPayment = async () => {
-    if (rechargeAmount < 1000) {
-      showToast('Minimum recharge amount is ₹1000', 'error');
+    if (rechargeAmount < MIN_RECHARGE) {
+      showToast(`Minimum recharge amount is ₹${MIN_RECHARGE}`, 'error');
       return;
     }
     setLoading(true);
     try {
       await loadRazorpayScript();
+      const logo = await loadCheckoutLogo();
       const { data } = await apiClient.post('/recharge/create-order', { amount: rechargeAmount });
       if (!data.order) throw new Error('Order creation failed');
       const { id: order_id, amount: orderAmount, currency } = data.order;
@@ -76,7 +98,10 @@ export function RechargeWalletModal({ open, onClose, walletBalance, onSuccess, d
         key: import.meta.env.VITE_RAZORPAY_KEY_ID,
         amount: orderAmount,
         currency,
-        name: 'Shipex India',
+        // Without `name`/`image` Razorpay falls back to the account's dashboard branding
+        // (Shipex India), so both are set explicitly to QuickPost.
+        name: 'QuickPost 360',
+        ...(logo ? { image: logo } : {}),
         description: 'Wallet Recharge',
         order_id,
         theme: { color: '#00A86B' },
@@ -193,8 +218,8 @@ export function RechargeWalletModal({ open, onClose, walletBalance, onSuccess, d
                         <div className="w-full border-b border-dashed border-[#94A3B8] mt-1 h-0" />
                       </div>
 
-                      {rechargeAmount > 0 && rechargeAmount < 1000 && (
-                        <p className="text-[10px] text-red-500 font-semibold mt-1.5">Minimum amount is ₹1000</p>
+                      {rechargeAmount > 0 && rechargeAmount < MIN_RECHARGE && (
+                        <p className="text-[10px] text-red-500 font-semibold mt-1.5">Minimum amount is ₹{MIN_RECHARGE}</p>
                       )}
 
                       {/* Quick pills */}
@@ -276,7 +301,7 @@ export function RechargeWalletModal({ open, onClose, walletBalance, onSuccess, d
                     {/* Pay button */}
                     <button
                       type="button"
-                      disabled={!rechargeAmount || rechargeAmount < 1000 || loading}
+                      disabled={!rechargeAmount || rechargeAmount < MIN_RECHARGE || loading}
                       onClick={handleRazorpayPayment}
                       className="w-full py-2.5 sm:py-3.5 bg-gradient-to-r from-[#00b876] to-[#00A86B] text-white text-xs sm:text-sm font-bold rounded-full shadow-[0_4px_12px_rgba(0,168,107,0.2)] hover:from-[#00c982] hover:to-[#00b876] transition-all disabled:opacity-50 disabled:pointer-events-none text-center focus:outline-none cursor-pointer"
                     >

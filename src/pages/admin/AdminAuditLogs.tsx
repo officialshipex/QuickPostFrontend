@@ -140,6 +140,8 @@ const ACTION_LABEL: Record<string, string> = {
   approve: 'Approved',
   reject: 'Rejected',
   credentials: 'Saved credentials',
+  // opened someone's private details (a sales person's KYC / panel, an employee's record)
+  view: 'Viewed',
   action: 'Action',
 };
 

@@ -609,6 +609,8 @@ function CompanyDetail({ tenantKey, onBack }: { tenantKey: string; onBack: () =>
   // the exact fields the backend expects per group (courier groups today); empty against an older backend
   const [fieldCatalog, setFieldCatalog] = useState<Record<string, ConfigFieldHint[]>>({});
   const [courierLabels, setCourierLabels] = useState<Record<string, string>>({});
+  // couriers a company gets only when switched on here (ShipexIndia B2B): off while the company has no courier list
+  const [optInCouriers, setOptInCouriers] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingGroup, setEditingGroup] = useState<{ category: string; key: string; groupKey: string } | null>(null);
   const [editingDetails, setEditingDetails] = useState(false);
@@ -622,6 +624,7 @@ function CompanyDetail({ tenantKey, onBack }: { tenantKey: string; onBack: () =>
       setGroups(groupsRes.data.groups);
       setFieldCatalog(groupsRes.data.fields || {});
       setCourierLabels(groupsRes.data.courierLabels || {});
+      setOptInCouriers(groupsRes.data.optInCouriers || []);
     } catch {
       showToast('error', 'Failed to load company');
     } finally {
@@ -741,6 +744,7 @@ function CompanyDetail({ tenantKey, onBack }: { tenantKey: string; onBack: () =>
                   tenantKey={tenantKey}
                   allCourierKeys={groups.couriers}
                   courierLabels={courierLabels}
+                  optInCouriers={optInCouriers}
                   enabledCouriers={company.enabledCouriers}
                   onSaved={load}
                 />
@@ -1084,11 +1088,12 @@ function EditableDomainRow({ label, hint, value, placeholder, allowBlank, onSave
 // validate a seller's submitted credentials against the real courier's own API) still need a company-level
 // credential value set SOMEWHERE for a new company -- that configuration path no longer exists on this screen
 // as of this change; flagged to the user, who chose to drop it here anyway.
-function CourierMultiSelect({ tenantKey, allCourierKeys, courierLabels, enabledCouriers, onSaved }: {
-  tenantKey: string; allCourierKeys: string[]; courierLabels: Record<string, string>; enabledCouriers?: string[]; onSaved: () => void;
+function CourierMultiSelect({ tenantKey, allCourierKeys, courierLabels, optInCouriers = [], enabledCouriers, onSaved }: {
+  tenantKey: string; allCourierKeys: string[]; courierLabels: Record<string, string>; optInCouriers?: string[]; enabledCouriers?: string[]; onSaved: () => void;
 }) {
   const [saving, setSaving] = useState(false);
-  const effective = enabledCouriers ?? allCourierKeys;
+  // no list yet = every courier except the opt-in ones (same rule as the backend's utils/courierAvailability.js)
+  const effective = enabledCouriers ?? allCourierKeys.filter(k => !optInCouriers.includes(k));
   const available = allCourierKeys.filter(k => !effective.includes(k));
 
   const update = async (next: string[]) => {
@@ -1831,8 +1836,19 @@ function GroupEditModal({ tenantKey, category, keyName, groupKey, serverFields, 
   // for groups it does not list yet and for an older backend.
   const fields = serverFields && serverFields.length ? serverFields : fieldHintsFor(category, keyName);
   const [values, setValues] = useState<Record<string, string>>({});
+  const [secretSet, setSecretSet] = useState<Record<string, boolean>>({});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+
+  // Notification settings: show what is already saved (secrets only as "saved").
+  useEffect(() => {
+    if (!groupKey.startsWith('notifications.')) return;
+    let cancelled = false;
+    companiesApi.configGroupValues(tenantKey, groupKey)
+      .then(res => { if (!cancelled) { setValues(res.data.values || {}); setSecretSet(res.data.secretSet || {}); } })
+      .catch(() => { /* the form still works blank */ });
+    return () => { cancelled = true; };
+  }, [tenantKey, groupKey]);
 
   const handleSave = async () => {
     const populated = Object.fromEntries(Object.entries(values).filter(([, v]) => v.trim() !== ''));
@@ -1860,7 +1876,7 @@ function GroupEditModal({ tenantKey, category, keyName, groupKey, serverFields, 
           <button onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center text-[#94A3B8] hover:text-[#0F172A] hover:bg-[#F8FAFC]"><X className="w-4 h-4" /></button>
         </div>
         <div className="px-5 py-4 flex flex-col gap-3 overflow-y-auto min-h-0">
-          <p className="text-[11px] text-[#94A3B8]">Only fields you fill in here are saved — leave the rest blank to keep them unset.</p>
+          <p className="text-[11px] text-[#94A3B8]">Only fields you fill in here are saved — leave the rest blank to keep them unset.{groupKey.startsWith('notifications.') && ' Keys and passwords are never shown; a field marked "saved" keeps its value unless you type a new one.'}</p>
           {fields.map(f => (
             <div key={f.key} className="flex flex-col gap-1">
               <label className="text-[12px] font-semibold text-[#64748B]">{f.label}</label>
@@ -1869,6 +1885,7 @@ function GroupEditModal({ tenantKey, category, keyName, groupKey, serverFields, 
                 value={values[f.key] || ''}
                 onChange={e => setValues(v => ({ ...v, [f.key]: e.target.value }))}
                 autoComplete={f.secret ? 'new-password' : 'off'}
+                placeholder={f.secret && secretSet[f.key] ? 'Saved — leave blank to keep' : undefined}
                 className="border border-[#E2E8F0] rounded-[8px] px-3 py-2 text-[12px] text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#00A86B]/40 focus:border-[#00A86B] transition-colors"
               />
             </div>

@@ -15,6 +15,7 @@ import { Toast } from '../../components/ui/Toast';
 import { useToast } from '../../hooks/useToast';
 import { copyToClipboard } from '../../utils/clipboard';
 import { orderReferenceOf } from '../../utils/customerOrderId';
+import { b2bBreakupRows, b2bIfApplicable, type B2BWorking } from '../../utils/b2bPriceBreakup';
 import { AddressAccuracyGauge } from '../../components/ui/AddressAccuracy';
 
 // Milestone timeline icons are looked up dynamically by name (see getMilestonesFromStatus).
@@ -1233,12 +1234,15 @@ export function AdminOrderTracking() {
               {/* Billed Charges tab — B2B orders (rateBreakup from the B2B rate engine) */}
               {chargesTab === 'billed' && isB2BOrder && (
                 <div className="space-y-0.5">
-                  {[
-                    ['Base Freight Charge', money(b2bFreight)],
-                    ['COD Charge', money(b2bCod)],
-                    ['Pickup, Docket, FSC, ROV & Other Charges', Number.isFinite(b2bOther) ? money(b2bOther) : '—'],
-                    ['GST', money(b2bGst)],
-                  ].map(([label, value]) => (
+                  {(order?.rateBreakup && Number.isFinite(b2bFreight)
+                    ? b2bBreakupRows(order.rateBreakup as B2BWorking)
+                    : [
+                        ['Base Freight Charge', money(b2bFreight)],
+                        ['COD Charge', money(b2bCod)],
+                        ['Pickup, Docket, FSC, ROV & Other Charges', Number.isFinite(b2bOther) ? money(b2bOther) : '—'],
+                        ['GST', money(b2bGst)],
+                      ]
+                  ).map(([label, value]) => (
                     <div key={label} className="flex justify-between items-center py-2.5 border-b border-[#F8FAFC]">
                       <span className="text-[12px] leading-[18px] font-medium text-[#64748B]">{label}</span>
                       <span className="text-[12px] leading-[18px] font-normal text-[#0F172A]">{value}</span>
@@ -1248,6 +1252,14 @@ export function AdminOrderTracking() {
                     <span className="text-[14px] leading-[20px] font-bold text-[#0F172A]">Total Billed</span>
                     <span className="text-[14px] leading-[20px] font-bold text-[#00A86B]">{money(b2bTotal)}</span>
                   </div>
+                  {b2bIfApplicable(order?.rateBreakup as B2BWorking).length > 0 && (
+                    <div className="pt-3">
+                      <p className="text-[12px] font-semibold text-[#475569] mb-1">If applicable (not billed)</p>
+                      {b2bIfApplicable(order?.rateBreakup as B2BWorking).map((t) => (
+                        <p key={t} className="text-[11.5px] text-[#64748B] leading-snug">{t}</p>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
