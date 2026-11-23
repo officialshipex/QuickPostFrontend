@@ -13,6 +13,8 @@ export interface ServiceConfig {
   /** usage services (NDR Follow-ups) only */
   usage?: UsagePrices;
   ndrCallDelayMinutes?: number;
+  /** NDR Follow-ups: send one reminder this many minutes after the NDR message if the customer has not acted (0 = none) */
+  ndrReminderMinutes?: number;
   updatedAt: string | null;
   changeLog: { at: string; by: string; summary: string }[];
 }
@@ -34,6 +36,10 @@ export interface AdminService {
   activation: 'publish' | 'toggle';
   /** "usage" = charged per successful response (no plans) */
   billing?: 'usage';
+  /** automatic: sellers never activate it; it is on for everyone unless the admin switches it off */
+  automatic?: boolean;
+  /** how the admin screens show a usage service's prices (only the WhatsApp price when showCall is false) */
+  usageUi?: { whatsappLabel: string; whatsappHelp: string; priceChange: string; showCall: boolean; showDelay: boolean };
   description: string;
   config: ServiceConfig;
   stats: ServiceStats;
@@ -108,7 +114,7 @@ export const adminVasApi = {
     const { data } = await apiClient.get(`${base}/services`);
     return data.services;
   },
-  async updateService(key: string, body: { enabled?: boolean; pricingEnabled?: boolean; plans?: VasPlan[]; usage?: UsagePrices; ndrCallDelayMinutes?: number }): Promise<ServiceConfig> {
+  async updateService(key: string, body: { enabled?: boolean; pricingEnabled?: boolean; plans?: VasPlan[]; usage?: UsagePrices; ndrCallDelayMinutes?: number; ndrReminderMinutes?: number }): Promise<ServiceConfig> {
     const { data } = await apiClient.put(`${base}/services/${key}`, body);
     return data.config;
   },

@@ -272,16 +272,17 @@ export function AdminDashboard() {
         apiClient.get('/getKyc/getBankAccount'),
       ]);
 
-    if (ovRes.status  === 'fulfilled') setOverview(ovRes.value.data?.data);
-    if (insRes.status === 'fulfilled') setInsights(insRes.value.data?.data);
-    if (grRes.status  === 'fulfilled') setGraphs(grRes.value.data?.data);
-    if (cdRes.status  === 'fulfilled') setCardData(cdRes.value.data?.data);
-    if (wdRes.status  === 'fulfilled') {
-      const d = wdRes.value.data;
-      setWeightData({ total: d.total || 0, counts: d.counts || {} });
+    // A failed call clears its section — it must never keep showing the previous seller's / range's numbers.
+    setOverview(ovRes.status === 'fulfilled' ? ovRes.value.data?.data : null);
+    setInsights(insRes.status === 'fulfilled' ? insRes.value.data?.data : null);
+    setGraphs(grRes.status === 'fulfilled' ? grRes.value.data?.data : null);
+    setCardData(cdRes.status === 'fulfilled' ? cdRes.value.data?.data : null);
+    {
+      const d = wdRes.status === 'fulfilled' ? wdRes.value.data : null;
+      setWeightData({ total: d?.total || 0, counts: d?.counts || {} });
     }
-    if (crRes.status  === 'fulfilled') setCouriers(crRes.value.data?.data || []);
-    if (acRes.status  === 'fulfilled') setActionCards(acRes.value.data?.data || {});
+    setCouriers(crRes.status === 'fulfilled' ? crRes.value.data?.data || [] : []);
+    setActionCards(acRes.status === 'fulfilled' ? acRes.value.data?.data || {} : { pendingKYC: 0, lowBalanceSellers: 0, newUsers: 0 });
     if (tsRes.status === 'fulfilled') {
       const rows = tsRes.value.data?.data || [];
       setTopSellers(rows);
@@ -322,9 +323,16 @@ export function AdminDashboard() {
   const deliveryPct = totalShip > 0 ? ((delivered / totalShip) * 100).toFixed(1) : '0';
 
   const monthOrders      = insights?.statsBreakdown?.monthCount    || 0;
-  const monthGrowth      = insights?.statsBreakdown?.monthGrowth   || '0';
-  const monthValue       = insights?.valueBreakdown?.month?.orderValue  || 0;
-  const monthValueGrowth = insights?.valueBreakdown?.month?.valueGrowth || '0';
+  // Orders placed in the selected range (cancelled excluded) vs the same-length period just before it
+  const rangeOrders      = overview?.orders?.count        || 0;
+  const rangeOrdersGrowth = overview?.orders?.countGrowth || '0';
+  const rangeValue       = overview?.orders?.value        || 0;
+  const rangeValueGrowth = overview?.orders?.valueGrowth  || '0';
+  const revenueGrowth = (() => {
+    const cur = Number(overview?.todaysRevenue) || 0, prev = Number(overview?.yesterdaysRevenue) || 0;
+    return prev > 0 ? (((cur - prev) / prev) * 100).toFixed(2) : cur > 0 ? '100.00' : '0.00';
+  })();
+  const singleSeller = overview?.singleSeller === true;
 
   /* chart data */
   const courierChartData = (graphs?.couriersSplit || []).map((c: any, i: number) => ({
@@ -529,7 +537,7 @@ export function AdminDashboard() {
           aria-busy={showSkeleton}>
         {dashTab === 'shipments' && (
           <>
-            <ShipmentsTab ship={ship} fmt={fmt} weightSplit={cardData?.weightSplit || []} couriersSplit={graphs?.couriersSplit || []} courierIcon={courierIcon} />
+            <ShipmentsTab ship={ship} fmt={fmt} weightSplit={cardData?.weightSplit || []} couriersSplit={graphs?.couriersSplit || []} courierIcon={courierIcon} attempts={overview?.deliveryAttempts} />
         {/* ── Row 3: Shipments Details ───────────────────────────────── */}
         <SectionHeading title="Shipments Details" />
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
@@ -594,30 +602,31 @@ export function AdminDashboard() {
         <div className={`grid gap-3 mb-3 grid-cols-2 md:grid-cols-3 ${isAdminView ? 'lg:grid-cols-6' : 'lg:grid-cols-5'}`}>
           <StatCardWithTrend
             title="Total Orders" icon={CheckCircle2}
-            value={fmtN(monthOrders)}
-            trend={`${monthGrowth}% vs last month`}
-            isUp={parseFloat(monthGrowth) >= 0}
+            value={fmtN(rangeOrders)}
+            trend={`${rangeOrdersGrowth}% vs previous period`}
+            isUp={parseFloat(rangeOrdersGrowth) >= 0}
           />
           <StatCardWithTrend
             title="Total Orders Value" icon={IndianRupee}
-            value={fmt(monthValue)}
-            trend={`${monthValueGrowth}% vs last month`}
-            isUp={parseFloat(monthValueGrowth) >= 0}
+            value={fmt(rangeValue)}
+            trend={`${rangeValueGrowth}% vs previous period`}
+            isUp={parseFloat(rangeValueGrowth) >= 0}
           />
           <StatCardWithTrend
-            title="Total Revenue" icon={IndianRupee}
+            title={isAdminView ? 'Freight Billed' : 'Shipping Spend'} icon={IndianRupee}
             value={fmt(overview?.todaysRevenue)}
-            trend="Last 30 days"
+            trend={`${revenueGrowth}% vs previous period`}
+            isUp={parseFloat(revenueGrowth) >= 0}
           />
           <StatCardWithTrend
             title="Avg. Ship Cost" icon={Truck}
             value={fmt(overview?.avgShippingCost)}
-            trend="Last 30 days"
+            trend="Selected range"
           />
           <StatCardWithTrend
             title="Delivery %" icon={Percent}
             value={`${deliveryPct}%`}
-            trend="Last 30 days"
+            trend={`${fmtN(delivered)} of ${fmtN(totalShip)} shipments`}
           />
           {isAdminView && (
             <StatCardWithTrend
@@ -654,7 +663,7 @@ export function AdminDashboard() {
             />
           )}
           {isAdminView && (
-            <MiniStatCard title="Low Balance Sellers"
+            <MiniStatCard title="Negative Balance Sellers"
               value={fmtN(actionCards?.lowBalanceSellers)}
               icon={CreditCard} iconColor="text-red-500" iconBg="bg-red-50"
               to="/admin/users?balanceType=negative"
@@ -675,10 +684,12 @@ export function AdminDashboard() {
           paymentMode={graphs?.paymentMode || []}
           codSlot={(
           <div>
-                <SectionHeading title="COD Status" rightText="Last 30 days" />
+                <SectionHeading title="COD Status" rightText="Current balances (not date filtered)" />
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <MiniStatCard smallIcon title="Total COD"          value={fmt(overview?.codTotal)}        icon={FileText}   iconColor="text-purple-500"  iconBg="bg-purple-50"  to={isAdminView ? `${navBase}/cod/all-cod-orders` : `${navBase}/cod`} />
-          <MiniStatCard smallIcon title="Last COD Remitted"  value={fmt(overview?.lastCODRemitted)} icon={RefreshCcw} iconColor="text-emerald-500" iconBg="bg-emerald-50" to={isAdminView ? `${navBase}/cod/seller-cod-remittance` : `${navBase}/cod`} />
+          <MiniStatCard smallIcon title="Total COD Pending"  value={fmt(overview?.codTotal)}        icon={FileText}   iconColor="text-purple-500"  iconBg="bg-purple-50"  to={isAdminView ? `${navBase}/cod/all-cod-orders` : `${navBase}/cod`} />
+          {/* One seller: their last remittance. Whole platform: there is no single "last" one, so all-time remitted. */}
+          <MiniStatCard smallIcon title={singleSeller ? 'Last COD Remitted' : 'Total COD Remitted'}
+            value={fmt(singleSeller ? overview?.lastCODRemitted : overview?.codRemittedTotal)} icon={RefreshCcw} iconColor="text-emerald-500" iconBg="bg-emerald-50" to={isAdminView ? `${navBase}/cod/seller-cod-remittance` : `${navBase}/cod`} />
           <MiniStatCard smallIcon title="COD Initiated"      value={fmt(overview?.codAvailable)}    icon={FileText}   iconColor="text-sky-500"     iconBg="bg-sky-50"     to={isAdminView ? `${navBase}/cod/all-cod-orders` : `${navBase}/cod`} />
           <MiniStatCard smallIcon title="COD To Be Remitted" value={fmt(overview?.codPending)}      icon={Clock}      iconColor="text-rose-400"    iconBg="bg-rose-50"    to={isAdminView ? `${navBase}/cod/seller-cod-remittance` : `${navBase}/cod`} />
         </div>
@@ -694,6 +705,7 @@ export function AdminDashboard() {
           <MiniStatCard title="Action Required"  value={fmtN(ndr.actionRequired)}  icon={FileText}      iconColor="text-purple-500"  iconBg="bg-purple-50"  to={`${navBase}/ndr/action-required${rangeQ}`} />
           <MiniStatCard title="Action Requested" value={fmtN(ndr.actionRequested)} icon={Package}       iconColor="text-amber-500"   iconBg="bg-amber-50"   to={`${navBase}/ndr/action-requested${rangeQ}`} />
           <MiniStatCard title="Delivered"        value={fmtN(ndr.ndrDelivered)}    icon={CheckCircle2}  iconColor="text-emerald-500" iconBg="bg-emerald-50" to={`${navBase}/ndr/delivered${rangeQ}`} />
+          {/* Shipments booked in the range that are back with the seller — same filter as the RTO Delivered list it opens */}
           <MiniStatCard title="RTO Delivered"    value={fmtN(ship.rto)}            icon={RotateCcw}     iconColor="text-indigo-500"  iconBg="bg-indigo-50"  to={`${navBase}/orders/rto-delivered${rangeQ}`} />
         </div>
 

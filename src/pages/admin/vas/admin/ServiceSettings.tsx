@@ -23,8 +23,11 @@ export function ServiceSettings({ service, onChanged, notify }: Props) {
   const [minDate] = useState(() => new Date(Date.now() + 864e5).toISOString().slice(0, 10)); // tomorrow
   // NDR Follow-ups: charged per successful response (prices below), not with monthly plans
   const isUsage = service.billing === 'usage';
+  const ui = service.usageUi; // set for an automatic usage service (WhatsApp Order Updates): one price, no call settings
+  const showDelay = !ui || ui.showDelay !== false;
   const [usage, setUsage] = useState<UsageDraft>(toUsageDraft(config.usage));
   const [delay, setDelay] = useState(String(config.ndrCallDelayMinutes ?? 120));
+  const [reminder, setReminder] = useState(String(config.ndrReminderMinutes ?? 0));
 
   // Reset the form when another service is opened or the saved values change.
   useEffect(() => {
@@ -33,7 +36,8 @@ export function ServiceSettings({ service, onChanged, notify }: Props) {
     setRows(toDrafts(config.plans));
     setUsage(toUsageDraft(config.usage));
     setDelay(String(config.ndrCallDelayMinutes ?? 120));
-  }, [service.key, config.enabled, config.pricingEnabled, config.plans, config.usage, config.ndrCallDelayMinutes]);
+    setReminder(String(config.ndrReminderMinutes ?? 0));
+  }, [service.key, config.enabled, config.pricingEnabled, config.plans, config.usage, config.ndrCallDelayMinutes, config.ndrReminderMinutes]);
 
   const parsed = parseDrafts(rows);
   const parsedUsage = parseUsage(usage);
@@ -41,7 +45,7 @@ export function ServiceSettings({ service, onChanged, notify }: Props) {
     enabled !== config.enabled ||
     pricing !== config.pricingEnabled ||
     (isUsage
-      ? JSON.stringify(parsedUsage.usage) !== JSON.stringify(config.usage) || Number(delay) !== (config.ndrCallDelayMinutes ?? 120)
+      ? JSON.stringify(parsedUsage.usage) !== JSON.stringify(config.usage) || (showDelay && (Number(delay) !== (config.ndrCallDelayMinutes ?? 120) || Number(reminder) !== (config.ndrReminderMinutes ?? 0)))
       : JSON.stringify(parsed.plans) !== JSON.stringify(config.plans) || rows.length !== config.plans.length);
 
   const save = async () => {
@@ -49,10 +53,12 @@ export function ServiceSettings({ service, onChanged, notify }: Props) {
       if (parsedUsage.error) { notify('error', parsedUsage.error); return; }
       if (pricing && !(parsedUsage.usage.whatsapp > 0 || parsedUsage.usage.call > 0)) { notify('error', 'Set a price above ₹0 before turning charges on.'); return; }
       const m = Number(delay);
-      if (!Number.isInteger(m) || m < 0 || m > 1440) { notify('error', 'Call wait time must be 0–1440 minutes.'); return; }
+      if (showDelay && (!Number.isInteger(m) || m < 0 || m > 1440)) { notify('error', 'Call wait time must be 0–1440 minutes.'); return; }
+      const rm = Number(reminder);
+      if (showDelay && (!Number.isInteger(rm) || rm < 0 || rm > 2880)) { notify('error', 'Reminder wait must be 0–2880 minutes (0 = no reminder).'); return; }
       setSaving(true);
       try {
-        await adminVasApi.updateService(service.key, { enabled, usage: parsedUsage.usage, ndrCallDelayMinutes: m, pricingEnabled: pricing });
+        await adminVasApi.updateService(service.key, { enabled, usage: parsedUsage.usage, ...(showDelay ? { ndrCallDelayMinutes: m, ndrReminderMinutes: rm } : {}), pricingEnabled: pricing });
         notify('success', `${service.name} settings saved.`);
         onChanged();
       } catch (err) {
@@ -98,7 +104,11 @@ export function ServiceSettings({ service, onChanged, notify }: Props) {
         <div>
           <h3 className="text-[14px] font-bold text-[#0F172A]">Availability</h3>
           <p className="text-[12.5px] text-[#64748B] mt-0.5">
-            {enabled ? 'Sellers can use this service.' : 'Switched off for all sellers. Live branded pages stop showing; sellers keep their saved work. Use Special rules to keep it on for chosen sellers.'}
+            {service.automatic
+              ? enabled
+                ? 'On for everyone. A seller only gets these messages if they turned WhatsApp on in their Notification settings.'
+                : 'Switched off for all sellers: no WhatsApp order messages are sent. Use Special rules to keep it on for chosen sellers.'
+              : enabled ? 'Sellers can use this service.' : 'Switched off for all sellers. Live branded pages stop showing; sellers keep their saved work. Use Special rules to keep it on for chosen sellers.'}
           </p>
         </div>
         <Toggle checked={enabled} onChange={setEnabled} label="Service enabled for everyone" />
@@ -110,17 +120,31 @@ export function ServiceSettings({ service, onChanged, notify }: Props) {
             <h3 className="text-[14px] font-bold text-[#0F172A]">Charges</h3>
             <p className="text-[12.5px] text-[#64748B] mt-0.5">
               {isUsage
-                ? pricing ? 'Taken from the seller\'s wallet for each successful response only.' : 'Free for everyone right now. Prices below apply once you turn charges on.'
+                ? ui
+                  ? pricing ? 'Taken from the seller\'s wallet each time a message is sent. If the wallet cannot pay, the message is not sent.' : 'Free for everyone right now. The price below applies once you turn charges on.'
+                  : pricing ? 'Taken from the seller\'s wallet for each successful response only.' : 'Free for everyone right now. Prices below apply once you turn charges on.'
                 : pricing ? 'Sellers must buy one of these plans from their wallet.' : 'Free for everyone right now.'}
             </p>
           </div>
           <Toggle checked={pricing} onChange={setPricing} label="Charge sellers" />
         </div>
-        {isUsage ? <UsagePriceEditor value={usage} onChange={setUsage} /> : <PlanEditor rows={rows} onChange={setRows} />}
+        {isUsage ? <UsagePriceEditor value={usage} onChange={setUsage} ui={ui} /> : <PlanEditor rows={rows} onChange={setRows} />}
         <p className="text-[11.5px] text-[#94A3B8] mt-2">Prices apply to all sellers. For different prices or free access for specific sellers, use Special rules.</p>
       </div>
 
-      {isUsage && (
+      {isUsage && showDelay && (
+        <div className="border-t border-[#F1F5F9] pt-5">
+          <h3 className="text-[14px] font-bold text-[#0F172A]">Reminder</h3>
+          <p className="text-[12.5px] text-[#64748B] mt-0.5 mb-3">If the customer has not tapped a button, send the reminder message once after this wait — only while the shipment is still in Action Required. Not charged separately. Leave 0 for no reminder.</p>
+          <label className="inline-flex items-center gap-2 text-[12.5px] text-[#475569]">
+            Remind after
+            <input type="number" min={0} max={2880} step={30} value={reminder} onChange={(e) => setReminder(e.target.value)} className={`${inputCls} w-24`} aria-label="Reminder wait in minutes" />
+            minutes
+          </label>
+        </div>
+      )}
+
+      {isUsage && showDelay && (
         <div className="border-t border-[#F1F5F9] pt-5">
           <h3 className="text-[14px] font-bold text-[#0F172A]">WhatsApp + Calling</h3>
           <p className="text-[12.5px] text-[#64748B] mt-0.5 mb-3">The WhatsApp goes out at once. The call is placed after this wait, only if the NDR is still open (not delivered, not RTO, no action taken).</p>

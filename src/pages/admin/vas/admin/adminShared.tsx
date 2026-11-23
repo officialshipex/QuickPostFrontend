@@ -63,7 +63,9 @@ export function parseUsage(d: UsageDraft): { usage: { whatsapp: number; call: nu
   return { usage: { whatsapp: Math.round(whatsapp * 100) / 100, call: Math.round(call * 100) / 100 } };
 }
 
-export function UsagePriceEditor({ value, onChange, disabled }: { value: UsageDraft; onChange: (v: UsageDraft) => void; disabled?: boolean }) {
+export interface UsageUi { whatsappLabel: string; whatsappHelp: string; showCall: boolean }
+
+export function UsagePriceEditor({ value, onChange, disabled, ui }: { value: UsageDraft; onChange: (v: UsageDraft) => void; disabled?: boolean; ui?: UsageUi }) {
   const field = (k: keyof UsageDraft, label: string, hint: string) => (
     <label className="block">
       <span className="text-[12px] font-bold text-[#475569]">{label}</span>
@@ -79,9 +81,9 @@ export function UsagePriceEditor({ value, onChange, disabled }: { value: UsageDr
     </label>
   );
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-      {field('whatsapp', 'Per WhatsApp delivered', 'Charged only when WhatsApp confirms delivery. Failed / not confirmed = free.')}
-      {field('call', 'Per call answered', 'Charged only when the customer answers. Unanswered / failed = free.')}
+    <div className={`grid grid-cols-1 ${ui && ui.showCall === false ? '' : 'sm:grid-cols-2'} gap-3`}>
+      {field('whatsapp', ui?.whatsappLabel ?? 'Per WhatsApp delivered', ui?.whatsappHelp ?? 'Charged only when WhatsApp confirms delivery. Failed / not confirmed = free.')}
+      {(!ui || ui.showCall !== false) && field('call', 'Per call answered', 'Charged only when the customer answers. Unanswered / failed = free.')}
     </div>
   );
 }

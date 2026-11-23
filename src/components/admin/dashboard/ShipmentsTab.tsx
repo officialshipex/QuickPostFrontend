@@ -5,7 +5,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { StatusDonut, VsSplit } from './OverviewInsights';
 
 /* Dashboard → Shipments tab: headline cards, same card/type scale as the Overview analytics cards.
-   Wired: total + delivered (shipment stats). TODO(backend): shipping-mode split and shipping charges. */
+   Every figure covers the same shipments (booked with a courier in the selected range), so the splits add up. */
 
 const n = (v: unknown) => Number(v) || 0;
 const pctLabel = (p: number, t: number) => `${(t > 0 ? (p / t) * 100 : 0).toFixed(t > 0 ? 1 : 0)}%`;
@@ -203,12 +203,13 @@ function Meter({ id, value, color, light, label, sub }: { id: string; value: num
 /** Pickup & Delivery Performance — compact: one journey strip (Booked › Picked up › In transit › Delivered)
     and two rate meters. Same formulas as the old Overview card. */
 function PickupDeliveryCard({ ship }: { ship: any }) {
+  // ship.total = shipments booked in the range (never-shipped and cancelled orders excluded)
   const total = n(ship.total);
-  const notPicked = n(ship.readyToShip);
-  const pickedUp = total > 0 ? total - notPicked : 0;
+  const notPicked = n(ship.readyToShip) + n(ship.processing);
+  const pickedUp = Math.max(total - notPicked, 0);
   const inFlight = n(ship.inTransit) + n(ship.outForDelivery);
   const delivered = n(ship.delivered);
-  const rto = n(ship.rto) + n(ship.rtoInTransit);
+  const rto = n(ship.rtoInitiated) + n(ship.rtoInTransitInRange) + n(ship.rto);   // same shipments, RTO at any stage
   const pickupRate = total > 0 ? (pickedUp / total) * 100 : 0;
   const deliveryRate = total > 0 ? (delivered / total) * 100 : 0;
   const stages = [
@@ -255,9 +256,17 @@ function PickupDeliveryCard({ ship }: { ship: any }) {
   );
 }
 
-export function ShipmentsTab({ ship = {}, fmt, weightSplit = [], couriersSplit = [], courierIcon }: { ship?: any; fmt: (v: any) => string; weightSplit?: { range: string; count: number }[]; couriersSplit?: { name: string; value: number }[]; courierIcon?: (n: string) => string | null | undefined }) {
+export function ShipmentsTab({ ship = {}, fmt, weightSplit = [], couriersSplit = [], courierIcon, attempts = {} }: { ship?: any; fmt: (v: any) => string; weightSplit?: { range: string; count: number }[]; couriersSplit?: { name: string; value: number }[]; courierIcon?: (n: string) => string | null | undefined; attempts?: { first?: number; second?: number; third?: number; more?: number } }) {
   const total = n(ship.total);
   const delivered = n(ship.delivered);
+  // Delivered shipments by attempt (1 + NDR rounds before delivery); adds up to Delivered
+  const attemptRows = [
+    { name: '1st attempt delivery', value: n(attempts.first), color: '#0DB25B' },
+    { name: '2nd attempt delivery', value: n(attempts.second), color: '#6D4FC2' },
+    { name: '3rd attempt delivery', value: n(attempts.third), color: '#F5843B' },
+    { name: '> 3rd attempt delivery', value: n(attempts.more), color: '#E8365D' },
+  ];
+  const attemptTotal = attemptRows.reduce((a, r) => a + r.value, 0);
 
   return (
     <div className="space-y-3">
@@ -297,16 +306,13 @@ export function ShipmentsTab({ ship = {}, fmt, weightSplit = [], couriersSplit =
     <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3">
       <WeightCard split={weightSplit} />
       <CourierSplitCard split={couriersSplit} courierIcon={courierIcon} />
-      {/* TODO(backend): delivered shipments split by attempt number */}
       <section className="min-w-0 bg-white rounded-xl border border-[#EEF2F6] shadow-[0_1px_2px_rgba(16,24,40,0.03),0_4px_16px_-6px_rgba(16,24,40,0.06)] p-4 md:p-5 flex flex-col">
-        <h3 className="text-[15px] font-semibold text-[#0F172A]">Delivery Attempts</h3>
+        <div className="flex items-center justify-between gap-3">
+          <h3 className="text-[15px] font-semibold text-[#0F172A]">Delivery Attempts</h3>
+          <span className="text-[12px] text-[#64748B]">Delivered: <span className="font-semibold text-[#0F172A] tabular-nums">{attemptTotal.toLocaleString('en-IN')}</span></span>
+        </div>
         <div className="mt-2">
-          <StatusDonut total={0} data={[
-            { name: '1st attempt delivery', value: 0, color: '#0DB25B' },
-            { name: '2nd attempt delivery', value: 0, color: '#6D4FC2' },
-            { name: '3rd attempt delivery', value: 0, color: '#F5843B' },
-            { name: '> 3rd attempt delivery', value: 0, color: '#E8365D' },
-          ]} />
+          <StatusDonut total={attemptTotal} data={attemptRows} />
         </div>
       </section>
     </div>

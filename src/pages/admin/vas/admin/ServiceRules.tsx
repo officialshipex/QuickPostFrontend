@@ -29,7 +29,7 @@ export function ServiceRules({ service, onChanged, notify }: Props) {
   const [saving, setSaving] = useState(false);
   const isUsage = service.billing === 'usage';
   const [usage, setUsage] = useState<UsageDraft>(toUsageDraft());
-  const priceText = (u?: { whatsapp: number; call: number }) => (u ? `WhatsApp ${fmtMoney(u.whatsapp)} · call ${fmtMoney(u.call)}` : '—');
+  const priceText = (u?: { whatsapp: number; call: number }) => (u ? (service.usageUi && service.usageUi.showCall === false ? `${fmtMoney(u.whatsapp)} per message` : `WhatsApp ${fmtMoney(u.whatsapp)} · call ${fmtMoney(u.call)}`) : '—');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -161,7 +161,7 @@ export function ServiceRules({ service, onChanged, notify }: Props) {
             {chargeMode === 'custom' && isUsage && (
               <div>
                 <label className="text-[12px] font-bold text-[#475569] block mb-1.5">Prices for these sellers</label>
-                <UsagePriceEditor value={usage} onChange={setUsage} />
+                <UsagePriceEditor value={usage} onChange={setUsage} ui={service.usageUi} />
               </div>
             )}
 

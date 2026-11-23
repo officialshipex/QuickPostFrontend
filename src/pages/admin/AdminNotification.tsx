@@ -51,6 +51,9 @@ const STATUSES = [
 ] as const;
 
 type StatusKey = typeof STATUSES[number]['fieldKey'];
+// There is no WhatsApp "Undelivered" message here: a failed delivery's WhatsApp is the NDR Follow-ups service's
+// (value-added service, with its own buttons and charges). Email and SMS keep their Undelivered row.
+const hasRowFor = (s: typeof STATUSES[number], channel: string) => !(channel === 'whatsapp' && s.fieldKey === 'Undelivered');
 
 // ─── Channels ─────────────────────────────────────────────────────────────────
 const CHANNELS = [
@@ -117,7 +120,7 @@ function BuyCreditsModal({ open, onClose, onSuccess, targetUserId }: {
         </div>
         <div className="p-5 space-y-4">
           <div className="bg-[#F0FDF4] rounded-xl p-3 border border-[#DCFCE7] text-xs text-[#00A86B] font-semibold">
-            ₹1 = 1 Credit · 1 WhatsApp / SMS = 1 Credit · Email is Free
+            ₹1 = 1 Credit · 1 SMS = 1 Credit · Email is Free (WhatsApp order updates are priced by your admin)
           </div>
           <div>
             <label className="block text-xs font-bold text-[#475569] mb-1.5 uppercase tracking-wide">Amount (₹)</label>
@@ -997,7 +1000,18 @@ function ChannelTab({ channelCfg, settings, targetUserId, onUpdate }: {
     finally { setSaving(null); }
   };
 
+  const rows = STATUSES.filter(s => hasRowFor(s, dataPrefix));
   const BACKEND_STATUS: Record<string, string> = { PickupPending: 'Ready To Ship', Intransit: 'In-transit', OutForDelivery: 'Out for Delivery', Delivered: 'Delivered', Undelivered: 'Undelivered', RTO: 'RTO', Cancelled: 'Cancelled' };
+  // What WhatsApp order messages cost this seller (Manage VAS > WhatsApp Order Updates): free, a price per message, or off.
+  const [waFee, setWaFee] = useState<{ enabled: boolean; price: number } | null>(null);
+  useEffect(() => {
+    if (dataPrefix !== 'whatsapp') return;
+    let cancelled = false;
+    apiClient.get('/vas/my/order-notifications')
+      .then(res => { const sv = res.data?.service; if (!cancelled && sv) setWaFee({ enabled: sv.enabled !== false, price: Number(sv.usagePrices?.whatsapp) || 0 }); })
+      .catch(() => { /* no badge if it cannot be read */ });
+    return () => { cancelled = true; };
+  }, [dataPrefix]);
   const previewFor = (key: StatusKey) => previews[BACKEND_STATUS[key as string]];
   const toggleField = (key: StatusKey) => `is${togglePrefix}${key}Enable` as string;
   const isEnabled = (key: StatusKey) => !!settings[toggleField(key)];
@@ -1027,7 +1041,13 @@ function ChannelTab({ channelCfg, settings, targetUserId, onUpdate }: {
           </div>
           <div className="min-w-0 flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-0">
             <span className="text-[13px] md:text-sm font-bold text-[#0F172A] truncate">{label} Notifications</span>
-            {paid
+            {dataPrefix === 'whatsapp'
+              ? (waFee && (!waFee.enabled
+                  ? <span className="sm:ml-2 text-[9px] md:text-[10px] font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded-md whitespace-nowrap self-start">Switched off by admin</span>
+                  : waFee.price > 0
+                    ? <span className="sm:ml-2 text-[9px] md:text-[10px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-md whitespace-nowrap self-start">Paid · ₹{waFee.price} / message</span>
+                    : <span className="sm:ml-2 text-[9px] md:text-[10px] font-bold text-[#00A86B] bg-[#F0FDF4] px-1.5 py-0.5 rounded-md whitespace-nowrap self-start">Free</span>))
+              : paid
               ? <span className="sm:ml-2 text-[9px] md:text-[10px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-md whitespace-nowrap self-start">Paid · 1 Credit / message</span>
               : <span className="sm:ml-2 text-[9px] md:text-[10px] font-bold text-[#00A86B] bg-[#F0FDF4] px-1.5 py-0.5 rounded-md whitespace-nowrap self-start">Free</span>}
           </div>
@@ -1057,7 +1077,7 @@ function ChannelTab({ channelCfg, settings, targetUserId, onUpdate }: {
             </tr>
           </thead>
           <tbody className="divide-y divide-[#F1F5F9]">
-            {STATUSES.map(s => (
+            {rows.map(s => (
               <tr key={s.key} className={`hover:bg-[#F8FAFC] transition-colors ${(!masterEnabled || adminBlocked) ? 'opacity-50' : ''}`}>
                 <td className="px-4 py-3">
                   <span className="text-xs font-semibold text-[#0F172A]">{s.label}</span>
@@ -1078,7 +1098,7 @@ function ChannelTab({ channelCfg, settings, targetUserId, onUpdate }: {
 
       {/* Mobile cards */}
       <div className="md:hidden space-y-2">
-        {STATUSES.map(s => (
+        {rows.map(s => (
           <div key={s.key} className={`bg-white border border-[#E2E8F0] rounded-xl p-3 shadow-sm ${(!masterEnabled || adminBlocked) ? 'opacity-50' : ''}`}>
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-bold text-[#0F172A]">{s.label}</span>
@@ -1914,7 +1934,7 @@ export function AdminNotification() {
   // Derived metrics
   const countActive = (tp: string) => {
     if (!settings) return 0;
-    return STATUSES.filter(s => !!settings[`is${tp}${s.fieldKey}Enable`]).length;
+    return STATUSES.filter(s => hasRowFor(s, tp.toLowerCase()) && !!settings[`is${tp}${s.fieldKey}Enable`]).length;
   };
 
   const showContent = !isAdminView || !!selectedUser;
@@ -2067,9 +2087,9 @@ export function AdminNotification() {
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-3 mb-4 md:mb-6">
                 {[
                   { label: 'Credit Balance', value: creditBalance ?? 0, sub: '₹1 = 1 Credit', colorCls: 'text-[#00A86B]', bg: 'bg-[#F0FDF4]', border: 'border-[#DCFCE7]' },
-                  { label: 'WhatsApp Active', value: `${countActive('WhatsApp')}/${STATUSES.length}`, sub: 'statuses enabled', colorCls: 'text-[#16A34A]', bg: 'bg-[#F0FDF4]', border: 'border-[#BBF7D0]' },
-                  { label: 'SMS Active', value: `${countActive('SMS')}/${STATUSES.length}`, sub: 'statuses enabled', colorCls: 'text-orange-500', bg: 'bg-[#FFF7ED]', border: 'border-[#FED7AA]' },
-                  { label: 'Email Active', value: `${countActive('Email')}/${STATUSES.length}`, sub: 'statuses enabled', colorCls: 'text-blue-500', bg: 'bg-[#EFF6FF]', border: 'border-[#BFDBFE]' },
+                  { label: 'WhatsApp Active', value: `${countActive('WhatsApp')}/${STATUSES.filter(s => hasRowFor(s, 'whatsapp')).length}`, sub: 'statuses enabled', colorCls: 'text-[#16A34A]', bg: 'bg-[#F0FDF4]', border: 'border-[#BBF7D0]' },
+                  { label: 'SMS Active', value: `${countActive('SMS')}/${STATUSES.filter(s => hasRowFor(s, 'sms')).length}`, sub: 'statuses enabled', colorCls: 'text-orange-500', bg: 'bg-[#FFF7ED]', border: 'border-[#FED7AA]' },
+                  { label: 'Email Active', value: `${countActive('Email')}/${STATUSES.filter(s => hasRowFor(s, 'email')).length}`, sub: 'statuses enabled', colorCls: 'text-blue-500', bg: 'bg-[#EFF6FF]', border: 'border-[#BFDBFE]' },
                 ].map(m => (
                   <div key={m.label} className={`${m.bg} border ${m.border} rounded-xl p-2.5 md:p-4 shadow-sm`}>
                     <div className={`text-base md:text-xl font-extrabold ${m.colorCls}`}>{m.value}</div>
