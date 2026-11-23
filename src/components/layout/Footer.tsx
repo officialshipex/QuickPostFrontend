@@ -79,7 +79,11 @@ function MobileFooter() {
             <Link key={l.label} to={l.to} className={`px-2 text-[14px] leading-snug text-white/75 active:text-white ${idx > 0 ? 'border-l border-white/30' : ''}`}>{l.label}</Link>
           ))}
         </div>
-        <p className="mt-7 text-[15px] text-white/75">© 2026 Quickpost. All rights reserved.</p>
+        <div className="mt-7 pt-5 border-t border-white/10">
+          <p className="text-[14px] font-medium text-white/85">Quickpost360 Services Private Limited</p>
+          <p className="mt-1 text-[13px] leading-relaxed text-white/55">QuickPost is a brand of Quickpost360 Services Private Limited.</p>
+          <p className="mt-3 text-[13px] text-white/55">© {new Date().getFullYear()} Quickpost360 Services Private Limited. All rights reserved.</p>
+        </div>
       </div>
     </div>
   );
@@ -209,7 +213,12 @@ export function Footer({ hideCta = false }: { hideCta?: boolean }) {
         {/* Bottom bar */}
         <div className="footer-zone-3 border-t border-white/10">
           <div className="max-w-[1240px] mx-auto px-10 py-6 flex items-center justify-between gap-6">
-            <p className="text-[13.5px] text-white/50">© 2026 Quickpost. All rights reserved.</p>
+            <div className="min-w-0">
+              <p className="text-[13.5px] text-white/60">
+                © {new Date().getFullYear()} <span className="font-medium text-white/85">Quickpost360 Services Private Limited</span>. All rights reserved.
+              </p>
+              <p className="mt-1 text-[12.5px] text-white/40">QuickPost is a brand of Quickpost360 Services Private Limited.</p>
+            </div>
             <div className="flex items-center gap-6">
               {LEGAL_LINKS.map(l => (
                 <Link key={l.label} to={l.to} className="text-[13.5px] text-white/60 hover:text-white transition-colors">{l.label}</Link>
