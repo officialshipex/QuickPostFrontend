@@ -12,6 +12,7 @@ import aadhaarLogo from '../../assets/aadhaar-logo.png';
 import { copyToClipboard } from '../../utils/clipboard';
 import { FieldLabel } from './kyc/kycUi';
 import { cardShadow, GSTIN_RE, inputCls } from './kyc/kycStyles';
+import { AADHAAR_RULE, ACCOUNT_RULE, BlockedReason, checkField, FieldHint, firstProblem, GSTIN_RULE, IFSC_RULE, MOBILE_RULE, PAN_RULE, PINCODE_RULE } from './kyc/fieldCheck';
 import {
   buildManualKycFormData, createManualKycData, isAadhaarComplete, isBankComplete, isPanComplete, kycSubmitError, manualDraftSection, restoreManualDraft,
   type ManualKycData, type ManualStep,
@@ -249,16 +250,17 @@ function GstinField({
           type="text"
           maxLength={15}
           value={gstin}
-          onChange={(e) => setGstin(e.target.value.toUpperCase())}
+          onChange={(e) => setGstin(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
           disabled={isGstinVerified || disabled}
           placeholder="Enter 15 chars valid GSTIN no."
-          className={`${inputCls} pr-24 uppercase`}
+          className={`${inputCls} pr-24 uppercase ${!isGstinVerified && checkField(gstin, GSTIN_RULE).state === 'invalid' ? '!border-red-300' : ''}`}
         />
         {!isGstinVerified ? (
           <button
             type="button"
             onClick={onVerify}
-            disabled={isGstinLoading || gstin.length < 15 || disabled}
+            title={checkField(gstin, GSTIN_RULE).state === 'ok' ? undefined : 'Enter the full 15-character GSTIN first'}
+            disabled={isGstinLoading || checkField(gstin, GSTIN_RULE).state !== 'ok' || disabled}
             className="absolute right-1.5 h-8 px-3.5 rounded-full bg-[#334155] hover:bg-[#1E293B] text-white text-[11px] font-bold disabled:opacity-40 disabled:pointer-events-none transition-colors flex items-center gap-1.5"
           >
             {isGstinLoading ? <RefreshCcw className="w-3 h-3 animate-spin" /> : 'Verify'}
@@ -269,6 +271,7 @@ function GstinField({
           </span>
         )}
       </div>
+      {!isGstinVerified && <FieldHint value={gstin} rule={GSTIN_RULE} idle="15 characters, as on your GST certificate" />}
     </div>
   );
 }
@@ -433,17 +436,18 @@ function PanVerificationModal({
                       type="text"
                       maxLength={10}
                       value={panNumber}
-                      onChange={(e) => setPanNumber(e.target.value.toUpperCase())}
+                      onChange={(e) => setPanNumber(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
                       disabled={isPanLoading}
                       placeholder="ABCDE1234F"
                       aria-label="PAN number"
                       className="w-full bg-transparent border-0 p-0 tracking-[0.2em] font-bold uppercase text-[17px] text-[#0F172A] placeholder:text-[#CBD5E1] placeholder:tracking-[0.2em] placeholder:font-bold focus:outline-none disabled:opacity-50"
                     />
                   </div>
+                  <FieldHint value={panNumber} rule={PAN_RULE} dark idle="10 characters: 5 letters, 4 digits, 1 letter" className="justify-center text-center !mt-2" />
                   <ShineButton
                     type="button"
                     onClick={onVerify}
-                    disabled={isPanLoading || panNumber.length < 10}
+                    disabled={isPanLoading || checkField(panNumber, PAN_RULE).state !== 'ok'}
                     className="relative w-full h-[52px] rounded-full bg-gradient-to-r from-[#00E08A] to-[#00C97B] hover:from-[#00C97B] hover:to-[#00B36D] disabled:opacity-40 disabled:pointer-events-none text-white text-[14px] font-extrabold shadow-[0_18px_45px_-14px_rgba(0,201,123,0.7)] transition-all overflow-hidden flex items-center justify-center gap-2"
                   >
                     {isPanLoading ? (
@@ -673,6 +677,9 @@ function AadhaarVerificationModal({
                       className="w-full bg-transparent border-0 p-0 tracking-[0.2em] font-bold text-[17px] text-[#0F172A] placeholder:text-[#CBD5E1] placeholder:tracking-[0.2em] placeholder:font-bold focus:outline-none disabled:opacity-50"
                     />
                   </div>
+                  {digilockerPhase !== 'waiting' && (
+                    <FieldHint value={aadhaarNumber} rule={AADHAAR_RULE} dark idle="12 digits, as on your Aadhaar card" className="justify-center text-center !mt-2" />
+                  )}
 
                   {digilockerPhase === 'waiting' ? (
                     <div className="rounded-[16px] bg-white/95 p-4 text-center shadow-[0_18px_45px_-14px_rgba(0,0,0,0.5)]">
@@ -700,7 +707,7 @@ function AadhaarVerificationModal({
                       <ShineButton
                         type="button"
                         onClick={onDigilocker}
-                        disabled={digilockerPhase !== 'idle' || sendingAadhaarOtp || aadhaarNumber.length < 12}
+                        disabled={digilockerPhase !== 'idle' || sendingAadhaarOtp || checkField(aadhaarNumber, AADHAAR_RULE).state !== 'ok'}
                         className="relative w-full h-[52px] rounded-full bg-gradient-to-r from-[#00E08A] to-[#00C97B] hover:from-[#00C97B] hover:to-[#00B36D] disabled:opacity-40 disabled:pointer-events-none text-white text-[14px] font-extrabold shadow-[0_18px_45px_-14px_rgba(0,201,123,0.7)] transition-all overflow-hidden flex items-center justify-center gap-2"
                       >
                         <ScanLine className="w-4 h-4" />
@@ -709,7 +716,7 @@ function AadhaarVerificationModal({
                       <button
                         type="button"
                         onClick={onSendOtp}
-                        disabled={digilockerPhase !== 'idle' || sendingAadhaarOtp || aadhaarOtpTimer > 0 || aadhaarNumber.length < 12}
+                        disabled={digilockerPhase !== 'idle' || sendingAadhaarOtp || aadhaarOtpTimer > 0 || checkField(aadhaarNumber, AADHAAR_RULE).state !== 'ok'}
                         className="w-full h-11 rounded-full border border-white/30 bg-white/10 hover:bg-white/20 disabled:opacity-40 disabled:pointer-events-none text-white text-[13px] font-bold transition-colors"
                       >
                         {sendingAadhaarOtp ? 'Sending OTP…' : aadhaarOtpTimer > 0 ? `Resend OTP in ${aadhaarOtpTimer}s` : 'Verify with OTP instead'}
@@ -772,10 +779,16 @@ function BankVerificationPage({
   isPanVerified?: boolean; isAadhaarVerified?: boolean; panName?: string;
 }) {
   const [showAccount, setShowAccount] = useState(false);
-  const ifscValid = /^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifscCode);
-  const ifscInvalid = ifscCode.length === 11 && !ifscValid;
-  const accountLengthOk = accountNumber.length >= 9 && accountNumber.length <= 18;
+  const ifscCheck = checkField(ifscCode, IFSC_RULE);
+  const ifscValid = ifscCheck.state === 'ok';
+  const ifscInvalid = ifscCheck.state === 'invalid';
+  const accountLengthOk = checkField(accountNumber, ACCOUNT_RULE).state === 'ok';
   const canVerify = accountLengthOk && accountNumbersMatch && ifscValid;
+  // what is still stopping "Verify Bank Account" (shown next to it)
+  const blockedReason = canVerify ? null : firstProblem(
+    [{ value: accountNumber, rule: ACCOUNT_RULE }],
+    [!confirmAccountNumber && 'Re-enter your account number to confirm it', confirmAccountNumber && !accountNumbersMatch && 'Account numbers do not match']
+  ) || firstProblem([{ value: ifscCode, rule: IFSC_RULE }]);
 
   const steps = [
     { label: 'PAN', done: !!isPanVerified, current: false },
@@ -867,9 +880,7 @@ function BankVerificationPage({
                               {showAccount ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                             </button>
                           </div>
-                          {accountNumber && !accountLengthOk && (
-                            <p className="text-[11px] text-[#94A3B8] mt-1.5">Account numbers are 9–18 digits</p>
-                          )}
+                          <FieldHint value={accountNumber} rule={ACCOUNT_RULE} idle="9 to 18 digits" />
                         </div>
                         <div>
                           <FieldLabel required>Confirm Account Number</FieldLabel>
@@ -906,9 +917,7 @@ function BankVerificationPage({
                             placeholder="e.g. HDFC0001234"
                             className={`${inputCls} uppercase placeholder:normal-case tracking-wide ${ifscInvalid ? '!border-red-300 focus:!ring-red-100' : ''}`}
                           />
-                          <p className={`text-[11px] mt-1.5 ${ifscInvalid ? 'font-medium text-red-500' : 'text-[#94A3B8]'}`}>
-                            {ifscInvalid ? 'Enter a valid 11-character IFSC (e.g. HDFC0001234)' : 'Printed on your cheque book and passbook'}
-                          </p>
+                          <FieldHint value={ifscCode} rule={IFSC_RULE} idle="11 characters, printed on your cheque book and passbook" />
                         </div>
                       </div>
 
@@ -975,14 +984,18 @@ function BankVerificationPage({
                 Back
               </button>
               {!isBankVerified ? (
-                <ShineButton
-                  type="button"
-                  onClick={onVerify}
-                  disabled={isBankLoading || !canVerify}
-                  className="min-w-[180px] h-11 px-6 rounded-full bg-[#009D64] hover:bg-[#008856] disabled:opacity-40 disabled:pointer-events-none text-white text-[13px] font-bold shadow-sm transition-colors flex items-center justify-center gap-2"
-                >
-                  {isBankLoading ? <><RefreshCcw className="w-4 h-4 animate-spin" /> Verifying…</> : 'Verify Bank Account'}
-                </ShineButton>
+                <div className="flex items-center gap-3 min-w-0">
+                  {!isBankLoading && <BlockedReason reason={blockedReason} className="hidden sm:flex text-right" />}
+                  <ShineButton
+                    type="button"
+                    onClick={onVerify}
+                    disabled={isBankLoading || !canVerify}
+                    title={blockedReason || undefined}
+                    className="min-w-[180px] h-11 px-6 rounded-full bg-[#009D64] hover:bg-[#008856] disabled:opacity-40 disabled:pointer-events-none text-white text-[13px] font-bold shadow-sm transition-colors flex items-center justify-center gap-2 shrink-0"
+                  >
+                    {isBankLoading ? <><RefreshCcw className="w-4 h-4 animate-spin" /> Verifying…</> : 'Verify Bank Account'}
+                  </ShineButton>
+                </div>
               ) : (
                 <ShineButton
                   type="button"
@@ -1596,19 +1609,29 @@ export function AdminKYC({ embedded = false }: { embedded?: boolean } = {}) {
   const [pincode, setPincode] = useState('');
   const [city, setCity] = useState('');
   const [state, setState] = useState('');
+  // so a 6-digit pincode that cannot be found says so, instead of leaving City / State empty without a reason
+  const [pincodeLookup, setPincodeLookup] = useState<'idle' | 'loading' | 'found' | 'notfound' | 'error'>('idle');
 
   useEffect(() => {
-    if (pincode.length !== 6) { setCity(''); setState(''); return; }
+    if (pincode.length !== 6) { setCity(''); setState(''); setPincodeLookup('idle'); return; }
+    let alive = true;
+    setPincodeLookup('loading');
     fetch(`https://api.postalpincode.in/pincode/${pincode}`)
       .then(r => r.json())
       .then(data => {
+        if (!alive) return;
         const po = data?.[0]?.PostOffice?.[0];
         if (po) {
           setCity((po.District || po.Name || '').toUpperCase());
           setState((po.State || '').toUpperCase());
+          setPincodeLookup('found');
+        } else {
+          // City / State are left as they were (they may be pre-filled from the profile or GST)
+          setPincodeLookup('notfound');
         }
       })
-      .catch(() => {});
+      .catch(() => { if (alive) setPincodeLookup('error'); });
+    return () => { alive = false; };
   }, [pincode]);
 
   // Aadhaar
@@ -1980,12 +2003,30 @@ export function AdminKYC({ embedded = false }: { embedded?: boolean } = {}) {
     1: businessType === 'INDIVIDUAL' || businessType === 'COMPANY',
     2: /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim())
       && (!EMAIL_VERIFICATION_MANDATORY || isEmailVerified)
-      && phoneNumber.replace(/\D/g, '').length === 10
+      && checkField(phoneNumber.replace(/\D/g, ''), MOBILE_RULE).state === 'ok'
       && (!PHONE_VERIFICATION_MANDATORY || isPhoneVerified),
     3: !!(address.trim() && pincode.length === 6 && city && state),
     4: isGstinVerified,
   };
   const ekycTargetStep = !ekycStepDone[1] ? 1 : !ekycStepDone[2] ? 2 : !ekycStepDone[3] ? 3 : 4;
+
+  // The first thing still missing in Business Type / Contact / Billing (sections 1–3), as an instruction — shown next
+  // to a disabled Continue so the seller knows what to fix (both e-KYC and manual KYC).
+  const detailsProblem = (): string | null => {
+    if (!ekycStepDone[1]) return 'Choose Individual or Company';
+    if (!ekycStepDone[2]) {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim())) return 'Enter a valid email address';
+      if (EMAIL_VERIFICATION_MANDATORY && !isEmailVerified) return 'Verify your email with the OTP';
+      const phone = firstProblem([{ value: phoneNumber.replace(/\D/g, ''), rule: MOBILE_RULE }]);
+      if (phone) return phone;
+      if (PHONE_VERIFICATION_MANDATORY && !isPhoneVerified) return 'Verify your mobile number with the OTP';
+    }
+    if (!address.trim()) return 'Enter your billing address';
+    const pin = firstProblem([{ value: pincode, rule: PINCODE_RULE }]);
+    if (pin) return pin;
+    if (!(city && state)) return pincodeLookup === 'loading' ? 'Finding your city from the pincode…' : 'We could not find this pincode — please check it';
+    return null;
+  };
   const [ekycRevealedStep, setEkycRevealedStep] = useState(1);
 
   useEffect(() => {
@@ -2325,13 +2366,13 @@ export function AdminKYC({ embedded = false }: { embedded?: boolean } = {}) {
                             onChange={(e) => !isPhoneVerified && setPhoneNumber(e.target.value.replace(/\D/g, ''))}
                             disabled={isPhoneVerified}
                             placeholder="Enter 10-digit mobile number"
-                            className={`${inputCls} pl-12 pr-28`}
+                            className={`${inputCls} pl-12 pr-28 ${!isPhoneVerified && checkField(phoneNumber, MOBILE_RULE).state === 'invalid' ? '!border-red-300' : ''}`}
                           />
                           {!isPhoneVerified ? (
                             <button
                               type="button"
                               onClick={sendPhoneOtp}
-                              disabled={loadingPhoneOtp || phoneOtpTimer > 0 || phoneNumber.replace(/\D/g, '').length !== 10}
+                              disabled={loadingPhoneOtp || phoneOtpTimer > 0 || checkField(phoneNumber, MOBILE_RULE).state !== 'ok'}
                               className="absolute right-1.5 h-8 px-3.5 rounded-full bg-[#334155] hover:bg-[#1E293B] text-white text-[11px] font-bold disabled:opacity-40 disabled:pointer-events-none transition-colors flex items-center gap-1.5"
                             >
                               {loadingPhoneOtp ? <RefreshCcw className="w-3 h-3 animate-spin" /> : phoneOtpTimer > 0 ? `Resend in ${phoneOtpTimer}s` : 'Send OTP'}
@@ -2342,6 +2383,7 @@ export function AdminKYC({ embedded = false }: { embedded?: boolean } = {}) {
                             </span>
                           )}
                         </div>
+                        {!isPhoneVerified && <FieldHint value={phoneNumber} rule={MOBILE_RULE} />}
                       </div>
                 </div>
               </KycSection>
@@ -2368,8 +2410,17 @@ export function AdminKYC({ embedded = false }: { embedded?: boolean } = {}) {
                         value={pincode}
                         onChange={(e) => setPincode(e.target.value.replace(/\D/g, ''))}
                         placeholder="6-digit pincode"
-                        className={inputCls}
+                        className={`${inputCls} ${checkField(pincode, PINCODE_RULE).state === 'invalid' || pincodeLookup === 'notfound' ? '!border-red-300' : ''}`}
                       />
+                      {checkField(pincode, PINCODE_RULE).state !== 'ok' ? (
+                        <FieldHint value={pincode} rule={PINCODE_RULE} />
+                      ) : pincodeLookup === 'loading' ? (
+                        <p className="text-[11px] mt-1.5 text-[#94A3B8]">Finding your city…</p>
+                      ) : pincodeLookup === 'notfound' && !city ? (
+                        <p role="alert" className="text-[11px] mt-1.5 font-medium text-red-500">We could not find this pincode — please check it</p>
+                      ) : pincodeLookup === 'error' && !city ? (
+                        <p className="text-[11px] mt-1.5 font-medium text-[#B45309]">Could not look up the city right now — check your connection and re-enter the pincode</p>
+                      ) : null}
                     </div>
                     <div>
                       <FieldLabel>City</FieldLabel>
@@ -2394,6 +2445,9 @@ export function AdminKYC({ embedded = false }: { embedded?: boolean } = {}) {
       && emailOk && phoneOk
       && !!(address && pincode && city && state)
       && (businessType !== 'COMPANY' || isGstinVerified);
+    // what is still stopping "Continue" (shown next to it)
+    const continueBlocked = billingReady ? null
+      : detailsProblem() || (businessType === 'COMPANY' && !isGstinVerified ? 'Verify your GSTIN' : null);
 
     return (
       <AdminLayout>
@@ -2446,6 +2500,7 @@ export function AdminKYC({ embedded = false }: { embedded?: boolean } = {}) {
                 <p className="text-[11px] font-semibold text-[#94A3B8] uppercase tracking-wide">Next step</p>
                 <p className="text-[13px] font-semibold text-[#0F172A] mt-0.5">Identity &amp; Bank Verification</p>
                 <p className="text-[12px] text-[#64748B]">Aadhaar, PAN and bank details — verified in one quick step.</p>
+                <BlockedReason reason={continueBlocked} className="mt-1.5" />
               </div>
               <ShineButton
                 type="button"
@@ -2779,9 +2834,12 @@ export function AdminKYC({ embedded = false }: { embedded?: boolean } = {}) {
   }
 
   /* ── MANUAL KYC FLOW ── page-wise: Business Details → PAN → Aadhaar → Bank → Review */
-  const manualGstinInvalid = gstin.length === 15 && !GSTIN_RE.test(gstin);
+  const manualGstinInvalid = checkField(gstin, GSTIN_RULE).state === 'invalid' || (gstin.length === 15 && !GSTIN_RE.test(gstin));
   const manualDetailsReady = ekycStepDone[1] && ekycStepDone[2] && ekycStepDone[3]
     && (businessType !== 'COMPANY' || (GSTIN_RE.test(gstin) && !!manualData.gstCertificate));
+  const manualDetailsBlocked = manualDetailsReady ? null
+    : detailsProblem()
+      || (businessType === 'COMPANY' ? firstProblem([{ value: gstin, rule: GSTIN_RULE }]) || (!manualData.gstCertificate ? 'Upload the GST registration certificate' : null) : null);
   const leaveManual = () => { setMethod(null); setEkycRevealedStep(1); goToManualStep('details'); };
 
   return (
@@ -2821,7 +2879,7 @@ export function AdminKYC({ embedded = false }: { embedded?: boolean } = {}) {
                       <div>
                         <FieldLabel required>GSTIN No.</FieldLabel>
                         <input type="text" maxLength={15} value={gstin} onChange={(e) => { setGstin(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '')); setIsGstinVerified(false); }} placeholder="15-character GSTIN" className={`${inputCls} uppercase placeholder:normal-case tracking-wide ${manualGstinInvalid ? '!border-red-300' : ''}`} />
-                        {manualGstinInvalid && <p className="text-[11px] font-medium text-red-500 mt-1.5">Enter a valid GSTIN (e.g. 27AAPFU0939F1ZV)</p>}
+                        <FieldHint value={gstin} rule={GSTIN_RULE} idle="15 characters, as on your GST certificate" />
                       </div>
                       <DocumentUpload field="gstCertificate" label="GST Registration Certificate" value={manualData.gstCertificate} onChange={(gstCertificate) => setManualData((d) => ({ ...d, gstCertificate }))} onError={(m) => showToast('error', m)} />
                     </div>
@@ -2832,6 +2890,7 @@ export function AdminKYC({ embedded = false }: { embedded?: boolean } = {}) {
                       <p className="text-[11px] font-semibold text-[#94A3B8] uppercase tracking-wide">Next step</p>
                       <p className="text-[13px] font-semibold text-[#0F172A] mt-0.5">PAN, Aadhaar &amp; Bank Details</p>
                       <p className="text-[12px] text-[#64748B]">Enter the details and upload the supporting documents.</p>
+                      <BlockedReason reason={manualDetailsBlocked} className="mt-1.5" />
                     </div>
                     <ShineButton
                       type="button"

@@ -4,9 +4,10 @@ import { ShineButton } from '../../../components/ui/ShineButton';
 import { FieldLabel } from './kycUi';
 import { removeDraftDocument, SELLER_DRAFT_URL, uploadDraftDocument } from './kycDraft';
 import { cardShadow, IFSC_RE, inputCls, PAN_RE } from './kycStyles';
+import { AADHAAR_RULE, ACCOUNT_RULE, BlockedReason, checkField, FieldHint, IFSC_RULE, PAN_RULE, PINCODE_RULE } from './fieldCheck';
 import {
-  formatAadhaar, formatDate, formatFileSize, isAadhaarComplete, isBankAccountLengthOk, isBankComplete, isPanComplete,
-  kycSubmitError, MANUAL_STEPS, MAX_DOCUMENT_MB, maskTail, pdfProblem,
+  aadhaarProblem, bankProblem, formatAadhaar, formatDate, formatFileSize, isAadhaarComplete, isBankComplete, isPanComplete,
+  kycSubmitError, MANUAL_STEPS, MAX_DOCUMENT_MB, maskTail, panProblem, pdfProblem,
   type KycFile, type ManualAadhaar, type ManualBank, type ManualKycData, type ManualPan, type ManualStep,
 } from './manualKycData';
 
@@ -133,7 +134,7 @@ export function ManualStepper({ current }: { current: ManualStep }) {
 }
 
 export function ManualStepLayout({
-  step, title, subtitle, children, aside, onBack, onNext, nextLabel, nextDisabled, nextLoading,
+  step, title, subtitle, children, aside, onBack, onNext, nextLabel, nextDisabled, nextLoading, nextBlockedReason,
 }: {
   step: ManualStep;
   title: string;
@@ -145,6 +146,8 @@ export function ManualStepLayout({
   nextLabel: string;
   nextDisabled?: boolean;
   nextLoading?: boolean;
+  /** what is still missing while Next is disabled (shown next to it) */
+  nextBlockedReason?: string | null;
 }) {
   return (
     <div className="max-w-5xl mx-auto">
@@ -160,15 +163,22 @@ export function ManualStepLayout({
             <button type="button" onClick={onBack} className="inline-flex items-center gap-1.5 px-5 h-11 border border-[#E2E8F0] text-[#475569] hover:bg-[#F8FAFC] text-[13px] font-bold rounded-full transition-colors">
               <ArrowLeft className="w-4 h-4" /> Back
             </button>
-            <ShineButton
-              type="button"
-              onClick={onNext}
-              disabled={nextDisabled || nextLoading}
-              className="min-w-[160px] h-11 px-6 rounded-full bg-[#009D64] hover:bg-[#008856] transition-colors text-white text-[13px] font-bold shadow-sm disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-1.5"
-            >
-              {nextLoading ? <><RefreshCcw className="w-4 h-4 animate-spin" /> Submitting…</> : <>{nextLabel} <ArrowRight className="w-4 h-4" /></>}
-            </ShineButton>
+            <div className="flex items-center gap-3 min-w-0">
+              {nextDisabled && !nextLoading && <BlockedReason reason={nextBlockedReason || null} className="hidden sm:flex text-right" />}
+              <ShineButton
+                type="button"
+                onClick={onNext}
+                disabled={nextDisabled || nextLoading}
+                title={nextDisabled ? nextBlockedReason || undefined : undefined}
+                className="min-w-[160px] h-11 px-6 rounded-full bg-[#009D64] hover:bg-[#008856] transition-colors text-white text-[13px] font-bold shadow-sm disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-1.5 shrink-0"
+              >
+                {nextLoading ? <><RefreshCcw className="w-4 h-4 animate-spin" /> Submitting…</> : <>{nextLabel} <ArrowRight className="w-4 h-4" /></>}
+              </ShineButton>
+            </div>
           </div>
+          {nextDisabled && !nextLoading && nextBlockedReason && (
+            <BlockedReason reason={nextBlockedReason} className="sm:hidden px-4 pb-4 -mt-1" />
+          )}
         </div>
         {aside && <aside className="space-y-4">{aside}</aside>}
       </div>
@@ -218,7 +228,7 @@ export function ManualPanStep({
   onError: (msg: string) => void;
 }) {
   const isCompany = businessType === 'COMPANY';
-  const panInvalid = value.number.length === 10 && !PAN_RE.test(value.number);
+  const panInvalid = checkField(value.number, PAN_RULE).state === 'invalid' || (value.number.length === 10 && !PAN_RE.test(value.number));
   return (
     <ManualStepLayout
       step="pan"
@@ -228,6 +238,7 @@ export function ManualPanStep({
       onNext={onNext}
       nextLabel="Continue"
       nextDisabled={!isPanComplete(value)}
+      nextBlockedReason={panProblem(value, isCompany)}
       aside={<GuidanceCard title="Before you upload" items={[
         'Upload a clear scan of the original PAN card as a PDF',
         'All four corners and text must be visible',
@@ -238,7 +249,7 @@ export function ManualPanStep({
         <div>
           <FieldLabel required>PAN Number</FieldLabel>
           <input type="text" maxLength={10} value={value.number} onChange={(e) => onChange({ number: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '') })} placeholder="ABCDE1234F" className={`${inputCls} uppercase tracking-wider ${panInvalid ? '!border-red-300' : ''}`} />
-          <ErrorText show={panInvalid}>Enter a valid PAN (e.g. ABCDE1234F)</ErrorText>
+          <FieldHint value={value.number} rule={PAN_RULE} idle="10 characters: 5 letters, 4 digits, 1 letter" />
         </div>
         <div>
           <FieldLabel required>{isCompany ? 'Business Name as on PAN' : 'Name as on PAN'}</FieldLabel>
@@ -284,7 +295,6 @@ export function ManualAadhaarStep({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value.pincode]);
 
-  const aadhaarIncomplete = value.number.length > 0 && value.number.length < 12;
   return (
     <ManualStepLayout
       step="aadhaar"
@@ -294,6 +304,7 @@ export function ManualAadhaarStep({
       onNext={onNext}
       nextLabel="Continue"
       nextDisabled={!isAadhaarComplete(value)}
+      nextBlockedReason={aadhaarProblem(value)}
       aside={<GuidanceCard title="Before you upload" items={[
         'Upload both the front and back of the Aadhaar card',
         'Masked Aadhaar (first 8 digits hidden) is accepted',
@@ -304,7 +315,7 @@ export function ManualAadhaarStep({
         <div>
           <FieldLabel required>Aadhaar Number</FieldLabel>
           <input type="text" inputMode="numeric" maxLength={14} value={formatAadhaar(value.number)} onChange={(e) => onChange({ number: e.target.value.replace(/\D/g, '').slice(0, 12) })} placeholder="XXXX XXXX XXXX" className={`${inputCls} tracking-wider`} />
-          <ErrorText show={aadhaarIncomplete}>Aadhaar number has 12 digits</ErrorText>
+          <FieldHint value={value.number} rule={AADHAAR_RULE} idle="12 digits" />
         </div>
         <div>
           <FieldLabel required>Name as on Aadhaar</FieldLabel>
@@ -325,7 +336,8 @@ export function ManualAadhaarStep({
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 sm:col-span-2">
           <div className="col-span-2 sm:col-span-1">
             <FieldLabel required>Pincode</FieldLabel>
-            <input type="text" inputMode="numeric" maxLength={6} value={value.pincode} onChange={(e) => onChange({ pincode: e.target.value.replace(/\D/g, '') })} placeholder="6-digit pincode" className={inputCls} />
+            <input type="text" inputMode="numeric" maxLength={6} value={value.pincode} onChange={(e) => onChange({ pincode: e.target.value.replace(/\D/g, '') })} placeholder="6-digit pincode" className={`${inputCls} ${checkField(value.pincode, PINCODE_RULE).state === 'invalid' ? '!border-red-300' : ''}`} />
+            {checkField(value.pincode, PINCODE_RULE).state !== 'ok' && <FieldHint value={value.pincode} rule={PINCODE_RULE} />}
           </div>
           <div>
             <FieldLabel required>City</FieldLabel>
@@ -381,7 +393,7 @@ export function ManualBankStep({
   const [showAccount, setShowAccount] = useState(false);
   const mismatch = !!value.confirmAccountNumber && value.confirmAccountNumber !== value.accountNumber;
   const matched = !!value.confirmAccountNumber && !mismatch;
-  const ifscInvalid = value.ifsc.length === 11 && !IFSC_RE.test(value.ifsc);
+  const ifscInvalid = checkField(value.ifsc, IFSC_RULE).state === 'invalid' || (value.ifsc.length === 11 && !IFSC_RE.test(value.ifsc));
   return (
     <ManualStepLayout
       step="bank"
@@ -391,6 +403,7 @@ export function ManualBankStep({
       onNext={onNext}
       nextLabel="Review Details"
       nextDisabled={!isBankComplete(value)}
+      nextBlockedReason={bankProblem(value)}
       aside={<GuidanceCard
         title="Account requirements"
         items={[
@@ -415,7 +428,7 @@ export function ManualBankStep({
               {showAccount ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
           </div>
-          {value.accountNumber && !isBankAccountLengthOk(value.accountNumber) && <p className="text-[11px] text-[#94A3B8] mt-1.5">Account numbers are 9–18 digits</p>}
+          <FieldHint value={value.accountNumber} rule={ACCOUNT_RULE} idle="9 to 18 digits" />
         </div>
         <div>
           <FieldLabel required>Confirm Account Number</FieldLabel>
@@ -428,7 +441,7 @@ export function ManualBankStep({
         <div>
           <FieldLabel required>IFSC Code</FieldLabel>
           <input type="text" maxLength={11} autoComplete="off" value={value.ifsc} onChange={(e) => onChange({ ifsc: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '') })} placeholder="e.g. HDFC0001234" className={`${inputCls} uppercase placeholder:normal-case tracking-wide ${ifscInvalid ? '!border-red-300' : ''}`} />
-          <ErrorText show={ifscInvalid}>Enter a valid 11-character IFSC</ErrorText>
+          <FieldHint value={value.ifsc} rule={IFSC_RULE} idle="11 characters, printed on your cheque book and passbook" />
         </div>
         <div>
           <FieldLabel required>Account Type</FieldLabel>
