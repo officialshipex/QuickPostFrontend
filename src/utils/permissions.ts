@@ -32,6 +32,8 @@ export interface PermModule {
   group?: string;
   /** only View applies (e.g. a dashboard) — Edit/Delete are not offered */
   viewOnly?: boolean;
+  /** View and Edit only — nothing can be deleted there, so Delete is not offered */
+  noDelete?: boolean;
 }
 
 export const ADMIN_MODULES: PermModule[] = [
@@ -57,6 +59,9 @@ export const ADMIN_MODULES: PermModule[] = [
   { key: 'rateCard', label: 'Rate Card', desc: 'Rate cards', section: 'Courier', group: 'courier' },
   { key: 'support', label: 'Support Tickets', desc: 'Manage support tickets', section: 'Support' },
   { key: 'referral', label: 'Referral', desc: 'Referral programme', section: 'Support' },
+  // Backend: feedback/panelFeedback.router.js + contactRequest/contactRequest.router.js (utils/employeeAccess.requireModule)
+  { key: 'sellerFeedback', label: 'Seller Feedback', desc: 'Read the feedback sellers give in the panel', section: 'Support', viewOnly: true },
+  { key: 'callbackRequests', label: 'Callback Requests', desc: 'See Contact Us callback requests (View), mark them contacted / closed and add a note (Edit)', section: 'Support', noDelete: true },
   // Admin powers for e.g. HR. They can only give access they have themselves, can't change their own account or
   // anyone with more access than them, and everything they do is in the Audit Logs (backend rolesController).
   { key: 'employees', label: 'Employees', desc: 'See employees (View), add / change them and their access, activate / deactivate (Edit), remove them (Delete)', section: 'Employee Access' },
@@ -186,6 +191,8 @@ const ROUTE_MODULES: [string, string | null][] = [
   ['/rate-card', 'rateCard'],
   ['/support', 'support'],
   ['/referral', 'referral'],
+  ['/seller-feedback', 'sellerFeedback'],
+  ['/callback-requests', 'callbackRequests'],
   ['/internal-crm', 'internalCrm'],
   ['/sales', 'sales'],
   // either Sales Management part opens the page (it then shows only the tabs given)
@@ -233,6 +240,7 @@ const ADMIN_LANDING: [string, string][] = [
   ['weightDiscrepancy', '/admin/weight-discrepancy'], ['users', '/admin/users'], ['couriers', '/admin/couriers'],
   ['rateCard', '/admin/rate-card'], ['support', '/admin/support'],
   ['employees', '/admin/roles'], ['salesTeam|salesKyc', '/admin/sales-management'],
+  ['callbackRequests', '/admin/callback-requests'], ['sellerFeedback', '/admin/seller-feedback'],
 ];
 export function adminEmployeeLanding(accessRights: Record<string, any> | undefined | null): string { // eslint-disable-line @typescript-eslint/no-explicit-any
   const hit = ADMIN_LANDING.find(([key]) => hasAnyView(accessRights, key));

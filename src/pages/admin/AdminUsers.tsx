@@ -1,11 +1,12 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ChevronDown, User, Users,
   UserCheck, ShieldAlert, IndianRupee, CreditCard, Building2,
-  Clock, Edit2, Wallet, Copy, CheckCircle2, AlertCircle, X, MoreVertical, Settings, Info, Filter, Search, ExternalLink
+  Clock, Edit2, Wallet, Copy, CheckCircle2, AlertCircle, X, MoreVertical, Settings, Info, Filter, Search, ExternalLink,
+  Download, Loader2, RefreshCw
 } from 'lucide-react';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
@@ -20,6 +21,9 @@ import { getTier } from '../../hooks/useTier';
 import { apiClient } from '../../services/apiClient';
 import { Toast } from '../../components/ui/Toast';
 import { useToast } from '../../hooks/useToast';
+import { useAdminTab } from '../../context/AdminUserContext';
+import { hasPermission } from '../../utils/permissions';
+import { AssignKamModal } from '../../components/admin/users/AssignKamModal';
 
 const STATUS_BADGE_STYLES: Record<string, string> = {
   'Verified': 'bg-emerald-50 text-emerald-700 border-emerald-200',
@@ -61,6 +65,72 @@ const fmtTime = (iso: string | null | undefined) => {
   return new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
 };
 
+// The Action menu keeps its own open/closed state. It used to live in AdminUsers, so every click re-rendered
+// the whole table (up to 100 rows) before the menu could appear — that was the delay.
+function UsersActionMenu({ onRefresh, onExport, exporting, compact = false, selectedCount = 0, onAssignKam }: {
+  onRefresh: () => void;
+  onExport: () => void;
+  exporting: boolean;
+  compact?: boolean;
+  selectedCount?: number;
+  /** Assign KAM to the selected users; not given = the viewer may not assign */
+  onAssignKam?: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  // close on a click outside (mousedown, not blur — a blur timeout races the item's click)
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', close);
+    document.addEventListener('keydown', esc);
+    return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', esc); };
+  }, [open]);
+
+  const item = 'w-full text-left px-4 py-2 text-xs hover:bg-[#F8FAFC] text-[#475569] flex items-center gap-2 disabled:opacity-60';
+  return (
+    <div ref={ref} className={`relative shrink-0 flex items-center ${compact ? '' : 'ml-auto'}`}>
+      {compact ? (
+        <button type="button" onClick={() => setOpen(v => !v)} aria-label="Actions"
+          className="w-9 h-9 rounded-xl border border-[#E2E8F0] flex items-center justify-center text-[#475569] bg-white">
+          <MoreVertical className="w-4 h-4" />
+        </button>
+      ) : (
+        <button type="button" onClick={() => setOpen(v => !v)}
+          className="py-2 pl-4 pr-8 rounded-[32px] border border-[#03C27D] text-xs leading-[18px] bg-white focus:outline-none flex items-center font-medium relative text-[#64748B] hover:bg-[#F0FDF9] transition-colors cursor-pointer">
+          Action
+          <ChevronDown className={`w-3.5 h-3.5 absolute right-3 top-1/2 -translate-y-1/2 text-[#94A3B8] transition-transform ${open ? 'rotate-180' : ''}`} />
+        </button>
+      )}
+      {open && (
+        <div className="absolute top-full right-0 mt-2 w-48 bg-white border border-[#E2E8F0] rounded-lg shadow-lg py-1 z-50">
+          {onAssignKam && (
+            <button type="button" disabled={!selectedCount} onClick={() => { setOpen(false); onAssignKam(); }}
+              title={selectedCount ? undefined : 'Select users first'} className={`${item} disabled:cursor-not-allowed`}>
+              <UserCheck className="w-3.5 h-3.5" />
+              <span className="flex-1">Assign KAM</span>
+              {selectedCount ? (
+                <span className="px-1.5 rounded-full bg-[#F0FDF4] text-[#00A86B] text-[10px] font-bold">{selectedCount}</span>
+              ) : (
+                <span className="text-[10px] text-[#94A3B8]">select users</span>
+              )}
+            </button>
+          )}
+          <button type="button" disabled={exporting} onClick={() => { setOpen(false); onExport(); }} className={item}>
+            {exporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+            {exporting ? 'Exporting…' : 'Export to Excel'}
+          </button>
+          <button type="button" onClick={() => { setOpen(false); onRefresh(); }} className={item}>
+            <RefreshCw className="w-3.5 h-3.5" /> Refresh
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function AdminUsers() {
   const navigate = useNavigate();
 
@@ -77,6 +147,10 @@ export function AdminUsers() {
 
   // ─── Selection ──────────────────────────────────────────────────────────────
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  // Action → Assign KAM: the admin, or an employee with Edit on Users (the server checks the same)
+  const [kamModalOpen, setKamModalOpen] = useState(false);
+  const { isEmployee, employeeAccessRights } = useAdminTab();
+  const canAssignKam = !isEmployee || hasPermission(employeeAccessRights, 'users', 'edit');
   const [hoveredBalance, setHoveredBalance] = useState<{ rect: DOMRect; holdAmount: number; lastRechargeDate: any } | null>(null);
   const [hoveredManager, setHoveredManager] = useState<{ rect: DOMRect; name: string; email: string; phone: string } | null>(null);
   const [hoveredBusiness, setHoveredBusiness] = useState<{ rect: DOMRect; company: string; userType: string; isBlocked: boolean } | null>(null);
@@ -93,7 +167,9 @@ export function AdminUsers() {
   const [selectedWalletBalances, setSelectedWalletBalances] = useState<string[]>(_initBal);
   const [selectedTiers, setSelectedTiers] = useState<string[]>([]);
   const [selectedUserTypes, setSelectedUserTypes] = useState<string[]>([]);
-  const { dateStart, dateEnd, setDateStart, setDateEnd, onDateChange, defStart, defEnd } = useDateRangeFilter();
+  // Starts with NO date range (all users). It used to start at "last 7 days" and treat that range as "no filter",
+  // so picking exactly the last 7 days (e.g. 18th → today) silently showed every user.
+  const { dateStart, dateEnd, setDateStart, setDateEnd, onDateChange } = useDateRangeFilter('', '');
 
   // ─── Applied filters (trigger API call) ────────────────────────────────────
   const [appliedSearch, setAppliedSearch] = useState('');
@@ -128,11 +204,10 @@ export function AdminUsers() {
   const [isAssigning, setIsAssigning] = useState(false);
 
   // ─── UI state ───────────────────────────────────────────────────────────────
-  const [actionDropdownOpen, setActionDropdownOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const { toast, showToast, closeToast } = useToast();
   const [rateCardFilterOptions, setRateCardFilterOptions] = useState<{ label: string; value: string }[]>([]);
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
-  const [mobileActionOpen, setMobileActionOpen] = useState(false);
   const [showMobileSummary, setShowMobileSummary] = useState(false);
 
   // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -164,25 +239,11 @@ export function AdminUsers() {
       .catch(() => {});
   }, []);
 
-  // Close the Action dropdown on outside click (not onBlur — a blur timeout races the
-  // Refresh button's click and can unmount the menu before the click registers).
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as HTMLElement;
-      if (!target.closest('.action-dropdown-container')) {
-        setActionDropdownOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
   // ─── Fetch users ─────────────────────────────────────────────────────────────
-  const fetchUsers = useCallback(async (page: number) => {
-    setIsLoading(true);
-    try {
-      const params: Record<string, any> = { page, limit: rowsPerPage };
-      const search = globalSearch || appliedUserEmail || appliedSearch;
+  // The applied filters as query parameters — the list and the Excel export use the same ones
+  const buildFilterParams = useCallback(() => {
+    const params: Record<string, any> = {};
+    const search = globalSearch || appliedUserEmail || appliedSearch;
       if (search.trim()) {
         if (/^\d+$/.test(search.trim())) {
           params.userId = search.trim();
@@ -201,11 +262,21 @@ export function AdminUsers() {
         };
         params.balanceType = appliedBalance.map(b => bmap[b] || b.toLowerCase());
       }
-      // The picker's default (last 7 days) means "no date filter": this list shows all users unless a range is chosen.
-      if (appliedDateStart && appliedDateEnd && !(appliedDateStart === defStart && appliedDateEnd === defEnd)) {
+      // Registered between these days (both included); no range chosen = all users
+      if (appliedDateStart && appliedDateEnd) {
         params.fromDate = appliedDateStart;
         params.toDate = appliedDateEnd;
       }
+      // Applied by the backend over ALL users (they used to filter only the page on screen)
+      if (appliedTiers.length) params.tier = appliedTiers;
+      if (appliedUserTypes.length) params.userType = appliedUserTypes;
+    return params;
+  }, [globalSearch, appliedSearch, appliedUserEmail, appliedKyc, appliedRateCard, appliedBalance, appliedDateStart, appliedDateEnd, appliedTiers, appliedUserTypes]);
+
+  const fetchUsers = useCallback(async (page: number) => {
+    setIsLoading(true);
+    try {
+      const params = { ...buildFilterParams(), page, limit: rowsPerPage };
       const res = await apiClient.get('/user/getAllUsers', { params });
       setUsers(res.data.userDetails || []);
       setTotalPages(res.data.totalPages || 1);
@@ -218,7 +289,38 @@ export function AdminUsers() {
     } finally {
       setIsLoading(false);
     }
-  }, [globalSearch, appliedSearch, appliedUserEmail, appliedKyc, appliedRateCard, appliedBalance, appliedDateStart, appliedDateEnd, defStart, defEnd, rowsPerPage]);
+  }, [buildFilterParams, rowsPerPage]);
+
+  // Action → Export: every user the applied filters find (all pages), as an Excel file from the backend.
+  const exportUsers = async () => {
+    setExporting(true);
+    try {
+      const res = await apiClient.get('/user/exportUsers', { params: buildFilterParams(), responseType: 'blob' });
+      const url = URL.createObjectURL(new Blob([res.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `users-${new Date().toISOString().slice(0, 10)}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      showToast('success', 'Users exported.');
+    } catch {
+      showToast('error', 'Could not export users. Please try again.');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  // Clearing the date range (✕ on the picker) takes effect at once, like the other "clear" actions
+  const onDateRangeChange = (start: string, end: string) => {
+    onDateChange(start, end);
+    if (!start && !end) {
+      setAppliedDateStart('');
+      setAppliedDateEnd('');
+      setCurrentPage(1);
+    }
+  };
 
   useEffect(() => {
     fetchUsers(currentPage);
@@ -261,23 +363,22 @@ export function AdminUsers() {
     setSelectedWalletBalances([]);
     setSelectedTiers([]);
     setSelectedUserTypes([]);
-    setDateStart(defStart);
-    setDateEnd(defEnd);
+    setDateStart('');
+    setDateEnd('');
     setAppliedSearch('');
     setAppliedKyc([]);
     setAppliedRateCard([]);
     setAppliedBalance([]);
     setAppliedTiers([]);
     setAppliedUserTypes([]);
-    setAppliedDateStart(defStart);
-    setAppliedDateEnd(defEnd);
+    setAppliedDateStart('');
+    setAppliedDateEnd('');
     setCurrentPage(1);
-    setActionDropdownOpen(false);
   };
 
   // Matches Wallet's behavior: show "Clear All" as soon as a filter is picked (draft state),
   // not only after Apply — so it's visible the moment the user selects anything.
-  const hasActiveFilters = !!(searchQuery || selectedUserEmail || appliedUserEmail || selectedKycStatuses.length || selectedRateCards.length || selectedWalletBalances.length || selectedTiers.length || selectedUserTypes.length || (dateStart && dateEnd && !(dateStart === defStart && dateEnd === defEnd)));
+  const hasActiveFilters = !!(searchQuery || selectedUserEmail || appliedUserEmail || selectedKycStatuses.length || selectedRateCards.length || selectedWalletBalances.length || selectedTiers.length || selectedUserTypes.length || (dateStart && dateEnd) || appliedDateStart);
 
   // ─── Rate card modal ─────────────────────────────────────────────────────────
   const openRateCardModal = async (user: any) => {
@@ -343,13 +444,8 @@ export function AdminUsers() {
     { label: 'Individual', value: 'Individual' },
   ];
 
-  // Tier and User Type have no backend query params (both derived client-side),
-  // so they filter the already-fetched page in-memory rather than refetching.
-  const filteredUsers = users.filter(u => {
-    const matchesTier = appliedTiers.length === 0 || appliedTiers.includes(getTier(u.monthlyShipments ?? u.orderCount ?? 0));
-    const matchesUserType = appliedUserTypes.length === 0 || appliedUserTypes.includes(getUserType(u));
-    return matchesTier && matchesUserType;
-  });
+  // Tier and User Type are now filtered by the backend over all users (see buildFilterParams)
+  const filteredUsers = users;
 
   return (
     <AdminLayout>
@@ -377,24 +473,8 @@ export function AdminUsers() {
               <Filter className="w-4 h-4" />
             </button>
             {/* Action icon */}
-            <div className="relative shrink-0">
-              <button
-                onClick={() => setMobileActionOpen(v => !v)}
-                className="w-9 h-9 rounded-xl border border-[#E2E8F0] flex items-center justify-center text-[#475569] bg-white"
-              >
-                <MoreVertical className="w-4 h-4" />
-              </button>
-              {mobileActionOpen && (
-                <div className="absolute right-0 top-full mt-2 w-40 bg-white border border-[#E2E8F0] rounded-lg shadow-lg py-1 z-50">
-                  <button
-                    onClick={() => { fetchUsers(currentPage); setMobileActionOpen(false); }}
-                    className="w-full text-left px-4 py-2 text-xs hover:bg-[#F8FAFC] text-[#475569]"
-                  >
-                    Refresh
-                  </button>
-                </div>
-              )}
-            </div>
+            <UsersActionMenu compact onRefresh={() => fetchUsers(currentPage)} onExport={exportUsers} exporting={exporting}
+              selectedCount={selectedIds.length} onAssignKam={canAssignKam ? () => setKamModalOpen(true) : undefined} />
           </div>
 
           {/* Summary Cards Row — desktop */}
@@ -566,9 +646,7 @@ export function AdminUsers() {
               align="right"
               startDate={dateStart}
               endDate={dateEnd}
-              onDateChange={onDateChange}
-              defaultStart={defStart}
-              defaultEnd={defEnd}
+              onDateChange={onDateRangeChange}
             />
 
             <button
@@ -585,25 +663,13 @@ export function AdminUsers() {
               </button>
             )}
 
-            <div className="relative shrink-0 ml-auto flex items-center action-dropdown-container">
-              <button
-                onClick={() => setActionDropdownOpen(!actionDropdownOpen)}
-                className="py-2 pl-4 pr-8 rounded-[32px] border border-[#03C27D] text-xs leading-[18px] bg-white focus:outline-none flex items-center font-medium relative text-[#64748B] hover:bg-[#F0FDF9] transition-colors cursor-pointer"
-              >
-                Action
-                <ChevronDown className="w-3.5 h-3.5 absolute right-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
-              </button>
-              {actionDropdownOpen && (
-                <div className="absolute top-full right-0 mt-2 w-40 bg-white border border-[#E2E8F0] rounded-lg shadow-lg py-1 z-50">
-                  <button
-                    onClick={() => { fetchUsers(currentPage); setActionDropdownOpen(false); }}
-                    className="w-full text-left px-4 py-2 text-xs hover:bg-[#F8FAFC] text-[#475569]"
-                  >
-                    Refresh
-                  </button>
-                </div>
-              )}
-            </div>
+            <UsersActionMenu
+              onRefresh={() => fetchUsers(currentPage)}
+              onExport={exportUsers}
+              exporting={exporting}
+              selectedCount={selectedIds.length}
+              onAssignKam={canAssignKam ? () => setKamModalOpen(true) : undefined}
+            />
           </div>
         </div>
 
@@ -988,9 +1054,7 @@ export function AdminUsers() {
                     className="w-full [&_.glass-dropdown-trigger]:!w-full [&_.glass-dropdown-trigger]:!h-11 [&_.glass-dropdown-trigger]:!min-w-0 [&_.glass-dropdown-trigger]:!rounded-full"
                     startDate={dateStart}
                     endDate={dateEnd}
-                    onDateChange={onDateChange}
-                    defaultStart={defStart}
-                    defaultEnd={defEnd}
+                    onDateChange={onDateRangeChange}
                   />
                 </div>
 
@@ -1149,6 +1213,15 @@ export function AdminUsers() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Action → Assign KAM (to the selected users) */}
+      {kamModalOpen && (
+        <AssignKamModal
+          userIds={selectedIds}
+          onClose={() => setKamModalOpen(false)}
+          onDone={(message) => { setKamModalOpen(false); setSelectedIds([]); showToast('success', message); }}
+        />
       )}
 
       <Toast toast={toast} onClose={closeToast} />

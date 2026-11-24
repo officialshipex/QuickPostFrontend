@@ -3,6 +3,8 @@ import { Search, ChevronLeft, ChevronRight, PhoneCall, Inbox, CheckCircle2, Arch
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { apiClient } from '../../services/apiClient';
 import { copyToClipboard } from '../../utils/clipboard';
+import { useAdminTab } from '../../context/AdminUserContext';
+import { hasPermission } from '../../utils/permissions';
 
 /* Admin → Callback Requests. What visitors sent from the public Contact Us page ("Request a callback",
    backend contactRequest/). The team calls them back and marks each one Contacted or Closed, with a note. */
@@ -33,7 +35,7 @@ const fmt = (d?: string | null) =>
 
 const LIMIT = 20;
 
-function RowItem({ row, onSaved }: { row: Row; onSaved: (r: Row) => void }) {
+function RowItem({ row, onSaved, canEdit }: { row: Row; onSaved: (r: Row) => void; canEdit: boolean }) {
   const [note, setNote] = useState(row.adminNote || '');
   const [saving, setSaving] = useState<string | null>(null);
   const [error, setError] = useState('');
@@ -81,6 +83,9 @@ function RowItem({ row, onSaved }: { row: Row; onSaved: (r: Row) => void }) {
         )}
       </td>
       <td className="p-4 min-w-[240px]">
+        {!canEdit ? (
+          <div className="text-[12px] whitespace-pre-wrap break-words">{row.adminNote || <span className="text-[#94A3B8]">—</span>}</div>
+        ) : (<>
         <textarea value={note} onChange={e => setNote(e.target.value.slice(0, 1000))} rows={2} placeholder="Add a note (what was discussed)"
           className="w-full px-3 py-2 rounded-lg border border-[#E2E8F0] bg-white text-[12px] resize-none focus:outline-none focus:ring-2 focus:ring-[#00A86B]/20 focus:border-[#00A86B]" />
         {noteChanged && (
@@ -90,8 +95,10 @@ function RowItem({ row, onSaved }: { row: Row; onSaved: (r: Row) => void }) {
           </button>
         )}
         {error && <div className="mt-1 text-[11px] text-[#DC2626]">{error}</div>}
+        </>)}
       </td>
       <td className="p-4">
+        {!canEdit ? <span className="text-[11px] text-[#94A3B8]">View only</span> : (
         <div className="flex flex-col gap-1.5 w-[120px]">
           {(['new', 'contacted', 'closed'] as Status[]).filter(s => s !== row.status).map(s => (
             <button key={s} type="button" disabled={!!saving}
@@ -102,12 +109,16 @@ function RowItem({ row, onSaved }: { row: Row; onSaved: (r: Row) => void }) {
             </button>
           ))}
         </div>
+        )}
       </td>
     </tr>
   );
 }
 
 export function AdminCallbackRequests() {
+  // an employee with only View sees the list; marking / notes need Edit (the server checks the same)
+  const { isEmployee, employeeAccessRights } = useAdminTab();
+  const canEdit = !isEmployee || hasPermission(employeeAccessRights, 'callbackRequests', 'edit');
   const [status, setStatus] = useState<'all' | Status>('new');
   const [search, setSearch] = useState('');
   const [query, setQuery] = useState('');
@@ -213,7 +224,7 @@ export function AdminCallbackRequests() {
                 <tr><td colSpan={6} className="p-8 text-center text-[#DC2626]">{error}</td></tr>
               ) : rows.length === 0 ? (
                 <tr><td colSpan={6} className="p-8 text-center text-[#94A3B8]">No callback requests here.</td></tr>
-              ) : rows.map(r => <RowItem key={r._id} row={r} onSaved={onSaved} />)}
+              ) : rows.map(r => <RowItem key={r._id} row={r} onSaved={onSaved} canEdit={canEdit} />)}
             </tbody>
           </table>
         </div>

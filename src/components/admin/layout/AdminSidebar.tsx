@@ -211,8 +211,8 @@ const MENU_GROUPS: MenuGroup[] = [
       // { name: 'System Settings', path: '/admin/settings', icon: Settings, noEmployee: true },
       { name: 'Companies', path: '/admin/companies', icon: Building2, noEmployee: true },
       { name: 'Sales Management', path: '/admin/sales-management', icon: Target, permission: 'salesTeam|salesKyc' },
-      { name: 'Seller Feedback', path: '/admin/seller-feedback', icon: MessageSquare, noEmployee: true },
-      { name: 'Callback Requests', path: '/admin/callback-requests', icon: PhoneCall, noEmployee: true },
+      { name: 'Seller Feedback', path: '/admin/seller-feedback', icon: MessageSquare, permission: 'sellerFeedback' },
+      { name: 'Callback Requests', path: '/admin/callback-requests', icon: PhoneCall, permission: 'callbackRequests' },
       { name: 'System Logs', path: '/admin/system-logs', icon: ScrollText, noEmployee: true },
       { name: 'Audit Logs', path: '/admin/audit', icon: History, noEmployee: true },
     ]
