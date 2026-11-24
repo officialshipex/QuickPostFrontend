@@ -12,7 +12,7 @@ const IconClock = ({ size = 14, color = "#1D9E75" }) => <svg xmlns="http://www.w
 /** `hideCta`: the page already ends with its own call-to-action band (the landing page). */
 const FOOTER_GROUPS: { title: string; links: { label: string; to?: string }[] }[] = [
   { title: 'Product', links: ['Order Management', 'Rate Calculator', 'Courier Comparison', 'NDR Management', 'COD Remittance', 'Tracking Page'].map(label => ({ label, to: label === 'Rate Calculator' ? '/rate-calculator' : undefined })) },
-  { title: 'Company', links: ['About Us', 'Careers', 'Partner Program', 'Contact Us'].map(label => ({ label, to: label === 'Careers' ? '/careers' : undefined })) },
+  { title: 'Company', links: ['About Us', 'Careers', 'Partner Program', 'Contact Us'].map(label => ({ label, to: label === 'Careers' ? '/careers' : label === 'Contact Us' ? '/contact-us' : label === 'About Us' ? '/about-us' : undefined })) },
   { title: 'Integrations', links: ['Shopify', 'WooCommerce', 'API Documentation'].map(label => ({ label })) },
 ];
 

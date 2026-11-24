@@ -9,6 +9,8 @@ import { Terms } from './pages/Terms';
 import { RefundPolicy } from './pages/RefundPolicy';
 import { PrivacyPolicy } from './pages/PrivacyPolicy';
 import { Careers } from './pages/Careers';
+import { Contact } from './pages/Contact';
+import { About } from './pages/About';
 import { RateCalculator } from './pages/RateCalculator';
 import { ResetPassword } from './pages/ResetPassword';
 import { Login } from './pages/Login';
@@ -272,6 +274,8 @@ function App() {
           <Route path="/refund-and-cancellation-policy" element={<RefundPolicy />} />
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           <Route path="/careers" element={<Careers />} />
+          <Route path="/contact-us" element={<Contact />} />
+          <Route path="/about-us" element={<About />} />
           <Route path="/rate-calculator" element={<RateCalculator />} />
           <Route path="/login" element={<AuthRedirect><Login /></AuthRedirect>} />
           <Route path="/register" element={<AuthRedirect><Register /></AuthRedirect>} />
