@@ -13,19 +13,20 @@ const navLinks = [
   { label: 'Track Order', href: '/track', badge: 'Live' },
 ];
 
-export function Navbar() {
+/** `alwaysFloating`: show the scrolled capsule bar from the top (pages without the landing hero, e.g. About / Contact). */
+export function Navbar({ alwaysFloating = false }: { alwaysFloating?: boolean } = {}) {
   const { scrollY } = useScroll();
-  const [isScrolled, setIsScrolled] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(alwaysFloating);
   const [mobileOpen, setMobileOpen] = useState(false);
   // Mobile festive strip above the navbar; closing it lasts for this visit
   const [offerClosed, setOfferClosed] = useState(() => { try { return sessionStorage.getItem('qp_festive_bar_closed') === '1'; } catch { return false; } });
   const closeOffer = () => { setOfferClosed(true); try { sessionStorage.setItem('qp_festive_bar_closed', '1'); } catch { /* ignore */ } };
 
   // Desktop: once the hero is behind us the bar turns into a floating capsule
-  const [floating, setFloating] = useState(false);
+  const [floating, setFloating] = useState(alwaysFloating);
   useMotionValueEvent(scrollY, "change", (latest) => {
-    setIsScrolled(latest > 60);
-    setFloating(latest > window.innerHeight * 0.75);
+    setIsScrolled(alwaysFloating || latest > 60);
+    setFloating(alwaysFloating || latest > window.innerHeight * 0.75);
   });
 
   // Full-screen mobile menu: lock page scroll and close on Esc while it is open.
