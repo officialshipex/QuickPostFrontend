@@ -241,7 +241,7 @@ interface AdminSidebarProps {
 export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSidebarProps) {
   const location = useLocation();
   const [mobileExpandedGroup, setMobileExpandedGroup] = useState<string | null>(null);
-  const { isAdmin, adminTab, isEmployee, employeeAccessRights, isSalesEmployee } = useAdminTab();
+  const { isAdmin, adminTab, isEmployee, employeeAccessRights, isSalesEmployee, salesHasAdminAccess } = useAdminTab();
   const isAdminView = isAdmin && adminTab;
   const isImpersonating = !!localStorage.getItem('admin_token_backup');
   const { isCargo } = useShippingMode();
@@ -276,13 +276,13 @@ export function AdminSidebar({ isMobileOpen = false, onMobileClose }: AdminSideb
     });
 
   const shouldShowGroup = (group: MenuGroup) => {
-    // Sales people work only in the Sales panel: their sidebar is the Sales Dashboard and Tasks.
-    if (isSalesEmployee) return !!group.salesEmployeeOnly;
+    // Sales people: their Sales Dashboard, Tasks and Rate Comparison always; next to them only the admin-panel
+    // modules they were also given (the rules below, like any admin-panel employee).
+    if (isSalesEmployee && group.salesEmployeeOnly) return true;
+    if (isSalesEmployee && !salesHasAdminAccess) return false;
     if (group.divider) return true;
-    if (group.salesEmployeeOnly && !isSalesEmployee) return false;
-    // Sales employees work from the Sales Dashboard — the main dashboard is hidden for them.
-    if (isSalesEmployee && group.path === '/admin/dashboard') return false;
-    // Main dashboard: admin-panel employees only see it when given the Dashboard permission.
+    if (group.salesEmployeeOnly) return false;
+    // Main dashboard: admin-panel employees (sales people included) only see it with the Dashboard permission.
     if (hideLocked && group.path === '/admin/dashboard' && !hasPermission(employeeAccessRights, 'dashboard', 'view')) return false;
     if (group.adminOnly && !isAdminView) return false;
     if (group.userOnly && isAdminView) return false;

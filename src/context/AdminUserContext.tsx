@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback, type React
 import { apiClient } from '../services/apiClient';
 import { getToken, removeToken, getRoleFromToken, isEmployeeToken, getEmployeeFromToken } from '../utils/session';
 import { isCargoUrl } from '../utils/shippingMode';
+import { hasAccessBeyondSales } from '../utils/permissions';
 
 export interface EmployeeAccessRights {
   view?: boolean;
@@ -34,6 +35,8 @@ interface AdminTabContextType {
   employeeRightsLoaded: boolean;
   /** Admin-panel employee on the Sales team — works from the Sales Dashboard, not the main dashboard. */
   isSalesEmployee: boolean;
+  /** A sales person also given admin-panel modules (Orders, NDR, …): those open next to their Sales Dashboard. */
+  salesHasAdminAccess: boolean;
   parentEmail: string;
   showOnboarding: boolean;
   setShowOnboarding: (value: boolean) => void;
@@ -62,6 +65,7 @@ const AdminTabContext = createContext<AdminTabContextType>({
   employeeAccessRights: {},
   employeeRightsLoaded: false,
   isSalesEmployee: false,
+  salesHasAdminAccess: false,
   parentEmail: '',
   showOnboarding: false,
   setShowOnboarding: () => {},
@@ -191,8 +195,10 @@ export function AdminUserProvider({ children }: { children: ReactNode }) {
       userName, userEmail, businessName, profileImage, walletBalance, walletHold, creditLimit,
       mainWalletBalance, mainWalletHold, cargoWalletBalance, hasCargoWallet,
       isEmployee, employeeId, employeeAccessRights, employeeRightsLoaded, parentEmail,
-      // Sales team = team 'sales' on the employee (the backend locks those accounts to the Sales panel).
+      // Sales team = team 'sales' on the employee (the backend locks those accounts to the Sales panel,
+      // unless they were also given admin-panel modules: salesHasAdminAccess).
       isSalesEmployee: isEmployee && employeeTeam === 'sales',
+      salesHasAdminAccess: isEmployee && employeeTeam === 'sales' && hasAccessBeyondSales(employeeAccessRights),
       showOnboarding, setShowOnboarding,
       toggleAdminTab,
       refetchUser: fetchAdminTab,

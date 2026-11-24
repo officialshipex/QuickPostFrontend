@@ -143,6 +143,19 @@ export function toStoredRights(form: AccessRights, panel: PanelType): AccessRigh
   return { ...stored, ...groups };
 }
 
+// ─── Sales people with admin-panel modules ────────────────────────────────────────────────────────
+// A sales person always has their Sales Dashboard ('sales') and can also be given admin-panel modules
+// (Orders, NDR, …). Managing employees and Sales Management are never given to them (backend: salesPersonRights).
+export const SALES_NOT_GRANTABLE = ['employees', 'salesTeam', 'salesKyc'];
+
+/** Does a sales person have any access besides their own Sales panel? (then the other modules open too) */
+export function hasAccessBeyondSales(accessRights: Record<string, any> | undefined | null): boolean { // eslint-disable-line @typescript-eslint/no-explicit-any
+  if (!accessRights) return false;
+  return Object.entries(accessRights).some(([key, section]) =>
+    key !== 'sales' && !!section && typeof section === 'object' &&
+    Object.values(section).some(v => v === true || (!!v && typeof v === 'object' && Object.values(v).some(f => f === true))));
+}
+
 // ─── An employee managing employees (e.g. HR) ─────────────────────────────────────────────────────
 // They can only give access they hold themselves, and can't change someone holding access they don't have
 // (the backend enforces the same: utils/employeeAccess.rightsNotHeld).

@@ -12,6 +12,7 @@ import { appPathname, modeUrl } from '../../../utils/shippingMode';
 import { apiClient } from '../../../services/apiClient';
 import { getToken, setToken } from '../../../utils/session';
 import { useAdminTab } from '../../../context/AdminUserContext';
+import { hasPermission } from '../../../utils/permissions';
 import { useDashboardFilters } from '../../../context/DashboardFilterContext';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { SpectateFloat } from './SpectateEye';
@@ -58,7 +59,9 @@ interface AdminHeaderProps {
 export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
   const { logout } = useAuth();
   const { isCargo } = useShippingMode();
-  const { isAdmin, adminTab, toggleAdminTab, userName, userEmail, businessName, profileImage, walletBalance: ctxWalletBalance, walletHold, creditLimit, isEmployee, parentEmail, currentUserId, showOnboarding, isSalesEmployee, mainWalletBalance, cargoWalletBalance, hasCargoWallet, refetchUser } = useAdminTab();
+  const { isAdmin, adminTab, toggleAdminTab, userName, userEmail, businessName, profileImage, walletBalance: ctxWalletBalance, walletHold, creditLimit, isEmployee, parentEmail, currentUserId, showOnboarding, isSalesEmployee, salesHasAdminAccess, employeeAccessRights, mainWalletBalance, cargoWalletBalance, hasCargoWallet, refetchUser } = useAdminTab();
+  // The orders search: not for a sales person, unless they were also given Orders
+  const hideOrderSearch = isSalesEmployee && !(salesHasAdminAccess && hasPermission(employeeAccessRights, 'orders', 'view'));
   // B2C <-> Cargo wallet transfer: a seller's own wallets (not the admin's all-sellers overview)
   const canTransfer = !(isAdmin && adminTab);
   const [showTransferModal, setShowTransferModal] = useState(false);
@@ -551,7 +554,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                 setShowMobileWalletSummary(false);
                 setShowDateDropdown(false);
               }}
-              className={`flex items-center gap-1.5 h-8 flex-1 min-w-0 pl-2.5 pr-2.5 rounded-full border border-[#E2E8F0] bg-[#F8FAFC] text-[#94A3B8] hover:border-[#CBD5E1] transition-colors ${isSalesEmployee ? 'invisible' : ''}`}
+              className={`flex items-center gap-1.5 h-8 flex-1 min-w-0 pl-2.5 pr-2.5 rounded-full border border-[#E2E8F0] bg-[#F8FAFC] text-[#94A3B8] hover:border-[#CBD5E1] transition-colors ${hideOrderSearch ? 'invisible' : ''}`}
             >
               <Search className="w-3.5 h-3.5 shrink-0" />
               <span className="relative flex-1 min-w-0 h-4 overflow-hidden text-[11px] font-medium leading-4 whitespace-nowrap text-left">
@@ -999,7 +1002,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
       {/* Middle Section - Search — global Orders search, available from every page (not for sales accounts:
           they have no orders access, the search would only answer "access denied") */}
       <div className="flex-1 flex items-center justify-center min-w-0">
-        {!isKycPage && !isSalesEmployee && (
+        {!isKycPage && !hideOrderSearch && (
         <div ref={orderSearchRef} className="hidden md:flex items-center relative w-full max-w-lg group">
           <Search className="w-4 h-4 absolute left-3.5 text-[#94A3B8] group-focus-within:text-[#00A86B] transition-colors duration-300 z-10" />
           <input

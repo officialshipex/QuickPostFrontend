@@ -9,7 +9,7 @@ import { TableLoader } from '../../components/ui/TableLoader';
 import { getToken, setToken } from '../../utils/session';
 import { modeUrl } from '../../utils/shippingMode';
 import {
-  PERM_TYPES, modulesFor, emptyAccessRights, toFormRights, toStoredRights, hasPermission, hasAnyView, rightsBeyond,
+  PERM_TYPES, modulesFor, emptyAccessRights, toFormRights, toStoredRights, hasPermission, hasAnyView, rightsBeyond, SALES_NOT_GRANTABLE,
   type AccessRights, type PanelType, type PermKey,
 } from '../../utils/permissions';
 import {
@@ -57,10 +57,12 @@ interface PermissionMatrixProps {
   panel: PanelType;
   /** An employee managing employees (HR): only the rights they hold themselves can be switched on */
   grantable?: (moduleKey: string, perm: PermKey) => boolean;
+  /** A sales person: their Sales Dashboard is always on; Employees / Sales Management can't be given to them */
+  salesPerson?: boolean;
 }
 
-function PermissionMatrix({ accessRights, onChange, panel, grantable }: PermissionMatrixProps) {
-  const modules = modulesFor(panel);
+function PermissionMatrix({ accessRights, onChange, panel, grantable, salesPerson }: PermissionMatrixProps) {
+  const modules = modulesFor(panel).filter(m => !salesPerson || !SALES_NOT_GRANTABLE.includes(m.key));
 
   const toggle = (moduleKey: string, perm: PermKey) => {
     const current = accessRights[moduleKey] || { view: false, edit: false, delete: false };
@@ -106,11 +108,13 @@ function PermissionMatrix({ accessRights, onChange, panel, grantable }: Permissi
               <div className="text-[11.5px] text-[#94A3B8] mt-0.5">{mod.desc}</div>
             </div>
             {PERM_TYPES.map(p => {
-              const checked = rights[p.key] === true;
+              // a sales person's own Sales Dashboard: always on, nothing to change
+              const ownSalesDashboard = !!salesPerson && mod.key === 'sales';
+              const checked = ownSalesDashboard ? p.key === 'view' : rights[p.key] === true;
               // not held by the person giving it (HR): can't be switched on (switching off is always fine)
-              const notHeld = !!grantable && !checked && !grantable(mod.key, p.key);
-              const disabled = ((p.key === 'edit' || p.key === 'delete') && !rights.view) || notHeld;
-              if ((mod.viewOnly && p.key !== 'view') || (mod.noDelete && p.key === 'delete')) {
+              const notHeld = !ownSalesDashboard && !!grantable && !checked && !grantable(mod.key, p.key);
+              const disabled = ownSalesDashboard || ((p.key === 'edit' || p.key === 'delete') && !rights.view) || notHeld;
+              if ((ownSalesDashboard && p.key !== 'view') || (mod.viewOnly && p.key !== 'view') || (mod.noDelete && p.key === 'delete')) {
                 return <div key={p.key} className="w-[52px] sm:w-[72px] flex justify-center items-center py-3 text-[13px] text-[#CBD5E1]" aria-label="Not applicable">—</div>;
               }
               return (
@@ -122,10 +126,10 @@ function PermissionMatrix({ accessRights, onChange, panel, grantable }: Permissi
                     aria-label={`${mod.label} — ${p.label}`}
                     onClick={() => !disabled && toggle(mod.key, p.key)}
                     disabled={disabled}
-                    title={notHeld ? "You don't have this access yourself, so you can't give it" : undefined}
+                    title={ownSalesDashboard ? 'Every sales person has their own Sales Dashboard' : notHeld ? "You don't have this access yourself, so you can't give it" : undefined}
                     className={`w-[22px] h-[22px] rounded-md border-2 flex items-center justify-center transition-all ${
                       checked
-                        ? 'bg-[#00A86B] border-[#00A86B] shadow-[0_1px_4px_rgba(0,168,107,0.35)]'
+                        ? `bg-[#00A86B] border-[#00A86B] shadow-[0_1px_4px_rgba(0,168,107,0.35)] ${ownSalesDashboard ? 'cursor-not-allowed opacity-70' : ''}`
                         : disabled
                         ? 'bg-[#F1F5F9] border-[#E2E8F0] cursor-not-allowed opacity-50'
                         : 'bg-white border-[#CBD5E1] hover:border-[#00A86B]'
@@ -209,8 +213,12 @@ function EmployeeModal({ employee, onClose, onSaved, panel }: EmployeeModalProps
     }
     setSubmitting(true);
     setError('');
-    // Item rights + the coarse group rights the server's write guard reads
-    const storedRights = toStoredRights(accessRights, panel);
+    // Item rights + the coarse group rights the server's write guard reads. A sales person: their Sales Dashboard
+    // always, never Employees / Sales Management (the server applies the same rule).
+    const formRights: AccessRights = isSales
+      ? { ...Object.fromEntries(Object.entries(accessRights).filter(([k]) => !SALES_NOT_GRANTABLE.includes(k))), sales: { view: true, edit: false, delete: false } }
+      : accessRights;
+    const storedRights = toStoredRights(formRights, panel);
     try {
       if (isEdit) {
         const body: any = { fullName: fullName.trim(), contactNumber: contactNumber.trim(), role: role.trim(), accessRights: storedRights, mode: panel, ...(isAdminView ? { team } : {}), ...(isSales ? { salesOffer } : {}) };
@@ -235,8 +243,9 @@ function EmployeeModal({ employee, onClose, onSaved, panel }: EmployeeModalProps
     }
   };
 
-  const granted = modulesFor(panel).filter(m => accessRights[m.key]?.view).length;
-  const total = modulesFor(panel).length;
+  const shownModules = modulesFor(panel).filter(m => !isSales || !SALES_NOT_GRANTABLE.includes(m.key));
+  const granted = shownModules.filter(m => (isSales && m.key === 'sales') || accessRights[m.key]?.view).length;
+  const total = shownModules.length;
   const fieldCls = 'w-full h-10 pl-10 pr-4 bg-white border border-[#E2E8F0] rounded-full text-[13px] font-medium text-[#0F172A] placeholder:text-[#94A3B8] placeholder:font-normal focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B] transition-colors disabled:bg-[#F8FAFC] disabled:text-[#94A3B8]';
   const iconCls = 'absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8] pointer-events-none';
   const labelCls = 'block text-[12px] font-semibold text-[#475569] mb-1.5';
@@ -320,7 +329,7 @@ function EmployeeModal({ employee, onClose, onSaved, panel }: EmployeeModalProps
                     <div className="grid grid-cols-2 gap-2">
                       {([
                         { key: 'operations', title: 'Operations', hint: 'Orders, NDR, finance, support…' },
-                        { key: 'sales', title: 'Sales', hint: 'Sales panel only — referral code, KYC, offer letter, commission' },
+                        { key: 'sales', title: 'Sales', hint: 'Own Sales Dashboard (referral code, KYC, offer letter, commission) + any modules you tick below' },
                       ] as const).map(t => {
                         const on = team === t.key;
                         return (
@@ -361,8 +370,8 @@ function EmployeeModal({ employee, onClose, onSaved, panel }: EmployeeModalProps
               </div>
             </section>
 
-            {/* Permission Matrix — not for sales people: their account only ever opens the Sales panel */}
-            {!isSales && <section>
+            {/* Permission Matrix — a sales person: their Sales Dashboard is fixed, the other modules are extra */}
+            <section>
               <div className="flex items-center justify-between gap-3 mb-2">
                 <div className="flex items-center gap-2">
                   <Lock className="w-4 h-4 text-[#00A86B]" />
@@ -371,7 +380,9 @@ function EmployeeModal({ employee, onClose, onSaved, panel }: EmployeeModalProps
                 <span className="text-[11.5px] font-semibold text-[#00A86B] bg-[#F0FDF4] border border-[#DCFCE7] px-2.5 py-0.5 rounded-full tabular-nums">{granted}/{total} modules</span>
               </div>
               <p className="text-[12px] text-[#64748B] mb-3">
-                {isAdminView
+                {isSales
+                  ? 'They always have their own Sales Dashboard, Tasks and Rate Comparison. Tick any other modules (e.g. Orders, NDR) they should also work in — leave everything else empty for a sales-only account. Employees and Sales Management can\'t be given to a sales person.'
+                  : isAdminView
                   ? 'The employee only sees the modules you give View access to — everything else is hidden from their sidebar.'
                   : 'The employee sees every menu item; items without View access are locked and show a "no access" message when clicked.'}
               </p>
@@ -380,8 +391,8 @@ function EmployeeModal({ employee, onClose, onSaved, panel }: EmployeeModalProps
                   You can only give access you have yourself — the other boxes are locked. Everything you change here is recorded in the Audit Logs.
                 </p>
               )}
-              <PermissionMatrix accessRights={accessRights} onChange={setAccessRights} panel={panel} grantable={grantable} />
-            </section>}
+              <PermissionMatrix accessRights={accessRights} onChange={setAccessRights} panel={panel} grantable={grantable} salesPerson={isSales} />
+            </section>
           </div>
 
           {/* Footer */}
@@ -544,8 +555,13 @@ export function AdminRoles() {
   const staffManager = isEmployee && !isUserPanel && hasAnyView(myRights, 'employees');
   const canEdit = !isEmployee || hasPermission(myRights, 'employees', 'edit');
   const canDelete = !isEmployee || hasPermission(myRights, 'employees', 'delete');
-  const canChange = (emp: Employee) =>
-    !isEmployee || (emp.employeeId !== myEmployeeId && (emp.team === 'sales' || rightsBeyond(myRights, emp.accessRights, panel).length === 0));
+  // (a sales person's own Sales Dashboard doesn't count, the other modules they were given do)
+  const canChange = (emp: Employee) => {
+    if (!isEmployee) return true;
+    if (emp.employeeId === myEmployeeId) return false;
+    const theirs = emp.team === 'sales' ? { ...emp.accessRights, sales: undefined } : emp.accessRights;
+    return rightsBeyond(myRights, theirs, panel).length === 0;
+  };
   const whyLocked = (emp: Employee) =>
     emp.employeeId === myEmployeeId ? 'Your own account: ask the admin to change it' : 'This employee has access you don\'t have: only the admin can change them';
 

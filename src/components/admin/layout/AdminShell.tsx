@@ -29,11 +29,14 @@ function CargoRouteGuard() {
   useEffect(() => {
     if (wrongPanel) window.location.replace(modeUrl(employeeMode!, pathname));
   }, [wrongPanel, employeeMode, pathname]);
-  const { isSalesEmployee, isEmployee, isAdmin, adminTab, employeeAccessRights, employeeRightsLoaded } = useAdminTab();
+  const { isSalesEmployee, salesHasAdminAccess, isEmployee, isAdmin, adminTab, employeeAccessRights, employeeRightsLoaded } = useAdminTab();
   if (wrongPanel) return null;
-  // Sales employees work only in the Sales panel: anything else (the main dashboard included) lands there.
+  // Sales employees work in the Sales panel. Anything else lands there, except the admin-panel modules they were
+  // also given (Orders, NDR, …; the main dashboard only with the Dashboard permission).
   if (isSalesEmployee && !SALES_PATHS.includes(pathname)) {
-    return <Navigate to="/admin/sales" replace />;
+    const opensHere = salesHasAdminAccess && canAccessRoute(employeeAccessRights, pathname) &&
+      (pathname !== '/admin/dashboard' || hasPermission(employeeAccessRights, 'dashboard', 'view'));
+    if (!opensHere) return <Navigate to="/admin/sales" replace />;
   }
   // Admin-panel employees without the Dashboard permission go to their first permitted page instead.
   if (isEmployee && isAdmin && adminTab && employeeRightsLoaded && pathname === '/admin/dashboard'
