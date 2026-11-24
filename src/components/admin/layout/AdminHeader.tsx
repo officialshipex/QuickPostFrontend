@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Search, LogOut, Bell, User, Building2, Calendar, ChevronDown, Shield, Zap, Calculator, PackagePlus, Wallet, Check, X, Menu, Upload, Users, Package, UploadCloud, Loader2, TicketPlus } from 'lucide-react';
+import { Search, LogOut, Bell, User, Building2, Calendar, ChevronDown, Shield, Zap, Calculator, PackagePlus, Wallet, Check, X, Menu, Upload, Users, Package, UploadCloud, Loader2, TicketPlus, PhoneCall } from 'lucide-react';
+import { CallbackRequestModal } from './CallbackRequestModal';
 import { useAuth } from '../../../hooks/useAuth';
 import { ModeSwitch } from './ModeSwitch';
 import { AdminCargoSwitch } from './AdminCargoSwitch';
@@ -132,6 +133,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
 
   // Bulk Import modal
   const [showBulkModal, setShowBulkModal] = useState(false);
+  const [showCallback, setShowCallback] = useState(false);
 
   // User Login (impersonation) modal
   const [showUserLoginModal, setShowUserLoginModal] = useState(false);
@@ -738,6 +740,9 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                               <Link to="/user/support" state={{ openCreateTicket: true }} className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A]" onClick={startCreateTicket}>
                                 <TicketPlus className="w-3.5 h-3.5" /> Create a Ticket
                               </Link>
+                              <button className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[#047857] hover:bg-[#F0FDF4] text-left w-full border-t border-slate-100 mt-1 pt-2.5" onClick={() => { setShowCallback(true); setShowQuickActions(false); }}>
+                                <PhoneCall className="w-3.5 h-3.5" /> Get a Callback
+                              </button>
                             </>
                           )}
                         </div>
@@ -1373,6 +1378,18 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                           </div>
                           <h4 className="text-[12px] font-bold text-[#0F172A] group-hover:text-[#DB2777] transition-colors leading-tight">Create a Ticket</h4>
                         </Link>
+                        <button type="button"
+                          onClick={() => { setShowCallback(true); setShowQuickActions(false); }}
+                          className="col-span-2 mt-1 flex items-center gap-3 p-3 rounded-xl border border-[#DCFCE7] bg-[#F0FDF4] hover:bg-[#E3F9EC] hover:border-[#BBF7D0] transition-colors group text-left w-full">
+                          <span className="w-10 h-10 rounded-full bg-white flex items-center justify-center shrink-0 shadow-sm group-hover:scale-105 transition-transform">
+                            <PhoneCall className="w-5 h-5 text-[#00A86B]" />
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-[12.5px] font-bold text-[#0F172A]">Get a Callback</span>
+                            <span className="block text-[11px] text-[#64748B]">Our team will call you back</span>
+                          </span>
+                          <span className="text-[#00A86B] text-[16px] leading-none group-hover:translate-x-0.5 transition-transform">›</span>
+                        </button>
                       </div>
                     )}
                   </div>
@@ -1623,6 +1640,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
 
       {/* Bulk Import Modal */}
       <BulkUploadModal open={showBulkModal} onClose={() => setShowBulkModal(false)} />
+      <CallbackRequestModal open={showCallback} onClose={() => setShowCallback(false)} defaultName={userName || ''} />
 
       {/* User Login (Impersonation) Modal */}
       {typeof document !== 'undefined' && createPortal(
