@@ -37,7 +37,7 @@ export const NDR_STATUSES = ['Undelivered', 'Action Required', 'Action Requested
 export const PASSBOOK_DESCS = [
   'Freight Charges Applied', 'Freight Charges Received', 'Auto-accepted Weight Dispute charge',
   'Weight Dispute Charges Applied', 'COD Charges Received', 'RTO Freight Charges Applied',
-  'Cancellation Refund', 'Recharge From Gateway(Razorpay)', 'Referral Commission Received',
+  'Cancellation Refund', 'Recharge From Gateway(Razorpay)', 'Recharge From Gateway(Cashfree)','Referral Commission Received',
 ];
 
 export const fc = (v: number) => `₹${(v || 0).toLocaleString('en-IN')}`;

@@ -65,6 +65,14 @@ export function AdminWebhookSettings() {
   const [formIsActive, setFormIsActive] = useState(true);
   const [logDetail, setLogDetail] = useState<WebhookLogDetail | null>(null);
   const [logDetailLoading, setLogDetailLoading] = useState(false);
+  const [awbInput, setAwbInput] = useState('');
+  const [awb, setAwb] = useState('');
+
+  // Apply the AWB filter a moment after typing stops
+  useEffect(() => {
+    const t = setTimeout(() => setAwb(awbInput.trim()), 500);
+    return () => clearTimeout(t);
+  }, [awbInput]);
 
   const fetchWebhooks = useCallback(async () => {
     setLoading(true);
@@ -81,14 +89,14 @@ export function AdminWebhookSettings() {
   const fetchLogs = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await apiClient.get('/webhook/manage/logs');
+      const res = await apiClient.get('/webhook/manage/logs', { params: awb ? { awb } : undefined });
       setLogs(res.data?.logs || []);
     } catch {
       setLogs([]);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [awb]);
 
   useEffect(() => {
     if (activeTab === 'webhooks') fetchWebhooks();
@@ -324,12 +332,32 @@ export function AdminWebhookSettings() {
           <>
             <div className="flex items-center justify-between mb-3">
               <h2 className={`${TXT.title} text-[#0F172A]`}>Recent Webhook Deliveries</h2>
-              <button
-                onClick={fetchLogs}
-                className="w-9 h-9 rounded-lg bg-white border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC] transition-colors"
-              >
-                <RefreshCcw className="w-4 h-4" />
-              </button>
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={awbInput}
+                    onChange={(e) => setAwbInput(e.target.value)}
+                    placeholder="Search by AWB"
+                    className={`h-9 w-48 pl-3 pr-8 bg-white border border-[#E2E8F0] rounded-lg ${TXT.value} text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#00A86B]/20 focus:border-[#00A86B]`}
+                  />
+                  {awbInput && (
+                    <button
+                      onClick={() => setAwbInput('')}
+                      title="Clear"
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#94A3B8] hover:text-[#475569]"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+                <button
+                  onClick={fetchLogs}
+                  className="w-9 h-9 rounded-lg bg-white border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC] transition-colors"
+                >
+                  <RefreshCcw className="w-4 h-4" />
+                </button>
+              </div>
             </div>
 
             <div className="bg-white border border-[#E2E8F0] rounded-xl overflow-hidden">

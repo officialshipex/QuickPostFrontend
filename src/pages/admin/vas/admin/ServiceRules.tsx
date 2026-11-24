@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Loader2, Plus, Trash2, X } from 'lucide-react';
 import { apiMessage, fmtMoney, planLabel } from '../vasApi';
 import { adminVasApi, type AccessMode, type AdminService, type ChargeMode, type OverrideRow, type SellerRef } from './adminVasApi';
-import { inputCls, parseDrafts, PlanEditor, type PlanDraft } from './adminShared';
+import { inputCls, parseDrafts, parseUsage, PlanEditor, toUsageDraft, UsagePriceEditor, type PlanDraft, type UsageDraft } from './adminShared';
 
 interface Props {
   service: AdminService;
@@ -27,6 +27,9 @@ export function ServiceRules({ service, onChanged, notify }: Props) {
   const [rows, setRows] = useState<PlanDraft[]>([{ months: '1', price: '' }]);
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
+  const isUsage = service.billing === 'usage';
+  const [usage, setUsage] = useState<UsageDraft>(toUsageDraft());
+  const priceText = (u?: { whatsapp: number; call: number }) => (u ? (service.usageUi && service.usageUi.showCall === false ? `${fmtMoney(u.whatsapp)} per message` : `WhatsApp ${fmtMoney(u.whatsapp)} · call ${fmtMoney(u.call)}`) : '—');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -47,21 +50,27 @@ export function ServiceRules({ service, onChanged, notify }: Props) {
 
   const reset = () => {
     setAdding(false); setQuery(''); setSuggestions([]); setPicked([]);
-    setAccess('default'); setChargeMode('default'); setRows([{ months: '1', price: '' }]); setNote('');
+    setAccess('default'); setChargeMode('default'); setRows([{ months: '1', price: '' }]); setNote(''); setUsage(toUsageDraft());
   };
 
   const save = async () => {
     if (!picked.length) { notify('error', 'Choose at least one seller.'); return; }
     if (access === 'default' && chargeMode === 'default') { notify('error', 'Choose what changes for these sellers.'); return; }
     let plans: { months: number; price: number }[] = [];
-    if (chargeMode === 'custom') {
+    let ownUsage: { whatsapp: number; call: number } | undefined;
+    if (chargeMode === 'custom' && isUsage) {
+      const p = parseUsage(usage);
+      if (p.error) { notify('error', p.error); return; }
+      if (!(p.usage.whatsapp > 0 || p.usage.call > 0)) { notify('error', 'Set a price above ₹0, or choose Free for these sellers.'); return; }
+      ownUsage = p.usage;
+    } else if (chargeMode === 'custom') {
       const parsed = parseDrafts(rows);
       if (parsed.error || !parsed.plans.length) { notify('error', parsed.error || 'Add at least one plan.'); return; }
       plans = parsed.plans;
     }
     setSaving(true);
     try {
-      const n = await adminVasApi.setOverrides(service.key, { userIds: picked.map((p) => p._id), access, chargeMode, plans, note });
+      const n = await adminVasApi.setOverrides(service.key, { userIds: picked.map((p) => p._id), access, chargeMode, plans, usage: ownUsage, note });
       notify('success', `Rule saved for ${n} seller${n === 1 ? '' : 's'}.`);
       reset();
       await load();
@@ -144,12 +153,19 @@ export function ServiceRules({ service, onChanged, notify }: Props) {
                 <select value={chargeMode} onChange={(e) => setChargeMode(e.target.value as ChargeMode)} className={`${inputCls} w-full`}>
                   <option value="default">{CHARGE_LABEL.default}</option>
                   <option value="free">Free for these sellers</option>
-                  <option value="custom">Their own plans</option>
+                  <option value="custom">{isUsage ? 'Their own prices' : 'Their own plans'}</option>
                 </select>
               </div>
             </div>
 
-            {chargeMode === 'custom' && (
+            {chargeMode === 'custom' && isUsage && (
+              <div>
+                <label className="text-[12px] font-bold text-[#475569] block mb-1.5">Prices for these sellers</label>
+                <UsagePriceEditor value={usage} onChange={setUsage} ui={service.usageUi} />
+              </div>
+            )}
+
+            {chargeMode === 'custom' && !isUsage && (
               <div>
                 <label className="text-[12px] font-bold text-[#475569] block mb-1.5">Plans for these sellers</label>
                 <PlanEditor rows={rows} onChange={setRows} />
@@ -198,7 +214,9 @@ export function ServiceRules({ service, onChanged, notify }: Props) {
                     <span className={`inline-flex h-6 items-center px-2.5 rounded-full border text-[11px] font-bold ${r.access === 'disabled' ? 'bg-[#FEF2F2] text-red-600 border-red-200' : r.access === 'enabled' ? 'bg-[#F0FDF4] text-[#16A34A] border-[#BBF7D0]' : 'bg-[#F1F5F9] text-[#64748B] border-[#E2E8F0]'}`}>{ACCESS_LABEL[r.access]}</span>
                   </td>
                   <td className="p-3">
-                    {r.chargeMode === 'custom' ? r.plans.map((p) => `${planLabel(p)} ${fmtMoney(p.price)}`).join(' · ') : CHARGE_LABEL[r.chargeMode]}
+                    {r.chargeMode === 'custom'
+                      ? isUsage ? priceText(r.usage) : r.plans.map((p) => `${planLabel(p)} ${fmtMoney(p.price)}`).join(' · ')
+                      : CHARGE_LABEL[r.chargeMode]}
                   </td>
                   <td className="p-3 max-w-[260px] truncate">{r.note || '—'}</td>
                   <td className="p-3">

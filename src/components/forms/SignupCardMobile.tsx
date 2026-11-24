@@ -12,11 +12,12 @@ import { useAuth } from '../../hooks/useAuth';
 import { getRoleFromToken } from '../../utils/session';
 import { useRegisterOtp, RegisterOtpFormBar } from './RegisterOtpStep';
 import { useMonthlyOrderOptions, commitmentPlanOf } from '../../services/monthlyOrderOptions';
+import { errorText } from '../../utils/errorText';
 
 const formSchema = z.object({
   fullname: z.string().min(2, 'Full name is required'),
   email: z.string().email('Invalid email address'),
-  phone: z.string().min(10, 'Valid phone number is required'),
+  phone: z.string().trim().regex(/^[6-9]\d{9}$/, 'Enter a valid 10-digit mobile number'),
   company: z.string().min(2, 'Company name is required'),
   monthlyOrders: z.string().min(1, 'Please select monthly orders'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
@@ -92,7 +93,7 @@ export function SignupCardMobile({ onBack }: SignupCardMobileProps) {
       navigate(role === 'admin' ? '/admin/dashboard' : '/user/dashboard', { replace: true });
     } catch (err: any) {
       setStatus('error');
-      setServerError(err.response?.data?.message || err.message || 'An unexpected error occurred.');
+      setServerError(errorText(err, 'An unexpected error occurred.'));
     }
   };
 
@@ -133,7 +134,7 @@ export function SignupCardMobile({ onBack }: SignupCardMobileProps) {
             <div className="flex items-center border border-r-0 border-[#E2E8F0] rounded-l-full pl-4 pr-2 bg-transparent text-sm text-[#475569] font-sans">
               +91 <ChevronDown className="w-3 h-3 ml-1" />
             </div>
-            <Input type="tel" placeholder="9876543210" className="h-10 !rounded-l-none !rounded-r-full !pl-3 !pr-5 focus-visible:!ring-offset-0 focus-visible:!ring-4 focus-visible:!ring-[#00A86B]/15 focus-visible:border-[#00A86B] bg-transparent border-[#E2E8F0] text-sm focus-visible:ring-[#00A86B]" {...register('phone')} error={errors.phone?.message} />
+            <Input type="tel" inputMode="numeric" maxLength={10} placeholder="9876543210" className="h-10 !rounded-l-none !rounded-r-full !pl-3 !pr-5 focus-visible:!ring-offset-0 focus-visible:!ring-4 focus-visible:!ring-[#00A86B]/15 focus-visible:border-[#00A86B] bg-transparent border-[#E2E8F0] text-sm focus-visible:ring-[#00A86B]" {...register('phone')} error={errors.phone?.message} />
           </div>
         </div>
         <RegisterOtpFormBar otp={registerOtp} email={watch('email')} phone={watch('phone')} />

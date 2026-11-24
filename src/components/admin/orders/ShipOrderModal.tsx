@@ -8,6 +8,7 @@ import { NetworkError } from '../../ui/NetworkError';
 import noCourierImg from '../../../assets/no-courier.jpg';
 // B2B price breakup rows: shared with the Cargo rate calculator so both show the same lines
 import { b2bBreakupRows, b2bIfApplicable, type B2BWorking } from '../../../utils/b2bPriceBreakup';
+import { chargeableWeightKg, formatKg } from '../../../utils/serviceWeight';
 
 const TXT = {
   label: 'text-[12px] font-semibold',
@@ -30,11 +31,10 @@ const getLogoForCourier = (serviceName: string): string => {
   return '';
 };
 
-// Extract chargeable weight: prefer digit in service name, else applicableWeight
-const getChargeableWeight = (serviceName: string, applicableWeight: number): string => {
-  const n = Number(serviceName?.match(/\d+/)?.[0]);
-  return `${n > 0 ? n : (applicableWeight || 0)} kg`;
-};
+// Chargeable weight: the service's slab from its name (with its unit — "250GM" is 0.25 kg, not 250 kg) or the
+// parcel's applicable weight, whichever is higher
+const getChargeableWeight = (serviceName: string, applicableWeight: number): string =>
+  formatKg(chargeableWeightKg(serviceName, applicableWeight));
 
 const formatPickupDate = (date: string | null): string => {
   if (!date) return '—';

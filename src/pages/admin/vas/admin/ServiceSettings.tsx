@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { CalendarClock, ChevronDown, Loader2 } from 'lucide-react';
 import { apiMessage, fmtDateTime } from '../vasApi';
 import { adminVasApi, type AdminService } from './adminVasApi';
-import { inputCls, parseDrafts, PlanEditor, toDrafts, Toggle, type PlanDraft } from './adminShared';
+import { inputCls, parseDrafts, parseUsage, PlanEditor, toDrafts, toUsageDraft, Toggle, UsagePriceEditor, type PlanDraft, type UsageDraft } from './adminShared';
 
 interface Props {
   service: AdminService;
@@ -21,22 +21,53 @@ export function ServiceSettings({ service, onChanged, notify }: Props) {
   const [freeUntil, setFreeUntil] = useState('');
   const [expiring, setExpiring] = useState(false);
   const [minDate] = useState(() => new Date(Date.now() + 864e5).toISOString().slice(0, 10)); // tomorrow
+  // NDR Follow-ups: charged per successful response (prices below), not with monthly plans
+  const isUsage = service.billing === 'usage';
+  const ui = service.usageUi; // set for an automatic usage service (WhatsApp Order Updates): one price, no call settings
+  const showDelay = !ui || ui.showDelay !== false;
+  const [usage, setUsage] = useState<UsageDraft>(toUsageDraft(config.usage));
+  const [delay, setDelay] = useState(String(config.ndrCallDelayMinutes ?? 120));
+  const [reminder, setReminder] = useState(String(config.ndrReminderMinutes ?? 0));
 
   // Reset the form when another service is opened or the saved values change.
   useEffect(() => {
     setEnabled(config.enabled);
     setPricing(config.pricingEnabled);
     setRows(toDrafts(config.plans));
-  }, [service.key, config.enabled, config.pricingEnabled, config.plans]);
+    setUsage(toUsageDraft(config.usage));
+    setDelay(String(config.ndrCallDelayMinutes ?? 120));
+    setReminder(String(config.ndrReminderMinutes ?? 0));
+  }, [service.key, config.enabled, config.pricingEnabled, config.plans, config.usage, config.ndrCallDelayMinutes, config.ndrReminderMinutes]);
 
   const parsed = parseDrafts(rows);
+  const parsedUsage = parseUsage(usage);
   const dirty =
     enabled !== config.enabled ||
     pricing !== config.pricingEnabled ||
-    JSON.stringify(parsed.plans) !== JSON.stringify(config.plans) ||
-    rows.length !== config.plans.length;
+    (isUsage
+      ? JSON.stringify(parsedUsage.usage) !== JSON.stringify(config.usage) || (showDelay && (Number(delay) !== (config.ndrCallDelayMinutes ?? 120) || Number(reminder) !== (config.ndrReminderMinutes ?? 0)))
+      : JSON.stringify(parsed.plans) !== JSON.stringify(config.plans) || rows.length !== config.plans.length);
 
   const save = async () => {
+    if (isUsage) {
+      if (parsedUsage.error) { notify('error', parsedUsage.error); return; }
+      if (pricing && !(parsedUsage.usage.whatsapp > 0 || parsedUsage.usage.call > 0)) { notify('error', 'Set a price above ₹0 before turning charges on.'); return; }
+      const m = Number(delay);
+      if (showDelay && (!Number.isInteger(m) || m < 0 || m > 1440)) { notify('error', 'Call wait time must be 0–1440 minutes.'); return; }
+      const rm = Number(reminder);
+      if (showDelay && (!Number.isInteger(rm) || rm < 0 || rm > 2880)) { notify('error', 'Reminder wait must be 0–2880 minutes (0 = no reminder).'); return; }
+      setSaving(true);
+      try {
+        await adminVasApi.updateService(service.key, { enabled, usage: parsedUsage.usage, ...(showDelay ? { ndrCallDelayMinutes: m, ndrReminderMinutes: rm } : {}), pricingEnabled: pricing });
+        notify('success', `${service.name} settings saved.`);
+        onChanged();
+      } catch (err) {
+        notify('error', apiMessage(err));
+      } finally {
+        setSaving(false);
+      }
+      return;
+    }
     if (parsed.error && (rows.length || pricing)) { notify('error', parsed.error); return; }
     if (pricing && !parsed.plans.length) { notify('error', 'Add at least one plan before turning charges on.'); return; }
     setSaving(true);
@@ -73,7 +104,11 @@ export function ServiceSettings({ service, onChanged, notify }: Props) {
         <div>
           <h3 className="text-[14px] font-bold text-[#0F172A]">Availability</h3>
           <p className="text-[12.5px] text-[#64748B] mt-0.5">
-            {enabled ? 'Sellers can use this service.' : 'Switched off for all sellers. Live branded pages stop showing; sellers keep their saved work. Use Special rules to keep it on for chosen sellers.'}
+            {service.automatic
+              ? enabled
+                ? 'On for everyone. A seller only gets these messages if they turned WhatsApp on in their Notification settings.'
+                : 'Switched off for all sellers: no WhatsApp order messages are sent. Use Special rules to keep it on for chosen sellers.'
+              : enabled ? 'Sellers can use this service.' : 'Switched off for all sellers. Live branded pages stop showing; sellers keep their saved work. Use Special rules to keep it on for chosen sellers.'}
           </p>
         </div>
         <Toggle checked={enabled} onChange={setEnabled} label="Service enabled for everyone" />
@@ -84,14 +119,42 @@ export function ServiceSettings({ service, onChanged, notify }: Props) {
           <div>
             <h3 className="text-[14px] font-bold text-[#0F172A]">Charges</h3>
             <p className="text-[12.5px] text-[#64748B] mt-0.5">
-              {pricing ? 'Sellers must buy one of these plans from their wallet.' : 'Free for everyone right now.'}
+              {isUsage
+                ? ui
+                  ? pricing ? 'Taken from the seller\'s wallet each time a message is sent. If the wallet cannot pay, the message is not sent.' : 'Free for everyone right now. The price below applies once you turn charges on.'
+                  : pricing ? 'Taken from the seller\'s wallet for each successful response only.' : 'Free for everyone right now. Prices below apply once you turn charges on.'
+                : pricing ? 'Sellers must buy one of these plans from their wallet.' : 'Free for everyone right now.'}
             </p>
           </div>
           <Toggle checked={pricing} onChange={setPricing} label="Charge sellers" />
         </div>
-        <PlanEditor rows={rows} onChange={setRows} />
+        {isUsage ? <UsagePriceEditor value={usage} onChange={setUsage} ui={ui} /> : <PlanEditor rows={rows} onChange={setRows} />}
         <p className="text-[11.5px] text-[#94A3B8] mt-2">Prices apply to all sellers. For different prices or free access for specific sellers, use Special rules.</p>
       </div>
+
+      {isUsage && showDelay && (
+        <div className="border-t border-[#F1F5F9] pt-5">
+          <h3 className="text-[14px] font-bold text-[#0F172A]">Reminder</h3>
+          <p className="text-[12.5px] text-[#64748B] mt-0.5 mb-3">If the customer has not tapped a button, send the reminder message once after this wait — only while the shipment is still in Action Required. Not charged separately. Leave 0 for no reminder.</p>
+          <label className="inline-flex items-center gap-2 text-[12.5px] text-[#475569]">
+            Remind after
+            <input type="number" min={0} max={2880} step={30} value={reminder} onChange={(e) => setReminder(e.target.value)} className={`${inputCls} w-24`} aria-label="Reminder wait in minutes" />
+            minutes
+          </label>
+        </div>
+      )}
+
+      {isUsage && showDelay && (
+        <div className="border-t border-[#F1F5F9] pt-5">
+          <h3 className="text-[14px] font-bold text-[#0F172A]">WhatsApp + Calling</h3>
+          <p className="text-[12.5px] text-[#64748B] mt-0.5 mb-3">The WhatsApp goes out at once. The call is placed after this wait, only if the NDR is still open (not delivered, not RTO, no action taken).</p>
+          <label className="inline-flex items-center gap-2 text-[12.5px] text-[#475569]">
+            Call after
+            <input type="number" min={0} max={1440} step={15} value={delay} onChange={(e) => setDelay(e.target.value)} className={`${inputCls} w-24`} aria-label="Call wait in minutes" />
+            minutes
+          </label>
+        </div>
+      )}
 
       <div className="flex items-center gap-3">
         <button
@@ -103,7 +166,7 @@ export function ServiceSettings({ service, onChanged, notify }: Props) {
         {dirty && <span className="text-[12px] font-semibold text-[#B45309]">Unsaved changes</span>}
       </div>
 
-      {pricing && (
+      {pricing && !isUsage && (
         <div className="border-t border-[#F1F5F9] pt-5">
           <h3 className="text-[14px] font-bold text-[#0F172A] flex items-center gap-2"><CalendarClock className="w-4 h-4 text-[#64748B]" /> Sellers already using it free</h3>
           <p className="text-[12.5px] text-[#64748B] mt-0.5 mb-3">

@@ -6,6 +6,7 @@
    ───────────────────────────────────────────────────────────────────────── */
 
 import { IFSC_RE, PAN_RE } from './kycStyles';
+import { AADHAAR_RULE, ACCOUNT_RULE, checkField, firstProblem, IFSC_RULE, PAN_RULE, PINCODE_RULE } from './fieldCheck';
 
 /** A document already saved on the server (uploaded when it was chosen). */
 export interface KycFile {
@@ -106,8 +107,8 @@ export const isPanComplete = (p: ManualPan) =>
   PAN_RE.test(p.number) && p.name.trim().length >= 2 && !!p.date && !!p.card;
 
 export const isAadhaarComplete = (a: ManualAadhaar) =>
-  /^\d{12}$/.test(a.number) && a.name.trim().length >= 2 && a.guardianName.trim().length >= 2 && !!a.dob
-  && a.address.trim().length >= 5 && /^\d{6}$/.test(a.pincode) && !!a.city.trim() && !!a.state.trim()
+  checkField(a.number, AADHAAR_RULE).state === 'ok' && a.name.trim().length >= 2 && a.guardianName.trim().length >= 2 && !!a.dob
+  && a.address.trim().length >= 5 && checkField(a.pincode, PINCODE_RULE).state === 'ok' && !!a.city.trim() && !!a.state.trim()
   && !!a.front && !!a.back;
 
 export const isBankAccountLengthOk = (n: string) => n.length >= 9 && n.length <= 18;
@@ -115,6 +116,34 @@ export const isBankAccountLengthOk = (n: string) => n.length >= 9 && n.length <=
 export const isBankComplete = (b: ManualBank) =>
   b.holderName.trim().length >= 2 && isBankAccountLengthOk(b.accountNumber) && b.accountNumber === b.confirmAccountNumber
   && IFSC_RE.test(b.ifsc) && !!b.bankName.trim() && !!b.branch.trim() && !!b.proof;
+
+/* ── What is still missing on a step (shown next to its disabled Next button), in the order of the form ── */
+
+export const panProblem = (p: ManualPan, isCompany: boolean): string | null =>
+  firstProblem([{ value: p.number, rule: PAN_RULE }])
+  || (p.name.trim().length < 2 ? `Enter the ${isCompany ? 'business name' : 'name'} as on the PAN` : null)
+  || (!p.date ? `Enter the ${isCompany ? 'date of incorporation' : 'date of birth'}` : null)
+  || (!p.card ? 'Upload the PAN card' : null);
+
+export const aadhaarProblem = (a: ManualAadhaar): string | null =>
+  firstProblem([{ value: a.number, rule: AADHAAR_RULE }])
+  || (a.name.trim().length < 2 ? 'Enter the name as on Aadhaar' : null)
+  || (a.guardianName.trim().length < 2 ? "Enter the father's / spouse's name" : null)
+  || (!a.dob ? 'Enter the date of birth' : null)
+  || (a.address.trim().length < 5 ? 'Enter the address as on Aadhaar' : null)
+  || firstProblem([{ value: a.pincode, rule: PINCODE_RULE }])
+  || (!a.city.trim() || !a.state.trim() ? 'Enter the city and state' : null)
+  || (!a.front ? 'Upload the front of the Aadhaar card' : null)
+  || (!a.back ? 'Upload the back of the Aadhaar card' : null);
+
+export const bankProblem = (b: ManualBank): string | null =>
+  (b.holderName.trim().length < 2 ? 'Enter the account holder name' : null)
+  || firstProblem([{ value: b.accountNumber, rule: ACCOUNT_RULE }])
+  || (!b.confirmAccountNumber ? 'Re-enter your account number to confirm it' : b.confirmAccountNumber !== b.accountNumber ? 'Account numbers do not match' : null)
+  || firstProblem([{ value: b.ifsc, rule: IFSC_RULE }])
+  || (!b.bankName.trim() ? 'Enter the bank name' : null)
+  || (!b.branch.trim() ? 'Enter the branch' : null)
+  || (!b.proof ? 'Upload the cancelled cheque or bank statement' : null);
 
 /* ── Display helpers ── */
 

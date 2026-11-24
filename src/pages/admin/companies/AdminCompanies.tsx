@@ -551,7 +551,7 @@ const GROUP_LABELS: Record<string, string> = {
   delhivery: 'Delhivery', dtdc: 'DTDC', ekart: 'Ekart', shadowfax: 'Shadowfax',
   smartship: 'SmartShip', zipypost: 'Zipypost', amazon: 'Amazon', boxdLogistics: 'BoxdLogistics', proship: 'Proship',
   shiprocket: 'Shiprocket', shreeMaruti: 'Shree Maruti',
-  razorpay: 'Razorpay', cashfree: 'Cashfree (KYC verification)',
+  razorpay: 'Razorpay', cashfree: 'Cashfree (KYC verification)', cashfreePg: 'Cashfree Payment Gateway (recharges)',
   smtp: 'Email (SMTP)', whatsapp: 'WhatsApp', sms: 'SMS', aiCalling: 'AI Calling (EchQ)', s3: 'File Storage (S3)', core: 'Core / Security',
 };
 
@@ -774,6 +774,9 @@ function CompanyDetail({ tenantKey, onBack }: { tenantKey: string; onBack: () =>
                     );
                   })}
                 </div>
+              )}
+              {section.category === 'payments' && (
+                <PaymentGatewaySwitch company={company} groupStatus={groupStatus} onSaved={load} showToast={showToast} />
               )}
             </SectionCard>
           ))}
@@ -1693,6 +1696,94 @@ function TwoFactorSection({ company, onSaved, showToast }: {
         </p>
       </div>
     </SectionCard>
+  );
+}
+
+// Which payment gateway this company's wallet recharges go through. A switch, so recharges can be moved to the
+// other gateway at once when one has trouble. The backend refuses a gateway whose keys are not saved yet.
+// Shown inside the "Payment Gateways" card, under the gateway keys.
+function PaymentGatewaySwitch({ company, groupStatus, onSaved, showToast }: {
+  company: CompanySummary; groupStatus: GroupStatusMap; onSaved: () => void; showToast: (t: 'success' | 'error', m: string) => void;
+}) {
+  const [saving, setSaving] = useState(false);
+  const [confirming, setConfirming] = useState<'razorpay' | 'cashfree' | null>(null);
+
+  // an older backend does not know this setting: show nothing rather than a switch that cannot work
+  if (!company.paymentGateway) return null;
+  const current = company.paymentGateway;
+
+  const options: { key: 'razorpay' | 'cashfree'; label: string; group: string; desc: string }[] = [
+    { key: 'razorpay', label: 'Razorpay', group: 'payments.razorpay', desc: 'Razorpay checkout. Needs the Razorpay keys (Payment Gateways > Razorpay).' },
+    { key: 'cashfree', label: 'Cashfree', group: 'payments.cashfreePg', desc: 'Cashfree checkout. Needs the Cashfree Payment Gateway keys (Payment Gateways > Cashfree Payment Gateway), not the KYC verification keys.' },
+  ];
+
+  const save = async (next: 'razorpay' | 'cashfree') => {
+    setSaving(true);
+    try {
+      await companiesApi.updateBasic(company.tenantKey, { paymentGateway: next });
+      showToast('success', `Recharges now go through ${next === 'cashfree' ? 'Cashfree' : 'Razorpay'}`);
+      setConfirming(null);
+      onSaved();
+    } catch (err) {
+      const message = (err as { response?: { data?: { message?: string } } }).response?.data?.message;
+      showToast('error', message || 'Failed to switch the payment gateway');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="mt-3 pt-4 border-t border-[#F1F5F9]">
+      <p className="text-[13px] font-semibold text-[#0F172A]">Active gateway for wallet recharges</p>
+      <p className="text-[11px] text-[#94A3B8] mt-0.5 mb-3">Switch to the other gateway if this one has trouble.</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {options.map((o) => {
+          const selected = current === o.key;
+          const configured = groupStatus[o.group] === 'set';
+          return (
+            <button
+              key={o.key}
+              type="button"
+              disabled={saving || selected}
+              onClick={() => setConfirming(o.key)}
+              className={`text-left rounded-[10px] border-2 p-3 transition-colors disabled:cursor-default ${selected ? 'border-[#00A86B] bg-[#F0FDF4]' : 'border-[#E2E8F0] hover:border-[#CBD5E1]'}`}
+            >
+              <div className="flex items-start gap-2.5">
+                <span className={`mt-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${selected ? 'border-[#00A86B]' : 'border-[#CBD5E1]'}`}>
+                  {selected && <span className="w-2 h-2 rounded-full bg-[#00A86B]" />}
+                </span>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className={`text-[13px] font-semibold ${selected ? 'text-[#00A86B]' : 'text-[#334155]'}`}>{o.label}{selected && ' (active)'}</p>
+                    <span className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full border ${configured ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-50 text-slate-500 border-slate-200'}`}>
+                      {configured ? 'Keys saved' : 'Keys not saved'}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-[#94A3B8] mt-0.5">{o.desc}</p>
+                </div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {confirming && (
+        <div className="mt-3 rounded-[8px] border border-amber-200 bg-amber-50 p-3 flex flex-col sm:flex-row sm:items-center gap-3">
+          <p className="text-[12px] text-amber-800 flex-1">
+            Switch {company.displayName}&apos;s wallet recharges to <b>{confirming === 'cashfree' ? 'Cashfree' : 'Razorpay'}</b>? New recharges open its checkout at once.
+            Payments already started on {confirming === 'cashfree' ? 'Razorpay' : 'Cashfree'} are still credited.
+          </p>
+          <div className="flex gap-2 shrink-0">
+            <button type="button" disabled={saving} onClick={() => setConfirming(null)} className="px-3 h-8 rounded-full border border-[#E2E8F0] bg-white text-[12px] font-semibold text-[#475569] hover:bg-[#F8FAFC] disabled:opacity-50">Cancel</button>
+            <button type="button" disabled={saving} onClick={() => save(confirming)} className="px-3 h-8 rounded-full bg-[#00A86B] hover:bg-[#009B63] text-white text-[12px] font-semibold disabled:opacity-50">{saving ? 'Switching…' : 'Switch'}</button>
+          </div>
+        </div>
+      )}
+
+      <p className="text-[11px] text-[#94A3B8] mt-3">
+        Applies to every panel of this company{company.isDefaultTenant ? ' (QuickPost and ShipexIndia)' : ''}. Cashfree also needs this company&apos;s website domain whitelisted in the Cashfree dashboard (Developers &gt; Whitelisting) before live payments work.
+      </p>
+    </div>
   );
 }
 

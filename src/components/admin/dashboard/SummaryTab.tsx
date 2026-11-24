@@ -118,10 +118,10 @@ function TopSellers({ sellers, error, fmt, fmtN, initials }: { sellers: any[]; e
               <tr className="bg-[#F8FAFC] text-[11.5px] uppercase tracking-wide text-[#64748B]">
                 <SortTh label="#" k="rank" sort={sort} onSort={toggle} align="left" className="pl-5 w-14" />
                 <th className="px-3 py-3 text-left font-semibold">Seller</th>
-                <SortTh label="Total Orders" k="totalOrders" sort={sort} onSort={toggle} />
+                <SortTh label="Shipments" k="totalOrders" sort={sort} onSort={toggle} />
                 <SortTh label="Revenue" k="totalRevenue" sort={sort} onSort={toggle} />
                 <SortTh label="Delivery Rate" k="deliveryRate" sort={sort} onSort={toggle} />
-                <SortTh label="COD Amount" k="codAmount" sort={sort} onSort={toggle} />
+                <SortTh label="COD Pending" k="codAmount" sort={sort} onSort={toggle} />
                 <SortTh label="RTO Rate" k="rtoRate" sort={sort} onSort={toggle} />
                 <SortTh label="Wallet Balance" k="walletBalance" sort={sort} onSort={toggle} align="right" className="pr-5" />
               </tr>
@@ -190,7 +190,7 @@ function TopSellers({ sellers, error, fmt, fmtN, initials }: { sellers: any[]; e
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-[#F1F5F9] text-[13px]">
-                <div><div className="text-[10.5px] text-[#94A3B8] uppercase tracking-wide">Orders</div><div className="font-semibold text-[#0F172A] tabular-nums">{fmtN(s.totalOrders)}</div></div>
+                <div><div className="text-[10.5px] text-[#94A3B8] uppercase tracking-wide">Shipments</div><div className="font-semibold text-[#0F172A] tabular-nums">{fmtN(s.totalOrders)}</div></div>
                 <div><div className="text-[10.5px] text-[#94A3B8] uppercase tracking-wide">Revenue</div><div className="font-semibold text-[#047857] tabular-nums truncate">{fmt(s.totalRevenue)}</div></div>
                 <div><div className="text-[10.5px] text-[#94A3B8] uppercase tracking-wide">COD</div><div className="font-semibold text-[#0F172A] tabular-nums truncate">{fmt(s.codAmount)}</div></div>
               </div>
@@ -251,7 +251,7 @@ function CourierSummary({ couriers, courierIcon, initials }: { couriers: any[]; 
       right={<SearchBox value={q} onChange={setQ} placeholder="Search courier or service" />}>
       <div className="hidden md:block overflow-x-auto">
         {rows.length === 0 ? (
-          <div className="p-10 text-center text-[13px] text-[#94A3B8]">{q ? 'No couriers match your search' : 'No courier data for the last 30 days'}</div>
+          <div className="p-10 text-center text-[13px] text-[#94A3B8]">{q ? 'No couriers match your search' : 'No courier shipments in the selected range'}</div>
         ) : (
           <table className="w-full min-w-[1180px] text-[13px]">
             <thead>
@@ -357,7 +357,7 @@ function CourierSummary({ couriers, courierIcon, initials }: { couriers: any[]; 
       {/* Mobile */}
       <div className="md:hidden p-3 space-y-3 max-h-[600px] overflow-y-auto">
         {rows.length === 0 ? (
-          <div className="p-6 text-center text-[12px] text-[#94A3B8]">{q ? 'No couriers match your search' : 'No courier data for the last 30 days'}</div>
+          <div className="p-6 text-center text-[12px] text-[#94A3B8]">{q ? 'No couriers match your search' : 'No courier shipments in the selected range'}</div>
         ) : rows.map((c, i) => (
           <div key={i} className="rounded-xl border border-[#EEF2F6] p-3.5">
             <div className="flex items-center gap-3 min-w-0">

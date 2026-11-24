@@ -64,6 +64,7 @@ import { AdminEDDMapping } from './pages/admin/AdminEDDMapping';
 import { AdminEPDMapping } from './pages/admin/AdminEPDMapping';
 import { AdminReferral } from './pages/admin/AdminReferral';
 import { AdminSellerFeedback } from './pages/admin/AdminSellerFeedback';
+import { AdminCallbackRequests } from './pages/admin/AdminCallbackRequests';
 import { AdminSystemLogs } from './pages/admin/AdminSystemLogs';
 import { UserReferral } from './pages/admin/UserReferral';
 import { AdminRateCard } from './pages/admin/AdminRateCard';
@@ -111,10 +112,10 @@ import {
   AdminShipsure,
 } from './pages/admin/AdminValueAddedServices';
 import { AdminCourierSetup } from './pages/admin/AdminCourierSetup';
-import { AdminSettingsPlaceholder } from './pages/admin/AdminSettingsPlaceholder';
 import { AdminTwoFactor } from './pages/admin/AdminTwoFactor';
 import { AdminWebhookSettings } from './pages/admin/AdminWebhookSettings';
 import { AdminLabelSettings } from './pages/admin/AdminLabelSettings';
+import { AdminInvoiceSettings } from './pages/admin/AdminInvoiceSettings';
 import { AdminChangePassword } from './pages/admin/AdminChangePassword';
 import { AdminKYC } from './pages/admin/AdminKYC';
 import { AdminKycReview } from './pages/admin/AdminKycReview';
@@ -340,6 +341,7 @@ function App() {
               <Route path="/admin/tracking" element={<AdminTracking />} />
               <Route path="/admin/referral" element={<SensitiveGate><AdminReferral /></SensitiveGate>} />
               <Route path="/admin/seller-feedback" element={<AdminSellerFeedback />} />
+              <Route path="/admin/callback-requests" element={<AdminCallbackRequests />} />
               <Route path="/admin/system-logs" element={<SensitiveGate><AdminSystemLogs /></SensitiveGate>} />
               <Route path="/admin/rate-card" element={<SensitiveGate><ModeRoute b2c={<AdminRateCard />} cargo={<CargoRateCard />} /></SensitiveGate>} />
               <Route path="/admin/order-tracking" element={<AdminOrderTracking />} />
@@ -384,7 +386,7 @@ function App() {
               <Route path="/user/settings/change-password" element={<AdminChangePassword />} />
               <Route path="/user/settings/two-factor" element={<AdminTwoFactor />} />
               <Route path="/user/settings/label" element={<ModeRoute b2c={<AdminLabelSettings />} cargo={<CargoLabelSettings />} />} />
-              <Route path="/user/settings/invoice" element={<AdminSettingsPlaceholder title="Invoice" description="Manage your invoice preferences and billing settings." />} />
+              <Route path="/user/settings/invoice" element={<AdminInvoiceSettings />} />
               {/* Cargo: B2B API key + B2B webhooks (separate from the B2C webhooks) */}
               <Route path="/user/settings/webhook" element={<ModeRoute b2c={<AdminWebhookSettings />} cargo={<CargoApiWebhooks />} />} />
               <Route path="/user/settings/agreement" element={<AdminAgreementSettings />} />

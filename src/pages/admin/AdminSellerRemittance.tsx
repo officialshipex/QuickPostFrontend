@@ -16,7 +16,8 @@ type SubTab = 'bank-details' | 'early-cod' | 'postpaid-plan';
 const SUB_TABS: { id: SubTab; label: string }[] = [
   { id: 'bank-details', label: 'Bank Details' },
   { id: 'early-cod', label: 'Early COD Remittance' },
-  { id: 'postpaid-plan', label: 'Postpaid Plan' },
+  // Hidden: Postpaid Plan has no backend yet (its switch only simulated a change). Re-add when it is built.
+  // { id: 'postpaid-plan', label: 'Postpaid Plan' },
 ];
 
 /* ── Early COD Remittance plan data ── */

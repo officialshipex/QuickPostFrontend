@@ -80,8 +80,8 @@ const IMPORTANT_TERMS = [
   'Lost or damaged products claims will be handled as per the carrier terms and conditions.',
   "The Customer/Seller shall not book/handover or allows to be handed over any Product which is banned, restricted, illegal, prohibited, stolen, infringing of any third-party rights, liquid materials, hazardous or dangerous or in breach of any law or regulation in force in India for the purpose of the logistics or delivery services.",
   'Additional government rules and norms can be applicable while shipping to certain states and subject to change without prior intimation and will abide by them.',
-  "Detailed terms and conditions can be reviewed on Shipex's Terms of services.",
-  'For any queries reach out to us at https://carrier.shipex.in/support or write to us at support@shipexindia.com.',
+  "Detailed terms and conditions can be reviewed on QuickPost's Terms of Service.",
+  'For any queries reach out to us at support@quickpost.in.',
 ];
 
 export function AdminRateCalculator() {

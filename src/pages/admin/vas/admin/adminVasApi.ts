@@ -1,5 +1,5 @@
 import { apiClient } from '../../../../services/apiClient';
-import type { VasPlan } from '../vasApi';
+import type { NdrActivity, NdrActivityParams, NdrMode, UsagePrices, VasPlan } from '../vasApi';
 
 export type SubStatus = 'active' | 'inactive' | 'expired';
 export type FollowUpStatus = 'none' | 'open' | 'contacted' | 'resolved';
@@ -10,6 +10,11 @@ export interface ServiceConfig {
   enabled: boolean;
   pricingEnabled: boolean;
   plans: VasPlan[];
+  /** usage services (NDR Follow-ups) only */
+  usage?: UsagePrices;
+  ndrCallDelayMinutes?: number;
+  /** NDR Follow-ups: send one reminder this many minutes after the NDR message if the customer has not acted (0 = none) */
+  ndrReminderMinutes?: number;
   updatedAt: string | null;
   changeLog: { at: string; by: string; summary: string }[];
 }
@@ -29,6 +34,12 @@ export interface AdminService {
   key: string;
   name: string;
   activation: 'publish' | 'toggle';
+  /** "usage" = charged per successful response (no plans) */
+  billing?: 'usage';
+  /** automatic: sellers never activate it; it is on for everyone unless the admin switches it off */
+  automatic?: boolean;
+  /** how the admin screens show a usage service's prices (only the WhatsApp price when showCall is false) */
+  usageUi?: { whatsappLabel: string; whatsappHelp: string; priceChange: string; showCall: boolean; showDelay: boolean };
   description: string;
   config: ServiceConfig;
   stats: ServiceStats;
@@ -72,6 +83,7 @@ export interface SubscriptionRow {
   deactivatedBy?: 'user' | 'admin' | 'expiry' | null;
   activationCount: number;
   entitledUntil: string | null;
+  ndrMode?: NdrMode | null;
   lastPlanMonths?: number;
   lastPlanPrice?: number;
   totalPaid: number;
@@ -79,7 +91,7 @@ export interface SubscriptionRow {
   history?: HistoryRow[];
   user: SellerRef | null;
   enabledForUser: boolean;
-  override: { access: AccessMode; chargeMode: ChargeMode; plans: VasPlan[]; note: string } | null;
+  override: { access: AccessMode; chargeMode: ChargeMode; plans: VasPlan[]; usage?: UsagePrices; note: string } | null;
   page: PageInfo | null;
 }
 
@@ -89,6 +101,7 @@ export interface OverrideRow {
   access: AccessMode;
   chargeMode: ChargeMode;
   plans: VasPlan[];
+  usage?: UsagePrices;
   note: string;
   updatedAt: string;
   user: SellerRef | null;
@@ -101,7 +114,7 @@ export const adminVasApi = {
     const { data } = await apiClient.get(`${base}/services`);
     return data.services;
   },
-  async updateService(key: string, body: { enabled?: boolean; pricingEnabled?: boolean; plans?: VasPlan[] }): Promise<ServiceConfig> {
+  async updateService(key: string, body: { enabled?: boolean; pricingEnabled?: boolean; plans?: VasPlan[]; usage?: UsagePrices; ndrCallDelayMinutes?: number; ndrReminderMinutes?: number }): Promise<ServiceConfig> {
     const { data } = await apiClient.put(`${base}/services/${key}`, body);
     return data.config;
   },
@@ -132,7 +145,7 @@ export const adminVasApi = {
     const { data } = await apiClient.get(`${base}/services/${key}/overrides`);
     return data.overrides;
   },
-  async setOverrides(key: string, body: { userIds: string[]; access: AccessMode; chargeMode: ChargeMode; plans: VasPlan[]; note: string }) {
+  async setOverrides(key: string, body: { userIds: string[]; access: AccessMode; chargeMode: ChargeMode; plans: VasPlan[]; usage?: UsagePrices; note: string }) {
     const { data } = await apiClient.put(`${base}/services/${key}/overrides`, body);
     return data.updated as number;
   },
@@ -142,6 +155,10 @@ export const adminVasApi = {
   async expireFree(key: string, until: string) {
     const { data } = await apiClient.post(`${base}/services/${key}/expire-free`, { until });
     return data.updated as number;
+  },
+  async ndrActivity(params: NdrActivityParams): Promise<NdrActivity> {
+    const { data } = await apiClient.get(`${base}/ndr-followups`, { params });
+    return data;
   },
   async searchSellers(query: string): Promise<SellerRef[]> {
     const { data } = await apiClient.get('/admin/searchUser', { params: { query } });

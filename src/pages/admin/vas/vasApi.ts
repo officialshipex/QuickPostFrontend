@@ -24,7 +24,34 @@ export interface VasAccess {
   activatedAt: string | null;
   deactivatedAt: string | null;
   history: VasHistoryItem[];
+  /** NDR Follow-ups: charged per successful response instead of plans */
+  billing?: 'usage';
+  usagePrices?: UsagePrices;
+  ndrMode?: NdrMode | null;
 }
+
+/** ₹ per WhatsApp delivered / per call answered (0 = free) */
+export interface UsagePrices { whatsapp: number; call: number }
+export type NdrMode = 'whatsapp' | 'calling' | 'both';
+
+export type NdrWaStatus = 'none' | 'sending' | 'sent' | 'delivered' | 'failed' | 'unconfirmed' | 'skipped';
+export type NdrCallStatus = 'none' | 'waiting' | 'placing' | 'placed' | 'answered' | 'unanswered' | 'failed' | 'not_needed' | 'no_result' | 'skipped';
+
+export interface NdrFollowupRow {
+  _id: string;
+  userId: string;
+  orderId?: number;
+  awb: string;
+  mode: NdrMode;
+  createdAt: string;
+  whatsapp: { status: NdrWaStatus; sentAt?: string; deliveredAt?: string; price: number; charged: boolean; chargedAmount: number; chargeError?: string; error?: string };
+  call: { status: NdrCallStatus; dueAt?: string; placedAt?: string; resultAt?: string; customerResponse?: string; price: number; charged: boolean; chargedAmount: number; chargeError?: string; error?: string };
+  user?: { fullname: string; email: string; company?: string; userId?: number } | null;
+}
+
+export interface NdrTotals { followups: number; waSent: number; waDelivered: number; callsPlaced: number; callsAnswered: number; charged: number }
+export interface NdrActivity { rows: NdrFollowupRow[]; total: number; page: number; limit: number; totals30d: NdrTotals }
+export interface NdrActivityParams { outcome?: string; search?: string; page: number; limit: number }
 
 /** Error text from the API, falling back to a generic message. */
 export function apiMessage(err: unknown, fallback = 'Something went wrong. Please try again.'): string {
@@ -62,7 +89,26 @@ export const vasApi = {
     const { data } = await apiClient.post(`/vas/${key}/deactivate`, { reason });
     return data.service;
   },
+  /** NDR Follow-ups: activate, or switch to another mode while active */
+  async activateNdr(mode: NdrMode): Promise<VasAccess> {
+    const { data } = await apiClient.post('/vas/ndr-followups/activate', { mode });
+    return data.service;
+  },
+  async ndrActivity(params: NdrActivityParams): Promise<NdrActivity> {
+    const { data } = await apiClient.get('/vas/ndr-followups/activity', { params });
+    return data;
+  },
 };
+
+export const NDR_WA_LABEL: Record<NdrWaStatus, string> = {
+  none: '—', sending: 'Sending', sent: 'Sent, awaiting delivery', delivered: 'Delivered', failed: 'Failed',
+  unconfirmed: 'Not confirmed', skipped: 'Not sent',
+};
+export const NDR_CALL_LABEL: Record<NdrCallStatus, string> = {
+  none: '—', waiting: 'Scheduled', placing: 'Calling', placed: 'Called, awaiting result', answered: 'Answered',
+  unanswered: 'Not answered', failed: 'Failed', not_needed: 'Not needed', no_result: 'No result', skipped: 'Not called',
+};
+export const NDR_MODE_LABEL: Record<NdrMode, string> = { whatsapp: 'WhatsApp', calling: 'Calling', both: 'WhatsApp + Calling' };
 
 export const fmtMoney = (n: number) => `₹${Number(n || 0).toLocaleString('en-IN')}`;
 export const fmtDate = (v?: string | null) =>

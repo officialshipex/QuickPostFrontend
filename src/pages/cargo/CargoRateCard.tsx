@@ -10,7 +10,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Edit2, Save, Trash2, Plus, X, Search, MapPin, Layers, Loader2, ChevronDown, Upload, Download } from 'lucide-react';
+import { Edit2, Save, Trash2, Plus, X, Search, MapPin, Layers, Loader2, ChevronDown, Upload, Download, Star, AlertCircle } from 'lucide-react';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { apiClient } from '../../services/apiClient';
 import { TableLoader } from '../../components/ui/TableLoader';
@@ -491,6 +491,35 @@ function RateCardTab({ showToast }: { showToast: (t: 'success' | 'error' | 'info
 
   useEffect(() => { loadMeta(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // The B2B plan every newly registered seller gets (backend B2B/utils/defaultB2BPlan.js): the marked one, else LITE.
+  // Same as the B2C "Set as default" on the Rate Card screen; separate from it.
+  const [defaultPlan, setDefaultPlan] = useState('');
+  const [unusableDefault, setUnusableDefault] = useState(''); // marked, but no active rate cards -> sellers get LITE
+  const [settingDefault, setSettingDefault] = useState(false);
+  const loadDefaultPlan = () =>
+    apiClient.get('/b2b/saveRate/getPlanNames')
+      .then(res => {
+        setDefaultPlan(res.data?.defaultPlan || '');
+        setUnusableDefault(res.data?.defaultPlanUnusable ? res.data?.defaultPlanMarked || '' : '');
+      })
+      .catch(() => { /* the badge just doesn't show */ });
+  useEffect(() => { loadDefaultPlan(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const handleSetDefaultPlan = async (plan: string) => {
+    if (!plan || plan === defaultPlan || settingDefault) return;
+    if (!window.confirm(`Give every newly registered seller the "${plan}" B2B plan?\n\nExisting sellers keep their current plans.`)) return;
+    setSettingDefault(true);
+    try {
+      const res = await apiClient.post('/b2b/saveRate/setDefaultPlan', { planName: plan });
+      setDefaultPlan(res.data?.defaultPlan || plan);
+      setUnusableDefault('');
+      showToast('success', res.data?.message || `New sellers will now get the "${plan}" B2B plan.`);
+    } catch (err: any) {
+      showToast('error', err?.response?.data?.message || 'Could not set the default plan.');
+    } finally {
+      setSettingDefault(false);
+    }
+  };
+
   const applyCard = (doc: RateCardDoc | null) => {
     setCard(doc);
     const next: Record<string, string> = {};
@@ -610,6 +639,7 @@ function RateCardTab({ showToast }: { showToast: (t: 'success' | 'error' | 'info
         showToast('success', 'Rate card updated');
       }
       await loadCard();
+      loadDefaultPlan(); // a new / (de)activated card can make the default plan usable or not
     } catch (err: any) {
       showToast('error', err?.response?.data?.message || 'Failed to save rate card');
     } finally {
@@ -625,6 +655,7 @@ function RateCardTab({ showToast }: { showToast: (t: 'success' | 'error' | 'info
       showToast('success', 'Rate card deleted');
       setConfirmDelete(false);
       applyCard(null);
+      loadDefaultPlan();
     } catch (err: any) {
       showToast('error', err?.response?.data?.message || 'Failed to delete rate card');
     } finally {
@@ -695,7 +726,20 @@ function RateCardTab({ showToast }: { showToast: (t: 'success' | 'error' | 'info
     <div className="flex-1 min-h-0 overflow-y-auto">
       {/* Selectors + actions */}
       <div className="px-4 md:px-6 py-3 border-b border-[#CBD5F5] bg-[#F8FAFC]/50 flex flex-wrap items-center gap-2.5">
-        <Select label="Plan" value={planId} onChange={setPlanId} options={meta.plans.map(p => ({ label: p.name, value: p._id }))} disabled={editing && mode === 'edit'} />
+        <Select label="Plan" value={planId} onChange={setPlanId} options={meta.plans.map(p => ({ label: p.name === defaultPlan ? `${p.name}  ★ Default` : p.name, value: p._id }))} disabled={editing && mode === 'edit'} />
+        {/* Default B2B plan for new sellers */}
+        {planName && (planName === defaultPlan ? (
+          <span title="Every newly registered seller gets this B2B plan"
+            className="h-10 px-3.5 shrink-0 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-[12px] font-bold inline-flex items-center gap-1.5">
+            <Star className="w-3.5 h-3.5 fill-current" /> Default for new sellers
+          </span>
+        ) : (
+          <button onClick={() => handleSetDefaultPlan(planName)} disabled={settingDefault || (editing && mode === 'edit')}
+            title={`Give every newly registered seller the "${planName}" B2B plan`}
+            className="h-10 px-3.5 shrink-0 rounded-full border border-[#E2E8F0] bg-white text-[#475569] text-[12px] font-bold hover:border-amber-300 hover:text-amber-700 transition-colors inline-flex items-center gap-1.5 disabled:opacity-60">
+            {settingDefault ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Star className="w-3.5 h-3.5" />} Set as default
+          </button>
+        ))}
         <Select label="Courier service" value={serviceId} onChange={setServiceId} options={meta.couriers.map(c => ({ label: c.name, value: c._id }))} disabled={editing && mode === 'edit'} />
         <Select label="Status" value={status} onChange={setStatus} options={meta.statuses.map(s => ({ label: s.charAt(0).toUpperCase() + s.slice(1), value: s }))} disabled={!editing} />
         <div className="ml-auto flex flex-wrap items-center gap-2">
@@ -724,6 +768,13 @@ function RateCardTab({ showToast }: { showToast: (t: 'success' | 'error' | 'info
 
       <div className="px-4 md:px-6 py-4 space-y-4 relative">
         {loading && <TableLoader />}
+
+        {unusableDefault && (
+          <p className="text-[12px] text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-start gap-2">
+            <AlertCircle className="w-4 h-4 mt-px shrink-0" />
+            The default B2B plan "{unusableDefault}" has no active rate cards, so new sellers get "{defaultPlan}" for now. Add or activate its rate cards, or set another plan as default.
+          </p>
+        )}
 
         {meta.couriers.length === 0 && (
           <p className="text-[13px] text-[#64748B] bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl px-4 py-3">
@@ -1096,7 +1147,7 @@ function RateCardTab({ showToast }: { showToast: (t: 'success' | 'error' | 'info
       )}
 
       {showUpload && (
-        <UploadRatesModal planId={planId} planName={planName} couriers={meta.courierAccounts} onClose={() => setShowUpload(false)} onDone={() => { loadCard(); }} />
+        <UploadRatesModal planId={planId} planName={planName} couriers={meta.courierAccounts} onClose={() => setShowUpload(false)} onDone={() => { loadCard(); loadDefaultPlan(); }} />
       )}
 
       {showAddPlan && createPortal(

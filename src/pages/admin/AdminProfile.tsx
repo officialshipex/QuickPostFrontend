@@ -1126,7 +1126,11 @@ export function AdminProfile() {
   const [userData, setUserData] = useState(buildInitialData());
   const [isActive, setIsActive] = useState(apiUser ? !apiUser.isBlocked : true);
   const [isKycVerified, setIsKycVerified] = useState(apiUser ? !!apiUser.kycStatus : false);
-  const [apiAccess, setApiAccess] = useState(apiUser ? !!apiUser.adminApiAccess : false);
+  // B2C API: two switches, BOTH must be on for /external/generateToken (backend API/Controller/tokenGeneration.controller.js):
+  //   adminApiAccess = the admin's switch (admin viewing a seller), apiAccess = the seller's own (their own profile).
+  // The seller's own switch used to have no control here at all — every QuickPost seller got "API access is disabled".
+  const [apiAccess, setApiAccess] = useState(apiUser ? apiUser.adminApiAccess !== false : false);
+  const [ownApiAccess, setOwnApiAccess] = useState(apiUser ? apiUser.apiAccess === true : false);
   const [holdAmount, setHoldAmount] = useState(0);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [rates, setRates] = useState<any[]>([]);
@@ -1234,7 +1238,8 @@ export function AdminProfile() {
         if (!fresh) return;
         setIsActive(!fresh.isBlocked);
         setIsKycVerified(!!fresh.kycStatus);
-        setApiAccess(!!fresh.adminApiAccess);
+        setApiAccess(fresh.adminApiAccess !== false);
+        setOwnApiAccess(fresh.apiAccess === true);
         setLogoUrl(fresh.logo || null);
         setUserData(prev => ({
           ...prev,
@@ -1333,15 +1338,30 @@ export function AdminProfile() {
     }
   };
 
+  // B2C API switch: admin viewing a seller = the admin's switch; your own profile = your own switch (like B2B)
+  const apiBlockedByAdmin = !isAdminView && !apiAccess;
   const handleApiToggle = async () => {
-    const newValue = !apiAccess;
-    setApiAccess(newValue);
+    if (isAdminView) {
+      const newValue = !apiAccess;
+      setApiAccess(newValue);
+      try {
+        await apiClient.post('/user/apiAccess', { userId: effectiveId, adminApiAccess: newValue });
+        showToast('success', newValue ? 'API access allowed for this seller.' : 'API access turned off for this seller.');
+      } catch (err: any) {
+        setApiAccess(!newValue);
+        showToast('error', err?.response?.data?.message || 'Failed to update API access.');
+      }
+      return;
+    }
+    if (apiBlockedByAdmin) return;
+    const newValue = !ownApiAccess;
+    setOwnApiAccess(newValue);
     try {
-      await apiClient.post('/user/apiAccess', { userId: effectiveId, adminApiAccess: newValue });
-      showToast('success', 'API access updated.');
-    } catch {
-      setApiAccess(!newValue);
-      showToast('error', 'Failed to update API access.');
+      await apiClient.post('/user/apiAccess', { apiAccess: newValue });
+      showToast('success', newValue ? 'API access turned on. You can now generate your API token.' : 'API access turned off.');
+    } catch (err: any) {
+      setOwnApiAccess(!newValue);
+      showToast('error', err?.response?.data?.message || 'Failed to update API access.');
     }
   };
 
@@ -2088,9 +2108,17 @@ export function AdminProfile() {
                       </button>
                     </div>
                     <div className="flex justify-between items-center gap-3 py-2.5 md:py-0 border-b border-[#F1F5F9] md:border-0">
-                      <span className={`${TXT.value} text-[#1E293B]`}>API Access</span>
-                      {/* the admin's switch (adminApiAccess): only the admin can change it, like Active / KYC above */}
-                      <Toggle on={apiAccess} onClick={handleApiToggle} disabled={!isAdminView} />
+                      <span className={`${TXT.value} text-[#1E293B]`}>
+                        API Access
+                        {apiBlockedByAdmin && <span className={`${TXT.meta} text-red-500 ml-1`}>(turned off by admin)</span>}
+                        {isAdminView && apiAccess && !ownApiAccess && <span className={`${TXT.meta} text-[#94A3B8] ml-1`}>(seller has it off — the API works once the seller turns it on in their profile)</span>}
+                      </span>
+                      {/* admin viewing a seller: the admin's switch (adminApiAccess); own profile: the seller's own (apiAccess) */}
+                      <Toggle
+                        on={isAdminView ? apiAccess : (apiBlockedByAdmin ? false : ownApiAccess)}
+                        onClick={handleApiToggle}
+                        disabled={apiBlockedByAdmin}
+                      />
                     </div>
                     {userData.publicKey && userData.publicKey !== '—' && (
                       <div className="flex justify-between items-center gap-3 py-2.5 md:py-0 border-b border-[#F1F5F9] md:border-0 last:border-b-0">

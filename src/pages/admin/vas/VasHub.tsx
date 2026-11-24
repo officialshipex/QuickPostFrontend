@@ -40,11 +40,10 @@ const ALL_SERVICES: Service[] = [
     flow: [{ icon: LayoutList, label: 'Order placed', tone: 'bg-[#F1F5F9] text-[#475569]' }, { icon: Gauge, label: 'Risk scored', tone: 'bg-amber-50 text-amber-600' }, { icon: CheckCircle2, label: 'Ship safely', tone: 'bg-[#F0FDF4] text-[#00A86B]' }],
   },
   {
-    // Not live yet (NdrFollowups.tsx BACKEND_READY = false): shown as coming soon, not "Activate Now"
-    key: 'ndr-followups', name: 'NDR Follow-ups', category: 'failures', icon: PhoneCall, path: '/user/vas/ndr-followups', isNew: true, comingSoon: true,
+    key: 'ndr-followups', vasKey: 'ndr-followups', name: 'NDR Follow-ups', category: 'failures', icon: PhoneCall, path: '/user/vas/ndr-followups', isNew: true,
     headline: 'Win back NDRs before they become RTOs',
-    perks: ['Instant WhatsApp with re-attempt & address buttons', 'Automatic IVR call if there’s no reply', 'Responses synced straight to the courier'],
-    price: 'From ₹4.99 / order',
+    perks: ['Instant WhatsApp when a delivery fails', 'AI call if the NDR is still open', 'Customer’s answer saved on the order'],
+    price: 'Pay only for delivered messages & answered calls',
     flow: [{ icon: PackageX, label: 'Delivery fails', tone: 'bg-red-50 text-red-500' }, { icon: MessageSquare, label: 'WhatsApp + call', tone: 'bg-sky-50 text-sky-600' }, { icon: CheckCircle2, label: 'Re-attempted', tone: 'bg-[#F0FDF4] text-[#00A86B]' }],
   },
   {

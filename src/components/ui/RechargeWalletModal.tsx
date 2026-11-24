@@ -5,6 +5,7 @@ import { X, Wallet, Banknote, ArrowLeft, Shield, ChevronUp, ChevronDown } from '
 import { apiClient } from '../../services/apiClient';
 import { Toast } from './Toast';
 import { useToast } from '../../hooks/useToast';
+import { openCashfreeCheckout, confirmCashfreeOrder, type CashfreeVerifyResult } from '../../services/cashfreeCheckout';
 
 interface Props {
   open: boolean;
@@ -15,7 +16,7 @@ interface Props {
   defaultAmount?: number;
 }
 
-// Minimum online (Razorpay) recharge.
+// Minimum online recharge (Razorpay or Cashfree).
 const MIN_RECHARGE = 1000;
 
 export function RechargeWalletModal({ open, onClose, walletBalance, onSuccess, defaultAmount = 0 }: Props) {
@@ -26,8 +27,11 @@ export function RechargeWalletModal({ open, onClose, walletBalance, onSuccess, d
   const { toast, showToast: _showToast, closeToast } = useToast();
   const showToast = (msg: string, type: 'success' | 'error' = 'success') => _showToast(type, msg);
   const [loading, setLoading] = useState(false);
+  // true while Cashfree's own payment popup is open on top of the page
+  const [gatewayOpen, setGatewayOpen] = useState(false);
 
   const handleClose = () => {
+    setGatewayOpen(false);
     setRechargeAmount(0);
     setRechargeMode('Payment');
     closeToast();
@@ -82,20 +86,60 @@ export function RechargeWalletModal({ open, onClose, walletBalance, onSuccess, d
     }
   };
 
-  const handleRazorpayPayment = async () => {
+  // Cashfree: the popup closes on success, failure or dismissal alike, so the backend is asked what really happened.
+  const payWithCashfree = async (data: { orderId: string; paymentSessionId: string; mode: 'sandbox' | 'production' }) => {
+    // this popup steps aside while Cashfree's own popup is open, so it can never cover it
+    setGatewayOpen(true);
+    let result: Awaited<ReturnType<typeof openCashfreeCheckout>>;
+    try {
+      result = await openCashfreeCheckout(data.paymentSessionId, data.mode);
+    } finally {
+      setGatewayOpen(false);
+    }
+    if (result?.redirect) return; // Cashfree took the page over; it comes back with ?cf_order_id= (AdminHeader)
+    // null: the backend could not be reached at all
+    const check: CashfreeVerifyResult | null = await confirmCashfreeOrder(data.orderId).catch(() => null);
+    if (check?.status === 'credited' || check?.status === 'already_credited') {
+      const added = check.amount ?? rechargeAmount;
+      showToast(`₹${added.toLocaleString('en-IN')} added to your wallet.`);
+      onSuccess?.(added);
+      setTimeout(handleClose, 2500);
+    } else if (check?.status === 'pending') {
+      showToast('Payment is being confirmed. Your wallet will be credited automatically once it is.');
+      setLoading(false);
+    } else if (check === null) {
+      showToast('Could not confirm the payment yet. If money was deducted, it will be credited automatically.', 'error');
+      setLoading(false);
+    } else {
+      // closed without paying, or the bank declined
+      if (!result?.error) showToast(check?.message || 'Payment was not completed.', 'error');
+      setLoading(false);
+    }
+  };
+
+  const handlePayment = async () => {
     if (rechargeAmount < MIN_RECHARGE) {
       showToast(`Minimum recharge amount is ₹${MIN_RECHARGE}`, 'error');
       return;
     }
     setLoading(true);
     try {
+      // the backend decides the gateway (QuickPost > Companies > Payment gateway) and prepares the payment on it
+      const { data } = await apiClient.post('/recharge/create-payment', {
+        amount: rechargeAmount,
+        returnUrl: window.location.href,
+      });
+      if (data.gateway === 'cashfree') {
+        await payWithCashfree(data);
+        return;
+      }
+
       await loadRazorpayScript();
       const logo = await loadCheckoutLogo();
-      const { data } = await apiClient.post('/recharge/create-order', { amount: rechargeAmount });
       if (!data.order) throw new Error('Order creation failed');
       const { id: order_id, amount: orderAmount, currency } = data.order;
       const options = {
-        key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+        key: data.keyId || import.meta.env.VITE_RAZORPAY_KEY_ID,
         amount: orderAmount,
         currency,
         // Without `name`/`image` Razorpay falls back to the account's dashboard branding
@@ -116,8 +160,9 @@ export function RechargeWalletModal({ open, onClose, walletBalance, onSuccess, d
       };
       const rzp = new (window as any).Razorpay(options);
       rzp.open();
-    } catch {
-      showToast('Payment failed. Please try again.', 'error');
+    } catch (err) {
+      const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      showToast(message || 'Payment failed. Please try again.', 'error');
       setLoading(false);
     }
   };
@@ -157,10 +202,14 @@ export function RechargeWalletModal({ open, onClose, walletBalance, onSuccess, d
             <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={handleClose}
+              style={gatewayOpen ? { visibility: 'hidden' } : undefined}
               className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm z-[200]"
             />
 
-            <div className="fixed inset-0 flex items-center justify-center z-[201] p-4 pointer-events-none">
+            <div
+              style={gatewayOpen ? { visibility: 'hidden' } : undefined}
+              className="fixed inset-0 flex items-center justify-center z-[201] p-4 pointer-events-none"
+            >
               <motion.div
                 initial={{ opacity: 0, scale: 0.95, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -302,7 +351,7 @@ export function RechargeWalletModal({ open, onClose, walletBalance, onSuccess, d
                     <button
                       type="button"
                       disabled={!rechargeAmount || rechargeAmount < MIN_RECHARGE || loading}
-                      onClick={handleRazorpayPayment}
+                      onClick={handlePayment}
                       className="w-full py-2.5 sm:py-3.5 bg-gradient-to-r from-[#00b876] to-[#00A86B] text-white text-xs sm:text-sm font-bold rounded-full shadow-[0_4px_12px_rgba(0,168,107,0.2)] hover:from-[#00c982] hover:to-[#00b876] transition-all disabled:opacity-50 disabled:pointer-events-none text-center focus:outline-none cursor-pointer"
                     >
                       {loading ? 'Processing...' : `Pay ₹${(rechargeAmount || 0).toLocaleString('en-IN')}`}

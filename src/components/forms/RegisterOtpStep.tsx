@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { CheckCircle2, Mail, Smartphone, X, AlertCircle, ShieldCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { apiClient } from '../../services/apiClient';
+import { errorText } from '../../utils/errorText';
 
 // OTP check of the email AND mobile number before an account is created — only when the company has
 // "OTP at registration" switched on (QuickPost > System > Companies). The register call then carries
@@ -19,7 +20,7 @@ interface Verified { target: string; token: string }
 
 const normEmail = (v: string) => v.trim().toLowerCase();
 const normPhone = (v: string) => v.replace(/\D/g, '').slice(-10);
-const errText = (e: any, fallback: string) => e?.response?.data?.message || e?.message || fallback;
+const errText = (e: any, fallback: string) => errorText(e, fallback);
 
 // fields: the form's input names, so "Change email / mobile" can put the cursor back in that field.
 export function useRegisterOtp(fields: Record<Channel, string> = { email: 'email', phone: 'phone' }) {

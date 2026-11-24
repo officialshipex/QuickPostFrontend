@@ -22,7 +22,7 @@ const SETTINGS_CARDS: SettingsCard[] = [
   { title: 'Change Password', description: 'Update your credentials', icon: Lock, path: '/user/settings/change-password' },
   { title: 'Two-Factor Authentication', description: 'Protect your login with an OTP on your mobile', icon: Smartphone, path: '/user/settings/two-factor' },
   { title: 'Label', description: 'Customize your labels', icon: Tag, path: '/user/settings/label' },
-  { title: 'Invoice', description: 'Manage invoice settings', icon: CreditCard, path: '/user/settings/invoice' },
+  { title: 'Invoice', description: 'Design your tax invoice: A4 / thermal, branding, fields', icon: CreditCard, path: '/user/settings/invoice' },
   { title: 'Invite & Earn', description: 'Invite your friends and earn rewards', icon: Users, path: '/user/referral' },
   { title: 'Notification Settings', description: 'Manage Notification for status update', icon: MessageCircle, path: '/user/notification' },
   { title: 'Webhook', description: 'Manage your webhooks and logs', icon: Activity, path: '/user/settings/webhook' },

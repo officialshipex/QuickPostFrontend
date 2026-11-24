@@ -110,7 +110,7 @@ function PermissionMatrix({ accessRights, onChange, panel, grantable }: Permissi
               // not held by the person giving it (HR): can't be switched on (switching off is always fine)
               const notHeld = !!grantable && !checked && !grantable(mod.key, p.key);
               const disabled = ((p.key === 'edit' || p.key === 'delete') && !rights.view) || notHeld;
-              if (mod.viewOnly && p.key !== 'view') {
+              if ((mod.viewOnly && p.key !== 'view') || (mod.noDelete && p.key === 'delete')) {
                 return <div key={p.key} className="w-[52px] sm:w-[72px] flex justify-center items-center py-3 text-[13px] text-[#CBD5E1]" aria-label="Not applicable">—</div>;
               }
               return (

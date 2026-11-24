@@ -5,9 +5,10 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { ArrowUpDown, BarChart3, ChevronRight, Table2 } from 'lucide-react';
 
-/* Overview analytics shown under "Action Needed" on the seller dashboard.
-   Values that the dashboard API already returns are wired; the rest are marked TODO(backend) and render 0
-   (with an empty state) until the endpoint exists. */
+/* Overview analytics shown under "Action Needed" on the dashboard. Every figure comes from
+   /dashboard/getDashboardOverview (+ zone counts from getOverviewCardData, payment split from getOverviewGraphsData).
+   All shipment figures cover the same set — orders booked with a courier in the selected range — so each
+   breakdown adds up to Total Shipments. */
 
 type Num = number | undefined | null;
 const n = (v: Num) => Number(v) || 0;
@@ -18,7 +19,6 @@ const C = {
   pickup: '#F59E0B', transit: '#3B82F6', ofd: '#8B5CF6', delivered: '#00A86B', ndr: '#F97316', rto: '#EF4444',
   muted: '#E2E8F0',
 };
-const ZONE_PALETTE = ['#00A86B', '#3B82F6', '#8B5CF6', '#F59E0B', '#EF4444', '#0EA5E9'];
 
 /* ── building blocks ───────────────────────────────────────────────── */
 function Card({ title, sub, action, children, className = '' }: { title: string; sub?: string; action?: { label: string; to: string }; children: React.ReactNode; className?: string }) {
@@ -233,25 +233,29 @@ export function VsSplit({ items }: { items: { label: string; value: number; colo
   );
 }
 
-type ZoneRow = { zone: string; inTransit: number; pickup: number; rto: number; delivered: number; ndr: number; tat: number | null };
+type ZoneRow = { zone: string; inTransit: number; pickup: number; rto: number; delivered: number; ndr: number; lost: number; other: number; tat: number | null };
 const ZS_SERIES = [
   { key: 'inTransit', label: 'In-Transit', color: '#2F80ED' },
   { key: 'pickup', label: 'Pickup', color: '#6D4FC2' },
   { key: 'rto', label: 'RTO', color: '#E8365D' },
   { key: 'delivered', label: 'Delivered', color: '#0DB25B' },
   { key: 'ndr', label: 'NDR', color: '#F5843B' },
+  { key: 'lost', label: 'Lost', color: '#64748B' },
+  { key: 'other', label: 'Other', color: '#CBD5E1' },
 ] as const;
 
 /** Zone × status: stacked bars per zone, or a sortable table (toggle top-right). */
 function ZoneStatusCard({ rows }: { rows: ZoneRow[] }) {
   const [view, setView] = useState<'chart' | 'table'>('chart');
   const [sort, setSort] = useState<{ key: string; dir: 1 | -1 }>({ key: 'total', dir: -1 });
-  const data = rows.map(r => ({ ...r, total: r.inTransit + r.pickup + r.rto + r.delivered + r.ndr }));
+  const data = rows.map(r => ({ ...r, total: r.inTransit + r.pickup + r.rto + r.delivered + r.ndr + r.lost + r.other }));
+  // Lost / Other only appear when some zone has them
+  const series = ZS_SERIES.filter(sr => (sr.key !== 'lost' && sr.key !== 'other') || data.some(r => r[sr.key] > 0));
   const sorted = [...data].sort((a: any, b: any) => {
     const x = a[sort.key], y = b[sort.key];
     return (typeof x === 'string' ? String(x).localeCompare(y) : (x ?? -1) - (y ?? -1)) * sort.dir;
   });
-  const cols = [{ key: 'zone', label: 'Zone' }, { key: 'total', label: 'Total' }, ...ZS_SERIES.map(s => ({ key: s.key, label: s.label })), { key: 'tat', label: 'TAT' }];
+  const cols = [{ key: 'zone', label: 'Zone' }, { key: 'total', label: 'Total' }, ...series.map(s => ({ key: s.key, label: s.label })), { key: 'tat', label: 'Avg. delivery' }];
   const ToggleIcon = view === 'chart' ? Table2 : BarChart3;
 
   return (
@@ -275,15 +279,15 @@ function ZoneStatusCard({ rows }: { rows: ZoneRow[] }) {
                   <YAxis width={36} axisLine={false} tickLine={false} allowDecimals={false} domain={[0, (m: number) => Math.max(4, Math.ceil(m * 1.15))]} tick={{ fontSize: 11, fill: '#94A3B8' }} />
                   <XAxis dataKey="zone" axisLine={{ stroke: '#CBD5E1' }} tickLine={false} tick={{ fontSize: 12, fill: '#475569' }} />
                   <Tooltip cursor={{ fill: '#F8FAFC' }} contentStyle={{ borderRadius: 10, border: '1px solid #E2E8F0', fontSize: 12 }} />
-                  {ZS_SERIES.map((sr, i) => (
+                  {series.map((sr, i) => (
                     <Bar key={sr.key} dataKey={sr.key} name={sr.label} stackId="z" fill={sr.color} maxBarSize={48} animationDuration={700}
-                      radius={i === ZS_SERIES.length - 1 ? [6, 6, 0, 0] : [0, 0, 0, 0]} />
+                      radius={i === series.length - 1 ? [6, 6, 0, 0] : [0, 0, 0, 0]} />
                   ))}
                 </BarChart>
               </ResponsiveContainer>
             </div>
             <ul className="mt-3 flex flex-wrap justify-center gap-x-5 gap-y-2">
-              {ZS_SERIES.map(sr => (
+              {series.map(sr => (
                 <li key={sr.key} className="inline-flex items-center gap-2 text-[13px] text-[#475569]">
                   <span className="w-3 h-3 rounded-full" style={{ background: sr.color }} />{sr.label}
                 </li>
@@ -314,10 +318,10 @@ function ZoneStatusCard({ rows }: { rows: ZoneRow[] }) {
                   <tr key={r.zone} className="border-b border-[#F1F5F9] last:border-0 hover:bg-[#F8FAFC] transition-colors">
                     <td className="py-3 px-2 font-medium text-[#0F172A]">{r.zone}</td>
                     <td className="py-3 px-2 text-center font-semibold text-[#0F172A] tabular-nums">{r.total.toLocaleString('en-IN')}</td>
-                    {ZS_SERIES.map(sr => (
+                    {series.map(sr => (
                       <td key={sr.key} className="py-3 px-2 text-center text-[#475569] tabular-nums">{(r as any)[sr.key].toLocaleString('en-IN')}</td>
                     ))}
-                    <td className="py-3 px-2 text-center text-[#475569] tabular-nums">{r.tat != null ? `${r.tat} d` : '—'}</td>
+                    <td className="py-3 px-2 text-center text-[#475569] tabular-nums" title="Average days from booking to delivery">{r.tat != null ? `${r.tat} d` : '—'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -334,66 +338,73 @@ export function OverviewInsights({ ship = {}, ndr = {}, overview = {}, zones = [
   ship?: any; ndr?: any; overview?: any; zones?: { zone: string; label: string; count?: number; percentage?: number }[];
   navBase: string; rangeQ: string; fmt: (v: any) => string; isAdminView?: boolean; codSlot?: React.ReactNode; paymentMode?: { name: string; value: number }[];
 }) {
-  /* Shipment by status — every shipment in the range sits in exactly one bucket */
-  // In transit includes out-for-delivery; RTO includes RTO in transit.
+  /* Shipment by status — every shipment booked in the range sits in exactly one bucket (sum = Total Shipments) */
+  const sRto = n(ship.rtoInitiated) + n(ship.rtoInTransitInRange) + n(ship.rto);   // RTO at any stage
+  const sNdr = n(ship.undelivered) + n(ship.actionRequested);                      // NDR still open
   const status = [
     { name: 'Intransit', value: n(ship.inTransit) + n(ship.outForDelivery), color: '#2F80ED' },
-    { name: 'Pickup', value: n(ship.readyToShip), color: '#6D4FC2' },
-    { name: 'RTO', value: n(ship.rto) + n(ship.rtoInTransit), color: '#E8365D' },
+    { name: 'Pickup', value: n(ship.readyToShip) + n(ship.processing), color: '#6D4FC2' },
+    { name: 'RTO', value: sRto, color: '#E8365D' },
     { name: 'Delivered', value: n(ship.delivered), color: '#0DB25B' },
-    { name: 'NDR Pending', value: n(ndr.actionRequired), color: '#F5843B' },
+    { name: 'NDR Pending', value: sNdr, color: '#F5843B' },
+    ...(n(ship.lost) > 0 ? [{ name: 'Lost', value: n(ship.lost), color: '#64748B' }] : []),
+    ...(n(ship.other) > 0 ? [{ name: 'Other', value: n(ship.other), color: '#CBD5E1' }] : []),
   ];
   const statusTotal = status.reduce((s, d) => s + d.value, 0);
 
-  /* NDR — what happened to undelivered attempts */
+  /* NDR raised in the range — where each one stands (pending + taken + no action = total) */
   const ndrTotal = n(ndr.totalNdr);
-  const ndrPending = n(ndr.actionRequired);
-  const ndrTaken = n(ndr.actionRequested);
-  const ndrOtpCancel = 0;                       // TODO(backend): OTP-verified cancellations
+  const ndrPending = n(ndr.undelivered);        // still Undelivered, waiting for a seller action
+  const ndrTaken = n(ndr.actionTaken);          // seller acted (re-attempt / address / RTO request …)
+  const ndrNoAction = n(ndr.noAction);          // closed or moving again with no seller action
   const ndrDelivered = n(ndr.ndrDelivered);
-  const ndrRto = 0;                             // TODO(backend): NDR shipments that ended in RTO
-  const ndrOpen = Math.max(ndrTotal - ndrDelivered - ndrRto, 0);
+  const ndrRto = n(ndr.ndrRto);
+  const ndrLost = n(ndr.ndrLost);
+  const ndrOpen = n(ndr.ndrOpen);
 
-  /* Final outcome of closed shipments */
+  /* Delivered vs RTO vs Undelivered — shipments booked in the range */
   const dDelivered = n(ship.delivered);
-  const dRto = n(ship.rto);
-  const dUndelivered = n(ndr.totalNdr);   // same source as the old dashboard card (ndrStats.totalNdr)
-  const dTotal = dDelivered + dRto + dUndelivered;
+  const dRto = sRto;
+  const dUndelivered = sNdr;
 
-  /* TAT adherence — TODO(backend): on-time vs late deliveries against the courier's promised TAT */
-  const onTime = 0, late = 0;
-  const tatTotal = onTime + late;
-  void tatTotal;
-
-  /* Payment mode — graphs.paymentMode rows ({ name, value }); any name containing "cod" counts as COD */
+  /* Payment mode — shipments in the range (graphs.paymentMode rows); any name containing "cod" counts as COD */
   const payCod = paymentMode.filter(p => /cod/i.test(String(p.name))).reduce((a, p) => a + n(p.value), 0);
   const payPrepaid = paymentMode.filter(p => !/cod/i.test(String(p.name))).reduce((a, p) => a + n(p.value), 0);
 
-  /* Customers — TODO(backend): unique buyers split by first order vs returning */
-  const newCust = 0, repeatCust = 0;
+  /* Customers who ordered in the range: first order ever vs returning (ordered before, or more than once) */
+  const newCust = n(overview?.customers?.newCustomers), repeatCust = n(overview?.customers?.repeatCustomers);
   const custTotal = newCust + repeatCust;
 
-  /* Zones (count when present, else the API's percentage) */
-  const zoneData = zones.map((z, i) => ({ name: z.label, value: n(z.count ?? z.percentage), color: ZONE_PALETTE[i % ZONE_PALETTE.length] }));
-  // Fixed five zones for the donut (always all shown, like Shipments by Status); API rows matched by name.
-  // Backend sends zoneA…zoneE (same data as the old "Shipments by Zone" card): A Local · B Regional · C Metro · D ROI · E Special.
+  // Backend zones: zoneA…zoneE = A Local · B Regional · C Metro · D ROI · E Special (null = no zone on the order)
   const ZONES5 = [
-    { name: 'Local', color: '#E8365D', key: 'zoneA' },
-    { name: 'Regional', color: '#2F80ED', key: 'zoneB' },
-    { name: 'Metro', color: '#F5843B', key: 'zoneC' },
-    { name: 'ROI', color: '#0DB25B', key: 'zoneD' },
-    { name: 'Special Zone', color: '#38B6F0', key: 'zoneE' },
+    { name: 'Local', color: '#E8365D', key: 'zonea' },
+    { name: 'Regional', color: '#2F80ED', key: 'zoneb' },
+    { name: 'Metro', color: '#F5843B', key: 'zonec' },
+    { name: 'ROI', color: '#0DB25B', key: 'zoned' },
+    { name: 'Special Zone', color: '#38B6F0', key: 'zonee' },
   ];
-  const zoneVal = (z: { count?: number; percentage?: number }) => n(z.count ?? z.percentage);
+  const zoneKey = (z: unknown) => String(z ?? '').toLowerCase();
+  const known = new Set(ZONES5.map(z => z.key));
   const zoneRing = ZONES5.map(z => ({
     name: z.name, color: z.color,
-    value: zones.filter(r => String(r.zone).toLowerCase() === z.key.toLowerCase()).reduce((a, r) => a + zoneVal(r), 0),
+    value: zones.filter(r => zoneKey(r.zone) === z.key).reduce((a, r) => a + n(r.count), 0),
   }));
+  const zoneUnknown = zones.filter(r => !known.has(zoneKey(r.zone))).reduce((a, r) => a + n(r.count), 0);
+  if (zoneUnknown > 0) zoneRing.push({ name: 'No zone', color: '#94A3B8', value: zoneUnknown });
   const zoneRingTotal = zoneRing.reduce((a, d) => a + d.value, 0);
-  const ZONE_ROWS = zoneData.length ? zoneData.map(z => z.name) : ['Local', 'Regional', 'Metro', 'Rest of India', 'Special'];
-  // TODO(backend): per-zone status counts { zone, delivered, inTransit, ndr, rto }
-  void ZONE_ROWS;
-  const zoneStatus: ZoneRow[] = ZONES5.map(z => ({ zone: z.name, inTransit: 0, pickup: 0, rto: 0, delivered: 0, ndr: 0, tat: null }));
+
+  /* Zone × status (+ average days to deliver) from the overview */
+  const zsRows: any[] = Array.isArray(overview?.zoneStatus) ? overview.zoneStatus : [];
+  const toRow = (name: string, rs: any[]): ZoneRow => ({
+    zone: name,
+    inTransit: rs.reduce((a, r) => a + n(r.inTransit), 0), pickup: rs.reduce((a, r) => a + n(r.pickup), 0),
+    rto: rs.reduce((a, r) => a + n(r.rto), 0), delivered: rs.reduce((a, r) => a + n(r.delivered), 0),
+    ndr: rs.reduce((a, r) => a + n(r.ndr), 0), lost: rs.reduce((a, r) => a + n(r.lost), 0), other: rs.reduce((a, r) => a + n(r.other), 0),
+    tat: rs.length === 1 && rs[0].tat != null ? Number(rs[0].tat) : null,
+  });
+  const zoneStatus: ZoneRow[] = ZONES5.map(z => toRow(z.name, zsRows.filter(r => zoneKey(r.zone) === z.key)));
+  const zsUnknown = zsRows.filter(r => !known.has(zoneKey(r.zone)));
+  if (zsUnknown.length) zoneStatus.push(toRow('No zone', zsUnknown));
 
   return (
     <div className="mt-3 space-y-3">
@@ -403,11 +414,11 @@ export function OverviewInsights({ ship = {}, ndr = {}, overview = {}, zones = [
           <StatusDonut data={status} total={statusTotal} />
         </Card>
 
-        {/* NDR: three-way split (OTP cancel vs action taken vs action pending) + outcome bars */}
+        {/* NDR raised in the range: three-way split (no action vs action taken vs action pending) + outcome bars */}
         <section className="min-w-0 bg-white rounded-xl border border-[#EEF2F6] shadow-[0_1px_2px_rgba(16,24,40,0.03),0_4px_16px_-6px_rgba(16,24,40,0.06)] p-4 md:p-5 flex flex-col">
           <h3 className="text-[15px] font-semibold text-[#0F172A]">NDR: <span className="font-bold tabular-nums">{ndrTotal.toLocaleString('en-IN')}</span></h3>
           <VsSplit items={[
-            { label: 'OTP Verified Cancellation', value: ndrOtpCancel, color: '#7C3AED' },
+            { label: 'No Action Taken', value: ndrNoAction, color: '#7C3AED' },
             { label: 'Action Taken', value: ndrTaken, color: '#2F80ED' },
             { label: 'Action Pending', value: ndrPending, color: '#F5843B' },
           ]} />
@@ -417,6 +428,7 @@ export function OverviewInsights({ ship = {}, ndr = {}, overview = {}, zones = [
             {[
               { label: 'RTO', value: ndrRto, color: '#E8365D' },
               { label: 'Delivered', value: ndrDelivered, color: '#0DB25B' },
+              ...(ndrLost > 0 ? [{ label: 'Lost', value: ndrLost, color: '#64748B' }] : []),
               { label: 'Open', value: ndrOpen, color: '#2F80ED' },
             ].map(o => (
               <div key={o.label} className="grid grid-cols-[150px_minmax(0,1fr)] items-center gap-4">
@@ -446,7 +458,7 @@ export function OverviewInsights({ ship = {}, ndr = {}, overview = {}, zones = [
           <section className="min-w-0 bg-white rounded-xl border border-[#EEF2F6] shadow-[0_1px_2px_rgba(16,24,40,0.03),0_4px_16px_-6px_rgba(16,24,40,0.06)] p-4 md:p-5">
             <div className="flex items-center justify-between gap-3">
               <h3 className="text-[15px] font-semibold text-[#0F172A]">Payment Mode</h3>
-              <span className="text-[12px] text-[#64748B]">Orders: <span className="font-semibold text-[#0F172A] tabular-nums">{(payPrepaid + payCod).toLocaleString('en-IN')}</span></span>
+              <span className="text-[12px] text-[#64748B]">Shipments: <span className="font-semibold text-[#0F172A] tabular-nums">{(payPrepaid + payCod).toLocaleString('en-IN')}</span></span>
             </div>
             <VsSplit items={[
               { label: 'Prepaid', value: payPrepaid, color: '#6D4FC2' },
@@ -463,7 +475,7 @@ export function OverviewInsights({ ship = {}, ndr = {}, overview = {}, zones = [
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr_1.4fr] gap-3">
         <section className="min-w-0 bg-white rounded-xl border border-[#EEF2F6] shadow-[0_1px_2px_rgba(16,24,40,0.03),0_4px_16px_-6px_rgba(16,24,40,0.06)] p-4 md:p-5 flex flex-col">
           <h3 className="text-[15px] font-semibold text-[#0F172A]">Customer Insights</h3>
-          <p className="mt-2 text-[14px] text-[#334155]">Total Orders: <span className="font-bold text-[#0F172A] tabular-nums">{custTotal.toLocaleString('en-IN')}</span></p>
+          <p className="mt-2 text-[14px] text-[#334155]">Customers: <span className="font-bold text-[#0F172A] tabular-nums">{custTotal.toLocaleString('en-IN')}</span></p>
           <div className="mt-4 h-[250px] -ml-2">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={[

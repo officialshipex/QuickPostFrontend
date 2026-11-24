@@ -7,10 +7,11 @@ import {
 import { Navbar } from '../components/layout/Navbar';
 import { Footer } from '../components/layout/Footer';
 import { copyToClipboard } from '../utils/clipboard';
+import { apiClient } from '../services/apiClient';
 
 /* Contact Us — public page (desktop + mobile).
-   Support email + hours, and a "Request a callback" form.
-   TODO(backend): POST the callback request to the leads/support endpoint; today it validates and confirms on the page only. */
+   Support email + hours, and a "Request a callback" form: saved by the backend (POST /contact-requests) and
+   listed for the team in Admin → Callback Requests. */
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 const SUPPORT_EMAIL = 'support@quickpost.in';
@@ -51,16 +52,26 @@ function CallbackForm() {
   const [touched, setTouched] = useState(false);
   const [sending, setSending] = useState(false);
   const [done, setDone] = useState<Form | null>(null);
+  const [sendError, setSendError] = useState('');
+  // hidden from people; bots that fill every field fill this one too (the backend then saves nothing)
+  const [website, setWebsite] = useState('');
   const errors = touched ? validate(f) : {};
-  const set = <K extends keyof Form>(k: K, v: Form[K]) => setF(p => ({ ...p, [k]: v }));
+  const set = <K extends keyof Form>(k: K, v: Form[K]) => { setSendError(''); setF(p => ({ ...p, [k]: v })); };
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setTouched(true);
     if (Object.keys(validate(f)).length) return;
     setSending(true);
-    // TODO(backend): send `f` to the callback-request API.
-    window.setTimeout(() => { setSending(false); setDone(f); }, 700);
+    setSendError('');
+    try {
+      await apiClient.post('/contact-requests', { name: f.name.trim(), phone: f.phone, note: f.note.trim(), website });
+      setDone(f);
+    } catch (err: any) {
+      setSendError(err?.response?.data?.message || 'Could not send your request. Please check your connection and try again.');
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -107,7 +118,14 @@ function CallbackForm() {
                 <textarea value={f.note} onChange={e => set('note', e.target.value.slice(0, 300))} rows={3} placeholder="Tell us briefly what you need"
                   className="w-full px-4 py-3 rounded-[20px] border border-[#E2E8F0] bg-white text-[14.5px] text-[#0F172A] placeholder:text-[#94A3B8] resize-none focus:outline-none focus:border-[#00A86B] focus:ring-4 focus:ring-[#00A86B]/10 transition-all" />
               </Field>
+              {/* honeypot: off-screen, not reachable by keyboard, ignored by autofill */}
+              <input type="text" name="website" value={website} onChange={e => setWebsite(e.target.value)}
+                tabIndex={-1} autoComplete="off" aria-hidden="true" className="absolute -left-[9999px] w-px h-px opacity-0" />
             </div>
+
+            {sendError && (
+              <p role="alert" className="mt-4 rounded-2xl bg-red-50 border border-red-100 px-4 py-2.5 text-[13px] font-medium text-red-600">{sendError}</p>
+            )}
 
             <button type="submit" disabled={sending}
               className="mt-4 w-full h-12 rounded-full bg-[#00A86B] hover:bg-[#00965F] disabled:opacity-70 text-white text-[15px] font-bold inline-flex items-center justify-center gap-2 shadow-[0_12px_24px_-12px_rgba(0,168,107,0.7)] transition-colors">

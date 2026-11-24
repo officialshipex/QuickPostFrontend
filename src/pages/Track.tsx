@@ -312,7 +312,7 @@ function courierBrand(name: string) {
   const known = ['Delhivery', 'Blue Dart', 'Bluedart', 'DTDC', 'Ekart', 'Shadowfax', 'Xpressbees', 'Amazon Shipping', 'Amazon', 'Shree Maruti', 'Shiprocket', 'Losung'];
   const hit = known.find(k => n.toLowerCase().startsWith(k.toLowerCase()));
   if (hit) return hit === 'Bluedart' ? 'Blue Dart' : hit;
-  return n.replace(/\s+\d+(\.\d+)?\s*(kg|g)\b.*$/i, '') || 'Courier';
+  return n.replace(/\s+\d+(\.\d+)?\s*(kilograms?|kilos?|kgs?|grams?|gms?|g)(?![a-z]).*$/i, '') || 'Courier';
 }
 function titleCase(s: string) {
   return (s || '').toLowerCase().replace(/(^|[\s-])([a-z])/g, (_, a, b) => a + b.toUpperCase()).replace(/\bRto\b/g, 'RTO');
