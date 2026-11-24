@@ -361,8 +361,8 @@ function EmployeeModal({ employee, onClose, onSaved, panel }: EmployeeModalProps
               </div>
             </section>
 
-            {/* Permission Matrix — not for sales people: their account only ever opens the Sales panel */}
-            {!isSales && <section>
+            {/* Permission Matrix — sales people too: Sales Dashboard is always on, any other module can be added */}
+            <section>
               <div className="flex items-center justify-between gap-3 mb-2">
                 <div className="flex items-center gap-2">
                   <Lock className="w-4 h-4 text-[#00A86B]" />
@@ -371,7 +371,9 @@ function EmployeeModal({ employee, onClose, onSaved, panel }: EmployeeModalProps
                 <span className="text-[11.5px] font-semibold text-[#00A86B] bg-[#F0FDF4] border border-[#DCFCE7] px-2.5 py-0.5 rounded-full tabular-nums">{granted}/{total} modules</span>
               </div>
               <p className="text-[12px] text-[#64748B] mb-3">
-                {isAdminView
+                {isSales
+                  ? 'Sales Dashboard is always included. Give View access to any other module this sales person should also see in their sidebar.'
+                  : isAdminView
                   ? 'The employee only sees the modules you give View access to — everything else is hidden from their sidebar.'
                   : 'The employee sees every menu item; items without View access are locked and show a "no access" message when clicked.'}
               </p>
@@ -380,8 +382,13 @@ function EmployeeModal({ employee, onClose, onSaved, panel }: EmployeeModalProps
                   You can only give access you have yourself — the other boxes are locked. Everything you change here is recorded in the Audit Logs.
                 </p>
               )}
-              <PermissionMatrix accessRights={accessRights} onChange={setAccessRights} panel={panel} grantable={grantable} />
-            </section>}
+              <PermissionMatrix accessRights={accessRights}
+                onChange={isSales ? (r: any) => {
+                  const next = typeof r === 'function' ? r(accessRights) : r;
+                  setAccessRights({ ...next, sales: { ...(next.sales || { edit: false, delete: false }), view: true } });
+                } : setAccessRights}
+                panel={panel} grantable={grantable} />
+            </section>
           </div>
 
           {/* Footer */}
