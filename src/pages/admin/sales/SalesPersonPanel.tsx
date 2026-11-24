@@ -1,5 +1,7 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { Copy, Check, ShieldCheck, Download, PhoneCall, Link2, Receipt, Save, Pencil, RotateCcw, Upload } from 'lucide-react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { Copy, Check, ShieldCheck, Download, PhoneCall, Link2, Receipt, Save, Pencil, RotateCcw, Upload, Search } from 'lucide-react';
+import { useUserSearchFilter } from '../../../hooks/filters/useUserSearchFilter';
 import { TableLoader } from '../../../components/ui/TableLoader';
 import { copyToClipboard } from '../../../utils/clipboard';
 import { salesApiClient, apiError, referralLinkFor, downloadOfferLetter } from '../../../services/salesApi';
@@ -178,29 +180,209 @@ function EditDetailsDialog({ d, employeeId, onClose, onSaved }: { d: PersonDetai
   );
 }
 
+const SELLER_COLUMN = 'Seller (user ID, email or phone)';
+const MAX_SELLER_ROWS = 200;
+
+function downloadSellerTemplate() {
+  const csv = `${SELLER_COLUMN}\n100245\nseller@example.com\n9876543210\n`;
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  const a = document.createElement('a'); a.href = url; a.download = 'link-sellers-template.csv'; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// First column (or the template header) of a CSV / Excel file → list of seller identifiers with their file row.
+async function readSellerFile(file: File): Promise<{ row: number; seller: string }[]> {
+  const XLSX = await import('xlsx');
+  const book = XLSX.read(await file.arrayBuffer());
+  const grid = XLSX.utils.sheet_to_json<unknown[]>(book.Sheets[book.SheetNames[0]], { header: 1, raw: false, defval: '' });
+  const header = (grid[0] || []).map(c => String(c).trim().toLowerCase());
+  let col = header.findIndex(h => h === SELLER_COLUMN.toLowerCase() || h.startsWith('seller'));
+  const hasHeader = col >= 0;
+  if (!hasHeader) col = 0;
+  return grid.slice(hasHeader ? 1 : 0)
+    .map((r, i) => ({ row: i + (hasHeader ? 2 : 1), seller: String(r?.[col] ?? '').trim() }))
+    .filter(r => r.seller);
+}
+
+type RowResult = { row: number; seller: string; status: 'linked' | 'needsConfirm' | 'failed'; message: string };
+
 function AttachSellerDialog({ employeeId, name, onClose, notify }: { employeeId: string; name: string; onClose: () => void; notify: Notify }) {
+  const [mode, setMode] = useState<'one' | 'file'>('one');
   const [seller, setSeller] = useState('');
   const [confirm, setConfirm] = useState('');
   const [busy, setBusy] = useState(false); const [error, setError] = useState('');
+  const search = useUserSearchFilter(mode === 'one');
+  // Suggestions render in a portal (fixed to the input) so the modal's scroll/overflow never clips them.
+  const anchorRef = useRef<HTMLDivElement>(null);
+  const [rect, setRect] = useState<DOMRect | null>(null);
+  useEffect(() => {
+    if (!search.userSuggestions.length) return;
+    const place = () => anchorRef.current && setRect(anchorRef.current.getBoundingClientRect());
+    place();
+    window.addEventListener('resize', place);
+    window.addEventListener('scroll', place, true);
+    return () => { window.removeEventListener('resize', place); window.removeEventListener('scroll', place, true); };
+  }, [search.userSuggestions.length]);
+
+  // bulk
+  const [rows, setRows] = useState<{ row: number; seller: string }[]>([]);
+  const [fileName, setFileName] = useState('');
+  const [results, setResults] = useState<RowResult[]>([]);
+  const [progress, setProgress] = useState(0);
+
+  const attach = async (value: string, force: boolean) => salesApiClient.post('/admin/sellers/attach', { employeeId, seller: value, force });
+
   const save = async (force = false) => {
     setBusy(true); setError('');
-    try { const res = await salesApiClient.post('/admin/sellers/attach', { employeeId, seller: seller.trim(), force }); notify(true, res.data?.message || 'Seller linked'); onClose(); }
+    try { const res = await attach(seller.trim(), force); notify(true, res.data?.message || 'Seller linked'); onClose(); }
     catch (e) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const d = (e as any)?.response?.data;
       if (d?.needsConfirm) setConfirm(d.message); else setError(apiError(e));
     } finally { setBusy(false); }
   };
-  return (
-    <Modal title={`Link a seller to ${name}`} onClose={onClose}
-      footer={<><button onClick={onClose} className={ghostBtn}>Cancel</button>
+
+  const pickFile = async (file?: File) => {
+    setError(''); setRows([]); setFileName(''); setResults([]); setProgress(0);
+    if (!file) return;
+    if (!/\.(csv|xlsx|xls)$/i.test(file.name)) { setError('Please upload a CSV (or Excel) file.'); return; }
+    if (file.size > 1024 * 1024) { setError('This file is larger than 1 MB. Please split it into smaller files.'); return; }
+    try {
+      const read = await readSellerFile(file);
+      if (!read.length) { setError('No sellers found. Put one user ID, email or phone per row under the template header.'); return; }
+      if (read.length > MAX_SELLER_ROWS) { setError(`This file has ${read.length} sellers. Upload up to ${MAX_SELLER_ROWS} at a time.`); return; }
+      const seen = new Set<string>();
+      setRows(read.filter(r => { const k = r.seller.toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; }));
+      setFileName(file.name);
+    } catch { setError('This file could not be read. Please use the template.'); }
+  };
+
+  // Links each row with the same endpoint as the single form; sellers already linked to someone else are held for confirmation.
+  const runBulk = async (list: { row: number; seller: string }[], force: boolean) => {
+    setBusy(true); setError(''); setProgress(0);
+    const out: RowResult[] = force ? results.filter(r => r.status !== 'needsConfirm') : [];
+    for (let i = 0; i < list.length; i++) {
+      const r = list[i];
+      try { const res = await attach(r.seller, force); out.push({ ...r, status: 'linked', message: res.data?.message || 'Linked' }); }
+      catch (e) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const d = (e as any)?.response?.data;
+        out.push({ ...r, status: d?.needsConfirm ? 'needsConfirm' : 'failed', message: d?.message || apiError(e) });
+      }
+      setProgress(i + 1);
+    }
+    out.sort((a, b) => a.row - b.row);
+    setResults(out); setBusy(false);
+    const ok = out.filter(r => r.status === 'linked').length;
+    if (ok) notify(true, `${ok} seller${ok === 1 ? '' : 's'} linked to ${name}`);
+  };
+
+  const linked = results.filter(r => r.status === 'linked').length;
+  const held = results.filter(r => r.status === 'needsConfirm');
+  const failed = results.filter(r => r.status === 'failed');
+  const tab = (key: 'one' | 'file', label: string) => (
+    <button type="button" onClick={() => { setMode(key); setError(''); }} className={`h-8 px-4 rounded-full text-[12.5px] font-semibold transition-colors ${mode === key ? 'bg-white text-[#0F172A] shadow-sm' : 'text-[#64748B] hover:text-[#0F172A]'}`}>{label}</button>
+  );
+
+  const footer = mode === 'one'
+    ? <><button onClick={onClose} className={ghostBtn}>Cancel</button>
         {confirm ? <button disabled={busy} onClick={() => save(true)} className={primaryBtn}>Yes, move</button>
-          : <button disabled={busy || !seller.trim()} onClick={() => save()} className={primaryBtn}>{busy ? 'Linking…' : 'Link seller'}</button>}</>}>
-      <div className="p-5 space-y-3">
+          : <button disabled={busy || !seller.trim()} onClick={() => save()} className={primaryBtn}>{busy ? 'Linking…' : 'Link seller'}</button>}</>
+    : <><button onClick={onClose} className={ghostBtn}>{results.length ? 'Close' : 'Cancel'}</button>
+        {results.length === 0
+          ? <button disabled={busy || !rows.length} onClick={() => runBulk(rows, false)} className={primaryBtn}>{busy ? `Linking ${progress}/${rows.length}…` : rows.length ? `Link ${rows.length} seller${rows.length === 1 ? '' : 's'}` : 'Link sellers'}</button>
+          : held.length > 0 && <button disabled={busy} onClick={() => runBulk(held, true)} className={primaryBtn}>{busy ? `Moving ${progress}/${held.length}…` : `Move ${held.length} anyway`}</button>}</>;
+
+  return (
+    <Modal title={`Link sellers to ${name}`} onClose={onClose} footer={footer}>
+      <div className="p-5 flex flex-col gap-3">
+        <div className="inline-flex self-start p-1 rounded-full bg-[#F1F5F9] gap-1">{tab('one', 'One seller')}{tab('file', 'Upload CSV')}</div>
         <ErrorLine text={error} />
-        <p className="text-[12.5px] text-[#64748B]">For a seller who registered without the referral code. Their onboarding bonus window still counts from their registration date.</p>
-        <div><label className={labelCls}>Seller's user ID, email or phone</label><input value={seller} onChange={e => { setSeller(e.target.value); setConfirm(''); }} className={fieldCls} /></div>
-        {confirm && <p className="text-[12.5px] text-amber-700 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">{confirm}</p>}
+        <p className="text-[12.5px] text-[#64748B]">For sellers who registered without the referral code. Their onboarding bonus window still counts from their registration date.</p>
+
+        {mode === 'one' ? (
+          <>
+            <div className="relative">
+              <label className={labelCls}>Search seller by name, user ID, email or phone</label>
+              <div className="relative" ref={anchorRef}>
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8] pointer-events-none" />
+                <input value={search.userQuery} placeholder="Start typing to search…"
+                  onChange={e => { search.onQueryChange(e.target.value); setSeller(e.target.value); setConfirm(''); }}
+                  className={`${fieldCls} pl-10`} />
+              </div>
+              {search.userSuggestions.length > 0 && rect && createPortal(
+                <div style={{ position: 'fixed', left: rect.left, top: rect.bottom + 6, width: rect.width }}
+                  className="z-[1000] bg-white border border-[#E2E8F0] rounded-2xl shadow-[0_18px_40px_-12px_rgba(15,23,42,0.3)] max-h-64 overflow-y-auto py-1.5">
+                  {search.userSuggestions.map(u => (
+                    <button key={u._id} type="button"
+                      onClick={() => { search.selectUser(u); setSeller(String(u.userId ?? u.email)); setConfirm(''); }}
+                      className="w-full text-left px-3.5 py-2.5 hover:bg-[#F0FDF4] flex items-start gap-2.5 transition-colors">
+                      <span className="w-7 h-7 rounded-full bg-[#F0FDF4] text-[#00A86B] flex items-center justify-center font-bold text-[11px] shrink-0">{(u.fullname || u.email || '?').charAt(0).toUpperCase()}</span>
+                      <span className="flex-1 min-w-0">
+                        <span className="block text-[13px] font-semibold text-[#0F172A] truncate">{u.fullname || '—'}</span>
+                        <span className="block text-[11.5px] text-[#94A3B8] truncate">{u.email}{u.phoneNumber ? ` · ${u.phoneNumber}` : ''}</span>
+                      </span>
+                      {u.userId != null && <span className="text-[11px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded shrink-0">{u.userId}</span>}
+                    </button>
+                  ))}
+                </div>,
+                document.body,
+              )}
+            </div>
+            {search.userMongoId && <p className="text-[12px] text-[#047857]">Selected: <b>{seller}</b></p>}
+            {confirm && <p className="text-[12.5px] text-amber-700 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">{confirm}</p>}
+          </>
+        ) : (
+          <>
+            <p className="text-[12.5px] text-[#64748B]">Upload a CSV with one seller per row (user ID, email or phone), up to {MAX_SELLER_ROWS} at a time. Duplicates are removed.</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <label className={`${primaryBtn} cursor-pointer`}>
+                <Upload className="w-4 h-4" />Choose CSV
+                <input type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={e => { const file = e.target.files?.[0]; e.target.value = ''; pickFile(file); }} />
+              </label>
+              <button type="button" onClick={downloadSellerTemplate} className={ghostBtn}><Download className="w-4 h-4" />Download CSV template</button>
+            </div>
+
+            {fileName && !results.length && <p className="text-[12.5px] font-semibold text-[#0F172A]">{fileName}: {rows.length} seller{rows.length === 1 ? '' : 's'} ready</p>}
+            {busy && (
+              <div className="h-1.5 rounded-full bg-[#F1F5F9] overflow-hidden">
+                <div className="h-full bg-[#00A86B] transition-[width] duration-200" style={{ width: `${((progress) / Math.max(held.length && results.length ? held.length : rows.length, 1)) * 100}%` }} />
+              </div>
+            )}
+
+            {results.length > 0 && (
+              <div className="flex flex-wrap gap-2 text-[12px] font-semibold">
+                <span className="h-7 px-3 inline-flex items-center rounded-full bg-[#ECFDF5] text-[#047857]">{linked} linked</span>
+                {held.length > 0 && <span className="h-7 px-3 inline-flex items-center rounded-full bg-amber-50 text-amber-700">{held.length} need confirmation</span>}
+                {failed.length > 0 && <span className="h-7 px-3 inline-flex items-center rounded-full bg-red-50 text-red-600">{failed.length} failed</span>}
+              </div>
+            )}
+
+            {(rows.length > 0 || results.length > 0) && (
+              <div className="max-h-52 overflow-auto rounded-xl border border-[#E2E8F0]">
+                <table className="w-full text-[12px]">
+                  <thead className="bg-[#F8FAFC] text-[#64748B] sticky top-0">
+                    <tr><th className="text-left font-semibold px-3 py-1.5">Row</th><th className="text-left font-semibold px-3 py-1.5">Seller</th>{results.length > 0 && <th className="text-left font-semibold px-3 py-1.5">Result</th>}</tr>
+                  </thead>
+                  <tbody>
+                    {(results.length ? results : rows.slice(0, 100)).map(r => {
+                      const res = r as RowResult;
+                      return (
+                        <tr key={r.row} className="border-t border-[#F1F5F9]">
+                          <td className="px-3 py-1.5 text-[#94A3B8] tabular-nums">{r.row}</td>
+                          <td className="px-3 py-1.5">{r.seller}</td>
+                          {results.length > 0 && (
+                            <td className={`px-3 py-1.5 ${res.status === 'linked' ? 'text-[#047857]' : res.status === 'needsConfirm' ? 'text-amber-700' : 'text-red-600'}`}>{res.message}</td>
+                          )}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
+        )}
       </div>
     </Modal>
   );
@@ -281,7 +463,7 @@ export function SalesPersonPanel({ employeeId, notify, onPayout, onChanged }: { 
           ><RotateCcw className="w-4 h-4" />Allow download again</button>
         )}
         {teamEdit && <button onClick={() => setDialog('lead')} className={ghostBtn}><PhoneCall className="w-4 h-4" />Assign leads</button>}
-        {teamEdit && <button onClick={() => setDialog('seller')} className={ghostBtn}><Link2 className="w-4 h-4" />Link existing seller</button>}
+        {teamEdit && <button onClick={() => setDialog('seller')} className={ghostBtn}><Link2 className="w-4 h-4" />Link existing sellers</button>}
         {a.owner && <button onClick={onPayout} className={ghostBtn}><Receipt className="w-4 h-4" />Pay out</button>}
       </div>
       {!a.owner && (
