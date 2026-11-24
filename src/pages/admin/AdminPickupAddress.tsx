@@ -210,6 +210,9 @@ export function AdminPickupAddress() {
   const validate = () => {
     const e: Record<string, string> = {};
     if (!form.contactName.trim()) e.contactName = 'Required';
+    // email is mandatory on a pickup address (the backend refuses one without it)
+    if (!form.email.trim()) e.email = 'Please enter the email for the pickup address';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) e.email = 'Please enter a valid email (for example name@example.com)';
     if (!form.phoneNumber.trim()) e.phoneNumber = 'Required';
     else if (!/^[6-9]\d{9}$/.test(form.phoneNumber)) e.phoneNumber = '10 digits starting with 6-9';
     if (!form.address.trim()) e.address = 'Required';
@@ -224,7 +227,12 @@ export function AdminPickupAddress() {
   // ── save ─────────────────────────────────────────────────────────────────
   const handleSave = async () => {
     const e = validate();
-    if (Object.keys(e).length) { setErrors(e); return; }
+    if (Object.keys(e).length) {
+      setErrors(e);
+      // a contact field is wrong: open that section so the message is visible
+      if (e.contactName || e.email || e.phoneNumber) setShowContactDetails(true);
+      return;
+    }
     setSaving(true);
     try {
       if (editId) {
@@ -1161,11 +1169,12 @@ export function AdminPickupAddress() {
                               className={`w-full h-11 px-4 border rounded-full text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B] ${errors.contactName ? 'border-red-400' : 'border-[#E2E8F0]'}`} />
                           </div>
                           <div>
-                            <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Email</label>
+                            <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Email <span className="text-red-500">*</span></label>
+                            {errors.email && <p className="text-[12px] md:text-[11px] text-red-500 mb-1">{errors.email}</p>}
                             <input type="email" value={form.email}
                               onChange={setField('email')}
                               placeholder="Email"
-                              className="w-full h-11 px-4 border border-[#E2E8F0] rounded-full text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]" />
+                              className={`w-full h-11 px-4 border rounded-full text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B] ${errors.email ? 'border-red-400' : 'border-[#E2E8F0]'}`} />
                           </div>
                           <div className="md:col-span-2">
                             <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Phone Number <span className="text-red-500">*</span></label>

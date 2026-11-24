@@ -564,6 +564,9 @@ export function AdminAddOrder() {
   const handlePickupSubmit = async () => {
     const e: Record<string, string> = {};
     if (!pickupForm.contactName.trim()) e.contactName = 'Required';
+    // email is mandatory on a pickup address (the backend refuses one without it)
+    if (!pickupForm.email.trim()) e.email = 'Please enter the email for the pickup address';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(pickupForm.email.trim())) e.email = 'Please enter a valid email (for example name@example.com)';
     if (!pickupForm.phoneNumber.trim()) e.phoneNumber = 'Required';
     if (!pickupForm.address.trim()) e.address = 'Required';
     // couriers refuse a pickup address that is only words (same rule as the backend)
@@ -572,7 +575,11 @@ export function AdminAddOrder() {
     if (!pickupForm.city.trim()) e.city = 'Required';
     if (!pickupForm.state.trim()) e.state = 'Required';
     setPickupFormErrors(e);
-    if (Object.keys(e).length > 0) return;
+    if (Object.keys(e).length > 0) {
+      // a contact field is wrong: open that section so the message is visible
+      if (e.contactName || e.email || e.phoneNumber) setShowPickupContactDetails(true);
+      return;
+    }
     setPickupSubmitting(true);
 
     if (pickupModalMode === 'edit' && editingPickupId) {
@@ -1672,11 +1679,12 @@ export function AdminAddOrder() {
                             className={`w-full h-11 px-4 border rounded-full text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B] ${pickupFormErrors.contactName ? 'border-red-400' : 'border-[#E2E8F0]'}`} />
                         </div>
                         <div>
-                          <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Email</label>
+                          <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Email <span className="text-red-500">*</span></label>
+                          {pickupFormErrors.email && <p className="text-[12px] md:text-[11px] text-red-500 mb-1">{pickupFormErrors.email}</p>}
                           <input type="email" value={pickupForm.email}
                             onChange={e => setPickupForm(p => ({ ...p, email: e.target.value }))}
                             placeholder="Email"
-                            className="w-full h-11 px-4 border border-[#E2E8F0] rounded-full text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]" />
+                            className={`w-full h-11 px-4 border rounded-full text-[13px] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B] ${pickupFormErrors.email ? 'border-red-400' : 'border-[#E2E8F0]'}`} />
                         </div>
                         <div className="md:col-span-2">
                           <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Phone Number <span className="text-red-500">*</span></label>
