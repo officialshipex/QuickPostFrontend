@@ -5,7 +5,7 @@ import { Navbar } from '../components/layout/Navbar';
 import { Footer } from '../components/layout/Footer';
 
 /* About Us — public page (desktop + mobile).
-   Facts used: formerly ShipEx India, 6 years in shipping, 25,000+ sellers served. Keep claims to these. */
+   Facts used: formerly Shipex India, 6 years in shipping, 25,000+ sellers served. Keep claims to these. */
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 const fade = (d = 0) => ({
@@ -16,9 +16,9 @@ const fade = (d = 0) => ({
 });
 
 const JOURNEY = [
-  { tag: 'Where we started', title: 'ShipEx India', body: 'We began as ShipEx India, helping small online sellers book shipments without juggling courier accounts, rate cards and paperwork.' },
+  { tag: 'Where we started', title: 'Shipex India', body: 'We began as Shipex India, helping small online sellers book shipments without juggling courier accounts, rate cards and paperwork.' },
   { tag: '6 years of shipping', title: 'Built with sellers', body: 'Year after year we listened to sellers — about pickups, COD, returns and weight disputes — and turned those conversations into product.' },
-  { tag: 'Today', title: 'QuickPost', body: 'ShipEx India is now QuickPost: one platform to compare couriers, ship, track and get COD paid — for D2C brands, marketplace sellers and businesses moving freight.' },
+  { tag: 'Today', title: 'QuickPost', body: 'Shipex India is now QuickPost: one platform to compare couriers, ship, track and get COD paid — for D2C brands, marketplace sellers and businesses moving freight.' },
 ];
 
 const WHAT_WE_DO = [
@@ -54,7 +54,7 @@ export function About() {
               Six years of moving parcels<br className="hidden sm:block" /> for <span className="text-[#00A86B]">India’s sellers</span>
             </motion.h1>
             <motion.p {...fade(0.1)} className="mt-5 text-[16px] md:text-[18px] text-[#475569] leading-relaxed max-w-[720px] mx-auto">
-              We started as <b className="text-[#0F172A] font-semibold">ShipEx India</b>. Today we are <b className="text-[#0F172A] font-semibold">QuickPost</b> — the same team,
+              We started as <b className="text-[#0F172A] font-semibold">Shipex India</b>. Today we are <b className="text-[#0F172A] font-semibold">QuickPost</b> — the same team,
               the same promise, built into a sharper platform for everyone who ships.
             </motion.p>
 
@@ -78,7 +78,7 @@ export function About() {
           <div className="max-w-[1100px] mx-auto px-4 sm:px-6 lg:px-10 grid grid-cols-1 lg:grid-cols-[0.9fr_1.1fr] gap-10 lg:gap-16">
             <motion.div {...fade()}>
               <div className="text-[12.5px] font-bold uppercase tracking-[0.14em] text-[#00A86B]">Our story</div>
-              <h2 className="mt-3 text-[28px] md:text-[38px] font-bold leading-[1.12] tracking-[-0.02em]">From ShipEx India<br />to QuickPost</h2>
+              <h2 className="mt-3 text-[28px] md:text-[38px] font-bold leading-[1.12] tracking-[-0.02em]">From Shipex India<br />to QuickPost</h2>
               <p className="mt-4 text-[15.5px] text-[#475569] leading-relaxed">
                 For six years we have sat on the other side of the counter from India’s online sellers — the home bakers, the
                 fashion labels, the electronics stores and the growing D2C brands. More than 25,000 of them have shipped with us.
