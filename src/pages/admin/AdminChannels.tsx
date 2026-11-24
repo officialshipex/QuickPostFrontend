@@ -279,7 +279,12 @@ export function AdminChannels() {
       }
 
       if (isEditing) {
-        await apiClient.put(`/channel/updateChannel/${editId}`, body);
+        const res = await apiClient.put(`/channel/updateChannel/${editId}`, body);
+        // saved, but the store's order sync could not be set up: say why and stay on the form
+        if (res?.data?.webhookStatus === 'failed') {
+          setFormErrors({ submit: `Channel saved, but orders will not sync yet. ${res.data.webhookError || ''}`.trim() });
+          return;
+        }
       } else {
         await apiClient.post('/channel/storeAllChannelDetails', body);
       }
