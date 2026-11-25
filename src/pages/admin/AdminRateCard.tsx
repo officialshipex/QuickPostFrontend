@@ -1,5 +1,6 @@
 ﻿import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { money2 } from "../../utils/money";
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import { Search, ChevronRight, Save, Filter, X, Upload, Download, Plus, Edit2, CheckCircle2, Truck, Hash, Layers, Crown, Star } from 'lucide-react';
 import { RechargePlansDialog } from '../../components/ratePlans/RechargePlansDialog';
@@ -1325,7 +1326,7 @@ export function AdminRateCard() {
                                           <label className="block text-[10px] font-semibold text-[#64748B] mb-1">Zone {zone}</label>
                                           {isEditing
                                             ? <div className="relative"><span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[12px] text-[#94A3B8]">₹</span><input type="number" value={r[`basicZone${zone}`] || ''} onChange={(e) => handleRateChange(pKey, sKey, `basicZone${zone}`, e.target.value)} className="w-full h-9 pl-6 pr-2 bg-white border border-[#E2E8F0] rounded-lg text-[13px] font-semibold text-[#0F172A] focus:border-[#00A86B] focus:outline-none" /></div>
-                                            : <div className="w-full h-9 px-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg flex items-center text-[13px] font-semibold text-[#0F172A]">{r[`basicZone${zone}`] ? `₹${r[`basicZone${zone}`]}` : <span className="text-[#CBD5E1]">—</span>}</div>}
+                                            : <div className="w-full h-9 px-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg flex items-center text-[13px] font-semibold text-[#0F172A]">{r[`basicZone${zone}`] ? `₹${money2(r[`basicZone${zone}`])}` : <span className="text-[#CBD5E1]">—</span>}</div>}
                                         </div>
                                       ))}
                                       <div>
@@ -1343,7 +1344,7 @@ export function AdminRateCard() {
                                           <label className="block text-[10px] font-semibold text-[#64748B] mb-1">Zone {zone}</label>
                                           {isEditing
                                             ? <div className="relative"><span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[12px] text-[#94A3B8]">₹</span><input type="number" value={r[`addZone${zone}`] || ''} onChange={(e) => handleRateChange(pKey, sKey, `addZone${zone}`, e.target.value)} className="w-full h-9 pl-6 pr-2 bg-white border border-[#E2E8F0] rounded-lg text-[13px] font-semibold text-[#0F172A] focus:border-[#00A86B] focus:outline-none" /></div>
-                                            : <div className="w-full h-9 px-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg flex items-center text-[13px] font-semibold text-[#0F172A]">{r[`addZone${zone}`] ? `₹${r[`addZone${zone}`]}` : <span className="text-[#CBD5E1]">—</span>}</div>}
+                                            : <div className="w-full h-9 px-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg flex items-center text-[13px] font-semibold text-[#0F172A]">{r[`addZone${zone}`] ? `₹${money2(r[`addZone${zone}`])}` : <span className="text-[#CBD5E1]">—</span>}</div>}
                                         </div>
                                       ))}
                                       <div>
@@ -1879,7 +1880,7 @@ export function AdminRateCard() {
                                           <label className="block text-[10px] font-semibold text-[#64748B] mb-1">Zone {zone}</label>
                                           {isEditing
                                             ? <div className="relative"><span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[12px] text-[#94A3B8]">₹</span><input type="number" value={r[`basicZone${zone}`] || ''} onChange={(e) => handleCostingRateChange(pKey, sKey, `basicZone${zone}`, e.target.value)} className="w-full h-9 pl-6 pr-2 bg-white border border-[#E2E8F0] rounded-lg text-[13px] font-semibold text-[#0F172A] focus:border-[#00A86B] focus:outline-none" /></div>
-                                            : <div className="w-full h-9 px-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg flex items-center text-[13px] font-semibold text-[#0F172A]">{r[`basicZone${zone}`] ? `₹${r[`basicZone${zone}`]}` : <span className="text-[#CBD5E1]">—</span>}</div>}
+                                            : <div className="w-full h-9 px-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg flex items-center text-[13px] font-semibold text-[#0F172A]">{r[`basicZone${zone}`] ? `₹${money2(r[`basicZone${zone}`])}` : <span className="text-[#CBD5E1]">—</span>}</div>}
                                         </div>
                                       ))}
                                       <div>
@@ -1897,7 +1898,7 @@ export function AdminRateCard() {
                                           <label className="block text-[10px] font-semibold text-[#64748B] mb-1">Zone {zone}</label>
                                           {isEditing
                                             ? <div className="relative"><span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[12px] text-[#94A3B8]">₹</span><input type="number" value={r[`addZone${zone}`] || ''} onChange={(e) => handleCostingRateChange(pKey, sKey, `addZone${zone}`, e.target.value)} className="w-full h-9 pl-6 pr-2 bg-white border border-[#E2E8F0] rounded-lg text-[13px] font-semibold text-[#0F172A] focus:border-[#00A86B] focus:outline-none" /></div>
-                                            : <div className="w-full h-9 px-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg flex items-center text-[13px] font-semibold text-[#0F172A]">{r[`addZone${zone}`] ? `₹${r[`addZone${zone}`]}` : <span className="text-[#CBD5E1]">—</span>}</div>}
+                                            : <div className="w-full h-9 px-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg flex items-center text-[13px] font-semibold text-[#0F172A]">{r[`addZone${zone}`] ? `₹${money2(r[`addZone${zone}`])}` : <span className="text-[#CBD5E1]">—</span>}</div>}
                                         </div>
                                       ))}
                                       <div>

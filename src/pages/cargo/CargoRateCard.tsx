@@ -16,6 +16,7 @@ import { apiClient } from '../../services/apiClient';
 import { TableLoader } from '../../components/ui/TableLoader';
 import { Toast } from '../../components/ui/Toast';
 import { useToast } from '../../hooks/useToast';
+import { money2 } from "../../utils/money";
 
 /* ─── Types ──────────────────────────────────────────────────────────────── */
 interface CourierAccount { _id: string; courierName: string; courierProvider: string; status?: string; zoneMatrixId?: string }
@@ -74,7 +75,7 @@ const pkgSlabProblem = (slabs: StoredPkgSlab[]): string | null => {
 const viewPkgSlabs = (slabs: PkgSlab[]) => {
   const charged = slabs.filter(s => Number(s.perKg) > 0 || Number(s.min) > 0);
   if (!charged.length) return 'Not charged';
-  return charged.map(s => `${s.from}–${s.to ? `${s.to} kg` : 'above'}: ₹${s.perKg}/kg (min ₹${s.min})`).join(' · ');
+  return charged.map(s => `${s.from}–${s.to ? `${s.to} kg` : 'above'}: ₹${money2(s.perKg)}/kg (min ₹${money2(s.min)})`).join(' · ');
 };
 interface RateCardDoc {
   _id: string;
@@ -182,10 +183,10 @@ const ALL_ROWS = OVERHEAD_SECTIONS.flatMap(s => s.rows);
 const TYPE_MATTERS = new Set(ALL_ROWS.filter(r => r.kind === 'perKgMin' || (r.kind === 'pct' && r.key === 'fuelCharge') || r.key === 'docketCharge' || r.key === 'rovOwner' || r.key === 'rovCarrier' || r.key === 'fodCharges').map(r => r.key));
 const isSetField = (f?: OverheadField) => Boolean(f) && (Number(f?.value || 0) > 0 || Number(f?.min || 0) > 0);
 const typeWords = (f: OverheadField) => {
-  const v = f.value ?? 0, m = Number(f.min || 0) > 0 ? ` (min ₹${f.min})` : '';
+  const v = f.value ?? 0, m = Number(f.min || 0) > 0 ? ` (min ₹${money2(f.min)})` : '';
   if (f.type === 'percentage') return `${v}%${m}`;
-  if (f.type === 'perKg') return `₹${v} per kg${m}`;
-  return `₹${v} flat${m}`;
+  if (f.type === 'perKg') return `₹${money2(v)} per kg${m}`;
+  return `₹${money2(v)} flat${m}`;
 };
 /* ODA by the courier's distance, in admin-set bands: each band = "above From km" up to the next band's From (the first
    band also covers 0 km and an unknown distance); charged max(kg × ₹/kg, minimum). A band at 0 / 0 falls back to the
@@ -227,7 +228,7 @@ const odaRangeOf = (bands: OdaBand[], i: number) => {
 const viewOdaBands = (bands: OdaBand[]) => {
   const charged = bands.map((b, i) => ({ b, i })).filter(({ b }) => Number(b.perKg) > 0 || Number(b.min) > 0);
   if (!charged.length) return 'Not charged';
-  return charged.map(({ b, i }) => `${odaRangeOf(bands, i)}: ₹${b.perKg}/kg (min ₹${b.min})`).join(' · ');
+  return charged.map(({ b, i }) => `${odaRangeOf(bands, i)}: ₹${money2(b.perKg)}/kg (min ₹${money2(b.min)})`).join(' · ');
 };
 
 /** keys of a loaded card whose saved type is not the row's type, while that charge is set */
@@ -243,7 +244,7 @@ const typeMismatchesOf = (oh: Overheads, bandsCharged = odaBandsCharged(oh as Re
 const viewSlabs = (slabs: OwnerSlab[]) => {
   const set = slabs.filter(s => Number(s.value) > 0 || Number(s.min) > 0);
   if (!set.length) return 'Not set — ROV Owner Risk row applies';
-  return set.map(s => `${s.upto ? `≤ ₹${Number(s.upto).toLocaleString('en-IN')}` : 'Above'}: ${s.value}% (min ₹${s.min})`).join(' · ');
+  return set.map(s => `${s.upto ? `≤ ₹${Number(s.upto).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'Above'}: ${s.value}% (min ₹${s.min})`).join(' · ');
 };
 
 const cellKey = (from: string, to: string) => `${from}|${to}`;
@@ -976,7 +977,7 @@ function RateCardTab({ showToast }: { showToast: (t: 'success' | 'error' | 'info
                                   )}
                                   {row.key === 'minimumBilling' && legacyMinFreight > 0 && (
                                     <div className="mt-1 text-[11px] text-[#B45309] leading-snug">
-                                      This card still has the old Minimum Freight ₹{legacyMinFreight}. It applies until you save; saving keeps only Min. LR Billing{Number(overheads.minimumBilling?.value || 0) > 0 ? ` (₹${overheads.minimumBilling?.value})` : ''}.
+                                      This card still has the old Minimum Freight ₹{Number(legacyMinFreight).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}. It applies until you save; saving keeps only Min. LR Billing{Number(overheads.minimumBilling?.value || 0) > 0 ? ` (₹${overheads.minimumBilling?.value})` : ''}.
                                     </div>
                                   )}
                                   {row.key === 'greenTax' && (

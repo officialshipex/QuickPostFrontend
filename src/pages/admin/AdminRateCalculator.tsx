@@ -10,6 +10,7 @@ import { RouteSummary } from '../../components/ui/RouteSummary';
 import { ShineButton } from '../../components/ui/ShineButton';
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { money2 } from "../../utils/money";
 
 // ─── Carrier Logo (shared with the Cargo calculator) ─────────────────────────
 const getCarrierLogo = getCourierBrandLogo;
@@ -548,7 +549,7 @@ export function AdminRateCalculator() {
                     <div className="border-t border-dashed border-[#E2E8F0]" />
                     <div>
                       <div className="text-[11px] text-[#94A3B8] font-medium">Shipment Value</div>
-                      <div className="text-[14px] font-bold text-[#0F172A] mt-0.5">₹ {form.declaredValue}</div>
+                      <div className="text-[14px] font-bold text-[#0F172A] mt-0.5">₹ {money2(form.declaredValue)}</div>
                     </div>
                     <div>
                       <div className="text-[11px] text-[#94A3B8] font-medium">Payment Mode</div>
@@ -654,7 +655,7 @@ export function AdminRateCalculator() {
                               </div>
 
                               <div className="text-center">
-                                <span className="text-[14.5px] font-bold text-[#0F172A]">₹{price}</span>
+                                <span className="text-[14.5px] font-bold text-[#0F172A]">₹{Number(price ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                                 {item.orderType === 'B2B' ? (
                                   <Info
                                     className="b2b-info-icon w-3.5 h-3.5 text-[#00A86B] cursor-pointer inline ml-1"
@@ -730,7 +731,7 @@ export function AdminRateCalculator() {
                                     </div>
                                   </div>
                                   <div className="text-right shrink-0">
-                                    <span className="text-[15px] font-extrabold text-[#0F172A]">₹{price}</span>
+                                    <span className="text-[15px] font-extrabold text-[#0F172A]">₹{Number(price ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                                     {item.orderType === 'B2B' ? (
                                       <Info
                                         className="b2b-info-icon w-3.5 h-3.5 text-[#00A86B] cursor-pointer inline ml-1"

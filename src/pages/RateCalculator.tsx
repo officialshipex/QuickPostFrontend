@@ -93,6 +93,9 @@ const seededJitter = (seed: string, spread = 0.08) => {
   return 1 + (((h % 1000) / 1000) * 2 - 1) * spread;
 };
 
+// money to the paisa (estimates were rounded to whole rupees)
+const r2 = (n: number) => Math.round((Number(n) || 0) * 100) / 100;
+
 const generateDemoResults = (form: {
   pickUpPincode: string; deliveryPincode: string; weight: string;
   declaredValue: string; paymentType: 'Prepaid' | 'COD';
@@ -108,21 +111,21 @@ const generateDemoResults = (form: {
     const fsc = freight * 0.09;
     const gstBase = freight + fsc + codFee;
     const gst = gstBase * 0.18;
-    const grandTotal = Math.round(gstBase + gst);
+    const grandTotal = r2(gstBase + gst);
 
     if (c.type === 'B2B') {
       const working: CourierWorking = {
-        freight: Math.round(freight),
+        freight: r2(freight),
         docket_charges: 20,
         pickup_charge: 15,
         handling_charge: 10,
         appointment_charge: 0,
-        cod_charges: Math.round(codFee),
-        rov: Math.round(declaredValue * 0.002),
-        fsc: Math.round(fsc),
+        cod_charges: r2(codFee),
+        rov: r2(declaredValue * 0.002),
+        fsc: r2(fsc),
         oda: 0,
         green_tax: 5,
-        gst: Math.round(gst),
+        gst: r2(gst),
         grand_total: grandTotal,
       };
       return {
@@ -725,7 +728,7 @@ export function RateCalculator() {
                       <div className="mt-4 pt-4 border-t border-dashed border-[#E2E8F0] flex items-end justify-between">
                         <div>
                           <div className="flex items-baseline gap-1">
-                            <span className="text-[22px] font-extrabold text-[#0F172A] tracking-tight">₹{price}</span>
+                            <span className="text-[22px] font-extrabold text-[#0F172A] tracking-tight">₹{Number(price ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                             {item.orderType === 'B2B' && (
                               <Info
                                 className="w-3.5 h-3.5 text-[#00A86B] cursor-pointer shrink-0"
@@ -737,7 +740,7 @@ export function RateCalculator() {
                         </div>
                         {!isCheapest && delta > 0 && (
                           <span className="text-[10.5px] font-bold text-[#B45309] bg-[#FFFBEB] border border-[#FEF3C7] px-2 py-1 rounded-lg shrink-0">
-                            +₹{Math.round(delta)} vs cheapest
+                            +₹{delta.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} vs cheapest
                           </span>
                         )}
                       </div>

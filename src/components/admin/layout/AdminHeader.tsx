@@ -26,7 +26,7 @@ import { TransferWalletModal } from '../../ui/TransferWalletModal';
 function WalletSplitBlock({ isCargo, hasCargoWallet, split, onTransfer }: {
   isCargo: boolean; hasCargoWallet: boolean; split: { main: number; cargo: number }; onTransfer: () => void;
 }) {
-  const inr = (n: number) => `₹${(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+  const inr = (n: number) => `₹${(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   return (
     <div className="mt-3 pt-3 border-t border-slate-100 space-y-1.5">
       <div className="flex justify-between items-center gap-2">
@@ -123,7 +123,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
     confirmCashfreeOrder(orderId)
       .then((check) => {
         if (check.status === 'credited' || check.status === 'already_credited') {
-          _showToast('success', `₹${(check.amount ?? 0).toLocaleString('en-IN')} added to your wallet.`);
+          _showToast('success', `₹${(check.amount ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} added to your wallet.`);
           refetchUser?.();
         } else if (check.status === 'pending') {
           _showToast('success', 'Payment is being confirmed. Your wallet will be credited automatically once it is.');
@@ -771,7 +771,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                     className="flex items-center gap-1.5 focus:outline-none cursor-pointer"
                   >
                     <Wallet className="w-4 h-4 shrink-0" />
-                    <span>₹{walletBalance.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
+                    <span>₹{walletBalance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </button>
                   <button
                     onClick={openWalletPlus}
@@ -793,20 +793,20 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                       <div className="space-y-2">
                         <div className="flex justify-between items-center gap-2">
                           <span className="text-[13px] font-semibold text-[#64748B]">Available</span>
-                          <span className="text-[13px] font-bold text-slate-800">₹{walletBalance.toLocaleString('en-IN')}</span>
+                          <span className="text-[13px] font-bold text-slate-800">₹{walletBalance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                         </div>
                         <div className="flex justify-between items-center gap-2">
                           <span className="text-[13px] font-semibold text-[#64748B]">Hold</span>
-                          <span className="text-[13px] font-bold text-amber-600">₹{walletHold.toLocaleString('en-IN')}</span>
+                          <span className="text-[13px] font-bold text-amber-600">₹{walletHold.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                         </div>
                         <div className="flex justify-between items-center gap-2">
                           <span className="text-[13px] font-semibold text-[#64748B]">Credit Limit</span>
-                          <span className="text-[13px] font-bold text-violet-600">₹{creditLimit.toLocaleString('en-IN')}</span>
+                          <span className="text-[13px] font-bold text-violet-600">₹{creditLimit.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                         </div>
                         <div className="h-[1px] bg-slate-100"></div>
                         <div className="flex justify-between items-center gap-2">
                           <span className="text-[13px] font-bold text-slate-700">Net</span>
-                          <span className="text-[13px] font-extrabold text-[#00A86B]">₹{Math.max(0, walletBalance - walletHold).toLocaleString('en-IN')}</span>
+                          <span className="text-[13px] font-extrabold text-[#00A86B]">₹{Math.max(0, walletBalance - walletHold).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                         </div>
                       </div>
                       {canTransfer && (
@@ -1235,7 +1235,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
               className="flex items-center gap-2 focus:outline-none cursor-pointer"
             >
               <Wallet className="w-4 h-4 text-white" />
-              <span className="text-sm font-bold tabular-nums">₹{walletBalance.toLocaleString('en-IN', { maximumFractionDigits: 2, minimumFractionDigits: 2 })}</span>
+              <span className="text-sm font-bold tabular-nums">₹{walletBalance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
             </button>
             <motion.button
               whileHover={{ scale: 1.05 }}
@@ -1265,24 +1265,24 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
                     <span className="text-xs font-semibold text-[#64748B]">Available Balance</span>
-                    <span className="text-sm font-bold text-slate-800">₹{walletBalance.toLocaleString('en-IN')}</span>
+                    <span className="text-sm font-bold text-slate-800">₹{walletBalance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </div>
                   
                   <div className="flex justify-between items-center">
                     <span className="text-xs font-semibold text-[#64748B]">Hold Amount</span>
-                    <span className="text-sm font-bold text-amber-600">₹{walletHold.toLocaleString('en-IN')}</span>
+                    <span className="text-sm font-bold text-amber-600">₹{walletHold.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </div>
 
                   <div className="flex justify-between items-center">
                     <span className="text-xs font-semibold text-[#64748B]">Credit Limit</span>
-                    <span className="text-sm font-bold text-violet-600">₹{creditLimit.toLocaleString('en-IN')}</span>
+                    <span className="text-sm font-bold text-violet-600">₹{creditLimit.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </div>
 
                   <div className="h-[1px] bg-slate-100 my-1"></div>
 
                   <div className="flex justify-between items-center">
                     <span className="text-xs font-bold text-slate-700">Net Balance</span>
-                    <span className="text-sm font-extrabold text-[#00A86B]">₹{Math.max(0, walletBalance - walletHold).toLocaleString('en-IN')}</span>
+                    <span className="text-sm font-extrabold text-[#00A86B]">₹{Math.max(0, walletBalance - walletHold).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </div>
                 </div>
 

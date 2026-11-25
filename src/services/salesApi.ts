@@ -239,7 +239,7 @@ export const pct = (num?: number, den?: number) => (den && den > 0 ? Math.round(
 export const incentiveLine = (d?: SalesEarning['details']) => (d?.ratePerShipment != null
   ? `${(d.shipments ?? 0).toLocaleString('en-IN')} shipments × ${inr(d.ratePerShipment)}`
   : `${(d?.shipments ?? 0).toLocaleString('en-IN')} shipments · ${d?.percent ?? 0}% of ${inr(d?.freight)}`);
-export const inr = (v?: number) => `₹${(v ?? 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+export const inr = (v?: number) => `₹${(v ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 export const periodLabel = (p?: string) => {
   if (!p) return '—';
   const [y, m] = p.split('-').map(Number);

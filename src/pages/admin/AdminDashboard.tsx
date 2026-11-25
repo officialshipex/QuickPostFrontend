@@ -30,7 +30,7 @@ import walletRechargeAdImg from '../../assets/wallet-recharge-ad.png';
 
 /* ─── helpers ─────────────────────────────────────────────────────── */
 const fmt = (v: number) =>
-  '₹' + (v || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 });
+  '₹' + (v || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtN = (v: number) => (v || 0).toLocaleString('en-IN');
 
 const CHART_COLORS = ['#00A86B', '#1D4ED8', '#38BDF8', '#F59E0B', '#8B5CF6', '#F43F5E', '#EC4899', '#14B8A6'];

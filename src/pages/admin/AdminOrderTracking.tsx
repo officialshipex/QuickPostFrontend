@@ -954,7 +954,7 @@ export function AdminOrderTracking() {
                 <div>
                   <label className="block text-[12px] leading-[18px] font-medium text-[#94A3B8] uppercase tracking-wider">Payment Amount</label>
                   <div className="text-[12px] leading-[18px] font-normal text-[#0F172A] mt-0.5">
-                    {order?.paymentDetails?.amount != null ? `₹${order.paymentDetails.amount.toLocaleString('en-IN')}` : '—'}
+                    {order?.paymentDetails?.amount != null ? `₹${order.paymentDetails.amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'}
                   </div>
                 </div>
                 <div>
@@ -1191,7 +1191,7 @@ export function AdminOrderTracking() {
                         <tr key={i} className="border-b last:border-0 border-[#F5F5F5]">
                           <td className="py-3 font-medium">{p.name || '—'}</td>
                           <td className="py-3 text-center">{p.quantity ?? 1}</td>
-                          <td className="py-3 text-right">₹{(p.unitPrice || 0).toLocaleString('en-IN')}</td>
+                          <td className="py-3 text-right">₹{(p.unitPrice || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                         </tr>
                       ))}
                       {(!order?.productDetails || order.productDetails.length === 0) && (

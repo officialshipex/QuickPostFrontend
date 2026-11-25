@@ -273,7 +273,7 @@ export function CargoCRMSellerAccounts() {
                     </td>
                     <td className="px-3 py-3.5 text-right align-middle font-semibold text-[#0F172A]">{(seller.totalOrders || 0).toLocaleString('en-IN')}</td>
                     <td className="px-3 py-3.5 text-right align-middle">{seller.monthlyOrders || '—'}</td>
-                    <td className="px-3 py-3.5 text-right align-middle font-semibold text-[#00A86B]">₹{(seller.walletBalance || 0).toLocaleString('en-IN')}</td>
+                    <td className="px-3 py-3.5 text-right align-middle font-semibold text-[#00A86B]">₹{(seller.walletBalance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     <td className="px-3 py-3.5 text-left align-middle text-[#64748B]">{seller.rm || '—'}</td>
                     <td className="px-3 py-3.5 text-left align-middle table-date">{seller.createdAt ? new Date(seller.createdAt).toISOString().split('T')[0] : '—'}</td>
                     <td className="px-3 py-3.5 text-center align-middle">
@@ -339,7 +339,7 @@ export function CargoCRMSellerAccounts() {
                           </div>
                           <div className="text-right min-w-0">
                             <div className="text-[10px] font-normal text-[#94A3B8] uppercase tracking-wider">Wallet</div>
-                            <div className="text-[12px] font-semibold text-[#00A86B] mt-0.5">₹{(seller.walletBalance || 0).toLocaleString('en-IN')}</div>
+                            <div className="text-[12px] font-semibold text-[#00A86B] mt-0.5">₹{(seller.walletBalance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                             <div className="text-[10px] font-normal text-[#94A3B8] uppercase tracking-wider mt-2">Orders</div>
                             <div className="text-[12px] font-medium text-[#0F172A] mt-0.5">{(seller.totalOrders || 0).toLocaleString('en-IN')}</div>
                           </div>

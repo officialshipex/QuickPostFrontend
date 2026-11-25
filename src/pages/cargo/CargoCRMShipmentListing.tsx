@@ -165,7 +165,7 @@ const mapOrder = (o: any) => ({
   pickupPhone: o.pickupAddress?.phoneNumber || '',
   shippingAddr: o.receiverAddress?.city || '—',
   paymentMode: o.paymentDetails?.method || 'Prepaid',
-  shipmentValue: `₹${(o.paymentDetails?.amount || 0).toLocaleString('en-IN')}`,
+  shipmentValue: `₹${(o.paymentDetails?.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
   status: o.status || 'Ready To Ship',
   manifestDate: o.shipmentCreatedAt || o.createdAt || new Date().toISOString(),
   expectedDeliveryDate: o.expectedDeliveryDate || null,

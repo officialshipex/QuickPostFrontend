@@ -3,6 +3,7 @@
    Used on the Cargo panel's profile → Rate Cards (the B2C panel keeps the B2C weight-slab table). */
 import { useCallback, useEffect, useState } from 'react';
 import { apiClient } from '../../services/apiClient';
+import { money2 } from "../../utils/money";
 
 const TXT = {
   title: 'text-[14px] font-semibold',
@@ -80,7 +81,7 @@ export function B2BRateCards({ userId, reloadKey = 0 }: { userId?: string; reloa
                       <td className={`px-3 py-2 ${TXT.label} text-[#0F172A] text-left whitespace-nowrap`}>{from}</td>
                       {card.zones.to.map((to) => {
                         const price = card.zones.prices[from]?.[to];
-                        return <td key={to} className={`px-3 py-2 ${TXT.value} text-[#374151] whitespace-nowrap`}>{price != null ? `₹${price}` : '—'}</td>;
+                        return <td key={to} className={`px-3 py-2 ${TXT.value} text-[#374151] whitespace-nowrap`}>{price != null ? `₹${money2(price)}` : '—'}</td>;
                       })}
                     </tr>
                   ))}

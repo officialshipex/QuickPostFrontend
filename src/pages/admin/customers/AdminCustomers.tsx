@@ -47,7 +47,7 @@ const digits = (s: unknown) => String(s ?? '').replace(/\D/g, '').slice(-10);
 const fullName = (r: Pick<CustomerRow, 'firstName' | 'lastName'>) => `${r.firstName} ${r.lastName}`.trim() || '—';
 const maskPhone = (p: string) => (p.length === 10 ? `${p.slice(0, 2)}XXX-XXX${p.slice(8)}` : 'XXXXX-XXXXX');
 const fmtDate = (d: string | null) => (d ? new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—');
-const inr = (n: number) => `₹${Math.round(n).toLocaleString('en-IN')}`;
+const inr = (n: number) => `₹${(Number(n) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 /** Same marker the Orders page uses for a repeat customer. */
 const RepeatMark = ({ onOpen }: { onOpen: (rect: DOMRect) => void }) => (
   <button type="button" title="Repeat customer" aria-label="Repeat customer"
@@ -202,7 +202,7 @@ export function AdminCustomers() {
     const esc = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
     const picked = selected.length ? filtered.filter(r => selected.includes(r.key)) : filtered;
     const lines = picked.map(r => [fullName(r), r.phone, r.email, [r.address1, r.address2].filter(Boolean).join(', '), r.city, r.state, r.pinCode,
-      r.channel, r.orders.length, Math.round(r.spend), fmtDate(r.lastOrderAt)].map(esc).join(','));
+      r.channel, r.orders.length, (Number(r.spend) || 0).toFixed(2), fmtDate(r.lastOrderAt)].map(esc).join(','));
     const blob = new Blob([[head.join(','), ...lines].join('\n')], { type: 'text/csv;charset=utf-8' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);

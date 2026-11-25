@@ -172,7 +172,7 @@ export function NdrFollowups() {
   const currentMode = active ? access!.ndrMode! : null;
   const enabled = access?.enabled !== false;
   const recovered = Math.round(ndrs * RECOVERY[estPlan]);
-  const fmt = (v: number) => `₹${Math.round(v).toLocaleString('en-IN')}`;
+  const fmt = (v: number) => `₹${(Number(v) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const loadActivity = useCallback((p: Parameters<typeof vasApi.ndrActivity>[0]) => vasApi.ndrActivity(p), []);
 
   const confirm = async () => {

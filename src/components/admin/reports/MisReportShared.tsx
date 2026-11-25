@@ -40,7 +40,7 @@ export const PASSBOOK_DESCS = [
   'Cancellation Refund', 'Recharge From Gateway(Razorpay)', 'Recharge From Gateway(Cashfree)','Referral Commission Received',
 ];
 
-export const fc = (v: number) => `₹${(v || 0).toLocaleString('en-IN')}`;
+export const fc = (v: number) => `₹${(v || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 export const fn = (v: number) => (v || 0).toLocaleString('en-IN');
 export const fmtDate = (d?: string) => {
   if (!d) return '—';

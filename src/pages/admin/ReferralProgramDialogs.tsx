@@ -18,7 +18,7 @@ export interface ReferralPlan { _id?: string; name: string; isDefault?: boolean;
 
 const fieldCls = 'w-full h-10 px-3.5 rounded-xl border border-[#E2E8F0] text-[13px] text-[#0F172A] bg-white focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B]';
 const labelCls = 'block text-[12px] font-semibold text-[#475569] mb-1.5';
-const inr = (v?: number) => `₹${Number(v || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+const inr = (v?: number) => `₹${Number(v || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const errMsg = (e: any) => e?.response?.data?.message || 'Something went wrong. Please try again.';
 
