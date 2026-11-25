@@ -8,7 +8,7 @@ import { useAdminTab } from '../../context/AdminUserContext';
 import { useUserSearchFilter } from '../../hooks/filters/useUserSearchFilter';
 import {
   ChevronDown, ChevronRight, RefreshCcw, Check, User, Truck, Banknote, Clock, Upload, Download,
-  Wallet, Send, MinusCircle, MoreVertical, FileText, AlertCircle, CheckCircle2, X, Package, Search, Filter, Copy
+  Wallet, Send, MinusCircle, MoreVertical, FileText, AlertCircle, CheckCircle2, X, XCircle, Package, Search, Filter, Copy
 } from 'lucide-react';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
 import { GlassDateFilter } from '../../components/ui/GlassDateFilter';
@@ -591,6 +591,26 @@ export function AdminCOD() {
     }
   };
 
+  // Cancel Bank Export — only for a bank file that was NOT sent to the bank: its remittances can then be paid again
+  const handleCancelBankExport = async () => {
+    if (selectedCodOrders.length === 0) { showToast('error', 'Select the remittances whose bank export should be cancelled.'); return; }
+    const sure = window.confirm(
+      `Cancel the bank export of ${selectedCodOrders.length} remittance(s)?
+
+Only do this if the bank file was NOT sent to the bank. They can then be paid again (Transfer COD or a new bank file). Remittances the bank already paid are not touched.`
+    );
+    if (!sure) return;
+    try {
+      const res = await apiClient.post('/cod/cancelBankExport', { selectedRemittanceIds: selectedCodOrders });
+      showToast(res.data?.cancelled?.length ? 'success' : 'error', res.data?.message || 'Bank export cancelled');
+      fetchSellerRemittance(sellerPage);
+    } catch (err: any) {
+      showToast('error', err?.response?.data?.message || 'Failed to cancel the bank export');
+    } finally {
+      setShowActionMenu(false);
+    }
+  };
+
   // Parse and submit bank response Excel
   const handleCODUpload = (file: File): Promise<string> =>
     new Promise((resolve, reject) => {
@@ -615,9 +635,11 @@ export function AdminCOD() {
             reason: r['Reason of failure/return'] || '',
           }));
           const res = await apiClient.post('/cod/uploadBankResponse', { rows: mappedRows, selectedRemittanceIds: selectedCodOrders });
-          const { successCount = 0, skippedCount = 0, errorCount = 0 } = res.data;
+          const { successCount = 0, failedCount = 0, skippedCount = 0, errorCount = 0, results = [] } = res.data;
           fetchSellerRemittance(sellerPage);
-          resolve(`Processed: ${successCount} paid, ${skippedCount} skipped, ${errorCount} errors`);
+          // why rows were not paid (wrong amount, unknown remittance, still pending at the bank ...), first few
+          const notes = results.filter((r: any) => r.status !== 'success' && r.reason).slice(0, 3).map((r: any) => `${r.remittanceId || r.beneficiaryAccount}: ${r.reason}`);
+          resolve(`Processed: ${successCount} paid, ${failedCount} failed at the bank (can be paid again), ${skippedCount} skipped, ${errorCount} errors${notes.length ? ` — ${notes.join(' | ')}` : ''}`);
         } catch (err: any) {
           reject(new Error(err?.response?.data?.message || 'Failed to process bank response'));
         }
@@ -910,6 +932,9 @@ export function AdminCOD() {
                 <button onClick={() => { handleOpenBankResponseUpload(); setShowAllCodActionMenu(false); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] flex items-center gap-2">
                   <Upload className="w-4 h-4 text-orange-500" />Upload Bank Response
                 </button>
+                <button onClick={() => { handleCancelBankExport(); setShowAllCodActionMenu(false); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] flex items-center gap-2">
+                  <XCircle className="w-4 h-4 text-red-500" />Cancel Bank Export
+                </button>
                 <div className="h-px bg-[#E2E8F0] my-1" />
                 <button
                   onClick={() => { if (selectedOrders.length === 0) { showToast('error', 'Select rows to export.'); return; } const rows = codOrdersList.filter(o => selectedOrders.includes(o.id)); handleExportCsv(rows, 'cod_orders.csv'); setShowAllCodActionMenu(false); }}
@@ -926,6 +951,7 @@ export function AdminCOD() {
                 <button onClick={() => { const rows = sellerRemittanceList.filter(r => selectedCodOrders.includes(r.awb)); handleExportCsv(rows, 'seller_remittances.csv'); setShowMobileSellerActionMenu(false); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] flex items-center gap-2"><Download className="w-4 h-4 text-[#00A86B]" />Export Data</button>
                 {isAdminView && <button onClick={() => { handleExportBankTemplate(); setShowMobileSellerActionMenu(false); }} disabled={bankExportLoading} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] flex items-center gap-2 disabled:opacity-60"><FileText className="w-4 h-4 text-blue-500" />{bankExportLoading ? 'Generating…' : 'Export Bank Template'}</button>}
                 {isAdminView && <button onClick={() => { handleOpenBankResponseUpload(); setShowMobileSellerActionMenu(false); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] flex items-center gap-2"><Upload className="w-4 h-4 text-orange-500" />Upload Bank Response</button>}
+                {isAdminView && <button onClick={() => { handleCancelBankExport(); setShowMobileSellerActionMenu(false); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#475569] hover:bg-[#F8FAFC] flex items-center gap-2"><XCircle className="w-4 h-4 text-red-500" />Cancel Bank Export</button>}
                 <div className="border-t border-[#E2E8F0] my-1" />
                 {isAdminView && <button onClick={() => { setShowMobileSellerActionMenu(false); handleTransferCOD('seller'); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#00A86B] hover:bg-[#F0FDF4] flex items-center gap-2"><Send className="w-4 h-4" />Transfer COD</button>}              </div>
             )}
@@ -1445,6 +1471,7 @@ export function AdminCOD() {
                     <button onClick={() => { const rows = sellerRemittanceList.filter(r => selectedCodOrders.includes(r.awb)); handleExportCsv(rows, 'seller_remittances.csv'); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A] flex items-center gap-2"><Download className="w-4 h-4 text-[#00A86B]" />Export Data</button>
                     {isAdminView && <button onClick={handleExportBankTemplate} disabled={bankExportLoading} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A] flex items-center gap-2"><FileText className="w-4 h-4 text-blue-500" />{bankExportLoading ? 'Generating…' : 'Export Bank Template'}</button>}
                     {isAdminView && <button onClick={handleOpenBankResponseUpload} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A] flex items-center gap-2"><Upload className="w-4 h-4 text-orange-500" />Upload Bank Response</button>}
+                    {isAdminView && <button onClick={handleCancelBankExport} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A] flex items-center gap-2"><XCircle className="w-4 h-4 text-red-500" />Cancel Bank Export</button>}
                     {isAdminView && <div className="border-t border-[#E2E8F0] my-1" />}
                     {isAdminView && <button onClick={() => { setShowActionMenu(false); handleTransferCOD('seller'); }} className="w-full text-left px-4 py-2.5 text-[13px] font-medium text-[#00A86B] hover:bg-[#F0FDF4] flex items-center gap-2"><Send className="w-4 h-4" />Transfer COD</button>}
                   </div>
