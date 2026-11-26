@@ -62,7 +62,8 @@ interface PermissionMatrixProps {
 }
 
 function PermissionMatrix({ accessRights, onChange, panel, grantable, salesPerson }: PermissionMatrixProps) {
-  const modules = modulesFor(panel).filter(m => !salesPerson || !SALES_NOT_GRANTABLE.includes(m.key));
+  // a sales person: never Employees / Sales Management; anyone else: no "Sales Dashboard" (it is a sales person's own panel)
+  const modules = modulesFor(panel).filter(m => (salesPerson ? !SALES_NOT_GRANTABLE.includes(m.key) : m.key !== 'sales'));
 
   const toggle = (moduleKey: string, perm: PermKey) => {
     const current = accessRights[moduleKey] || { view: false, edit: false, delete: false };
@@ -217,7 +218,7 @@ function EmployeeModal({ employee, onClose, onSaved, panel }: EmployeeModalProps
     // always, never Employees / Sales Management (the server applies the same rule).
     const formRights: AccessRights = isSales
       ? { ...Object.fromEntries(Object.entries(accessRights).filter(([k]) => !SALES_NOT_GRANTABLE.includes(k))), sales: { view: true, edit: false, delete: false } }
-      : accessRights;
+      : { ...accessRights, sales: { view: false, edit: false, delete: false } }; // operations: no Sales Dashboard (see PermissionMatrix)
     const storedRights = toStoredRights(formRights, panel);
     try {
       if (isEdit) {
@@ -243,7 +244,7 @@ function EmployeeModal({ employee, onClose, onSaved, panel }: EmployeeModalProps
     }
   };
 
-  const shownModules = modulesFor(panel).filter(m => !isSales || !SALES_NOT_GRANTABLE.includes(m.key));
+  const shownModules = modulesFor(panel).filter(m => (isSales ? !SALES_NOT_GRANTABLE.includes(m.key) : m.key !== 'sales'));
   const granted = shownModules.filter(m => (isSales && m.key === 'sales') || accessRights[m.key]?.view).length;
   const total = shownModules.length;
   const fieldCls = 'w-full h-10 pl-10 pr-4 bg-white border border-[#E2E8F0] rounded-full text-[13px] font-medium text-[#0F172A] placeholder:text-[#94A3B8] placeholder:font-normal focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B] transition-colors disabled:bg-[#F8FAFC] disabled:text-[#94A3B8]';

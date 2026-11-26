@@ -101,6 +101,8 @@ export interface ReferredSeller {
   onboardingStatus: 'registered' | 'in_progress' | 'completed';
   firstOrderAt?: string;
   totalOrders: number;
+  /** The seller's first successful wallet recharge (null = not recharged yet) */
+  firstRecharge?: { amount: number; at: string } | null;
   lastOrderAt?: string;
   active: boolean;
   rate?: SellerRate | null;
@@ -119,6 +121,15 @@ export interface SalesOverview {
   followUpList?: SalesCall[];
   /** Seller funnel counts for the range, stage by stage. */
   funnel?: Partial<Record<FunnelStage, number>>;
+  /** First recharge of each referred seller: totals (all time), the ones in the selected period, latest first */
+  firstRecharges?: {
+    sellers: number;
+    recharged: number;
+    total: number;
+    average: number;
+    inPeriod: { count: number; total: number };
+    latest: { _id: string; name: string; businessName?: string; amount: number; at: string }[];
+  };
 }
 
 export type FunnelStage = 'leads' | 'called' | 'connected' | 'interested' | 'kyc' | 'onboarded' | 'firstShipment' | 'repeat';
