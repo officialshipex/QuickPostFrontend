@@ -10,6 +10,7 @@ import {
 import { AddressAccuracyGauge } from '../../ui/AddressAccuracy';
 import { copyToClipboard } from '../../../utils/clipboard';
 import { orderReferenceOf } from '../../../utils/customerOrderId';
+import { OrderRefId } from '../../ui/OrderRefId';
 import type { DiscrepancyData, OrderData, TrackingEntry } from '../../../pages/admin/AdminOrderTracking';
 
 /* Mobile order-details layout. Pure presentation: all data, handlers and modals
@@ -190,7 +191,7 @@ export function OrderDetailsMobile(p: OrderDetailsMobileProps) {
           </p>
           <div className="flex items-center gap-2 mt-2.5 flex-wrap">
             <span className="inline-flex items-center h-6 px-2.5 rounded-md bg-[#F0FDF4] text-[#009B63] text-[11.5px] font-semibold">
-              {(order?.channel || 'CUSTOM').toUpperCase()}{orderReferenceOf(order) ? ` · ${orderReferenceOf(order)}` : ''}
+              {(order?.channel || 'CUSTOM').toUpperCase()}{orderReferenceOf(order) ? <>&nbsp;·&nbsp;<OrderRefId value={orderReferenceOf(order)} max={14} /></> : ''}
             </span>
             {hasAwb && (
               <span className="inline-flex items-center gap-1 h-6 px-2.5 rounded-md bg-[#F8FAFC] text-[#475569] text-[11.5px] font-medium">

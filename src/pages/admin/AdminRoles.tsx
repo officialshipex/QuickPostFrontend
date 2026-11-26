@@ -42,6 +42,8 @@ interface Employee {
   createdAt: string;
   /** Admin-panel employees: 'sales' gets the Sales Dashboard */
   team?: 'operations' | 'sales';
+  /** Support tickets: 'desk' sees every ticket (default), 'tech' only the tickets moved to the Tech team */
+  supportRole?: 'desk' | 'tech';
   /** Sales people: the code sellers register with */
   referralCode?: string;
 }
@@ -170,6 +172,7 @@ function EmployeeModal({ employee, onClose, onSaved, panel }: EmployeeModalProps
   const [contactNumber, setContact] = useState(employee?.contactNumber || '');
   const [role, setRole]             = useState(employee?.role || '');
   const [team, setTeam]             = useState<'operations' | 'sales'>(employee?.team || 'operations');
+  const [supportRole, setSupportRole] = useState<'desk' | 'tech'>(employee?.supportRole === 'tech' ? 'tech' : 'desk');
   const [password, setPassword]     = useState('');
   // Sales hires: offer letter details (editable later in Sales Management) and whether to email the login
   const [joiningDate, setJoiningDate] = useState('');
@@ -222,7 +225,7 @@ function EmployeeModal({ employee, onClose, onSaved, panel }: EmployeeModalProps
     const storedRights = toStoredRights(formRights, panel);
     try {
       if (isEdit) {
-        const body: any = { fullName: fullName.trim(), contactNumber: contactNumber.trim(), role: role.trim(), accessRights: storedRights, mode: panel, ...(isAdminView ? { team } : {}), ...(isSales ? { salesOffer } : {}) };
+        const body: any = { fullName: fullName.trim(), contactNumber: contactNumber.trim(), role: role.trim(), accessRights: storedRights, mode: panel, ...(isAdminView ? { team, supportRole: isSales ? 'desk' : supportRole } : {}), ...(isSales ? { salesOffer } : {}) };
         if (password) body.password = password;
         const res = await apiClient.put(`/staffRole/updateRole/${employee!._id}`, body);
         onSaved(res.data.updatedRole);
@@ -230,7 +233,7 @@ function EmployeeModal({ employee, onClose, onSaved, panel }: EmployeeModalProps
         // `mode` tells the server which panel's employee this is (an admin works in both panels)
         const res = await apiClient.post('/staffRole/createRole', {
           fullName: fullName.trim(), email: email.trim(), contactNumber: contactNumber.trim(),
-          password, role: role.trim(), accessRights: storedRights, mode: panel, ...(isAdminView ? { team } : {}),
+          password, role: role.trim(), accessRights: storedRights, mode: panel, ...(isAdminView ? { team, supportRole: isSales ? 'desk' : supportRole } : {}),
           ...(isSales ? { salesOffer, sendCredentials, loginUrl: `${window.location.origin}/employee-login` } : {}),
         });
         const user = res.data.data.user;
@@ -347,6 +350,27 @@ function EmployeeModal({ employee, onClose, onSaved, panel }: EmployeeModalProps
                         );
                       })}
                     </div>
+                  </div>
+                )}
+                {isAdminView && !isSales && (
+                  <div className="sm:col-span-2">
+                    <label className={labelCls}>Support tickets</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {([
+                        { key: 'desk', title: 'Support desk', hint: 'Sees every ticket and moves the technical ones to the Tech team' },
+                        { key: 'tech', title: 'Tech team', hint: 'Sees only the tickets moved to Tech, replies to the seller, sends them back' },
+                      ] as const).map(t => {
+                        const on = supportRole === t.key;
+                        return (
+                          <button key={t.key} type="button" role="radio" aria-checked={on} onClick={() => setSupportRole(t.key)}
+                            className={`text-left rounded-xl border px-3.5 py-2.5 transition-colors ${on ? 'border-[#00A86B] bg-[#F0FDF4]' : 'border-[#E2E8F0] hover:border-[#CBD5E1]'}`}>
+                            <div className={`text-[13px] font-semibold ${on ? 'text-[#00A86B]' : 'text-[#0F172A]'}`}>{t.title}</div>
+                            <div className="text-[11.5px] text-[#64748B] mt-0.5">{t.hint}</div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <p className="text-[11.5px] text-[#94A3B8] mt-1.5">Tick Support Tickets (View + Edit) below so they can open the Support page.</p>
                   </div>
                 )}
                 {isSales && (
@@ -726,7 +750,7 @@ export function AdminRoles() {
                               <span className="inline-flex items-center gap-1.5 max-w-full px-2.5 py-0.5 min-h-6 bg-[#F8FAFC] border border-[#EEF2F6] rounded-full text-[11.5px] font-medium text-[#334155] break-words">
                                 <Briefcase className="w-3 h-3 text-[#94A3B8] shrink-0" />{emp.role}
                               </span>
-                              {emp.team === 'sales' && <span className="px-1.5 py-px rounded-md bg-[#F0FDF4] text-[#00A86B] text-[10px] font-bold uppercase tracking-wider">Sales</span>}
+                              {emp.team === 'sales' && <span className="px-1.5 py-px rounded-md bg-[#F0FDF4] text-[#00A86B] text-[10px] font-bold uppercase tracking-wider">Sales</span>}{emp.supportRole === 'tech' && <span className="px-1.5 py-px rounded-md bg-violet-50 text-violet-700 text-[10px] font-bold uppercase tracking-wider">Tech</span>}
                               <span className="px-1.5 py-px rounded-md bg-[#F1F5F9] text-[#64748B] text-[10.5px] font-mono">ID {emp.employeeId}</span>
                               {emp.team === 'sales' && emp.referralCode && <span className="text-[11px] text-[#94A3B8]">Code <span className="font-mono font-semibold text-[#475569]">{emp.referralCode}</span></span>}
                             </div>
@@ -819,7 +843,7 @@ export function AdminRoles() {
                           <td className="py-3 px-4">
                             <span className="inline-flex items-center gap-1.5 px-2.5 h-7 bg-[#F8FAFC] border border-[#EEF2F6] rounded-full text-[12px] font-medium text-[#334155]">
                               <Briefcase className="w-3 h-3 text-[#94A3B8]" />{emp.role}
-                              {emp.team === 'sales' && <span className="ml-1 px-1.5 py-px rounded-md bg-[#F0FDF4] text-[#00A86B] text-[10px] font-bold uppercase tracking-wider">Sales</span>}
+                              {emp.team === 'sales' && <span className="ml-1 px-1.5 py-px rounded-md bg-[#F0FDF4] text-[#00A86B] text-[10px] font-bold uppercase tracking-wider">Sales</span>}{emp.supportRole === 'tech' && <span className="ml-1 px-1.5 py-px rounded-md bg-violet-50 text-violet-700 text-[10px] font-bold uppercase tracking-wider">Tech</span>}
                             </span>
                             {emp.team === 'sales' && emp.referralCode && <div className="text-[11px] text-[#94A3B8] mt-1 pl-1">Code <span className="font-mono font-semibold text-[#475569]">{emp.referralCode}</span></div>}
                           </td>

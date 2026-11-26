@@ -1,3 +1,4 @@
+import { OrderRefId } from '../../components/ui/OrderRefId';
 /* QuickPost Cargo (admin) — CRM · Shipments. Same UI as the B2C page (pages/admin/CRMShipmentListing.tsx), kept as a
    separate file so Cargo can diverge. Reads the CRM shipments API pinned to B2B orders
    (orderType=B2B), so Cargo never lists B2C shipments. */
@@ -914,7 +915,7 @@ export function CargoCRMShipmentListing() {
                           <span className="px-2 py-0.5 rounded-full border border-blue-200 text-[#004AAD] font-semibold text-[10px] leading-4 bg-blue-50/50 inline-block uppercase w-fit shrink-0">
                             {row.channel === 'WooCommerce' ? 'Woo' : (row.channel || 'API')}
                           </span>
-                          {row.orderRef && <span className="text-[11px] leading-4 font-normal text-[#64748B] truncate max-w-[140px]" title={`Customer order ID: ${row.orderRef}`}>({row.orderRef})</span>}
+                          {row.orderRef && <OrderRefId value={row.orderRef} brackets className="text-[11px] leading-4 font-normal text-[#64748B]" />}
                         </div>
                       </div>
                     </td>

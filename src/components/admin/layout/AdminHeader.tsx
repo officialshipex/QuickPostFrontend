@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Search, LogOut, Bell, User, Building2, Calendar, ChevronDown, Shield, Zap, Calculator, PackagePlus, Wallet, Check, X, Menu, Upload, Users, Package, UploadCloud, Loader2, TicketPlus, PhoneCall } from 'lucide-react';
 import { CallbackRequestModal } from './CallbackRequestModal';
+import { OrderRefId } from '../../ui/OrderRefId';
 import { useAuth } from '../../../hooks/useAuth';
 import { ModeSwitch } from './ModeSwitch';
 import { AdminCargoSwitch } from './AdminCargoSwitch';
@@ -474,7 +475,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
           ? <>Child AWB: <span className="font-mono font-semibold text-[#00A86B]">{matchedKid}</span></>
           : kids.length > 0 && <span className="font-mono">+{kids.length} child AWB{kids.length > 1 ? 's' : ''}</span>}
         {(matchedKid || kids.length > 0) && o.clientOrderId ? ' · ' : ''}
-        {o.clientOrderId && <>Customer Order ID: <span className="font-semibold text-[#475569]">{o.clientOrderId}</span></>}
+        {o.clientOrderId && <>Customer Order ID: <OrderRefId value={o.clientOrderId} max={16} className="font-semibold text-[#475569]" iconSize={10} /></>}
       </p>
     );
   };

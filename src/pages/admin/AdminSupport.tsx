@@ -7,7 +7,7 @@ import { useTableLoader } from '../../hooks/useTableLoader';
 import {
   Search, RefreshCcw, User, Package, FileText, Calendar, X,
   MessageSquare, CheckCircle2, Tag, ArrowUpDown, Send, Plus,
-  Filter, MoreHorizontal,
+  Filter, MoreHorizontal, Wrench, Headphones, StickyNote, ArrowLeftRight,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
@@ -22,7 +22,8 @@ import { StatusRibbon } from '../../components/ui/StatusRibbon';
 import { apiClient } from '../../services/apiClient';
 import {
   getAllTickets, getUserTickets, viewTicket, replyToTicket, closeTicket, createTicket,
-  type Ticket
+  transferTicket, addInternalNote, teamOf, TEAM_LABEL,
+  type Ticket, type SupportTeam
 } from '../../services/api/supportService';
 
 // ─── Status helpers ───────────────────────────────────────────────────────────
@@ -324,8 +325,16 @@ export function AdminSupport() {
   const navigate = useNavigate();
   const location = useLocation();
   const { tabSlug } = useParams<{ tabSlug?: string }>();
-  const { isAdmin, adminTab } = useAdminTab();
+  const { isAdmin, adminTab, isTechSupport } = useAdminTab();
   const isAdminView = isAdmin && adminTab;
+  // Team queues (staff only): the support desk / admin can show one team; the tech team only ever gets Tech tickets
+  const [teamFilter, setTeamFilter] = useState<'all' | SupportTeam>('all');
+  // Staff panel in the ticket drawer: move to the other team (with a note), staff-only notes
+  const [showTransfer, setShowTransfer] = useState(false);
+  const [transferNote, setTransferNote] = useState('');
+  const [noteText, setNoteText] = useState('');
+  const [staffBusy, setStaffBusy] = useState<'' | 'transfer' | 'note'>('');
+  const [staffError, setStaffError] = useState('');
 
   const persisted = loadPersistedFilters();
 
@@ -437,6 +446,9 @@ export function AdminSupport() {
       // Tab filter
       if (activeTab !== 'All' && statusTab(ticket.status) !== activeTab) return false;
 
+      // Team queue (staff)
+      if (isAdminView && teamFilter !== 'all' && teamOf(ticket) !== teamFilter) return false;
+
       // Local search (ticket number, AWB, name, email)
       if (searchTerm) {
         const q = searchTerm.toLowerCase();
@@ -490,7 +502,13 @@ export function AdminSupport() {
     }
 
     return result;
-  }, [tickets, activeTab, searchTerm, globalSearchQuery, selectedSubcategories, selectedStatuses, dateStart, dateEnd, selectedSort]);
+  }, [tickets, activeTab, teamFilter, isAdminView, searchTerm, globalSearchQuery, selectedSubcategories, selectedStatuses, dateStart, dateEnd, selectedSort]);
+
+  // Open (not closed) tickets in each team's queue, for the team switch
+  const teamCounts = useMemo(() => {
+    const open = tickets.filter(t => t.status !== 'closed' && t.status !== 'resolved');
+    return { support: open.filter(t => teamOf(t) === 'support').length, tech: open.filter(t => teamOf(t) === 'tech').length };
+  }, [tickets]);
 
   const {
     page: currentPage,
@@ -507,6 +525,7 @@ export function AdminSupport() {
   const handleViewTicket = async (ticket: Ticket) => {
     setSelectedTicket(ticket);
     setReplyText('');
+    setShowTransfer(false); setTransferNote(''); setNoteText(''); setStaffError('');
     if (isAdminView && (ticket.status === 'new' || ticket.status === 'active')) {
       try {
         const updated = await viewTicket(ticket._id);
@@ -522,13 +541,52 @@ export function AdminSupport() {
     setReplying(true);
     try {
       const role = isAdminView ? 'admin' : 'user';
-      const name = isAdminView ? 'Support Team' : selectedTicket.fullname;
+      const name = isAdminView ? (isTechSupport ? 'Technical Team' : 'Support Team') : selectedTicket.fullname;
       const updated = await replyToTicket(selectedTicket._id, replyText.trim(), role, name);
       setTickets(prev => prev.map(t => t._id === updated._id ? updated : t));
       setSelectedTicket(updated);
       setReplyText('');
     } catch { /* silent */ }
     setReplying(false);
+  };
+
+  // A ticket changed by a staff action: refreshed in the list; one the tech team just sent back to Support leaves
+  // their list (they no longer see it)
+  const applyStaffUpdate = (updated: Ticket) => {
+    if (isTechSupport && teamOf(updated) !== 'tech') {
+      setTickets(prev => prev.filter(t => t._id !== updated._id));
+      setSelectedTicket(null);
+      return;
+    }
+    setTickets(prev => prev.map(t => t._id === updated._id ? updated : t));
+    setSelectedTicket(updated);
+  };
+
+  // Move the open ticket to the other team's queue, with a note for that team
+  const handleTransfer = async () => {
+    if (!selectedTicket) return;
+    const to: SupportTeam = teamOf(selectedTicket) === 'tech' ? 'support' : 'tech';
+    if (transferNote.trim().length < 5) { setStaffError('Write a short note for the other team (what is the issue / what was done).'); return; }
+    setStaffBusy('transfer'); setStaffError('');
+    try {
+      const updated = await transferTicket(selectedTicket._id, to, transferNote.trim());
+      setShowTransfer(false); setTransferNote('');
+      applyStaffUpdate(updated);
+    } catch (err: any) {
+      setStaffError(err?.response?.data?.message || 'Could not move the ticket');
+    } finally { setStaffBusy(''); }
+  };
+
+  const handleAddNote = async () => {
+    if (!selectedTicket || !noteText.trim()) return;
+    setStaffBusy('note'); setStaffError('');
+    try {
+      const updated = await addInternalNote(selectedTicket._id, noteText.trim());
+      setNoteText('');
+      applyStaffUpdate(updated);
+    } catch (err: any) {
+      setStaffError(err?.response?.data?.message || 'Could not add the note');
+    } finally { setStaffBusy(''); }
   };
 
   // Close ticket
@@ -616,6 +674,18 @@ export function AdminSupport() {
               </div>
             </div>
             <div className="hidden md:flex items-center gap-3 shrink-0 ml-4">
+              {isAdminView && (isTechSupport ? (
+                <span className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-violet-50 text-violet-700 text-[12px] font-bold"><Wrench className="w-3.5 h-3.5" />Tech queue</span>
+              ) : (
+                <div className="flex items-center gap-1 bg-[#F1F5F9] rounded-full p-1">
+                  {([['all', 'All teams'], ['support', `Support · ${teamCounts.support}`], ['tech', `Tech · ${teamCounts.tech}`]] as ['all' | SupportTeam, string][]).map(([k, label]) => (
+                    <button key={k} onClick={() => { setTeamFilter(k); setCurrentPage(1); }}
+                      className={`h-7 px-3 rounded-full text-[12px] font-semibold whitespace-nowrap transition-colors ${teamFilter === k ? (k === 'tech' ? 'bg-violet-600 text-white' : 'bg-white text-[#0F172A] shadow-sm') : 'text-[#64748B] hover:text-[#0F172A]'}`}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              ))}
               <button
                 onClick={fetchTickets}
                 className={`w-8 h-8 rounded-full border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC] ${loading ? 'animate-spin' : ''}`}
@@ -743,6 +813,9 @@ export function AdminSupport() {
                           <span className={`px-2.5 py-0.5 rounded-full border text-[10px] font-semibold uppercase tracking-wider whitespace-nowrap shadow-sm ${STATUS_BADGE[ticket.status] || 'bg-slate-50 text-slate-600 border-slate-200'}`}>
                             {STATUS_LABEL[ticket.status] || ticket.status}
                           </span>
+                          {isAdminView && teamOf(ticket) === 'tech' && (
+                            <div className="mt-1"><span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-violet-50 text-violet-700 text-[10px] font-bold"><Wrench className="w-3 h-3" />Tech</span></div>
+                          )}
                         </td>
                         <td className="p-3 align-top">
                           <span className="flex items-center gap-1 text-[12px] font-normal text-[#64748B]">
@@ -827,6 +900,9 @@ export function AdminSupport() {
                       />
                     </div>
 
+                    {isAdminView && teamOf(ticket) === 'tech' && (
+                      <div className="mb-1"><span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-violet-50 text-violet-700 text-[10px] font-bold"><Wrench className="w-3 h-3" />With Tech team</span></div>
+                    )}
                     <div className="text-[12px] font-normal text-[#94A3B8] mb-0.5">
                       Resolution Due By: {formatDate(new Date(new Date(ticket.createdAt).getTime() + 24 * 60 * 60 * 1000).toISOString())}
                     </div>
@@ -1009,6 +1085,11 @@ export function AdminSupport() {
                   <span className={`px-2.5 py-0.5 rounded-full border text-[10px] font-bold ${STATUS_BADGE[selectedTicket.status] || ''}`}>
                     {STATUS_LABEL[selectedTicket.status] || selectedTicket.status}
                   </span>
+                  {isAdminView && (
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${teamOf(selectedTicket) === 'tech' ? 'bg-violet-50 text-violet-700' : 'bg-sky-50 text-sky-700'}`}>
+                      {teamOf(selectedTicket) === 'tech' ? <Wrench className="w-3 h-3" /> : <Headphones className="w-3 h-3" />}{TEAM_LABEL[teamOf(selectedTicket)]}
+                    </span>
+                  )}
                 </div>
                 <p className="text-[11px] text-[#64748B]">Raised by {selectedTicket.fullname} · {formatDate(selectedTicket.createdAt)}</p>
               </div>
@@ -1062,6 +1143,58 @@ export function AdminSupport() {
                   ))}
                 </div>
               </div>
+
+              {/* Staff only: team queue, move to the other team, internal notes (the seller never sees this part) */}
+              {isAdminView && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50/40 p-4 space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <h4 className="text-xs font-bold text-amber-800 uppercase tracking-wide flex items-center gap-1.5"><StickyNote className="w-3.5 h-3.5" />Internal · only staff see this</h4>
+                    {selectedTicket.status !== 'closed' && selectedTicket.status !== 'resolved' && !showTransfer && (
+                      <button onClick={() => { setShowTransfer(true); setStaffError(''); }}
+                        className={`h-8 px-3 rounded-lg text-[11px] font-bold inline-flex items-center gap-1.5 ${teamOf(selectedTicket) === 'tech' ? 'border border-sky-200 bg-white text-sky-700 hover:bg-sky-50' : 'bg-violet-600 text-white hover:bg-violet-700'}`}>
+                        <ArrowLeftRight className="w-3.5 h-3.5" />{teamOf(selectedTicket) === 'tech' ? 'Send back to Support' : 'Transfer to Tech'}
+                      </button>
+                    )}
+                  </div>
+
+                  {showTransfer && (
+                    <div className="space-y-2">
+                      <textarea value={transferNote} onChange={e => setTransferNote(e.target.value)} autoFocus
+                        placeholder={teamOf(selectedTicket) === 'tech' ? 'What was done? e.g. "Fixed the webhook, please confirm with the seller and close"' : 'What should Tech check? e.g. "Shopify orders not syncing since 24 Nov, API key looks fine"'}
+                        className="w-full h-20 p-3 rounded-xl border border-amber-200 bg-white text-xs focus:outline-none focus:ring-2 focus:ring-amber-200 resize-none" />
+                      <p className="text-[11px] text-amber-800">{teamOf(selectedTicket) === 'tech' ? 'The ticket goes back to the Support queue.' : 'The tech team gets an email, and the seller is told the technical team is looking into it.'}</p>
+                      <div className="flex gap-2">
+                        <button onClick={handleTransfer} disabled={staffBusy === 'transfer'}
+                          className="h-8 px-3 rounded-lg bg-[#0F172A] text-white text-[11px] font-bold disabled:opacity-50">{staffBusy === 'transfer' ? 'Moving…' : teamOf(selectedTicket) === 'tech' ? 'Send to Support' : 'Send to Tech'}</button>
+                        <button onClick={() => { setShowTransfer(false); setTransferNote(''); setStaffError(''); }} className="h-8 px-3 rounded-lg border border-[#E2E8F0] bg-white text-[11px] font-semibold text-[#475569]">Cancel</button>
+                      </div>
+                    </div>
+                  )}
+
+                  {(selectedTicket.internalNotes || []).length > 0 && (
+                    <ul className="space-y-2">
+                      {(selectedTicket.internalNotes || []).map((n, i) => (
+                        <li key={i} className="rounded-lg bg-white border border-amber-100 p-3">
+                          <div className="flex items-center gap-2 mb-1 text-[10px]">
+                            <span className="font-bold text-amber-800">{n.kind === 'transfer' ? `${n.byName || 'Staff'} moved it ${n.fromTeam ? TEAM_LABEL[n.fromTeam] : ''} → ${n.toTeam ? TEAM_LABEL[n.toTeam] : ''}` : `${n.byName || 'Staff'} · note`}</span>
+                            <span className="text-[#94A3B8]">{formatDate(n.at)}</span>
+                          </div>
+                          <p className="text-xs text-[#475569] whitespace-pre-wrap">{n.note}</p>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+
+                  <div className="flex gap-2">
+                    <input value={noteText} onChange={e => setNoteText(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') handleAddNote(); }}
+                      placeholder="Add a note for the team…"
+                      className="flex-1 h-8 px-3 rounded-lg border border-amber-200 bg-white text-xs focus:outline-none focus:ring-2 focus:ring-amber-200" />
+                    <button onClick={handleAddNote} disabled={staffBusy === 'note' || !noteText.trim()}
+                      className="h-8 px-3 rounded-lg border border-amber-300 bg-white text-amber-800 text-[11px] font-bold disabled:opacity-50">{staffBusy === 'note' ? 'Adding…' : 'Add note'}</button>
+                  </div>
+                  {staffError && <p className="text-[11px] font-semibold text-red-600">{staffError}</p>}
+                </div>
+              )}
 
               {/* Reply box — hidden if closed */}
               {selectedTicket.status !== 'closed' && selectedTicket.status !== 'resolved' && (

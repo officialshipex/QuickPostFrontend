@@ -15,6 +15,7 @@ import { Toast } from '../../components/ui/Toast';
 import { useToast } from '../../hooks/useToast';
 import { copyToClipboard } from '../../utils/clipboard';
 import { orderReferenceOf } from '../../utils/customerOrderId';
+import { OrderRefId } from '../../components/ui/OrderRefId';
 import { b2bBreakupRows, b2bIfApplicable, type B2BWorking } from '../../utils/b2bPriceBreakup';
 import { AddressAccuracyGauge } from '../../components/ui/AddressAccuracy';
 
@@ -947,7 +948,7 @@ export function AdminOrderTracking() {
                   <label className="block text-[12px] leading-[18px] font-medium text-[#94A3B8] uppercase tracking-wider">Channel</label>
                   <div className="mt-1">
                     <span className="bg-[#F0FDF4] text-[#009B63] text-[12px] leading-[18px] font-normal px-2.5 py-0.5 rounded">
-                      {(order?.channel || 'CUSTOM').toUpperCase()}{orderReferenceOf(order) ? ` (${orderReferenceOf(order)})` : ''}
+                      {(order?.channel || 'CUSTOM').toUpperCase()}{orderReferenceOf(order) ? <>{' '}<OrderRefId value={orderReferenceOf(order)} max={16} brackets /></> : ''}
                     </span>
                   </div>
                 </div>

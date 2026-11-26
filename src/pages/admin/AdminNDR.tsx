@@ -1,3 +1,4 @@
+import { OrderRefId } from '../../components/ui/OrderRefId';
 import { customerOrderIdOf, orderReferenceOf } from '../../utils/customerOrderId';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
@@ -813,7 +814,7 @@ export function AdminNDR() {
                           <span className="px-2 py-0.5 rounded-full border border-blue-200 text-blue-600 font-semibold text-[10px] bg-blue-50/50 inline-block shrink-0">
                             {order.channel}
                           </span>
-                          {order.orderRef && <span className="text-[11px] leading-4 font-normal text-[#64748B] truncate max-w-[140px]" title={`Customer order ID: ${order.orderRef}`}>({order.orderRef})</span>}
+                          {order.orderRef && <OrderRefId value={order.orderRef} brackets className="text-[11px] leading-4 font-normal text-[#64748B]" />}
                         </div>
                       </td>
 

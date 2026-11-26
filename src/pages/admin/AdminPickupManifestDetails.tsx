@@ -1,3 +1,4 @@
+import { OrderRefId } from '../../components/ui/OrderRefId';
 import { customerOrderIdOf, orderReferenceOf } from '../../utils/customerOrderId';
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
@@ -479,7 +480,7 @@ export function AdminPickupManifestDetails() {
                             <span className="px-2 py-0.5 rounded-full border border-blue-200 text-[#004AAD] font-semibold text-[10px] leading-4 bg-blue-50/50 inline-block uppercase w-fit shrink-0">
                               {o.channel === 'WooCommerce' ? 'Woo' : (o.channel || 'CUSTOM')}
                             </span>
-                            {o.orderRef && <span className="text-[11px] leading-4 font-normal text-[#64748B] truncate max-w-[140px]" title={`Customer order ID: ${o.orderRef}`}>({o.orderRef})</span>}
+                            {o.orderRef && <OrderRefId value={o.orderRef} brackets className="text-[11px] leading-4 font-normal text-[#64748B]" />}
                           </div>
                         </div>
                       </td>

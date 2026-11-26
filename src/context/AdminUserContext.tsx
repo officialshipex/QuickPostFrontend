@@ -37,6 +37,8 @@ interface AdminTabContextType {
   isSalesEmployee: boolean;
   /** A sales person also given admin-panel modules (Orders, NDR, …): those open next to their Sales Dashboard. */
   salesHasAdminAccess: boolean;
+  /** Admin-panel employee on the support Tech team: sees only the tickets Support moved to Tech. */
+  isTechSupport: boolean;
   parentEmail: string;
   showOnboarding: boolean;
   setShowOnboarding: (value: boolean) => void;
@@ -66,6 +68,7 @@ const AdminTabContext = createContext<AdminTabContextType>({
   employeeRightsLoaded: false,
   isSalesEmployee: false,
   salesHasAdminAccess: false,
+  isTechSupport: false,
   parentEmail: '',
   showOnboarding: false,
   setShowOnboarding: () => {},
@@ -111,6 +114,7 @@ export function AdminUserProvider({ children }: { children: ReactNode }) {
   const [employeeAccessRights, setEmployeeAccessRights] = useState<Record<string, EmployeeAccessRights>>({});
   const [employeeRightsLoaded, setEmployeeRightsLoaded] = useState(false);
   const [employeeTeam, setEmployeeTeam] = useState('');
+  const [employeeSupportRole, setEmployeeSupportRole] = useState('');
   const [parentEmail, setParentEmail] = useState('');
   const [showOnboarding, setShowOnboarding] = useState(false);
 
@@ -132,6 +136,7 @@ export function AdminUserProvider({ children }: { children: ReactNode }) {
         if (employee) {
           setEmployeeAccessRights(employee.accessRights || {});
           setEmployeeTeam(employee.team || '');
+          setEmployeeSupportRole(employee.supportRole || '');
           setUserName(employee.fullName || '');
           setUserEmail(employee.email || '');
           setParentEmail(parentUser?.email || '');
@@ -199,6 +204,7 @@ export function AdminUserProvider({ children }: { children: ReactNode }) {
       // unless they were also given admin-panel modules: salesHasAdminAccess).
       isSalesEmployee: isEmployee && employeeTeam === 'sales',
       salesHasAdminAccess: isEmployee && employeeTeam === 'sales' && hasAccessBeyondSales(employeeAccessRights),
+      isTechSupport: isEmployee && employeeSupportRole === 'tech',
       showOnboarding, setShowOnboarding,
       toggleAdminTab,
       refetchUser: fetchAdminTab,

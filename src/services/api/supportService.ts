@@ -26,6 +26,23 @@ export interface Ticket {
   messages: TicketMessage[];
   createdAt: string;
   lastRepliedAt?: string;
+  /** Queue the ticket is in (absent on tickets made before teams existed = support) */
+  team?: SupportTeam;
+  /** Staff-only notes (transfers between teams, notes) — the server never sends them to the seller */
+  internalNotes?: TicketInternalNote[];
+}
+
+export type SupportTeam = 'support' | 'tech';
+export const TEAM_LABEL: Record<SupportTeam, string> = { support: 'Support', tech: 'Tech' };
+export const teamOf = (t: Pick<Ticket, 'team'>): SupportTeam => (t.team === 'tech' ? 'tech' : 'support');
+
+export interface TicketInternalNote {
+  kind: 'transfer' | 'note';
+  fromTeam?: SupportTeam;
+  toTeam?: SupportTeam;
+  note: string;
+  byName?: string;
+  at: string;
 }
 
 export const getAllTickets = async (): Promise<Ticket[]> => {
@@ -54,6 +71,18 @@ export const replyToTicket = async (
     senderRole,
     senderName,
   });
+  return data.ticket;
+};
+
+/** Staff: move a ticket to the other team's queue, with a note for that team */
+export const transferTicket = async (id: string, team: SupportTeam, note: string): Promise<Ticket> => {
+  const { data } = await apiClient.put(`/support/${id}/transfer`, { team, note });
+  return data.ticket;
+};
+
+/** Staff: a note only the support and tech teams see */
+export const addInternalNote = async (id: string, note: string): Promise<Ticket> => {
+  const { data } = await apiClient.post(`/support/${id}/notes`, { note });
   return data.ticket;
 };
 

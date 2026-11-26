@@ -636,11 +636,11 @@ export function AdminAddOrder() {
     }
     if (!paymentMode) e.paymentMode = 'Select payment mode';
     if (totalOrderValue >= 50000 && !ewaybill.trim()) e.ewaybill = 'E-Waybill is required for orders ≥ ₹50,000';
-    // Customer Order ID (optional): no spaces, max 10 characters, must include a number (duplicates: server)
+    // Customer Order ID (optional): no spaces, max 100 characters, must include a number (duplicates: server)
     const coid = customerOrderId.trim();
     if (coid && coid !== savedCustomerOrderId) {
       if (/\s/.test(coid)) e.customerOrderId = 'No spaces allowed';
-      else if (coid.length > 10) e.customerOrderId = 'Maximum 10 characters';
+      else if (coid.length > 100) e.customerOrderId = 'Maximum 100 characters';
       else if (!/\d/.test(coid)) e.customerOrderId = 'Must include at least one number';
     }
     setErrors(e);
@@ -1397,11 +1397,11 @@ export function AdminAddOrder() {
                   </label>
                   <input type="text" value={customerOrderId}
                     onChange={e => setCustomerOrderId(e.target.value.replace(/\s/g, ''))}
-                    maxLength={customerOrderId === savedCustomerOrderId && savedCustomerOrderId.length > 10 ? 100 : 10}
+                    maxLength={100}
                     placeholder="e.g. ORD-1001" className={fieldCls(errors.customerOrderId)} />
                   {errors.customerOrderId
                     ? <p className="text-[11px] text-red-500 mt-1">{errors.customerOrderId}</p>
-                    : <p className="text-[11px] text-[#94A3B8] mt-1">Max 10 characters, no spaces, must include a number</p>}
+                    : <p className="text-[11px] text-[#94A3B8] mt-1">Max 100 characters, no spaces, must include a number</p>}
                 </div>
                 <div>
                   <label className="block text-[12px] font-bold text-[#64748B] mb-1.5">Reseller Name</label>
