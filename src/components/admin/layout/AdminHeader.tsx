@@ -310,6 +310,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
   // Deliberately separate from isSetupPage/isKycPage so it doesn't also hide
   // Quick Actions or the global search, which should stay available everywhere.
   const isDateFilterHiddenPage = [
+    '/admin/dashboard', '/user/dashboard', // the dashboard has its own filter bar
     '/admin/orders', '/user/orders',
     '/admin/tracking', '/user/tracking',
     '/admin/ndr', '/user/ndr',

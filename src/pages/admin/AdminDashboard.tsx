@@ -17,12 +17,17 @@ import { ShipmentsTab } from '../../components/admin/dashboard/ShipmentsTab';
 import { SummaryTab } from '../../components/admin/dashboard/SummaryTab';
 import { DashboardSkeleton, DashboardPageSkeleton } from '../../components/admin/dashboard/DashboardSkeleton';
 import { useSkeletonReveal } from '../../hooks/useSkeletonReveal';
+import { ShipmentOverviewTitle } from '../../components/admin/dashboard/ShipmentOverviewTitle';
+import { DashboardToolbar } from '../../components/admin/dashboard/DashboardToolbar';
+import { AdvancedDashboard } from '../../components/admin/dashboard/AdvancedDashboard';
+import { clearOverviewCache } from '../../hooks/useOverviewRange';
 import { CardLinksContext, useCardLinks } from '../../components/admin/dashboard/cardLinks';
 import {
   RefreshCcw, Package, IndianRupee, Users, CreditCard, Search, X,
   ShoppingCart, Clock, AlertTriangle, CheckCircle2, RotateCcw,
   ShieldAlert, Truck, FileText, ArrowRight, Percent,
   LayoutDashboard, ShoppingBag, PackageCheck, ClipboardList,
+  Scale, Wallet, Landmark,
 } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -226,6 +231,13 @@ export function AdminDashboard() {
   };
 
   const { isLoading: loading, setIsLoading: setLoading } = useTableLoader(0);
+  const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
+  // Advanced (month-scoped) dashboard; remembered per browser
+  const [advanced, setAdvanced] = useState(() => { try { return localStorage.getItem('qp_dash_advanced') === '1'; } catch { return false; } });
+  const [refreshKey, setRefreshKey] = useState(0);
+  const toggleAdvanced = () => setAdvanced(v => { const nv = !v; try { localStorage.setItem('qp_dash_advanced', nv ? '1' : '0'); } catch { /* ignore */ } return nv; });
+  // Standard ⇄ Advanced: hold a skeleton of the target view for 2 s, then fade it in.
+  const { showSkeleton: switching } = useSkeletonReveal(advanced ? 'advanced' : 'standard', false, 2000, 2000);
   // Shimmer templates on first load and on every tab switch (1–1.8 s) — see hooks/useSkeletonReveal.
   const { showSkeleton } = useSkeletonReveal(dashTab, loading || loadingAdminTab);
   const [overview,    setOverview]    = useState<any>(null);
@@ -308,6 +320,7 @@ export function AdminDashboard() {
     }
 
     setLoading(false);
+    setUpdatedAt(new Date());
   }, [startISO, endISO, isAdminView, userMongoId]);
 
   // Re-fetch when admin tab changes, date range changes, or the selected seller changes
@@ -427,42 +440,33 @@ export function AdminDashboard() {
       <div className="max-w-[1400px] mx-auto text-[#0F172A] pb-10 min-w-0 overflow-x-hidden">
 
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-3 mb-3 lg:mb-4 lg:pt-1">
+        <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-2 py-4 md:py-5 lg:border-y lg:border-[#E2E8F0]">
           <div className="flex items-center justify-between gap-3 lg:contents">
             {/* Mobile — short title with the active range */}
             <div className="lg:hidden min-w-0">
               <p className="text-[15px] font-bold text-[#0F172A] leading-5">My Dashboard</p>
               <p className="text-[11px] font-medium text-[#94A3B8] leading-4 truncate">{fd(filters.dateRange.start)} – {fd(filters.dateRange.end)}</p>
             </div>
-            {/* Page title — desktop only (the date range lives in the navbar filter) */}
-            <div className="hidden lg:block min-w-0">
-              <h1 className="text-[25.0186px] leading-[1.2] font-semibold tracking-[-0.02em] text-[#0F172A] truncate">
-                {isUserRoute ? 'Dashboard' : userMongoId ? `${userQuery.split(' (')[0]}'s Dashboard` : 'Platform Dashboard'}
-              </h1>
-              <p className="mt-1 text-[13px] text-[#64748B]">Orders, shipments and returns at a glance</p>
+            {/* Page title — desktop only (the date range lives in the toolbar below) */}
+            <div className="hidden lg:flex flex-1 min-w-0">
+              {isUserRoute
+                ? <ShipmentOverviewTitle updatedAt={updatedAt} pulses={[
+                    { label: 'Pickups pending', value: Number(ship.readyToShip) || 0, color: '#F59E0B' },
+                    { label: 'Out for delivery', value: Number(ship.outForDelivery) || 0, color: '#2F80ED' },
+                    { label: 'NDR action', value: Number(ndr.actionRequired) || 0, color: '#E8365D' },
+                  ]} />
+                : <h1 className="text-[25.0186px] leading-[1.15] font-bold tracking-[-0.03em] text-[#0F172A] truncate">{userMongoId ? `${userQuery.split(' (')[0]}'s Dashboard` : 'Platform Dashboard'}</h1>}
             </div>
 
-            {/* Below lg the navbar has no date filter — show it here with refresh on the right */}
-            {!isAdminView && (
-              <div className="lg:hidden flex items-center h-9 rounded-full border border-[#E2E8F0] bg-white shrink-0">
-                <MobileDateFilter bare />
-                <span className="w-px h-4 bg-[#E2E8F0]" aria-hidden />
-                <button
-                  type="button"
-                  onClick={fetchAll}
-                  title="Refresh"
-                  aria-label="Refresh dashboard"
-                  className="h-9 w-9 rounded-r-full flex items-center justify-center text-[#64748B] active:bg-[#F8FAFC]"
-                >
-                  <RefreshCcw className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            )}
           </div>
 
-          {isAdminView && (
-            <div className="flex items-center gap-2 w-full sm:w-auto sm:shrink-0">
-              <div className="relative flex-1 min-w-0 sm:flex-none sm:w-[260px]">
+        </div>
+
+        {/* Filter bar: range pills + exact range, admin user search, refresh */}
+        <DashboardToolbar onRefresh={() => { clearOverviewCache(); setRefreshKey(k => k + 1); fetchAll(); }} refreshing={loading}
+          advanced={advanced} onToggleAdvanced={toggleAdvanced}
+          right={isAdminView ? (
+              <div className="relative flex-1 min-w-0 lg:flex-none lg:w-[280px]">
                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8] pointer-events-none" />
                 <input
                   type="text"
@@ -498,25 +502,22 @@ export function AdminDashboard() {
                   </>
                 )}
               </div>
-              <button
-                onClick={fetchAll}
-                title="Refresh"
-                className="w-10 h-10 rounded-full bg-[#00A86B] hover:bg-[#009960] text-white flex items-center justify-center shrink-0 shadow-sm transition-colors"
-              >
-                <RefreshCcw className="w-4 h-4" />
-              </button>
-            </div>
-          )}
+          ) : undefined} />
 
-          {!isAdminView && (
-            <button type="button" onClick={fetchAll} title="Refresh data"
-              className="hidden lg:inline-flex items-center gap-2 h-9 px-4 rounded-full border border-[#E2E8F0] bg-white text-[13px] font-medium text-[#475569] hover:text-[#0F172A] hover:border-[#CBD5E1] hover:shadow-sm active:scale-[0.98] transition-all">
-              <RefreshCcw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-              Refresh
-            </button>
-          )}
-        </div>
-
+        <AnimatePresence mode="wait" initial={false}>
+          {switching ? (
+            <motion.div key={`switch-${advanced ? 'adv' : dashTab}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}>
+              <DashboardSkeleton tab={advanced ? 'advanced' : dashTab} isAdminView={!!isAdminView} />
+            </motion.div>
+          ) : advanced ? (
+            <motion.div key="advanced" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}>
+              <AdvancedDashboard userId={isAdminView ? userMongoId : ''} refreshKey={refreshKey} fmt={fmt} fmtN={fmtN} />
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
+        <motion.div className={advanced || switching ? 'hidden' : ''}
+          initial={false} animate={advanced || switching ? { opacity: 0, y: 8 } : { opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}>
         <DashboardTabs value={dashTab} onChange={setDashTab} />
 
         {/* Cross-fade: content stays mounted (no remount jank, no height jump) under a skeleton overlay that fades out. */}
@@ -682,7 +683,7 @@ export function AdminDashboard() {
           zones={(cardData?.ordersByZone || []).map((z: any) => ({ zone: z.zone, label: zoneLabel(z.zone), count: z.count, percentage: z.percentage }))}
           navBase={navBase} rangeQ={rangeQ} fmt={fmt} isAdminView={!!isAdminView}
           paymentMode={graphs?.paymentMode || []}
-          codSlot={(
+          codSlot={isAdminView ? (
           <div>
                 <SectionHeading title="COD Status" rightText="Current balances (not date filtered)" />
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -695,7 +696,7 @@ export function AdminDashboard() {
         </div>
 
           </div>
-          )}
+          ) : undefined}
         />
 
         {/* ── Row 4: NDR Details ────────────────────────────────────── */}
@@ -709,7 +710,8 @@ export function AdminDashboard() {
           <MiniStatCard title="RTO Delivered"    value={fmtN(ship.rto)}            icon={RotateCcw}     iconColor="text-indigo-500"  iconBg="bg-indigo-50"  to={`${navBase}/orders/rto-delivered${rangeQ}`} />
         </div>
 
-        {/* ── Row 5: Weight Discrepancy ─────────────────────────────── */}
+        {/* ── Row 5: Weight Discrepancy (admin) — sellers get the Weight & Remittance block below ── */}
+        {isAdminView && <>
         <SectionHeading title="Weight Discrepancy Details" />
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <MiniStatCard title="Total Discrepancy"    value={fmtN(weightData.total)}                          icon={AlertTriangle} iconColor="text-teal-500"  iconBg="bg-teal-50"   to={`${navBase}/weight-discrepancy/all${allTimeQ}`} />
@@ -717,6 +719,59 @@ export function AdminDashboard() {
           <MiniStatCard title="Accepted Discrepancy" value={fmtN(weightData.counts?.Accepted || 0)}          icon={Package}       iconColor="text-blue-500"  iconBg="bg-blue-50"   to={`${navBase}/weight-discrepancy/complete${allTimeQ}`} />
           <MiniStatCard title="Discrepancy Raised"   value={fmtN(weightData.counts?.DiscrepancyRaised || 0)} icon={AlertTriangle} iconColor="text-rose-500"  iconBg="bg-rose-50"   to={`${navBase}/weight-discrepancy/dispute${allTimeQ}`} />
         </div>
+        </>}
+
+        {/* ── Seller: Weight & Remittance (bottom of Overview) ─────── */}
+        {!isAdminView && (() => {
+          const wTotal = Number(weightData.total) || 0;
+          const wOpen = (Number(weightData.counts?.New) || 0) + (Number(weightData.counts?.DiscrepancyRaised) || 0);
+          const wClosed = Math.max(wTotal - wOpen, 0);
+          const panel = 'rounded-xl border border-[#E2E8F0] bg-white p-5 shadow-sm';
+          // Colours are Tailwind classes (not inline styles) so the build-time dark theme maps them too.
+          const TONES = {
+            slate:  { box: 'bg-[#F8FAFC] border-[#E2E8F0]', value: 'text-[#0F172A]', icon: 'text-[#64748B]' },
+            amber:  { box: 'bg-[#FFF7ED] border-[#FED7AA]', value: 'text-[#C2410C]', icon: 'text-[#EA580C]' },
+            green:  { box: 'bg-[#F0FDF4] border-[#BBF7D0]', value: 'text-[#047857]', icon: 'text-[#00A86B]' },
+            blue:   { box: 'bg-[#EFF6FF] border-[#BFDBFE]', value: 'text-[#1D4ED8]', icon: 'text-[#2563EB]' },
+            violet: { box: 'bg-[#F5F3FF] border-[#DDD6FE]', value: 'text-[#5B21B6]', icon: 'text-[#7C3AED]' },
+          } as const;
+          const Stat = ({ value, label, icon: Icon, tone }: { value: string; label: string; icon: any; tone: keyof typeof TONES }) => {
+            const t = TONES[tone];
+            return (
+              <div className={`min-w-0 rounded-xl border px-4 py-3.5 flex items-start justify-between gap-3 ${t.box}`}>
+                <div className="min-w-0">
+                  <div className={`text-[22px] font-bold tabular-nums leading-tight ${t.value}`}>{value}</div>
+                  <div className="mt-1 text-[13px] text-[#475569] truncate">{label}</div>
+                </div>
+                <Icon className={`w-7 h-7 md:w-8 md:h-8 shrink-0 ${t.icon}`} strokeWidth={1.4} fill="currentColor" fillOpacity={0.12} />
+              </div>
+            );
+          };
+          return (
+            <section className="mt-6">
+              <h3 className="mb-3 text-[15px] font-semibold text-[#0F172A]">Weight &amp; Remittance</h3>
+              <div className="grid grid-cols-1 xl:grid-cols-[1.4fr_1fr] gap-4">
+                <div className={panel}>
+                  <h4 className="text-[14px] font-semibold text-[#0F172A]">Weight Discrepancies</h4>
+                  <p className="text-[12px] text-[#94A3B8]">Billed weight vs. declared weight disputes</p>
+                  <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <Stat value={fmtN(wTotal)} label="Total Discrepancies" icon={Scale} tone="slate" />
+                    <Stat value={fmtN(wOpen)} label="Open Discrepancies" icon={AlertTriangle} tone="amber" />
+                    <Stat value={fmtN(wClosed)} label="Closed Discrepancies" icon={CheckCircle2} tone="green" />
+                  </div>
+                </div>
+                <div className={panel}>
+                  <h4 className="text-[14px] font-semibold text-[#0F172A]">COD Remittance</h4>
+                  <p className="text-[12px] text-[#94A3B8]">Cash-on-delivery payout schedule</p>
+                  <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <Stat value={fmt(overview?.codPending)} label="Upcoming Remittance Amount" icon={Wallet} tone="blue" />
+                    <Stat value={fmt(overview?.lastCODRemitted)} label="Last Remitted" icon={Landmark} tone="violet" />
+                  </div>
+                </div>
+              </div>
+            </section>
+          );
+        })()}
 
         {/* Row 7 (Couriers Split / Payment Mode / Pickup & Delivery Performance) → moved: courier split + pickup & delivery to Shipments tab, payment mode into OverviewInsights */}
 
@@ -727,6 +782,7 @@ export function AdminDashboard() {
         </div>
         </motion.div>
         </div>
+        </motion.div>
       </div>
       </CardLinksContext.Provider>
 

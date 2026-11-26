@@ -150,7 +150,26 @@ export function DashboardSkeleton({ tab, isAdminView = false }: { tab: string; i
         </div>
       )}
 
-      {tab !== 'overview' && tab !== 'shipments' && tab !== 'summary' && (
+      {tab === 'advanced' && (
+        <div className="mt-4 space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {[0, 1, 2].map(i => (
+              <div key={i} className={`${CARD} p-5`}>
+                <div className="flex items-center justify-between"><Sk className="h-4 w-20" /><Sk className="h-8 w-32" round="rounded-full" /></div>
+                <div className="mt-4 flex items-center gap-2"><Sk className="h-7 w-24" /><Sk className="h-6 w-24" round="rounded-full" /></div>
+                <div className="mt-4 space-y-2">{[0, 1, 2].map(r => <div key={r} className="flex justify-between"><Sk className="h-3 w-16" /><Sk className="h-3 w-10" /></div>)}</div>
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div><Sk className="h-4 w-40 mb-3" /><div className="space-y-3">{[0, 1, 2].map(i => <div key={i} className={`${CARD} px-5 py-4 flex items-center gap-4`}><Sk className="h-11 w-11" round="rounded-xl" /><div className="flex-1"><Sk className="h-3 w-40" /><Sk className="mt-2 h-5 w-10" /></div></div>)}</div></div>
+            <div><div className="flex justify-between mb-3"><Sk className="h-4 w-24" /><Sk className="h-8 w-32" round="rounded-full" /></div>
+              <div className={`${CARD} p-5 grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-6`}>{Array.from({ length: 8 }).map((_, i) => <div key={i} className="flex flex-col items-center gap-2"><Sk className="h-[58px] w-[60px]" round="rounded-xl" /><Sk className="h-3 w-16" /></div>)}</div></div>
+          </div>
+        </div>
+      )}
+
+      {tab !== 'overview' && tab !== 'shipments' && tab !== 'summary' && tab !== 'advanced' && (
         <div className={`${CARD} py-16 flex flex-col items-center gap-3`}><Sk className="h-4 w-64" /><Sk className="h-3 w-48" /></div>
       )}
     </div>

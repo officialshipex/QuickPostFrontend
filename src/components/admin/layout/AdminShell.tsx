@@ -102,7 +102,8 @@ export function AdminShell() {
           {showHeader && (
             <AdminHeader onMobileMenuToggle={() => setIsMobileSidebarOpen(true)} />
           )}
-          <main className="flex-1 p-4 md:p-6 w-full min-w-0 overflow-x-hidden">
+          {/* Dashboard: tighter top padding so the page title sits close to the navbar */}
+          <main className={`flex-1 p-4 md:p-6 w-full min-w-0 overflow-x-hidden ${/^\/(admin|user)\/dashboard\/?$/.test(location.pathname) ? '!pt-0' : ''}`}>
             <motion.div
               key={animKey}
               initial={{ opacity: 0, y: 10 }}
