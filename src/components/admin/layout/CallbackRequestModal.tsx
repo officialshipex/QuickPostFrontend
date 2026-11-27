@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AlertCircle, Check, CheckCircle2, Loader2, PhoneCall, X } from 'lucide-react';
@@ -25,14 +25,24 @@ export function CallbackRequestModal({ open, onClose, defaultName = '', defaultP
   const [done, setDone] = useState(false);
   const [error, setError] = useState('');
 
+  // The caller passes a new inline onClose on every render (and the header re-renders on a timer). The reset used to
+  // depend on onClose, so it wiped whatever the seller was typing every few seconds. Keep onClose in a ref instead.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => { onCloseRef.current = onClose; });
+
+  // Reset only when the form opens (defaults are plain strings, stable across re-renders).
   useEffect(() => {
     if (!open) return;
     setName(defaultName); setPhone(String(defaultPhone || '').replace(/\D/g, '').slice(-10));
     setTopic(TOPICS[0]); setSlot(SLOTS[0]); setNote(''); setTouched(false); setDone(false); setError(''); setSending(false);
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+  }, [open, defaultName, defaultPhone]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onCloseRef.current();
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [open, defaultName, defaultPhone, onClose]);
+  }, [open]);
 
   const nameErr = touched && name.trim().length < 2 ? 'Please enter your name' : '';
   const phoneErr = touched && !/^[6-9]\d{9}$/.test(phone) ? 'Enter a valid 10-digit mobile number' : '';
