@@ -992,7 +992,7 @@ export function Track({ pathAwb }: { pathAwb?: string } = {}) {
                       <dd className="mt-1">
                         <span className={`inline-flex items-center gap-1.5 h-7 px-3 rounded-full text-[12.5px] font-semibold ${result.paymentMode === 'COD' ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-[#F0FDF4] text-[#00A86B] border border-[#00A86B]/20'}`}>
                           {result.paymentMode === 'COD' ? <Wallet className="w-3.5 h-3.5" /> : <CreditCard className="w-3.5 h-3.5" />}
-                          {result.paymentMode === 'COD' ? `Cash on delivery${result.codAmount ? ` · ₹${result.codAmount.toLocaleString('en-IN')}` : ''}` : 'Prepaid'}
+                          {result.paymentMode === 'COD' ? `Cash on delivery${result.codAmount ? ` · ₹${result.codAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : ''}` : 'Prepaid'}
                         </span>
                       </dd>
                     </div>

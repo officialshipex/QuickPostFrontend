@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback, type React
 import { apiClient } from '../services/apiClient';
 import { getToken, removeToken, getRoleFromToken, isEmployeeToken, getEmployeeFromToken } from '../utils/session';
 import { isCargoUrl } from '../utils/shippingMode';
+import { hasAccessBeyondSales } from '../utils/permissions';
 
 export interface EmployeeAccessRights {
   view?: boolean;
@@ -34,6 +35,10 @@ interface AdminTabContextType {
   employeeRightsLoaded: boolean;
   /** Admin-panel employee on the Sales team — works from the Sales Dashboard, not the main dashboard. */
   isSalesEmployee: boolean;
+  /** A sales person also given admin-panel modules (Orders, NDR, …): those open next to their Sales Dashboard. */
+  salesHasAdminAccess: boolean;
+  /** Admin-panel employee on the support Tech team: sees only the tickets Support moved to Tech. */
+  isTechSupport: boolean;
   parentEmail: string;
   showOnboarding: boolean;
   setShowOnboarding: (value: boolean) => void;
@@ -62,6 +67,8 @@ const AdminTabContext = createContext<AdminTabContextType>({
   employeeAccessRights: {},
   employeeRightsLoaded: false,
   isSalesEmployee: false,
+  salesHasAdminAccess: false,
+  isTechSupport: false,
   parentEmail: '',
   showOnboarding: false,
   setShowOnboarding: () => {},
@@ -107,6 +114,7 @@ export function AdminUserProvider({ children }: { children: ReactNode }) {
   const [employeeAccessRights, setEmployeeAccessRights] = useState<Record<string, EmployeeAccessRights>>({});
   const [employeeRightsLoaded, setEmployeeRightsLoaded] = useState(false);
   const [employeeTeam, setEmployeeTeam] = useState('');
+  const [employeeSupportRole, setEmployeeSupportRole] = useState('');
   const [parentEmail, setParentEmail] = useState('');
   const [showOnboarding, setShowOnboarding] = useState(false);
 
@@ -128,6 +136,7 @@ export function AdminUserProvider({ children }: { children: ReactNode }) {
         if (employee) {
           setEmployeeAccessRights(employee.accessRights || {});
           setEmployeeTeam(employee.team || '');
+          setEmployeeSupportRole(employee.supportRole || '');
           setUserName(employee.fullName || '');
           setUserEmail(employee.email || '');
           setParentEmail(parentUser?.email || '');
@@ -191,8 +200,11 @@ export function AdminUserProvider({ children }: { children: ReactNode }) {
       userName, userEmail, businessName, profileImage, walletBalance, walletHold, creditLimit,
       mainWalletBalance, mainWalletHold, cargoWalletBalance, hasCargoWallet,
       isEmployee, employeeId, employeeAccessRights, employeeRightsLoaded, parentEmail,
-      // Sales team = team 'sales' on the employee (the backend locks those accounts to the Sales panel).
+      // Sales team = team 'sales' on the employee (the backend locks those accounts to the Sales panel,
+      // unless they were also given admin-panel modules: salesHasAdminAccess).
       isSalesEmployee: isEmployee && employeeTeam === 'sales',
+      salesHasAdminAccess: isEmployee && employeeTeam === 'sales' && hasAccessBeyondSales(employeeAccessRights),
+      isTechSupport: isEmployee && employeeSupportRole === 'tech',
       showOnboarding, setShowOnboarding,
       toggleAdminTab,
       refetchUser: fetchAdminTab,

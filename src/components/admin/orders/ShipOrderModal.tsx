@@ -449,7 +449,7 @@ export function ShipOrderModal({ order, onClose, onShipped, cargo = false }: Shi
                     <button type="button" onClick={() => setMobileSheet({ type: 'weight' })} className="py-2 active:bg-[#F8FAFC] rounded-bl-2xl" aria-label="View weight details">
                       <span className="text-[12px] font-medium text-[#334155] border-b border-dashed border-[#CBD5E1]">{applicableWeight} kg</span>
                     </button>
-                    <span className="py-2 text-[12px] font-medium text-[#334155] tabular-nums">₹ {Number(orderValue).toFixed(1)}</span>
+                    <span className="py-2 text-[12px] font-medium text-[#334155] tabular-nums">₹ {Number(orderValue).toFixed(2)}</span>
                     <span className="py-2 text-[12px] font-medium text-[#334155] capitalize">{paymentMethod ? (paymentMethod.toLowerCase() === 'cod' ? 'COD' : paymentMethod.charAt(0).toUpperCase() + paymentMethod.slice(1).toLowerCase()) : '—'}</span>
                   </div>
                 </div>

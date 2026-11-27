@@ -1045,7 +1045,7 @@ function ChannelTab({ channelCfg, settings, targetUserId, onUpdate }: {
               ? (waFee && (!waFee.enabled
                   ? <span className="sm:ml-2 text-[9px] md:text-[10px] font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded-md whitespace-nowrap self-start">Switched off by admin</span>
                   : waFee.price > 0
-                    ? <span className="sm:ml-2 text-[9px] md:text-[10px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-md whitespace-nowrap self-start">Paid · ₹{waFee.price} / message</span>
+                    ? <span className="sm:ml-2 text-[9px] md:text-[10px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-md whitespace-nowrap self-start">Paid · ₹{Number(waFee.price).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} / message</span>
                     : <span className="sm:ml-2 text-[9px] md:text-[10px] font-bold text-[#00A86B] bg-[#F0FDF4] px-1.5 py-0.5 rounded-md whitespace-nowrap self-start">Free</span>))
               : paid
               ? <span className="sm:ml-2 text-[9px] md:text-[10px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-md whitespace-nowrap self-start">Paid · 1 Credit / message</span>

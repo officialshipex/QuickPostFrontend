@@ -6,7 +6,7 @@ import { AdminHeader } from './AdminHeader';
 import { TableLoader } from '../../ui/TableLoader';
 import { AccessDeniedModal } from '../../ui/AccessDeniedModal';
 import { useAdminTab } from '../../../context/AdminUserContext';
-import { adminEmployeeLanding, canAccessRoute, hasPermission, NO_ACCESS_MESSAGE } from '../../../utils/permissions';
+import { adminEmployeeLanding, canAccessRoute, canOpenSalesPanel, hasPermission, NO_ACCESS_MESSAGE, SALES_PANEL_PATHS } from '../../../utils/permissions';
 import { AdminLayoutShellProvider } from './AdminLayoutContext';
 import { WhatsNewCard } from '../../ui/WhatsNewCard';
 import { ShippingModeProvider } from '../../../context/ShippingModeProvider';
@@ -16,7 +16,7 @@ import { employeePanelMode, getToken } from '../../../utils/session';
 import { modeUrl } from '../../../utils/shippingMode';
 import { useApplyPanelTheme } from '../../../context/ThemeContext';
 
-const SALES_PATHS = ['/admin/sales', '/admin/tasks', '/admin/rate-comparison'];
+const SALES_PATHS = SALES_PANEL_PATHS;
 
 // In Cargo mode only the sections in config/cargo.ts are reachable; anything else lands on Home.
 function CargoRouteGuard() {
@@ -29,11 +29,14 @@ function CargoRouteGuard() {
   useEffect(() => {
     if (wrongPanel) window.location.replace(modeUrl(employeeMode!, pathname));
   }, [wrongPanel, employeeMode, pathname]);
-  const { isSalesEmployee, isEmployee, isAdmin, adminTab, employeeAccessRights, employeeRightsLoaded } = useAdminTab();
+  const { isSalesEmployee, salesHasAdminAccess, isEmployee, isAdmin, adminTab, employeeAccessRights, employeeRightsLoaded } = useAdminTab();
   if (wrongPanel) return null;
-  // Sales employees work only in the Sales panel: anything else (the main dashboard included) lands there.
+  // Sales employees work in the Sales panel. Anything else lands there, except the admin-panel modules they were
+  // also given (Orders, NDR, …; the main dashboard only with the Dashboard permission).
   if (isSalesEmployee && !SALES_PATHS.includes(pathname)) {
-    return <Navigate to="/admin/sales" replace />;
+    const opensHere = salesHasAdminAccess && canAccessRoute(employeeAccessRights, pathname) &&
+      (pathname !== '/admin/dashboard' || hasPermission(employeeAccessRights, 'dashboard', 'view'));
+    if (!opensHere) return <Navigate to="/admin/sales" replace />;
   }
   // Admin-panel employees without the Dashboard permission go to their first permitted page instead.
   if (isEmployee && isAdmin && adminTab && employeeRightsLoaded && pathname === '/admin/dashboard'
@@ -69,7 +72,11 @@ export function AdminShell() {
   // Employees may only open what their rights allow. The forbidden page is never mounted (so it
   // never fetches), the popup explains why, and OK returns them to their own dashboard.
   // (Sales people are redirected to the Sales panel instead — see CargoRouteGuard.)
-  const employeeBlocked = isEmployee && !isSalesEmployee && !loadingAdminTab && !canAccessRoute(employeeAccessRights, location.pathname);
+  // The Sales panel is a sales person's own: anyone else (an operations employee, even with an old "Sales Dashboard"
+  // right) only with Sales Management "Team", as on the server — otherwise the page would call it and get refused.
+  const salesPanelRefused = SALES_PATHS.includes(location.pathname) && !canOpenSalesPanel(employeeAccessRights);
+  const employeeBlocked = isEmployee && !isSalesEmployee && !loadingAdminTab &&
+    (salesPanelRefused || !canAccessRoute(employeeAccessRights, location.pathname));
   const landing = isAdmin && adminTab ? '/admin/dashboard' : '/user/dashboard';
 
   const showHeader =

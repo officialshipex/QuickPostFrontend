@@ -65,7 +65,7 @@ export function TransferWalletModal({ open, onClose, defaultDirection = 'toCargo
   const tooHigh = amount > available;
 
   const submit = async () => {
-    if (amount < MIN_TRANSFER) return showToast('error', `Minimum transfer is ₹${MIN_TRANSFER.toLocaleString('en-IN')}`);
+    if (amount < MIN_TRANSFER) return showToast('error', `Minimum transfer is ₹${MIN_TRANSFER.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
     if (amount > available) return showToast('error', `Only ${fmt(available)} can be transferred from the ${fromName}`);
     setLoading(true);
     try {
@@ -150,7 +150,7 @@ export function TransferWalletModal({ open, onClose, defaultDirection = 'toCargo
                     <div className="w-full border-b border-dashed border-[#94A3B8] mt-1 h-0" />
                   </div>
                   <p className="text-[10px] text-slate-400 font-semibold mt-1.5">Available to transfer: {loaded ? fmt(available) : '…'}</p>
-                  {tooLow && <p className="text-[10px] text-red-500 font-semibold mt-1">Minimum transfer is ₹{MIN_TRANSFER.toLocaleString('en-IN')}</p>}
+                  {tooLow && <p className="text-[10px] text-red-500 font-semibold mt-1">Minimum transfer is ₹{MIN_TRANSFER.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>}
                   {!tooLow && tooHigh && <p className="text-[10px] text-red-500 font-semibold mt-1">More than the {fromName} has free</p>}
                   <div className="flex items-center justify-center gap-1.5 sm:gap-2 mt-3">
                     {[1000, 2000, 5000, 10000].map((amt) => (
@@ -171,7 +171,7 @@ export function TransferWalletModal({ open, onClose, defaultDirection = 'toCargo
                 <button type="button" disabled={!loaded || !amount || tooLow || tooHigh || loading} onClick={submit}
                   className="w-full py-2.5 sm:py-3.5 bg-gradient-to-r from-[#00b876] to-[#00A86B] text-white text-xs sm:text-sm font-bold rounded-full shadow-[0_4px_12px_rgba(0,168,107,0.2)] transition-all disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-1.5 focus:outline-none cursor-pointer">
                   <ArrowUpDown className="w-3.5 h-3.5" />
-                  {loading ? 'Transferring…' : `Transfer ₹${(amount || 0).toLocaleString('en-IN')} to ${toName}`}
+                  {loading ? 'Transferring…' : `Transfer ₹${(amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} to ${toName}`}
                 </button>
 
                 {onRecharge && (

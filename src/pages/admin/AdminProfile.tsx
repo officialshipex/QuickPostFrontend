@@ -44,6 +44,7 @@ import {
   Copy,
   Check,
 } from 'lucide-react';
+import { money2 } from "../../utils/money";
 
 const fmtProfileDate = (iso: string | null | undefined) => {
   if (!iso) return '—';
@@ -1717,7 +1718,7 @@ export function AdminProfile() {
 
                     <Field
                       label="Credit Limit"
-                      value={`₹${userData.creditLimit}`}
+                      value={`₹${money2(userData.creditLimit)}`}
                       action={isAdminView ? <EditBtn onClick={() => setShowCreditModal(true)} /> : undefined}
                     />
 
@@ -1900,12 +1901,12 @@ export function AdminProfile() {
                               <td className={`px-3 py-2 ${TXT.value}`} rowSpan={2}>{card.courierServiceName}</td>
                               <td className={`px-3 py-2 ${TXT.value}`} rowSpan={2}>{card.mode}</td>
                               <td className={`px-3 py-2 ${TXT.value} text-[#94A3B8]`}>Basic: {card.weightPriceBasic?.[0]?.weight}gm</td>
-                              <td className={`px-3 py-2 ${TXT.value}`}>₹{card.weightPriceBasic?.[0]?.zoneA}</td>
-                              <td className={`px-3 py-2 ${TXT.value}`}>₹{card.weightPriceBasic?.[0]?.zoneB}</td>
-                              <td className={`px-3 py-2 ${TXT.value}`}>₹{card.weightPriceBasic?.[0]?.zoneC}</td>
-                              <td className={`px-3 py-2 ${TXT.value}`}>₹{card.weightPriceBasic?.[0]?.zoneD}</td>
-                              <td className={`px-3 py-2 ${TXT.value}`}>₹{card.weightPriceBasic?.[0]?.zoneE}</td>
-                              <td className={`px-3 py-2 ${TXT.value}`} rowSpan={2}>₹{card.codCharge} / {card.codPercent}%</td>
+                              <td className={`px-3 py-2 ${TXT.value}`}>{fmtProfileCurrency(Number(card.weightPriceBasic?.[0]?.zoneA) || 0)}</td>
+                              <td className={`px-3 py-2 ${TXT.value}`}>{fmtProfileCurrency(Number(card.weightPriceBasic?.[0]?.zoneB) || 0)}</td>
+                              <td className={`px-3 py-2 ${TXT.value}`}>{fmtProfileCurrency(Number(card.weightPriceBasic?.[0]?.zoneC) || 0)}</td>
+                              <td className={`px-3 py-2 ${TXT.value}`}>{fmtProfileCurrency(Number(card.weightPriceBasic?.[0]?.zoneD) || 0)}</td>
+                              <td className={`px-3 py-2 ${TXT.value}`}>{fmtProfileCurrency(Number(card.weightPriceBasic?.[0]?.zoneE) || 0)}</td>
+                              <td className={`px-3 py-2 ${TXT.value}`} rowSpan={2}>{fmtProfileCurrency(Number(card.codCharge) || 0)} / {card.codPercent}%</td>
                               {isAdminView && (
                                 <td className={`px-3 py-2`} rowSpan={2}>
                                   <div className="flex items-center justify-center gap-2">
@@ -1934,11 +1935,11 @@ export function AdminProfile() {
                             </tr>
                             <tr className="border-b border-[#F1F5F9] text-[#374151]">
                               <td className={`px-3 py-2 ${TXT.value} text-[#94A3B8]`}>Addl: {card.weightPriceAdditional?.[0]?.weight}gm</td>
-                              <td className={`px-3 py-2 ${TXT.value}`}>₹{card.weightPriceAdditional?.[0]?.zoneA}</td>
-                              <td className={`px-3 py-2 ${TXT.value}`}>₹{card.weightPriceAdditional?.[0]?.zoneB}</td>
-                              <td className={`px-3 py-2 ${TXT.value}`}>₹{card.weightPriceAdditional?.[0]?.zoneC}</td>
-                              <td className={`px-3 py-2 ${TXT.value}`}>₹{card.weightPriceAdditional?.[0]?.zoneD}</td>
-                              <td className={`px-3 py-2 ${TXT.value}`}>₹{card.weightPriceAdditional?.[0]?.zoneE}</td>
+                              <td className={`px-3 py-2 ${TXT.value}`}>{fmtProfileCurrency(Number(card.weightPriceAdditional?.[0]?.zoneA) || 0)}</td>
+                              <td className={`px-3 py-2 ${TXT.value}`}>{fmtProfileCurrency(Number(card.weightPriceAdditional?.[0]?.zoneB) || 0)}</td>
+                              <td className={`px-3 py-2 ${TXT.value}`}>{fmtProfileCurrency(Number(card.weightPriceAdditional?.[0]?.zoneC) || 0)}</td>
+                              <td className={`px-3 py-2 ${TXT.value}`}>{fmtProfileCurrency(Number(card.weightPriceAdditional?.[0]?.zoneD) || 0)}</td>
+                              <td className={`px-3 py-2 ${TXT.value}`}>{fmtProfileCurrency(Number(card.weightPriceAdditional?.[0]?.zoneE) || 0)}</td>
                             </tr>
                           </React.Fragment>
                         ))
@@ -1968,7 +1969,7 @@ export function AdminProfile() {
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
                               <span className="text-[11px] font-semibold text-[#00A86B] bg-[#ECFDF5] px-2 py-0.5 rounded-full whitespace-nowrap">
-                                COD ₹{card.codCharge} / {card.codPercent}%
+                                COD {fmtProfileCurrency(Number(card.codCharge) || 0)} / {card.codPercent}%
                               </span>
                               {isAdminView && (
                                 <button
@@ -2005,7 +2006,7 @@ export function AdminProfile() {
                               {zones.map(z => (
                                 <div key={z} className="bg-[#F8FAFC] rounded-lg py-1.5 text-center">
                                   <p className="text-[9px] font-semibold text-[#94A3B8]">Zone {z}</p>
-                                  <p className="text-[11px] font-bold text-[#0F172A] mt-0.5">₹{card.weightPriceBasic?.[0]?.[`zone${z}`]}</p>
+                                  <p className="text-[11px] font-bold text-[#0F172A] mt-0.5">{fmtProfileCurrency(Number(card.weightPriceBasic?.[0]?.[`zone${z}`]) || 0)}</p>
                                 </div>
                               ))}
                             </div>
@@ -2020,7 +2021,7 @@ export function AdminProfile() {
                               {zones.map(z => (
                                 <div key={z} className="bg-[#F8FAFC] rounded-lg py-1.5 text-center">
                                   <p className="text-[9px] font-semibold text-[#94A3B8]">Zone {z}</p>
-                                  <p className="text-[11px] font-bold text-[#0F172A] mt-0.5">₹{card.weightPriceAdditional?.[0]?.[`zone${z}`]}</p>
+                                  <p className="text-[11px] font-bold text-[#0F172A] mt-0.5">{fmtProfileCurrency(Number(card.weightPriceAdditional?.[0]?.[`zone${z}`]) || 0)}</p>
                                 </div>
                               ))}
                             </div>

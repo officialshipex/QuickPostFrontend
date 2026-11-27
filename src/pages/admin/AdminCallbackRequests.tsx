@@ -6,10 +6,12 @@ import { copyToClipboard } from '../../utils/clipboard';
 import { useAdminTab } from '../../context/AdminUserContext';
 import { hasPermission } from '../../utils/permissions';
 
-/* Admin → Callback Requests. What visitors sent from the public Contact Us page ("Request a callback",
-   backend contactRequest/). The team calls them back and marks each one Contacted or Closed, with a note. */
+/* Admin → Callback Requests. Requests for a call back from two places (backend contactRequest/): visitors on the
+   public Contact Us page ("Request a callback") and logged-in sellers (Quick Actions → "Get a Callback", with the
+   seller account, topic and time slot). The team calls them back and marks each one Contacted or Closed, with a note. */
 
 type Status = 'new' | 'contacted' | 'closed';
+type Source = 'contact_page' | 'seller_panel';
 type Row = {
   _id: string;
   name: string;
@@ -17,11 +19,24 @@ type Row = {
   note: string;
   status: Status;
   adminNote: string;
+  source?: Source;
+  topic?: string;
+  slot?: string;
+  seller?: { userId?: number; name?: string; company?: string; email?: string; phone?: string };
+  requestedBy?: { employeeId?: string; name?: string };
+  mode?: string;
   handledBy?: { name?: string };
   handledAt?: string;
   createdAt: string;
 };
 type Summary = { all: number; new: number; contacted: number; closed: number };
+type Sources = { all: number; contact_page: number; seller_panel: number };
+
+const SOURCE_TABS: { key: 'all' | Source; label: string }[] = [
+  { key: 'all', label: 'All' },
+  { key: 'seller_panel', label: 'Seller panel' },
+  { key: 'contact_page', label: 'Contact Us page' },
+];
 
 const STATUS_LABEL: Record<Status, string> = { new: 'New', contacted: 'Contacted', closed: 'Closed' };
 const STATUS_STYLE: Record<Status, string> = {
@@ -61,6 +76,8 @@ function RowItem({ row, onSaved, canEdit }: { row: Row; onSaved: (r: Row) => voi
 
   const noteChanged = note.trim() !== (row.adminNote || '');
 
+  const fromSeller = row.source === 'seller_panel';
+
   return (
     <tr className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors align-top">
       <td className="p-4">
@@ -72,7 +89,29 @@ function RowItem({ row, onSaved, canEdit }: { row: Row; onSaved: (r: Row) => voi
           </button>
         </div>
       </td>
-      <td className="p-4 max-w-[280px] whitespace-pre-wrap break-words">{row.note || <span className="text-[#94A3B8]">—</span>}</td>
+      <td className="p-4 max-w-[220px]">
+        {fromSeller ? (
+          <>
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#EEF2FF] text-[#4338CA]">Seller panel{row.mode === 'cargo' ? ' · Cargo' : ''}</span>
+            <div className="mt-1.5 text-[#0F172A] font-semibold break-words">{row.seller?.company || row.seller?.name || '—'}</div>
+            <div className="text-[11px] text-[#94A3B8] break-words">
+              {row.seller?.userId ? `ID ${row.seller.userId}` : ''}{row.seller?.userId && row.seller?.email ? ' · ' : ''}{row.seller?.email || ''}
+            </div>
+            {row.requestedBy?.name && <div className="text-[11px] text-[#94A3B8]">by their staff {row.requestedBy.name}</div>}
+          </>
+        ) : (
+          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#F1F5F9] text-[#475569]">Contact Us page</span>
+        )}
+      </td>
+      <td className="p-4 max-w-[280px]">
+        {(row.topic || row.slot) && (
+          <div className="mb-1 flex flex-wrap gap-1">
+            {row.topic && <span className="px-2 py-0.5 rounded-md bg-[#F0FDF4] text-[#047857] text-[10.5px] font-semibold">{row.topic}</span>}
+            {row.slot && <span className="px-2 py-0.5 rounded-md bg-[#FFFBEB] text-[#B45309] text-[10.5px] font-semibold">{row.slot}</span>}
+          </div>
+        )}
+        <div className="whitespace-pre-wrap break-words">{row.note || <span className="text-[#94A3B8]">—</span>}</div>
+      </td>
       <td className="p-4 text-[11px] whitespace-nowrap">{fmt(row.createdAt)}</td>
       <td className="p-4">
         <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${STATUS_STYLE[row.status]}`}>{STATUS_LABEL[row.status]}</span>
@@ -120,6 +159,8 @@ export function AdminCallbackRequests() {
   const { isEmployee, employeeAccessRights } = useAdminTab();
   const canEdit = !isEmployee || hasPermission(employeeAccessRights, 'callbackRequests', 'edit');
   const [status, setStatus] = useState<'all' | Status>('new');
+  const [source, setSource] = useState<'all' | Source>('all');
+  const [sources, setSources] = useState<Sources | null>(null);
   const [search, setSearch] = useState('');
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
@@ -140,17 +181,20 @@ export function AdminCallbackRequests() {
     let cancelled = false;
     setLoading(true);
     setError('');
-    apiClient.get('/contact-requests/admin', { params: { status: status === 'all' ? undefined : status, search: query || undefined, page, limit: LIMIT } })
+    apiClient.get('/contact-requests/admin', {
+      params: { status: status === 'all' ? undefined : status, source: source === 'all' ? undefined : source, search: query || undefined, page, limit: LIMIT },
+    })
       .then(({ data }) => {
         if (cancelled) return;
         setRows(data.rows || []);
         setTotal(data.total || 0);
         setSummary(data.summary || null);
+        setSources(data.sources || null);
       })
       .catch((err) => { if (!cancelled) setError(err?.response?.data?.message || 'Could not load callback requests'); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [status, query, page, reload]);
+  }, [status, source, query, page, reload]);
 
   // a status change moves the row out of the current tab: reload the list and the counts
   const onSaved = (updated: Row) => {
@@ -164,14 +208,23 @@ export function AdminCallbackRequests() {
     { key: 'new' as const, label: 'New', value: summary?.new, hint: 'Waiting for a call back', icon: Inbox },
     { key: 'contacted' as const, label: 'Contacted', value: summary?.contacted, hint: 'Called, follow-up open', icon: PhoneCall },
     { key: 'closed' as const, label: 'Closed', value: summary?.closed, hint: 'Done', icon: Archive },
-    { key: 'all' as const, label: 'All requests', value: summary?.all, hint: 'From the Contact Us page', icon: CheckCircle2 },
+    { key: 'all' as const, label: 'All requests', value: summary?.all, hint: source === 'seller_panel' ? 'From sellers (Quick Actions)' : source === 'contact_page' ? 'From the Contact Us page' : 'Sellers + Contact Us page', icon: CheckCircle2 },
   ];
 
   return (
     <AdminLayout>
       <div className="mb-6">
         <h2 className="text-xl font-bold text-[#0F172A]">Callback Requests</h2>
-        <p className="text-xs text-[#64748B] mt-1">People who asked for a call back from the Contact Us page. Call them, then mark each one contacted or closed.</p>
+        <p className="text-xs text-[#64748B] mt-1">People who asked for a call back — sellers from their panel (Quick Actions → Get a Callback) and visitors from the Contact Us page. Call them, then mark each one contacted or closed.</p>
+      </div>
+
+      <div className="inline-flex rounded-lg border border-[#E2E8F0] bg-white p-0.5 w-fit mb-4 max-w-full overflow-x-auto">
+        {SOURCE_TABS.map(t => (
+          <button key={t.key} type="button" onClick={() => { setSource(t.key); setPage(1); }}
+            className={`h-8 px-3 rounded-md text-[12px] font-semibold whitespace-nowrap transition-colors ${source === t.key ? 'bg-[#0F172A] text-white' : 'text-[#475569] hover:bg-[#F8FAFC]'}`}>
+            {t.label}{sources ? <span className={`ml-1.5 tabular-nums ${source === t.key ? 'text-white/70' : 'text-[#94A3B8]'}`}>{sources[t.key] ?? 0}</span> : null}
+          </button>
+        ))}
       </div>
 
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-5">
@@ -199,18 +252,19 @@ export function AdminCallbackRequests() {
         </div>
         <div className="relative w-full md:w-96">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
-          <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search name, number or note"
+          <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search name, number, seller, ID or note"
             className="w-full h-10 pl-9 pr-4 rounded-lg border border-[#E2E8F0] bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#00A86B]/20 focus:border-[#00A86B]" />
         </div>
       </div>
 
       <div className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[1000px]">
+          <table className="w-full text-left border-collapse min-w-[1180px]">
             <thead>
               <tr className="bg-[#E6F9F2] border-b border-[#E2E8F0] text-[10px] uppercase tracking-wider font-bold text-[#64748B]">
                 <th className="p-4">Name &amp; number</th>
-                <th className="p-4">Their note</th>
+                <th className="p-4">From</th>
+                <th className="p-4">About &amp; note</th>
                 <th className="p-4">Requested</th>
                 <th className="p-4">Status</th>
                 <th className="p-4">Team note</th>
@@ -219,11 +273,11 @@ export function AdminCallbackRequests() {
             </thead>
             <tbody className="text-xs font-medium text-[#475569]">
               {loading ? (
-                <tr><td colSpan={6} className="p-8 text-center text-[#94A3B8]">Loading…</td></tr>
+                <tr><td colSpan={7} className="p-8 text-center text-[#94A3B8]">Loading…</td></tr>
               ) : error ? (
-                <tr><td colSpan={6} className="p-8 text-center text-[#DC2626]">{error}</td></tr>
+                <tr><td colSpan={7} className="p-8 text-center text-[#DC2626]">{error}</td></tr>
               ) : rows.length === 0 ? (
-                <tr><td colSpan={6} className="p-8 text-center text-[#94A3B8]">No callback requests here.</td></tr>
+                <tr><td colSpan={7} className="p-8 text-center text-[#94A3B8]">No callback requests here.</td></tr>
               ) : rows.map(r => <RowItem key={r._id} row={r} onSaved={onSaved} canEdit={canEdit} />)}
             </tbody>
           </table>

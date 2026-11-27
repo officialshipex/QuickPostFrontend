@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Check, CheckCircle2, Loader2, PhoneCall, X } from 'lucide-react';
+import { AlertCircle, Check, CheckCircle2, Loader2, PhoneCall, X } from 'lucide-react';
+import { apiClient } from '../../../services/apiClient';
 
 /* Seller → "Get a callback" (Quick Actions). Name + mobile prefilled when known, a topic, a time slot and a note.
-   TODO(backend): POST the request to the support/callback endpoint; today it validates and confirms in place. */
+   Saved by the backend (POST /contact-requests/seller, the seller account is taken from the login) and listed for
+   the team in Admin → System → Callback Requests ("Seller panel"). The topics and slots must match the backend's
+   list (contactRequest/contactRequest.controller.js). */
 
 const TOPICS = ['Orders & shipping', 'Pickup', 'NDR / RTO', 'COD remittance', 'Wallet & billing', 'Other'];
 const SLOTS = ['As soon as possible', 'Morning (9–12)', 'Afternoon (12–4)', 'Evening (4–7)'];
@@ -20,11 +23,12 @@ export function CallbackRequestModal({ open, onClose, defaultName = '', defaultP
   const [touched, setTouched] = useState(false);
   const [sending, setSending] = useState(false);
   const [done, setDone] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     if (!open) return;
     setName(defaultName); setPhone(String(defaultPhone || '').replace(/\D/g, '').slice(-10));
-    setTopic(TOPICS[0]); setSlot(SLOTS[0]); setNote(''); setTouched(false); setDone(false);
+    setTopic(TOPICS[0]); setSlot(SLOTS[0]); setNote(''); setTouched(false); setDone(false); setError(''); setSending(false);
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -33,13 +37,20 @@ export function CallbackRequestModal({ open, onClose, defaultName = '', defaultP
   const nameErr = touched && name.trim().length < 2 ? 'Please enter your name' : '';
   const phoneErr = touched && !/^[6-9]\d{9}$/.test(phone) ? 'Enter a valid 10-digit mobile number' : '';
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setTouched(true);
-    if (name.trim().length < 2 || !/^[6-9]\d{9}$/.test(phone)) return;
+    if (sending || name.trim().length < 2 || !/^[6-9]\d{9}$/.test(phone)) return;
     setSending(true);
-    // TODO(backend): send { name, phone, topic, slot, note } to the callback-request API.
-    window.setTimeout(() => { setSending(false); setDone(true); }, 700);
+    setError('');
+    try {
+      await apiClient.post('/contact-requests/seller', { name: name.trim(), phone, topic, slot, note: note.trim() });
+      setDone(true);
+    } catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+      setError(err?.response?.data?.message || 'Could not send your request right now. Please try again.');
+    } finally {
+      setSending(false);
+    }
   };
 
   const field = (err: string) =>
@@ -126,6 +137,11 @@ export function CallbackRequestModal({ open, onClose, defaultName = '', defaultP
                     className="w-full px-4 py-2.5 rounded-[18px] border border-[#E2E8F0] text-[14px] text-[#0F172A] placeholder:text-[#94A3B8] resize-none focus:outline-none focus:border-[#00A86B] focus:ring-4 focus:ring-[#00A86B]/10 transition-all" />
                 </label>
 
+                {error && (
+                  <div role="alert" className="mt-4 flex items-start gap-2 px-3.5 py-2.5 rounded-2xl bg-red-50 border border-red-100 text-[12.5px] font-medium text-red-600">
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-px" />{error}
+                  </div>
+                )}
                 <button type="submit" disabled={sending}
                   className="mt-4 w-full h-11 rounded-full bg-[#00A86B] hover:bg-[#00965F] disabled:opacity-70 text-white text-[14px] font-bold inline-flex items-center justify-center gap-2 transition-colors">
                   {sending ? <><Loader2 className="w-4 h-4 animate-spin" />Requesting…</> : <><PhoneCall className="w-4 h-4" />Request callback</>}

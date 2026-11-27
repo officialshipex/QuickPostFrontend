@@ -15,6 +15,7 @@ import { Toast } from '../../components/ui/Toast';
 import { useToast } from '../../hooks/useToast';
 import { copyToClipboard } from '../../utils/clipboard';
 import { orderReferenceOf } from '../../utils/customerOrderId';
+import { OrderRefId } from '../../components/ui/OrderRefId';
 import { b2bBreakupRows, b2bIfApplicable, type B2BWorking } from '../../utils/b2bPriceBreakup';
 import { AddressAccuracyGauge } from '../../components/ui/AddressAccuracy';
 
@@ -947,14 +948,14 @@ export function AdminOrderTracking() {
                   <label className="block text-[12px] leading-[18px] font-medium text-[#94A3B8] uppercase tracking-wider">Channel</label>
                   <div className="mt-1">
                     <span className="bg-[#F0FDF4] text-[#009B63] text-[12px] leading-[18px] font-normal px-2.5 py-0.5 rounded">
-                      {(order?.channel || 'CUSTOM').toUpperCase()}{orderReferenceOf(order) ? ` (${orderReferenceOf(order)})` : ''}
+                      {(order?.channel || 'CUSTOM').toUpperCase()}{orderReferenceOf(order) ? <>{' '}<OrderRefId value={orderReferenceOf(order)} max={16} brackets /></> : ''}
                     </span>
                   </div>
                 </div>
                 <div>
                   <label className="block text-[12px] leading-[18px] font-medium text-[#94A3B8] uppercase tracking-wider">Payment Amount</label>
                   <div className="text-[12px] leading-[18px] font-normal text-[#0F172A] mt-0.5">
-                    {order?.paymentDetails?.amount != null ? `₹${order.paymentDetails.amount.toLocaleString('en-IN')}` : '—'}
+                    {order?.paymentDetails?.amount != null ? `₹${order.paymentDetails.amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'}
                   </div>
                 </div>
                 <div>
@@ -1191,7 +1192,7 @@ export function AdminOrderTracking() {
                         <tr key={i} className="border-b last:border-0 border-[#F5F5F5]">
                           <td className="py-3 font-medium">{p.name || '—'}</td>
                           <td className="py-3 text-center">{p.quantity ?? 1}</td>
-                          <td className="py-3 text-right">₹{(p.unitPrice || 0).toLocaleString('en-IN')}</td>
+                          <td className="py-3 text-right">₹{(p.unitPrice || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                         </tr>
                       ))}
                       {(!order?.productDetails || order.productDetails.length === 0) && (

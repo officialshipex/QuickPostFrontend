@@ -102,8 +102,8 @@ export function ProductTooltipCard({
               <td className="py-1.5 pr-2 break-words">{p.name}</td>
               <td className="py-1.5 pr-2 text-[#64748B] break-words">{p.sku || '—'}</td>
               <td className="py-1.5 pr-2">{p.qty}</td>
-              <td className="py-1.5 pr-2">₹{p.price.toLocaleString('en-IN')}</td>
-              <td className="py-1.5 font-semibold">₹{p.total.toLocaleString('en-IN')}</td>
+              <td className="py-1.5 pr-2">₹{p.price.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+              <td className="py-1.5 font-semibold">₹{p.total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
             </tr>
           ))}
         </tbody>
@@ -112,7 +112,7 @@ export function ProductTooltipCard({
             <td className="pt-1.5" colSpan={2}>Grand Total</td>
             <td className="pt-1.5">{order.qty}</td>
             <td className="pt-1.5"></td>
-            <td className="pt-1.5">₹{grandTotal.toLocaleString('en-IN')}</td>
+            <td className="pt-1.5">₹{grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
           </tr>
         </tfoot>
       </table>

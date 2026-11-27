@@ -110,7 +110,7 @@ export const NDR_CALL_LABEL: Record<NdrCallStatus, string> = {
 };
 export const NDR_MODE_LABEL: Record<NdrMode, string> = { whatsapp: 'WhatsApp', calling: 'Calling', both: 'WhatsApp + Calling' };
 
-export const fmtMoney = (n: number) => `₹${Number(n || 0).toLocaleString('en-IN')}`;
+export const fmtMoney = (n: number) => `₹${Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 export const fmtDate = (v?: string | null) =>
   v ? new Date(v).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 export const fmtDateTime = (v?: string | null) =>

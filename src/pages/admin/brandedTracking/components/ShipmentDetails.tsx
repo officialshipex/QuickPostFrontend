@@ -43,7 +43,7 @@ export function ShipmentDetails({ data, cfg, t }: { data: BrandedTrackingData; c
           <Row label="Order ID" value={data.orderId} t={t} />
           {cfg.showAwb && <Row label="AWB Number" value={data.awb} t={t} />}
           {cfg.showCourier && <Row label="Courier Partner" value={data.courierName} t={t} />}
-          <Row label="Payment" value={data.paymentMode === 'COD' && data.codAmount ? `Cash on Delivery · ₹${data.codAmount.toLocaleString('en-IN')}` : data.paymentMode === 'COD' ? 'Cash on Delivery' : 'Prepaid'} t={t} />
+          <Row label="Payment" value={data.paymentMode === 'COD' && data.codAmount ? `Cash on Delivery · ₹${data.codAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : data.paymentMode === 'COD' ? 'Cash on Delivery' : 'Prepaid'} t={t} />
         </div>
       )}
       {showPackage && (

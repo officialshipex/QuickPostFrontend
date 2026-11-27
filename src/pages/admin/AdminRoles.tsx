@@ -9,7 +9,7 @@ import { TableLoader } from '../../components/ui/TableLoader';
 import { getToken, setToken } from '../../utils/session';
 import { modeUrl } from '../../utils/shippingMode';
 import {
-  PERM_TYPES, modulesFor, emptyAccessRights, toFormRights, toStoredRights, hasPermission, hasAnyView, rightsBeyond,
+  PERM_TYPES, modulesFor, emptyAccessRights, toFormRights, toStoredRights, hasPermission, hasAnyView, rightsBeyond, SALES_NOT_GRANTABLE,
   type AccessRights, type PanelType, type PermKey,
 } from '../../utils/permissions';
 import {
@@ -42,6 +42,8 @@ interface Employee {
   createdAt: string;
   /** Admin-panel employees: 'sales' gets the Sales Dashboard */
   team?: 'operations' | 'sales';
+  /** Support tickets: 'desk' sees every ticket (default), 'tech' only the tickets moved to the Tech team */
+  supportRole?: 'desk' | 'tech';
   /** Sales people: the code sellers register with */
   referralCode?: string;
 }
@@ -57,10 +59,13 @@ interface PermissionMatrixProps {
   panel: PanelType;
   /** An employee managing employees (HR): only the rights they hold themselves can be switched on */
   grantable?: (moduleKey: string, perm: PermKey) => boolean;
+  /** A sales person: their Sales Dashboard is always on; Employees / Sales Management can't be given to them */
+  salesPerson?: boolean;
 }
 
-function PermissionMatrix({ accessRights, onChange, panel, grantable }: PermissionMatrixProps) {
-  const modules = modulesFor(panel);
+function PermissionMatrix({ accessRights, onChange, panel, grantable, salesPerson }: PermissionMatrixProps) {
+  // a sales person: never Employees / Sales Management; anyone else: no "Sales Dashboard" (it is a sales person's own panel)
+  const modules = modulesFor(panel).filter(m => (salesPerson ? !SALES_NOT_GRANTABLE.includes(m.key) : m.key !== 'sales'));
 
   const toggle = (moduleKey: string, perm: PermKey) => {
     const current = accessRights[moduleKey] || { view: false, edit: false, delete: false };
@@ -106,11 +111,13 @@ function PermissionMatrix({ accessRights, onChange, panel, grantable }: Permissi
               <div className="text-[11.5px] text-[#94A3B8] mt-0.5">{mod.desc}</div>
             </div>
             {PERM_TYPES.map(p => {
-              const checked = rights[p.key] === true;
+              // a sales person's own Sales Dashboard: always on, nothing to change
+              const ownSalesDashboard = !!salesPerson && mod.key === 'sales';
+              const checked = ownSalesDashboard ? p.key === 'view' : rights[p.key] === true;
               // not held by the person giving it (HR): can't be switched on (switching off is always fine)
-              const notHeld = !!grantable && !checked && !grantable(mod.key, p.key);
-              const disabled = ((p.key === 'edit' || p.key === 'delete') && !rights.view) || notHeld;
-              if ((mod.viewOnly && p.key !== 'view') || (mod.noDelete && p.key === 'delete')) {
+              const notHeld = !ownSalesDashboard && !!grantable && !checked && !grantable(mod.key, p.key);
+              const disabled = ownSalesDashboard || ((p.key === 'edit' || p.key === 'delete') && !rights.view) || notHeld;
+              if ((ownSalesDashboard && p.key !== 'view') || (mod.viewOnly && p.key !== 'view') || (mod.noDelete && p.key === 'delete')) {
                 return <div key={p.key} className="w-[52px] sm:w-[72px] flex justify-center items-center py-3 text-[13px] text-[#CBD5E1]" aria-label="Not applicable">—</div>;
               }
               return (
@@ -122,10 +129,10 @@ function PermissionMatrix({ accessRights, onChange, panel, grantable }: Permissi
                     aria-label={`${mod.label} — ${p.label}`}
                     onClick={() => !disabled && toggle(mod.key, p.key)}
                     disabled={disabled}
-                    title={notHeld ? "You don't have this access yourself, so you can't give it" : undefined}
+                    title={ownSalesDashboard ? 'Every sales person has their own Sales Dashboard' : notHeld ? "You don't have this access yourself, so you can't give it" : undefined}
                     className={`w-[22px] h-[22px] rounded-md border-2 flex items-center justify-center transition-all ${
                       checked
-                        ? 'bg-[#00A86B] border-[#00A86B] shadow-[0_1px_4px_rgba(0,168,107,0.35)]'
+                        ? `bg-[#00A86B] border-[#00A86B] shadow-[0_1px_4px_rgba(0,168,107,0.35)] ${ownSalesDashboard ? 'cursor-not-allowed opacity-70' : ''}`
                         : disabled
                         ? 'bg-[#F1F5F9] border-[#E2E8F0] cursor-not-allowed opacity-50'
                         : 'bg-white border-[#CBD5E1] hover:border-[#00A86B]'
@@ -165,6 +172,7 @@ function EmployeeModal({ employee, onClose, onSaved, panel }: EmployeeModalProps
   const [contactNumber, setContact] = useState(employee?.contactNumber || '');
   const [role, setRole]             = useState(employee?.role || '');
   const [team, setTeam]             = useState<'operations' | 'sales'>(employee?.team || 'operations');
+  const [supportRole, setSupportRole] = useState<'desk' | 'tech'>(employee?.supportRole === 'tech' ? 'tech' : 'desk');
   const [password, setPassword]     = useState('');
   // Sales hires: offer letter details (editable later in Sales Management) and whether to email the login
   const [joiningDate, setJoiningDate] = useState('');
@@ -209,11 +217,15 @@ function EmployeeModal({ employee, onClose, onSaved, panel }: EmployeeModalProps
     }
     setSubmitting(true);
     setError('');
-    // Item rights + the coarse group rights the server's write guard reads
-    const storedRights = toStoredRights(accessRights, panel);
+    // Item rights + the coarse group rights the server's write guard reads. A sales person: their Sales Dashboard
+    // always, never Employees / Sales Management (the server applies the same rule).
+    const formRights: AccessRights = isSales
+      ? { ...Object.fromEntries(Object.entries(accessRights).filter(([k]) => !SALES_NOT_GRANTABLE.includes(k))), sales: { view: true, edit: false, delete: false } }
+      : { ...accessRights, sales: { view: false, edit: false, delete: false } }; // operations: no Sales Dashboard (see PermissionMatrix)
+    const storedRights = toStoredRights(formRights, panel);
     try {
       if (isEdit) {
-        const body: any = { fullName: fullName.trim(), contactNumber: contactNumber.trim(), role: role.trim(), accessRights: storedRights, mode: panel, ...(isAdminView ? { team } : {}), ...(isSales ? { salesOffer } : {}) };
+        const body: any = { fullName: fullName.trim(), contactNumber: contactNumber.trim(), role: role.trim(), accessRights: storedRights, mode: panel, ...(isAdminView ? { team, supportRole: isSales ? 'desk' : supportRole } : {}), ...(isSales ? { salesOffer } : {}) };
         if (password) body.password = password;
         const res = await apiClient.put(`/staffRole/updateRole/${employee!._id}`, body);
         onSaved(res.data.updatedRole);
@@ -221,7 +233,7 @@ function EmployeeModal({ employee, onClose, onSaved, panel }: EmployeeModalProps
         // `mode` tells the server which panel's employee this is (an admin works in both panels)
         const res = await apiClient.post('/staffRole/createRole', {
           fullName: fullName.trim(), email: email.trim(), contactNumber: contactNumber.trim(),
-          password, role: role.trim(), accessRights: storedRights, mode: panel, ...(isAdminView ? { team } : {}),
+          password, role: role.trim(), accessRights: storedRights, mode: panel, ...(isAdminView ? { team, supportRole: isSales ? 'desk' : supportRole } : {}),
           ...(isSales ? { salesOffer, sendCredentials, loginUrl: `${window.location.origin}/employee-login` } : {}),
         });
         const user = res.data.data.user;
@@ -235,8 +247,9 @@ function EmployeeModal({ employee, onClose, onSaved, panel }: EmployeeModalProps
     }
   };
 
-  const granted = modulesFor(panel).filter(m => accessRights[m.key]?.view).length;
-  const total = modulesFor(panel).length;
+  const shownModules = modulesFor(panel).filter(m => (isSales ? !SALES_NOT_GRANTABLE.includes(m.key) : m.key !== 'sales'));
+  const granted = shownModules.filter(m => (isSales && m.key === 'sales') || accessRights[m.key]?.view).length;
+  const total = shownModules.length;
   const fieldCls = 'w-full h-10 pl-10 pr-4 bg-white border border-[#E2E8F0] rounded-full text-[13px] font-medium text-[#0F172A] placeholder:text-[#94A3B8] placeholder:font-normal focus:outline-none focus:border-[#00A86B] focus:ring-1 focus:ring-[#00A86B] transition-colors disabled:bg-[#F8FAFC] disabled:text-[#94A3B8]';
   const iconCls = 'absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8] pointer-events-none';
   const labelCls = 'block text-[12px] font-semibold text-[#475569] mb-1.5';
@@ -320,7 +333,7 @@ function EmployeeModal({ employee, onClose, onSaved, panel }: EmployeeModalProps
                     <div className="grid grid-cols-2 gap-2">
                       {([
                         { key: 'operations', title: 'Operations', hint: 'Orders, NDR, finance, support…' },
-                        { key: 'sales', title: 'Sales', hint: 'Sales panel only — referral code, KYC, offer letter, commission' },
+                        { key: 'sales', title: 'Sales', hint: 'Own Sales Dashboard (referral code, KYC, offer letter, commission) + any modules you tick below' },
                       ] as const).map(t => {
                         const on = team === t.key;
                         return (
@@ -337,6 +350,27 @@ function EmployeeModal({ employee, onClose, onSaved, panel }: EmployeeModalProps
                         );
                       })}
                     </div>
+                  </div>
+                )}
+                {isAdminView && !isSales && (
+                  <div className="sm:col-span-2">
+                    <label className={labelCls}>Support tickets</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {([
+                        { key: 'desk', title: 'Support desk', hint: 'Sees every ticket and moves the technical ones to the Tech team' },
+                        { key: 'tech', title: 'Tech team', hint: 'Sees only the tickets moved to Tech, replies to the seller, sends them back' },
+                      ] as const).map(t => {
+                        const on = supportRole === t.key;
+                        return (
+                          <button key={t.key} type="button" role="radio" aria-checked={on} onClick={() => setSupportRole(t.key)}
+                            className={`text-left rounded-xl border px-3.5 py-2.5 transition-colors ${on ? 'border-[#00A86B] bg-[#F0FDF4]' : 'border-[#E2E8F0] hover:border-[#CBD5E1]'}`}>
+                            <div className={`text-[13px] font-semibold ${on ? 'text-[#00A86B]' : 'text-[#0F172A]'}`}>{t.title}</div>
+                            <div className="text-[11.5px] text-[#64748B] mt-0.5">{t.hint}</div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <p className="text-[11.5px] text-[#94A3B8] mt-1.5">Tick Support Tickets (View + Edit) below so they can open the Support page.</p>
                   </div>
                 )}
                 {isSales && (
@@ -361,8 +395,8 @@ function EmployeeModal({ employee, onClose, onSaved, panel }: EmployeeModalProps
               </div>
             </section>
 
-            {/* Permission Matrix — not for sales people: their account only ever opens the Sales panel */}
-            {!isSales && <section>
+            {/* Permission Matrix — a sales person: their Sales Dashboard is fixed, the other modules are extra */}
+            <section>
               <div className="flex items-center justify-between gap-3 mb-2">
                 <div className="flex items-center gap-2">
                   <Lock className="w-4 h-4 text-[#00A86B]" />
@@ -371,7 +405,9 @@ function EmployeeModal({ employee, onClose, onSaved, panel }: EmployeeModalProps
                 <span className="text-[11.5px] font-semibold text-[#00A86B] bg-[#F0FDF4] border border-[#DCFCE7] px-2.5 py-0.5 rounded-full tabular-nums">{granted}/{total} modules</span>
               </div>
               <p className="text-[12px] text-[#64748B] mb-3">
-                {isAdminView
+                {isSales
+                  ? 'They always have their own Sales Dashboard, Tasks and Rate Comparison. Tick any other modules (e.g. Orders, NDR) they should also work in — leave everything else empty for a sales-only account. Employees and Sales Management can\'t be given to a sales person.'
+                  : isAdminView
                   ? 'The employee only sees the modules you give View access to — everything else is hidden from their sidebar.'
                   : 'The employee sees every menu item; items without View access are locked and show a "no access" message when clicked.'}
               </p>
@@ -380,8 +416,8 @@ function EmployeeModal({ employee, onClose, onSaved, panel }: EmployeeModalProps
                   You can only give access you have yourself — the other boxes are locked. Everything you change here is recorded in the Audit Logs.
                 </p>
               )}
-              <PermissionMatrix accessRights={accessRights} onChange={setAccessRights} panel={panel} grantable={grantable} />
-            </section>}
+              <PermissionMatrix accessRights={accessRights} onChange={setAccessRights} panel={panel} grantable={grantable} salesPerson={isSales} />
+            </section>
           </div>
 
           {/* Footer */}
@@ -544,8 +580,13 @@ export function AdminRoles() {
   const staffManager = isEmployee && !isUserPanel && hasAnyView(myRights, 'employees');
   const canEdit = !isEmployee || hasPermission(myRights, 'employees', 'edit');
   const canDelete = !isEmployee || hasPermission(myRights, 'employees', 'delete');
-  const canChange = (emp: Employee) =>
-    !isEmployee || (emp.employeeId !== myEmployeeId && (emp.team === 'sales' || rightsBeyond(myRights, emp.accessRights, panel).length === 0));
+  // (a sales person's own Sales Dashboard doesn't count, the other modules they were given do)
+  const canChange = (emp: Employee) => {
+    if (!isEmployee) return true;
+    if (emp.employeeId === myEmployeeId) return false;
+    const theirs = emp.team === 'sales' ? { ...emp.accessRights, sales: undefined } : emp.accessRights;
+    return rightsBeyond(myRights, theirs, panel).length === 0;
+  };
   const whyLocked = (emp: Employee) =>
     emp.employeeId === myEmployeeId ? 'Your own account: ask the admin to change it' : 'This employee has access you don\'t have: only the admin can change them';
 
@@ -709,7 +750,7 @@ export function AdminRoles() {
                               <span className="inline-flex items-center gap-1.5 max-w-full px-2.5 py-0.5 min-h-6 bg-[#F8FAFC] border border-[#EEF2F6] rounded-full text-[11.5px] font-medium text-[#334155] break-words">
                                 <Briefcase className="w-3 h-3 text-[#94A3B8] shrink-0" />{emp.role}
                               </span>
-                              {emp.team === 'sales' && <span className="px-1.5 py-px rounded-md bg-[#F0FDF4] text-[#00A86B] text-[10px] font-bold uppercase tracking-wider">Sales</span>}
+                              {emp.team === 'sales' && <span className="px-1.5 py-px rounded-md bg-[#F0FDF4] text-[#00A86B] text-[10px] font-bold uppercase tracking-wider">Sales</span>}{emp.supportRole === 'tech' && <span className="px-1.5 py-px rounded-md bg-violet-50 text-violet-700 text-[10px] font-bold uppercase tracking-wider">Tech</span>}
                               <span className="px-1.5 py-px rounded-md bg-[#F1F5F9] text-[#64748B] text-[10.5px] font-mono">ID {emp.employeeId}</span>
                               {emp.team === 'sales' && emp.referralCode && <span className="text-[11px] text-[#94A3B8]">Code <span className="font-mono font-semibold text-[#475569]">{emp.referralCode}</span></span>}
                             </div>
@@ -802,7 +843,7 @@ export function AdminRoles() {
                           <td className="py-3 px-4">
                             <span className="inline-flex items-center gap-1.5 px-2.5 h-7 bg-[#F8FAFC] border border-[#EEF2F6] rounded-full text-[12px] font-medium text-[#334155]">
                               <Briefcase className="w-3 h-3 text-[#94A3B8]" />{emp.role}
-                              {emp.team === 'sales' && <span className="ml-1 px-1.5 py-px rounded-md bg-[#F0FDF4] text-[#00A86B] text-[10px] font-bold uppercase tracking-wider">Sales</span>}
+                              {emp.team === 'sales' && <span className="ml-1 px-1.5 py-px rounded-md bg-[#F0FDF4] text-[#00A86B] text-[10px] font-bold uppercase tracking-wider">Sales</span>}{emp.supportRole === 'tech' && <span className="ml-1 px-1.5 py-px rounded-md bg-violet-50 text-violet-700 text-[10px] font-bold uppercase tracking-wider">Tech</span>}
                             </span>
                             {emp.team === 'sales' && emp.referralCode && <div className="text-[11px] text-[#94A3B8] mt-1 pl-1">Code <span className="font-mono font-semibold text-[#475569]">{emp.referralCode}</span></div>}
                           </td>

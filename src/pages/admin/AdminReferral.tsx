@@ -114,11 +114,11 @@ function ReferralDetailsModal({ referral, onClose }: { referral: ReferralRow; on
                 </div>
                 <div className="text-center p-2.5 bg-[#F8FAFC] rounded-[8px] border border-[#E2E8F0]">
                   <p className={`${DTXT.meta} text-[#94A3B8] mb-1`}>Freight</p>
-                  <p className={`${DTXT.title} text-[#00A86B]`}>₹{Math.round(referral.totalShipping || 0)}</p>
+                  <p className={`${DTXT.title} text-[#00A86B]`}>₹{Number(referral.totalShipping || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                 </div>
                 <div className="text-center p-2.5 bg-[#F8FAFC] rounded-[8px] border border-[#E2E8F0]">
                   <p className={`${DTXT.meta} text-[#94A3B8] mb-1`}>Reward</p>
-                  <p className={`${DTXT.title} text-[#00A86B]`}>₹{Math.round(referral.totalCommission || 0)}</p>
+                  <p className={`${DTXT.title} text-[#00A86B]`}>₹{Number(referral.totalCommission || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                 </div>
               </div>
             </div>

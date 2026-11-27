@@ -124,6 +124,54 @@ function Empty({ icon: Icon, title, body }: { icon: LucideIcon; title: string; b
   );
 }
 
+// First recharge of each referred seller (the same first recharge the onboarding bonus looks at)
+function FirstRecharges({ data, rangeLabel, onViewAll }: { data: NonNullable<SalesOverview['firstRecharges']>; rangeLabel: string; onViewAll: () => void }) {
+  const stats: { label: string; value: string; sub: string }[] = [
+    { label: 'Sellers recharged', value: `${n(data.recharged)} of ${n(data.sellers)}`, sub: `${pct(data.recharged, data.sellers)}% of referred sellers` },
+    { label: 'Total first recharges', value: inr(data.total), sub: 'All time' },
+    { label: 'Average first recharge', value: inr(data.average), sub: 'Per recharged seller' },
+    { label: 'In this period', value: inr(data.inPeriod.total), sub: `${n(data.inPeriod.count)} seller${data.inPeriod.count === 1 ? '' : 's'} · ${rangeLabel}` },
+  ];
+  return (
+    <div className={`${card} overflow-hidden`}>
+      <div className="px-5 py-4 border-b border-[#F1F5F9] flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="text-[14px] font-bold text-[#0F172A]">First recharges</h2>
+          <p className="text-[12px] text-[#94A3B8]">The first wallet recharge of each seller you referred</p>
+        </div>
+        <button onClick={onViewAll} className="text-[12.5px] font-semibold text-[#00A86B] hover:underline shrink-0">View all sellers</button>
+      </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 border-b border-[#F1F5F9]">
+        {stats.map((st, i) => (
+          <div key={st.label} className={`px-5 py-3.5 ${i % 2 ? 'border-l' : ''} ${i > 1 ? 'border-t lg:border-t-0' : ''} ${i > 0 ? 'lg:border-l' : ''} border-[#F1F5F9]`}>
+            <div className="text-[12px] font-medium text-[#64748B]">{st.label}</div>
+            <div className="text-[18px] font-bold text-[#0F172A] tabular-nums mt-0.5">{st.value}</div>
+            <div className="text-[11.5px] text-[#94A3B8] truncate">{st.sub}</div>
+          </div>
+        ))}
+      </div>
+      {data.latest.length === 0 ? (
+        <Empty icon={Wallet} title="No first recharges yet" body="When a seller you referred recharges their wallet for the first time, it shows up here." />
+      ) : (
+        <ul className="divide-y divide-[#F1F5F9]">
+          {data.latest.map(r => (
+            <li key={r._id} className="px-5 py-3 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-[13px] font-semibold text-[#0F172A] truncate">{r.name}</div>
+                <div className="text-[11.5px] text-[#94A3B8] truncate">{r.businessName || '—'}</div>
+              </div>
+              <div className="text-right shrink-0">
+                <div className="text-[13px] font-bold text-[#00A86B] tabular-nums">{inr(r.amount)}</div>
+                <div className="text-[11.5px] text-[#94A3B8]">{fmtDate(r.at)}</div>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 function Funnel({ steps }: { steps: { label: string; value: number; rate?: string }[] }) {
   const max = Math.max(...steps.map(s => s.value), 1);
   return (
@@ -934,6 +982,8 @@ function SalesDashboardBody({ viewAs }: { viewAs?: { id: string; name: string } 
 
                 <SellerFunnel funnel={ov.funnel} rangeLabel={rangeLabel} />
 
+                {ov.firstRecharges && <FirstRecharges data={ov.firstRecharges} rangeLabel={rangeLabel} onViewAll={() => setTab('sellers')} />}
+
                 {!isSalesAdmin && <PriorityQueue calls={calls} from={fromISO} to={toISO} rangeLabel={rangeLabel} readOnly={!canAct} onUpdate={setEditing} onViewAll={() => { setTab('calls'); setCallFilter('all'); }} />}
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-5 items-start">
@@ -1085,9 +1135,9 @@ function SalesDashboardBody({ viewAs }: { viewAs?: { id: string; name: string } 
                   <Empty icon={UserPlus} title={sellers.length ? 'No sellers match' : 'No referred sellers yet'} body={sellers.length ? 'Try a different filter or search.' : 'Sellers who register with your referral ID will appear here.'} />
                 ) : (
                   <div className="overflow-x-auto">
-                    <table className="w-full text-left min-w-[1420px]">
+                    <table className="w-full text-left min-w-[1540px]">
                       <thead><tr className="bg-[#E6F9F2] text-xs font-medium text-[#64748B] uppercase tracking-wider">
-                        {['Seller', 'Phone', 'Registered', 'KYC', 'Onboarding', 'First order', 'Shipments', 'This month target', 'Last order', 'Activity', 'Rate', 'Bonus', ''].map(h => <th key={h} className="py-2.5 px-4 whitespace-nowrap">{h}</th>)}
+                        {['Seller', 'Phone', 'Registered', 'KYC', 'Onboarding', 'First recharge', 'First order', 'Shipments', 'This month target', 'Last order', 'Activity', 'Rate', 'Bonus', ''].map(h => <th key={h} className="py-2.5 px-4 whitespace-nowrap">{h}</th>)}
                       </tr></thead>
                       <tbody className="text-[12.5px] text-[#475569]">
                         {visibleSellers.map(s => (
@@ -1097,6 +1147,9 @@ function SalesDashboardBody({ viewAs }: { viewAs?: { id: string; name: string } 
                             <td className="py-3 px-4 whitespace-nowrap">{fmtDate(s.registeredAt)}</td>
                             <td className="py-3 px-4"><span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold capitalize ${s.kycStatus === 'verified' ? 'bg-emerald-50 text-emerald-700' : s.kycStatus === 'rejected' ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-700'}`}>{s.kycStatus}</span></td>
                             <td className="py-3 px-4 capitalize">{s.onboardingStatus.replace('_', ' ')}</td>
+                            <td className="py-3 px-4 whitespace-nowrap">{s.firstRecharge
+                              ? <div><div className="font-semibold text-[#0F172A] tabular-nums">{inr(s.firstRecharge.amount)}</div><div className="text-[11px] text-[#94A3B8]">{fmtDate(s.firstRecharge.at)}</div></div>
+                              : <span className="text-[#94A3B8]">Not yet</span>}</td>
                             <td className="py-3 px-4 whitespace-nowrap">{fmtDate(s.firstOrderAt)}</td>
                             <td className="py-3 px-4 font-semibold text-[#0F172A] tabular-nums">{n(s.totalOrders)}</td>
                             <td className="py-3 px-4"><TargetBar compact target={s.monthTarget?.target || 0} achieved={s.monthTarget?.achieved || 0} /></td>

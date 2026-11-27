@@ -26,6 +26,10 @@ export function AdminAgreementSettings() {
   const navigate = useNavigate();
   const [agreements, setAgreements] = useState<Agreement[]>([]);
   const [loading, setLoading] = useState(true);
+  // The agreement shown inside the page (html null = still loading). It used to open in a new tab after the request
+  // came back — browsers block a tab opened that late (always on phones), so the seller saw nothing at all.
+  const [viewer, setViewer] = useState<{ ag: Agreement; html: string | null } | null>(null);
+  const [accepting, setAccepting] = useState(false);
   const { toast, showToast: _showToast, closeToast } = useToast();
   const showToast = (msg: string, ok = true) => _showToast(ok ? 'success' : 'error', msg);
 
@@ -43,16 +47,18 @@ export function AdminAgreementSettings() {
   useEffect(() => { fetchAgreements(); }, []);
 
   const handleRead = async (ag: Agreement) => {
+    setViewer({ ag, html: null });
+    let html: string;
     try {
-      const res = await apiClient.get(`/agreement/user/preview/${ag._id}`);
-      const newWindow = window.open('', '_blank');
-      if (newWindow) {
-        newWindow.document.write(res.data);
-        newWindow.document.close();
-      }
+      const res = await apiClient.get(`/agreement/user/preview/${ag._id}`, { responseType: 'text' });
+      html = String(res.data);
     } catch {
+      setViewer(null);
       showToast('Failed to load agreement', false);
+      return;
     }
+    // marked read BEFORE it is shown: the server accepts only an agreement marked read, so the Accept button
+    // under the agreement can never be refused for being too quick
     try {
       const res = await apiClient.get(`/agreement/user/read/${ag._id}`);
       if (res.data.success) {
@@ -61,6 +67,7 @@ export function AdminAgreementSettings() {
         );
       }
     } catch { /* ignore read-mark failure */ }
+    setViewer(v => (v && v.ag._id === ag._id ? { ag, html } : v));
   };
 
   const handleAccept = async (agreementId: string) => {
@@ -75,6 +82,14 @@ export function AdminAgreementSettings() {
     } catch (err: any) {
       showToast(err?.response?.data?.message || 'Failed to accept agreement', false);
     }
+  };
+
+  const acceptFromViewer = async () => {
+    if (!viewer) return;
+    setAccepting(true);
+    await handleAccept(viewer.ag._id);
+    setAccepting(false);
+    setViewer(null);
   };
 
   const handleDownload = async (ag: Agreement) => {
@@ -148,9 +163,10 @@ export function AdminAgreementSettings() {
                     <td className="px-5 py-3.5 text-[12px] text-[#64748B]">{fmtDate(ag.createdAt)}</td>
                     <td className="px-5 py-3.5">
                       {ag.isRead ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#F0FDF4] text-[#00A86B]">
-                          <CheckCircle2 className="w-3 h-3" /> Read
-                        </span>
+                        <button onClick={() => handleRead(ag)} title="Read the agreement again"
+                          className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#F0FDF4] text-[#00A86B] hover:bg-[#DCFCE7] transition-colors">
+                          <CheckCircle2 className="w-3 h-3" /> Read · View again
+                        </button>
                       ) : (
                         <button
                           onClick={() => handleRead(ag)}
@@ -239,9 +255,10 @@ export function AdminAgreementSettings() {
                   </div>
                   <div className="flex gap-2 pt-1">
                     {ag.isRead ? (
-                      <span className="flex-1 text-center py-1.5 rounded-xl text-[11px] font-bold bg-[#F0FDF4] text-[#00A86B] flex items-center justify-center gap-1">
-                        <CheckCircle2 className="w-3 h-3" /> Read
-                      </span>
+                      <button onClick={() => handleRead(ag)}
+                        className="flex-1 text-center py-1.5 rounded-xl text-[11px] font-bold bg-[#F0FDF4] text-[#00A86B] flex items-center justify-center gap-1">
+                        <CheckCircle2 className="w-3 h-3" /> Read · View again
+                      </button>
                     ) : (
                       <button
                         onClick={() => handleRead(ag)}
@@ -274,6 +291,41 @@ export function AdminAgreementSettings() {
           )}
         </div>
       </div>
+
+      {/* Agreement viewer: the contract inside the page (no new tab), with Accept right under it */}
+      <AnimatePresence>
+        {viewer && (
+          <div className="fixed inset-0 z-[300] flex items-center justify-center p-2 sm:p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setViewer(null)} className="absolute inset-0 bg-[#0F172A]/40 backdrop-blur-sm" />
+            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 12 }} role="dialog" aria-modal="true" aria-label={`Agreement ${viewer.ag.versionName}`}
+              className="relative w-full max-w-4xl h-[92vh] bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+              <div className="flex items-center justify-between gap-3 px-5 py-3.5 border-b border-[#E2E8F0]">
+                <div className="min-w-0">
+                  <h2 className="text-[15px] font-bold text-[#0F172A] truncate">Merchant Agreement · {viewer.ag.versionName}</h2>
+                  <p className="text-[11.5px] text-[#64748B]">{viewer.ag.isAccepted ? `Accepted on ${fmtDate(viewer.ag.acceptedAt)}` : 'Please read the agreement, then accept it below.'}</p>
+                </div>
+                <button onClick={() => setViewer(null)} aria-label="Close" className="w-8 h-8 rounded-full flex items-center justify-center text-[#94A3B8] hover:bg-[#F1F5F9] shrink-0"><X className="w-4 h-4" /></button>
+              </div>
+              <div className="flex-1 min-h-0 bg-[#F8FAFC]">
+                {viewer.html === null ? (
+                  <div className="h-full flex items-center justify-center"><div className="w-7 h-7 border-[3px] border-[#E2E8F0] border-t-[#00A86B] rounded-full animate-spin" /></div>
+                ) : (
+                  <iframe title="Agreement" srcDoc={viewer.html} sandbox="" className="w-full h-full bg-white border-0" />
+                )}
+              </div>
+              <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-[#E2E8F0]">
+                <button onClick={() => setViewer(null)} className="h-9 px-4 rounded-lg border border-[#E2E8F0] text-[12px] font-semibold text-[#475569] hover:bg-[#F8FAFC]">Close</button>
+                {!viewer.ag.isAccepted && (
+                  <button onClick={acceptFromViewer} disabled={viewer.html === null || accepting}
+                    className="h-9 px-4 rounded-lg bg-[#00A86B] text-white text-[12px] font-bold hover:bg-[#009B63] disabled:opacity-50 inline-flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5" />{accepting ? 'Accepting…' : 'I accept this agreement'}
+                  </button>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </AdminLayout>
   );
 }

@@ -30,7 +30,7 @@ const ymd = (d: Date) =>
 const addDays = (d: Date, n: number) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
 // Delay-alert links open the Orders list over the same 90-day window the backend counts
 const delayRange = () => `?startDate=${ymd(addDays(new Date(), -90))}&endDate=${ymd(new Date())}`;
-const fmtAmt = (v: number) => (v || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 });
+const fmtAmt = (v: number) => (v || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 // Whole days from today until the courier's estimated delivery date
 const eddDays = (date?: string | null): number | null => {

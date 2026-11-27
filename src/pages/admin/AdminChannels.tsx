@@ -4,7 +4,7 @@ import { useSearchParams } from 'react-router-dom';
 import { AdminLayout } from '../../components/admin/layout/AdminLayout';
 import {
   ArrowLeft, Plus, ShoppingBag, BookOpen, Layers, CheckCircle2, PauseCircle, ChevronDown, Check,
-  Trash2, Pencil, RefreshCw, Loader2, AlertTriangle, Download, ChevronRight, Copy,
+  Trash2, Pencil, RefreshCw, Loader2, AlertTriangle, Download, ChevronRight, Copy, Zap, Link2, ShieldCheck,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { apiClient } from '../../services/apiClient';
@@ -92,6 +92,28 @@ interface Channel {
   syncFromDate?: string;
   lastSync?: string;
   importStatuses?: string[];
+  /** 'oauth' = connected with one click (QuickPost Shopify app); 'manual' = Client ID / Secret */
+  connection?: 'oauth' | 'manual';
+  myshopifyDomain?: string;
+  /** one-click store that lost access (app uninstalled / access expired): needs Reconnect */
+  appDisconnectedAt?: string;
+  appDisconnectReason?: string;
+}
+
+// Why Shopify sent the seller back without connecting (backend: Channels/Shopify/shopifyApp.js oauthCallback)
+const SHOPIFY_CONNECT_ERRORS: Record<string, string> = {
+  invalid: "Shopify's reply could not be verified. Please try connecting again.",
+  expired: 'The connection took too long or was started in another window. Please try again.',
+  declined: 'The QuickPost app was not installed on your Shopify store.',
+  token: 'Shopify did not complete the connection. Please try again.',
+  scopes: 'QuickPost needs all the requested permissions to sync orders and tracking. Please connect again and approve them.',
+  server: 'Something went wrong while connecting Shopify. Please try again.',
+};
+
+/** One-click connect / reconnect: Shopify's install page for this store (the browser leaves the panel). */
+async function startShopifyInstall(shop: string): Promise<string> {
+  const res = await apiClient.post('/channel/shopify/oauth/start', { shop });
+  return res.data?.installUrl;
 }
 
 // WooCommerce order statuses that can be imported (backend: Channels/WooCommerce/wooOrderSync.js). "Pending payment"
@@ -202,6 +224,58 @@ export function AdminChannels() {
       .catch(() => {});
   }, []);
 
+  // ── Shopify one-click (QuickPost app): available? + the result of a connection coming back from Shopify
+  const [oneClick, setOneClick]           = useState<boolean | null>(null);
+  const [shopInput, setShopInput]         = useState('');
+  const [connecting, setConnecting]       = useState<string | null>(null); // channel id / 'new' while leaving for Shopify
+  const [connectErr, setConnectErr]       = useState('');
+  const [showManual, setShowManual]       = useState(false);
+  const [editConnection, setEditConnection] = useState<'oauth' | 'manual'>('manual');
+  const [connectMsg, setConnectMsg]       = useState<{ ok: boolean; text: string } | null>(null);
+  const claimHandled = useRef(false);
+  useEffect(() => {
+    apiClient.get('/channel/shopify/app-config')
+      .then(res => setOneClick(!!res.data?.enabled))
+      .catch(() => setOneClick(false));
+  }, []);
+
+  // Back from Shopify: ?shopify=connect&claim=… links the store to this account; ?shopify=error&reason=… says why not
+  useEffect(() => {
+    const status = searchParams.get('shopify');
+    if (!status || claimHandled.current) return;
+    claimHandled.current = true;
+    const claim = searchParams.get('claim');
+    const reason = searchParams.get('reason') || 'server';
+    setSearchParams({}, { replace: true });
+    if (status === 'error') {
+      setConnectMsg({ ok: false, text: SHOPIFY_CONNECT_ERRORS[reason] || SHOPIFY_CONNECT_ERRORS.server });
+      return;
+    }
+    if (status !== 'connect' || !claim) return;
+    setConnectMsg({ ok: true, text: 'Finishing the Shopify connection…' });
+    apiClient.post('/channel/shopify/oauth/claim', { claim })
+      .then(res => {
+        const extra = res.data?.webhookError ? ` ${res.data.webhookError}` : '';
+        setConnectMsg({ ok: true, text: `${res.data?.message || 'Shopify store connected.'}${extra}` });
+        fetchChannels();
+      })
+      .catch(err => setConnectMsg({ ok: false, text: err?.response?.data?.message || SHOPIFY_CONNECT_ERRORS.server }));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const connectShopify = async (shop: string, key: string) => {
+    setConnectErr(''); setConnecting(key);
+    try {
+      const url = await startShopifyInstall(shop);
+      if (!url) throw new Error('no url');
+      window.location.assign(url); // to Shopify's install page; Shopify sends the seller back here
+    } catch (err: any) {
+      const text = err?.response?.data?.message || 'Could not start the Shopify connection. Please try again.';
+      if (key === 'new') setConnectErr(text); else setConnectMsg({ ok: false, text });
+      setConnecting(null);
+    }
+  };
+
   // ── Form state
   const [form, setForm]                   = useState(emptyForm);
   const [formErrors, setFormErrors]       = useState<Record<string, string>>({});
@@ -239,6 +313,7 @@ export function AdminChannels() {
     apiClient.get(`/channel/getOneChannel/${editId}`)
       .then(res => {
         const ch: Channel = res.data?.data || res.data || {};
+        setEditConnection(ch.connection === 'oauth' ? 'oauth' : 'manual');
         setForm({
           storeName:          ch.storeName || '',
           storeURL:           ch.storeURL || '',
@@ -255,6 +330,17 @@ export function AdminChannels() {
 
   // ── Submit: create or update
   const handleSubmit = async () => {
+    if (isEditing && !isWoo && editConnection === 'oauth') {
+      if (!form.storeName.trim()) { setFormErrors({ storeName: 'Required' }); return; }
+      setSubmitting(true);
+      try {
+        await apiClient.put(`/channel/updateChannel/${editId}`, { storeName: form.storeName.trim() });
+        resetForm(); goToView('list');
+      } catch (e: any) {
+        setFormErrors({ submit: e?.response?.data?.message || 'Failed to save. Please try again.' });
+      } finally { setSubmitting(false); }
+      return;
+    }
     const errs: Record<string, string> = {};
     if (!form.storeName.trim())      errs.storeName      = 'Required';
     if (!form.storeURL.trim())       errs.storeURL       = 'Required';
@@ -315,8 +401,8 @@ export function AdminChannels() {
         const res = await apiClient.post(`/channel/syncWooCommerce/${ch._id}`, {});
         setSyncMsg({ ok: true, text: `${ch.storeName}: ${res.data?.message || 'Synced.'}` });
       } else {
-        await apiClient.post('/channel/fetchOrder', {});
-        setSyncMsg({ ok: true, text: `${ch.storeName}: orders synced.` });
+        const res = await apiClient.post('/channel/fetchOrder', { channelId: ch._id });
+        setSyncMsg({ ok: true, text: `${ch.storeName}: ${res.data?.message || 'orders synced.'}` });
       }
     } catch (err: any) {
       setSyncMsg({ ok: false, text: `${ch.storeName}: ${err?.response?.data?.message || 'Sync failed. Please try again.'}` });
@@ -363,6 +449,13 @@ export function AdminChannels() {
             <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-4">
               <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />
               <p className="text-[13px] text-red-600">{listError}</p>
+            </div>
+          )}
+          {connectMsg && (
+            <div role="status" className={`flex items-center gap-2 rounded-xl px-4 py-3 mb-4 border ${connectMsg.ok ? 'bg-[#F0FDF4] border-[#BBF7D0]' : 'bg-red-50 border-red-200'}`}>
+              {connectMsg.ok ? <CheckCircle2 className="w-4 h-4 text-[#00A86B] shrink-0" /> : <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />}
+              <p className={`text-[13px] flex-1 ${connectMsg.ok ? 'text-[#166534]' : 'text-red-600'}`}>{connectMsg.text}</p>
+              <button type="button" onClick={() => setConnectMsg(null)} className="text-[12px] font-semibold text-[#64748B] hover:text-[#0F172A]">Dismiss</button>
             </div>
           )}
           {syncMsg && (
@@ -520,6 +613,21 @@ export function AdminChannels() {
                     </div>
                   </div>
                   <div className="text-[12px] text-[#64748B] truncate">{ch.storeURL}</div>
+                  {ch.channel === 'Shopify' && ch.connection === 'oauth' && !ch.appDisconnectedAt && (
+                    <span className="inline-flex items-center gap-1 mt-2 text-[11px] font-semibold text-[#00A86B] bg-[#F0FDF4] px-2 py-0.5 rounded-full">
+                      <Zap className="w-3 h-3" /> One-click connection
+                    </span>
+                  )}
+                  {ch.channel === 'Shopify' && ch.connection === 'oauth' && ch.appDisconnectedAt && (
+                    <div className="mt-2.5 rounded-xl bg-amber-50 border border-amber-200 px-3 py-2">
+                      <p className="text-[12px] text-amber-800 leading-snug">{ch.appDisconnectReason || 'This store is disconnected. Orders are not syncing.'}</p>
+                      <button type="button" disabled={connecting === ch._id}
+                        onClick={() => connectShopify(ch.myshopifyDomain || ch.storeURL, ch._id)}
+                        className="mt-2 h-8 px-3 rounded-full bg-[#00A86B] text-white text-[12px] font-bold hover:bg-[#009B63] disabled:opacity-60 inline-flex items-center gap-1.5">
+                        {connecting === ch._id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Link2 className="w-3.5 h-3.5" />} Reconnect
+                      </button>
+                    </div>
+                  )}
                   {ch.lastSync && (
                     <div className="text-[11px] text-[#94A3B8] mt-1.5">
                       Last synced: {new Date(ch.lastSync).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
@@ -722,7 +830,92 @@ export function AdminChannels() {
           </h1>
         </div>
 
-        {editLoading ? (
+        {!isWoo && !isEditing && oneClick && (
+          <div className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm p-6 mb-5 max-w-[760px]">
+            <div className="flex items-start gap-3">
+              <div className="w-11 h-11 rounded-xl bg-[#95BF47]/10 flex items-center justify-center shrink-0 p-1">
+                <img src={shopifyLogo} alt="Shopify" className="w-full h-full object-contain" />
+              </div>
+              <div className="min-w-0">
+                <h2 className="text-[16px] font-bold text-[#0F172A] flex items-center gap-2">
+                  Connect Shopify in one click
+                  <span className="text-[10.5px] font-bold uppercase tracking-wide text-[#00A86B] bg-[#F0FDF4] px-2 py-0.5 rounded-full">Recommended</span>
+                </h2>
+                <p className="text-[13px] text-[#64748B] mt-0.5">
+                  No app to create, no keys to copy. Enter your store address, click Install on Shopify, and you're done.
+                </p>
+              </div>
+            </div>
+            <div className="mt-4">
+              <label className={labelCls}>Your Shopify store address</label>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <input type="text" value={shopInput} autoFocus
+                  onChange={e => { setShopInput(e.target.value); setConnectErr(''); }}
+                  onKeyDown={e => { if (e.key === 'Enter' && shopInput.trim() && !connecting) connectShopify(shopInput.trim(), 'new'); }}
+                  placeholder="yourstore.myshopify.com" className={`${inputCls(connectErr)} sm:flex-1`} />
+                <ShineButton
+                  onClick={() => shopInput.trim() && connectShopify(shopInput.trim(), 'new')}
+                  disabled={!shopInput.trim() || connecting === 'new'}
+                  className="h-11 px-6 rounded-full bg-[#00A86B] text-white text-[13px] font-bold hover:bg-[#009B63] disabled:opacity-60 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-1.5 shrink-0"
+                >
+                  {connecting === 'new' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
+                  Connect Shopify
+                </ShineButton>
+              </div>
+              {connectErr
+                ? <p className={errCls}>{connectErr}</p>
+                : <p className="text-[11.5px] text-[#94A3B8] mt-1.5">Find it in Shopify admin → Settings → Domains (it ends with .myshopify.com). Just the name, e.g. <b>yourstore</b>, also works.</p>}
+            </div>
+            <ol className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-2">
+              {[
+                'Shopify opens and asks you to install the QuickPost app',
+                'Click Install — you come straight back here',
+                'Recent unfulfilled orders come in; new ones sync instantly',
+              ].map((t, i) => (
+                <li key={i} className="flex gap-2 rounded-xl bg-[#F8FAFC] px-3 py-2.5 text-[12px] text-[#475569] leading-snug">
+                  <span className="w-5 h-5 rounded-full bg-[#00A86B] text-white text-[10px] font-bold flex items-center justify-center shrink-0">{i + 1}</span>
+                  {t}
+                </li>
+              ))}
+            </ol>
+            <p className="flex items-center gap-1.5 mt-3 text-[11.5px] text-[#64748B]">
+              <ShieldCheck className="w-3.5 h-3.5 text-[#00A86B] shrink-0" />
+              QuickPost only gets access to read orders and mark them shipped with tracking. You can remove it any time from Shopify → Settings → Apps.
+            </p>
+            <button type="button" onClick={() => setShowManual(v => !v)}
+              className="mt-4 text-[12.5px] font-semibold text-[#64748B] hover:text-[#0F172A] inline-flex items-center gap-1">
+              <ChevronRight className={`w-3.5 h-3.5 transition-transform ${showManual ? 'rotate-90' : ''}`} />
+              {showManual ? 'Hide manual connection' : 'Connect manually with your own app (advanced)'}
+            </button>
+          </div>
+        )}
+
+        {!isWoo && isEditing && editConnection === 'oauth' && !editLoading ? (
+          <div className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm p-6 max-w-[640px]">
+            {formErrors.submit && (
+              <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-4">
+                <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />
+                <p className="text-[13px] text-red-600">{formErrors.submit}</p>
+              </div>
+            )}
+            <div className="flex items-center gap-2 mb-4 text-[12.5px] text-[#166534] bg-[#F0FDF4] border border-[#BBF7D0] rounded-xl px-3.5 py-2.5">
+              <Zap className="w-4 h-4 text-[#00A86B] shrink-0" />
+              Connected with one click — there are no keys to manage. Only the display name can be changed here.
+            </div>
+            <label className={labelCls}>Store Name <span className="text-red-500">*</span></label>
+            <input type="text" value={form.storeName} onChange={e => setForm(f => ({ ...f, storeName: e.target.value }))} className={inputCls(formErrors.storeName)} />
+            {formErrors.storeName && <p className={errCls}>{formErrors.storeName}</p>}
+            <div className="text-[12px] text-[#64748B] mt-3">Store: <b className="text-[#0F172A]">{form.storeURL}</b></div>
+            <div className="flex items-center gap-3 mt-6">
+              <ShineButton onClick={handleSubmit} disabled={submitting}
+                className="h-10 px-6 rounded-full bg-[#00A86B] text-white text-[13px] font-bold hover:bg-[#009B63] disabled:opacity-60 flex items-center gap-1.5">
+                {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />} Save
+              </ShineButton>
+              <button onClick={() => { resetForm(); goToView('list'); }}
+                className="h-10 px-5 rounded-full border border-[#E2E8F0] text-[#64748B] text-[13px] font-bold hover:bg-[#F8FAFC] transition-colors">Cancel</button>
+            </div>
+          </div>
+        ) : !isWoo && !isEditing && oneClick && !showManual ? null : editLoading ? (
           <div className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm py-24 flex items-center justify-center gap-2 text-[#94A3B8]">
             <Loader2 className="w-5 h-5 animate-spin" />
             <span className="text-[14px] font-medium">Loading channel details…</span>

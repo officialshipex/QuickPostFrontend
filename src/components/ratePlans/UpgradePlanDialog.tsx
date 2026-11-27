@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { X, Crown, CheckCircle2, AlertCircle, ArrowUpRight, ArrowDownRight, Minus } from 'lucide-react';
 import { apiClient } from '../../services/apiClient';
 import { openRechargePopup } from '../../utils/walletEvents';
+import { money2 } from "../../utils/money";
 
 /* Recharge plans for sellers without a sales person (backend: /rate-plans/my). One recharge of a plan's amount
    moves the seller to that plan at once; at month end the month's recharges must reach the plan's amount again
@@ -20,7 +21,7 @@ interface MyPlans {
   history: { at: string; action: 'upgraded' | 'downgraded' | 'kept'; fromPlan?: string; toPlan?: string; amount?: number; shipments?: number; period?: string; note?: string }[];
 }
 
-const inr = (v?: number) => `₹${(v ?? 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+const inr = (v?: number) => `₹${(v ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const fmtDate = (iso?: string) => (iso ? new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '');
 const ZONES = ['zoneA', 'zoneB', 'zoneC', 'zoneD', 'zoneE'];
 
@@ -105,7 +106,7 @@ export function UpgradePlanDialog({ onClose }: { onClose: () => void }) {
                       <div className="mt-3 text-[11.5px]">
                         <div className="text-[#94A3B8] mb-1">500 g from</div>
                         <div className="grid grid-cols-5 gap-1 text-center">
-                          {ZONES.map(z => <div key={z}><div className="text-[10px] text-[#94A3B8]">{z.slice(-1)}</div><div className="font-semibold text-[#0F172A] tabular-nums">{p.preview?.[z] == null ? '—' : `₹${p.preview[z]}`}</div></div>)}
+                          {ZONES.map(z => <div key={z}><div className="text-[10px] text-[#94A3B8]">{z.slice(-1)}</div><div className="font-semibold text-[#0F172A] tabular-nums">{p.preview?.[z] == null ? '—' : `₹${money2(p.preview[z])}`}</div></div>)}
                         </div>
                       </div>
                     )}

@@ -7,6 +7,7 @@ import {
   salesApiClient, apiError, inr, periodLabel, ZONE_LABEL, emptyBusiness, downloadRateQuote, sendRateQuote,
   type RateOffer, type RateSuggestion, type ReferredSeller, type SlabPrice, type BusinessDetails, type SavedBusiness, type QuoteTarget,
 } from '../../../services/salesApi';
+import { money2 } from "../../../utils/money";
 
 /* Rates: the commitment rates the admin lets this sales person pitch ("ship N a month, get this rate card"),
    "Fetch rate" (a prospect's Monthly Business Details -> which rate fits, what it costs, a PDF proposal to send),
@@ -33,7 +34,7 @@ function PriceTable({ rows }: { rows?: SlabPrice[] }) {
         <thead><tr className="text-[#64748B]"><th className="text-left py-1.5 pr-2 font-semibold">Weight</th>{ZONES.map(z => <th key={z} className="text-right py-1.5 px-1.5 font-semibold">{ZONE_LABEL[z].replace('Zone ', '')}</th>)}</tr></thead>
         <tbody className="divide-y divide-[#F1F5F9]">
           {rows.map(r => (
-            <tr key={r.key}><td className="py-1.5 pr-2 text-[#475569] whitespace-nowrap">{r.label}</td>{ZONES.map(z => <td key={z} className="py-1.5 px-1.5 text-right tabular-nums text-[#0F172A]">{r.zonePrices[z] == null ? '—' : `₹${r.zonePrices[z]}`}</td>)}</tr>
+            <tr key={r.key}><td className="py-1.5 pr-2 text-[#475569] whitespace-nowrap">{r.label}</td>{ZONES.map(z => <td key={z} className="py-1.5 px-1.5 text-right tabular-nums text-[#0F172A]">{r.zonePrices[z] == null ? '—' : `₹${money2(r.zonePrices[z])}`}</td>)}</tr>
           ))}
         </tbody>
       </table>
@@ -518,7 +519,7 @@ export function SalesRatesTab({ viewAsId, sellers, canAssign, onAssigned }: { vi
                     <div className="text-[13.5px] font-bold text-[#0F172A]">{o.name}</div>
                     <div className="text-[12px] text-[#64748B]">Commit {n(o.minMonthlyShipments)}+ shipments / month · rate card {o.planName}{o.description ? ` · ${o.description}` : ''}</div>
                   </div>
-                  <span className="text-[12.5px] font-semibold text-[#0F172A] tabular-nums whitespace-nowrap">500 g from ₹{o.preview?.find(p => p.key === '500g')?.zonePrices.zoneA ?? '—'}</span>
+                  <span className="text-[12.5px] font-semibold text-[#0F172A] tabular-nums whitespace-nowrap">500 g from {(() => { const v = o.preview?.find(p => p.key === '500g')?.zonePrices.zoneA; return v == null ? '—' : `₹${Number(v).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; })()}</span>
                   <ChevronDown className={`w-4 h-4 text-[#94A3B8] transition-transform ${open === o._id ? 'rotate-180' : ''}`} />
                 </button>
                 {open === o._id && <div className="px-5 pb-4"><PriceTable rows={o.preview} /></div>}

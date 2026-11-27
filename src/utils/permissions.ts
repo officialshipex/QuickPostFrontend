@@ -143,6 +143,19 @@ export function toStoredRights(form: AccessRights, panel: PanelType): AccessRigh
   return { ...stored, ...groups };
 }
 
+// ─── Sales people with admin-panel modules ────────────────────────────────────────────────────────
+// A sales person always has their Sales Dashboard ('sales') and can also be given admin-panel modules
+// (Orders, NDR, …). Managing employees and Sales Management are never given to them (backend: salesPersonRights).
+export const SALES_NOT_GRANTABLE = ['employees', 'salesTeam', 'salesKyc'];
+
+/** Does a sales person have any access besides their own Sales panel? (then the other modules open too) */
+export function hasAccessBeyondSales(accessRights: Record<string, any> | undefined | null): boolean { // eslint-disable-line @typescript-eslint/no-explicit-any
+  if (!accessRights) return false;
+  return Object.entries(accessRights).some(([key, section]) =>
+    key !== 'sales' && !!section && typeof section === 'object' &&
+    Object.values(section).some(v => v === true || (!!v && typeof v === 'object' && Object.values(v).some(f => f === true))));
+}
+
 // ─── An employee managing employees (e.g. HR) ─────────────────────────────────────────────────────
 // They can only give access they hold themselves, and can't change someone holding access they don't have
 // (the backend enforces the same: utils/employeeAccess.rightsNotHeld).
@@ -233,9 +246,12 @@ export function canAccessRoute(accessRights: Record<string, any> | undefined | n
   return hasAnyView(accessRights, rule.module);
 }
 
-/** Landing page for an admin-panel employee: the first module they may view (main dashboard only if permitted). */
+/** Landing page for an admin-panel employee: the first module they may view (main dashboard only if permitted).
+ *  Not the Sales Dashboard: that is a sales person's own panel (the server refuses everyone else, so an
+ *  operations employee holding an old "Sales Dashboard" right landed on "Access Restricted" + "Could not load the
+ *  Sales panel"). Sales people are sent to it by their own rule (AdminShell). */
 const ADMIN_LANDING: [string, string][] = [
-  ['dashboard', '/admin/dashboard'], ['sales', '/admin/sales'], ['orders', '/admin/orders'], ['ndr', '/admin/ndr'],
+  ['dashboard', '/admin/dashboard'], ['orders', '/admin/orders'], ['ndr', '/admin/ndr'],
   ['internalCrm', '/internal-crm/shipments'], ['wallet', '/admin/wallet'], ['cod', '/admin/cod'], ['reportsHub', '/admin/reports'],
   ['weightDiscrepancy', '/admin/weight-discrepancy'], ['users', '/admin/users'], ['couriers', '/admin/couriers'],
   ['rateCard', '/admin/rate-card'], ['support', '/admin/support'],
@@ -245,6 +261,13 @@ const ADMIN_LANDING: [string, string][] = [
 export function adminEmployeeLanding(accessRights: Record<string, any> | undefined | null): string { // eslint-disable-line @typescript-eslint/no-explicit-any
   const hit = ADMIN_LANDING.find(([key]) => hasAnyView(accessRights, key));
   return hit ? hit[1] : '/admin/profile';
+}
+
+/** The Sales panel pages (a sales person's own Dashboard / Tasks / Rate Comparison). Besides the sales team, the
+ *  server lets in only someone with Sales Management "Team" (to look at a sales person's work). */
+export const SALES_PANEL_PATHS = ['/admin/sales', '/admin/tasks', '/admin/rate-comparison'];
+export function canOpenSalesPanel(accessRights: Record<string, any> | undefined | null): boolean { // eslint-disable-line @typescript-eslint/no-explicit-any
+  return hasAnyView(accessRights, 'salesTeam');
 }
 
 export const NO_ACCESS_MESSAGE = "You don't have access to this page. Please contact your administrator.";

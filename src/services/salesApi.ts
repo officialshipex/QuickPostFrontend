@@ -101,6 +101,8 @@ export interface ReferredSeller {
   onboardingStatus: 'registered' | 'in_progress' | 'completed';
   firstOrderAt?: string;
   totalOrders: number;
+  /** The seller's first successful wallet recharge (null = not recharged yet) */
+  firstRecharge?: { amount: number; at: string } | null;
   lastOrderAt?: string;
   active: boolean;
   rate?: SellerRate | null;
@@ -119,6 +121,15 @@ export interface SalesOverview {
   followUpList?: SalesCall[];
   /** Seller funnel counts for the range, stage by stage. */
   funnel?: Partial<Record<FunnelStage, number>>;
+  /** First recharge of each referred seller: totals (all time), the ones in the selected period, latest first */
+  firstRecharges?: {
+    sellers: number;
+    recharged: number;
+    total: number;
+    average: number;
+    inPeriod: { count: number; total: number };
+    latest: { _id: string; name: string; businessName?: string; amount: number; at: string }[];
+  };
 }
 
 export type FunnelStage = 'leads' | 'called' | 'connected' | 'interested' | 'kyc' | 'onboarded' | 'firstShipment' | 'repeat';
@@ -239,7 +250,7 @@ export const pct = (num?: number, den?: number) => (den && den > 0 ? Math.round(
 export const incentiveLine = (d?: SalesEarning['details']) => (d?.ratePerShipment != null
   ? `${(d.shipments ?? 0).toLocaleString('en-IN')} shipments × ${inr(d.ratePerShipment)}`
   : `${(d?.shipments ?? 0).toLocaleString('en-IN')} shipments · ${d?.percent ?? 0}% of ${inr(d?.freight)}`);
-export const inr = (v?: number) => `₹${(v ?? 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+export const inr = (v?: number) => `₹${(v ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 export const periodLabel = (p?: string) => {
   if (!p) return '—';
   const [y, m] = p.split('-').map(Number);

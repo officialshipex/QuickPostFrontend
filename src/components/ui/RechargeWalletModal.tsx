@@ -101,7 +101,7 @@ export function RechargeWalletModal({ open, onClose, walletBalance, onSuccess, d
     const check: CashfreeVerifyResult | null = await confirmCashfreeOrder(data.orderId).catch(() => null);
     if (check?.status === 'credited' || check?.status === 'already_credited') {
       const added = check.amount ?? rechargeAmount;
-      showToast(`₹${added.toLocaleString('en-IN')} added to your wallet.`);
+      showToast(`₹${added.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} added to your wallet.`);
       onSuccess?.(added);
       setTimeout(handleClose, 2500);
     } else if (check?.status === 'pending') {
@@ -150,7 +150,7 @@ export function RechargeWalletModal({ open, onClose, walletBalance, onSuccess, d
         order_id,
         theme: { color: '#00A86B' },
         handler: () => {
-          showToast(`Recharge of ₹${rechargeAmount.toLocaleString('en-IN')} initiated! Wallet will be credited shortly.`);
+          showToast(`Recharge of ₹${rechargeAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} initiated! Wallet will be credited shortly.`);
           onSuccess?.(rechargeAmount);
           setTimeout(handleClose, 2500);
         },
@@ -179,7 +179,7 @@ export function RechargeWalletModal({ open, onClose, walletBalance, onSuccess, d
     setLoading(true);
     try {
       const { data } = await apiClient.post('/cod/codRemittanceRecharge', { amount: rechargeAmount });
-      showToast(data.message || `Transferred ₹${rechargeAmount.toLocaleString('en-IN')} from COD Remittance!`);
+      showToast(data.message || `Transferred ₹${rechargeAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} from COD Remittance!`);
       setAvailableCodBalance(prev => prev - rechargeAmount);
       onSuccess?.(rechargeAmount);
       setTimeout(handleClose, 2000);
@@ -325,7 +325,7 @@ export function RechargeWalletModal({ open, onClose, walletBalance, onSuccess, d
                         >
                           <div className="flex items-center gap-1.5 sm:gap-2">
                             <Wallet className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#94A3B8]" />
-                            <span>Amount to be credited: ₹{(rechargeAmount || 0).toLocaleString('en-IN')}</span>
+                            <span>Amount to be credited: ₹{(rechargeAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                           </div>
                           <div className="flex items-center gap-1 text-[#94A3B8]">
                             <span className="text-[9px] sm:text-[10px] font-bold hidden sm:inline">{showBillSummary ? 'Hide Bill Summary' : 'Show Bill Summary'}</span>
@@ -336,11 +336,11 @@ export function RechargeWalletModal({ open, onClose, walletBalance, onSuccess, d
                           <div className="mt-2 sm:mt-3 pt-2 sm:pt-3 border-t border-[#E2E8F0] space-y-1.5 sm:space-y-2">
                             <div className="flex justify-between text-[11px] sm:text-xs font-semibold text-[#64748B]">
                               <span>Recharge Amount</span>
-                              <span>₹{(rechargeAmount || 0).toLocaleString('en-IN')}</span>
+                              <span>₹{(rechargeAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                             </div>
                             <div className="flex justify-between text-[11px] sm:text-xs font-bold text-[#0F172A] pt-2 border-t border-dashed border-[#E2E8F0]">
                               <span>Payable Amount</span>
-                              <span>₹{(rechargeAmount || 0).toLocaleString('en-IN')}</span>
+                              <span>₹{(rechargeAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                             </div>
                           </div>
                         )}
@@ -354,7 +354,7 @@ export function RechargeWalletModal({ open, onClose, walletBalance, onSuccess, d
                       onClick={handlePayment}
                       className="w-full py-2.5 sm:py-3.5 bg-gradient-to-r from-[#00b876] to-[#00A86B] text-white text-xs sm:text-sm font-bold rounded-full shadow-[0_4px_12px_rgba(0,168,107,0.2)] hover:from-[#00c982] hover:to-[#00b876] transition-all disabled:opacity-50 disabled:pointer-events-none text-center focus:outline-none cursor-pointer"
                     >
-                      {loading ? 'Processing...' : `Pay ₹${(rechargeAmount || 0).toLocaleString('en-IN')}`}
+                      {loading ? 'Processing...' : `Pay ₹${(rechargeAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                     </button>
 
                     {/* OR divider */}

@@ -1546,18 +1546,18 @@ export function AdminWallet() {
                 </div>
                 <div className="flex md:grid md:grid-cols-4 lg:grid-cols-7 gap-2.5 overflow-x-auto md:overflow-visible thin-scrollbar pb-1 md:pb-0">
                   {[
-                    { label: 'Current Usable Balance', value: `₹${walletBalance.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`, icon: Wallet, tone: 'text-[#0F172A]' },
-                    { label: 'Balance On Hold', value: `₹${walletHold.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`, icon: Clock, tone: 'text-amber-600' },
-                    { label: 'Credit Limit', value: `₹${creditLimit.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`, icon: CreditCard, tone: 'text-[#0F172A]' },
+                    { label: 'Current Usable Balance', value: `₹${walletBalance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, icon: Wallet, tone: 'text-[#0F172A]' },
+                    { label: 'Balance On Hold', value: `₹${walletHold.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, icon: Clock, tone: 'text-amber-600' },
+                    { label: 'Credit Limit', value: `₹${creditLimit.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, icon: CreditCard, tone: 'text-[#0F172A]' },
                     {
                       label: 'Last Successful Recharge',
-                      value: passbookStats.lastRechargeAmount != null ? `₹${passbookStats.lastRechargeAmount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}` : '—',
+                      value: passbookStats.lastRechargeAmount != null ? `₹${passbookStats.lastRechargeAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—',
                       sub: passbookStats.lastRechargeDate ? new Date(passbookStats.lastRechargeDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : undefined,
                       icon: RefreshCcw, tone: 'text-[#0F172A]',
                     },
-                    { label: 'Total Cashback', value: `₹${passbookStats.totalCashback.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`, icon: TrendingUp, tone: 'text-[#00A86B]' },
-                    { label: 'Amount Credited', value: `₹${passbookStats.totalCredited.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`, icon: ArrowDownCircle, tone: 'text-[#00A86B]' },
-                    { label: 'Amount Debited', value: `₹${passbookStats.totalDebited.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`, icon: ArrowUpCircle, tone: 'text-red-500' },
+                    { label: 'Total Cashback', value: `₹${passbookStats.totalCashback.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, icon: TrendingUp, tone: 'text-[#00A86B]' },
+                    { label: 'Amount Credited', value: `₹${passbookStats.totalCredited.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, icon: ArrowDownCircle, tone: 'text-[#00A86B]' },
+                    { label: 'Amount Debited', value: `₹${passbookStats.totalDebited.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, icon: ArrowUpCircle, tone: 'text-red-500' },
                   ].map((stat) => (
                     <div
                       key={stat.label}

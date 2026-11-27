@@ -22,7 +22,7 @@ const ZONES = ['Zone A', 'Zone B', 'Zone C', 'Zone D', 'Zone E'];
 const ZONE_HINT = ['Within city', 'Within state', 'Metro to metro', 'Rest of India', 'NE, J&K, islands'];
 const PAN_INDIA = CFG.ZONE_PRESETS[CFG.DEFAULT_ZONE_PRESET].mix;
 
-const inr = (v: number) => `₹${Math.round(v).toLocaleString('en-IN')}`;
+const inr = (v: number) => `₹${(Number(v) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const inr2 = (v: number) => `₹${v.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const pct = (v: number) => `${(Math.round(v * 10) / 10).toLocaleString('en-IN')}%`;
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });

@@ -17,7 +17,7 @@ interface SellerPlan {
 }
 
 const SOURCE_LABEL: Record<string, string> = { default: 'Signup default', recharge: 'Recharge plan', shipment: 'Shipment commitment', sales: 'Sales rate', admin: 'Assigned by admin' };
-const inr = (v?: number) => `₹${(v ?? 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+const inr = (v?: number) => `₹${(v ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const fmtDate = (iso?: string) => (iso ? new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '');
 const errMsg = (e: unknown, fallback: string) => (e as { response?: { data?: { message?: string } } })?.response?.data?.message || fallback;
 
