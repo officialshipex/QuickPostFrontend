@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useSearchParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   PhoneCall, PhoneOutgoing, CalendarClock, UserPlus, UserCheck, PackageCheck, Package, Target,
   Search, Copy, Check, Link2, X, AlertCircle, TrendingUp, Users, Clock, RefreshCw, Phone, MessageCircle, ChevronDown,
-  Wallet, BadgePercent, Plus, Eye, Gift, ShieldBan, ArchiveRestore, Inbox, type LucideIcon,
+  Wallet, BadgePercent, Plus, Eye, Gift, ShieldBan, ArchiveRestore, Inbox, LifeBuoy, type LucideIcon,
 } from 'lucide-react';
 import { AdminLayout } from '../../../components/admin/layout/AdminLayout';
 import { useAdminTab } from '../../../context/AdminUserContext';
@@ -22,12 +23,15 @@ import {
 import { SalesKycGate, OfferLetterCard } from './SalesKycGate';
 import { SalesEarningsTab, BadgeChip } from './SalesEarningsTab';
 import { SalesRatesTab, AssignRateDialog, SellerDetailDialog, TargetBar } from './SalesRatesTab';
+import { SalesTicketsTab, RaiseTicketDialog } from './SalesTickets';
 
-/* Sales module — one page, tabbed: Overview · My Leads · My Sellers · Earnings · Rates · Performance (+ Team for the owner).
+/* Sales module — one page, tabbed: Overview · My Leads · My Sellers · Tickets · Earnings · Rates · Performance (+ Team for the owner).
+   ?tab=<tab>&ticket=<id> (the navbar bell's links) opens a tab / a ticket.
    A sales person sees only their own leads and the sellers who registered with their referral code (read-only);
    nothing loads until their KYC is verified (SalesKycGate). The owner opens a person's view from Sales Management. */
 
-type Tab = 'overview' | 'calls' | 'sellers' | 'earnings' | 'rates' | 'performance' | 'team';
+type Tab = 'overview' | 'calls' | 'sellers' | 'tickets' | 'earnings' | 'rates' | 'performance' | 'team';
+const URL_TABS: Tab[] = ['overview', 'calls', 'sellers', 'tickets', 'earnings', 'rates', 'performance'];
 
 const card = 'bg-white rounded-2xl border border-[#EEF2F6] shadow-[0_1px_2px_rgba(16,24,40,0.04),0_2px_8px_rgba(16,24,40,0.05)]';
 const n = (v?: number) => (v ?? 0).toLocaleString('en-IN');
@@ -800,6 +804,24 @@ function SalesDashboardBody({ viewAs }: { viewAs?: { id: string; name: string } 
   const canAct = !viewAs && isEmployee;
   const { toast, showToast, closeToast } = useToast();
   const [tab, setTab] = useState<Tab>('overview');
+  // ?tab= / ?ticket= (bell links) — only on the sales person's own page (Sales Management uses its own ?tab=)
+  const [params, setParams] = useSearchParams();
+  const urlTab = viewAs ? null : params.get('tab');
+  const urlTicket = viewAs ? null : params.get('ticket');
+  const [openTicket, setOpenTicket] = useState<string | null>(null);
+  const [raising, setRaising] = useState<string | null>(null); // seller id ('' = choose in the dialog)
+  // follow the URL when it changes (a bell link clicked while already on this page)
+  const urlKey = `${urlTab || ''}|${urlTicket || ''}`;
+  const [seenUrl, setSeenUrl] = useState('');
+  if (urlKey !== seenUrl) {
+    setSeenUrl(urlKey);
+    if (urlTab && (URL_TABS as string[]).includes(urlTab)) setTab(urlTab as Tab);
+    if (urlTicket) { setTab('tickets'); setOpenTicket(urlTicket); }
+  }
+  const openTicketChange = (id: string | null) => {
+    setOpenTicket(id);
+    if (!id && urlTicket) setParams(p => { const next = new URLSearchParams(p); next.delete('ticket'); return next; }, { replace: true });
+  };
   // Date range comes from the navbar date filter (shared dashboard filter).
   const { filters, setFilters } = useDashboardFilters();
   // The Sales dashboard opens on Today; the range the user had before is put back when they leave.
@@ -884,6 +906,7 @@ function SalesDashboardBody({ viewAs }: { viewAs?: { id: string; name: string } 
     { key: 'overview', label: 'Overview', icon: TrendingUp },
     { key: 'calls', label: viewAs ? 'Leads' : 'My Leads', icon: PhoneCall },
     { key: 'sellers', label: viewAs ? 'Sellers' : 'My Sellers', icon: UserPlus },
+    { key: 'tickets', label: 'Tickets', icon: LifeBuoy },
     { key: 'earnings', label: 'Earnings', icon: Wallet },
     { key: 'rates', label: 'Rates', icon: BadgePercent },
     { key: 'performance', label: 'Performance', icon: Target },
@@ -926,6 +949,11 @@ function SalesDashboardBody({ viewAs }: { viewAs?: { id: string; name: string } 
               </div>
             </div>
             <div className="flex items-center gap-2">
+              {canAct && (
+                <button onClick={() => setRaising('')} className="h-10 px-4 rounded-full border border-[#00A86B]/40 bg-white text-[#00A86B] hover:bg-[#F0FDF4] text-[12.5px] font-semibold inline-flex items-center gap-1.5">
+                  <LifeBuoy className="w-4 h-4" />Create ticket
+                </button>
+              )}
               <button onClick={load} aria-label="Refresh" className="w-10 h-10 rounded-full border border-[#E2E8F0] bg-white flex items-center justify-center text-[#64748B] hover:text-[#00A86B]">
                 <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
               </button>
@@ -1163,6 +1191,7 @@ function SalesDashboardBody({ viewAs }: { viewAs?: { id: string; name: string } 
                               : '—'}</td>
                             <td className="py-3 px-4 text-right whitespace-nowrap">
                               <button onClick={() => setViewing(s._id)} title="View seller" aria-label={`View ${s.name}`} className="w-8 h-8 rounded-full border border-[#E2E8F0] inline-flex items-center justify-center text-[#475569] hover:border-[#00A86B]/40 hover:text-[#00A86B]"><Eye className="w-4 h-4" /></button>
+                              {canAct && <button onClick={() => setRaising(s._id)} title="Create a support ticket for this seller" aria-label={`Create ticket for ${s.name}`} className="ml-1.5 w-8 h-8 rounded-full border border-[#E2E8F0] inline-flex items-center justify-center text-[#475569] hover:border-[#00A86B]/40 hover:text-[#00A86B]"><LifeBuoy className="w-4 h-4" /></button>}
                               {canAct && offers.length > 0 && <button onClick={() => setAssigning(s)} className="ml-1.5 h-8 px-3 rounded-full border border-[#E2E8F0] text-[12px] font-semibold text-[#475569] hover:border-[#00A86B]/40 hover:text-[#00A86B]">{s.rate ? 'Change rate' : 'Set rate'}</button>}
                             </td>
                           </tr>
@@ -1174,6 +1203,10 @@ function SalesDashboardBody({ viewAs }: { viewAs?: { id: string; name: string } 
               </div>
             )}
 
+            {tab === 'tickets' && (
+              <SalesTicketsTab viewAsId={viewAsId} canAct={canAct} openId={openTicket} onOpenChange={openTicketChange}
+                onRaise={() => setRaising('')} reloadKey={reloadKey} onToast={(ok, msg) => showToast(ok ? 'success' : 'error', msg)} />
+            )}
             {tab === 'earnings' && <SalesEarningsTab key={reloadKey} viewAsId={viewAsId} />}
             {tab === 'rates' && <SalesRatesTab viewAsId={viewAsId} sellers={sellers} canAssign={canAct} onAssigned={msg => { showToast('success', msg); load(); }} />}
 
@@ -1278,6 +1311,10 @@ function SalesDashboardBody({ viewAs }: { viewAs?: { id: string; name: string } 
       {assigning && (
         <AssignRateDialog sellers={sellers} offers={offers} initialSellerId={assigning._id}
           onClose={() => setAssigning(null)} onDone={msg => { showToast('success', msg); load(); }} />
+      )}
+      {raising !== null && (
+        <RaiseTicketDialog sellers={sellers} initialSellerId={raising || undefined} onClose={() => setRaising(null)}
+          onCreated={(msg, id) => { showToast('success', msg); setTab('tickets'); setOpenTicket(id || null); setReloadKey(k => k + 1); }} />
       )}
       {viewing && <SellerDetailDialog sellerId={viewing} viewAsId={viewAsId} canEdit={canAct} onClose={() => setViewing(null)}
         onSaved={(msg, ok) => { showToast(ok ? 'success' : 'error', msg); load(); }} />}

@@ -7,7 +7,7 @@ import { useTableLoader } from '../../hooks/useTableLoader';
 import {
   Search, RefreshCcw, User, Package, FileText, Calendar, X,
   MessageSquare, CheckCircle2, Tag, ArrowUpDown, Send, Plus,
-  Filter, MoreHorizontal, Wrench, Headphones, StickyNote, ArrowLeftRight,
+  Filter, MoreHorizontal, Wrench, Headphones, StickyNote, ArrowLeftRight, Target, Undo2,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
@@ -22,9 +22,18 @@ import { StatusRibbon } from '../../components/ui/StatusRibbon';
 import { apiClient } from '../../services/apiClient';
 import {
   getAllTickets, getUserTickets, viewTicket, replyToTicket, closeTicket, createTicket,
-  transferTicket, addInternalNote, teamOf, TEAM_LABEL,
-  type Ticket, type SupportTeam
+  transferTicket, addInternalNote, handbackTicket, teamOf, TEAM_LABEL,
+  type Ticket, type SupportTeam, type TicketInternalNote
 } from '../../services/api/supportService';
+
+// A ticket a sales person raised for a seller (Sales panel → Create ticket)
+const fromSales = (t: Pick<Ticket, 'raisedBy'>) => t.raisedBy?.kind === 'sales';
+// Heading of one staff note
+const noteHeading = (n: TicketInternalNote) =>
+  n.kind === 'transfer' ? `${n.byName || 'Staff'} moved it ${n.fromTeam ? TEAM_LABEL[n.fromTeam] : ''} → ${n.toTeam ? TEAM_LABEL[n.toTeam] : ''}`
+  : n.kind === 'handback' ? `${n.byName || 'Staff'} sent it back to the sales person`
+  : n.kind === 'sales' ? `${n.byName || 'Sales person'} · sales note`
+  : `${n.byName || 'Staff'} · note`;
 
 // ─── Status helpers ───────────────────────────────────────────────────────────
 
@@ -333,8 +342,12 @@ export function AdminSupport() {
   const [showTransfer, setShowTransfer] = useState(false);
   const [transferNote, setTransferNote] = useState('');
   const [noteText, setNoteText] = useState('');
-  const [staffBusy, setStaffBusy] = useState<'' | 'transfer' | 'note'>('');
+  const [staffBusy, setStaffBusy] = useState<'' | 'transfer' | 'note' | 'handback'>('');
   const [staffError, setStaffError] = useState('');
+  // Send a sales-raised ticket back to the sales person
+  const [showHandback, setShowHandback] = useState(false);
+  const [handbackNote, setHandbackNote] = useState('');
+  const [handbackClose, setHandbackClose] = useState(true);
 
   const persisted = loadPersistedFilters();
 
@@ -526,6 +539,7 @@ export function AdminSupport() {
     setSelectedTicket(ticket);
     setReplyText('');
     setShowTransfer(false); setTransferNote(''); setNoteText(''); setStaffError('');
+    setShowHandback(false); setHandbackNote('');
     if (isAdminView && (ticket.status === 'new' || ticket.status === 'active')) {
       try {
         const updated = await viewTicket(ticket._id);
@@ -574,6 +588,20 @@ export function AdminSupport() {
       applyStaffUpdate(updated);
     } catch (err: any) {
       setStaffError(err?.response?.data?.message || 'Could not move the ticket');
+    } finally { setStaffBusy(''); }
+  };
+
+  // Tell the sales person who raised the ticket what was done, so they call the seller again (optionally closing it)
+  const handleHandback = async () => {
+    if (!selectedTicket) return;
+    if (handbackNote.trim().length < 5) { setStaffError('Write what was done / what the sales person should tell the seller.'); return; }
+    setStaffBusy('handback'); setStaffError('');
+    try {
+      const updated = await handbackTicket(selectedTicket._id, handbackNote.trim(), handbackClose);
+      setShowHandback(false); setHandbackNote('');
+      applyStaffUpdate(updated);
+    } catch (err) {
+      setStaffError((err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Could not send the ticket back');
     } finally { setStaffBusy(''); }
   };
 
@@ -816,6 +844,9 @@ export function AdminSupport() {
                           {isAdminView && teamOf(ticket) === 'tech' && (
                             <div className="mt-1"><span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-violet-50 text-violet-700 text-[10px] font-bold"><Wrench className="w-3 h-3" />Tech</span></div>
                           )}
+                          {isAdminView && fromSales(ticket) && (
+                            <div className="mt-1"><span title={`Raised by sales person ${ticket.raisedBy?.name || ''}`} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#F0FDF4] text-[#0F6B38] text-[10px] font-bold whitespace-nowrap"><Target className="w-3 h-3" />Sales · {ticket.raisedBy?.name?.split(' ')[0] || ''}</span></div>
+                          )}
                         </td>
                         <td className="p-3 align-top">
                           <span className="flex items-center gap-1 text-[12px] font-normal text-[#64748B]">
@@ -902,6 +933,9 @@ export function AdminSupport() {
 
                     {isAdminView && teamOf(ticket) === 'tech' && (
                       <div className="mb-1"><span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-violet-50 text-violet-700 text-[10px] font-bold"><Wrench className="w-3 h-3" />With Tech team</span></div>
+                    )}
+                    {isAdminView && fromSales(ticket) && (
+                      <div className="mb-1"><span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#F0FDF4] text-[#0F6B38] text-[10px] font-bold"><Target className="w-3 h-3" />Raised by sales · {ticket.raisedBy?.name || ''}</span></div>
                     )}
                     <div className="text-[12px] font-normal text-[#94A3B8] mb-0.5">
                       Resolution Due By: {formatDate(new Date(new Date(ticket.createdAt).getTime() + 24 * 60 * 60 * 1000).toISOString())}
@@ -1091,7 +1125,13 @@ export function AdminSupport() {
                     </span>
                   )}
                 </div>
-                <p className="text-[11px] text-[#64748B]">Raised by {selectedTicket.fullname} · {formatDate(selectedTicket.createdAt)}</p>
+                <p className="text-[11px] text-[#64748B]">
+                  {fromSales(selectedTicket)
+                    ? isAdminView
+                      ? <>Raised by sales person <b className="text-[#0F6B38]">{selectedTicket.raisedBy?.name}</b>{selectedTicket.raisedBy?.employeeId ? ` (${selectedTicket.raisedBy.employeeId})` : ''} for {selectedTicket.fullname}</>
+                      : <>Raised for you by {selectedTicket.raisedBy?.name || 'our sales team'} (sales team)</>
+                    : <>Raised by {selectedTicket.fullname}</>} · {formatDate(selectedTicket.createdAt)}
+                </p>
               </div>
               <button onClick={() => setSelectedTicket(null)} className="w-8 h-8 rounded-lg border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:bg-[#F8FAFC]">
                 <X className="w-4 h-4" />
@@ -1171,12 +1211,46 @@ export function AdminSupport() {
                     </div>
                   )}
 
+                  {/* Raised by a sales person: send it back to them so they call the seller again */}
+                  {fromSales(selectedTicket) && (
+                    <div className="rounded-lg border border-[#A7F3D0] bg-[#ECFDF5] p-3 space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-[11.5px] text-[#065F46]">Raised by <b>{selectedTicket.raisedBy?.name}</b> (sales) on a call. They are notified of replies, notes and closing.</p>
+                        {!showHandback && (
+                          <button onClick={() => { setShowHandback(true); setShowTransfer(false); setStaffError(''); setHandbackClose(selectedTicket.status !== 'closed' && selectedTicket.status !== 'resolved'); }}
+                            className="h-8 px-3 rounded-lg bg-[#047857] text-white text-[11px] font-bold inline-flex items-center gap-1.5 shrink-0 hover:bg-[#065F46]">
+                            <Undo2 className="w-3.5 h-3.5" />Send back to sales person
+                          </button>
+                        )}
+                      </div>
+                      {showHandback && (
+                        <div className="space-y-2">
+                          <textarea value={handbackNote} onChange={e => setHandbackNote(e.target.value)} autoFocus maxLength={2000}
+                            placeholder='What was done / what to tell the seller, e.g. "COD of 12 Nov was released today, UTR 1234 — please confirm with the seller"'
+                            className="w-full h-20 p-3 rounded-xl border border-[#A7F3D0] bg-white text-xs focus:outline-none focus:ring-2 focus:ring-[#A7F3D0] resize-none" />
+                          {selectedTicket.status !== 'closed' && selectedTicket.status !== 'resolved' && (
+                            <label className="flex items-center gap-2 text-[11.5px] text-[#065F46] cursor-pointer">
+                              <input type="checkbox" checked={handbackClose} onChange={e => setHandbackClose(e.target.checked)} className="h-3.5 w-3.5 accent-[#047857]" />
+                              Also close the ticket (the issue is solved)
+                            </label>
+                          )}
+                          <p className="text-[11px] text-[#065F46]">{selectedTicket.raisedBy?.name || 'The sales person'} gets a notification to call the seller. The seller doesn't see this note.</p>
+                          <div className="flex gap-2">
+                            <button onClick={handleHandback} disabled={staffBusy === 'handback'}
+                              className="h-8 px-3 rounded-lg bg-[#0F172A] text-white text-[11px] font-bold disabled:opacity-50">{staffBusy === 'handback' ? 'Sending…' : 'Send to sales person'}</button>
+                            <button onClick={() => { setShowHandback(false); setHandbackNote(''); setStaffError(''); }} className="h-8 px-3 rounded-lg border border-[#E2E8F0] bg-white text-[11px] font-semibold text-[#475569]">Cancel</button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {(selectedTicket.internalNotes || []).length > 0 && (
                     <ul className="space-y-2">
                       {(selectedTicket.internalNotes || []).map((n, i) => (
-                        <li key={i} className="rounded-lg bg-white border border-amber-100 p-3">
+                        <li key={i} className={`rounded-lg bg-white border p-3 ${n.kind === 'handback' ? 'border-[#A7F3D0]' : n.kind === 'sales' ? 'border-sky-200' : 'border-amber-100'}`}>
                           <div className="flex items-center gap-2 mb-1 text-[10px]">
-                            <span className="font-bold text-amber-800">{n.kind === 'transfer' ? `${n.byName || 'Staff'} moved it ${n.fromTeam ? TEAM_LABEL[n.fromTeam] : ''} → ${n.toTeam ? TEAM_LABEL[n.toTeam] : ''}` : `${n.byName || 'Staff'} · note`}</span>
+                            <span className={`font-bold ${n.kind === 'handback' ? 'text-[#047857]' : n.kind === 'sales' ? 'text-sky-700' : 'text-amber-800'}`}>{noteHeading(n)}</span>
                             <span className="text-[#94A3B8]">{formatDate(n.at)}</span>
                           </div>
                           <p className="text-xs text-[#475569] whitespace-pre-wrap">{n.note}</p>

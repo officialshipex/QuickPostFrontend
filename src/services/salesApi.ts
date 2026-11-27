@@ -58,6 +58,37 @@ export const downloadRateQuote = (body: BusinessDetails & QuoteTarget & { prospe
   savePdf(() => salesApiClient.post('/rate-quote', body, { params: employeeId ? { employeeId } : {}, responseType: 'blob' }),
     `Rate-Proposal${body.prospectName ? `-${body.prospectName.replace(/[^\w-]+/g, '-').slice(0, 40)}` : ''}.pdf`, 'Could not create the proposal. Please try again.');
 
+// ── Support tickets a sales person raises for their sellers (backend sales/salesTickets.js) ──
+export type SalesTicketStatus = 'new' | 'open' | 'awaiting_response' | 'closed' | 'active' | 'resolved' | 'deleted';
+export interface SalesTicketNote { kind: 'transfer' | 'note' | 'handback' | 'sales'; fromTeam?: string; toTeam?: string; note: string; byName?: string; at: string }
+export interface SalesTicket {
+  _id: string;
+  ticketNumber: string;
+  seller: { id: string; name: string; company: string; phone: string; email: string };
+  category: string;
+  subcategory: string;
+  status: SalesTicketStatus;
+  team: 'support' | 'tech';
+  mode?: 'b2c' | 'cargo';
+  createdAt: string;
+  lastRepliedAt?: string;
+  replies: number;
+  lastHandback: { note: string; byName?: string; at: string } | null;
+  // the full ticket (GET /tickets/:id)
+  message?: string;
+  awbNumbers?: string[];
+  attachments?: number;
+  messages?: { sender: 'user' | 'admin'; senderName: string; message: string; sentAt: string }[];
+  notes?: SalesTicketNote[];
+}
+export const isClosedTicket = (s: SalesTicketStatus) => s === 'closed' || s === 'resolved';
+
+// ── Navbar bell (backend sales/models/salesNotification.model.js) ──
+export type SalesNoticeType =
+  | 'ticket_handback' | 'ticket_reply' | 'ticket_note' | 'ticket_seller_reply' | 'ticket_tech' | 'ticket_closed'
+  | 'leads_assigned' | 'seller_signup' | 'kyc_approved' | 'kyc_rejected' | 'bonus_earned' | 'payout_paid';
+export interface SalesNotice { _id: string; type: SalesNoticeType; title: string; body?: string; link?: string; readAt: string | null; createdAt: string; ticket?: string }
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 export type CallStatus = 'assigned' | 'pending' | 'completed' | 'follow_up' | 'unreachable';
 export type CallOutcome = 'interested' | 'not_interested' | 'callback' | 'no_answer' | 'invalid_number' | 'onboarding_initiated';
