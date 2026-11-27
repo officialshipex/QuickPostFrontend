@@ -42,6 +42,7 @@ import {
   ScrollText,
   Contact,
   History,
+  LifeBuoy,
 } from 'lucide-react';
 
 const LOGO_URL = '/logo-white.png';
@@ -104,6 +105,14 @@ const MENU_GROUPS: MenuGroup[] = [
     label: 'Tasks',
     icon: ListChecks,
     path: '/admin/tasks',
+    adminOnly: true,
+    permission: 'sales',
+    salesEmployeeOnly: true,
+  },
+  {
+    label: 'Tickets',
+    icon: LifeBuoy,
+    path: '/admin/sales-tickets',
     adminOnly: true,
     permission: 'sales',
     salesEmployeeOnly: true,

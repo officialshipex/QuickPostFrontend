@@ -8,6 +8,7 @@ import {
   Search, RefreshCcw, User, Package, FileText, Calendar, X,
   MessageSquare, CheckCircle2, Tag, ArrowUpDown, Send, Plus,
   Filter, MoreHorizontal, Wrench, Headphones, StickyNote, ArrowLeftRight,
+  Briefcase, Check,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GlassDropdown } from '../../components/ui/GlassDropdown';
@@ -332,6 +333,7 @@ export function AdminSupport() {
   // Staff panel in the ticket drawer: move to the other team (with a note), staff-only notes
   const [showTransfer, setShowTransfer] = useState(false);
   const [transferNote, setTransferNote] = useState('');
+  const [transferTo, setTransferTo] = useState<SupportTeam>('tech');
   const [noteText, setNoteText] = useState('');
   const [staffBusy, setStaffBusy] = useState<'' | 'transfer' | 'note'>('');
   const [staffError, setStaffError] = useState('');
@@ -507,7 +509,7 @@ export function AdminSupport() {
   // Open (not closed) tickets in each team's queue, for the team switch
   const teamCounts = useMemo(() => {
     const open = tickets.filter(t => t.status !== 'closed' && t.status !== 'resolved');
-    return { support: open.filter(t => teamOf(t) === 'support').length, tech: open.filter(t => teamOf(t) === 'tech').length };
+    return { support: open.filter(t => teamOf(t) === 'support').length, tech: open.filter(t => teamOf(t) === 'tech').length, sales: open.filter(t => teamOf(t) === 'sales').length };
   }, [tickets]);
 
   const {
@@ -565,7 +567,7 @@ export function AdminSupport() {
   // Move the open ticket to the other team's queue, with a note for that team
   const handleTransfer = async () => {
     if (!selectedTicket) return;
-    const to: SupportTeam = teamOf(selectedTicket) === 'tech' ? 'support' : 'tech';
+    const to: SupportTeam = transferTo === teamOf(selectedTicket) ? (teamOf(selectedTicket) === 'support' ? 'tech' : 'support') : transferTo;
     if (transferNote.trim().length < 5) { setStaffError('Write a short note for the other team (what is the issue / what was done).'); return; }
     setStaffBusy('transfer'); setStaffError('');
     try {
@@ -678,9 +680,9 @@ export function AdminSupport() {
                 <span className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-violet-50 text-violet-700 text-[12px] font-bold"><Wrench className="w-3.5 h-3.5" />Tech queue</span>
               ) : (
                 <div className="flex items-center gap-1 bg-[#F1F5F9] rounded-full p-1">
-                  {([['all', 'All teams'], ['support', `Support · ${teamCounts.support}`], ['tech', `Tech · ${teamCounts.tech}`]] as ['all' | SupportTeam, string][]).map(([k, label]) => (
+                  {([['all', 'All teams'], ['support', `Support · ${teamCounts.support}`], ['tech', `Technical · ${teamCounts.tech}`], ['sales', `Sales · ${teamCounts.sales}`]] as ['all' | SupportTeam, string][]).map(([k, label]) => (
                     <button key={k} onClick={() => { setTeamFilter(k); setCurrentPage(1); }}
-                      className={`h-7 px-3 rounded-full text-[12px] font-semibold whitespace-nowrap transition-colors ${teamFilter === k ? (k === 'tech' ? 'bg-violet-600 text-white' : 'bg-white text-[#0F172A] shadow-sm') : 'text-[#64748B] hover:text-[#0F172A]'}`}>
+                      className={`h-7 px-3 rounded-full text-[12px] font-semibold whitespace-nowrap transition-colors ${teamFilter === k ? (k === 'tech' ? 'bg-violet-600 text-white' : k === 'sales' ? 'bg-[#00A86B] text-white' : 'bg-white text-[#0F172A] shadow-sm') : 'text-[#64748B] hover:text-[#0F172A]'}`}>
                       {label}
                     </button>
                   ))}
@@ -1086,8 +1088,8 @@ export function AdminSupport() {
                     {STATUS_LABEL[selectedTicket.status] || selectedTicket.status}
                   </span>
                   {isAdminView && (
-                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${teamOf(selectedTicket) === 'tech' ? 'bg-violet-50 text-violet-700' : 'bg-sky-50 text-sky-700'}`}>
-                      {teamOf(selectedTicket) === 'tech' ? <Wrench className="w-3 h-3" /> : <Headphones className="w-3 h-3" />}{TEAM_LABEL[teamOf(selectedTicket)]}
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${teamOf(selectedTicket) === 'tech' ? 'bg-violet-50 text-violet-700' : teamOf(selectedTicket) === 'sales' ? 'bg-[#F0FDF4] text-[#047857]' : 'bg-sky-50 text-sky-700'}`}>
+                      {teamOf(selectedTicket) === 'tech' ? <Wrench className="w-3 h-3" /> : teamOf(selectedTicket) === 'sales' ? <Briefcase className="w-3 h-3" /> : <Headphones className="w-3 h-3" />}{TEAM_LABEL[teamOf(selectedTicket)]}
                     </span>
                   )}
                 </div>
@@ -1150,26 +1152,87 @@ export function AdminSupport() {
                   <div className="flex items-center justify-between gap-2">
                     <h4 className="text-xs font-bold text-amber-800 uppercase tracking-wide flex items-center gap-1.5"><StickyNote className="w-3.5 h-3.5" />Internal · only staff see this</h4>
                     {selectedTicket.status !== 'closed' && selectedTicket.status !== 'resolved' && !showTransfer && (
-                      <button onClick={() => { setShowTransfer(true); setStaffError(''); }}
-                        className={`h-8 px-3 rounded-lg text-[11px] font-bold inline-flex items-center gap-1.5 ${teamOf(selectedTicket) === 'tech' ? 'border border-sky-200 bg-white text-sky-700 hover:bg-sky-50' : 'bg-violet-600 text-white hover:bg-violet-700'}`}>
-                        <ArrowLeftRight className="w-3.5 h-3.5" />{teamOf(selectedTicket) === 'tech' ? 'Send back to Support' : 'Transfer to Tech'}
+                      <button onClick={() => { setShowTransfer(true); setStaffError(''); setTransferTo((['tech', 'sales', 'support'] as SupportTeam[]).find(t => t !== teamOf(selectedTicket))!); }}
+                        className="h-9 sm:h-8 px-3.5 sm:px-3 rounded-full sm:rounded-lg bg-[#0F172A] hover:bg-[#1E293B] text-white text-[12px] sm:text-[11px] font-bold inline-flex items-center gap-1.5 transition-colors shrink-0">
+                        <ArrowLeftRight className="w-3.5 h-3.5" />Transfer ticket
                       </button>
                     )}
                   </div>
 
-                  {showTransfer && (
-                    <div className="space-y-2">
-                      <textarea value={transferNote} onChange={e => setTransferNote(e.target.value)} autoFocus
-                        placeholder={teamOf(selectedTicket) === 'tech' ? 'What was done? e.g. "Fixed the webhook, please confirm with the seller and close"' : 'What should Tech check? e.g. "Shopify orders not syncing since 24 Nov, API key looks fine"'}
-                        className="w-full h-20 p-3 rounded-xl border border-amber-200 bg-white text-xs focus:outline-none focus:ring-2 focus:ring-amber-200 resize-none" />
-                      <p className="text-[11px] text-amber-800">{teamOf(selectedTicket) === 'tech' ? 'The ticket goes back to the Support queue.' : 'The tech team gets an email, and the seller is told the technical team is looking into it.'}</p>
-                      <div className="flex gap-2">
-                        <button onClick={handleTransfer} disabled={staffBusy === 'transfer'}
-                          className="h-8 px-3 rounded-lg bg-[#0F172A] text-white text-[11px] font-bold disabled:opacity-50">{staffBusy === 'transfer' ? 'Moving…' : teamOf(selectedTicket) === 'tech' ? 'Send to Support' : 'Send to Tech'}</button>
-                        <button onClick={() => { setShowTransfer(false); setTransferNote(''); setStaffError(''); }} className="h-8 px-3 rounded-lg border border-[#E2E8F0] bg-white text-[11px] font-semibold text-[#475569]">Cancel</button>
+                  {showTransfer && (() => {
+                    const current = teamOf(selectedTicket);
+                    const DEST: { key: SupportTeam; title: string; hint: string; icon: typeof Wrench; on: string }[] = [
+                      { key: 'support', title: 'Support', hint: 'General help desk queue', icon: Headphones, on: 'border-sky-400 bg-sky-50 text-sky-800' },
+                      { key: 'tech', title: 'Technical', hint: 'Integrations, bugs, API issues', icon: Wrench, on: 'border-violet-400 bg-violet-50 text-violet-800' },
+                      { key: 'sales', title: 'Sales', hint: 'Pricing, plans, new business', icon: Briefcase, on: 'border-[#00A86B] bg-[#F0FDF4] text-[#047857]' },
+                    ];
+                    const placeholder = transferTo === 'tech'
+                      ? 'What should Tech check? e.g. "Shopify orders not syncing since 24 Nov, API key looks fine"'
+                      : transferTo === 'sales'
+                      ? 'What does the seller need? e.g. "Asking for better rates for 2,000 shipments / month"'
+                      : 'What was done? e.g. "Fixed the webhook, please confirm with the seller and close"';
+                    const hint = transferTo === 'tech'
+                      ? 'The tech team gets an email, and the seller is told the technical team is looking into it.'
+                      : transferTo === 'sales'
+                      ? 'Every sales team member sees it in their Tickets and gets an alert.'
+                      : 'The ticket goes back to the Support queue.';
+                    const closeSheet = () => { setShowTransfer(false); setTransferNote(''); setStaffError(''); };
+                    return (
+                      <>
+                      {/* phones: dimmed backdrop behind the bottom sheet */}
+                      <div className="sm:hidden fixed inset-0 z-[390] bg-slate-900/40" onClick={closeSheet} aria-hidden />
+                      <div role="dialog" aria-label="Transfer ticket"
+                        className="fixed sm:static inset-x-0 bottom-0 z-[400] sm:z-auto max-h-[88vh] overflow-y-auto sm:overflow-visible bg-white sm:bg-transparent rounded-t-[22px] sm:rounded-none shadow-[0_-20px_50px_-20px_rgba(15,23,42,0.45)] sm:shadow-none px-4 pt-2 pb-[max(16px,env(safe-area-inset-bottom))] sm:p-0 space-y-3 animate-[qpSheetUp_.28s_cubic-bezier(.22,1,.36,1)] sm:animate-none">
+                        <style>{'@keyframes qpSheetUp{from{transform:translateY(100%)}to{transform:translateY(0)}}'}</style>
+                        {/* phones: sheet header */}
+                        <div className="sm:hidden">
+                          <span className="block mx-auto w-10 h-1 rounded-full bg-[#E2E8F0]" />
+                          <div className="mt-3 flex items-center justify-between">
+                            <div>
+                              <div className="text-[15px] font-bold text-[#0F172A]">Transfer ticket</div>
+                              <div className="text-[12px] text-[#64748B]">#{selectedTicket.ticketNumber} · now with {TEAM_LABEL[current]}</div>
+                            </div>
+                            <button type="button" onClick={closeSheet} aria-label="Close" className="w-8 h-8 rounded-full bg-[#F1F5F9] flex items-center justify-center text-[#475569]"><X className="w-4 h-4" /></button>
+                          </div>
+                        </div>
+                        <div>
+                          <div className="mb-1.5 text-[12px] sm:text-[11px] font-semibold text-[#334155] sm:text-amber-900">Move to</div>
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2" role="radiogroup" aria-label="Transfer to team">
+                            {DEST.filter(d => d.key !== current).map(d => {
+                              const on = transferTo === d.key;
+                              return (
+                                <button key={d.key} type="button" role="radio" aria-checked={on} onClick={() => setTransferTo(d.key)}
+                                  className={`flex items-center gap-3 sm:gap-2.5 text-left rounded-xl border px-3.5 sm:px-3 py-3 sm:py-2.5 min-h-[56px] sm:min-h-0 transition-all active:scale-[0.99] ${on ? d.on : 'border-[#E2E8F0] bg-white text-[#334155] hover:border-[#CBD5E1]'}`}>
+                                  <d.icon className="w-4 h-4 shrink-0" />
+                                  <span className="min-w-0">
+                                    <span className="block text-[12.5px] font-bold">{d.title}</span>
+                                    <span className="block text-[11px] opacity-75 truncate">{d.hint}</span>
+                                  </span>
+                                  {on && <Check className="w-4 h-4 ml-auto shrink-0" />}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="mb-1.5 sm:hidden text-[12px] font-semibold text-[#334155]">Note for the {TEAM_LABEL[transferTo]} team</div>
+                          <textarea value={transferNote} onChange={e => setTransferNote(e.target.value)} autoFocus placeholder={placeholder}
+                            className="w-full h-28 sm:h-24 p-3 rounded-xl border border-amber-200 bg-white text-[14px] sm:text-[13px] focus:outline-none focus:ring-2 focus:ring-amber-200 resize-none" />
+                        </div>
+                        <p className="text-[12px] sm:text-[11.5px] text-amber-800">{hint}</p>
+                        {staffError && <p className="sm:hidden text-[12px] font-medium text-red-600">{staffError}</p>}
+                        <div className="flex flex-col-reverse sm:flex-row gap-2">
+                          <button onClick={closeSheet}
+                            className="h-11 sm:h-9 px-4 rounded-full sm:rounded-lg border border-[#E2E8F0] bg-white text-[13px] sm:text-[12px] font-semibold text-[#475569]">Cancel</button>
+                          <button onClick={handleTransfer} disabled={staffBusy === 'transfer'}
+                            className="h-11 sm:h-9 px-4 rounded-full sm:rounded-lg bg-[#0F172A] text-white text-[13px] sm:text-[12px] font-bold disabled:opacity-50 inline-flex items-center justify-center gap-1.5">
+                            <ArrowLeftRight className="w-3.5 h-3.5" />{staffBusy === 'transfer' ? 'Moving…' : `Transfer to ${TEAM_LABEL[transferTo]}`}
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  )}
+                      </>
+                    );
+                  })()}
 
                   {(selectedTicket.internalNotes || []).length > 0 && (
                     <ul className="space-y-2">

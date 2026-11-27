@@ -77,6 +77,7 @@ import { CARGO_BASE, appPathname, isCargoUrl } from './utils/shippingMode';
 import { BookSession } from './pages/BookSession';
 import { SalesDashboard } from './pages/admin/sales/SalesDashboard';
 import { SalesTasks } from './pages/admin/sales/SalesTasks';
+import { SalesTickets } from './pages/admin/sales/SalesTickets';
 import { SalesManagement } from './pages/admin/sales/SalesManagement';
 import { VasHub } from './pages/admin/vas/VasHub';
 import { NdrFollowups } from './pages/admin/vas/NdrFollowups';
@@ -325,6 +326,7 @@ function App() {
               <Route path="/admin/companies" element={<SensitiveGate><AdminCompanies /></SensitiveGate>} />
               <Route path="/admin/sales" element={<SalesDashboard />} />
               <Route path="/admin/tasks" element={<SalesTasks />} />
+          <Route path="/admin/sales-tickets" element={<SalesTickets />} />
               <Route path="/admin/rate-comparison" element={<SensitiveGate><Suspense fallback={null}><RateComparison /></Suspense></SensitiveGate>} />
               <Route path="/admin/sales-management" element={<SensitiveGate><SalesManagement /></SensitiveGate>} />
               <Route path="/admin/audit" element={<SensitiveGate><AdminAuditLogs /></SensitiveGate>} />

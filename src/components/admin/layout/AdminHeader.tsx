@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Search, LogOut, Bell, User, Building2, Calendar, ChevronDown, Shield, Zap, Calculator, PackagePlus, Wallet, Check, X, Menu, Upload, Users, Package, UploadCloud, Loader2, TicketPlus, PhoneCall } from 'lucide-react';
 import { CallbackRequestModal } from './CallbackRequestModal';
+import { SalesTicketAlert } from './SalesTicketAlert';
 import { OrderRefId } from '../../ui/OrderRefId';
 import { useAuth } from '../../../hooks/useAuth';
 import { ModeSwitch } from './ModeSwitch';
@@ -1408,6 +1409,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
 
         {/* Sales notifications — overdue / due tasks and follow-ups (Sales team) */}
         {isSalesEmployee && <SalesNotificationBell />}
+        {isSalesEmployee && <SalesTicketAlert />}
 
         {/* Notifications — users only (including admin in user mode) */}
         {!(isAdmin && adminTab) && (

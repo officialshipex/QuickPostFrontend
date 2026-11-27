@@ -32,9 +32,9 @@ export interface Ticket {
   internalNotes?: TicketInternalNote[];
 }
 
-export type SupportTeam = 'support' | 'tech';
-export const TEAM_LABEL: Record<SupportTeam, string> = { support: 'Support', tech: 'Tech' };
-export const teamOf = (t: Pick<Ticket, 'team'>): SupportTeam => (t.team === 'tech' ? 'tech' : 'support');
+export type SupportTeam = 'support' | 'tech' | 'sales';
+export const TEAM_LABEL: Record<SupportTeam, string> = { support: 'Support', tech: 'Technical', sales: 'Sales' };
+export const teamOf = (t: Pick<Ticket, 'team'>): SupportTeam => (t.team === 'tech' || t.team === 'sales' ? t.team : 'support');
 
 export interface TicketInternalNote {
   kind: 'transfer' | 'note';
@@ -48,6 +48,13 @@ export interface TicketInternalNote {
 export const getAllTickets = async (): Promise<Ticket[]> => {
   const { data } = await apiClient.get('/support');
   return Array.isArray(data) ? data : [];
+};
+
+/** Tickets in one team's queue (Sales panel). The server may already filter by `team`; we filter again to be safe. */
+export const getTeamTickets = async (team: SupportTeam): Promise<Ticket[]> => {
+  const { data } = await apiClient.get(`/support?team=${team}`);
+  const list: Ticket[] = Array.isArray(data) ? data : [];
+  return list.filter(t => teamOf(t) === team);
 };
 
 export const getUserTickets = async (): Promise<Ticket[]> => {

@@ -265,7 +265,7 @@ export function adminEmployeeLanding(accessRights: Record<string, any> | undefin
 
 /** The Sales panel pages (a sales person's own Dashboard / Tasks / Rate Comparison). Besides the sales team, the
  *  server lets in only someone with Sales Management "Team" (to look at a sales person's work). */
-export const SALES_PANEL_PATHS = ['/admin/sales', '/admin/tasks', '/admin/rate-comparison'];
+export const SALES_PANEL_PATHS = ['/admin/sales', '/admin/tasks', '/admin/rate-comparison', '/admin/sales-tickets'];
 export function canOpenSalesPanel(accessRights: Record<string, any> | undefined | null): boolean { // eslint-disable-line @typescript-eslint/no-explicit-any
   return hasAnyView(accessRights, 'salesTeam');
 }
