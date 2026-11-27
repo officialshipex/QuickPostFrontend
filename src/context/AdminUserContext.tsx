@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import { apiClient } from '../services/apiClient';
 import { getToken, removeToken, getRoleFromToken, isEmployeeToken, getEmployeeFromToken } from '../utils/session';
 import { isCargoUrl } from '../utils/shippingMode';
@@ -15,6 +15,8 @@ interface AdminTabContextType {
   adminTab: boolean;
   loadingAdminTab: boolean;
   currentUserId: string;
+  /** The signed-in account could not be loaded (after retries): the panel must not run (ProtectedRoute). */
+  profileError: boolean;
   userName: string;
   userEmail: string;
   businessName: string;
@@ -51,6 +53,7 @@ const AdminTabContext = createContext<AdminTabContextType>({
   adminTab: false,
   loadingAdminTab: true,
   currentUserId: '',
+  profileError: false,
   userName: '',
   userEmail: '',
   businessName: '',
@@ -118,9 +121,29 @@ export function AdminUserProvider({ children }: { children: ReactNode }) {
   const [parentEmail, setParentEmail] = useState('');
   const [showOnboarding, setShowOnboarding] = useState(false);
 
+  // The account could not be loaded (server restarting, network, 5xx) after retries. The panel must NOT run
+  // without knowing who is signed in: pages would ask for lists with no account id. ProtectedRoute shows a
+  // "could not load your account" screen instead (a 401 still logs out through the api client).
+  const [profileError, setProfileError] = useState(false);
+  const loadedOnce = useRef(false); // a later refetch failing must not lock a panel that already loaded
+
   const fetchAdminTab = useCallback(async () => {
     const token = getToken();
     if (!token) { setLoadingAdminTab(false); return; }
+
+    // Network errors and 5xx are retried (twice, 1 s then 2 s); 4xx answers are final.
+    const getWithRetry = async (url: string) => {
+      for (let attempt = 0; ; attempt++) {
+        try {
+          return await apiClient.get(url);
+        } catch (e: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+          const status = e?.response?.status;
+          const retryable = !status || status >= 500;
+          if (!retryable || attempt >= 2) throw e;
+          await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+        }
+      }
+    };
 
     // ── Employee token path ────────────────────────────────────────────────────
     if (isEmployeeToken(token)) {
@@ -130,9 +153,11 @@ export function AdminUserProvider({ children }: { children: ReactNode }) {
       setIsEmployee(true);
       setEmployeeId(emp?.employeeId || '');
       try {
-        const res = await apiClient.get('/staffRole/verify');
+        const res = await getWithRetry('/staffRole/verify');
         const employee = res.data?.employee;
         const parentUser = res.data?.user;
+        if (!employee || !(parentUser?._id || employee._id)) throw new Error('Employee account missing in response');
+        setProfileError(false); loadedOnce.current = true;
         if (employee) {
           setEmployeeAccessRights(employee.accessRights || {});
           setEmployeeTeam(employee.team || '');
@@ -154,6 +179,8 @@ export function AdminUserProvider({ children }: { children: ReactNode }) {
         if (status === 404) {
           removeToken();
           window.location.href = '/employee-login';
+        } else if (status !== 401) {
+          if (!loadedOnce.current) setProfileError(true);
         }
       } finally {
         setLoadingAdminTab(false);
@@ -163,8 +190,10 @@ export function AdminUserProvider({ children }: { children: ReactNode }) {
 
     // ── Regular user / admin path ──────────────────────────────────────────────
     try {
-      const res = await apiClient.get('/user/getUserDetails');
+      const res = await getWithRetry('/user/getUserDetails');
       const user = res.data?.user;
+      if (!user?._id) throw new Error('Account missing in response');
+      setProfileError(false); loadedOnce.current = true;
       setIsAdmin(user?.isAdmin === true);
       setAdminTab(user?.adminTab === true);
       setCurrentUserId(user?._id || '');
@@ -176,8 +205,9 @@ export function AdminUserProvider({ children }: { children: ReactNode }) {
       setIsEmployee(false);
       setEmployeeAccessRights({});
       setParentEmail('');
-    } catch (e) {
+    } catch (e: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
       console.error('[AdminUserContext] Failed to fetch user details:', e);
+      if (e?.response?.status !== 401 && !loadedOnce.current) setProfileError(true);
     } finally {
       setLoadingAdminTab(false);
     }
@@ -196,7 +226,7 @@ export function AdminUserProvider({ children }: { children: ReactNode }) {
 
   return (
     <AdminTabContext.Provider value={{
-      isAdmin, adminTab, loadingAdminTab, currentUserId,
+      isAdmin, adminTab, loadingAdminTab, currentUserId, profileError,
       userName, userEmail, businessName, profileImage, walletBalance, walletHold, creditLimit,
       mainWalletBalance, mainWalletHold, cargoWalletBalance, hasCargoWallet,
       isEmployee, employeeId, employeeAccessRights, employeeRightsLoaded, parentEmail,
