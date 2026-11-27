@@ -386,6 +386,113 @@ function SellerDetailsModal({ userId, title, section, note, fields, onClose, onS
   );
 }
 
+// ─── GST: verify, then switch the billing address to the verified GST details ────────────
+// A seller who did KYC as an individual (billing address) asks for their GST to be added. The admin verifies the
+// GSTIN online (nothing is saved), compares the registered details with the address on file, then switches:
+// the GST record is saved from the verified result and the billing address is removed (backend kycReview).
+type VerifiedGst = {
+  gstin: string; legalName: string; tradeName: string; status: string; taxPayerType: string;
+  address: string; city: string; state: string; pincode: string;
+};
+function GstSwitchModal({ userId, current, onClose, onSuccess, onManual }: {
+  userId: string;
+  current: { gstin: string; address: string; city: string; state: string; pincode: string };
+  onClose: () => void; onSuccess: () => void; onManual: () => void;
+}) {
+  const clean = (v: unknown) => (v === '—' || v === 'N/A' || v == null ? '' : String(v));
+  const hasGst = !!clean(current.gstin);
+  const currentAddress = [current.address, current.city, current.state, current.pincode].map(clean).filter(Boolean).join(', ');
+  const [gstin, setGstin] = useState('');
+  const [verifying, setVerifying] = useState(false);
+  const [switching, setSwitching] = useState(false);
+  const [verified, setVerified] = useState<VerifiedGst | null>(null);
+  const [canSwitch, setCanSwitch] = useState(false);
+  const [token, setToken] = useState('');
+  const [error, setError] = useState('');
+  const valid = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(gstin);
+
+  const verify = async () => {
+    if (!valid || verifying) return;
+    setVerifying(true); setError(''); setVerified(null); setToken('');
+    try {
+      const res = await apiClient.post(`/kyc-review/seller-gst/${userId}/verify`, { gstin });
+      setVerified(res.data.data); setCanSwitch(!!res.data.canSwitch); setToken(res.data.token);
+    } catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+      setError(err.response?.data?.message || 'Could not verify this GSTIN. Please try again.');
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const doSwitch = async () => {
+    if (!token || switching) return;
+    setSwitching(true); setError('');
+    try {
+      await apiClient.post(`/kyc-review/seller-gst/${userId}/switch`, { token });
+      onSuccess();
+      onClose();
+    } catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+      setError(err.response?.data?.message || 'Could not switch to GST details. Please try again.');
+    } finally {
+      setSwitching(false);
+    }
+  };
+
+  const verifiedAddress = verified ? [verified.address, verified.city, verified.state, verified.pincode].filter(Boolean).join(', ') : '';
+  return (
+    <ModalWrap onClose={onClose}>
+      <ModalHeader title="Update GST Details" onClose={onClose} />
+      <div className="px-5 py-4 flex flex-col gap-3 overflow-y-auto min-h-0">
+        <div className="rounded-[8px] border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2.5">
+          <div className={`${TXT.meta} text-[#94A3B8] uppercase tracking-wider`}>{hasGst ? `Current GST address · ${clean(current.gstin)}` : 'Current billing address (no GST)'}</div>
+          <div className={`${TXT.value} text-[#1E293B] mt-0.5`}>{currentAddress || '—'}</div>
+        </div>
+
+        <div className="flex items-end gap-2">
+          <div className="flex-1">
+            <ModalInput label="GSTIN" value={gstin} maxLength={15} placeholder="15-character GSTIN"
+              onChange={e => { setGstin(e.target.value.toUpperCase().replace(/[^0-9A-Z]/g, '')); setVerified(null); setToken(''); setError(''); }}
+              onKeyDown={e => { if (e.key === 'Enter') verify(); }} />
+          </div>
+          <button onClick={verify} disabled={!valid || verifying}
+            className={`${TXT.label} h-[34px] px-4 rounded-[8px] border border-[#00A86B] text-[#00A86B] hover:bg-[#ECFDF5] transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0`}>
+            {verifying ? 'Verifying…' : 'Verify'}
+          </button>
+        </div>
+
+        {verified && (
+          <div className={`rounded-[8px] border px-3 py-2.5 ${canSwitch ? 'border-emerald-200 bg-emerald-50/60' : 'border-amber-200 bg-amber-50'}`}>
+            <div className="flex items-center justify-between gap-2">
+              <span className={`${TXT.label} ${canSwitch ? 'text-emerald-700' : 'text-amber-700'}`}>{canSwitch ? '✓ GSTIN verified' : 'GSTIN is not active'}</span>
+              <span className={`${TXT.meta} px-2 py-0.5 rounded-full ${canSwitch ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{verified.status || '—'}</span>
+            </div>
+            <div className="grid grid-cols-1 gap-1.5 mt-2">
+              <div><span className={`${TXT.meta} text-[#94A3B8] uppercase`}>Legal name</span><div className={`${TXT.value} text-[#1E293B]`}>{verified.legalName || '—'}</div></div>
+              {verified.tradeName && verified.tradeName !== verified.legalName && (
+                <div><span className={`${TXT.meta} text-[#94A3B8] uppercase`}>Trade name</span><div className={`${TXT.value} text-[#1E293B]`}>{verified.tradeName}</div></div>
+              )}
+              <div><span className={`${TXT.meta} text-[#94A3B8] uppercase`}>GST registered address</span><div className={`${TXT.value} text-[#1E293B]`}>{verifiedAddress || '—'}</div></div>
+            </div>
+            {!canSwitch && <p className={`${TXT.value} text-amber-700 mt-2`}>Only an active GSTIN can be put on the account.</p>}
+          </div>
+        )}
+
+        {verified && canSwitch && (
+          <p className={`${TXT.value} text-[#64748B]`}>
+            Switching replaces the {hasGst ? 'current GST details' : 'billing address'} with these verified GST details. Invoices will show the GST address from now on, and the seller gets an email.
+          </p>
+        )}
+        {error && <p className={`${TXT.value} text-red-600`}>{error}</p>}
+        <button onClick={onManual} className={`${TXT.meta} self-start text-[#94A3B8] hover:text-[#64748B] underline underline-offset-2`}>
+          Edit without online verification
+        </button>
+      </div>
+      <ModalActions onClose={onClose} onSave={verified && canSwitch ? doSwitch : undefined} saving={switching}
+        saveLabel={hasGst ? 'Switch to these GST details' : 'Switch billing address to GST details'} />
+    </ModalWrap>
+  );
+}
+
 // ─── COD Cycle Modal ─────────────────────────────────────────────────────────
 const COD_PLANS = [
   { name: 'D+2', amount: 0.99, label: 'D + 2 Days' },
@@ -1034,7 +1141,7 @@ export function AdminProfile() {
   // Modal visibility
   const [showBankModal, setShowBankModal] = useState(false);
   const [showAadhaarModal, setShowAadhaarModal] = useState(false);
-  const [detailsModal, setDetailsModal] = useState<'pan' | 'gst' | 'contact' | null>(null);
+  const [detailsModal, setDetailsModal] = useState<'pan' | 'gst' | 'gstVerify' | 'contact' | null>(null);
   const [showCODModal, setShowCODModal] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -1422,6 +1529,13 @@ export function AdminProfile() {
           note="Saved as entered, without an online check. The change is recorded against your account."
           fields={[{ key: 'number', label: 'PAN Number', value: userData.panNumber, upper: true, maxLength: 10 }, { key: 'name', label: 'Name as on PAN', value: userData.panName }]} />
       )}
+      {detailsModal === 'gstVerify' && (
+        <GstSwitchModal userId={effectiveId}
+          current={{ gstin: userData.gstin, address: userData.address, city: userData.city, state: userData.state, pincode: userData.pincode }}
+          onClose={() => setDetailsModal(null)}
+          onSuccess={() => { showToast('success', 'Switched to verified GST details'); refreshUser(); }}
+          onManual={() => setDetailsModal('gst')} />
+      )}
       {detailsModal === 'gst' && (
         <SellerDetailsModal userId={effectiveId} section="gst" title="Edit GST Details" onClose={() => setDetailsModal(null)} onSuccess={() => { showToast('success', 'GST updated'); refreshUser(); }}
           note="Saved as entered, without an online check. The change is recorded against your account."
@@ -1808,7 +1922,7 @@ export function AdminProfile() {
                   </div>
                 </SectionCard>
 
-                <SectionCard icon={Building2} title="GST Details" action={<EditBtn onClick={() => setDetailsModal('gst')} />}>
+                <SectionCard icon={Building2} title="GST Details" action={<EditBtn onClick={() => setDetailsModal('gstVerify')} />}>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-0 md:gap-y-4">
                     <Field label="GSTIN" value={userData.gstin} />
                     <Field label="Company Name" value={userData.business} />
