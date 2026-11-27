@@ -28,6 +28,10 @@ const SECTIONS: PolicySection[] = [
     body: 'We may share your personal data internally within our group entities, affiliates, and third-party service providers for the purpose of providing access to services and products offered by them.',
   },
   {
+    title: 'Data from Connected Shopify Stores',
+    body: "When a merchant connects a Shopify store to QuickPost, we read the store's orders, including each buyer's name, phone number, email address and delivery address. We use these details only to create, ship and track those orders and to send the buyer delivery updates, and we share them only with the courier partner that delivers the shipment. We do not sell buyer data or use it for marketing or advertising. Order data is kept while the merchant's account is active and for as long as the law requires for shipping and tax records. A merchant can disconnect the store at any time. We respond to data access and deletion requests received through Shopify within 30 days. For any privacy request, write to support@quickpost.in.",
+  },
+  {
     title: 'Security Precautions',
     body: 'We adopt reasonable security practices to protect your personal data from unauthorized access. However, transmission of information via the internet is not completely secure.',
   },
