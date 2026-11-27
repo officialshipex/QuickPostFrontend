@@ -17,6 +17,7 @@ import { TableLoader } from '../../components/ui/TableLoader';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { TruncatedText } from '../../components/ui/TruncatedText';
 import { StatusRibbon } from '../../components/ui/StatusRibbon';
+import { calcAgeingDays, isOrderPicked, manifestPickupState } from '../../utils/manifestPickup';
 import { useAdminTab } from '../../context/AdminUserContext';
 import { useProductTooltip, ProductTooltipCard } from '../../hooks/useProductTooltip';
 import { CourierLogo } from '../../components/ui/CourierLogo';
@@ -51,14 +52,6 @@ const fmtUtc = (d: string) => {
   const amPm = h >= 12 ? 'PM' : 'AM';
   h = h % 12 || 12;
   return `${day} ${month} ${dt.getUTCFullYear()}, ${h}:${min} ${amPm}`;
-};
-
-const calcAgeingDays = (dateStr: string) => {
-  const start = new Date(dateStr); start.setHours(0, 0, 0, 0);
-  const end   = new Date();        end.setHours(0, 0, 0, 0);
-  let count = 0; const cur = new Date(start);
-  while (cur < end) { if (cur.getDay() !== 0) count++; cur.setDate(cur.getDate() + 1); }
-  return count;
 };
 
 const asEmail = (v: any): string =>
@@ -289,9 +282,10 @@ export function AdminPickupManifestDetails() {
 
   const selectedOrderIds = selected.map(sid => orders.find(o => o._id === sid)?._id).filter(Boolean) as string[];
 
-  const NOT_PICKED  = ['new', 'Ready To Ship', 'Cancelled'];
-  const pickedCount = orders.filter(o => !NOT_PICKED.includes(o.status)).length;
+  const pickedCount = orders.filter(o => isOrderPicked(o.status)).length;
   const ageingDays  = manifest?.createdAt ? calcAgeingDays(manifest.createdAt) : 0;
+  // Ageing stops once every live order is picked (or all were cancelled).
+  const pickupState = orders.length ? manifestPickupState(orders) : 'waiting';
 
   // suppress unused-var warning for isAdminView (used for future admin-only columns)
   void isAdminView;
@@ -402,7 +396,11 @@ export function AdminPickupManifestDetails() {
                 <Clock className="w-4 h-4 text-[#00A86B] shrink-0 mt-0.5" />
                 <div>
                   <div className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider mb-0.5">Ageing</div>
-                  {ageingDays <= 1
+                  {pickupState === 'picked'
+                    ? <div className="text-[12px] font-semibold text-emerald-600 flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5" />Picked</div>
+                  : pickupState === 'cancelled'
+                    ? <div className="text-[12px] font-semibold text-[#94A3B8] flex items-center gap-1"><X className="w-3.5 h-3.5" />Cancelled</div>
+                  : ageingDays <= 1
                     ? <div className="text-[12px] font-semibold text-emerald-600 flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5" />On schedule</div>
                     : ageingDays <= 3
                       ? <div className="text-[12px] font-semibold text-amber-600">{ageingDays}d pending</div>

@@ -21,6 +21,7 @@ import { TableLoader } from '../../components/ui/TableLoader';
 import { TruncatedText } from '../../components/ui/TruncatedText';
 import { CargoEmptyState } from './CargoEmptyState';
 import { StatusRibbon } from '../../components/ui/StatusRibbon';
+import { calcAgeingDays, isOrderPicked, manifestPickupState } from '../../utils/manifestPickup';
 
 const BACKEND_BASE = CARGO_API_BASE;
 
@@ -30,15 +31,11 @@ const fmt = (d: string) =>
 const fmtTime = (d: string) =>
   d ? new Date(d).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
 
-const calcAgeingDays = (dateStr: string) => {
-  const start = new Date(dateStr); start.setHours(0, 0, 0, 0);
-  const end   = new Date();        end.setHours(0, 0, 0, 0);
-  let count = 0; const cur = new Date(start);
-  while (cur < end) { if (cur.getDay() !== 0) count++; cur.setDate(cur.getDate() + 1); }
-  return count;
-};
-
-const renderManifestAgeing = (dateStr: string) => {
+const renderManifestAgeing = (dateStr: string, orders: Array<{ status?: string }>) => {
+  // Ageing stops once the courier has picked every live order — no "pending" on a picked manifest.
+  const state = manifestPickupState(orders);
+  if (state === 'picked') return <div className="flex items-center gap-1 text-emerald-600 text-xs"><CheckCircle2 className="w-3.5 h-3.5" /><span>Picked</span></div>;
+  if (state === 'cancelled') return <div className="flex items-center gap-1 text-[#94A3B8] text-xs"><X className="w-3.5 h-3.5" /><span>Cancelled</span></div>;
   const days = calcAgeingDays(dateStr);
   if (days <= 1) return <div className="flex items-center gap-1 text-emerald-600 text-xs"><CheckCircle2 className="w-3.5 h-3.5" /><span>On schedule</span></div>;
   if (days <= 3) return <div className="flex items-center gap-1 text-amber-600 text-xs"><Clock className="w-3.5 h-3.5" /><span>{days}d pending</span></div>;
@@ -553,8 +550,7 @@ export function CargoPickupManifest({
                     {(() => {
                       const orders = m.orderIds || [];
                       const total  = orders.length;
-                      const NOT_PICKED = ['new', 'Ready To Ship', 'Cancelled'];
-                      const picked = orders.filter((o: any) => !NOT_PICKED.includes(o.status)).length;
+                      const picked = orders.filter((o: any) => isOrderPicked(o.status)).length;
                       return (
                         <>
                           <div className="text-xs font-bold text-[#0F172A]">{total} / {picked}</div>
@@ -565,7 +561,7 @@ export function CargoPickupManifest({
                   </td>
 
                   <td className="p-3">
-                    {m.createdAt ? renderManifestAgeing(m.createdAt) : <span className="text-[#CBD5E1] text-xs">—</span>}
+                    {m.createdAt ? renderManifestAgeing(m.createdAt, m.orderIds || []) : <span className="text-[#CBD5E1] text-xs">—</span>}
                   </td>
 
                   <td className="p-3">
