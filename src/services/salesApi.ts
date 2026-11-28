@@ -60,7 +60,7 @@ export const downloadRateQuote = (body: BusinessDetails & QuoteTarget & { prospe
 
 // ── Support tickets a sales person raises for their sellers (backend sales/salesTickets.js) ──
 export type SalesTicketStatus = 'new' | 'open' | 'awaiting_response' | 'closed' | 'active' | 'resolved' | 'deleted';
-export interface SalesTicketNote { kind: 'transfer' | 'note' | 'handback' | 'sales'; fromTeam?: string; toTeam?: string; note: string; byName?: string; at: string }
+export interface SalesTicketNote { kind: 'transfer' | 'note' | 'handback' | 'sales' | 'claim'; fromTeam?: string; toTeam?: string; note: string; byName?: string; at: string }
 export interface SalesTicket {
   _id: string;
   ticketNumber: string;
@@ -68,7 +68,13 @@ export interface SalesTicket {
   category: string;
   subcategory: string;
   status: SalesTicketStatus;
-  team: 'support' | 'tech';
+  /** sales: Support gave it to the sales team (it is with the sales person now) */
+  team: 'support' | 'tech' | 'sales';
+  /** raised: they raised it on a call · taken: they took it from the sales team's queue */
+  origin?: 'raised' | 'taken';
+  takenAt?: string | null;
+  /** Support's note when it moved the ticket to Sales */
+  supportNote?: { note: string; byName?: string; at: string } | null;
   mode?: 'b2c' | 'cargo';
   createdAt: string;
   lastRepliedAt?: string;
@@ -82,10 +88,24 @@ export interface SalesTicket {
   notes?: SalesTicketNote[];
 }
 export const isClosedTicket = (s: SalesTicketStatus) => s === 'closed' || s === 'resolved';
+/** A ticket waiting in the sales team's queue (nobody took it yet): what it is about, no seller contact details */
+export interface SalesPoolTicket {
+  _id: string;
+  ticketNumber: string;
+  seller: { company: string; name: string };
+  category: string;
+  subcategory: string;
+  status: SalesTicketStatus;
+  mode?: 'b2c' | 'cargo';
+  createdAt: string;
+  movedAt?: string | null;
+  supportNote?: { note: string; byName?: string; at: string } | null;
+}
 
 // ── Navbar bell (backend sales/models/salesNotification.model.js) ──
 export type SalesNoticeType =
   | 'ticket_handback' | 'ticket_reply' | 'ticket_note' | 'ticket_seller_reply' | 'ticket_tech' | 'ticket_closed'
+  | 'ticket_pool' | 'ticket_assigned' | 'ticket_taken'
   | 'leads_assigned' | 'seller_signup' | 'kyc_approved' | 'kyc_rejected' | 'bonus_earned' | 'payout_paid';
 export interface SalesNotice { _id: string; type: SalesNoticeType; title: string; body?: string; link?: string; readAt: string | null; createdAt: string; ticket?: string }
 

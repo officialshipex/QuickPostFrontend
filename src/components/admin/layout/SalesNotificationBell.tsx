@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Bell, BellOff, AlertCircle, CalendarDays, PhoneCall, ListChecks, ChevronRight, CheckCircle2, Undo2, MessageSquare, Wrench,
-  UserPlus, ShieldCheck, ShieldAlert, Gift, Banknote, Users, StickyNote, Volume2, VolumeX, MonitorSmartphone, CheckCheck,
+  UserPlus, ShieldCheck, ShieldAlert, Gift, Banknote, Users, StickyNote, Volume2, VolumeX, MonitorSmartphone, CheckCheck, Inbox,
 } from 'lucide-react';
 import { useAdminTab } from '../../../context/AdminUserContext';
 import { salesApiClient, type SalesCall, type SalesNotice, type SalesNoticeType } from '../../../services/salesApi';
@@ -28,6 +28,9 @@ const NOTICE_STYLE: Record<SalesNoticeType, { icon: typeof Bell; tone: string }>
   ticket_seller_reply: { icon: MessageSquare, tone: 'bg-violet-50 text-violet-600' },
   ticket_tech: { icon: Wrench, tone: 'bg-indigo-50 text-indigo-600' },
   ticket_closed: { icon: CheckCircle2, tone: 'bg-[#F0FDF4] text-[#00A86B]' },
+  ticket_pool: { icon: Inbox, tone: 'bg-[#ECFDF5] text-[#047857]' },
+  ticket_assigned: { icon: Undo2, tone: 'bg-[#ECFDF5] text-[#047857]' },
+  ticket_taken: { icon: CheckCircle2, tone: 'bg-slate-100 text-slate-500' },
   leads_assigned: { icon: Users, tone: 'bg-sky-50 text-sky-600' },
   seller_signup: { icon: UserPlus, tone: 'bg-[#F0FDF4] text-[#00A86B]' },
   kyc_approved: { icon: ShieldCheck, tone: 'bg-[#F0FDF4] text-[#00A86B]' },

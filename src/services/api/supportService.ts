@@ -32,15 +32,21 @@ export interface Ticket {
   internalNotes?: TicketInternalNote[];
   /** Raised by a sales person for this seller (Sales panel → Create ticket); staff also get the employee code */
   raisedBy?: { kind?: 'sales'; name?: string; employeeId?: string };
+  /** The sales person who took it from the sales team's queue (staff only) */
+  salesAssignee?: { name?: string; employeeId?: string; at?: string };
 }
 
-export type SupportTeam = 'support' | 'tech';
-export const TEAM_LABEL: Record<SupportTeam, string> = { support: 'Support', tech: 'Tech' };
-export const teamOf = (t: Pick<Ticket, 'team'>): SupportTeam => (t.team === 'tech' ? 'tech' : 'support');
+/** sales: Support gave it to the sales team — the first sales person to open it takes it (salesAssignee) */
+export type SupportTeam = 'support' | 'tech' | 'sales';
+export const TEAM_LABEL: Record<SupportTeam, string> = { support: 'Support', tech: 'Tech', sales: 'Sales' };
+export const teamOf = (t: Pick<Ticket, 'team'>): SupportTeam => (t.team === 'tech' ? 'tech' : t.team === 'sales' ? 'sales' : 'support');
+/** The sales person a ticket belongs to (raised it on a call, or took it from the sales team's queue) */
+export const salesOwnerName = (t: Pick<Ticket, 'raisedBy' | 'salesAssignee'>): string | null =>
+  (t.raisedBy?.kind === 'sales' ? t.raisedBy.name || 'Sales person' : null) || t.salesAssignee?.name || null;
 
 export interface TicketInternalNote {
   /** handback: Support sent a sales-raised ticket back to the sales person; sales: the sales person's note */
-  kind: 'transfer' | 'note' | 'handback' | 'sales';
+  kind: 'transfer' | 'note' | 'handback' | 'sales' | 'claim';
   fromTeam?: SupportTeam;
   toTeam?: SupportTeam;
   note: string;

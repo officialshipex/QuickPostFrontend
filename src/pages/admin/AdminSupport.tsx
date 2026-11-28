@@ -22,17 +22,33 @@ import { StatusRibbon } from '../../components/ui/StatusRibbon';
 import { apiClient } from '../../services/apiClient';
 import {
   getAllTickets, getUserTickets, viewTicket, replyToTicket, closeTicket, createTicket,
-  transferTicket, addInternalNote, handbackTicket, teamOf, TEAM_LABEL,
+  transferTicket, addInternalNote, handbackTicket, teamOf, salesOwnerName, TEAM_LABEL,
   type Ticket, type SupportTeam, type TicketInternalNote
 } from '../../services/api/supportService';
 
 // A ticket a sales person raised for a seller (Sales panel → Create ticket)
 const fromSales = (t: Pick<Ticket, 'raisedBy'>) => t.raisedBy?.kind === 'sales';
+// Where a ticket can be moved from its current queue (the tech team never hands tickets to Sales directly)
+const transferTargets = (t: Ticket, techOnly: boolean): SupportTeam[] => {
+  const team = teamOf(t);
+  return (['tech', 'sales', 'support'] as SupportTeam[]).filter(to => to !== team && !(techOnly && to === 'sales'));
+};
+const TRANSFER_STYLE: Record<SupportTeam, string> = {
+  tech: 'bg-violet-600 text-white hover:bg-violet-700',
+  sales: 'bg-[#047857] text-white hover:bg-[#065F46]',
+  support: 'border border-sky-200 bg-white text-sky-700 hover:bg-sky-50',
+};
+const TEAM_BADGE: Record<SupportTeam, string> = {
+  support: 'bg-sky-50 text-sky-700',
+  tech: 'bg-violet-50 text-violet-700',
+  sales: 'bg-[#ECFDF5] text-[#047857]',
+};
 // Heading of one staff note
 const noteHeading = (n: TicketInternalNote) =>
   n.kind === 'transfer' ? `${n.byName || 'Staff'} moved it ${n.fromTeam ? TEAM_LABEL[n.fromTeam] : ''} → ${n.toTeam ? TEAM_LABEL[n.toTeam] : ''}`
   : n.kind === 'handback' ? `${n.byName || 'Staff'} sent it back to the sales person`
   : n.kind === 'sales' ? `${n.byName || 'Sales person'} · sales note`
+  : n.kind === 'claim' ? `${n.byName || 'Sales person'} took it from the sales queue`
   : `${n.byName || 'Staff'} · note`;
 
 // ─── Status helpers ───────────────────────────────────────────────────────────
@@ -339,7 +355,8 @@ export function AdminSupport() {
   // Team queues (staff only): the support desk / admin can show one team; the tech team only ever gets Tech tickets
   const [teamFilter, setTeamFilter] = useState<'all' | SupportTeam>('all');
   // Staff panel in the ticket drawer: move to the other team (with a note), staff-only notes
-  const [showTransfer, setShowTransfer] = useState(false);
+  // the team the open ticket is being moved to (null = not moving it)
+  const [transferTo, setTransferTo] = useState<SupportTeam | null>(null);
   const [transferNote, setTransferNote] = useState('');
   const [noteText, setNoteText] = useState('');
   const [staffBusy, setStaffBusy] = useState<'' | 'transfer' | 'note' | 'handback'>('');
@@ -520,7 +537,7 @@ export function AdminSupport() {
   // Open (not closed) tickets in each team's queue, for the team switch
   const teamCounts = useMemo(() => {
     const open = tickets.filter(t => t.status !== 'closed' && t.status !== 'resolved');
-    return { support: open.filter(t => teamOf(t) === 'support').length, tech: open.filter(t => teamOf(t) === 'tech').length };
+    return { support: open.filter(t => teamOf(t) === 'support').length, tech: open.filter(t => teamOf(t) === 'tech').length, sales: open.filter(t => teamOf(t) === 'sales').length };
   }, [tickets]);
 
   const {
@@ -538,7 +555,7 @@ export function AdminSupport() {
   const handleViewTicket = async (ticket: Ticket) => {
     setSelectedTicket(ticket);
     setReplyText('');
-    setShowTransfer(false); setTransferNote(''); setNoteText(''); setStaffError('');
+    setTransferTo(null); setTransferNote(''); setNoteText(''); setStaffError('');
     setShowHandback(false); setHandbackNote('');
     if (isAdminView && (ticket.status === 'new' || ticket.status === 'active')) {
       try {
@@ -576,15 +593,15 @@ export function AdminSupport() {
     setSelectedTicket(updated);
   };
 
-  // Move the open ticket to the other team's queue, with a note for that team
+  // Move the open ticket to another team's queue (Tech / Sales / back to Support), with a note for that team
   const handleTransfer = async () => {
-    if (!selectedTicket) return;
-    const to: SupportTeam = teamOf(selectedTicket) === 'tech' ? 'support' : 'tech';
+    if (!selectedTicket || !transferTo) return;
+    const to = transferTo;
     if (transferNote.trim().length < 5) { setStaffError('Write a short note for the other team (what is the issue / what was done).'); return; }
     setStaffBusy('transfer'); setStaffError('');
     try {
       const updated = await transferTicket(selectedTicket._id, to, transferNote.trim());
-      setShowTransfer(false); setTransferNote('');
+      setTransferTo(null); setTransferNote('');
       applyStaffUpdate(updated);
     } catch (err: any) {
       setStaffError(err?.response?.data?.message || 'Could not move the ticket');
@@ -706,9 +723,9 @@ export function AdminSupport() {
                 <span className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-violet-50 text-violet-700 text-[12px] font-bold"><Wrench className="w-3.5 h-3.5" />Tech queue</span>
               ) : (
                 <div className="flex items-center gap-1 bg-[#F1F5F9] rounded-full p-1">
-                  {([['all', 'All teams'], ['support', `Support · ${teamCounts.support}`], ['tech', `Tech · ${teamCounts.tech}`]] as ['all' | SupportTeam, string][]).map(([k, label]) => (
+                  {([['all', 'All teams'], ['support', `Support · ${teamCounts.support}`], ['tech', `Tech · ${teamCounts.tech}`], ['sales', `Sales · ${teamCounts.sales}`]] as ['all' | SupportTeam, string][]).map(([k, label]) => (
                     <button key={k} onClick={() => { setTeamFilter(k); setCurrentPage(1); }}
-                      className={`h-7 px-3 rounded-full text-[12px] font-semibold whitespace-nowrap transition-colors ${teamFilter === k ? (k === 'tech' ? 'bg-violet-600 text-white' : 'bg-white text-[#0F172A] shadow-sm') : 'text-[#64748B] hover:text-[#0F172A]'}`}>
+                      className={`h-7 px-3 rounded-full text-[12px] font-semibold whitespace-nowrap transition-colors ${teamFilter === k ? (k === 'tech' ? 'bg-violet-600 text-white' : k === 'sales' ? 'bg-[#047857] text-white' : 'bg-white text-[#0F172A] shadow-sm') : 'text-[#64748B] hover:text-[#0F172A]'}`}>
                       {label}
                     </button>
                   ))}
@@ -844,8 +861,8 @@ export function AdminSupport() {
                           {isAdminView && teamOf(ticket) === 'tech' && (
                             <div className="mt-1"><span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-violet-50 text-violet-700 text-[10px] font-bold"><Wrench className="w-3 h-3" />Tech</span></div>
                           )}
-                          {isAdminView && fromSales(ticket) && (
-                            <div className="mt-1"><span title={`Raised by sales person ${ticket.raisedBy?.name || ''}`} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#F0FDF4] text-[#0F6B38] text-[10px] font-bold whitespace-nowrap"><Target className="w-3 h-3" />Sales · {ticket.raisedBy?.name?.split(' ')[0] || ''}</span></div>
+                          {isAdminView && (salesOwnerName(ticket) || teamOf(ticket) === 'sales') && (
+                            <div className="mt-1"><span title={salesOwnerName(ticket) ? `${fromSales(ticket) ? 'Raised' : 'Taken'} by sales person ${salesOwnerName(ticket)}` : "Waiting in the sales team's queue"} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#F0FDF4] text-[#0F6B38] text-[10px] font-bold whitespace-nowrap"><Target className="w-3 h-3" />Sales · {salesOwnerName(ticket)?.split(' ')[0] || 'queue'}</span></div>
                           )}
                         </td>
                         <td className="p-3 align-top">
@@ -934,8 +951,8 @@ export function AdminSupport() {
                     {isAdminView && teamOf(ticket) === 'tech' && (
                       <div className="mb-1"><span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-violet-50 text-violet-700 text-[10px] font-bold"><Wrench className="w-3 h-3" />With Tech team</span></div>
                     )}
-                    {isAdminView && fromSales(ticket) && (
-                      <div className="mb-1"><span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#F0FDF4] text-[#0F6B38] text-[10px] font-bold"><Target className="w-3 h-3" />Raised by sales · {ticket.raisedBy?.name || ''}</span></div>
+                    {isAdminView && (salesOwnerName(ticket) || teamOf(ticket) === 'sales') && (
+                      <div className="mb-1"><span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#F0FDF4] text-[#0F6B38] text-[10px] font-bold"><Target className="w-3 h-3" />{salesOwnerName(ticket) ? `${fromSales(ticket) ? 'Raised' : 'Taken'} by sales · ${salesOwnerName(ticket)}` : "In the sales team's queue"}</span></div>
                     )}
                     <div className="text-[12px] font-normal text-[#94A3B8] mb-0.5">
                       Resolution Due By: {formatDate(new Date(new Date(ticket.createdAt).getTime() + 24 * 60 * 60 * 1000).toISOString())}
@@ -1120,8 +1137,8 @@ export function AdminSupport() {
                     {STATUS_LABEL[selectedTicket.status] || selectedTicket.status}
                   </span>
                   {isAdminView && (
-                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${teamOf(selectedTicket) === 'tech' ? 'bg-violet-50 text-violet-700' : 'bg-sky-50 text-sky-700'}`}>
-                      {teamOf(selectedTicket) === 'tech' ? <Wrench className="w-3 h-3" /> : <Headphones className="w-3 h-3" />}{TEAM_LABEL[teamOf(selectedTicket)]}
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${TEAM_BADGE[teamOf(selectedTicket)]}`}>
+                      {teamOf(selectedTicket) === 'tech' ? <Wrench className="w-3 h-3" /> : teamOf(selectedTicket) === 'sales' ? <Target className="w-3 h-3" /> : <Headphones className="w-3 h-3" />}{TEAM_LABEL[teamOf(selectedTicket)]}
                     </span>
                   )}
                 </div>
@@ -1189,35 +1206,50 @@ export function AdminSupport() {
                 <div className="rounded-xl border border-amber-200 bg-amber-50/40 p-4 space-y-3">
                   <div className="flex items-center justify-between gap-2">
                     <h4 className="text-xs font-bold text-amber-800 uppercase tracking-wide flex items-center gap-1.5"><StickyNote className="w-3.5 h-3.5" />Internal · only staff see this</h4>
-                    {selectedTicket.status !== 'closed' && selectedTicket.status !== 'resolved' && !showTransfer && (
-                      <button onClick={() => { setShowTransfer(true); setStaffError(''); }}
-                        className={`h-8 px-3 rounded-lg text-[11px] font-bold inline-flex items-center gap-1.5 ${teamOf(selectedTicket) === 'tech' ? 'border border-sky-200 bg-white text-sky-700 hover:bg-sky-50' : 'bg-violet-600 text-white hover:bg-violet-700'}`}>
-                        <ArrowLeftRight className="w-3.5 h-3.5" />{teamOf(selectedTicket) === 'tech' ? 'Send back to Support' : 'Transfer to Tech'}
-                      </button>
-                    )}
                   </div>
+                  {/* Move it to another team's queue */}
+                  {selectedTicket.status !== 'closed' && selectedTicket.status !== 'resolved' && !transferTo && (
+                    <div className="flex flex-wrap gap-2">
+                      {transferTargets(selectedTicket, isTechSupport).map(to => (
+                        <button key={to} onClick={() => { setTransferTo(to); setShowHandback(false); setStaffError(''); }}
+                          className={`h-8 px-3 rounded-lg text-[11px] font-bold inline-flex items-center gap-1.5 ${TRANSFER_STYLE[to]}`}>
+                          <ArrowLeftRight className="w-3.5 h-3.5" />{to === 'support' ? 'Send back to Support' : to === 'tech' ? 'Transfer to Tech' : salesOwnerName(selectedTicket) ? `Transfer to Sales (${salesOwnerName(selectedTicket)})` : 'Transfer to Sales team'}
+                        </button>
+                      ))}
+                    </div>
+                  )}
 
-                  {showTransfer && (
+                  {transferTo && (
                     <div className="space-y-2">
-                      <textarea value={transferNote} onChange={e => setTransferNote(e.target.value)} autoFocus
-                        placeholder={teamOf(selectedTicket) === 'tech' ? 'What was done? e.g. "Fixed the webhook, please confirm with the seller and close"' : 'What should Tech check? e.g. "Shopify orders not syncing since 24 Nov, API key looks fine"'}
+                      <textarea value={transferNote} onChange={e => setTransferNote(e.target.value)} autoFocus maxLength={2000}
+                        placeholder={transferTo === 'support' ? 'What was done? e.g. "Fixed the webhook, please confirm with the seller and close"'
+                          : transferTo === 'tech' ? 'What should Tech check? e.g. "Shopify orders not syncing since 24 Nov, API key looks fine"'
+                          : 'What should the sales person do? e.g. "Seller wants lower rates for Zone E — please call and discuss"'}
                         className="w-full h-20 p-3 rounded-xl border border-amber-200 bg-white text-xs focus:outline-none focus:ring-2 focus:ring-amber-200 resize-none" />
-                      <p className="text-[11px] text-amber-800">{teamOf(selectedTicket) === 'tech' ? 'The ticket goes back to the Support queue.' : 'The tech team gets an email, and the seller is told the technical team is looking into it.'}</p>
+                      <p className="text-[11px] text-amber-800">{transferTo === 'support' ? 'The ticket goes back to the Support queue.'
+                        : transferTo === 'tech' ? 'The tech team gets an email, and the seller is told the technical team is looking into it.'
+                        : salesOwnerName(selectedTicket) ? `It goes back to ${salesOwnerName(selectedTicket)}, who is notified. The seller is told the sales team will call them.`
+                        : 'Every active sales person is notified (bell + sound). The first one to open it takes it — then only they see it. The seller is told the sales team will call them.'}</p>
                       <div className="flex gap-2">
                         <button onClick={handleTransfer} disabled={staffBusy === 'transfer'}
-                          className="h-8 px-3 rounded-lg bg-[#0F172A] text-white text-[11px] font-bold disabled:opacity-50">{staffBusy === 'transfer' ? 'Moving…' : teamOf(selectedTicket) === 'tech' ? 'Send to Support' : 'Send to Tech'}</button>
-                        <button onClick={() => { setShowTransfer(false); setTransferNote(''); setStaffError(''); }} className="h-8 px-3 rounded-lg border border-[#E2E8F0] bg-white text-[11px] font-semibold text-[#475569]">Cancel</button>
+                          className="h-8 px-3 rounded-lg bg-[#0F172A] text-white text-[11px] font-bold disabled:opacity-50">{staffBusy === 'transfer' ? 'Moving…' : `Send to ${TEAM_LABEL[transferTo]}`}</button>
+                        <button onClick={() => { setTransferTo(null); setTransferNote(''); setStaffError(''); }} className="h-8 px-3 rounded-lg border border-[#E2E8F0] bg-white text-[11px] font-semibold text-[#475569]">Cancel</button>
                       </div>
                     </div>
                   )}
 
-                  {/* Raised by a sales person: send it back to them so they call the seller again */}
-                  {fromSales(selectedTicket) && (
+                  {/* Waiting in the sales team's queue */}
+                  {teamOf(selectedTicket) === 'sales' && !salesOwnerName(selectedTicket) && selectedTicket.status !== 'closed' && selectedTicket.status !== 'resolved' && (
+                    <p className="rounded-lg border border-[#A7F3D0] bg-[#ECFDF5] p-3 text-[11.5px] text-[#065F46]">Waiting in the sales team's queue — the first sales person to open it takes it.</p>
+                  )}
+
+                  {/* A sales person has it (raised it, or took it from the queue): send it back to them so they call the seller */}
+                  {salesOwnerName(selectedTicket) && (
                     <div className="rounded-lg border border-[#A7F3D0] bg-[#ECFDF5] p-3 space-y-2">
                       <div className="flex items-center justify-between gap-2">
-                        <p className="text-[11.5px] text-[#065F46]">Raised by <b>{selectedTicket.raisedBy?.name}</b> (sales) on a call. They are notified of replies, notes and closing.</p>
+                        <p className="text-[11.5px] text-[#065F46]">{fromSales(selectedTicket) ? <>Raised by <b>{selectedTicket.raisedBy?.name}</b> (sales) on a call.</> : <>Taken by <b>{selectedTicket.salesAssignee?.name}</b> (sales) from the sales team's queue.</>} They are notified of replies, notes and closing.</p>
                         {!showHandback && (
-                          <button onClick={() => { setShowHandback(true); setShowTransfer(false); setStaffError(''); setHandbackClose(selectedTicket.status !== 'closed' && selectedTicket.status !== 'resolved'); }}
+                          <button onClick={() => { setShowHandback(true); setTransferTo(null); setStaffError(''); setHandbackClose(selectedTicket.status !== 'closed' && selectedTicket.status !== 'resolved'); }}
                             className="h-8 px-3 rounded-lg bg-[#047857] text-white text-[11px] font-bold inline-flex items-center gap-1.5 shrink-0 hover:bg-[#065F46]">
                             <Undo2 className="w-3.5 h-3.5" />Send back to sales person
                           </button>
@@ -1234,7 +1266,7 @@ export function AdminSupport() {
                               Also close the ticket (the issue is solved)
                             </label>
                           )}
-                          <p className="text-[11px] text-[#065F46]">{selectedTicket.raisedBy?.name || 'The sales person'} gets a notification to call the seller. The seller doesn't see this note.</p>
+                          <p className="text-[11px] text-[#065F46]">{salesOwnerName(selectedTicket) || 'The sales person'} gets a notification to call the seller. The seller doesn't see this note.</p>
                           <div className="flex gap-2">
                             <button onClick={handleHandback} disabled={staffBusy === 'handback'}
                               className="h-8 px-3 rounded-lg bg-[#0F172A] text-white text-[11px] font-bold disabled:opacity-50">{staffBusy === 'handback' ? 'Sending…' : 'Send to sales person'}</button>

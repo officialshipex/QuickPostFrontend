@@ -7,7 +7,7 @@ import {
 import { TableLoader } from '../../../components/ui/TableLoader';
 import {
   salesApiClient, apiError, isClosedTicket,
-  type ReferredSeller, type SalesTicket, type SalesTicketStatus, type SalesTicketNote,
+  type ReferredSeller, type SalesTicket, type SalesTicketStatus, type SalesTicketNote, type SalesPoolTicket,
 } from '../../../services/salesApi';
 
 /* Sales panel → Tickets. A sales person raises a support ticket for one of their sellers while on a call; Support
@@ -29,7 +29,9 @@ const NOTE_KIND: Record<SalesTicketNote['kind'], { label: string; tone: string }
   sales: { label: 'Your note', tone: 'bg-sky-50 border-sky-100 text-sky-900' },
   note: { label: 'Support note', tone: 'bg-amber-50 border-amber-100 text-amber-900' },
   transfer: { label: 'Moved', tone: 'bg-slate-50 border-slate-200 text-slate-700' },
+  claim: { label: 'Taken from the team queue', tone: 'bg-slate-50 border-slate-200 text-slate-700' },
 };
+const TEAM_NAME: Record<string, string> = { tech: 'Tech', sales: 'Sales', support: 'Support' };
 
 const when = (iso?: string) => (iso ? new Date(iso).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', hour12: true }) : '—');
 const inputCls = (bad?: string) => `w-full h-11 md:h-10 px-3.5 rounded-xl border text-[14px] md:text-[13px] text-[#0F172A] bg-white placeholder:text-[#94A3B8] focus:outline-none focus:ring-2 transition-colors ${bad ? 'border-red-300 focus:border-red-400 focus:ring-red-100' : 'border-[#E2E8F0] focus:border-[#00A86B] focus:ring-[#00A86B]/15'}`;
@@ -234,14 +236,38 @@ function TicketDrawer({ id, viewAsId, canAct, onClose, onChanged }: {
   const [note, setNote] = useState('');
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState('');
+  const [returning, setReturning] = useState(false);
+  const [returnNote, setReturnNote] = useState('');
+  const [returnClose, setReturnClose] = useState(true);
 
+  // The sales person opens it (a ticket in the team queue becomes theirs: the first to open it takes it);
+  // the owner viewing a sales person's panel only reads it.
   useEffect(() => {
     let alive = true;
-    salesApiClient.get(`/tickets/${id}`, { params: viewAsId ? { employeeId: viewAsId } : {} })
-      .then(r => { if (alive) setT(r.data?.ticket || null); })
+    const req = canAct
+      ? salesApiClient.post(`/tickets/${id}/open`)
+      : salesApiClient.get(`/tickets/${id}`, { params: viewAsId ? { employeeId: viewAsId } : {} });
+    req
+      .then(r => {
+        if (!alive) return;
+        setT(r.data?.ticket || null);
+        if (r.data?.taken) onChanged(r.data.message);
+      })
       .catch(e => { if (alive) setError(apiError(e, 'Could not open the ticket.')); });
     return () => { alive = false; };
-  }, [id, viewAsId]);
+  }, [id, viewAsId, canAct]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Done on the sales side: back to the Support queue (or closed, solved on the call)
+  const sendBack = async () => {
+    if (returnNote.trim().length < 5 || sending) return;
+    setSending(true); setSendError('');
+    try {
+      const r = await salesApiClient.post(`/tickets/${id}/return`, { note: returnNote.trim(), close: returnClose });
+      setT(r.data?.ticket || t);
+      setReturning(false); setReturnNote('');
+      onChanged(r.data?.message);
+    } catch (e) { setSendError(apiError(e, 'Could not hand the ticket back.')); } finally { setSending(false); }
+  };
 
   const send = async () => {
     if (note.trim().length < 2 || sending) return;
@@ -289,6 +315,14 @@ function TicketDrawer({ id, viewAsId, canAct, onClose, onChanged }: {
                 )}
               </div>
 
+              {t.team === 'sales' && t.supportNote && (
+                <div className="p-3.5 rounded-xl border border-[#A7F3D0] bg-[#ECFDF5]">
+                  <div className="text-[12px] font-bold text-[#065F46] inline-flex items-center gap-1.5"><Inbox className="w-4 h-4" />Support passed this to {t.origin === 'taken' ? 'the sales team — you took it' : 'you'}</div>
+                  <p className="mt-1.5 text-[13px] text-[#064E3B] whitespace-pre-wrap break-words">{t.supportNote.note}</p>
+                  <div className="mt-1 text-[11px] text-[#047857]">{t.supportNote.byName ? `${t.supportNote.byName} · ` : ''}{when(t.supportNote.at)}{t.takenAt ? ` · taken ${when(t.takenAt)}` : ''}</div>
+                </div>
+              )}
+
               {t.lastHandback && (
                 <div className="p-3.5 rounded-xl border border-[#A7F3D0] bg-[#ECFDF5]">
                   <div className="text-[12px] font-bold text-[#065F46] inline-flex items-center gap-1.5"><Undo2 className="w-4 h-4" />Support sent this back to you — call the seller</div>
@@ -323,7 +357,7 @@ function TicketDrawer({ id, viewAsId, canAct, onClose, onChanged }: {
                   <ul className="flex flex-col gap-2">
                     {t.notes.map((n, i) => (
                       <li key={i} className={`p-3 rounded-xl border text-[12.5px] ${NOTE_KIND[n.kind]?.tone || NOTE_KIND.note.tone}`}>
-                        <div className="flex items-center justify-between gap-2 text-[11px] opacity-80"><span className="font-bold">{n.kind === 'transfer' ? `Moved ${n.fromTeam === 'tech' ? 'Tech' : 'Support'} → ${n.toTeam === 'tech' ? 'Tech' : 'Support'}` : NOTE_KIND[n.kind]?.label}{n.byName ? ` · ${n.byName}` : ''}</span><span>{when(n.at)}</span></div>
+                        <div className="flex items-center justify-between gap-2 text-[11px] opacity-80"><span className="font-bold">{n.kind === 'transfer' ? `Moved ${TEAM_NAME[n.fromTeam || 'support'] || 'Support'} → ${TEAM_NAME[n.toTeam || 'support'] || 'Support'}` : NOTE_KIND[n.kind]?.label}{n.byName ? ` · ${n.byName}` : ''}</span><span>{when(n.at)}</span></div>
                         <p className="mt-1 whitespace-pre-wrap break-words">{n.note}</p>
                       </li>
                     ))}
@@ -337,6 +371,32 @@ function TicketDrawer({ id, viewAsId, canAct, onClose, onChanged }: {
         {t && canAct && (
           <div className="px-5 py-3 border-t border-[#F1F5F9] shrink-0 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
             {sendError && <p className="mb-2 text-[12px] text-red-600">{sendError}</p>}
+            {/* a ticket Support gave the sales team: when done, hand it back (or close it, solved on the call) */}
+            {t.team === 'sales' && !returning && (
+              <button onClick={() => { setReturning(true); setSendError(''); setReturnClose(!closed); }}
+                className="mb-2 w-full h-9 rounded-full border border-[#00A86B]/40 text-[#047857] hover:bg-[#F0FDF4] text-[12.5px] font-semibold inline-flex items-center justify-center gap-1.5">
+                <Undo2 className="w-4 h-4" />Done — hand back to Support
+              </button>
+            )}
+            {t.team === 'sales' && returning && (
+              <div className="mb-3 p-3 rounded-xl border border-[#A7F3D0] bg-[#ECFDF5] space-y-2">
+                <textarea rows={2} maxLength={2000} value={returnNote} onChange={e => setReturnNote(e.target.value)} autoFocus
+                  placeholder="What did you do / tell the seller? e.g. Called, explained the COD cycle; seller is happy" className={areaCls} />
+                {!closed && (
+                  <label className="flex items-center gap-2 text-[12px] text-[#065F46] cursor-pointer">
+                    <input type="checkbox" checked={returnClose} onChange={e => setReturnClose(e.target.checked)} className="h-4 w-4 accent-[#047857]" />
+                    Solved on the call — close the ticket
+                  </label>
+                )}
+                <div className="flex gap-2">
+                  <button onClick={sendBack} disabled={sending || returnNote.trim().length < 5}
+                    className="h-9 px-4 rounded-full bg-[#047857] hover:bg-[#065F46] text-white text-[12.5px] font-semibold disabled:opacity-50 inline-flex items-center gap-1.5">
+                    {sending && <Loader2 className="w-4 h-4 animate-spin" />}{returnClose && !closed ? 'Close & hand back' : 'Hand back to Support'}
+                  </button>
+                  <button onClick={() => { setReturning(false); setReturnNote(''); }} className="h-9 px-4 rounded-full border border-[#E2E8F0] bg-white text-[12.5px] font-semibold text-[#475569]">Cancel</button>
+                </div>
+              </div>
+            )}
             <div className="flex items-end gap-2">
               <textarea rows={2} maxLength={2000} value={note} onChange={e => setNote(e.target.value)}
                 placeholder={closed ? 'Still not solved? Tell Support what the seller said — this reopens the ticket' : 'Note to Support (e.g. seller called again, more details)'}
@@ -355,37 +415,48 @@ function TicketDrawer({ id, viewAsId, canAct, onClose, onChanged }: {
 }
 
 // ─── Tickets tab ────────────────────────────────────────────────────────────────────────────────────────────
-export function SalesTicketsTab({ viewAsId, canAct, openId, onOpenChange, onRaise, reloadKey, onToast }: {
+export function SalesTicketsTab({ viewAsId, canAct, openId, onOpenChange, onRaise, reloadKey, onToast, initialFilter }: {
   viewAsId?: string; canAct: boolean; openId: string | null; onOpenChange: (id: string | null) => void;
-  onRaise: () => void; reloadKey: number; onToast: (ok: boolean, msg: string) => void;
+  onRaise: () => void; reloadKey: number; onToast: (ok: boolean, msg: string) => void; initialFilter?: 'open' | 'pool';
 }) {
-  const [filter, setFilter] = useState<'open' | 'closed' | 'all'>('open');
+  // pool: the sales team's queue — tickets Support gave to Sales that nobody has taken yet
+  const [filter, setFilter] = useState<'open' | 'closed' | 'all' | 'pool'>(initialFilter || 'open');
   const [bump, setBump] = useState(0);
   const refresh = useCallback(() => setBump(b => b + 1), []);
   // the answer for one request (loading = the current request has no answer yet)
   const key = `${filter}|${viewAsId || ''}|${reloadKey}|${bump}`;
-  const [result, setResult] = useState<{ key: string; tickets: SalesTicket[]; error: string } | null>(null);
+  const [result, setResult] = useState<{ key: string; tickets: SalesTicket[]; pool: SalesPoolTicket[]; poolCount: number; error: string } | null>(null);
   const loading = result?.key !== key;
   const tickets = result?.tickets || [];
+  const pool = result?.pool || [];
+  const poolCount = result?.poolCount ?? 0;
   const error = loading ? '' : result?.error || '';
 
   useEffect(() => {
     let alive = true;
     salesApiClient.get('/tickets', { params: { ...(filter === 'all' ? {} : { status: filter }), ...(viewAsId ? { employeeId: viewAsId } : {}) } })
-      .then(r => { if (alive) setResult({ key, tickets: r.data?.tickets || [], error: '' }); })
-      .catch(e => { if (alive) setResult(prev => ({ key, tickets: prev?.tickets || [], error: apiError(e, 'Could not load your tickets.') })); });
+      .then(r => {
+        if (!alive) return;
+        const list = r.data?.tickets || [];
+        setResult({ key, tickets: r.data?.pool ? [] : list, pool: r.data?.pool ? list : [], poolCount: Number(r.data?.poolCount) || 0, error: '' });
+      })
+      .catch(e => { if (alive) setResult(prev => ({ key, tickets: prev?.tickets || [], pool: prev?.pool || [], poolCount: prev?.poolCount || 0, error: apiError(e, 'Could not load your tickets.') })); });
     return () => { alive = false; };
   }, [filter, viewAsId, key]);
 
   const sentBack = tickets.filter(t => t.lastHandback && !isClosedTicket(t.status)).length;
+  const FILTERS: { key: typeof filter; label: string }[] = [
+    { key: 'open', label: 'Open' }, { key: 'closed', label: 'Closed' }, { key: 'all', label: 'All' }, { key: 'pool', label: 'Team queue' },
+  ];
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="inline-flex rounded-full border border-[#E2E8F0] bg-white p-0.5">
-          {(['open', 'closed', 'all'] as const).map(f => (
-            <button key={f} onClick={() => setFilter(f)}
-              className={`h-8 px-3.5 rounded-full text-[12.5px] font-semibold transition-colors ${filter === f ? 'bg-[#00A86B] text-white' : 'text-[#475569] hover:bg-[#F8FAFC]'}`}>
-              {f === 'open' ? 'Open' : f === 'closed' ? 'Closed' : 'All'}
+        <div className="inline-flex rounded-full border border-[#E2E8F0] bg-white p-0.5 max-w-full overflow-x-auto">
+          {FILTERS.map(f => (
+            <button key={f.key} onClick={() => setFilter(f.key)}
+              className={`h-8 px-3.5 rounded-full text-[12.5px] font-semibold whitespace-nowrap transition-colors inline-flex items-center gap-1.5 ${filter === f.key ? 'bg-[#00A86B] text-white' : 'text-[#475569] hover:bg-[#F8FAFC]'}`}>
+              {f.label}
+              {f.key === 'pool' && poolCount > 0 && <span className={`min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold flex items-center justify-center ${filter === 'pool' ? 'bg-white text-[#047857]' : 'bg-red-500 text-white'}`}>{poolCount}</span>}
             </button>
           ))}
         </div>
@@ -394,7 +465,10 @@ export function SalesTicketsTab({ viewAsId, canAct, openId, onOpenChange, onRais
           {canAct && <button onClick={onRaise} className="h-9 px-4 rounded-full bg-[#00A86B] hover:bg-[#009B63] text-white text-[12.5px] font-semibold inline-flex items-center gap-1.5"><LifeBuoy className="w-4 h-4" />Create ticket</button>}
         </div>
       </div>
-      {sentBack > 0 && filter !== 'closed' && (
+      {filter === 'pool' && (
+        <p className="text-[12.5px] text-[#64748B]">Tickets Support passed to the sales team. <b className="text-[#0F172A]">The first one to open a ticket takes it</b> — after that only they see it.</p>
+      )}
+      {sentBack > 0 && filter !== 'closed' && filter !== 'pool' && (
         <div className="px-4 py-3 rounded-xl border border-[#A7F3D0] bg-[#ECFDF5] text-[12.5px] text-[#065F46] inline-flex items-center gap-2">
           <Undo2 className="w-4 h-4 shrink-0" />{sentBack} ticket{sentBack === 1 ? ' was' : 's were'} sent back to you by Support — call the seller{sentBack === 1 ? '' : 's'}.
         </div>
@@ -404,6 +478,31 @@ export function SalesTicketsTab({ viewAsId, canAct, openId, onOpenChange, onRais
         {loading && <div className="absolute inset-0 z-10"><TableLoader /></div>}
         {error ? (
           <div className="p-6 text-center text-[13px] text-red-600">{error}</div>
+        ) : filter === 'pool' ? (
+          !loading && pool.length === 0 ? (
+            <div className="py-12 px-6 text-center">
+              <span className="mx-auto w-11 h-11 rounded-full bg-[#F0FDF4] flex items-center justify-center"><Inbox className="w-5 h-5 text-[#00A86B]" /></span>
+              <p className="mt-3 text-[13.5px] font-semibold text-[#0F172A]">The team queue is empty</p>
+              <p className="mt-1 text-[12.5px] text-[#94A3B8]">When Support passes a ticket to the sales team, you'll hear the bell and it shows up here.</p>
+            </div>
+          ) : (
+            <ul className="divide-y divide-[#F1F5F9]">
+              {pool.map(p => (
+                <li key={p._id} className="px-4 py-3.5 flex items-start gap-3">
+                  <span className="mt-0.5 w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-[#ECFDF5] text-[#047857]"><Inbox className="w-4 h-4" /></span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[13px] font-bold text-[#0F172A] truncate">{p.seller.company || p.seller.name}</span>
+                    <span className="block text-[12px] text-[#64748B] truncate mt-0.5">#{p.ticketNumber} · {p.subcategory}{p.mode === 'cargo' ? ' · Cargo' : ''}</span>
+                    {p.supportNote && <span className="block text-[12px] text-[#065F46] mt-0.5 line-clamp-2 break-words">“{p.supportNote.note}”{p.supportNote.byName ? ` — ${p.supportNote.byName}` : ''}</span>}
+                    <span className="block text-[11px] text-[#94A3B8] mt-0.5">passed to Sales {when(p.movedAt || p.createdAt)}</span>
+                  </span>
+                  {canAct && (
+                    <button onClick={() => onOpenChange(p._id)} className="h-9 px-4 rounded-full bg-[#00A86B] hover:bg-[#009B63] text-white text-[12.5px] font-semibold shrink-0">Open &amp; take</button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )
         ) : !loading && tickets.length === 0 ? (
           <div className="py-12 px-6 text-center">
             <span className="mx-auto w-11 h-11 rounded-full bg-[#F0FDF4] flex items-center justify-center"><Inbox className="w-5 h-5 text-[#00A86B]" /></span>
@@ -423,6 +522,8 @@ export function SalesTicketsTab({ viewAsId, canAct, openId, onOpenChange, onRais
                       <span className="text-[13px] font-bold text-[#0F172A] truncate">{t.seller.company || t.seller.name}</span>
                       <span className={`px-2 py-0.5 rounded-full text-[10.5px] font-bold ${STATUS[t.status]?.tone}`}>{STATUS[t.status]?.label}</span>
                       {t.team === 'tech' && <span className="px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-indigo-50 text-indigo-700">Tech</span>}
+                      {t.team === 'sales' && !isClosedTicket(t.status) && <span className="px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-[#ECFDF5] text-[#047857]">With you</span>}
+                      {t.origin === 'taken' && <span className="px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-slate-100 text-slate-600">From team queue</span>}
                       {t.lastHandback && !isClosedTicket(t.status) && <span className="px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-[#ECFDF5] text-[#047857]">Sent back to you</span>}
                     </span>
                     <span className="block text-[12px] text-[#64748B] truncate mt-0.5">#{t.ticketNumber} · {t.subcategory}</span>
@@ -436,7 +537,7 @@ export function SalesTicketsTab({ viewAsId, canAct, openId, onOpenChange, onRais
         )}
       </div>
 
-      {openId && <TicketDrawer id={openId} viewAsId={viewAsId} canAct={canAct} onClose={() => onOpenChange(null)}
+      {openId && <TicketDrawer id={openId} viewAsId={viewAsId} canAct={canAct} onClose={() => { onOpenChange(null); refresh(); }}
         onChanged={msg => { if (msg) onToast(true, msg); refresh(); }} />}
     </div>
   );
